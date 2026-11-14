@@ -55,3 +55,17 @@ Read `README.md` and `docs/foundation/01-mission-and-scope.md` before project wo
 All project-owned executable code is Rust. There is no application or Cargo workspace yet. Never invent a build or launch success. GitHub Issues and PRs in `joeloverbeck/cuba-libre-unfolded` own active work after founding; local docs are not a ticket queue. All specs and tickets must cite the applicable principles and foundations and preserve their constraints.
 
 The Pictures resource collection is external reference material. Do not commit it, execute its Workshop scripts, or treat its art as current rules authority. Original editable art belongs in `art/`; credentials, saves, imports and temporary probes stay out of Git. Source-only checks do not establish native play, agent competence, or owner acceptance.
+
+## Agent skills
+
+### Issue tracker
+
+Use GitHub Issues in `joeloverbeck/cuba-libre-unfolded`; read `docs/agents/issue-tracker.md` before ticket operations.
+
+### Triage labels
+
+Use the five default triage labels; read `docs/agents/triage-labels.md` before triage or readiness changes.
+
+### Domain docs
+
+Single-context layout: root `GLOSSARY.md` and `docs/adr/`; read `docs/agents/domain.md` before domain exploration.
