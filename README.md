@@ -2,7 +2,7 @@
 
 A Rust desktop implementation of **Cuba Libre**, the COIN game by Jeff Grossman and Volko Ruhnke, published by GMT Games. A vector-authored map and interface, three-dimensional pieces, and faction proclamations support play with humans and external Claude Code/Codex players.
 
-**Foundations only. No game executable exists yet.** The current work establishes the repository, its governing documents, and its art-editor connections. It does not establish rules fidelity, playable software, or accepted visual designs.
+**Foundations and accepted source inputs. No game executable exists yet.** The repository contains governing documents, art-editor connections, and a rules baseline and tactical scenario accepted for the next implementation specification. These do not establish implemented rules fidelity, playable software, or accepted visual designs.
 
 ## Start here
 
@@ -15,6 +15,12 @@ A Rust desktop implementation of **Cuba Libre**, the COIN game by Jeff Grossman 
 - [Inspected source evidence](docs/research/founding-evidence.md) and [editor setup](docs/agents/art-tools.md).
 
 `docs/foundation/` is the single canonical foundation directory. `CLAUDE.md` is the real agent entry point and `AGENTS.md` links to it.
+
+## Accepted inputs for the next implementation specification
+
+Start with the [rules baseline and candidate comparison](docs/research/rules-baseline-and-candidates.md) and the [complete Terror/Kidnap scenario and handoff](docs/research/tactical-slice-handoff.md). The [owner's acceptance record](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/2#issuecomment-6885871005) binds both documents at `deacd635db5f71f4d3f092bd9cc99a9d96bb7aab`, merged in [PR #5](https://github.com/joeloverbeck/cuba-libre-unfolded/pull/5). It preserves their evidence limits and explicitly labeled interpretations.
+
+When the owner selects the next implementation specification, use those inputs to prepare it. Source acceptance supplies no new implementation allowance or gameplay activation; GitHub owns that later work selection.
 
 ## Development state
 
