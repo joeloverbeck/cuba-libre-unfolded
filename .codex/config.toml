@@ -1,0 +1,13 @@
+# Start Codex at the repository root. These servers are separate from other games.
+# Project configuration is loaded only for a trusted checkout.
+[mcp_servers.vectorcraft-cuba-libre]
+command = "vectorcraft-cli"
+args = ["mcp", "--headless", "--automation-read-root", ".", "--automation-write-root", "art"]
+
+[mcp_servers.effectcraft-cuba-libre]
+command = "effectcraft-cli"
+args = ["mcp", "--automation-read-root", ".", "--automation-write-root", "art"]
+
+[mcp_servers.photocraft-cuba-libre]
+command = "photocraft-cli"
+args = ["mcp", "--headless", "--no-gpu", "--automation-read-root", ".", "--automation-write-root", "art"]

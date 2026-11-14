@@ -1,0 +1,31 @@
+# Rules and verification
+
+This foundation specializes `EVID-3`, `EVID-4`, `REP-2`, `OPS-1`, and `INT-1` for a published board game. It defines the required source boundary; it does not certify an engine or substitute for the rules.
+
+## Source authority
+
+The owner selected GMT's current official Cuba Libre rules and applicable official corrections, pinned at acceptance. On 2026-11-14 GMT's fifth-printing product page links the March 2019 third-printing Living Rules and a third-printing playbook. The local resources contain that named rules edition, a second-printing playbook, third-printing faction aids, and an operations reference. The exact local hashes and official links are in [founding evidence](../research/founding-evidence.md). This selects the source policy; it does not claim that the mixed local collection has been fully reconciled.
+
+Before implementation, reconcile those editions and pin the actual controlling files, card text, corrections, and source precedence for the selected scope. Later official revisions are proposals to update the baseline, never silent runtime changes. An old errata sheet must not override a later corrected rule merely because it is labeled errata. The supplied Workshop scripts, object names, card crops, and artwork are reference/identity evidence, not a competing rules authority.
+
+Inspect official sources before asking the owner to resolve a rule. An unresolved interpretation must be identified as such, with the source conflict and recommended reading. A local ruling can be accepted as a variant but cannot be called verified official fidelity. Unsupported states and choices must fail explicitly, without guessed bookkeeping or fabricated legal actions.
+
+## Obligations that the feasibility work must settle
+
+The source-derived scope must cover setup and deck construction; map spaces, adjacency, terrain and economic centers; piece availability and states; control, support/opposition and resources; faction order, eligibility, passing and the first/second-faction action restriction; operations and special activities; event precedence and persistent capabilities; transfers and negotiation timing; Propaganda phase order and ending conditions; faction victory and tie handling. Inspect interactions and exceptions, not only counts of cards or named actions.
+
+This is an initial reading map, not an accepted complete fidelity topology. The first rules issue must derive the topology and independent difficult cases from the selected source set before adopting a durable rules representation. In particular, eligibility, special activities, event overrides, resource transfers, and Propaganda transitions can alter otherwise plausible actions. Source-defined optional rules and Non-Player procedures must be explicitly included or excluded rather than accidentally inherited from a script.
+
+## Engine authority
+
+Rust rules code owns legal actions and consequences. Human controls and agent sockets submit decisions through the same checked boundary. Presentation, narrative, and agents cannot move pieces, award resources, alter eligibility, or bind agreements by describing an outcome. Choice identities and the match revision must bind a submission to the state the player inspected; stale or unauthorized requests do not mutate it.
+
+Routine bookkeeping is automatic; actual player choices remain choices. Multi-step operations must expose the remaining choices, costs, restrictions, and deliberate completion/cancellation options that the rules allow. Legal-action discovery must remain complete for the supported decision, even if presented hierarchically; a short list of recommended moves is not the legal set.
+
+Save/resume must preserve unresolved decisions, randomness and source/asset compatibility needed to continue honestly. Reuse existing mechanisms before choosing a new format. Diagnostic reproducibility is an engineering capability, not a commitment to a public replay product.
+
+## Evidence for the claim
+
+Rules expectations come from independently read sources and worked positions, not the implementation's own output. Tests must exercise source-derived interactions, refusals and invariant preservation through the actual rules path. Agent checks must demonstrate valid selection, real consequence, updated observation, and a subsequent decision affected by that consequence. Prompt review alone is insufficient.
+
+A native slice must include the actual authored art, readable state and choices, and a complete bounded player task. First exercise and inspect it through the required [socket playtesting seat](03-engineering-and-reuse.md#required-agent-operated-playtesting), including actual rendered screenshots. Separately test save/resume after process restart and agent disconnect/rejoin, with no duplicated move or stale command accepted. A headless rule test establishes only the behavior it executes; the owner judges subjective usability, thematic communication, and enjoyment after the agent has completed feasible functional and visual verification.

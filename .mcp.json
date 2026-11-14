@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "vectorcraft-cuba-libre": {
+      "command": "vectorcraft-cli",
+      "args": ["mcp", "--headless", "--automation-read-root", ".", "--automation-write-root", "art"]
+    },
+    "effectcraft-cuba-libre": {
+      "command": "effectcraft-cli",
+      "args": ["mcp", "--automation-read-root", ".", "--automation-write-root", "art"]
+    },
+    "photocraft-cuba-libre": {
+      "command": "photocraft-cli",
+      "args": ["mcp", "--headless", "--no-gpu", "--automation-read-root", ".", "--automation-write-root", "art"]
+    }
+  }
+}
