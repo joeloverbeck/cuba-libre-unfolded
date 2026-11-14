@@ -7,14 +7,14 @@ A Rust desktop implementation of **Cuba Libre**, the COIN game by Jeff Grossman 
 ## Start here
 
 - [Repository constitution](docs/principles/principles-for-repos.md), copied verbatim from the owner's Desktop.
-- [Mission and scope](docs/foundaition/01-mission-and-scope.md).
-- [Rules and verification](docs/foundaition/02-rules-and-verification.md).
-- [Rust and shared mechanisms](docs/foundaition/03-engineering-and-reuse.md).
-- [Art and asset custody](docs/foundaition/04-art-and-assets.md).
-- [Agent players and proclamations](docs/foundaition/05-players-and-proclamations.md).
+- [Mission and scope](docs/foundation/01-mission-and-scope.md).
+- [Rules and verification](docs/foundation/02-rules-and-verification.md).
+- [Rust and shared mechanisms](docs/foundation/03-engineering-and-reuse.md).
+- [Art and asset custody](docs/foundation/04-art-and-assets.md).
+- [Agent players and proclamations](docs/foundation/05-players-and-proclamations.md).
 - [Inspected source evidence](docs/research/founding-evidence.md) and [editor setup](docs/agents/art-tools.md).
 
-`docs/foundaition/` preserves the directory spelling in the founding request; it is the single canonical foundation directory. `CLAUDE.md` is the real agent entry point and `AGENTS.md` links to it.
+`docs/foundation/` is the single canonical foundation directory. `CLAUDE.md` is the real agent entry point and `AGENTS.md` links to it.
 
 ## Development state
 

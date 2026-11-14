@@ -44,12 +44,12 @@ If applicable text cannot be located or read, substantive work is not authorized
 
 ## Cuba Libre Unfolded
 
-Read `README.md` and `docs/foundaition/01-mission-and-scope.md` before project work. The foundation directory spelling is intentional. These files record the owner's founding decisions; unresolved implementation details are not accepted product policy.
+Read `README.md` and `docs/foundation/01-mission-and-scope.md` before project work. These files record the owner's founding decisions; unresolved implementation details are not accepted product policy.
 
-- Rules and source fidelity: `docs/foundaition/02-rules-and-verification.md`.
-- Any implementation, tooling, or sibling change: `docs/foundaition/03-engineering-and-reuse.md`. Inspect all four named repositories before implementing a feature. Complete required shared extraction, consumer PRs, merges and pulls before continuing dependent work here.
-- Visual work, map, pieces, or imported assets: `docs/foundaition/04-art-and-assets.md` and `docs/agents/art-tools.md`. Every 2D visual design goes through VectorCraft, with three competent alternatives for a new design. Simple shared 3D meshes and Blender modeling are permitted by the owner's clarification. Use EffectCraft for authored animation. Card faces are the only accepted imported original images.
-- Agent seats, prompts or player communication: `docs/foundaition/05-players-and-proclamations.md`. External Claude Code/Codex sessions play seats; there are no built-in bots. Faction proclamations are public written documents.
+- Rules and source fidelity: `docs/foundation/02-rules-and-verification.md`.
+- Any implementation, tooling, or sibling change: `docs/foundation/03-engineering-and-reuse.md`. Inspect all four named repositories before implementing a feature. Complete required shared extraction, consumer PRs, merges and pulls before continuing dependent work here.
+- Visual work, map, pieces, or imported assets: `docs/foundation/04-art-and-assets.md` and `docs/agents/art-tools.md`. Every 2D visual design goes through VectorCraft, with three competent alternatives for a new design. Simple shared 3D meshes and Blender modeling are permitted by the owner's clarification. Use EffectCraft for authored animation. Card faces are the only accepted imported original images.
+- Agent seats, prompts or player communication: `docs/foundation/05-players-and-proclamations.md`. External Claude Code/Codex sessions play seats; there are no built-in bots. Faction proclamations are public written documents.
 - Development playtesting: foundation 3's required socket seat must ship with the first interactive slice. Reuse Arkham/mudsong/shared interaction and screenshot facilities. Perform feasible agent-operated functional and visual checks before asking the owner for a human playtest; faction players and the development seat are distinct capabilities within this game.
 
 All project-owned executable code is Rust. There is no application or Cargo workspace yet. Never invent a build or launch success. GitHub Issues and PRs in `joeloverbeck/cuba-libre-unfolded` own active work after founding; local docs are not a ticket queue. All specs and tickets must cite the applicable principles and foundations and preserve their constraints.
