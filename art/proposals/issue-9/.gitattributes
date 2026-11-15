@@ -1,0 +1,2 @@
+# Native VectorCraft includes a binary PDF-compatible trailer; preserve its bytes.
+*.vectorcraft binary
