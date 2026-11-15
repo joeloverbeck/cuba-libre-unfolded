@@ -2,6 +2,8 @@
 
 Decision-only VectorCraft alternatives for the owner's requested simplification in [#16](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/16#issuecomment-6893055547), within #8. Baseline: `9570fdef0f27c02f78daf2c500f3e10a7eb72fa2`. The owner explicitly accepted that baseline's Control/Support-Opposition disclosure as fully solved; this is a separate presentation decision. No runtime code or admission manifests consume these studies.
 
+The owner subsequently [selected A](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/16#issuecomment-6893152418), with the emblems moved upward beside the title and the map extended upward into the freed space. The context studies below show the earlier lower placement and remain historical comparisons. The selected runtime component handoff is [VICTORY.md](../../atlas/VICTORY.md).
+
 The normal display is a centered row of the four existing faction marks, each above its signed official victory margin. No faction names, raw scores, Resources, thresholds, explanatory captions or contribution buttons remain in that row. The initials are part of the established marks. Full faction names appear on hover, helping identify the marks. Fixed faction order and shape as well as color distinguish them.
 
 | Alternative | Benefit | Trade-off |

@@ -1,0 +1,1489 @@
+{
+  "format": "vectorcraft",
+  "version": 4,
+  "generator": "VectorCraft 0.24.1",
+  "pdfCompatible": true,
+  "pdf": {
+    "mime": "application/pdf",
+    "blob": [
+      0,
+      14963
+    ]
+  },
+  "document": {
+    "version": 3,
+    "title": "a-atlas-reader",
+    "units": "Pixels",
+    "rulers": "artboard",
+    "color_mode": "Rgb",
+    "artboards": [
+      {
+        "id": 1,
+        "name": "Artboard 1",
+        "rect": {
+          "x0": 0.0,
+          "y0": 0.0,
+          "x1": 1920.0,
+          "y1": 1280.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      }
+    ],
+    "layers": [
+      {
+        "id": 1,
+        "name": "Layer 1",
+        "kind": {
+          "type": "layer",
+          "color": {
+            "Preset": 0
+          },
+          "template": false,
+          "printable": true,
+          "children": [
+            {
+              "id": 2,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.93333334,
+                        "g": 0.9137255,
+                        "b": 0.8627451
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            0.0,
+                            0.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1920.0,
+                            0.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1920.0,
+                            1280.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            0.0,
+                            1280.0
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 1920.0,
+                  "h": 1280.0,
+                  "radii": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    0.0,
+                    0.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 32,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.9843137,
+                        "g": 0.972549,
+                        "b": 0.9372549
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            280.0,
+                            280.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1640.0,
+                            280.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1640.0,
+                            1180.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            280.0,
+                            1180.0
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 1360.0,
+                  "h": 900.0,
+                  "radii": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    280.0,
+                    280.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 35,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  1570.0,
+                  328.0
+                ],
+                "runs": [
+                  {
+                    "text": "Ã—",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Regular",
+                      "size": 29.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.1254902,
+                          "g": 0.19607843,
+                          "b": 0.21960784
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Left",
+                  "justify_auto": true,
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 39,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  1000.0,
+                  1123.0
+                ],
+                "runs": [
+                  {
+                    "text": "Close reader to return to the same decision.",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Regular",
+                      "size": 19.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.1254902,
+                          "g": 0.19607843,
+                          "b": 0.21960784
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Left",
+                  "justify_auto": true,
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 41,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  40.0,
+                  48.0
+                ],
+                "runs": [
+                  {
+                    "text": "CUBA LIBRE",
+                    "style": {
+                      "font_family": "DejaVu Serif",
+                      "font_style": "Bold",
+                      "size": 32.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.1254902,
+                          "g": 0.19607843,
+                          "b": 0.21960784
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Left",
+                  "justify_auto": true,
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "swatches": [
+      {
+        "name": "[None]",
+        "paint": {
+          "type": "none"
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "White",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 1.0,
+            "g": 1.0,
+            "b": 1.0
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Black",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Red",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.92941177,
+            "g": 0.10980392,
+            "b": 0.14117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Orange Red",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.94509804,
+            "g": 0.3529412,
+            "b": 0.14117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Orange",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.96862745,
+            "g": 0.5764706,
+            "b": 0.11764706
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Amber",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.9843137,
+            "g": 0.6901961,
+            "b": 0.23137255
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Yellow",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.9882353,
+            "g": 0.93333334,
+            "b": 0.12941177
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Yellow Green",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.8509804,
+            "g": 0.8784314,
+            "b": 0.12941177
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Lime",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.54901963,
+            "g": 0.7764706,
+            "b": 0.24705882
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Green",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.22352941,
+            "g": 0.70980394,
+            "b": 0.2901961
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Emerald",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.57254905,
+            "b": 0.27058825
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Teal",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.40784314,
+            "b": 0.21568628
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Aqua",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.13333334,
+            "g": 0.70980394,
+            "b": 0.4509804
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Cyan Green",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.6627451,
+            "b": 0.6156863
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Cyan",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.16078432,
+            "g": 0.67058825,
+            "b": 0.8862745
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Azure",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.44313726,
+            "b": 0.7372549
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Blue",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.18039216,
+            "g": 0.19215687,
+            "b": 0.57254905
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Indigo",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.105882354,
+            "g": 0.078431375,
+            "b": 0.39215687
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Violet",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.4,
+            "g": 0.1764706,
+            "b": 0.5686275
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Purple",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.5764706,
+            "g": 0.15294118,
+            "b": 0.56078434
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Magenta",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.61960787,
+            "g": 0.0,
+            "b": 0.3647059
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Rose",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.83137256,
+            "g": 0.078431375,
+            "b": 0.3529412
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Pink",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.92941177,
+            "g": 0.11764706,
+            "b": 0.4745098
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Brown",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.78039217,
+            "g": 0.69803923,
+            "b": 0.6
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Tan",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.6,
+            "g": 0.5254902,
+            "b": 0.45882353
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Coffee",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.4509804,
+            "g": 0.3882353,
+            "b": 0.34117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Chocolate",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.3254902,
+            "g": 0.2784314,
+            "b": 0.25490198
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Sand",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.7764706,
+            "g": 0.6117647,
+            "b": 0.42745098
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Copper",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.6509804,
+            "g": 0.4862745,
+            "b": 0.32156864
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Rust",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.54901963,
+            "g": 0.38431373,
+            "b": 0.22352941
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Walnut",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.45882353,
+            "g": 0.29803923,
+            "b": 0.14117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Espresso",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.3764706,
+            "g": 0.21960784,
+            "b": 0.07450981
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "White, Black",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Radial White, Black",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Radial",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Sunset",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.9843137,
+                  "g": 0.6901961,
+                  "b": 0.23137255
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.83137256,
+                  "g": 0.078431375,
+                  "b": 0.3529412
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Ocean",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.16078432,
+                  "g": 0.67058825,
+                  "b": 0.8862745
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.18039216,
+                  "g": 0.19215687,
+                  "b": 0.57254905
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      }
+    ],
+    "swatch_groups": [
+      {
+        "name": "Grays",
+        "swatches": [
+          {
+            "name": "K=90",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.9
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=80",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.8
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=70",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.7
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=60",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.6
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=50",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.5
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=40",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.4
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=30",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.3
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=20",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.2
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=10",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.1
+              }
+            },
+            "global": false,
+            "spot": false
+          }
+        ]
+      },
+      {
+        "name": "Brights",
+        "swatches": [
+          {
+            "name": "Bright Red",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 1.0,
+                "g": 0.11372549,
+                "b": 0.14509805
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Yellow",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 1.0,
+                "g": 0.9019608,
+                "b": 0.0
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Green",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 0.0,
+                "g": 0.9019608,
+                "b": 0.4627451
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Blue",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 0.16078432,
+                "g": 0.4745098,
+                "b": 1.0
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Violet",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 0.8352941,
+                "g": 0.0,
+                "b": 0.9764706
+              }
+            },
+            "global": false,
+            "spot": false
+          }
+        ]
+      }
+    ],
+    "graphic_styles": [
+      {
+        "name": "Default Graphic Style",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0
+                }
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                }
+              },
+              "width": 1.0
+            }
+          ]
+        },
+        "id": 1,
+        "unit_box": true
+      },
+      {
+        "name": "Black Outline",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "none"
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                }
+              },
+              "width": 1.0
+            }
+          ]
+        },
+        "id": 2,
+        "unit_box": true
+      },
+      {
+        "name": "Heavy Ink",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.105882354,
+                  "g": 0.078431375,
+                  "b": 0.39215687
+                }
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                }
+              },
+              "width": 4.0
+            }
+          ]
+        },
+        "id": 3,
+        "unit_box": true
+      },
+      {
+        "name": "Sunshine",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.9843137,
+                  "g": 0.6901961,
+                  "b": 0.23137255
+                }
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.94509804,
+                  "g": 0.3529412,
+                  "b": 0.14117648
+                }
+              },
+              "width": 2.0
+            }
+          ]
+        },
+        "id": 4,
+        "unit_box": true
+      }
+    ],
+    "symbols": [],
+    "guides": [],
+    "grid": {
+      "spacing": 72.0,
+      "subdivisions": 8
+    },
+    "raster_effects_ppi": 72.0,
+    "images": {},
+    "next_id": 42,
+    "metadata": {
+      "author": "",
+      "authorTitle": "",
+      "description": "",
+      "keywords": [],
+      "rating": 0,
+      "copyrightStatus": "unknown",
+      "copyrightNotice": "",
+      "copyrightUrl": "",
+      "created": 1794703821,
+      "modified": 1794739632
+    }
+  },
+  "images": {}
+}
+ VCBLOBS %PDF-1.7
+%€€€€
+
+1 0 obj
+<</Type/Pages/Count 1/Kids[9 0 R]>>
+endobj
+2 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 3 0 R/f1 6 0 R>>>>
+endobj
+3 0 obj
+<</Type/Font/Subtype/Type0/BaseFont/ITCVWN+Lato-Regular/Encoding/Identity-H/DescendantFonts[4 0 R]/ToUnicode 11 0 R>>
+endobj
+4 0 obj
+<</Type/Font/Subtype/CIDFontType2/BaseFont/ITCVWN+Lato-Regular/CIDSystemInfo<</Registry(Adobe)/Ordering(Identity)/Supplement 0>>/FontDescriptor 5 0 R/DW 0/CIDToGIDMap/Identity/W[0 0 531.5 1 1 580 2 2 668 3 3 236 4 4 567 5 5 433 6 6 528 7 7 256 8 8 364 9 9 497 10 10 560 11 11 358.5 12 12 557.5 13 14 558 15 15 822.5 16 16 477.5 17 17 240 18 18 236]>>
+endobj
+5 0 obj
+<</Type/FontDescriptor/FontName/ITCVWN+Lato-Regular/Flags 131076/FontBBox[21.5 -8 757.5 736.5]/ItalicAngle 0/Ascent 805/Descent -195/CapHeight 716.5/StemV 95.4/CIDSet 10 0 R/FontFile2 12 0 R>>
+endobj
+6 0 obj
+<</Type/Font/Subtype/Type0/BaseFont/NTYVJP+DejaVuSerif-Bold/Encoding/Identity-H/DescendantFonts[7 0 R]/ToUnicode 14 0 R>>
+endobj
+7 0 obj
+<</Type/Font/Subtype/CIDFontType2/BaseFont/NTYVJP+DejaVuSerif-Bold/CIDSystemInfo<</Registry(Adobe)/Ordering(Identity)/Supplement 0>>/FontDescriptor 8 0 R/DW 0/CIDToGIDMap/Identity/W[0 0 600.09766 1 1 795.89844 2 2 872.0703 3 3 845.21484 4 4 775.8789 5 5 348.14453 6 6 703.125 7 7 467.77344 8 8 831.0547 9 9 762.20703]>>
+endobj
+8 0 obj
+<</Type/FontDescriptor/FontName/NTYVJP+DejaVuSerif-Bold/Flags 131078/FontBBox[-7.8125 -176.75781 850.09766 742.1875]/ItalicAngle 0/Ascent 759.7656/Descent -240.23438/CapHeight 759.7656/StemV 168.6/CIDSet 13 0 R/FontFile2 15 0 R>>
+endobj
+9 0 obj
+<</Type/Page/Resources 2 0 R/MediaBox[0 0 1920 1280]/BleedBox[0 0 1920 1280]/TrimBox[0 0 1920 1280]/Parent 1 0 R/Contents 16 0 R>>
+endobj
+10 0 obj
+<</Length 11/Filter/FlateDecode>>
+stream
+xœûÿÿ Şß
+endstream
+endobj
+11 0 obj
+<</Length 431/Type/CMap/Filter/FlateDecode/WMode 0>>
+stream
+xœm’Moâ0†ïù³KôÀÆ	(BHmB¤ú¡RmÏÁ¨%b[sàß¯ì1´Zí!‰™×w&Ã~½í§Òp:ûÍá3:Óê¹³cµcÚ¿ J”×ì°ëŒĞCÕÖ­V>c¬Õâ<J¼jş'yÂ“Òß‚Pªqğ¦ÏûPşŒk˜P ¢'h%j¯üø]ÆØtƒ2zEÆØNËÊôÁÜå©äoÎˆ=z8*-]ª‡P7+JJøDñ-úÎÆÃûËà±oõÑÀŒTr´I	 ¿ãIŞ]`İÄ#e^D§ô	&W³?’ûÑÚ3“ÀcµŒß<4ÿÒõyjøM]Bñú¸XLäŸÏF^¡ ‹ÂHl'Ğuú„Ù†sÎ·°iš¦Ù†Šÿä‹;ÅWç¢¼ØÂ†óz¹TFšÏˆf‘Ñœ¨!º´LÊåî‰–‘JN´"eIô@Ê‚è‘hNôDÊDQº³&åhG´"jˆêHE çrVP‹"ê¯ÜÅá¤)„1…m¸ı1:‡ÚÇeˆ?!L\i¼m•56œŠO\Çëfzmş8¤ø·
+endstream
+endobj
+12 0 obj
+<</Length 4966/Filter/FlateDecode>>
+stream
+xœ­Y}l[×uÿİ÷EŠ’(Q)K´¥G>‘’È÷(Yß–i™"EÙe[¶e›ÏrbR¤dËú¢m9şÈê¸Iì9Jí®KÒ.M×­MÖ6Ã:\JMâ$Cı£°bë0,kP (Š­ëŠÁMalHby¸”,;NÛ“`sÏùİ{Î=çÜs¯E Å¸-éGæåÆ¥?ğw ş}"{tæç•ïİÈK@ñ—NŸ›8ª¾p(%?=6Êu¿ Ô¬ĞyìØxªô×XjF Ô›™?;ğ”©¨9`hz.ª½ìÙÔ|@ãLêl–ü¸ô8Pó+ òljfüÑ7¾üà*„w²s§æ—7BêŞeúìÉñìœe²¨û_ ¯ã÷ÿy¯ái<->ğ·€å—M¯._¾ókA¼ó~~´#>Ïß¼ó›å¿^A‰ßÄ;¿)àÇãÃ˜tQ|†û%“IÅ¯ñOs?¹G?Í?sfúÜZ{oÜãÕMñÃ¯g(T™b"¦Ërü:¬{âTÚw(AÛ]´QONÈû”ó¦^7ÃŒtZs¹İ:ETé_A4Ñ(Q©œœĞ(§Ê™¾5Lß¡ÅFb‰ÆÒ±½£	·âv-$d:<œpÓ°î’i7ãºu]ÎåA©mN¸#™¶0}C¾5œ'ä……”L-Ã‰¤K¦2ÓY×É¸Î¤+©ëº‹’€®+Ã‰q]×(¯Ê1™
+ŞTF¦bt8AE%B%%âr»uJ’TÅ­¸åLN‹ÈL“7Î>©˜Œ¥)ïwËTŠÊò%\‹è¥‚oO"9ìJíÕŠî–ix_‚’€‹mª`Y£¢JMÑÀ"¸|h$•š”ˆ"S(‘åÆ&(IS’¤¢_£&UfNGÓ×ŒÉlNê’ì7œ4«‹¦bDc¿{5ØEê½Á·äW!…"JoR-()–#Rp±hRÙEÃ«ñ¡¼WIõçMÂtZ?œ`“ÃšTÂjF‰,[øXÂíRÜºß­ÑR5Çq1šIõkÔªR’”eZdÓeZ¢DtZÊF{2-U"ºFËT™–!‘¯H/()j&å…¤L­JDÑh¹Iä„L¿^OKÇ•³µ©ñ=‰ø¾¼ĞåÖë©İW¨9”E÷'reeQJRZ`EJ9o$WÂ>J9o„§"SŞ;œÈ±àQÁYX³~·BIj…wåõl
+ç5$:-‰n£¥ÑmIÊİ›ªOH`°+ı”D)z	!F®ì*ràb#	Z¦Dä-V"Ô¢P1‘“”¤^)/'°"YHæ*¤ =pytVª9Øu¨9Â¨SÍqŒV©9ÑujN`´ZÍ‰ŒÖ¨9‰Q—š31º^Í™İ æŠmRå %iÔo0'40˜“­UAK€ujµÊj0êVs£5Ç3ª¨9Ñz5'2êUs£>5gb´AÍ™mTsEŒªª2JMSå$-OÊQ…’$ËgŠ•Õ[P¥Z€j~6«²¼Mş„L(©n…µ±ßŠp¹u¶¬¦‡8i³?'G,Ñ¢Ü¸62W·ªr‡áo›
+Jb7BIàÆ™ÎïI¯Òk%¿FÛU9$oû)¢©nv¨ÁªF;”’hº[£]jƒÓ+åmìğRÎ»caa›²MIÉ‰1k‹Jd±“G¥_£İ*…“
+^*x-ŠÆ‚Š,‡º5ºé®Zæ× ‚a(™&ÙyïI,q2/»–8_£GX4GåÅ@+I*Dï?JIÖ‡òÍ‹&3
+å£©Ìp‚rÑ”‹òÑ$ëA÷ÏI)²LŸ2êv)Ô œ—š£†•¤ü #J¾Û	Ñ$‹½èMQñc«RÁÇvä5œğ&3Ãù.w×–®ÑY–©è+Ä@	ukt³!¦f%"Ëò€²cÙ
+!c(D#‰ RÜ.æqA(3_VB.y©èİ±ööÍ'êA\ÈŒÂÊxKÁƒèJj’ìz¾‹+©ìU9È¢6°7!‡ô`.H*İº*^+ß‹~ ¦O¥İ.Qé¦À‚,‡X±,t? C…h®VØJtYq)rH*İ…åúÕœYğFş€RÜöÿU}Ì}Ö_BJ·Ë½&ßn½àcŒceÿlÿnyæba«[Ş¦R8ò‡sìÚƒ´İ¯ÑíŸ ß¡æ@*í´Ã¯ÑA•vù5gQ‹)rPXPR+qRY9Òx@£;ÕE ? Ñ]ê"cv«‹Ä«‹Äìa˜X@£{†1û†1#Ã˜ıÓĞè†aÌA†aL‚a£3L4 ÑCÃ˜Q†aÌa†aÌC3ĞèÃÃ˜#Ã˜$Ã0&Å0‘€FÇ†1i†aL†a3®ÒÕ0O°íhô¨Ámhô˜QO=htR¥›WÑÇÙÀ@OCOƒÎ¨4´
+e:gpš58=¡Ò-«Ğ“l`@OƒÎƒV—Šnåñ	Pó8åë‡Ï®Ü) @øÅçáE6abáxp<É‚fp<¸4ˆfAL£¨HÒ!Ié8Ìf““)cÚ²Ù*ëÿúz‹eCÀŞË·µÖrJ«PF”_¯ĞÑîS<VNñ4ØÛ;:NñøˆÛæîrÛÜToêßÜztGS­ÖÙ¢¶ó%BÖÕ"ïØÔÔİ¸¾¸º$İÛâlÜ`³mht¶ô.ÿáG­­|ú£?N;}lJx´»kxsÀç­š<íi4{ÛBÎ
+çG6‡mµMUUµ¶­ÂKíUv<÷“@1¤%‰#-oi("]E¤ªˆğßZşêòGHfù›GˆN&—_&c?!éå’$Côäò7ÙòWók¹sS´Š/Ce´^à‰n¼ GV"ˆ³n7‡(’Q2M†¼\ëœ¶2“•¨&Ke€´Ö+Q<AÂu´WtÖ·µ:«L†€cqtTÖrm­½\W§ğWå%;.~ù£Å±‰×	÷•ç©‡%{yEûÈ…Ãs×/î¼ôÊdøèÁ¸×FK÷MœœºA¬_ÿ:±¾=56¢[JZvşé¼ü£/•É=e x 1ñxT‡!d< ƒ! <xoqˆM±‘Ø¢xãƒ­âp¹ó¾P#ˆ°ÃİqZ4œWç1*`6.[Ù®ëÁš92¤‡íJWu¥Ûá..‚Ø%#+åä:Ú{9{kg¡œ•N®{nñB4zaq.»ÄèRö‹Ï>ûÅ¡qïs‚8xåÆ™³o]Ù±ãÊ[gÏÜ¸2øÑÙ|ç•wÚÇ>è;?Èç-zç&_)ˆ¡7¼9Dˆ¸p7€Ï‚/Ì‚q¢8_Ià47ÔÓİàõÈ®êz›dqˆ´&7R¡ººz	+v–ªö Ä¼g™äŞ+©.óuµkÛÛ\ÚàÃé‡µÖ±kÿ›ßì´U4nÚ»¥}W{µ6x$}dPk9|ù@æ/zø]N§«ªª±£®¡İ·Áİ:¸eàÌÁÖXg©u½g½+òø»6ÈM½£}=S{Z¶v±=rØwç}şŸfh˜ÍçÆIIÌš !Ír;
+Ÿe•¹²E×ïœã†ôp% ú¼îºêª²R˜a®7³2ig1‘LÄÊ¯d/ø%Å]Ë³°´µVñmJ4¹åâsÜîÃ“Ù®ÉÜg·÷§³£/œWTßå›Gæ·GSÍ6g	7Ù{4ŞôÜ“ËŞÆÍ>û¶§Şyâøõ?Ş¹åÔËÓşõÉkGšëêël,¯Wî‚	ëğ\œÖ'Â‰ØO¸AWœı%À	p…®çgT°Ò_)Sğ|†*ÌtB&ây5ÖhÃ@8#|Ö €ãîÑëúkn‡§Ò#Zª„†³Ê$)£’M6ÅÆ¤³åsãòæªRiµÓÓßÜl_šØàxÿ±ÓÖ²KÕ%ë»ö´ß¾ÈßrºŒÜöİ¹É'Ê°	'^­-ãÈ`œÖ96I¢d³""I2ò5!ü¨@
+^ûç3-ŒB¦…!=\lWÖ5xËÍ–õbåW;‘±£ZÎaS<¾æ5ùîZmı¾nñÑoÏl¬Ñ¶(Í»b[koßyû‘ıO
+î®Yo®l9Ò³ùØN-òì{b,¢÷5WUÔ‘ïu­ışÆ¯Í^ß*sÙ=Ãİ™kûoŸµU'½›îÈx,4w KØıÈ9w“Ûn5âr€Õ¼xVx1.©'*­à	¸Á8õ'Âë%"ŠFc3öfÄ„å	ÇeXİËSsœ	£öçø!=l-++ó–yëë}Ki()Î.»Mñ4ç[x¡ìU6Şİ:¿ıêŸy"É-‰'ºû,å}ß˜9x-ÓÊ¾8ñĞ¥v^ˆv¼ófúê¨x‡ğ¶zİ•Œ>şö…ìk{¶vs¸s“{]ì…§Ã–"Bø:‘í«u8®Çs'!‘HbV „ğ:x~‚V6`C®°çksDâIj-H;Ø½d¯°•—•ŠÜÄm¶TD¯ƒeyé²÷’ÍÄæv¸m•Îüif×ùŞÙÏ/w~£‰wØïò{½×7Õ:ÌÖâöàãå—/pÓöÊm²©Ì¾üâgoÿe¸·¬¢Ì¶?°OÜ¹Éÿ¿…*ì|Õ)²ÃT¨f»(p7Á*£„÷‘+\µ"2LµrÇèáR U¨RõnÉ²İWwÓak3Üíì²ñ?<î³X#/ß÷ØÀâäôî§zø[{gvè]™k¸Ë·ÏŸºp¿,ôşßÕèÅNÈªkÆAÏ÷	’awœó¾PPè¯¹íŠ£>ßò$›bc'DÊ·€*ÒáÜ÷Pç¾Çö«K“S»ŸêYšòñcŞP ªküÚÛr—N=6ÔwÛÉßòæï0Ã/ñh{mà˜g„ñ[·ÙÇİös¿mîûêÑ5v—øÙØŞ{mŠ7òöÄÿDøqğµ¦b‘ç…•H8%"åLÄÍ&‘/´˜0Ó’QÖ7gï*õp9 ?üŠCqøêİEW ÍÆ
+)ß"ï’u­ÏW§|E¥İŸ;<ñØzgì@ªuø3ƒKÇÆÔİ!eiìáH¶™¿å=KœLu·¯kûüa¶‘3Ö…FCŒ;vÛ–Û¬N@Øû…J¡b*lQ	kX'Ìß–õwŸá¹µÏ[i®ß6Ç:hQ£OiT<’¥&@>ş¢3NĞšËÒYÅï2—[Ëê;vvÇOîlğïœéïéòV8KZİ#©ã]G^<Û¿õ\îÔÔ‹[ù¾â’êÚêÌµÄáÏ§Úê|u¶¾¦†ŠKoÿÑ‰·ŞÛjôÆ ™—À£
+Ûó;t‚ãŒÎ6g-# Ø[UŒß£ĞÃV ²Âb6„báAh_óHcI#;ßu(Í55š§²Ò£ÕÔ4+v¼ø[¤·FS*+CVY©4³Ìİù5™Ä¯`‡İ¨‰•ÃÜXÏYœ®Õ·CŞÈœİ¬©	²•uÛgW.Íc·{4#¯ì?/ÿ[÷ö÷”…n¡Úô,İÿô‹o3èvÕ}øæíÿ°|Æ< \áÛä¿¹°üı‡oşÏ¿X>c¬´öÇ.4@®àq±GÈ»xF˜Å?†¨ c[†{WùŸ¡OHâ ÷£xB8Œ«ìŸ4ƒ«ü›!?Å	ò.æ \ÀKÄBêÉEò>7ÍMs?å§ùÛ…/
+?kÄ'Å¤)kxaÇÏQÏA‡a$q†}ÓUü%ğ†ÖŠ¿eœPËÆ{ñfr¹Às°’kÇùJ°Ü,ğ"qæ/a—-ğ&$¹+ŞŒî¾³üº_Œ~ÅV	ZùW|é¬hç(æÅ9œÄ$âæ!£i4AF+Z°¡¸ÈÃ9È˜Ç9cÓHaÈÂiL!…S8ı8IŒ#cĞ´±&[{Yô Í8cü•²kV
+"9Ì Ùğà&1c±ã8…qœÄ#Æº20‡YÃß]HaãáÁR˜Ç<^1ëã˜5æ²Y§+l¶‹cÆ¬}Ø!ÈØ¬]»ö½+¨qÀ˜}
+“FÆF±ñ;<…´Õ,æq
+AcÆ4‚˜ÃIE3vc Ch*ø™÷šíò(NÑ8ù©£Ü³º|ßJ=…¶"âş]µ"XÈùæÕJè€†tŸ†üÁ9.Ø˜(DñÔš¬®Ø×î³×¯Iœ‚Œ”‘Ÿ“HÙš10SU?}ı?õŒßUÏw+³£şdŒàŒágsHº[ÌaŞˆ-«ÖILÌ¨q<ò©ÏÆ§ûR› Ÿo´ËAöıù~â×ñı½‰!×tJò¼Îæ E^=4ĞéágƒpIÊ¼Ó¼Ej2W™DsA4%”bB›$‹†¨8òİuíË.Z.J€ˆ"å‘ï"¼úkÈøL®\Ù“ á+	cäc£7ÌA„ğ•ôˆ!Ôu]—¤Í»Í[¥€¹Ú$–ø¯“;—¨p5Ç¡?'fúüºISh
+endstream
+endobj
+13 0 obj
+<</Length 10/Filter/FlateDecode>>
+stream
+xœû  ÀÀ
+endstream
+endobj
+14 0 obj
+<</Length 388/Type/CMap/Filter/FlateDecode/WMode 0>>
+stream
+xœm’Moã †ïş³¤ô'MÛDQ¤­SK>ôCIÕ=;0É"Å€ òïW08]U=ë™w†y`¿Ş÷ÓßÒp:¿å°Co'pZ¿t¶`lkÄĞ£¯ˆå¨úXg„Ç u»mµ
+c­çAâ˜óSÊ”şJˆ= |0}ÁØ‡
+g\Á„<A+Q.Ào
+Æ>Ñyeô
+ª‚±g-kÓGs¾(s(ß{pTZºÜ	±oQÍ@*2¥UôMÅû‹Ø·úh`NYr°9  ÜáIùà.0IÆn@â‘”7'Ñ)}‚Éhö?q?X{ÆhxŠ¢–é_Æá_»¡Ì_£yJ¨¾B‹yƒòÏ‹‘#TdQ‰Şv]§OX¬9ç|ë¦išMìøM_RÕá(şv.eWXs~7ß$š%Z,ˆæ¤Íˆîˆ*¢E¢'º'­&z Z=Òy—%i‹ä.ûˆ>ãu\FÎ¡é6Ò)Ä‘•ÆëµZccUúÒ{ŸV¤·æ Ùß¿
+endstream
+endobj
+15 0 obj
+<</Length 4698/Filter/FlateDecode>>
+stream
+xœÕXtUÕ™şöùÏ¾¹ïWò 7¹7!H^Ş”r‘ˆ@ˆ	Dèˆ“7	$$äŞ.4¤Šˆ_(¨hÕúÀGjèT[ñ1mIÛéŒqŒÓÎjdœ.†ÕZ8ÌÚûÜW¢«Y]“¬äî³ÿÿıß÷ï½ÿsÁ X0BYË@È{ÛoŸÚàu€nï]×ıëÛÿëM@i°{]W¸ıßfÿ¦PÆ~¨£­©ÕO.Œ{ Ìîèhkr|Çô÷€ñM Ó:ºC[®T•Ÿ Æß (èêiiJÒo&'€)İM[zÕÛÕ­€© €wcSwÛGëo¦%@ê³½=Ánc™@öia¿·¯­÷†»ç9E ¿
+¶Mü‡‚FœaN¬G€‚(ìÖŒ0v²fìC#ÛÆîgÛPƒ0·âwØÉ¶Ëõ9l;ÛÎ…ø9ÇôËaÏ¢ÀJlÂvÜ/}üH½AmW·©í¬™íf»¡àC1¦«Åj!€í ¶±fÖ,Úl>›Ï
+ÑJâ1 g°a<ÈÌü=4à-–c58Æ33Ba£Ì®´3+€ *PxD||ëÑ03óQùûÖ£a>jHQÎ°ml	ÂÌ 6â„±	›˜™•S¹ò{(¬aìQ±g Ğz@mTÕò·ÍX'F”f¥\!fIìóğOxUânÇİ êğŒü:‹ŸÒ,ÖÉMÿ>’®e>ƒ•&İŒ•€ÁƒíJ;r¨A ¯¸J
+C‘×yDÉ¯n=¸nµ÷í5¾â¢I^g’÷jØÂŞ£çÏ×®V§ò5GxÖÊ7Qóó>ú¢ÁŠ‹–Ö®öùqUeÄjUceqÑÒúÕG”|ñT¹Æç+.ªª,yÑ®«íü0IÈXÕ`ø€y·¢¢ôÍ“ã—ÃyrüäxY²ËçÊ÷¹|í*ÎiêÙO´á$ûï×g(CÃùùş21?»Òn"Û>×MVÓ6êjw[3‘’o°Mu?ù®´8vúÍ³ãNm¼,`+ËêÉêW¶elË<˜e`k™AõyárÂçWÓ\y%,/Wq9İåşÙsø™«´÷5M»M«fÃ¶ŞÊ¼Ş<ãı§yòä?ë™ì™_ÿ+{”µ±vöh`v÷ë#ÚqíeíeíÄ“O`XtşcÃ{|¨	L³’3`šâ²©„‡œÒ›IÜ^`u;Ü¬€ç¡$Óyz|ìäØÙ1ç˜D|õxšßù¾«¢¢¢¢,`š?õàÔ¦Ÿª²µ,o–/5ÏåœRîŸ}€ˆ‚©ÇÇŸÿéûÏSŒÇµ_hkOh?ã7„ÃçRµÿø—XªòÛpø´g´Ùt¶
+ ¡0ÔñQ¸1ÓP(°&äİ™I<˜Å™’lõÜy59-ÏäÍw¨(ÈJÎSró§Çıc~!–+­ÂUáª¨¸¥ãşÓãş³ãe¯æL¯Ş;ØÚòYå®¼Y>¯ššbHÊf©)ªÊı³g]1}&sEÇS?s1÷¯}ô™ö¢ö¶ãÙ'}qÇ¾ãG_{c_Xı8|ô{·HIıáá_ı„Ú·ß2ğGÏı="ö¨rş3À°ŒÂ7ö®sç8İ*W]9\µäpÕhRÌ9œ«Îl…w¶ËM¤8ìŠ-›«èºÌM–§ÍÄ‰P0	n—Ón³ZÌF±olÉ$;O¾ëJá]=6æ?9î®([Z¿:ÉÉ?MâŸ¦ù“œÆOåƒS>É^Ñ·&7oV9+gå©¾Yåä£òTò‘s«âÿO¥üÎsU÷l;÷ÁàK*ûàßÃü†Ï‡Ãìríƒ°’§\%ò§àA>
+æ2-¦$!ˆé6 CÑì¶ª(0æ)¹v‘5ş“ã"iJO:sÊï|³,`*3—YÊ¬e65FjË7«Ü%xÆ	eÙNAiøÅãÚnİ5òQXPHÑ=±˜Æ<J®ÕyzÌvÌ¸,àpØÊl[­­ÑÖk²%%ú)OÕ½œĞ}xôû@äÙK|TfÙşÀ‹ÙDVc©””£ªt™QE©Y–ûò’Rƒ.›:à0$yUNFL!¯%ÏCv«gØ¬Şi)Î‚,k;…Î1ç‰.wZ…+­Â-ÓQÈuÊï?sÊ¯rWˆß˜hNş©+­bMîKp0¶öK’Ã¡¬eÙ,-¹<ÕG%L$¦Ğ,–·ùÑ<Uç¯ÙZüË´ÔSUMóNœÃñã´’©lê;ç†wì¹ï¾=;”´İp½Öf?Ø³üÜ‡aÁÁOø®ïş½{‡£ºá£HÃõÛ~Kê½É–Ç~WÒ½¦{hÀu'&•V·½Ğè6¤¸§¨(p›ó”Üôø;=.µ?=>~vÜ9vÊ9î+{¥6£'C‰)!ÿ"ADµç_»ãÜ¶s×.-¬ìÜ%°i‡~®ù;{ìÜáŸk‡ jåÆ£;_).ùkÇÕÿ£¼Œ?©÷~ş¡öìÇöQ“8‡Pä°ˆI;4à(ÿCíÙ^û¨´”øcVßC»áF4>Ç"ÃĞh˜uş3åQÅ ‘¡Ñğ$‚ä"„·Ùel?ÛÏşU†”Ğ}À¬˜0OIÏN¨3Ù!®kî ©&YI ÒfHÇ±H[?‹´	¹øU¤­&´9ÒYt­^–i‘Ë®Œ´-˜Ë¾iÛ’§³ı‘¶)¯a!zĞ‹0úĞ‰uè@^ …ğÂ2”¡^ˆÚÈ‹kĞ‰‚¡mhB7ŠàE56¢%ğbºĞ/êb¶‚ò©A´¡hC+J`F%Ú°Mh@?¼hAš°ëäL/š¤}/:±^ô¢ÍèB'ZàE+zĞ&96ÙN½ôÒ‰v\ƒt¡õÇ½±²/ˆNôHo~” s&¬Œ¯+şËírµo(Âˆ?„^ÌE)JÑ™?€~” ˆô£-h“kûdì%Øˆ6„°(ÁZ”‹¨&j Æ¿bV3ÚĞ…lF¡Tä‡g¡˜ù¢uöšà€ùÂœ2£øÏøŞÿyêı’˜;#,
+ÍEĞXpÖ‡ğ¢'’g—Â""«•öº¥µxê¶;äX[$®uÒ‹`YàvÚåh[Ì›®°Mb<„‰p£\ßÉuİCšŠ(,şÖEbi‰0µ’(&æxZä¼nôF¬G-ˆÙ:v=“Ú°Q²*ÔÊMÈ’\©œXÛ*?Eì=hA'š"ñé9Ø‚~tK+k(ÆO;:ÑÉã‚Æ¸±Ûş6Gò\xŒs"zzÑ‡´¢_âŒ£i•Å:ÑŒ~‰'ÎÃ{Ö-èB¿´¢s²Yæ@‡Üó¡3Bï‰EíÇ3<CÛ/9,JPG´/q­ãû7ˆÙs±8Šbq–ÊsÇ+-ëûA·İau¢ú—:ÊœVÏ3=Â‰Yh³ä£û+yˆî†vyfnŒD¨çˆnMdŠˆ¤G¢	J&Ö£-Ò>'1»"§dT!¹ˆ 3¦Gsåî\YÕ„fôÈ“!®AâYgàÂ“`#z¤]‘eÁ	s£{¥÷¢g@â:•ØÛºRâœŸ˜k:úIŞt	=…eı¼ÚwËÏøùñU´!,ñ¶ËS@Ø.™ÀÔ¥Ö
+NÂ1üÂ»à\ìåè‰&°‹<í‹õèH§Ñ(…‰Y½¿„¯~tÉ§xDb­`v]$õx×¡KFÓéëK8CEt:’`ÌÇd~‚_Sâ×:!ÃD¤Gpi$ıMæåbu7JO"’/>Õu•Ä¯{‚İhO0–™Ñ}3ùi‹œwqÜÓfU«\Ÿ{‘{17÷äb~ôÖÍMÈ6}ï,›tÏ^ô»)ŠUdCW‚èAçEkÃÉ³½MèEoä»_Ü6Ñ‰úë˜/½c„bL|#…ŸKå‹İÅÎp1Ú/gMd8÷’õJîÿÔ=ŒÔ¿úßuÑ%*}ï‰{I¿_&[kZ°Mr°¬ß‹"«.¬?ş/N¬/J¯´tÅ½Øcj	ª¤Ÿ¨ÁJéga%®ÇÔÉ±jÔÃ‹ZÔaPJT¡Rê²@ˆñ\¹¯Gµ´¸«¤-İFHÛkà•¶E¥Z#Ÿ–¢5¨”k«°Zú¨B½´ºuÒörÔbª¥O½Æ¬ÁB,Ã*TÊöbYêşj°B~ŠùË%éJ¬Hğ:•°\C¶U¨ÃB,‰Œ.À5¨–ö~á‘l×Äp.Š ] 9–…Í…X…eòIô®Bj±õ’Oa¹2‚¶FÆ°u‘Xª$]	ÑB¬@-ÖÈ‹±+%
+áied¦x^)ãÊ,—^—Ê^ÙŠˆÊ¢·"Ş„O‡à¿!æ¹^Æ¿Ë$·"Şzé¡
+°<f7š;‹¥[gc•ŒOà«–
+bL°(ø\›Y— ŠĞtÔM ëE$‚‘ú‹Fµ6Q‹eGÔƒ°%tL-“³ëQ‹*,”–ô=«e¬#Üê6õ¼×sBŸ«cúÔHe¯ÃªÈİŞä(ô"ğÇ£ĞXù¿0³¸úÂ¢ÀÅ#²YdÙ…¬ˆı'ˆY"ÄS”‘cB%¹¾_tQWEò3ºój&ñİGÑy_åìĞmE}OTPğ)xÒê'IÍW²«Ÿ]UØ"Ï½ŞÈ½¼àæN¬ãUibıY”pÖ&Vú)¼XÎí4/Ş«ŸÏúçI¬á.vsEß’‹&U¿ÑêC?»õw£Äê·UÖéz-ŒU%úıÑ«LDõ¯WÑ·ñ6(î—‰ï{AéWL÷u¡-½¾ótoÁ‹°y©jò¢À"8–7Ë¶ø.I¯šä1WôoôV¬ÇğÕ5ˆÆòeü‹Ş ¼EE-Ú)õdIÄn_ìı,Î‰`@ÿv«{’êñìÖæ^P‡
+Ö% ïwz!ê
+áÓüg|¿V*ùŞ€N”JŒbí”È*¼¥“*ÊÈ÷Æç¯Oú8òm1€é¸ù˜B)Š0ÀQe(0öFï/¥÷4z×LïØém?ıh„~8Bo}NoÓßjô}N_ÌOÒñÅt¬ŒŞ¤×-4¢Ñk}O££zÕLßM¥W¦ÓËfz9 ¾ôb&1“¼ÉdÓ™ôüA~=wĞÆŸóÑ³sè;zæiÆOO»èé!õ©úöƒÙüÛ=ù„›?é¡'Ütøñ™üğ=òğÇgÒc!l„=”ÉÕèP&´Ñ#ğG4zøÀZşğ=<¤x(ŸXKêCfó‡òéÁ\üÁlzğèùóê.ºßJ÷Ôû<4l¡oÓ~İ›A÷ÜİÊïÑèî‡ßİJwí³ğ»RhŸ…öÔ;÷Úø)´×F{v›ù?í6ÓÚuû ß¥Ñí!¿}n³Ğ­ÙôÍ‡ÓO;nIæ;4ºe“ƒß’LC7ÛøF7Ûèæ€zSÈÃoÒhğ9|P£oäĞ¶­#|›F[ÃkùÖÚ:¤†·äóğZ
+Ô-ù´y„<|`õ‡<¼ÿs
+y(¨Qß&ïÓh“ƒ6©½=%¼W£Ú¨Q·F]NÚ°”Ö›©C£ufZPÛ}Ô6H­ö¶l æj¤FnœBk-¾V£¿rÑšÕ¾¦˜V{èz?5Xhe}&_9Lõ™T—I×ÕNá×åS­İÉk§Ğ
+»“¯H£šåY¼f–WÛøò,ZP—9²ø²Ëi©İÉ—úéÚj¿vªm´d±™/¤ÅfZTeã‹üTUiåU6ªÒ%©´ÒÂkÒùÂaº&ì|Á f›xÀN!uş¼B>„¾6¯m-Ísdñy…tõUéüj7]5×Í¯J§¹f>×Mfºrƒ_9Hsf›øÍRg›hv@uE:Ÿ5LWÌ4ñ+Ò©ÜäáåÃä/´q¿F—Û©ÌjáeÙT:­—Î¡Ÿ™—dSq‘‹SÑL/rQQ@i¢Ë¦ùe*´Qa@-˜áâÃ4cº‘ÏpÑŒ€:İHùÓ
+yşMKöñi…”—ìãyåúÌ<w˜|^#÷™É7¤zä¨9É>s^Évóì¹äñQÖ MM¥L?eø)=ÙÇÓ5J›RÈÓ6Ğ”dŸRH©ÜÌS³)%’íNì#·«˜»ÉeòpW19YÜ©‘Ãîä,²;É>¤Ú¬nûœ¬²T‹ƒÌ&7ÉCÆ¤dn¡¤d2p37¤7¨*¹¹šFêJÌÁÉMPæàŠFÌAlH…ØQÖzë^6óÿçşÒ â?üÆ3Í
+endstream
+endobj
+16 0 obj
+<</Length 299/Filter/FlateDecode>>
+stream
+xœ•’?oƒ0Åw>Åa(}w¶1¬•ºt«ä­é’J¤ª RP¾¿ª³…†F~?Ûw~ç?gbTXĞÇ@¨Z?«ÈÆ‹s„ª©Å[Ç4cÊ@ÜŠBŸ f÷´ P_|]ñZœÿ°i¬aã•¼8ÛFçDã‘4Lÿ¸¶	û„Ì‘ud1àÚµN’%ëê¥¶†o¬!T’™ÆcñÆÇ$-…nY9(»=€=Àeø*Ã// jx¿oy½Mf’ÕdµY]Ö:«z(•Û­æ.±=­Æ¥ğn•	6¥ü¤Ú[Ë–fîpª«Ka±ÿ¿î”®7·3m3mì7£NëQQVåõQÍıTC.S¤|/W×©OMÌİ/‡ÉÈ­ÛœJ¸ïV§¸t¾—¹ào½#Óó
+endstream
+endobj
+17 0 obj
+<</Title(a-atlas-reader)/Creator(VectorCraft)/Producer(VectorCraft)/ModDate(D:20261115104712Z)/CreationDate(D:20261115005021Z)>>
+endobj
+18 0 obj
+<</Length 1064/Type/Metadata/Subtype/XML>>
+stream
+<?xpacket begin="ï»¿" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="xmp-writer"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"  xmlns:xmp="http://ns.adobe.com/xap/1.0/"  xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/"  xmlns:xmpTPg="http://ns.adobe.com/xap/1.0/t/pg/"  xmlns:pdf="http://ns.adobe.com/pdf/1.3/" ><dc:title><rdf:Alt><rdf:li xml:lang="x-default">a-atlas-reader</rdf:li></rdf:Alt></dc:title><xmp:CreatorTool>VectorCraft</xmp:CreatorTool><pdf:Producer>VectorCraft</pdf:Producer><xmp:ModifyDate>2026-11-15T10:47:12+00:00</xmp:ModifyDate><xmp:CreateDate>2026-11-15T00:50:21+00:00</xmp:CreateDate><xmpTPg:NPages>1</xmpTPg:NPages><dc:format>application/pdf</dc:format><xmpMM:InstanceID>R/qaiP1kZeyKJB9UxIRq0A==</xmpMM:InstanceID><xmpMM:DocumentID>R/qaiP1kZeyKJB9UxIRq0A==</xmpMM:DocumentID><xmpMM:RenditionClass>default</xmpMM:RenditionClass><pdf:PDFVersion>1.7</pdf:PDFVersion></rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="r"?>
+endstream
+endobj
+19 0 obj
+<</ViewerPreferences<</DisplayDocTitle true>>/Type/Catalog/Pages 1 0 R/Metadata 18 0 R>>
+endobj
+xref
+0 20
+0000000000 65535 f
+0000000016 00000 n
+0000000067 00000 n
+0000000147 00000 n
+0000000280 00000 n
+0000000646 00000 n
+0000000854 00000 n
+0000000991 00000 n
+0000001326 00000 n
+0000001571 00000 n
+0000001717 00000 n
+0000001796 00000 n
+0000002314 00000 n
+0000007350 00000 n
+0000007428 00000 n
+0000007903 00000 n
+0000012671 00000 n
+0000013039 00000 n
+0000013184 00000 n
+0000014325 00000 n
+trailer
+<</Size 20/Root 19 0 R/Info 17 0 R/ID[(R/qaiP1kZeyKJB9UxIRq0A==)(R/qaiP1kZeyKJB9UxIRq0A==)]>>
+startxref
+14430
+%%EOF
