@@ -12,6 +12,7 @@ pub const MANIFEST: &str = include_str!("../art/atlas/runtime.sha256");
 pub const STATUS_MANIFEST: &str = include_str!("../art/atlas/status.sha256");
 pub const VICTORY_MANIFEST: &str = include_str!("../art/atlas/victory.sha256");
 pub const LAYOUT_MANIFEST: &str = include_str!("../art/atlas/layout.sha256");
+pub const TERRAIN_MANIFEST: &str = include_str!("../art/atlas/terrain.sha256");
 pub const SOURCE: &str = "deacd635db5f71f4d3f092bd9cc99a9d96bb7aab;R:8152cb0056e3690fdc01c7b4ff893369ad7eff288941abc540ceee2c9d606792;P:dcaa5afd6f01c0c9ed4746c18199c1b09058823d67b627384fd3184ed4015fe8";
 const CARD_17: &str = "141f592b5dee5a8c7a6d26651410b0ee1171a7dcf2c2b5331a63b48407cec9ab";
 const CARD_18: &str = "50df7058e660bb4dc620096823945eeb095fe4123e0aead68fec6244ab097c4e";
@@ -32,6 +33,7 @@ pub fn inspect(root: &Path, cards: &Path) -> Result<Verified> {
         .chain(STATUS_MANIFEST.lines())
         .chain(VICTORY_MANIFEST.lines())
         .chain(LAYOUT_MANIFEST.lines())
+        .chain(TERRAIN_MANIFEST.lines())
     {
         let (hash, path) = line
             .split_once("  ")

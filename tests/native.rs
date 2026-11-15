@@ -180,6 +180,37 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
         assert_eq!(centers.len(), 4);
         assert!((centers.iter().sum::<f64>() / 4. - width as f64 / 2.).abs() <= 1.);
         app.capture("home");
+        let surfaces = before["table"]["surfaces"].as_array().unwrap();
+        for space in before["observation"]["spaces"].as_array().unwrap() {
+            let rows: Vec<_> = surfaces
+                .iter()
+                .filter(|s| s["space"] == space["id"])
+                .collect();
+            assert!(!rows.is_empty(), "loaded GLB must contain {}", space["id"]);
+            let province = matches!(
+                space["terrain"].as_str(),
+                Some("Forest" | "Grassland" | "Mountain")
+            );
+            assert_eq!(
+                rows.iter()
+                    .any(|s| s["textured"] == true && s["uv"] == true),
+                province,
+                "province terrain must use authored texture on the loaded mesh: {}",
+                space["id"]
+            );
+            if province {
+                let expected = format!(
+                    "Engraved_Atlas_{}",
+                    space["terrain"].as_str().unwrap().to_lowercase()
+                );
+                assert!(
+                    rows.iter()
+                        .any(|s| s["textured"] == true && s["material"] == expected),
+                    "loaded surface must match the space's actual terrain: {}",
+                    space["id"]
+                );
+            }
+        }
         for space in before["observation"]["spaces"].as_array().unwrap() {
             let id = space["id"].as_str().unwrap();
             app.activate(&format!("space:{id}"), revision);
@@ -204,6 +235,17 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
         assert!(app.observe()["table"]["status"].is_null());
         app.capture("reader");
         app.activate("close", revision);
+        app.capture("after-reader");
+        let before_pixels = image::open(app.root.join("home.png")).unwrap().to_rgb8();
+        let after_pixels = image::open(app.root.join("after-reader.png"))
+            .unwrap()
+            .to_rgb8();
+        let panel_corner = ((45. * scale) as u32, (970. * scale) as u32);
+        assert_eq!(
+            after_pixels.get_pixel(panel_corner.0, panel_corner.1),
+            before_pixels.get_pixel(panel_corner.0, panel_corner.1),
+            "authored card panel must remain above the desk after UI redraw"
+        );
         assert_eq!(app.observe()["observation"], before["observation"]);
         assert_eq!(std::fs::read(&app.save).unwrap(), saved);
         app.quit();
@@ -1025,6 +1067,8 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         .lines()
         .chain(cuba_libre_unfolded::assets::STATUS_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::VICTORY_MANIFEST.lines())
+        .chain(cuba_libre_unfolded::assets::LAYOUT_MANIFEST.lines())
+        .chain(cuba_libre_unfolded::assets::TERRAIN_MANIFEST.lines())
     {
         let (_, path) = line.split_once("  ").unwrap();
         let relative = path.strip_prefix("art/atlas/").unwrap();
@@ -1062,6 +1106,10 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         "atlas-control-uncontrolled.png",
         "atlas-victory-icon-government.png",
         "atlas-victory-ui.png",
+        "atlas-layout-card.png",
+        "atlas-terrain-map.glb",
+        "terrain-labels.json",
+        "atlas-terrain-label-havana.png",
     ] {
         let status_path = changed_art.path().join(asset);
         for missing in [false, true] {

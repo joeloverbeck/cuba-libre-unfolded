@@ -197,13 +197,13 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
     let scene = app
         .world()
         .resource::<AssetServer>()
-        .load("atlas-map.glb#Scene0");
+        .load("atlas-terrain-map.glb#Scene0");
     #[derive(serde::Deserialize)]
     struct Labels {
         labels: Vec<LabelSpec>,
     }
-    let labels: Labels =
-        serde_json::from_slice(&verified.files["labels.json"]).map_err(|e| e.to_string())?;
+    let labels: Labels = serde_json::from_slice(&verified.files["terrain-labels.json"])
+        .map_err(|e| e.to_string())?;
     if (0..24).any(|frame| !images.contains_key(&format!("water/water-c-{frame:05}.png"))) {
         return Err("Selected Trade wind strokes animation requires all 24 authored frames".into());
     }
@@ -356,7 +356,7 @@ fn setup(
             Mesh3d(meshes.add(Plane3d::default().mesh().size(w / 100., h / 100.))),
             MeshMaterial3d(materials.add(StandardMaterial {
                 base_color_texture: Some(
-                    art.images[&format!("atlas-label-{}.png", space.id)].clone(),
+                    art.images[&format!("atlas-terrain-label-{}.png", space.id)].clone(),
                 ),
                 alpha_mode: AlphaMode::Blend,
                 unlit: true,
@@ -964,7 +964,15 @@ fn draw_ui(
             ("atlas-layout-card.png", [40., 964., 600., 264.], left),
             ("atlas-layout-session.png", [1380., 964., 500., 264.], right),
         ] {
-            picture(&mut commands, &art, key, rect, s, offset, 0);
+            let layer = if matches!(
+                key,
+                "atlas-layout-map-header.png" | "atlas-layout-map-footer.png"
+            ) {
+                2
+            } else {
+                1
+            };
+            picture(&mut commands, &art, key, rect, s, offset, layer);
         }
         victory::header(&mut commands, &art, &view, s, centered);
     }
@@ -976,7 +984,7 @@ fn draw_ui(
             [0., 0., WIDTH, HEIGHT],
             s,
             o,
-            0,
+            1,
         );
         let factions = |flags: [bool; 4]| {
             let names = Faction::ALL
@@ -1102,7 +1110,7 @@ fn draw_ui(
             [1380., 287., 500., 653.],
             s,
             o,
-            1,
+            2,
         );
         text(
             &mut commands,
@@ -1129,7 +1137,7 @@ fn draw_ui(
             25.,
             s,
             o,
-            2,
+            3,
         );
         text(
             &mut commands,
@@ -1161,7 +1169,7 @@ fn draw_ui(
             18.,
             s,
             o,
-            2,
+            3,
         );
         if !view.finished {
             for (i, choice) in view.choices.iter().enumerate() {
@@ -1194,7 +1202,7 @@ fn draw_ui(
                     s,
                     o,
                     choice.supported,
-                    2,
+                    3,
                 );
             }
         } else {
@@ -1216,7 +1224,7 @@ fn draw_ui(
                 25.,
                 s,
                 o,
-                2,
+                3,
             );
         }
         let o = left;

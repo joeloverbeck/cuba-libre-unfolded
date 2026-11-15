@@ -29,6 +29,8 @@ Voluntary own removal lists 26July's remaining Santiago/Oriente Underground and 
 
 The sea uses the selected **C — Trade wind strokes** animation authored in VectorCraft/EffectCraft: 24 frames at 6 fps, repeated below the solid regions. It cannot intercept picking or hold a decision unsettled. Desktop time drives ordinary playback; the development seat advances the same animation through its explicit manual clock, while captures leave time unchanged. Decorative frame position is not saved game state.
 
+Province tops use the selected **A — Engraved Atlas** textures: grass tufts, broadleaf outlines and mountain ridges. Region names remain, with a person-and-number population badge (1, 2 or 6) below each city/province name. Terrain words are removed from these labels; gold economic-center values remain distinct. The [editable sources and export mapping](art/atlas/TERRAIN.md) retain the accepted region geometry and original save identity.
+
 All decisions save before the changed state is published in memory. Reading, camera navigation and cancellation have no match effect. Save/quit exits; relaunching the same command resumes that record.
 
 ## Checks and development seat
@@ -68,7 +70,7 @@ For a fresh transfer example, activate choices `0:transfer`, `1:transfer:3:1`, `
 
 ## Recovery
 
-Successful replacement keeps the prior valid record at `task.json.previous`. Saves bind the accepted source and selected core-map/card identities and validate both their checksum and supported game state. The stateless [region tags](art/atlas/STATUS.md) and [victory display](art/atlas/VICTORY.md) have their own required presentation manifests; adding them preserves earlier valid saves without weakening source, checksum or state admission. Missing or altered presentation assets still refuse at launch. A stale writer, malformed/incompatible record, failed replacement, or missing main record with recovery history is refused; the app does not guess a fresh task or overwrite the evidence.
+Successful replacement keeps the prior valid record at `task.json.previous`. Saves bind the accepted source and selected core-map/card identities and validate both their checksum and supported game state. The stateless [region tags](art/atlas/STATUS.md), [victory display](art/atlas/VICTORY.md), [responsive layout](art/atlas/LAYOUT.md) and [terrain/population art](art/atlas/TERRAIN.md) have their own required presentation manifests; adding them preserves earlier valid saves without weakening source, checksum or state admission. Missing or altered presentation assets still refuse at launch. A stale writer, malformed/incompatible record, failed replacement, or missing main record with recovery history is refused; the app does not guess a fresh task or overwrite the evidence.
 
 To recover an original record's `.previous` into an **unused** destination:
 
