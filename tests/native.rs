@@ -71,6 +71,14 @@ impl Native {
     fn observe(&mut self) -> Value {
         self.request(json!({"op":"observe"}), true)
     }
+    fn point(&mut self, component: &str) -> Value {
+        let revision = self.observe()["observation"]["revision"].as_u64().unwrap();
+        self.request(
+            json!({"op":"point","revision":revision,"component":component}),
+            true,
+        );
+        self.request(json!({"op":"settle"}), true)
+    }
     fn activate(&mut self, component: &str, revision: u64) {
         self.request(
             json!({"op":"activate","revision":revision,"component":component}),
@@ -723,7 +731,10 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     card[100] ^= 1;
     std::fs::write(changed_cards.path().join("card-17.png"), card).unwrap();
     let changed_art = tempfile::tempdir().unwrap();
-    for line in cuba_libre_unfolded::assets::MANIFEST.lines() {
+    for line in cuba_libre_unfolded::assets::MANIFEST
+        .lines()
+        .chain(cuba_libre_unfolded::assets::STATUS_MANIFEST.lines())
+    {
         let (_, path) = line.split_once("  ").unwrap();
         let relative = path.strip_prefix("art/atlas/").unwrap();
         let destination = changed_art.path().join(relative);
@@ -750,6 +761,42 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         assert!(!output.status.success());
         assert_eq!(std::fs::read(&app.save).unwrap(), valid);
         std::fs::write(app.root.join(format!("{name}.stderr")), output.stderr).unwrap();
+    }
+    std::fs::copy(
+        "art/atlas/atlas-map.glb",
+        changed_art.path().join("atlas-map.glb"),
+    )
+    .unwrap();
+    let status_path = changed_art.path().join("atlas-control-uncontrolled.png");
+    for missing in [false, true] {
+        if missing {
+            std::fs::remove_file(&status_path).unwrap();
+        } else {
+            std::fs::write(&status_path, b"changed presentation").unwrap();
+        }
+        let refused = Command::new(env!("CARGO_BIN_EXE_cuba-libre"))
+            .args([
+                "--cards",
+                app.cards.to_str().unwrap(),
+                "--art",
+                changed_art.path().to_str().unwrap(),
+                "--save",
+                app.save.to_str().unwrap(),
+                "--agent-seat",
+            ])
+            .output()
+            .unwrap();
+        assert!(!refused.status.success());
+        assert!(
+            String::from_utf8_lossy(&refused.stderr).contains("atlas-control-uncontrolled.png")
+        );
+        assert_eq!(std::fs::read(&app.save).unwrap(), valid);
+        std::fs::write(
+            app.root
+                .join(format!("status-art-missing-{missing}.stderr")),
+            refused.stderr,
+        )
+        .unwrap();
     }
     let original_path = app.save.clone();
     let previous = std::fs::read(original_path.with_file_name("task.json.previous")).unwrap();
@@ -897,4 +944,254 @@ fn native_giver_transfers_all_directions_and_interrupted_authorization() {
     assert_eq!(app.observe()["observation"]["finished"], true);
     app.capture("transfers-finished");
     app.quit();
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_hover_status_is_transient_and_inspection_has_distinct_facts() {
+    let cards = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS")
+        .into();
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "local/verification/issue-16".into());
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("hover-status-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards,
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("task.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Hover status evidence: {}", app.root.display());
+    app.launch();
+    assert!(app.observe()["table"]["status"].is_null());
+    app.capture("initial-no-status");
+    app.request(
+        json!({"op":"point","revision":0,"component":"space:matanzas"}),
+        true,
+    );
+    app.request(json!({"op":"settle"}), true);
+    let view = app.observe();
+    assert_eq!(view["table"]["status"]["space"], "matanzas");
+    assert_eq!(view["table"]["status"]["control"], "Uncontrolled");
+    assert_eq!(view["table"]["status"]["opinion"], "Passive Opposition");
+    assert_eq!(view["table"]["status"]["contribution"], "×1 · 26July +1");
+    app.capture("matanzas-hover");
+    app.activate("space:matanzas", 0);
+    let details = app.observe()["table"]["details"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(details.contains("Population 1"));
+    assert!(!details.contains("Control"));
+    assert!(!details.contains("Opposition"));
+    app.request(
+        json!({"op":"point","revision":0,"component":"reader"}),
+        true,
+    );
+    assert!(app.observe()["table"]["status"].is_null());
+    // Independent prepared-position expectations from R1.6/1.7 and the
+    // accepted tactical handoff, including mixed Control/opinion cases.
+    for (id, control, opinion, contribution) in [
+        (
+            "havana",
+            "Government",
+            "Active Support",
+            "×2 · Government +12",
+        ),
+        (
+            "camaguey-city",
+            "Government",
+            "Passive Support",
+            "×1 · Government +1",
+        ),
+        ("santiago", "Government", "Neutral", "0 Support/Opposition"),
+        (
+            "pinar-del-rio",
+            "Syndicate",
+            "Active Support",
+            "×2 · Government +2",
+        ),
+        (
+            "la-habana",
+            "Syndicate",
+            "Passive Support",
+            "×1 · Government +1",
+        ),
+        (
+            "matanzas",
+            "Uncontrolled",
+            "Passive Opposition",
+            "×1 · 26July +1",
+        ),
+        (
+            "las-villas",
+            "Government",
+            "Neutral",
+            "0 Support/Opposition",
+        ),
+        (
+            "camaguey-province",
+            "Directorio",
+            "Passive Opposition",
+            "×1 · 26July +1",
+        ),
+        ("oriente", "26July", "Passive Opposition", "×1 · 26July +2"),
+        (
+            "sierra-maestra",
+            "26July",
+            "Active Opposition",
+            "×2 · 26July +2",
+        ),
+    ] {
+        app.request(
+            json!({"op":"point","revision":0,"component":format!("space:{id}")}),
+            true,
+        );
+        app.request(json!({"op":"settle"}), true);
+        let status = app.observe()["table"]["status"].clone();
+        assert_eq!(status["space"], id);
+        assert_eq!(status["control"], control);
+        assert_eq!(status["opinion"], opinion);
+        assert_eq!(status["contribution"], contribution);
+        assert_status_geometry(&status);
+        app.capture(&format!("status-{id}"));
+    }
+    for id in [
+        "ec-pinar-la-habana",
+        "ec-las-villas-camaguey",
+        "ec-oriente-sierra",
+    ] {
+        app.request(
+            json!({"op":"point","revision":0,"component":format!("space:{id}")}),
+            true,
+        );
+        app.request(json!({"op":"settle"}), true);
+        assert!(app.observe()["table"]["status"].is_null());
+    }
+    for prefix in ["piece:havana ", "count:havana "] {
+        let view = app.observe();
+        let target = view["table"]["controls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|c| c["name"].as_str())
+            .find(|name| name.starts_with(prefix))
+            .unwrap();
+        assert_eq!(app.point(target)["table"]["status"]["space"], "havana");
+    }
+    app.activate("reader", 0);
+    assert!(app.observe()["table"]["status"].is_null());
+    app.capture("reader-suppresses-status");
+    app.activate("close", 0);
+    for key in ["ArrowLeft", "Equal", "Minus"] {
+        for _ in 0..5 {
+            app.request(json!({"op":"key","revision":0,"key":key}), true);
+        }
+        app.request(json!({"op":"settle"}), true);
+        let shown = app.point("space:havana")["table"]["status"].clone();
+        assert_eq!(shown["space"], "havana");
+        assert_status_geometry(&shown);
+        app.capture(&format!("havana-{key}"));
+    }
+    app.request(json!({"op":"key","revision":0,"key":"Home"}), true);
+    app.request(json!({"op":"settle"}), true);
+    // Donated Resources exercise the actual Terror path without randomness.
+    for action in [
+        "transfer",
+        "transfer:3:1",
+        "amount:1",
+        "authorize",
+        "terror:oriente",
+    ] {
+        app.choose(action);
+    }
+    let status = app.point("space:oriente")["table"]["status"].clone();
+    assert_eq!(status["opinion"], "Active Opposition");
+    assert_eq!(status["contribution"], "×2 · 26July +4");
+    app.capture("oriente-after-terror");
+    for action in ["remove", "remove:oriente:active", "confirm-removal"] {
+        app.choose(action);
+    }
+    let status = app.point("space:oriente")["table"]["status"].clone();
+    assert_eq!(status["control"], "Uncontrolled");
+    assert_eq!(status["opinion"], "Active Opposition");
+    app.capture("oriente-empty-control");
+    let standing = app.point("standing:1");
+    assert!(standing["table"]["status"].is_null());
+    let details = standing["table"]["details"].as_str().unwrap();
+    assert!(details.contains("Oriente") && details.contains("4"));
+    app.capture("standing-keeps-calculation");
+    let final_state = app.observe()["observation"].clone();
+    app.quit();
+    app.launch();
+    assert_eq!(app.observe()["observation"], final_state);
+    app.quit();
+    if let Some(legacy) = std::env::var_os("CUBA_COMPAT_SAVE") {
+        let legacy = PathBuf::from(legacy);
+        let original = std::fs::read(&legacy).unwrap();
+        let record: Value = serde_json::from_slice(&original).unwrap();
+        // Read-only acquisition: the owner's record is never an app save path.
+        app.save = app.root.join("legacy-copy.json");
+        std::fs::write(&app.save, &original).unwrap();
+        app.launch();
+        let resumed = app.observe();
+        assert_eq!(
+            resumed["observation"]["revision"],
+            record["game"]["revision"]
+        );
+        assert_eq!(
+            resumed["observation"]["resources"],
+            record["game"]["resources"]
+        );
+        assert_eq!(resumed["observation"]["spaces"], record["game"]["spaces"]);
+        app.point("space:havana");
+        app.capture("legacy-save-resumed");
+        app.quit();
+        app.launch();
+        assert_eq!(app.observe()["observation"], resumed["observation"]);
+        app.quit();
+        assert_eq!(std::fs::read(&app.save).unwrap(), original);
+        assert_eq!(std::fs::read(&legacy).unwrap(), original);
+    }
+}
+
+fn assert_status_geometry(status: &Value) {
+    let rect =
+        |key: &str| -> [f64; 4] { std::array::from_fn(|i| status[key][i].as_f64().unwrap()) };
+    let tag = rect("bounds");
+    let region = rect("region_bounds");
+    let viewport = rect("viewport");
+    assert!(
+        tag[0] >= viewport[0]
+            && tag[1] >= viewport[1]
+            && tag[2] <= viewport[2]
+            && tag[3] <= viewport[3]
+    );
+    assert!(
+        tag[2] < region[0] || tag[0] > region[2] || tag[3] < region[1] || tag[1] > region[3],
+        "tag overlaps its region: {status}"
+    );
+    for other in status["occupied_bounds"].as_array().unwrap() {
+        let r: [f64; 4] = std::array::from_fn(|i| other[i].as_f64().unwrap());
+        assert!(
+            tag[2] < r[0] || tag[0] > r[2] || tag[3] < r[1] || tag[1] > r[3],
+            "tag covers a region or piece label: {status}"
+        );
+    }
+    let dx = status["leader"][0][0].as_f64().unwrap() - status["leader"][1][0].as_f64().unwrap();
+    let dy = status["leader"][0][1].as_f64().unwrap() - status["leader"][1][1].as_f64().unwrap();
+    assert!(
+        dx.hypot(dy) >= 15.,
+        "leader needs visible separation: {status}"
+    );
 }

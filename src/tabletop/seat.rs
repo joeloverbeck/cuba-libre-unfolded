@@ -50,6 +50,16 @@ fn named(control: &Control) -> TargetName {
         TargetName::Component(control.name.clone())
     }
 }
+fn piece_name(world: &World, entity: Entity) -> Option<String> {
+    if let Some(label) = world.get::<count_label::Label>(entity) {
+        Some(format!(
+            "count:{}",
+            world.get::<Name>(label.token)?.as_str()
+        ))
+    } else {
+        Some(format!("piece:{}", world.get::<Name>(entity)?.as_str()))
+    }
+}
 fn controls(world: &mut World) -> Vec<(Entity, Control, Vec2)> {
     let size = world
         .query_filtered::<&Camera, With<Camera2d>>()
@@ -93,6 +103,49 @@ fn controls(world: &mut World) -> Vec<(Entity, Control, Vec2)> {
             result.push((entity, c, point));
         }
     }
+    if !world.resource::<Interface>().reader {
+        let targets = world
+            .query::<(Entity, &status::SpaceTarget)>()
+            .iter(world)
+            .map(|(e, t)| (e, t.0.clone()))
+            .collect::<Vec<_>>();
+        for (entity, space) in targets {
+            let Some(name) = piece_name(world, entity) else {
+                continue;
+            };
+            let position = if let Some(target) = shared::ui_target(world, entity, size) {
+                target.on_screen.then_some(target.position)
+            } else if let Some(at) = world.get::<GlobalTransform>(entity).copied() {
+                world
+                    .query_filtered::<(&Camera, &GlobalTransform), With<Camera3d>>()
+                    .single(world)
+                    .ok()
+                    .and_then(|(camera, camera_at)| {
+                        camera
+                            .world_to_viewport(camera_at, at.translation())
+                            .ok()
+                            .filter(|p| {
+                                camera
+                                    .logical_viewport_rect()
+                                    .is_some_and(|r| r.contains(*p))
+                            })
+                    })
+            } else {
+                None
+            };
+            if let Some(position) = position {
+                result.push((
+                    entity,
+                    Control {
+                        name,
+                        choice: false,
+                        action: Action::Inspect(space),
+                    },
+                    position,
+                ));
+            }
+        }
+    }
     result
 }
 impl SeatGame for Table {
@@ -118,13 +171,19 @@ impl SeatGame for Table {
             .iter(world)
             .next()
             .map(|node| node.size().y * node.inverse_scale_factor);
+        let details = world
+            .query_filtered::<&Text, With<Details>>()
+            .iter(world)
+            .next()
+            .map(|text| text.0.clone());
+        let status = world.query::<&status::Shown>().iter(world).next().cloned();
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
         let pose = world.resource::<Orbit>().pose();
         let water_frame = world.get_resource::<Water>().map(|water| water.frame);
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
-            table: json!({"controls":controls,"standings":standings,"details_height":details_height,"water_frame":water_frame,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"pinned":ui.pinned,"hover":ui.hover.visible(),"inspected":ui.inspected,"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
+            table: json!({"controls":controls,"standings":standings,"details_height":details_height,"details":details,"status":status,"water_frame":water_frame,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"pinned":ui.pinned,"hover":ui.hover.visible(),"inspected":ui.inspected,"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
         }
     }
     fn revision(&self, world: &mut World) -> u64 {
@@ -141,11 +200,27 @@ impl SeatGame for Table {
                 found.len()
             ));
         }
-        Ok(vec![found[0].2])
+        let mut points = vec![found[0].2];
+        // A count can cover the center of its solid piece. Try exposed body
+        // points too; the shared seat still verifies the actual picked name.
+        if found[0].1.name.starts_with("piece:") {
+            for x in [-6., -3., 0., 3., 6.] {
+                for y in [-6., -3., 0., 3., 6.] {
+                    points.push(found[0].2 + Vec2::new(x, y));
+                }
+            }
+        }
+        Ok(points)
     }
     fn identify(&self, world: &mut World, entity: Entity) -> Hit {
         let mut current = Some(entity);
         while let Some(e) = current {
+            if let Some(target) = world.get::<status::SpaceTarget>(e) {
+                return Hit {
+                    name: piece_name(world, e).map(TargetName::Component),
+                    description: json!({"space":target.0}),
+                };
+            }
             if let Some(control) = world.get::<Control>(e) {
                 return Hit {
                     name: Some(named(control)),
@@ -171,6 +246,9 @@ impl SeatGame for Table {
         }
         if ui.hover.waiting() {
             pending.push("standing hover dwell".into());
+        }
+        if ui.status.waiting() {
+            pending.push("region status hover dwell".into());
         }
         if ui.dirty {
             pending.push("control redraw".into());

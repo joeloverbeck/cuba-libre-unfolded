@@ -39,6 +39,7 @@ use unfolded_tabletop::{
     token,
 };
 pub mod seat;
+mod status;
 
 #[derive(Clone)]
 pub struct Options {
@@ -82,6 +83,7 @@ struct LabelSpec {
 struct Interface {
     pinned: Option<Faction>,
     hover: Hover<Faction>,
+    status: Hover<String>,
     reader: bool,
     inspected: Option<String>,
     notice: String,
@@ -249,6 +251,8 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 draw_ui,
                 refresh_details,
                 camera_controls,
+                status::hover,
+                status::draw,
                 animate_water,
             )
                 .chain(),
@@ -436,7 +440,11 @@ fn sync_pieces(
                     ),
                 },
             );
-            commands.entity(token).insert(PieceVisual);
+            commands
+                .entity(token)
+                .insert((PieceVisual, status::SpaceTarget(space.id.clone())))
+                .remove::<Pickable>()
+                .observe(status::inspect);
             let mark = match piece.state {
                 State::Active => Some("atlas-active-star.png"),
                 State::Closed => Some("atlas-closed-slash.png"),
@@ -462,15 +470,20 @@ fn sync_pieces(
                 piece.count as u32,
                 Vec3::new(0., height + 0.06, 0.),
             );
-            commands.entity(label).insert((
-                TextFont {
-                    font: art.font.clone().into(),
-                    font_size: 21.0.into(),
-                    ..default()
-                },
-                TextColor(Color::srgb(0.08, 0.08, 0.06)),
-                GlobalZIndex(-1),
-            ));
+            commands
+                .entity(label)
+                .insert((
+                    status::SpaceTarget(space.id.clone()),
+                    TextFont {
+                        font: art.font.clone().into(),
+                        font_size: 21.0.into(),
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.08, 0.08, 0.06)),
+                    GlobalZIndex(-1),
+                ))
+                .remove::<Pickable>()
+                .observe(status::inspect);
         }
         if space.terror > 0 {
             let token = token::spawn_body(
@@ -488,23 +501,32 @@ fn sync_pieces(
                     ),
                 },
             );
-            commands.entity(token).insert(PieceVisual);
+            commands
+                .entity(token)
+                .insert((PieceVisual, status::SpaceTarget(space.id.clone())))
+                .remove::<Pickable>()
+                .observe(status::inspect);
             let label = count_label::spawn(
                 &mut commands,
                 token,
                 space.terror as u32,
                 Vec3::new(0., 0.07, 0.),
             );
-            commands.entity(label).insert((
-                Text::new(format!("T {}", space.terror)),
-                TextFont {
-                    font: art.font.clone().into(),
-                    font_size: 18.0.into(),
-                    ..default()
-                },
-                TextColor(Color::srgb(0.08, 0.08, 0.06)),
-                GlobalZIndex(-1),
-            ));
+            commands
+                .entity(label)
+                .insert((
+                    status::SpaceTarget(space.id.clone()),
+                    Text::new(format!("T {}", space.terror)),
+                    TextFont {
+                        font: art.font.clone().into(),
+                        font_size: 18.0.into(),
+                        ..default()
+                    },
+                    TextColor(Color::srgb(0.08, 0.08, 0.06)),
+                    GlobalZIndex(-1),
+                ))
+                .remove::<Pickable>()
+                .observe(status::inspect);
         }
     }
 }
@@ -634,25 +656,8 @@ fn detail_text(view: &crate::Observation, ui: &Interface) -> String {
         )
     } else if let Some(id) = &ui.inspected {
         let sp = view.spaces.iter().find(|sp| &sp.id == id).unwrap();
-        let support = if sp.terrain == Terrain::EconomicCenter {
-            "Support not applicable"
-        } else {
-            match sp.support {
-                -2 => "Active Opposition",
-                -1 => "Passive Opposition",
-                0 => "Neutral",
-                1 => "Passive Support",
-                2 => "Active Support",
-                _ => "Unsupported",
-            }
-        };
-        let control = if sp.terrain == Terrain::EconomicCenter {
-            "Not applicable"
-        } else {
-            sp.control().map_or("Uncontrolled", Faction::name)
-        };
         format!(
-            "{} · {:?}\nPopulation {} · Economy {} · {support}\nControl: {control} · Terror/Sabotage {}\n{}",
+            "{} · {:?}\nPopulation {} · Economy {}\nTerror/Sabotage {}\n{}",
             sp.name,
             sp.terrain,
             sp.population,
@@ -671,7 +676,7 @@ fn detail_text(view: &crate::Observation, ui: &Interface) -> String {
                 .join("\n")
         )
     } else {
-        "Point at or click a standing for its calculation and supply.\nClick a solid region to inspect pieces and Support.\nRight drag / arrows orbit · wheel / + − zoom\nWASD pans · Home restores framing".into()
+        "Hover a city/province for Control and political opinion.\nClick a region for terrain, pieces and Terror.\nPoint at or click a standing for calculation and supply.\nRight drag / arrows orbit · wheel / + − zoom\nWASD pans · Home restores framing".into()
     }
 }
 fn refresh_details(
