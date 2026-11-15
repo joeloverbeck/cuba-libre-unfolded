@@ -5,7 +5,7 @@
   "pdfCompatible": true,
   "pdf": {
     "mime": "application/pdf",
-    "data": "JVBERi0xLjcKJYCAgIAKCjEgMCBvYmoKPDwvVHlwZS9QYWdlcy9Db3VudCAzL0tpZHNbNSAwIFIgNiAwIFIgNyAwIFJdPj4KZW5kb2JqCjIgMCBvYmoKPDwvUHJvY1NldFsvUERGL1RleHQvSW1hZ2VDL0ltYWdlQl0+PgplbmRvYmoKMyAwIG9iago8PC9Qcm9jU2V0Wy9QREYvVGV4dC9JbWFnZUMvSW1hZ2VCXT4+CmVuZG9iago0IDAgb2JqCjw8L1Byb2NTZXRbL1BERi9UZXh0L0ltYWdlQy9JbWFnZUJdPj4KZW5kb2JqCjUgMCBvYmoKPDwvVHlwZS9QYWdlL1Jlc291cmNlcyAyIDAgUi9NZWRpYUJveFswIDAgMjU2IDI1Nl0vQmxlZWRCb3hbMCAwIDI1NiAyNTZdL1RyaW1Cb3hbMCAwIDI1NiAyNTZdL1BhcmVudCAxIDAgUi9Db250ZW50cyA4IDAgUj4+CmVuZG9iago2IDAgb2JqCjw8L1R5cGUvUGFnZS9SZXNvdXJjZXMgMyAwIFIvTWVkaWFCb3hbMCAwIDI1NiAyNTZdL0JsZWVkQm94WzAgMCAyNTYgMjU2XS9UcmltQm94WzAgMCAyNTYgMjU2XS9QYXJlbnQgMSAwIFIvQ29udGVudHMgOSAwIFI+PgplbmRvYmoKNyAwIG9iago8PC9UeXBlL1BhZ2UvUmVzb3VyY2VzIDQgMCBSL01lZGlhQm94WzAgMCAyNTYgMjU2XS9CbGVlZEJveFswIDAgMjU2IDI1Nl0vVHJpbUJveFswIDAgMjU2IDI1Nl0vUGFyZW50IDEgMCBSL0NvbnRlbnRzIDEwIDAgUj4+CmVuZG9iago4IDAgb2JqCjw8L0xlbmd0aCAyMjMvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnicpVBLasQwDN37FO8CDZJtfXyCQndtjxBoS0kWM5u5/iBrEhjorgajZ+t9kC5gEAgvUaoo1h20uNBw6k9IGzeriuv3FOyTTdhmjbs9HKIStvJTvsp7ufwZIKbdSAMNJfMesOPjFXUR3MB4A+MXQrDIEl5anArti8bp0VNCV4QpxB9Mh1JSHDJO1E+DBmGsUEmBymGoCvWkKbQeUmuRs5bPf0/DJuDRsINNMwjsNoMsu97AxmAbWPOV/EDeDqbnEkJjp4+DrYdq0KEauYlQjPg7uTmzgYdP7zndHYqRZ40KZW5kc3RyZWFtCmVuZG9iago5IDAgb2JqCjw8L0xlbmd0aCAyMjcvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnicrZA9TgQxDIX7OcV3gR3Z8U+SEyBtBxxhJEBotlgaro8cIajoqPLk+L3P9h1FEC7KxZrQIjluyB45svVA9i5ziE1H9hSbTZOPV6pZuBE9Ec71lvlcP79KOLe37WV73O5/oaxp0QrgBfWiFihydJ4eaHvwiXJFecf6oCe3JbIXJzu5KhElLJJoWAahHFg6NrFhWMdGx0eV58QTlyADm1Le6l5pNfbzP44dYuicdbKl6mg+Gzqq5kOW8qFoD3wK2p0DHxPNRshAUwhtaK+1ojmak7DyDkJjZRw/ud87fAFwbV/QCmVuZHN0cmVhbQplbmRvYmoKMTAgMCBvYmoKPDwvTGVuZ3RoIDE5OC9GaWx0ZXIvRmxhdGVEZWNvZGU+PgpzdHJlYW0KeJytkL1NREEMhPOtYhq4J9vr9U8FSJcBJSABQvuCI6F9ZCMgIiPy6BuPPPINDALhwriYEmQZnk7Q4UEzhR10WCqzW8uGhvcX1DbhRKSBsHtWerfzqwh7vI7ncT9uf91a02Vpgg4NmUtSS5KHTlY83EGOhQ8wrmC8wdzhEycsF1Sx4ZxF9jcpy7GyLFKY9w7DGCdcGBpFZnRqPP5juSABp9VjhMB9OlSb7R9WroBDmiU4+4XTwFH1Qw3sXMzmV7ZafgLNolaaCmVuZHN0cmVhbQplbmRvYmoKMTEgMCBvYmoKPDwvVGl0bGUoU2VsZWN0ZWQgRW5ncmF2ZWQgQXRsYXMgdGVycmFpbiB0aWxlcykvQ3JlYXRvcihWZWN0b3JDcmFmdCkvUHJvZHVjZXIoVmVjdG9yQ3JhZnQpL01vZERhdGUoRDoyMDI2MTExNTExNDUwMlopL0NyZWF0aW9uRGF0ZShEOjIwMjYxMTE1MTE0NDU1Wik+PgplbmRvYmoKMTIgMCBvYmoKPDwvTGVuZ3RoIDEwODcvVHlwZS9NZXRhZGF0YS9TdWJ0eXBlL1hNTD4+CnN0cmVhbQo8P3hwYWNrZXQgYmVnaW49Iu+7vyIgaWQ9Ilc1TTBNcENlaGlIenJlU3pOVGN6a2M5ZCI/Pjx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9InhtcC13cml0ZXIiPjxyZGY6UkRGIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyI+PHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6ZGM9Imh0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvIiAgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiAgeG1sbnM6eG1wTU09Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9tbS8iICB4bWxuczp4bXBUUGc9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC90L3BnLyIgIHhtbG5zOnBkZj0iaHR0cDovL25zLmFkb2JlLmNvbS9wZGYvMS4zLyIgPjxkYzp0aXRsZT48cmRmOkFsdD48cmRmOmxpIHhtbDpsYW5nPSJ4LWRlZmF1bHQiPlNlbGVjdGVkIEVuZ3JhdmVkIEF0bGFzIHRlcnJhaW4gdGlsZXM8L3JkZjpsaT48L3JkZjpBbHQ+PC9kYzp0aXRsZT48eG1wOkNyZWF0b3JUb29sPlZlY3RvckNyYWZ0PC94bXA6Q3JlYXRvclRvb2w+PHBkZjpQcm9kdWNlcj5WZWN0b3JDcmFmdDwvcGRmOlByb2R1Y2VyPjx4bXA6TW9kaWZ5RGF0ZT4yMDI2LTExLTE1VDExOjQ1OjAyKzAwOjAwPC94bXA6TW9kaWZ5RGF0ZT48eG1wOkNyZWF0ZURhdGU+MjAyNi0xMS0xNVQxMTo0NDo1NSswMDowMDwveG1wOkNyZWF0ZURhdGU+PHhtcFRQZzpOUGFnZXM+MzwveG1wVFBnOk5QYWdlcz48ZGM6Zm9ybWF0PmFwcGxpY2F0aW9uL3BkZjwvZGM6Zm9ybWF0Pjx4bXBNTTpJbnN0YW5jZUlEPmExUFJzYi9mK2IzeGRtcWhsUXgxVVE9PTwveG1wTU06SW5zdGFuY2VJRD48eG1wTU06RG9jdW1lbnRJRD5hMVBSc2IvZitiM3hkbXFobFF4MVVRPT08L3htcE1NOkRvY3VtZW50SUQ+PHhtcE1NOlJlbmRpdGlvbkNsYXNzPmRlZmF1bHQ8L3htcE1NOlJlbmRpdGlvbkNsYXNzPjxwZGY6UERGVmVyc2lvbj4xLjc8L3BkZjpQREZWZXJzaW9uPjwvcmRmOkRlc2NyaXB0aW9uPjwvcmRmOlJERj48L3g6eG1wbWV0YT48P3hwYWNrZXQgZW5kPSJyIj8+CmVuZHN0cmVhbQplbmRvYmoKMTMgMCBvYmoKPDwvVmlld2VyUHJlZmVyZW5jZXM8PC9EaXNwbGF5RG9jVGl0bGUgdHJ1ZT4+L1R5cGUvQ2F0YWxvZy9QYWdlcyAxIDAgUi9NZXRhZGF0YSAxMiAwIFI+PgplbmRvYmoKeHJlZgowIDE0CjAwMDAwMDAwMDAgNjU1MzUgZg0KMDAwMDAwMDAxNiAwMDAwMCBuDQowMDAwMDAwMDc5IDAwMDAwIG4NCjAwMDAwMDAxMzIgMDAwMDAgbg0KMDAwMDAwMDE4NSAwMDAwMCBuDQowMDAwMDAwMjM4IDAwMDAwIG4NCjAwMDAwMDAzNzcgMDAwMDAgbg0KMDAwMDAwMDUxNiAwMDAwMCBuDQowMDAwMDAwNjU2IDAwMDAwIG4NCjAwMDAwMDA5NDcgMDAwMDAgbg0KMDAwMDAwMTI0MiAwMDAwMCBuDQowMDAwMDAxNTA5IDAwMDAwIG4NCjAwMDAwMDE2NzcgMDAwMDAgbg0KMDAwMDAwMjg0MSAwMDAwMCBuDQp0cmFpbGVyCjw8L1NpemUgMTQvUm9vdCAxMyAwIFIvSW5mbyAxMSAwIFIvSURbKGExUFJzYi9mK2IzeGRtcWhsUXgxVVE9PSkoYTFQUnNiL2YrYjN4ZG1xaGxReDFVUT09KV0+PgpzdGFydHhyZWYKMjk0NgolJUVPRg=="
+    "data": "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ZGY9Imh0dHA6Ly9ucy5hZG9iZS5jb20vcGRmLzEuMy8iID48ZGM6dGl0bGU+PHJkZjpBbHQ+PHJkZjpsaSB4bWw6bGFuZz0ieC1kZWZhdWx0Ij5TZWxlY3RlZCBFbmdyYXZlZCBBdGxhcyB0ZXJyYWluIHRpbGVzPC9yZGY6bGk+PC9yZGY6QWx0PjwvZGM6dGl0bGU+PHhtcDpDcmVhdG9yVG9vbD5WZWN0b3JDcmFmdDwveG1wOkNyZWF0b3JUb29sPjxwZGY6UHJvZHVjZXI+VmVjdG9yQ3JhZnQ8L3BkZjpQcm9kdWNlcj48eG1wOk1vZGlmeURhdGU+MjAyNi0xMS0xNVQxMTo1NzoxNSswMDowMDwveG1wOk1vZGlmeURhdGU+PHhtcDpDcmVhdGVEYXRlPjIwMjYtMTEtMTVUMTE6NDQ6NTUrMDA6MDA8L3htcDpDcmVhdGVEYXRlPjx4bXBUUGc6TlBhZ2VzPjM8L3htcFRQZzpOUGFnZXM+PGRjOmZvcm1hdD5hcHBsaWNhdGlvbi9wZGY8L2RjOmZvcm1hdD48eG1wTU06SW5zdGFuY2VJRD4veVcwZXArakNTZnVORlpOcFVoVG13PT08L3htcE1NOkluc3RhbmNlSUQ+PHhtcE1NOkRvY3VtZW50SUQ+L3lXMGVwK2pDU2Z1TkZaTnBVaFRtdz09PC94bXBNTTpEb2N1bWVudElEPjx4bXBNTTpSZW5kaXRpb25DbGFzcz5kZWZhdWx0PC94bXBNTTpSZW5kaXRpb25DbGFzcz48cGRmOlBERlZlcnNpb24+MS43PC9wZGY6UERGVmVyc2lvbj48L3JkZjpEZXNjcmlwdGlvbj48L3JkZjpSREY+PC94OnhtcG1ldGE+PD94cGFja2V0IGVuZD0iciI/PgplbmRzdHJlYW0KZW5kb2JqCjEzIDAgb2JqCjw8L1ZpZXdlclByZWZlcmVuY2VzPDwvRGlzcGxheURvY1RpdGxlIHRydWU+Pi9UeXBlL0NhdGFsb2cvUGFnZXMgMSAwIFIvTWV0YWRhdGEgMTIgMCBSPj4KZW5kb2JqCnhyZWYKMCAxNAowMDAwMDAwMDAwIDY1NTM1IGYNCjAwMDAwMDAwMTYgMDAwMDAgbg0KMDAwMDAwMDA3OSAwMDAwMCBuDQowMDAwMDAwMTMyIDAwMDAwIG4NCjAwMDAwMDAxODUgMDAwMDAgbg0KMDAwMDAwMDIzOCAwMDAwMCBuDQowMDAwMDAwMzc3IDAwMDAwIG4NCjAwMDAwMDA1MTYgMDAwMDAgbg0KMDAwMDAwMDY1NiAwMDAwMCBuDQowMDAwMDAxMTY4IDAwMDAwIG4NCjAwMDAwMDE2NTkgMDAwMDAgbg0KMDAwMDAwMjA3NyAwMDAwMCBuDQowMDAwMDAyMjQ1IDAwMDAwIG4NCjAwMDAwMDM0MDkgMDAwMDAgbg0KdHJhaWxlcgo8PC9TaXplIDE0L1Jvb3QgMTMgMCBSL0luZm8gMTEgMCBSL0lEWygveVcwZXArakNTZnVORlpOcFVoVG13PT0pKC95VzBlcCtqQ1NmdU5GWk5wVWhUbXc9PSldPj4Kc3RhcnR4cmVmCjM1MTQKJSVFT0Y="
   },
   "document": {
     "version": 3,
@@ -179,22 +179,352 @@
                       "anchors": [
                         {
                           "p": [
-                            50.0,
-                            70.0
+                            34.0,
+                            60.0
                           ],
                           "out": [
-                            51.333333333333336,
-                            64.66666666666667
+                            35.333333333333336,
+                            54.66666666666667
                           ]
                         },
                         {
                           "p": [
-                            46.0,
+                            30.0,
+                            46.0
+                          ],
+                          "in": [
+                            34.0,
+                            50.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            42.0,
+                            60.0
+                          ],
+                          "out": [
+                            42.0,
+                            50.66666666666667
+                          ]
+                        },
+                        {
+                          "p": [
+                            47.0,
+                            41.0
+                          ],
+                          "in": [
+                            43.666666666666664,
+                            44.333333333333336
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            49.0,
+                            60.0
+                          ],
+                          "out": [
+                            49.66666666666667,
+                            56.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            57.0,
+                            50.0
+                          ],
+                          "in": [
+                            52.33333333333333,
+                            52.666666666666664
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 14,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.5764706,
+                        "g": 0.59607846,
+                        "b": 0.4
+                      }
+                    },
+                    "width": 2.5,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            207.0,
+                            175.0
+                          ],
+                          "out": [
+                            208.33333333333334,
+                            169.66666666666669
+                          ]
+                        },
+                        {
+                          "p": [
+                            203.0,
+                            161.0
+                          ],
+                          "in": [
+                            207.0,
+                            165.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            215.0,
+                            175.0
+                          ],
+                          "out": [
+                            215.0,
+                            165.66666666666669
+                          ]
+                        },
+                        {
+                          "p": [
+                            220.0,
+                            156.0
+                          ],
+                          "in": [
+                            216.66666666666666,
+                            159.33333333333334
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            222.0,
+                            175.0
+                          ],
+                          "out": [
+                            222.66666666666669,
+                            171.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            230.0,
+                            165.0
+                          ],
+                          "in": [
+                            225.33333333333331,
+                            167.66666666666666
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 13,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.5764706,
+                        "g": 0.59607846,
+                        "b": 0.4
+                      }
+                    },
+                    "width": 2.5,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            132.0,
+                            202.0
+                          ],
+                          "out": [
+                            133.33333333333334,
+                            196.66666666666669
+                          ]
+                        },
+                        {
+                          "p": [
+                            128.0,
+                            188.0
+                          ],
+                          "in": [
+                            132.0,
+                            192.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            140.0,
+                            202.0
+                          ],
+                          "out": [
+                            140.0,
+                            192.66666666666669
+                          ]
+                        },
+                        {
+                          "p": [
+                            145.0,
+                            183.0
+                          ],
+                          "in": [
+                            141.66666666666666,
+                            186.33333333333334
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            147.0,
+                            202.0
+                          ],
+                          "out": [
+                            147.66666666666669,
+                            198.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            155.0,
+                            192.0
+                          ],
+                          "in": [
+                            150.33333333333331,
+                            194.66666666666666
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 12,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.5764706,
+                        "g": 0.59607846,
+                        "b": 0.4
+                      }
+                    },
+                    "width": 2.5,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            192.0,
                             56.0
                           ],
+                          "out": [
+                            193.33333333333334,
+                            50.66666666666667
+                          ]
+                        },
+                        {
+                          "p": [
+                            188.0,
+                            42.0
+                          ],
                           "in": [
-                            50.0,
-                            60.0
+                            192.0,
+                            46.0
                           ]
                         }
                       ],
@@ -204,22 +534,22 @@
                       "anchors": [
                         {
                           "p": [
-                            58.0,
-                            70.0
+                            200.0,
+                            56.0
                           ],
                           "out": [
-                            58.0,
-                            60.66666666666667
+                            200.0,
+                            46.66666666666667
                           ]
                         },
                         {
                           "p": [
-                            63.0,
-                            51.0
+                            205.0,
+                            37.0
                           ],
                           "in": [
-                            59.666666666666664,
-                            54.333333333333336
+                            201.66666666666666,
+                            40.333333333333336
                           ]
                         }
                       ],
@@ -229,22 +559,132 @@
                       "anchors": [
                         {
                           "p": [
-                            65.0,
-                            70.0
+                            207.0,
+                            56.0
                           ],
                           "out": [
-                            65.66666666666667,
-                            66.0
+                            207.66666666666669,
+                            52.0
                           ]
                         },
                         {
                           "p": [
-                            73.0,
-                            60.0
+                            215.0,
+                            46.0
                           ],
                           "in": [
-                            68.33333333333333,
-                            62.666666666666664
+                            210.33333333333331,
+                            48.666666666666664
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 11,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.5764706,
+                        "g": 0.59607846,
+                        "b": 0.4
+                      }
+                    },
+                    "width": 2.5,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            111.0,
+                            82.0
+                          ],
+                          "out": [
+                            112.33333333333334,
+                            76.66666666666667
+                          ]
+                        },
+                        {
+                          "p": [
+                            107.0,
+                            68.0
+                          ],
+                          "in": [
+                            111.0,
+                            72.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            119.0,
+                            82.0
+                          ],
+                          "out": [
+                            119.0,
+                            72.66666666666667
+                          ]
+                        },
+                        {
+                          "p": [
+                            124.0,
+                            63.0
+                          ],
+                          "in": [
+                            120.66666666666666,
+                            66.33333333333334
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            126.0,
+                            82.0
+                          ],
+                          "out": [
+                            126.66666666666667,
+                            78.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            134.0,
+                            72.0
+                          ],
+                          "in": [
+                            129.33333333333331,
+                            74.66666666666666
                           ]
                         }
                       ],
@@ -289,22 +729,22 @@
                       "anchors": [
                         {
                           "p": [
-                            175.0,
-                            193.0
+                            50.0,
+                            178.0
                           ],
                           "out": [
-                            176.33333333333334,
-                            187.66666666666666
+                            51.33333333333334,
+                            172.66666666666666
                           ]
                         },
                         {
                           "p": [
-                            171.0,
-                            179.0
+                            46.0,
+                            164.0
                           ],
                           "in": [
-                            175.0,
-                            183.0
+                            50.0,
+                            168.0
                           ]
                         }
                       ],
@@ -314,47 +754,47 @@
                       "anchors": [
                         {
                           "p": [
-                            183.0,
-                            193.0
+                            58.0,
+                            178.0
                           ],
                           "out": [
-                            183.0,
-                            183.66666666666666
+                            58.0,
+                            168.66666666666666
                           ]
                         },
                         {
                           "p": [
-                            188.0,
+                            63.0,
+                            159.0
+                          ],
+                          "in": [
+                            59.66666666666666,
+                            162.33333333333334
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            65.0,
+                            178.0
+                          ],
+                          "out": [
+                            65.66666666666666,
                             174.0
-                          ],
-                          "in": [
-                            184.66666666666666,
-                            177.33333333333334
-                          ]
-                        }
-                      ],
-                      "closed": false
-                    },
-                    {
-                      "anchors": [
-                        {
-                          "p": [
-                            190.0,
-                            193.0
-                          ],
-                          "out": [
-                            190.66666666666666,
-                            189.0
                           ]
                         },
                         {
                           "p": [
-                            198.0,
-                            183.0
+                            73.0,
+                            168.0
                           ],
                           "in": [
-                            193.33333333333334,
-                            185.66666666666666
+                            68.33333333333334,
+                            170.66666666666666
                           ]
                         }
                       ],
@@ -480,14 +920,14 @@
                       "anchors": [
                         {
                           "p": [
-                            378.0,
-                            76.0
+                            362.0,
+                            66.0
                           ]
                         },
                         {
                           "p": [
-                            378.0,
-                            67.0
+                            362.0,
+                            57.0
                           ]
                         }
                       ],
@@ -497,50 +937,470 @@
                       "anchors": [
                         {
                           "p": [
-                            367.0,
-                            66.0
+                            351.0,
+                            56.0
                           ],
                           "out": [
-                            355.0,
-                            66.0
+                            339.0,
+                            56.0
                           ]
                         },
                         {
                           "p": [
-                            365.0,
-                            51.0
+                            349.0,
+                            41.0
                           ],
                           "in": [
-                            356.0,
+                            340.0,
+                            42.0
+                          ],
+                          "out": [
+                            348.0,
+                            29.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            371.0,
+                            38.0
+                          ],
+                          "in": [
+                            367.0,
+                            27.0
+                          ],
+                          "out": [
+                            383.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            374.0,
+                            56.0
+                          ],
+                          "in": [
+                            389.0,
+                            55.0
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 18,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.32156864,
+                        "g": 0.4862745,
+                        "b": 0.39215687
+                      }
+                    },
+                    "width": 2.5,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            535.0,
+                            181.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            535.0,
+                            172.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            524.0,
+                            171.0
+                          ],
+                          "out": [
+                            512.0,
+                            171.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            522.0,
+                            156.0
+                          ],
+                          "in": [
+                            513.0,
+                            157.0
+                          ],
+                          "out": [
+                            521.0,
+                            144.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            544.0,
+                            153.0
+                          ],
+                          "in": [
+                            540.0,
+                            142.0
+                          ],
+                          "out": [
+                            556.0,
+                            151.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            547.0,
+                            171.0
+                          ],
+                          "in": [
+                            562.0,
+                            170.0
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 17,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.32156864,
+                        "g": 0.4862745,
+                        "b": 0.39215687
+                      }
+                    },
+                    "width": 2.5,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            460.0,
+                            208.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            460.0,
+                            199.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            449.0,
+                            198.0
+                          ],
+                          "out": [
+                            437.0,
+                            198.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            447.0,
+                            183.0
+                          ],
+                          "in": [
+                            438.0,
+                            184.0
+                          ],
+                          "out": [
+                            446.0,
+                            171.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            469.0,
+                            180.0
+                          ],
+                          "in": [
+                            465.0,
+                            169.0
+                          ],
+                          "out": [
+                            481.0,
+                            178.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            472.0,
+                            198.0
+                          ],
+                          "in": [
+                            487.0,
+                            197.0
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 16,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.32156864,
+                        "g": 0.4862745,
+                        "b": 0.39215687
+                      }
+                    },
+                    "width": 2.5,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            520.0,
+                            62.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            520.0,
+                            53.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            509.0,
                             52.0
                           ],
                           "out": [
-                            364.0,
-                            39.0
+                            497.0,
+                            52.0
                           ]
                         },
                         {
                           "p": [
-                            387.0,
-                            48.0
-                          ],
-                          "in": [
-                            383.0,
+                            507.0,
                             37.0
                           ],
+                          "in": [
+                            498.0,
+                            38.0
+                          ],
                           "out": [
-                            399.0,
-                            46.0
+                            506.0,
+                            25.0
                           ]
                         },
                         {
                           "p": [
-                            390.0,
-                            66.0
+                            529.0,
+                            34.0
                           ],
                           "in": [
-                            405.0,
-                            65.0
+                            525.0,
+                            23.0
+                          ],
+                          "out": [
+                            541.0,
+                            32.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            532.0,
+                            52.0
+                          ],
+                          "in": [
+                            547.0,
+                            51.0
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 15,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.32156864,
+                        "g": 0.4862745,
+                        "b": 0.39215687
+                      }
+                    },
+                    "width": 2.5,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            439.0,
+                            88.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            439.0,
+                            79.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            428.0,
+                            78.0
+                          ],
+                          "out": [
+                            416.0,
+                            78.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            426.0,
+                            63.0
+                          ],
+                          "in": [
+                            417.0,
+                            64.0
+                          ],
+                          "out": [
+                            425.0,
+                            51.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            448.0,
+                            60.0
+                          ],
+                          "in": [
+                            444.0,
+                            49.0
+                          ],
+                          "out": [
+                            460.0,
+                            58.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            451.0,
+                            78.0
+                          ],
+                          "in": [
+                            466.0,
+                            77.0
                           ]
                         }
                       ],
@@ -585,14 +1445,14 @@
                       "anchors": [
                         {
                           "p": [
-                            503.0,
-                            199.0
+                            378.0,
+                            184.0
                           ]
                         },
                         {
                           "p": [
-                            503.0,
-                            190.0
+                            378.0,
+                            175.0
                           ]
                         }
                       ],
@@ -602,50 +1462,50 @@
                       "anchors": [
                         {
                           "p": [
-                            492.0,
-                            189.0
-                          ],
-                          "out": [
-                            480.0,
-                            189.0
-                          ]
-                        },
-                        {
-                          "p": [
-                            490.0,
+                            367.0,
                             174.0
                           ],
-                          "in": [
-                            481.0,
-                            175.0
-                          ],
                           "out": [
-                            489.0,
-                            162.0
+                            355.0,
+                            174.0
                           ]
                         },
                         {
                           "p": [
-                            512.0,
-                            171.0
+                            365.0,
+                            159.0
                           ],
                           "in": [
-                            508.0,
+                            356.0,
                             160.0
                           ],
                           "out": [
-                            524.0,
-                            169.0
+                            364.0,
+                            147.0
                           ]
                         },
                         {
                           "p": [
-                            515.0,
-                            189.0
+                            387.0,
+                            156.0
                           ],
                           "in": [
-                            530.0,
-                            188.0
+                            383.0,
+                            145.0
+                          ],
+                          "out": [
+                            399.0,
+                            154.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            390.0,
+                            174.0
+                          ],
+                          "in": [
+                            405.0,
+                            173.0
                           ]
                         }
                       ],
@@ -771,20 +1631,43 @@
                       "anchors": [
                         {
                           "p": [
-                            677.0,
-                            73.0
+                            661.0,
+                            63.0
                           ]
                         },
                         {
                           "p": [
-                            695.0,
-                            44.0
+                            679.0,
+                            34.0
                           ]
                         },
                         {
                           "p": [
-                            719.0,
-                            73.0
+                            703.0,
+                            63.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            679.0,
+                            34.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            681.0,
+                            49.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            688.0,
+                            57.0
                           ]
                         }
                       ],
@@ -795,19 +1678,285 @@
                         {
                           "p": [
                             695.0,
-                            44.0
+                            51.0
                           ]
                         },
                         {
                           "p": [
-                            697.0,
+                            705.0,
+                            38.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            722.0,
+                            63.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 22,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.5372549,
+                        "g": 0.48235294,
+                        "b": 0.40784314
+                      }
+                    },
+                    "width": 2.5,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            834.0,
+                            178.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            852.0,
+                            149.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            876.0,
+                            178.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            852.0,
+                            149.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            854.0,
+                            164.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            861.0,
+                            172.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            868.0,
+                            166.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            878.0,
+                            153.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            895.0,
+                            178.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 21,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.5372549,
+                        "g": 0.48235294,
+                        "b": 0.40784314
+                      }
+                    },
+                    "width": 2.5,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            759.0,
+                            205.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            777.0,
+                            176.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            801.0,
+                            205.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            777.0,
+                            176.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            779.0,
+                            191.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            786.0,
+                            199.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            793.0,
+                            193.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            803.0,
+                            180.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            820.0,
+                            205.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 20,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.5372549,
+                        "g": 0.48235294,
+                        "b": 0.40784314
+                      }
+                    },
+                    "width": 2.5,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            819.0,
                             59.0
                           ]
                         },
                         {
                           "p": [
-                            704.0,
-                            67.0
+                            837.0,
+                            30.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            861.0,
+                            59.0
                           ]
                         }
                       ],
@@ -817,20 +1966,147 @@
                       "anchors": [
                         {
                           "p": [
-                            711.0,
-                            61.0
+                            837.0,
+                            30.0
                           ]
                         },
                         {
                           "p": [
-                            721.0,
-                            48.0
+                            839.0,
+                            45.0
                           ]
                         },
+                        {
+                          "p": [
+                            846.0,
+                            53.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            853.0,
+                            47.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            863.0,
+                            34.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            880.0,
+                            59.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 19,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.5372549,
+                        "g": 0.48235294,
+                        "b": 0.40784314
+                      }
+                    },
+                    "width": 2.5,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
                         {
                           "p": [
                             738.0,
+                            85.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            756.0,
+                            56.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            780.0,
+                            85.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            756.0,
+                            56.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            758.0,
+                            71.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            765.0,
+                            79.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            772.0,
                             73.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            782.0,
+                            60.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            799.0,
+                            85.0
                           ]
                         }
                       ],
@@ -875,20 +2151,20 @@
                       "anchors": [
                         {
                           "p": [
-                            802.0,
-                            196.0
+                            677.0,
+                            181.0
                           ]
                         },
                         {
                           "p": [
-                            820.0,
-                            167.0
+                            695.0,
+                            152.0
                           ]
                         },
                         {
                           "p": [
-                            844.0,
-                            196.0
+                            719.0,
+                            181.0
                           ]
                         }
                       ],
@@ -898,20 +2174,20 @@
                       "anchors": [
                         {
                           "p": [
-                            820.0,
+                            695.0,
+                            152.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            697.0,
                             167.0
                           ]
                         },
                         {
                           "p": [
-                            822.0,
-                            182.0
-                          ]
-                        },
-                        {
-                          "p": [
-                            829.0,
-                            190.0
+                            704.0,
+                            175.0
                           ]
                         }
                       ],
@@ -921,20 +2197,20 @@
                       "anchors": [
                         {
                           "p": [
-                            836.0,
-                            184.0
+                            711.0,
+                            169.0
                           ]
                         },
                         {
                           "p": [
-                            846.0,
-                            171.0
+                            721.0,
+                            156.0
                           ]
                         },
                         {
                           "p": [
-                            863.0,
-                            196.0
+                            738.0,
+                            181.0
                           ]
                         }
                       ],
@@ -1880,7 +3156,7 @@
     },
     "raster_effects_ppi": 72.0,
     "images": {},
-    "next_id": 11,
+    "next_id": 23,
     "metadata": {
       "author": "",
       "authorTitle": "",
@@ -1891,7 +3167,7 @@
       "copyrightNotice": "",
       "copyrightUrl": "",
       "created": 1794743095,
-      "modified": 1794743102
+      "modified": 1794743835
     }
   },
   "images": {}
