@@ -32,11 +32,10 @@ use std::{
     },
     time::Duration,
 };
+use unfolded_hover::Hover;
 use unfolded_tabletop::{
     camera::{Capture, FrameInput, Orbit, wheel_steps},
-    count_label,
-    hover::Hover,
-    token,
+    count_label, token,
 };
 pub mod seat;
 mod status;

@@ -5,7 +5,7 @@ use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
 };
-use unfolded_tabletop::assets::{read_bounded, read_verified, regular_file};
+use unfolded_assets::{read_bounded, read_verified, regular_file};
 pub const MANIFEST: &str = include_str!("../art/atlas/runtime.sha256");
 // Stateless hover disclosures are required at launch, but do not redefine the
 // map/cards identity to which existing game records are bound.
