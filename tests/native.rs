@@ -78,6 +78,15 @@ impl Native {
         );
         self.request(json!({"op":"settle"}), true);
     }
+    fn choose(&mut self, action: &str) {
+        let view = self.observe();
+        let revision = view["observation"]["revision"].as_u64().unwrap();
+        self.request(
+            json!({"op":"activate","revision":revision,"choice":format!("{revision}:{action}")}),
+            true,
+        );
+        self.request(json!({"op":"settle"}), true);
+    }
     fn capture(&mut self, name: &str) {
         self.request(
             json!({"op":"capture","path":self.root.join(format!("{name}.png"))}),
@@ -173,7 +182,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     app.activate("standing:0", 0);
     assert_eq!(app.observe()["table"]["pinned"], "Government");
     app.activate("close", 0);
-    for control in ["0:kidnap", "0:terror", "0:transfer", "0:remove"] {
+    for control in ["0:kidnap", "0:terror", "0:remove"] {
         app.activate(control, 0);
         let disclosed = app.observe();
         assert!(
@@ -372,4 +381,99 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         std::fs::read(&original_path).unwrap(),
         b"interrupted record"
     );
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained transfer captures"]
+fn native_giver_transfers_all_directions_and_interrupted_authorization() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-13"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("transfers-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("task.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Transfer evidence: {}", app.root.display());
+    app.launch();
+    app.choose("transfer");
+    app.capture("directions");
+    app.choose("transfer:3:1");
+    assert_eq!(app.observe()["observation"]["owner"], "Syndicate");
+    app.choose("amount:1");
+    app.capture("giver-authorization");
+    let pending = app.observe()["observation"].clone();
+    let saved = std::fs::read(&app.save).unwrap();
+    app.choose("wait");
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    // Each request reconnects; quitting and relaunching additionally crosses processes.
+    app.quit();
+    app.launch();
+    assert_eq!(app.observe()["observation"], pending);
+    app.capture("giver-restarted");
+    let revision = pending["revision"].as_u64().unwrap();
+    app.choose("authorize");
+    assert_eq!(
+        app.observe()["observation"]["resources"],
+        json!([6, 1, 5, 14])
+    );
+    let after = app.observe()["observation"].clone();
+    app.capture("accepted-balances");
+    app.quit();
+    app.launch();
+    assert_eq!(app.observe()["observation"], after);
+    app.request(
+        json!({"op":"activate","revision":revision,"choice":format!("{revision}:authorize")}),
+        false,
+    );
+    assert_eq!(app.observe()["observation"], after);
+    let revision = after["revision"].as_u64().unwrap();
+    app.activate("standing:3", revision);
+    app.capture("syndicate-contributions");
+    app.activate("close", revision);
+    for (pair, expected) in [
+        ("1:3", [6, 0, 5, 15]),
+        ("0:1", [5, 1, 5, 15]),
+        ("1:0", [6, 0, 5, 15]),
+        ("2:1", [6, 1, 4, 15]),
+        ("1:2", [6, 0, 5, 15]),
+        ("3:1", [6, 1, 5, 14]),
+    ] {
+        app.choose("transfer");
+        app.choose(&format!("transfer:{pair}"));
+        app.choose("amount:1");
+        app.choose("authorize");
+        assert_eq!(app.observe()["observation"]["resources"], json!(expected));
+    }
+    app.choose("transfer");
+    app.choose("transfer:0:1");
+    app.choose("amount:1");
+    app.capture("decline-choice");
+    app.choose("decline");
+    assert_eq!(
+        app.observe()["observation"]["resources"],
+        json!([6, 1, 5, 14])
+    );
+    app.choose("transfer");
+    app.choose("transfer:1:0");
+    app.choose("authorize");
+    assert_eq!(
+        app.observe()["observation"]["resources"],
+        json!([6, 1, 5, 14])
+    );
+    app.choose("finish");
+    assert_eq!(app.observe()["observation"]["finished"], true);
+    app.capture("transfers-finished");
+    app.quit();
 }

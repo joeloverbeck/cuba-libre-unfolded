@@ -105,7 +105,7 @@ enum Action {
     Close,
     Reader,
     Inspect(String),
-    Finish(u64),
+    Decision(Faction, u64),
     Unsupported(String),
     Cancel,
     Quit,
@@ -642,14 +642,43 @@ fn click(
             ui.inspected = Some(id.clone());
             ui.pinned = None;
         }
-        Action::Finish(rev) => {
+        Action::Decision(owner, rev) => {
+            let previous = play.game().observe();
             match play
                 .session
                 .as_mut()
                 .unwrap()
-                .submit(Faction::M26, *rev, &control.name)
+                .submit(*owner, *rev, &control.name)
             {
-                Ok(()) => ui.notice = "Saved Operation Only. No Pass income.".into(),
+                Ok(()) => {
+                    ui.notice = if control.name.ends_with(":authorize") {
+                        if let Some(crate::Transfer::Authorizing {
+                            giver,
+                            recipient,
+                            amount,
+                        }) = previous.transfer
+                        {
+                            format!(
+                                "{} gave {amount} to {}. Saved.",
+                                giver.name(),
+                                recipient.name()
+                            )
+                        } else {
+                            "Decision saved.".into()
+                        }
+                    } else if control.name.ends_with(":decline") {
+                        format!("{} declined. No resources moved.", owner.name())
+                    } else if control.name.ends_with(":wait") {
+                        format!(
+                            "Waiting for {}. Save / quit keeps this decision.",
+                            owner.name()
+                        )
+                    } else if control.name.ends_with(":finish") {
+                        "Saved Operation Only. No Pass income.".into()
+                    } else {
+                        "Decision saved; resources unchanged.".into()
+                    };
+                }
                 Err(e) => ui.notice = e.to_string(),
             };
         }
@@ -1010,6 +1039,8 @@ fn draw_ui(
             &art,
             if view.finished {
                 "26July completed Operation Only\nNo Pass income".into()
+            } else if view.transfer.is_some() {
+                format!("Resource transfer\n{} decides locally", view.owner.name())
             } else {
                 format!("{} · {}", view.owner.name(), view.operation)
             },
@@ -1024,7 +1055,14 @@ fn draw_ui(
         text(
             &mut commands,
             &art,
-            "All factions Eligible · Aid 15 · US Alliance Firm\nSantiago: 2 Underground Guerrillas / 1 Police\nOriente: 1 Underground Guerrilla / 0 Police\nTerror: 1 Resource per space; currently 0\nAll Guerrillas Underground · Casinos open\nNo Capability, Momentum or Cash",
+            match &view.transfer {
+                Some(crate::Transfer::Selecting) => "Choose the giver and recipient.\n26July must be one endpoint.\nThe giver chooses the quantity and authorizes.\nA request is not a donation.".into(),
+                Some(crate::Transfer::Authorizing { giver, recipient, amount }) => format!(
+                    "Giver: {} · balance {}\nRecipient: {} · balance {}\nAmount: {} Resources · whole numbers only\nAfter authorization: {} → {}; {} → {}\nZero is allowed. Decline moves nothing.",
+                    giver.name(), view.resources[giver.index()], recipient.name(), view.resources[recipient.index()], amount,
+                    giver.name(), view.resources[giver.index()] - amount, recipient.name(), view.resources[recipient.index()] + amount),
+                None => format!("All factions Eligible · Aid 15 · US Alliance Firm\nSantiago: 2 Underground Guerrillas / 1 Police\nOriente: 1 Underground Guerrilla / 0 Police\nTerror: 1 Resource per space; 26July has {}\nAll Guerrillas Underground · Casinos open\nNo Capability, Momentum or Cash", view.resources[1]),
+            },
             1404.,
             390.,
             450.,
@@ -1034,32 +1072,28 @@ fn draw_ui(
             2,
         );
         if !view.finished {
-            for (i, choice) in view.choices.iter().filter(|c| !c.supported).enumerate() {
+            for (i, choice) in view.choices.iter().enumerate() {
                 control(
                     &mut commands,
                     &art,
                     &choice.id,
-                    &format!("{} — incomplete", choice.label),
-                    Action::Unsupported(choice.explanation.clone()),
-                    [1404., 540. + i as f32 * 70., 452., 54.],
+                    &if choice.supported {
+                        choice.label.clone()
+                    } else {
+                        format!("{} — incomplete", choice.label)
+                    },
+                    if choice.supported {
+                        Action::Decision(view.owner, view.revision)
+                    } else {
+                        Action::Unsupported(choice.explanation.clone())
+                    },
+                    [1404., 540. + i as f32 * 52., 452., 46.],
                     s,
                     o,
-                    false,
+                    choice.supported,
                     2,
                 );
             }
-            control(
-                &mut commands,
-                &art,
-                &format!("{}:finish", view.revision),
-                "Finish · zero-space Operation Only",
-                Action::Finish(view.revision),
-                [1404., 825., 452., 65.],
-                s,
-                o,
-                true,
-                2,
-            );
         } else {
             text(
                 &mut commands,

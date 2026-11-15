@@ -2,7 +2,7 @@
 
 An Ubuntu Rust desktop implementation of **Cuba Libre**, the COIN game by Jeff Grossman and Volko Ruhnke, published by GMT Games.
 
-This integration candidate implements the prepared position and zero-space Finish branch of [the first native tactical task (#8)](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/8), through [#12](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/12). It renders the selected Atlas map and solid counted pieces, four victory standings and their breakdowns, current/preview card reader, and durable initial/finished saves. Transfers, Terror/Kidnap and voluntary removal remain visibly incomplete pending #13–15. This is not a complete card, standard setup, full game, faction-agent player, or owner-accepted play experience.
+This integration candidate implements the prepared position, giver-authorized Resource transfers and zero-space Finish branch of [the first native tactical task (#8)](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/8), through [#13](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/13). It renders the selected Atlas map and solid counted pieces, four victory standings and their breakdowns, current/preview card reader, and durable pending/finished saves. Terror/Kidnap and voluntary removal remain visibly incomplete pending #14–15. This is not a complete card, standard setup, full game, faction-agent player, or owner-accepted play experience.
 
 ## Build and launch
 
@@ -18,6 +18,8 @@ cargo run --locked --features tabletop --bin cuba-libre -- --cards "/path/to/car
 `--cards` names a directory containing the selected private `card-17.png` and `card-18.png`, with the exact hashes in [the asset handoff](art/atlas/README.md#private-card-admission). No card images are downloaded or redistributed. `--art` defaults to `art/atlas`; use its absolute path when running the binary from another directory. Missing/changed art or cards refuse before creating or replacing a save. PNGs are decoded, fonts registered, and the real scene/render path admitted before save creation.
 
 The initial task already has 26July's full Terror selected. Inspect a standing by hovering or clicking it; Close details dismisses it. Click a solid region to inspect its state. Read both cards opens their complete faces. Right-drag or arrow keys orbit; wheel or `+`/`-` zoom; WASD pans; Home restores framing. The card reader captures camera input. Finish deliberately completes the zero-space Operation Only interpretation without Pass income, then displays Directorio's next Pass/Limited Operation permission without executing it or advancing the card/eligibility.
+
+Resource transfer offers all six directions between 26July and another faction. Selecting a direction hands the local decision to the named giver: use Amount −1/+1, then that faction's Authorize or Decline control. Zero is deliberate non-transfer; repeated transfers are allowed. The preview shows both resulting balances, and only authorization moves Resources. Wait retains the pending giver/amount; Save / quit and relaunch restore it. Return to Operation leaves the direction menu. Cancel inspection only closes disclosures and never withdraws or undoes a transfer. These are local faction decisions, not external agent players or binding promises.
 
 The sea uses the selected **C — Trade wind strokes** animation authored in VectorCraft/EffectCraft: 24 frames at 6 fps, repeated below the solid regions. It cannot intercept picking or hold a decision unsettled. Desktop time drives ordinary playback; the development seat advances the same animation through its explicit manual clock, while captures leave time unchanged. Decorative frame position is not saved game state.
 
@@ -39,7 +41,7 @@ Core tests require no private inputs or GPU. The explicitly ignored native regre
 CUBA_TEST_CARDS="/path/to/cards" cargo test --locked --features tabletop --test native -- --ignored --nocapture
 ```
 
-It retains isolated saves, JSON observations and screenshots under `local/verification/issue-12/native-*` and exercises actual pointer/key controls, hover, all 13 region picks, camera capture, rendered water progression and looping, Finish, stale refusal, new-process restarts, input refusal and explicit recovery. Inspect the images separately; passing assertions do not prove readability or owner acceptance. `CUBA_NATIVE_EVIDENCE` can select another evidence directory. A user-selected `CARGO_TARGET_DIR` can reuse a compatible warm build cache; it is not a runtime dependency.
+It retains isolated saves, JSON observations and screenshots under `local/verification/issue-12/native-*` and `local/verification/issue-13/transfers-*`. It exercises actual pointer/key controls, hover, all 13 region picks, camera capture, rendered water progression and looping, Finish, all transfer directions, decline/wait/zero, pending giver and accepted transfer process restarts, stale refusal, input refusal and explicit recovery. Inspect the images separately; passing assertions do not prove readability or owner acceptance. `CUBA_NATIVE_EVIDENCE` can select another evidence directory. A user-selected `CARGO_TARGET_DIR` can reuse a compatible warm build cache; it is not a runtime dependency.
 
 The shared development seat operates the same Bevy scene, UI and input path without opening an OS window. It uses a fixed manual clock and disables Winit and pipelined rendering; it cannot establish physical mouse comfort. It is distinct from a faction player's connection. Use isolated verification saves:
 
@@ -53,6 +55,8 @@ cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"quit"}'
 ```
 
 Use the actual observed revision and exact control/choice names. Other components include `standing:1` through `standing:3`, `space:havana`, `reader`, `close`, and `cancel`. Key requests use e.g. `{"op":"key","revision":0,"key":"Home"}`. A held seat idles out after 30 minutes. The Rust client uses the shared JSON-line transport, exits nonzero for refusals/misses/skips/malformed or missing replies, and has a 180-second response deadline. A refused connection stops subsequent mutations on that connection; reconnect and observe before deciding again. The development seat has no authority to invent legal game choices.
+
+For a fresh transfer example, activate choices `0:transfer`, `1:transfer:3:1`, `2:amount:1`, then `3:authorize`, using revisions 0, 1, 2 and 3 and settling after each. This requests Syndicate → 26July, lets Syndicate choose 1, then authorizes balances Government/26July/Directorio/Syndicate = 6/1/5/14. Observe after each step; the returned owner and choices bind the next local decision. `3:wait` preserves revision 3, while `3:decline` returns to 26July without moving Resources.
 
 ## Recovery
 

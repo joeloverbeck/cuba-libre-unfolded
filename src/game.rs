@@ -106,6 +106,18 @@ pub struct Game {
     pub(crate) finished: bool,
     pub(crate) random: u64,
     pub(crate) draw_deck: Vec<u8>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) transfer: Option<Transfer>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub enum Transfer {
+    Selecting,
+    Authorizing {
+        giver: Faction,
+        recipient: Faction,
+        amount: u8,
+    },
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Observation {
@@ -135,6 +147,7 @@ pub struct Observation {
     pub operation: &'static str,
     pub special_activity: Option<String>,
     pub owed_terror: Option<String>,
+    pub transfer: Option<Transfer>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Choice {
@@ -308,6 +321,7 @@ impl Game {
             finished: false,
             random: 17,
             draw_deck,
+            transfer: None,
             available: vec![
                 group(Government, Troops, 3),
                 group(Government, Police, 8),
@@ -329,6 +343,8 @@ impl Game {
             revision: self.revision,
             owner: if self.finished {
                 Faction::Directorio
+            } else if let Some(Transfer::Authorizing { giver, .. }) = self.transfer {
+                giver
             } else {
                 Faction::M26
             },
@@ -372,6 +388,7 @@ impl Game {
             },
             special_activity: None,
             owed_terror: None,
+            transfer: self.transfer.clone(),
         }
     }
     pub fn standings(&self) -> Vec<Standing> {
@@ -474,10 +491,65 @@ impl Game {
         if self.finished {
             return vec![];
         }
+        let choice = |id: String, label: String| {
+            Choice {
+            id: format!("{}:{id}", self.revision), label, supported: true,
+            explanation: "Only the giver selects the amount and authorizes; no resources move before authorization.".into(),
+        }
+        };
+        match self.transfer {
+            Some(Transfer::Selecting) => {
+                let mut choices: Vec<_> =
+                    [Faction::Government, Faction::Directorio, Faction::Syndicate]
+                        .into_iter()
+                        .flat_map(|other| [(other, Faction::M26), (Faction::M26, other)])
+                        .map(|(giver, recipient)| {
+                            choice(
+                                format!("transfer:{}:{}", giver.index(), recipient.index()),
+                                format!("{} → {}", giver.name(), recipient.name()),
+                            )
+                        })
+                        .collect();
+                choices.push(choice("back".into(), "Return to Operation".into()));
+                return choices;
+            }
+            Some(Transfer::Authorizing {
+                giver,
+                recipient,
+                amount,
+            }) => {
+                let limit = self.resources[giver.index()]
+                    .min(49u8.saturating_sub(self.resources[recipient.index()]));
+                let mut choices = vec![];
+                if amount > 0 {
+                    choices.push(choice(
+                        format!("amount:{}", amount - 1),
+                        format!("Amount −1 (choose {})", amount - 1),
+                    ));
+                }
+                if amount < limit {
+                    choices.push(choice(
+                        format!("amount:{}", amount + 1),
+                        format!("Amount +1 (choose {})", amount + 1),
+                    ));
+                }
+                choices.push(choice(
+                    "authorize".into(),
+                    format!("{} authorizes {amount}", giver.name()),
+                ));
+                choices.push(choice(
+                    "decline".into(),
+                    format!("{} declines", giver.name()),
+                ));
+                choices.push(choice("wait".into(), "Wait · keep this decision".into()));
+                return choices;
+            }
+            None => {}
+        }
         [("finish","Finish Operation Only",true,"Zero-space completion uses the accepted interpretation. No Pass income."),
-         ("kidnap","Kidnap in Santiago",false,"Legal funding route: 2 Guerrillas > 1 Police; die 1–6 from Government 6. Incomplete until ticket #14."),
-         ("terror","Terror in Santiago / Oriente",false,"Each costs 1 Resource and needs an Underground Guerrilla. Currently unaffordable at 0; legal after funding. Incomplete until #14."),
-         ("transfer","Resource transfer",false,"Giver-authorized transfers between 26July and each other faction are legal. Incomplete until #13."),
+         ("kidnap","Kidnap in Santiago",false,"2 Guerrillas > 1 Police; die 1–6 takes up to Government's current Resources. Incomplete until ticket #14."),
+         ("terror","Terror in Santiago / Oriente",false,"Each costs 1 Resource and needs an Underground Guerrilla. Compare 26July's current Resources above. Incomplete until #14."),
+         ("transfer","Resource transfer",true,"Choose a direction, then hand the decision to its giver."),
          ("remove","Voluntary own removal",false,"26July may remove its Guerrillas or Sierra Maestra Base. Incomplete until #15.")].into_iter().map(|(id,label,supported,explanation)|Choice{id:format!("{}:{id}",self.revision),label:label.into(),supported,explanation:explanation.into()}).collect()
     }
 }
@@ -500,19 +572,80 @@ impl Game {
         if !offered.supported {
             return Err(offered.explanation);
         }
-        self.finished = true;
-        self.revision += 1;
+        let next_revision = self
+            .revision
+            .checked_add(1)
+            .ok_or("Match revision exhausted.")?;
+        let action = choice.split_once(':').ok_or("Unknown choice.")?.1;
+        if action == "wait" {
+            return Ok(());
+        }
+        match self.transfer.clone() {
+            None if action == "finish" => self.finished = true,
+            None => self.transfer = Some(Transfer::Selecting),
+            Some(_) if action == "back" || action == "decline" => self.transfer = None,
+            Some(Transfer::Selecting) => {
+                let endpoints: Vec<_> = action.split(':').collect();
+                let giver = Faction::ALL[endpoints[1].parse::<usize>().unwrap()];
+                let recipient = Faction::ALL[endpoints[2].parse::<usize>().unwrap()];
+                self.transfer = Some(Transfer::Authorizing {
+                    giver,
+                    recipient,
+                    amount: 0,
+                });
+            }
+            Some(Transfer::Authorizing {
+                giver,
+                recipient,
+                amount,
+            }) => {
+                if action == "authorize" {
+                    self.resources[giver.index()] -= amount;
+                    self.resources[recipient.index()] += amount;
+                    self.transfer = None;
+                } else {
+                    self.transfer = Some(Transfer::Authorizing {
+                        giver,
+                        recipient,
+                        amount: action.strip_prefix("amount:").unwrap().parse().unwrap(),
+                    });
+                }
+            }
+        }
+        self.revision = next_revision;
         Ok(())
     }
-    /// #12 admits exactly its two implemented states; later tickets extend this boundary.
+    /// Admit only this prepared board, conserved transfers and zero-space Finish.
     pub fn validate(&self) -> Result<(), String> {
         let mut expected = Self::prepared();
-        if self.finished {
-            expected.finished = true;
-            expected.revision = 1;
+        if self.resources.iter().any(|&n| n > 49)
+            || self.resources.iter().map(|&n| n as u16).sum::<u16>() != 26
+            || (self.revision == 0 && *self != expected)
+            || (self.finished && self.transfer.is_some())
+        {
+            return Err("Unsupported transfer balances or decision state.".into());
         }
+        if let Some(Transfer::Authorizing {
+            giver,
+            recipient,
+            amount,
+        }) = self.transfer
+            && (giver == recipient
+                || (giver != Faction::M26 && recipient != Faction::M26)
+                || amount > self.resources[giver.index()]
+                || u16::from(self.resources[recipient.index()]) + u16::from(amount) > 49)
+        {
+            return Err("Unsupported pending giver authorization.".into());
+        }
+        expected.finished = self.finished;
+        expected.revision = self.revision;
+        expected.resources = self.resources;
+        expected.transfer = self.transfer.clone();
         if *self != expected {
-            return Err("State is not a supported initial or zero-space finished position.".into());
+            return Err(
+                "State is not a supported prepared transfer or zero-space finished position."
+                    .into(),
+            );
         }
         Ok(())
     }

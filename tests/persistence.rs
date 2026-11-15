@@ -102,3 +102,49 @@ fn missing_main_with_recovery_history_is_not_a_fresh_task() {
     assert_eq!(std::fs::read(&previous).unwrap(), recovery);
     assert!(Session::open(&dir.path().join("recovered.json"), Some(&path)).is_ok());
 }
+
+#[test]
+fn pending_giver_choice_and_accepted_transfer_resume_without_duplicate_or_failed_effects() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("transfer.json");
+    let mut session = Session::open(&path, None).unwrap();
+    for (owner, rev, action) in [
+        (Faction::M26, 0, "transfer"),
+        (Faction::M26, 1, "transfer:3:1"),
+        (Faction::Syndicate, 2, "amount:1"),
+    ] {
+        session
+            .submit(owner, rev, &format!("{rev}:{action}"))
+            .unwrap();
+    }
+    let pending = session.observe();
+    drop(session);
+    let mut resumed = Session::open(&path, None).unwrap();
+    assert_eq!(resumed.observe(), pending);
+    assert_eq!(resumed.observe().owner, Faction::Syndicate);
+    let waiting = std::fs::read(&path).unwrap();
+    resumed.submit(Faction::Syndicate, 3, "3:wait").unwrap();
+    assert_eq!(std::fs::read(&path).unwrap(), waiting);
+    let mut stale_writer = Session::open(&path, None).unwrap();
+    resumed
+        .submit(Faction::Syndicate, 3, "3:authorize")
+        .unwrap();
+    let accepted = std::fs::read(&path).unwrap();
+    assert!(
+        stale_writer
+            .submit(Faction::Syndicate, 3, "3:authorize")
+            .is_err()
+    );
+    assert_eq!(stale_writer.observe(), pending);
+    drop(resumed);
+    let mut resumed = Session::open(&path, None).unwrap();
+    assert_eq!(resumed.observe().resources, [6, 1, 5, 14]);
+    assert!(
+        resumed
+            .submit(Faction::Syndicate, 3, "3:authorize")
+            .is_err()
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), accepted);
+    let recovered = Session::open(&dir.path().join("recovered.json"), Some(&path)).unwrap();
+    assert_eq!(recovered.observe(), pending);
+}
