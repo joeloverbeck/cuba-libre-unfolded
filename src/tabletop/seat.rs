@@ -19,9 +19,10 @@ pub(super) fn run(options: Options) -> Result<(), String> {
     } else {
         None
     };
+    let size = options.seat_size;
     let mut app = build(options, true).or_else(shared::refuse)?;
     app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::ZERO));
-    capture::install::<Camera2d>(&mut app, UVec2::new(1920, 1280));
+    capture::install::<Camera2d>(&mut app, size);
     app.add_systems(
         PostStartup,
         |mut commands: Commands,
@@ -79,7 +80,7 @@ fn controls(world: &mut World) -> Vec<(Entity, Control, Vec2)> {
             }
             continue;
         }
-        let Action::Inspect(ref id) = c.action else {
+        let Action::Space(ref id) = c.action else {
             continue;
         };
         if world.resource::<Interface>().reader {
@@ -139,7 +140,7 @@ fn controls(world: &mut World) -> Vec<(Entity, Control, Vec2)> {
                     Control {
                         name,
                         choice: false,
-                        action: Action::Inspect(space),
+                        action: Action::Space(space),
                     },
                     position,
                 ));
@@ -166,16 +167,12 @@ impl SeatGame for Table {
             .map(|(e, f, t)| (e, f.0, t.0.clone()))
             .collect();
         let standings:Vec<_>=standing_rows.into_iter().map(|(entity,faction,text)|json!({"faction":faction,"text":text,"visible":shared::ui_target(world,entity,size).is_some_and(|t|t.on_screen)})).collect();
-        let details_height = world
-            .query_filtered::<&ComputedNode, With<Details>>()
-            .iter(world)
-            .next()
-            .map(|node| node.size().y * node.inverse_scale_factor);
-        let details = world
-            .query_filtered::<&Text, With<Details>>()
-            .iter(world)
-            .next()
-            .map(|text| text.0.clone());
+        let map_viewport = world
+            .query_filtered::<&Camera, With<Camera3d>>()
+            .single(world)
+            .ok()
+            .and_then(Camera::logical_viewport_rect)
+            .map(|r| [r.min.x, r.min.y, r.max.x, r.max.y]);
         let status = world.query::<&status::Shown>().iter(world).next().cloned();
         let victory = world.query::<&victory::Shown>().iter(world).next().cloned();
         let victory_count = world.query::<&victory::Shown>().iter(world).count();
@@ -191,7 +188,7 @@ impl SeatGame for Table {
         let water_frame = world.get_resource::<Water>().map(|water| water.frame);
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
-            table: json!({"controls":controls,"standings":standings,"details_height":details_height,"details":details,"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"water_frame":water_frame,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"hover":ui.hover.visible(),"inspected":ui.inspected,"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
+            table: json!({"controls":controls,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"water_frame":water_frame,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
         }
     }
     fn revision(&self, world: &mut World) -> u64 {

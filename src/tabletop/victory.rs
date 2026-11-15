@@ -262,7 +262,8 @@ pub(super) fn draw(
     roots: Query<Entity, With<Tag>>,
     mut previous: Local<Option<Shown>>,
 ) {
-    let (scale, offset) = layout(&window);
+    let (scale, mut offset) = layout(&window);
+    offset.x += (window.width() - WIDTH * scale) / 2.;
     let shown = ui.hover.visible().filter(|_| !ui.reader).map(|faction| {
         let mut shown = content(&play.game().observe(), *faction);
         let height = 246.

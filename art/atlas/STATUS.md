@@ -1,5 +1,7 @@
 # Hover status components
 
+The later owner-requested [responsive layout](LAYOUT.md) removes the region inspection panel entirely. These hover tags remain the region-status disclosure; the inspection deduplication described below records the earlier increment.
+
 Selected C+ coastal tags with the five-position opinion scale, following [#16 owner feedback](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/16#issuecomment-6892578260). The owner accepted the combined preview at `a7867b250e3ca1e60e1752e8609f349638f12418`, with two refinements: show tags on hover, and keep Havana's tag outside its city with a visible leader. A subsequent instruction removes duplicated current Control and Support/Opposition text from region inspection, while other occurrences are audited for their distinct purpose. The source and original alternatives remain in `art/proposals/issue-16-status/`.
 
 `atlas-status.vectorcraft` is the editable VectorCraft source for these selected components. Artboards 1–5 are Control rows: Government, 26July, Directorio, Syndicate and Uncontrolled. Artboards 6–10 are political rows: Active Opposition, Passive Opposition, Neutral, Passive Support and Active Support. Artboards 11–12 are the leader line and its region anchor. Original faction marks and Lato typography reuse the selected study; no original-game image is embedded.

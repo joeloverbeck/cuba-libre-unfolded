@@ -14,6 +14,9 @@ struct Native {
 }
 impl Native {
     fn launch(&mut self) {
+        self.launch_size("1920x1280");
+    }
+    fn launch_size(&mut self, size: &str) {
         let output = Command::new(env!("CARGO_BIN_EXE_cuba-libre"))
             .args([
                 "--cards",
@@ -21,6 +24,8 @@ impl Native {
                 "--save",
                 self.save.to_str().unwrap(),
                 "--agent-seat",
+                "--seat-size",
+                size,
                 "--socket",
                 self.socket.to_str().unwrap(),
             ])
@@ -114,8 +119,100 @@ impl Drop for Native {
 }
 
 #[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained aspect-ratio captures"]
+fn native_responsive_layout_uses_width_and_preserves_picks() {
+    let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS")
+        .into();
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "local/verification/issue-16".into());
+    std::fs::create_dir_all(&evidence).unwrap();
+    for (width, height) in [(1920, 1280), (1920, 1080), (2520, 1080)] {
+        let root = tempfile::Builder::new()
+            .prefix(&format!("layout-{width}x{height}-"))
+            .tempdir_in(&evidence)
+            .unwrap()
+            .keep()
+            .canonicalize()
+            .unwrap();
+        let socket_dir = tempfile::tempdir().unwrap();
+        let mut app = Native {
+            cards: cards.clone(),
+            socket: socket_dir.path().join("seat.sock"),
+            save: root.join("task.json"),
+            root,
+            step: 0,
+        };
+        if let Some(original) = std::env::var_os("CUBA_COMPAT_SAVE") {
+            std::fs::copy(original, &app.save).unwrap();
+        }
+        eprintln!("Responsive native evidence: {}", app.root.display());
+        app.launch_size(&format!("{width}x{height}"));
+        let before = app.observe();
+        let saved = std::fs::read(&app.save).unwrap();
+        let revision = before["observation"]["revision"].as_u64().unwrap();
+        assert_eq!(
+            before["table"]["viewport"],
+            json!([width as f64, height as f64])
+        );
+        let scale = height as f64 / 1280.;
+        let viewport = before["table"]["map_viewport"].as_array().unwrap();
+        assert!((viewport[0].as_f64().unwrap() - 40. * scale).abs() <= 1.);
+        assert!((viewport[2].as_f64().unwrap() - (width as f64 - 580. * scale)).abs() <= 1.);
+        let controls = before["table"]["controls"].as_array().unwrap();
+        assert!(
+            !controls
+                .iter()
+                .any(|c| matches!(c["name"].as_str(), Some("cancel" | "close")))
+        );
+        assert!(before["table"].get("inspected").is_none());
+        assert!(before["table"].get("details").is_none());
+        let quit = controls.iter().find(|c| c["name"] == "quit").unwrap();
+        assert!(
+            (quit["position"][0].as_f64().unwrap() - (width as f64 - 147. * scale)).abs() <= 1.
+        );
+        let centers: Vec<_> = controls
+            .iter()
+            .filter(|c| c["name"].as_str().unwrap().starts_with("standing:"))
+            .map(|c| c["position"][0].as_f64().unwrap())
+            .collect();
+        assert_eq!(centers.len(), 4);
+        assert!((centers.iter().sum::<f64>() / 4. - width as f64 / 2.).abs() <= 1.);
+        app.capture("home");
+        for space in before["observation"]["spaces"].as_array().unwrap() {
+            let id = space["id"].as_str().unwrap();
+            app.activate(&format!("space:{id}"), revision);
+            let shown = app.point(&format!("space:{id}"));
+            if space["terrain"] != "EconomicCenter" {
+                assert_eq!(shown["table"]["status"]["space"], id);
+            }
+            assert_eq!(shown["observation"], before["observation"]);
+        }
+        for prefix in ["piece:havana", "count:havana"] {
+            let target = controls
+                .iter()
+                .filter_map(|c| c["name"].as_str())
+                .find(|name| name.starts_with(prefix))
+                .unwrap();
+            assert_eq!(app.point(target)["table"]["status"]["space"], "havana");
+        }
+        app.capture("region-hover");
+        app.point("standing:0");
+        app.capture("victory-hover");
+        app.activate("reader", revision);
+        assert!(app.observe()["table"]["status"].is_null());
+        app.capture("reader");
+        app.activate("close", revision);
+        assert_eq!(app.observe()["observation"], before["observation"]);
+        assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+        app.quit();
+    }
+}
+
+#[test]
 #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
-fn native_victory_emblems_keep_inspection_and_disclose_live_margins() {
+fn native_victory_emblems_disclose_live_margins_without_inspection() {
     let cards = std::env::var_os("CUBA_TEST_CARDS")
         .expect("Set CUBA_TEST_CARDS")
         .into();
@@ -157,7 +254,7 @@ fn native_victory_emblems_keep_inspection_and_disclose_live_margins() {
     }
     app.capture("open-emblems");
     app.activate("space:havana", 0);
-    let inspected = app.observe()["table"]["details"].clone();
+    let picked = app.observe()["observation"].clone();
     for (index, faction) in ["Government", "M26", "Directorio", "Syndicate"]
         .into_iter()
         .enumerate()
@@ -176,7 +273,7 @@ fn native_victory_emblems_keep_inspection_and_disclose_live_margins() {
                 );
             }
             let shown = app.request(json!({"op":"settle"}), true);
-            assert_eq!(shown["table"]["details"], inspected);
+            assert_eq!(shown["observation"], picked);
             assert_eq!(shown["table"]["victory"]["faction"], faction);
             assert_eq!(shown["table"]["victory_count"], 1);
             assert_eq!(
@@ -210,11 +307,11 @@ fn native_victory_emblems_keep_inspection_and_disclose_live_margins() {
             }
             assert!(shown["table"]["status"].is_null());
             app.activate(&target, 0);
-            assert_eq!(app.observe()["table"]["inspected"], "havana");
+            assert_eq!(app.observe()["observation"], picked);
         }
         app.capture(&format!("victory-{index}"));
     }
-    assert!(app.point("close")["table"]["victory"].is_null());
+    assert!(app.point("reader")["table"]["victory"].is_null());
     app.point("standing:0");
     app.activate("reader", 0);
     let reader = app.observe();
@@ -599,7 +696,8 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
             .contains("owed")
     );
     assert_eq!(std::fs::read(&app.save).unwrap(), saved_roll);
-    app.activate("cancel", rev);
+    app.activate("reader", rev);
+    app.activate("close", rev);
     assert_eq!(app.observe()["observation"], rolled["observation"]);
     app.choose("terror:santiago");
     let after = app.observe();
@@ -634,11 +732,6 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
     app.choose("terror:oriente");
     let both = app.observe();
     assert_eq!(both["observation"]["standings"][1]["score"], 10);
-    assert!(
-        both["table"]["details_height"].as_f64().unwrap() <= 190.,
-        "contributions must fit above the footer: {}",
-        both["table"]["details_height"]
-    );
     app.capture("both-terrors");
     app.choose("finish");
     let finished = app.observe();
@@ -819,8 +912,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         "water texture must visibly advance; changed pixels: {changed}"
     );
     app.activate("standing:0", 0);
-    assert!(app.observe()["table"]["inspected"].is_null());
-    app.activate("close", 0);
+    assert_eq!(app.observe()["observation"]["revision"], 0);
     for id in [
         "havana",
         "camaguey-city",
@@ -837,10 +929,10 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         "ec-oriente-sierra",
     ] {
         app.activate(&format!("space:{id}"), 0);
-        assert_eq!(app.observe()["table"]["inspected"], id);
+        assert_eq!(app.observe()["observation"]["revision"], 0);
     }
-    app.capture("raised-ec-inspection");
-    app.activate("cancel", 0);
+    app.capture("raised-ec-picking");
+    app.point("reader");
     let home = app.observe()["table"]["camera"].clone();
     for _ in 0..24 {
         app.request(json!({"op":"key","key":"ArrowLeft","revision":0}), true);
@@ -1112,7 +1204,7 @@ fn native_giver_transfers_all_directions_and_interrupted_authorization() {
     let revision = after["revision"].as_u64().unwrap();
     app.activate("standing:3", revision);
     app.capture("syndicate-contributions");
-    app.activate("close", revision);
+    app.point("reader");
     for (pair, expected) in [
         ("1:3", [6, 0, 5, 15]),
         ("0:1", [5, 1, 5, 15]),
@@ -1151,7 +1243,7 @@ fn native_giver_transfers_all_directions_and_interrupted_authorization() {
 
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
-fn native_hover_status_is_transient_and_inspection_has_distinct_facts() {
+fn native_hover_status_is_transient_without_region_inspection() {
     let cards = std::env::var_os("CUBA_TEST_CARDS")
         .expect("Set CUBA_TEST_CARDS")
         .into();
@@ -1190,13 +1282,7 @@ fn native_hover_status_is_transient_and_inspection_has_distinct_facts() {
     assert_eq!(view["table"]["status"]["contribution"], "×1 · 26July +1");
     app.capture("matanzas-hover");
     app.activate("space:matanzas", 0);
-    let details = app.observe()["table"]["details"]
-        .as_str()
-        .unwrap()
-        .to_owned();
-    assert!(details.contains("Population 1"));
-    assert!(!details.contains("Control"));
-    assert!(!details.contains("Opposition"));
+    assert_eq!(app.observe()["observation"]["revision"], 0);
     app.request(
         json!({"op":"point","revision":0,"component":"reader"}),
         true,

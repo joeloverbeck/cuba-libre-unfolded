@@ -20,25 +20,6 @@ pub(super) struct Shown {
     pub leader: [[f32; 2]; 2],
 }
 
-pub(super) fn inspect(
-    mut event: On<PointerClick>,
-    targets: Query<&SpaceTarget>,
-    mut ui: ResMut<Interface>,
-    play: Res<Play>,
-) {
-    if event.button != bevy::picking::pointer::PointerButton::Primary
-        || ui.reader
-        || play.session.is_none()
-    {
-        return;
-    }
-    if let Ok(target) = targets.get(event.entity) {
-        event.propagate(false);
-        ui.inspected = Some(target.0.clone());
-        ui.dirty = true;
-    }
-}
-
 #[allow(clippy::too_many_arguments)]
 pub(super) fn hover(
     hits: Res<HoverMap>,
@@ -64,7 +45,7 @@ pub(super) fn hover(
                         return Some((target.0.clone(), hit.depth));
                     }
                     if let Ok(Control {
-                        action: Action::Inspect(id),
+                        action: Action::Space(id),
                         ..
                     }) = controls.get(e)
                     {
@@ -125,7 +106,7 @@ pub(super) fn draw(
             let mut belongs = None;
             while let Some(e) = current {
                 if let Ok(Control {
-                    action: Action::Inspect(found),
+                    action: Action::Space(found),
                     ..
                 }) = controls.get(e)
                 {

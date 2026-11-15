@@ -50,6 +50,7 @@ pub struct Options {
     pub recover: Option<PathBuf>,
     pub socket: Option<PathBuf>,
     pub agent: bool,
+    pub seat_size: UVec2,
 }
 #[derive(Resource)]
 struct Play {
@@ -85,14 +86,11 @@ struct Interface {
     hover: Hover<Faction>,
     status: Hover<String>,
     reader: bool,
-    inspected: Option<String>,
     notice: String,
     dirty: bool,
 }
 #[derive(Component)]
 struct UiRoot;
-#[derive(Component)]
-struct Details;
 #[derive(Component)]
 struct StandingText(Faction);
 #[derive(Component)]
@@ -108,10 +106,9 @@ enum Action {
     Standing(Faction),
     Close,
     Reader,
-    Inspect(String),
+    Space(String),
     Decision(Faction, u64),
     Unsupported(String),
-    Cancel,
     Quit,
 }
 #[derive(Resource, Clone)]
@@ -249,7 +246,6 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 bind_spaces,
                 hover_standings,
                 draw_ui,
-                refresh_details,
                 camera_controls,
                 status::hover,
                 status::draw,
@@ -444,8 +440,7 @@ fn sync_pieces(
             commands
                 .entity(token)
                 .insert((PieceVisual, status::SpaceTarget(space.id.clone())))
-                .remove::<Pickable>()
-                .observe(status::inspect);
+                .remove::<Pickable>();
             let mark = match piece.state {
                 State::Active => Some("atlas-active-star.png"),
                 State::Closed => Some("atlas-closed-slash.png"),
@@ -483,8 +478,7 @@ fn sync_pieces(
                     TextColor(Color::srgb(0.08, 0.08, 0.06)),
                     GlobalZIndex(-1),
                 ))
-                .remove::<Pickable>()
-                .observe(status::inspect);
+                .remove::<Pickable>();
         }
         if space.terror > 0 {
             let token = token::spawn_body(
@@ -505,8 +499,7 @@ fn sync_pieces(
             commands
                 .entity(token)
                 .insert((PieceVisual, status::SpaceTarget(space.id.clone())))
-                .remove::<Pickable>()
-                .observe(status::inspect);
+                .remove::<Pickable>();
             let label = count_label::spawn(
                 &mut commands,
                 token,
@@ -526,8 +519,7 @@ fn sync_pieces(
                     TextColor(Color::srgb(0.08, 0.08, 0.06)),
                     GlobalZIndex(-1),
                 ))
-                .remove::<Pickable>()
-                .observe(status::inspect);
+                .remove::<Pickable>();
         }
     }
 }
@@ -612,7 +604,7 @@ fn bind_spaces(
                 .insert(Control {
                     name: format!("space:{}", name.as_str()),
                     choice: false,
-                    action: Action::Inspect(name.as_str().into()),
+                    action: Action::Space(name.as_str().into()),
                 })
                 .observe(click);
         }
@@ -636,44 +628,6 @@ fn hover_standings(
         .update(target, eligible, time.delta(), Duration::from_millis(400));
 }
 
-fn detail_text(view: &crate::Observation, ui: &Interface) -> String {
-    if let Some(id) = &ui.inspected {
-        let sp = view.spaces.iter().find(|sp| &sp.id == id).unwrap();
-        format!(
-            "{} · {:?}\nPopulation {} · Economy {}\nTerror/Sabotage {}\n{}",
-            sp.name,
-            sp.terrain,
-            sp.population,
-            sp.economy,
-            sp.terror,
-            sp.pieces
-                .iter()
-                .map(|p| format!(
-                    "{} {} {:?} {:?}",
-                    p.count,
-                    p.faction.name(),
-                    p.kind,
-                    p.state
-                ))
-                .collect::<Vec<_>>()
-                .join("\n")
-        )
-    } else {
-        "Hover a city/province for Control and political opinion.\nClick a region for terrain, pieces and Terror.\nHover a faction emblem or margin for victory details.\nRight drag / arrows orbit · wheel / + − zoom\nWASD pans · Home restores framing".into()
-    }
-}
-fn refresh_details(
-    play: Res<Play>,
-    ui: Res<Interface>,
-    mut texts: Query<&mut Text, With<Details>>,
-) {
-    let content = detail_text(&play.game().observe(), &ui);
-    for mut text in &mut texts {
-        if text.0 != content {
-            text.0 = content.clone();
-        }
-    }
-}
 fn click(
     mut event: On<PointerClick>,
     controls: Query<&Control>,
@@ -692,19 +646,13 @@ fn click(
         return;
     }
     match &control.action {
-        // Victory is a hover-only disclosure. Clicking never takes ownership
-        // of inspection, closes a reader, or changes a game decision.
-        Action::Standing(_) => return,
-        Action::Close | Action::Cancel => {
-            ui.inspected = None;
+        // Hover disclosures and development-seat map picks never change a decision.
+        Action::Standing(_) | Action::Space(_) => return,
+        Action::Close => {
             ui.reader = false;
-            ui.notice = "Inspection closed. Committed effects and rolls remain saved.".into();
         }
         Action::Reader => {
             ui.reader = true;
-        }
-        Action::Inspect(id) => {
-            ui.inspected = Some(id.clone());
         }
         Action::Decision(owner, rev) => {
             let previous = play.game().observe();
@@ -778,7 +726,7 @@ fn layout(window: &Window) -> (f32, Vec2) {
     let scale = (window.width() / WIDTH).min(window.height() / HEIGHT);
     (
         scale,
-        (Vec2::new(window.width(), window.height()) - Vec2::new(WIDTH, HEIGHT) * scale) / 2.,
+        Vec2::new(0., (window.height() - HEIGHT * scale) / 2.),
     )
 }
 #[allow(clippy::too_many_arguments)]
@@ -795,7 +743,7 @@ fn camera_controls(
 ) {
     let (scale, offset) = layout(&window);
     let min = offset + Vec2::new(40., 176.) * scale;
-    let size = Vec2::new(1300., 684.) * scale;
+    let size = Vec2::new(window.width() - 620. * scale, 684. * scale);
     let outside = window.cursor_position().is_none_or(|p| {
         p.x < min.x || p.y < min.y || p.x >= min.x + size.x || p.y >= min.y + size.y
     });
@@ -816,9 +764,11 @@ fn camera_controls(
     });
     for (mut transform, mut camera) in &mut cameras {
         *transform = step.transform;
+        let physical_position = (min * window.scale_factor()).round().as_uvec2();
+        let physical_end = ((min + size) * window.scale_factor()).round().as_uvec2();
         camera.viewport = Some(Viewport {
-            physical_position: (min * window.scale_factor()).as_uvec2(),
-            physical_size: (size * window.scale_factor()).as_uvec2(),
+            physical_position,
+            physical_size: physical_end - physical_position,
             ..default()
         });
     }
@@ -956,25 +906,78 @@ fn draw_ui(
     for entity in &roots {
         commands.entity(entity).despawn();
     }
-    let (s, o) = layout(&window);
+    let (s, left) = layout(&window);
+    let extra = window.width() - WIDTH * s;
+    let right = left + Vec2::new(extra, 0.);
+    let centered = left + Vec2::new(extra / 2., 0.);
+    let o = if ui.reader { centered } else { left };
     let view = play.game().observe();
-    picture(
-        &mut commands,
-        &art,
-        if ui.reader {
-            "atlas-victory-reader.png"
-        } else {
-            "atlas-victory-ui.png"
-        },
-        [0., 0., WIDTH, HEIGHT],
-        s,
-        o,
-        0,
-    );
+    // The desk surrounds the native viewport. It must not paint over the
+    // camera's pixels; all four strips consume the authored flat desk asset.
+    let map_top = left.y + 176. * s;
+    let map_bottom = left.y + 860. * s;
+    for rect in if ui.reader {
+        vec![[0., 0., window.width(), window.height()]]
+    } else {
+        vec![
+            [0., 0., window.width(), map_top],
+            [0., map_bottom, window.width(), window.height() - map_bottom],
+            [0., map_top, 40. * s, map_bottom - map_top],
+            [
+                window.width() - 580. * s,
+                map_top,
+                580. * s,
+                map_bottom - map_top,
+            ],
+        ]
+    } {
+        picture(
+            &mut commands,
+            &art,
+            "atlas-layout-background.png",
+            rect,
+            1.,
+            Vec2::ZERO,
+            0,
+        );
+    }
     if !ui.reader {
-        victory::header(&mut commands, &art, &view, s, o);
+        for (key, rect, offset) in [
+            ("atlas-layout-title.png", [40., 0., 240., 64.], left),
+            (
+                "atlas-layout-map-fill.png",
+                [40., 136., 1300. + extra / s, 40.],
+                left,
+            ),
+            (
+                "atlas-layout-map-fill.png",
+                [40., 860., 1300. + extra / s, 80.],
+                left,
+            ),
+            ("atlas-layout-map-header.png", [40., 136., 1300., 40.], left),
+            ("atlas-layout-map-footer.png", [40., 860., 1300., 80.], left),
+            (
+                "atlas-layout-operation.png",
+                [1380., 280., 500., 660.],
+                right,
+            ),
+            ("atlas-layout-card.png", [40., 964., 600., 264.], left),
+            ("atlas-layout-session.png", [1380., 964., 500., 264.], right),
+        ] {
+            picture(&mut commands, &art, key, rect, s, offset, 0);
+        }
+        victory::header(&mut commands, &art, &view, s, centered);
     }
     if ui.reader {
+        picture(
+            &mut commands,
+            &art,
+            "atlas-victory-reader.png",
+            [0., 0., WIDTH, HEIGHT],
+            s,
+            o,
+            0,
+        );
         let factions = |flags: [bool; 4]| {
             let names = Faction::ALL
                 .into_iter()
@@ -1089,6 +1092,7 @@ fn draw_ui(
             4,
         );
     } else {
+        let o = right;
         // The selected blank component hides static example action affordances
         // after completion, so they cannot masquerade as current controls.
         picture(
@@ -1215,6 +1219,7 @@ fn draw_ui(
                 2,
             );
         }
+        let o = left;
         picture(
             &mut commands,
             &art,
@@ -1260,31 +1265,7 @@ fn draw_ui(
             o,
             2,
         );
-        let details = text(
-            &mut commands,
-            &art,
-            detail_text(&view, &ui),
-            680.,
-            988.,
-            610.,
-            17.,
-            s,
-            o,
-            2,
-        );
-        commands.entity(details).insert(Details);
-        control(
-            &mut commands,
-            &art,
-            "close",
-            "Close details",
-            Action::Close,
-            [1110., 1190., 200., 40.],
-            s,
-            o,
-            false,
-            2,
-        );
+        let o = right;
         let status=play.error.clone().unwrap_or_else(||if play.session.is_none(){"Loading selected assets; no save created.".into()}else{format!("Saved revision {} · {} map / {} available\nCash 4 · Terror/Sabotage {} available",view.revision,view.map_piece_count,view.available_piece_count,view.terror_available)});
         text(
             &mut commands,
@@ -1296,22 +1277,6 @@ fn draw_ui(
             18.,
             s,
             o,
-            2,
-        );
-        control(
-            &mut commands,
-            &art,
-            "cancel",
-            if view.revision == 0 {
-                "Cancel inspection"
-            } else {
-                "Close inspection"
-            },
-            Action::Cancel,
-            [1404., 1140., 270., 44.],
-            s,
-            o,
-            false,
             2,
         );
         control(
@@ -1427,6 +1392,7 @@ mod tests {
                 recover: None,
                 socket: None,
                 agent: false,
+                seat_size: UVec2::new(1920, 1280),
             },
             error: None,
             ready_frames: 5,
@@ -1466,6 +1432,35 @@ mod tests {
             .set_cursor_position(Some(Vec2::new(1500., 500.)));
         world.run_system_once(camera_controls).unwrap();
         assert_eq!(world.resource::<Orbit>().pose(), inside);
+        // Maximizing a 3:2 design onto wider screens must put the extra
+        // horizontal room into the map, retaining the 40 px outer inset.
+        world.resource_mut::<AccumulatedMouseScroll>().delta = Vec2::ZERO;
+        for width in [2560, 3360] {
+            world
+                .get_mut::<Window>(window)
+                .unwrap()
+                .resolution
+                .set(width as f32, 1440.);
+            world.run_system_once(camera_controls).unwrap();
+            let viewport = world
+                .query_filtered::<&Camera, With<Camera3d>>()
+                .single(&world)
+                .unwrap()
+                .viewport
+                .as_ref()
+                .unwrap();
+            assert_eq!(
+                viewport.physical_position.x, 45,
+                "maximized map has a wide left gap"
+            );
+            assert!(
+                ((viewport.physical_position.x + viewport.physical_size.x) as f32
+                    - (width as f32 - 652.5))
+                    .abs()
+                    <= 1.,
+                "extra window width must extend the map toward its right-anchored panels"
+            );
+        }
         world.resource_mut::<Interface>().reader = true;
         world
             .get_mut::<Window>(window)

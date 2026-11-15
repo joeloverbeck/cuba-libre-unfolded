@@ -1,5 +1,7 @@
 # Selected victory display components
 
+The later owner-requested [responsive layout](LAYOUT.md) removes region inspection and replaces the static table composite with separated components. The victory behavior and artwork described here remain selected; references below to preserving region inspection describe the earlier layout only.
+
 The owner selected **A, Open emblems**, from `ae667232fe92a932cf59ad80a5ee3490ba9b4718`, with the refinement to align the emblems near the top beside CUBA LIBRE and extend the map upward. [Selection on #16](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/16#issuecomment-6893152418) owns this direction. Alternatives remain in `art/proposals/issue-16-victory/`; no second selection round is required for the requested positioning.
 
 All components are authored through VectorCraft MCP. The editable sources are `atlas-victory-ui.vectorcraft`, `atlas-victory-reader.vectorcraft` and `atlas-victory-components.vectorcraft`. Their exports are required through `victory.sha256`. The original core runtime manifest and save-bound asset identity remain unchanged; the new stateless presentation is strictly admitted separately. Missing or modified new assets must refuse launch, including when resuming a prior save.
