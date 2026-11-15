@@ -111,6 +111,18 @@ pub struct Game {
     pub(crate) transfer: Option<Transfer>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) kidnap: Option<Kidnap>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) removal: Option<Removal>,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub enum Removal {
+    Selecting,
+    Confirming {
+        space: String,
+        kind: Kind,
+        state: State,
+    },
 }
 /// The committed die and its actual proceeds. Balances at the roll remain
 /// inspectable even when subsequent Terror or donations change current balances.
@@ -163,6 +175,7 @@ pub struct Observation {
     pub owed_terror: Option<String>,
     pub transfer: Option<Transfer>,
     pub kidnap: Option<Kidnap>,
+    pub removal: Option<Removal>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Choice {
@@ -338,6 +351,7 @@ impl Game {
             draw_deck,
             transfer: None,
             kidnap: None,
+            removal: None,
             available: vec![
                 group(Government, Troops, 3),
                 group(Government, Police, 8),
@@ -412,6 +426,7 @@ impl Game {
             owed_terror: self.owes_santiago().then(|| "santiago".into()),
             transfer: self.transfer.clone(),
             kidnap: self.kidnap.clone(),
+            removal: self.removal.clone(),
         }
     }
     pub fn standings(&self) -> Vec<Standing> {
@@ -514,6 +529,26 @@ impl Game {
         if self.finished {
             return vec![];
         }
+        if let Some(removal) = &self.removal {
+            let mut choices = match removal {
+                Removal::Selecting => self.removal_choices(),
+                Removal::Confirming { space, kind, state } => vec![Choice {
+                    id: format!("{}:confirm-removal", self.revision),
+                    label: "Confirm · return 1 to Available".into(),
+                    supported: self.removable(space, *kind, *state),
+                    explanation:
+                        "Remove only this 26July piece. Earlier Terror and Opposition remain."
+                            .into(),
+                }],
+            };
+            choices.push(Choice {
+                id: format!("{}:cancel-removal", self.revision),
+                label: "Cancel removal · return to Operation".into(),
+                supported: true,
+                explanation: "No piece is removed until confirmation. Cancellation never reverses earlier effects.".into(),
+            });
+            return choices;
+        }
         let choice = |id: String, label: String| {
             Choice {
             id: format!("{}:{id}", self.revision), label, supported: true,
@@ -572,7 +607,7 @@ impl Game {
         }
         let mut choices: Vec<_> = [("finish",if self.kidnap.is_some() {"Finish Operation + Kidnap"} else {"Finish Operation Only"},!self.owes_santiago(),if self.owes_santiago() {"Santiago Terror is owed. The accepted commitment policy requires its payment and activation before Finish."} else {"Complete the selected Operation. Zero-space completion uses the accepted interpretation; no Pass income."}),
          ("transfer","Resource transfer",true,"Choose a direction, then hand the decision to its giver."),
-         ("remove","Voluntary own removal",false,"26July may remove its Guerrillas or Sierra Maestra Base. Incomplete until #15.")].into_iter().map(|(id,label,supported,explanation)|Choice{id:format!("{}:{id}",self.revision),label:label.into(),supported,explanation:explanation.into()}).collect();
+         ("remove","Voluntary own removal",true,"Choose one 26July Guerrilla or Base, then confirm or cancel. Only an already owed Terror restricts removal.")].into_iter().map(|(id,label,supported,explanation)|Choice{id:format!("{}:{id}",self.revision),label:label.into(),supported,explanation:explanation.into()}).collect();
         for id in ["santiago", "oriente"] {
             let space = self.spaces.iter().find(|s| s.id == id).unwrap();
             if space.terror == 0
@@ -610,6 +645,34 @@ impl Game {
             });
         }
         choices
+    }
+    fn removable(&self, id: &str, kind: Kind, state: State) -> bool {
+        self.spaces.iter().find(|s| s.id == id).is_some_and(|s| {
+            s.pieces.iter().any(|p| {
+                p.faction == Faction::M26
+                    && p.kind == kind
+                    && p.state == state
+                    && p.count
+                        > u8::from(
+                            self.owes_santiago() && id == "santiago" && state == State::Underground,
+                        )
+            })
+        })
+    }
+    fn removal_choices(&self) -> Vec<Choice> {
+        self.spaces.iter().flat_map(|s| s.pieces.iter().filter(|p| p.faction == Faction::M26).map(|p| {
+            let suffix = match (p.kind, p.state) {
+                (Kind::Base, _) => "base",
+                (_, State::Active) => "active",
+                _ => "underground",
+            };
+            Choice {
+                id: format!("{}:remove:{}:{suffix}", self.revision, s.id),
+                label: format!("{} · {} {suffix}", s.name, p.count),
+                supported: self.removable(&s.id, p.kind, p.state),
+                explanation: "Return one own piece to Available. If Santiago Terror is owed, the accepted commitment policy protects its last Underground Guerrilla.".into(),
+            }
+        })).collect()
     }
 }
 impl Game {
@@ -653,7 +716,40 @@ impl Game {
         if action == "wait" {
             return Ok(());
         }
+        if let Some(removal) = self.removal.clone() {
+            if action == "cancel-removal" {
+                self.removal = None;
+            } else if let Removal::Confirming { space, kind, state } = removal {
+                let target = self.spaces.iter_mut().find(|s| s.id == space).unwrap();
+                let piece = target
+                    .pieces
+                    .iter_mut()
+                    .find(|p| p.faction == Faction::M26 && p.kind == kind && p.state == state)
+                    .unwrap();
+                piece.count -= 1;
+                target.pieces.retain(|p| p.count > 0);
+                self.available
+                    .iter_mut()
+                    .find(|p| p.faction == Faction::M26 && p.kind == kind)
+                    .unwrap()
+                    .count += 1;
+                self.removal = None;
+            } else {
+                let mut parts = action.split(':');
+                parts.next();
+                let space = parts.next().unwrap().to_owned();
+                let (kind, state) = match parts.next().unwrap() {
+                    "base" => (Kind::Base, State::Ordinary),
+                    "active" => (Kind::Guerrilla, State::Active),
+                    _ => (Kind::Guerrilla, State::Underground),
+                };
+                self.removal = Some(Removal::Confirming { space, kind, state });
+            }
+            self.revision = next_revision;
+            return Ok(());
+        }
         match self.transfer.clone() {
+            None if action == "remove" => self.removal = Some(Removal::Selecting),
             None if action == "finish" => self.finished = true,
             None if action == "kidnap" => {
                 let mut random = SeededRandom::new(self.random);
@@ -734,10 +830,11 @@ impl Game {
         space.terror += 1;
         space.support = (space.support - 1).max(-2);
     }
-    /// Admit this prepared board, transfers and the two supported Terror effects.
+    /// Admit only the prepared board, transfers, two Terror effects and own removal.
     pub fn validate(&self) -> Result<(), String> {
         let mut expected = Self::prepared_with_seed(self.random);
         let mut paid = 0;
+        let mut removed = 0u64;
         for space in &mut expected.spaces {
             if let Some(actual) = self.spaces.iter().find(|s| s.id == space.id)
                 && actual.terror == 1
@@ -746,13 +843,47 @@ impl Game {
                 Self::resolve_terror(space);
                 paid += 1;
             }
+            if let Some(actual) = self.spaces.iter().find(|s| s.id == space.id) {
+                for piece in &mut space.pieces {
+                    if piece.faction != Faction::M26 {
+                        continue;
+                    }
+                    let remaining = actual
+                        .pieces
+                        .iter()
+                        .find(|p| {
+                            p.faction == piece.faction
+                                && p.kind == piece.kind
+                                && p.state == piece.state
+                        })
+                        .map_or(0, |p| p.count);
+                    let returned = piece
+                        .count
+                        .checked_sub(remaining)
+                        .ok_or("Unsupported added or activated own pieces.")?;
+                    removed += u64::from(returned);
+                    expected
+                        .available
+                        .iter_mut()
+                        .find(|p| p.faction == Faction::M26 && p.kind == piece.kind)
+                        .unwrap()
+                        .count += returned;
+                    piece.count = remaining;
+                }
+                space.pieces.retain(|p| p.count > 0);
+            }
         }
         if self.resources.iter().any(|&n| n > 49)
             || self.resources.iter().map(|&n| n as u16).sum::<u16>() != 26 - paid
             || self.revision
-                < u64::from(paid) + u64::from(self.kidnap.is_some()) + u64::from(self.finished)
+                < u64::from(paid)
+                    + u64::from(self.kidnap.is_some())
+                    + u64::from(self.finished)
+                    + removed
+                    + u64::from(self.removal.is_some())
             || (self.revision == 0 && *self != expected)
-            || (self.finished && self.transfer.is_some())
+            || (self.finished && (self.transfer.is_some() || self.removal.is_some()))
+            || (self.transfer.is_some() && self.removal.is_some())
         {
             return Err("Unsupported transfer balances or decision state.".into());
         }
@@ -768,10 +899,24 @@ impl Game {
                 || (self.owes_santiago()
                     && (self.finished
                         || self.resources[1] == 0
+                        || !self.spaces.iter().any(|s| {
+                            s.id == "santiago"
+                                && s.pieces.iter().any(|p| {
+                                    p.faction == Faction::M26
+                                        && p.kind == Kind::Guerrilla
+                                        && p.state == State::Underground
+                                        && p.count > 0
+                                })
+                        })
                         || (kidnap.government_before == 0 && kidnap.m26_before == 0)))
             {
                 return Err("Unsupported Kidnap result or impossible owed Santiago Terror.".into());
             }
+        }
+        if let Some(Removal::Confirming { space, kind, state }) = &self.removal
+            && !self.removable(space, *kind, *state)
+        {
+            return Err("Unsupported pending own removal or protected owed Terror piece.".into());
         }
         if let Some(Transfer::Authorizing {
             giver,
@@ -791,9 +936,10 @@ impl Game {
         expected.resources = self.resources;
         expected.transfer = self.transfer.clone();
         expected.kidnap = self.kidnap.clone();
+        expected.removal = self.removal.clone();
         if *self != expected {
             return Err(
-                "State is not a supported prepared transfer/Terror/Kidnap position.".into(),
+                "State is not a supported prepared transfer/Terror/Kidnap/removal position.".into(),
             );
         }
         Ok(())

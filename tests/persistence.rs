@@ -1,6 +1,110 @@
 use cuba_libre_unfolded::{Faction, save::Session};
 
 #[test]
+fn pending_removal_and_owed_piece_survive_restart_without_duplicates() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("removal.json");
+    let mut session = Session::open(&path, None).unwrap();
+    for action in [
+        "kidnap",
+        "remove",
+        "remove:santiago:underground",
+        "confirm-removal",
+        "remove",
+        "cancel-removal",
+        "terror:santiago",
+        "remove",
+        "remove:santiago:active",
+        "confirm-removal",
+        "finish",
+    ] {
+        let v = session.observe();
+        session
+            .submit(v.owner, v.revision, &format!("{}:{action}", v.revision))
+            .unwrap();
+        let after = session.observe();
+        let rng = session.game().random_state();
+        let bytes = std::fs::read(&path).unwrap();
+        drop(session);
+        session = Session::open(&path, None).unwrap();
+        assert_eq!(session.observe(), after);
+        assert_eq!(session.game().random_state(), rng);
+        assert!(
+            session
+                .submit(v.owner, v.revision, &format!("{}:{action}", v.revision))
+                .is_err()
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    }
+    assert_eq!(session.observe().map_piece_count, 27);
+    assert_eq!(session.observe().standings[1].score, 8);
+}
+
+#[test]
+fn removal_admission_refuses_foreign_changes_wrong_supply_and_impossible_obligation() {
+    use sha2::{Digest, Sha256};
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("admission.json");
+    let mut session = Session::open(&path, None).unwrap();
+    for action in [
+        "kidnap",
+        "remove",
+        "remove:santiago:underground",
+        "confirm-removal",
+    ] {
+        let v = session.observe();
+        session
+            .submit(v.owner, v.revision, &format!("{}:{action}", v.revision))
+            .unwrap();
+    }
+    let source: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    let previous = std::fs::read(path.with_file_name("admission.json.previous")).unwrap();
+    let mut cases = vec![];
+    let mut altered = source.clone();
+    altered["game"]["spaces"][2]["pieces"][1]["count"] = 0.into();
+    cases.push(altered); // Government Police are not removable
+    let mut altered = source.clone();
+    altered["game"]["available"][3]["count"] = 12.into();
+    cases.push(altered); // missing returned Guerrilla
+    let mut altered = source.clone();
+    altered["game"]["spaces"][2]["pieces"]
+        .as_array_mut()
+        .unwrap()
+        .pop();
+    altered["game"]["available"][3]["count"] = 14.into();
+    cases.push(altered); // exact totals, but owed Terror lost its last Underground
+    let mut altered = source.clone();
+    altered["game"]["removal"] = serde_json::json!({"Confirming":{"space":"santiago","kind":"Guerrilla","state":"Underground"}});
+    cases.push(altered); // impossible pending confirmation
+    let mut altered = source.clone();
+    altered["game"]["removal"] = "Selecting".into();
+    altered["game"]["transfer"] = "Selecting".into();
+    cases.push(altered); // mutually exclusive local decisions
+    let mut altered = source;
+    altered["game"]["spaces"][8]["pieces"][0]["state"] = "Active".into();
+    cases.push(altered); // no Terror to activate this piece
+    for mut record in cases {
+        let game: cuba_libre_unfolded::Game =
+            serde_json::from_value(record["game"].clone()).unwrap();
+        record["checksum"] = format!(
+            "{:x}",
+            Sha256::digest(
+                serde_json::to_vec(&(1u32, &record["source"], &record["art"], game)).unwrap()
+            )
+        )
+        .into();
+        let bytes = serde_json::to_vec(&record).unwrap();
+        std::fs::write(&path, &bytes).unwrap();
+        assert!(Session::open(&path, None).is_err(), "admitted {record}");
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        assert_eq!(
+            std::fs::read(path.with_file_name("admission.json.previous")).unwrap(),
+            previous
+        );
+    }
+}
+
+#[test]
 fn committed_roll_and_terror_resume_without_reroll_or_duplicate_effect() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("kidnap.json");

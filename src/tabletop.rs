@@ -765,6 +765,10 @@ fn click(
                             "Kidnap rolled {} · transferred {}.\nGovernment {} · 26July {}. Saved.",
                             roll.die, roll.proceeds, view.resources[0], view.resources[1]
                         )
+                    } else if control.name.ends_with(":confirm-removal") {
+                        "Removed 1 own piece to Available. Control and standings updated; earlier Terror and Opposition remain.".into()
+                    } else if control.name.ends_with(":cancel-removal") {
+                        "Removal cancelled. No piece removed; earlier effects remain.".into()
                     } else if control.name.contains(":terror:") {
                         "Terror saved: paid 1, activated 1, placed marker and shifted Opposition."
                             .into()
@@ -1150,6 +1154,8 @@ fn draw_ui(
                 )
             } else if view.transfer.is_some() {
                 format!("Resource transfer\n{} decides locally", view.owner.name())
+            } else if view.removal.is_some() {
+                "26July · voluntary own removal".into()
             } else {
                 format!("{} · {}", view.owner.name(), view.operation)
             },
@@ -1170,7 +1176,15 @@ fn draw_ui(
                     "Giver: {} · balance {}\nRecipient: {} · balance {}\nAmount: {} Resources · whole numbers only\nAfter authorization: {} → {}; {} → {}\nZero is allowed. Decline moves nothing.",
                     giver.name(), view.resources[giver.index()], recipient.name(), view.resources[recipient.index()], amount,
                     giver.name(), view.resources[giver.index()] - amount, recipient.name(), view.resources[recipient.index()] + amount),
-                None => operation_details(&view),
+                None => match &view.removal {
+                    Some(crate::Removal::Selecting) => format!("Choose one own piece to return to Available.\nCounts show how many remain in each group.\nConfirmation comes next; Cancel removes nothing.\n{}", if view.owed_terror.is_some() { "Owed Santiago: protect its last Underground." } else { "No obligation: removing all pieces is allowed." }),
+                    Some(crate::Removal::Confirming { space, kind, state }) => {
+                        let target = view.spaces.iter().find(|s| &s.id == space).unwrap();
+                        let supply = view.available.iter().find(|p| p.faction == Faction::M26 && p.kind == *kind).unwrap().count;
+                        format!("Remove 1 26July {state:?} {kind:?}\nfrom {}?\nAvailable {kind:?}: {supply} → {}\nControl and standings update immediately.\nEarlier Terror and Opposition stay.\nCancel leaves this piece on the map.", target.name, supply + 1)
+                    }
+                    None => operation_details(&view),
+                },
             },
             1404.,
             390.,
@@ -1186,9 +1200,7 @@ fn draw_ui(
                     &mut commands,
                     &art,
                     &choice.id,
-                    &if choice.id.ends_with(":remove") {
-                        format!("{} — incomplete", choice.label)
-                    } else if !choice.supported {
+                    &if !choice.supported {
                         format!("{} — unavailable", choice.label)
                     } else {
                         choice.label.clone()
@@ -1200,7 +1212,11 @@ fn draw_ui(
                     },
                     [
                         1404.,
-                        (if view.transfer.is_some() { 540. } else { 590. }) + i as f32 * 52.,
+                        (if view.transfer.is_some() || view.removal.is_some() {
+                            540.
+                        } else {
+                            590.
+                        }) + i as f32 * 52.,
                         452.,
                         46.,
                     ],
@@ -1224,7 +1240,7 @@ fn draw_ui(
                     }
                 ),
                 1404.,
-                550.,
+                590.,
                 450.,
                 25.,
                 s,
@@ -1373,11 +1389,17 @@ fn operation_details(view: &crate::Observation) -> String {
             if space.terror > 0 { " · done" } else { "" }
         ));
     }
-    lines.push(format!(
-        "Terror costs 1 · 26July Resources {}",
-        view.resources[1]
-    ));
-    lines.push("Activate 1 · place Terror · shift toward Active Opposition".into());
+    if view.finished {
+        let paid: u8 = view.spaces.iter().map(|s| s.terror).sum();
+        lines.push(format!("Resolved {paid} Terror · paid {paid} Resources"));
+        lines.push(format!("26July retains {} Resources", view.resources[1]));
+    } else {
+        lines.push(format!(
+            "Terror costs 1 · 26July Resources {}",
+            view.resources[1]
+        ));
+        lines.push("Activate 1 · place Terror · shift toward Active Opposition".into());
+    }
     if let Some(roll) = &view.kidnap {
         lines.push(format!(
             "Kidnap rolled {} · moved {} (Government → 26July)",
@@ -1390,6 +1412,8 @@ fn operation_details(view: &crate::Observation) -> String {
             roll.m26_before,
             roll.m26_before + roll.proceeds
         ));
+    } else if view.finished {
+        lines.push("No Kidnap used.".into());
     } else {
         lines.push(format!(
             "Kidnap die 1–6 · possible proceeds {}–{}",
@@ -1405,14 +1429,16 @@ fn operation_details(view: &crate::Observation) -> String {
             lines.push("Early Kidnap commits Santiago Terror (pay 1).".into());
         }
     }
-    lines.push(
-        if view.owed_terror.is_some() {
-            "Owed: Santiago · keep 1 Resource + 1 Underground"
-        } else {
-            "No Terror owed · Finish permitted"
-        }
-        .into(),
-    );
+    if !view.finished {
+        lines.push(
+            if view.owed_terror.is_some() {
+                "Owed: Santiago · keep 1 Resource + 1 Underground"
+            } else {
+                "No Terror owed · Finish permitted"
+            }
+            .into(),
+        );
+    }
     lines.join("\n")
 }
 

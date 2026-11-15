@@ -107,6 +107,235 @@ impl Drop for Native {
 
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
+    let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS")
+        .into();
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "local/verification/issue-15".into());
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("removal-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards,
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("task.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Removal native evidence: {}", app.root.display());
+    app.launch();
+    app.capture("before-removal");
+    app.choose("remove");
+    app.choose("remove:santiago:underground");
+    app.capture("pending-confirmation");
+    let pending = app.observe();
+    assert_eq!(pending["observation"]["map_piece_count"], 29);
+    std::fs::copy(&app.save, app.root.join("pending-valid.json")).unwrap();
+    app.quit();
+    app.launch();
+    assert_eq!(app.observe()["observation"], pending["observation"]);
+    app.choose("cancel-removal");
+    assert_eq!(app.observe()["observation"]["map_piece_count"], 29);
+    app.choose("remove");
+    app.choose("remove:santiago:underground");
+    let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.choose("confirm-removal");
+    let removed = app.observe();
+    assert_eq!(removed["observation"]["map_piece_count"], 28);
+    assert!(
+        removed["table"]["notice"]
+            .as_str()
+            .unwrap()
+            .contains("Available")
+    );
+    app.capture("pre-kidnap-removal");
+    app.request(
+        json!({"op":"activate","revision":revision,"choice":format!("{revision}:confirm-removal")}),
+        false,
+    );
+    assert_eq!(app.observe()["observation"], removed["observation"]);
+    std::fs::copy(&app.save, app.root.join("removed-valid.json")).unwrap();
+    app.quit();
+    app.launch();
+    assert_eq!(app.observe()["observation"], removed["observation"]);
+    // A real giver funds the remaining Guerrilla after Kidnap was defeated.
+    for action in [
+        "transfer",
+        "transfer:2:1",
+        "amount:1",
+        "authorize",
+        "terror:santiago",
+        "remove",
+        "remove:santiago:active",
+        "confirm-removal",
+        "remove",
+        "remove:sierra-maestra:base",
+        "confirm-removal",
+    ] {
+        app.choose(action);
+    }
+    let rev = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.activate("standing:1", rev);
+    app.capture("base-and-active-removed");
+    assert_eq!(app.observe()["observation"]["standings"][1]["score"], 7);
+    for action in [
+        "remove",
+        "remove:oriente:underground",
+        "confirm-removal",
+        "finish",
+    ] {
+        app.choose(action);
+    }
+    app.capture("all-pieces-after-terror-finished");
+    assert_eq!(app.observe()["observation"]["map_piece_count"], 25);
+    app.quit();
+
+    // A fresh zero-space path removes everything and still finishes.
+    app.save = app.root.join("zero-space.json");
+    app.launch();
+    for target in [
+        "sierra-maestra:base",
+        "santiago:underground",
+        "santiago:underground",
+        "oriente:underground",
+    ] {
+        app.choose("remove");
+        app.choose(&format!("remove:{target}"));
+        app.choose("confirm-removal");
+        if target == "sierra-maestra:base" {
+            let rev = app.observe()["observation"]["revision"].as_u64().unwrap();
+            app.activate("standing:1", rev);
+            assert_eq!(app.observe()["observation"]["standings"][1]["score"], 6);
+            app.capture("base-removed-standing-six");
+        }
+    }
+    app.choose("finish");
+    let zero = app.observe();
+    assert_eq!(zero["observation"]["map_piece_count"], 25);
+    assert_eq!(zero["observation"]["available_piece_count"], 61);
+    assert_eq!(zero["observation"]["standings"][1]["score"], 6);
+    assert_eq!(zero["observation"]["resources"], json!([6, 0, 5, 15]));
+    app.capture("zero-space-all-removed-finished");
+    app.quit();
+
+    app.save = app.root.join("owed.json");
+    app.launch();
+    for action in [
+        "kidnap",
+        "remove",
+        "remove:santiago:underground",
+        "confirm-removal",
+        "remove",
+    ] {
+        app.choose(action);
+    }
+    let owed = app.observe();
+    let rev = owed["observation"]["revision"].as_u64().unwrap();
+    app.activate(&format!("{rev}:remove:santiago:underground"), rev);
+    assert!(
+        app.observe()["table"]["notice"]
+            .as_str()
+            .unwrap()
+            .contains("owed")
+    );
+    assert_eq!(app.observe()["observation"], owed["observation"]);
+    app.capture("owed-removal-refused");
+    std::fs::copy(&app.save, app.root.join("owed-valid.json")).unwrap();
+    app.quit();
+    app.launch();
+    assert_eq!(app.observe()["observation"], owed["observation"]);
+    for action in [
+        "remove:sierra-maestra:base",
+        "confirm-removal",
+        "remove",
+        "remove:oriente:underground",
+        "confirm-removal",
+        "terror:santiago",
+        "remove",
+        "remove:santiago:active",
+        "confirm-removal",
+    ] {
+        app.choose(action);
+    }
+    let v = app.observe();
+    assert_eq!(v["observation"]["map_piece_count"], 25);
+    assert_eq!(v["observation"]["standings"][1]["score"], 7);
+    let amount = v["observation"]["resources"][1].as_u64().unwrap();
+    app.choose("transfer");
+    app.choose("transfer:1:2");
+    for n in 1..=amount {
+        app.choose(&format!("amount:{n}"));
+    }
+    app.choose("authorize");
+    app.choose("finish");
+    assert_eq!(app.observe()["observation"]["resources"][1], 0);
+    assert!(
+        app.observe()["observation"]["next_options"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("Event"))
+    );
+    app.capture("owed-fulfilled-all-removed-finished");
+    app.quit();
+
+    app.save = app.root.join("split.json");
+    app.launch();
+    for action in [
+        "transfer",
+        "transfer:2:1",
+        "amount:1",
+        "amount:2",
+        "authorize",
+        "terror:santiago",
+        "terror:oriente",
+        "remove",
+    ] {
+        app.choose(action);
+    }
+    app.capture("split-active-underground-removal");
+    for action in ["remove:santiago:active", "confirm-removal"] {
+        app.choose(action);
+    }
+    let split = app.observe();
+    assert_eq!(
+        split["observation"]["spaces"][2]["pieces"]
+            .as_array()
+            .unwrap()
+            .last()
+            .unwrap()["state"],
+        "Underground"
+    );
+    app.capture("active-removed-underground-remains");
+    for action in [
+        "remove",
+        "remove:santiago:underground",
+        "confirm-removal",
+        "remove",
+        "remove:oriente:active",
+        "confirm-removal",
+        "remove",
+        "remove:sierra-maestra:base",
+        "confirm-removal",
+        "finish",
+    ] {
+        app.choose(action);
+    }
+    assert_eq!(app.observe()["observation"]["standings"][1]["score"], 9);
+    assert_eq!(app.observe()["observation"]["map_piece_count"], 25);
+    app.capture("both-terrors-remain-after-all-removal");
+    app.quit();
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
 fn native_kidnap_owed_terror_restart_and_next_permissions() {
     let cards = std::env::var_os("CUBA_TEST_CARDS")
         .expect("Set CUBA_TEST_CARDS")
@@ -385,15 +614,6 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     app.activate("standing:0", 0);
     assert_eq!(app.observe()["table"]["pinned"], "Government");
     app.activate("close", 0);
-    app.activate("0:remove", 0);
-    let disclosed = app.observe();
-    assert!(
-        disclosed["table"]["notice"]
-            .as_str()
-            .unwrap()
-            .contains("Incomplete")
-    );
-    assert_eq!(disclosed["observation"], initial["observation"]);
     for id in [
         "havana",
         "camaguey-city",
