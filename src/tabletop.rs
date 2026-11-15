@@ -1,6 +1,6 @@
 //! Selected Atlas presentation. Input travels through Bevy picking into the checked game seam.
 use crate::{
-    Faction, Game, Kind, Terrain,
+    Faction, Game, Kind, State, Terrain,
     assets::{self, Verified},
     save::Session,
 };
@@ -93,6 +93,8 @@ struct UiRoot;
 struct Details;
 #[derive(Component)]
 struct StandingText(Faction);
+#[derive(Component)]
+struct PieceVisual;
 #[derive(Component, Clone)]
 struct Control {
     name: String,
@@ -241,6 +243,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             Update,
             (
                 admit,
+                sync_pieces,
                 bind_spaces,
                 hover_standings,
                 draw_ui,
@@ -348,9 +351,6 @@ fn setup(
             _ => 0.14,
         };
         let at = map_at(x + w / 2., y + h / 2., top + 0.004);
-        let piece_at = label
-            .pieces
-            .map_or(at + Vec3::new(0., 0., 0.55), |[x, y]| map_at(x, y, top));
         commands.spawn((
             Mesh3d(meshes.add(Plane3d::default().mesh().size(w / 100., h / 100.))),
             MeshMaterial3d(materials.add(StandardMaterial {
@@ -364,6 +364,37 @@ fn setup(
             Transform::from_translation(at),
             Pickable::IGNORE,
         ));
+    }
+}
+fn sync_pieces(
+    mut commands: Commands,
+    play: Res<Play>,
+    art: Res<Art>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    roots: Query<Entity, With<PieceVisual>>,
+    mut previous: Local<Vec<crate::Space>>,
+) {
+    let game = play.game();
+    if *previous == game.spaces {
+        return;
+    }
+    *previous = game.spaces.clone();
+    for entity in &roots {
+        commands.entity(entity).despawn();
+    }
+    for label in &art.labels {
+        let space = game.spaces.iter().find(|s| s.id == label.space).unwrap();
+        let [x, y, w, h] = label.bounds;
+        let top = match space.terrain {
+            Terrain::City => 0.24,
+            Terrain::EconomicCenter => 0.28,
+            _ => 0.14,
+        };
+        let at = map_at(x + w / 2., y + h / 2., top + 0.004);
+        let piece_at = label
+            .pieces
+            .map_or(at + Vec3::new(0., 0., 0.55), |[x, y]| map_at(x, y, top));
         for (i, piece) in space.pieces.iter().enumerate() {
             let mesh = match piece.kind {
                 Kind::Troops | Kind::Police => Mesh::from(Cuboid::new(0.18, 0.18, 0.18)),
@@ -405,6 +436,26 @@ fn setup(
                     ),
                 },
             );
+            commands.entity(token).insert(PieceVisual);
+            let mark = match piece.state {
+                State::Active => Some("atlas-active-star.png"),
+                State::Closed => Some("atlas-closed-slash.png"),
+                _ => None,
+            };
+            if let Some(mark) = mark {
+                token::add_face(
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                    token,
+                    token::Face {
+                        mesh: Plane3d::default().mesh().size(0.17, 0.17).build(),
+                        image: art.images[mark].clone(),
+                        alpha: AlphaMode::Blend,
+                        transform: Transform::from_xyz(0., height + 0.002, 0.),
+                    },
+                );
+            }
             let label = count_label::spawn(
                 &mut commands,
                 token,
@@ -415,6 +466,40 @@ fn setup(
                 TextFont {
                     font: art.font.clone().into(),
                     font_size: 21.0.into(),
+                    ..default()
+                },
+                TextColor(Color::srgb(0.08, 0.08, 0.06)),
+                GlobalZIndex(-1),
+            ));
+        }
+        if space.terror > 0 {
+            let token = token::spawn_body(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                token::Body {
+                    name: format!("{} Terror", space.id),
+                    mesh: Cylinder::new(0.12, 0.045).into(),
+                    color: Color::srgb(0.18, 0.18, 0.16),
+                    transform: Transform::from_xyz(
+                        piece_at.x + if space.id == "oriente" { 0.38 } else { 0. },
+                        top + 0.0225,
+                        piece_at.z + if space.id == "oriente" { 0. } else { 0.36 },
+                    ),
+                },
+            );
+            commands.entity(token).insert(PieceVisual);
+            let label = count_label::spawn(
+                &mut commands,
+                token,
+                space.terror as u32,
+                Vec3::new(0., 0.07, 0.),
+            );
+            commands.entity(label).insert((
+                Text::new(format!("T {}", space.terror)),
+                TextFont {
+                    font: art.font.clone().into(),
+                    font_size: 18.0.into(),
                     ..default()
                 },
                 TextColor(Color::srgb(0.08, 0.08, 0.06)),
@@ -539,7 +624,7 @@ fn detail_text(view: &crate::Observation, ui: &Interface) -> String {
             .collect::<Vec<_>>()
             .join(" · ");
         format!(
-            "{} · {}\n{}\nTotal {} · Margin {:+}\n{}\nAvailable: {available}",
+            "{} · {}\n{}\nTotal {} · Margin {:+} · {}\nAvailable: {available}",
             f.name(),
             st.threshold,
             st.contributions.join("\n"),
@@ -633,7 +718,7 @@ fn click(
             ui.pinned = None;
             ui.inspected = None;
             ui.reader = false;
-            ui.notice = "Inspection cancelled; no effect or randomness consumed.".into();
+            ui.notice = "Inspection closed. Committed effects and rolls remain saved.".into();
         }
         Action::Reader => {
             ui.reader = true;
@@ -673,8 +758,25 @@ fn click(
                             "Waiting for {}. Save / quit keeps this decision.",
                             owner.name()
                         )
+                    } else if control.name.ends_with(":kidnap") {
+                        let view = play.game().observe();
+                        let roll = view.kidnap.as_ref().unwrap();
+                        format!(
+                            "Kidnap rolled {} · transferred {}.\nGovernment {} · 26July {}. Saved.",
+                            roll.die, roll.proceeds, view.resources[0], view.resources[1]
+                        )
+                    } else if control.name.contains(":terror:") {
+                        "Terror saved: paid 1, activated 1, placed marker and shifted Opposition."
+                            .into()
                     } else if control.name.ends_with(":finish") {
-                        "Saved Operation Only. No Pass income.".into()
+                        format!(
+                            "Saved {}. No Pass income.",
+                            if previous.kidnap.is_some() {
+                                "Operation + Kidnap"
+                            } else {
+                                "Operation Only"
+                            }
+                        )
                     } else {
                         "Decision saved; resources unchanged.".into()
                     };
@@ -1038,7 +1140,14 @@ fn draw_ui(
             &mut commands,
             &art,
             if view.finished {
-                "26July completed Operation Only\nNo Pass income".into()
+                format!(
+                    "26July completed {}\nNo Pass income",
+                    if view.kidnap.is_some() {
+                        "Operation + Kidnap"
+                    } else {
+                        "Operation Only"
+                    }
+                )
             } else if view.transfer.is_some() {
                 format!("Resource transfer\n{} decides locally", view.owner.name())
             } else {
@@ -1061,7 +1170,7 @@ fn draw_ui(
                     "Giver: {} · balance {}\nRecipient: {} · balance {}\nAmount: {} Resources · whole numbers only\nAfter authorization: {} → {}; {} → {}\nZero is allowed. Decline moves nothing.",
                     giver.name(), view.resources[giver.index()], recipient.name(), view.resources[recipient.index()], amount,
                     giver.name(), view.resources[giver.index()] - amount, recipient.name(), view.resources[recipient.index()] + amount),
-                None => format!("All factions Eligible · Aid 15 · US Alliance Firm\nSantiago: 2 Underground Guerrillas / 1 Police\nOriente: 1 Underground Guerrilla / 0 Police\nTerror: 1 Resource per space; 26July has {}\nAll Guerrillas Underground · Casinos open\nNo Capability, Momentum or Cash", view.resources[1]),
+                None => operation_details(&view),
             },
             1404.,
             390.,
@@ -1077,17 +1186,24 @@ fn draw_ui(
                     &mut commands,
                     &art,
                     &choice.id,
-                    &if choice.supported {
-                        choice.label.clone()
-                    } else {
+                    &if choice.id.ends_with(":remove") {
                         format!("{} — incomplete", choice.label)
+                    } else if !choice.supported {
+                        format!("{} — unavailable", choice.label)
+                    } else {
+                        choice.label.clone()
                     },
                     if choice.supported {
                         Action::Decision(view.owner, view.revision)
                     } else {
                         Action::Unsupported(choice.explanation.clone())
                     },
-                    [1404., 540. + i as f32 * 52., 452., 46.],
+                    [
+                        1404.,
+                        (if view.transfer.is_some() { 540. } else { 590. }) + i as f32 * 52.,
+                        452.,
+                        46.,
+                    ],
                     s,
                     o,
                     choice.supported,
@@ -1098,7 +1214,15 @@ fn draw_ui(
             text(
                 &mut commands,
                 &art,
-                "Directorio next (display only):\nPass (+1 if later executed)\nLimited Operation\n\nNo Event permission.\nCard / eligibility have not advanced.",
+                format!(
+                    "Directorio next (display only):\n{}\n\n{}\nCard / eligibility have not advanced.",
+                    view.next_options.join("\n"),
+                    if view.kidnap.is_some() {
+                        "Kidnap grants Event permission."
+                    } else {
+                        "No Event permission."
+                    }
+                ),
                 1404.,
                 550.,
                 450.,
@@ -1178,7 +1302,7 @@ fn draw_ui(
             false,
             2,
         );
-        let status=play.error.clone().unwrap_or_else(||if play.session.is_none(){"Loading selected assets; no save created.".into()}else{format!("Saved revision {} · {} map / {} available\nCash 4 · Terror/Sabotage 20 available",view.revision,view.map_piece_count,view.available_piece_count)});
+        let status=play.error.clone().unwrap_or_else(||if play.session.is_none(){"Loading selected assets; no save created.".into()}else{format!("Saved revision {} · {} map / {} available\nCash 4 · Terror/Sabotage {} available",view.revision,view.map_piece_count,view.available_piece_count,view.terror_available)});
         text(
             &mut commands,
             &art,
@@ -1195,7 +1319,11 @@ fn draw_ui(
             &mut commands,
             &art,
             "cancel",
-            "Cancel inspection",
+            if view.revision == 0 {
+                "Cancel inspection"
+            } else {
+                "Close inspection"
+            },
             Action::Cancel,
             [1404., 1140., 270., 44.],
             s,
@@ -1216,6 +1344,76 @@ fn draw_ui(
             2,
         );
     }
+}
+
+fn operation_details(view: &crate::Observation) -> String {
+    let mut lines = vec![];
+    for id in ["santiago", "oriente"] {
+        let space = view.spaces.iter().find(|s| s.id == id).unwrap();
+        let count = |faction, kind, state: Option<State>| -> u8 {
+            space
+                .pieces
+                .iter()
+                .filter(|p| {
+                    p.faction == faction && p.kind == kind && state.is_none_or(|s| p.state == s)
+                })
+                .map(|p| p.count)
+                .sum()
+        };
+        lines.push(format!(
+            "{}: {} Underground · {} Active · {} Police{}",
+            if id == "santiago" {
+                "Santiago"
+            } else {
+                "Oriente"
+            },
+            count(Faction::M26, Kind::Guerrilla, Some(State::Underground)),
+            count(Faction::M26, Kind::Guerrilla, Some(State::Active)),
+            count(Faction::Government, Kind::Police, None),
+            if space.terror > 0 { " · done" } else { "" }
+        ));
+    }
+    lines.push(format!(
+        "Terror costs 1 · 26July Resources {}",
+        view.resources[1]
+    ));
+    lines.push("Activate 1 · place Terror · shift toward Active Opposition".into());
+    if let Some(roll) = &view.kidnap {
+        lines.push(format!(
+            "Kidnap rolled {} · moved {} (Government → 26July)",
+            roll.die, roll.proceeds
+        ));
+        lines.push(format!(
+            "At roll: Government {} → {} · 26July {} → {}",
+            roll.government_before,
+            roll.government_before - roll.proceeds,
+            roll.m26_before,
+            roll.m26_before + roll.proceeds
+        ));
+    } else {
+        lines.push(format!(
+            "Kidnap die 1–6 · possible proceeds {}–{}",
+            view.resources[0].min(1),
+            view.resources[0].min(6)
+        ));
+        lines.push("Santiago: total Guerrillas must outnumber Police".into());
+        if view
+            .spaces
+            .iter()
+            .any(|s| s.id == "santiago" && s.terror == 0)
+        {
+            lines.push("Early Kidnap commits Santiago Terror (pay 1).".into());
+        }
+    }
+    lines.push(
+        if view.owed_terror.is_some() {
+            "Owed: Santiago · keep 1 Resource + 1 Underground"
+        } else {
+            "No Terror owed · Finish permitted"
+        }
+        .into(),
+    );
+    lines.join("\n")
 }
 
 #[cfg(test)]

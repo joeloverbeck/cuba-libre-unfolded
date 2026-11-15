@@ -104,6 +104,209 @@ impl Drop for Native {
             .output();
     }
 }
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_kidnap_owed_terror_restart_and_next_permissions() {
+    let cards = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS")
+        .into();
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "local/verification/issue-14".into());
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("terror-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards,
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("task.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Terror native evidence: {}", app.root.display());
+    app.launch();
+    app.capture("before-roll");
+    app.choose("kidnap");
+    let rolled = app.observe();
+    assert_eq!(rolled["observation"]["owed_terror"], "santiago");
+    assert!(
+        rolled["table"]["notice"]
+            .as_str()
+            .unwrap()
+            .contains("rolled")
+    );
+    app.capture("rolled-owed");
+    let saved_roll = std::fs::read(&app.save).unwrap();
+    std::fs::write(app.root.join("rolled-valid.json"), &saved_roll).unwrap();
+    app.quit();
+    app.launch();
+    assert_eq!(app.observe()["observation"], rolled["observation"]);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved_roll);
+    app.request(
+        json!({"op":"activate","revision":0,"choice":"0:kidnap"}),
+        false,
+    );
+    assert_eq!(app.observe()["observation"], rolled["observation"]);
+    let rev = rolled["observation"]["revision"].as_u64().unwrap();
+    app.activate(&format!("{rev}:finish"), rev);
+    assert!(
+        app.observe()["table"]["notice"]
+            .as_str()
+            .unwrap()
+            .contains("owed")
+    );
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved_roll);
+    app.activate("cancel", rev);
+    assert_eq!(app.observe()["observation"], rolled["observation"]);
+    app.choose("terror:santiago");
+    let after = app.observe();
+    assert_eq!(after["observation"]["standings"][1]["score"], 8);
+    assert_eq!(after["observation"]["owed_terror"], Value::Null);
+    assert!(
+        after["table"]["standings"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|s| s["visible"] == true)
+    );
+    app.activate("space:santiago", 2);
+    app.capture("santiago-after-terror");
+    std::fs::copy(&app.save, app.root.join("terror-valid.json")).unwrap();
+    app.quit();
+    app.launch();
+    assert_eq!(app.observe()["observation"], after["observation"]);
+    app.request(
+        json!({"op":"activate","revision":1,"choice":"1:terror:santiago"}),
+        false,
+    );
+    assert_eq!(app.observe()["observation"], after["observation"]);
+    app.activate("standing:1", 2);
+    app.capture("santiago-standing");
+    // Real Syndicate donation restores Oriente even if the real roll was 1.
+    app.choose("transfer");
+    app.choose("transfer:3:1");
+    app.choose("amount:1");
+    app.choose("authorize");
+    app.capture("donated-continuation");
+    app.choose("terror:oriente");
+    let both = app.observe();
+    assert_eq!(both["observation"]["standings"][1]["score"], 10);
+    assert!(
+        both["table"]["details_height"].as_f64().unwrap() <= 190.,
+        "contributions must fit above the footer: {}",
+        both["table"]["details_height"]
+    );
+    app.capture("both-terrors");
+    app.choose("finish");
+    let finished = app.observe();
+    assert_eq!(
+        finished["observation"]["next_options"],
+        json!(["Pass (+1 if executed later)", "Limited Operation", "Event"])
+    );
+    assert_eq!(
+        finished["observation"]["eligible"],
+        json!([true, true, true, true])
+    );
+    app.capture("kidnap-finished");
+    app.quit();
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_donations_enable_both_orders_without_or_with_late_kidnap() {
+    let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS")
+        .into();
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "local/verification/issue-14".into());
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("donated-terror-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    eprintln!("Donated Terror native evidence: {}", root.display());
+    for (name, order, kidnap) in [
+        ("no-santiago-first", ["santiago", "oriente"], false),
+        ("no-oriente-first", ["oriente", "santiago"], false),
+        ("late-santiago-first", ["santiago", "oriente"], true),
+        ("late-oriente-first", ["oriente", "santiago"], true),
+    ] {
+        let directory = root.join(name);
+        std::fs::create_dir_all(&directory).unwrap();
+        let mut app = Native {
+            cards: cards.clone(),
+            socket: socket_dir.path().join("seat.sock"),
+            save: directory.join("task.json"),
+            root: directory,
+            step: 0,
+        };
+        app.launch();
+        app.choose("transfer");
+        app.choose("transfer:2:1");
+        app.choose("amount:1");
+        app.choose("amount:2");
+        app.capture("donor-authorization");
+        app.choose("authorize");
+        assert_eq!(
+            app.observe()["observation"]["resources"],
+            json!([6, 2, 3, 15])
+        );
+        app.choose(&format!("terror:{}", order[0]));
+        app.capture("first-terror");
+        app.choose(&format!("terror:{}", order[1]));
+        let both = app.observe();
+        assert_eq!(both["observation"]["resources"], json!([6, 0, 3, 15]));
+        assert_eq!(both["observation"]["standings"][1]["score"], 10);
+        app.capture("both-before-kidnap-or-finish");
+        if kidnap {
+            app.choose("kidnap");
+            let roll = app.observe();
+            let die = roll["observation"]["kidnap"]["die"].as_u64().unwrap();
+            assert!((1..=6).contains(&die));
+            let expected = [
+                [5, 1, 3, 15],
+                [4, 2, 3, 15],
+                [3, 3, 3, 15],
+                [2, 4, 3, 15],
+                [1, 5, 3, 15],
+                [0, 6, 3, 15],
+            ][die as usize - 1];
+            assert_eq!(roll["observation"]["resources"], json!(expected));
+            assert_eq!(roll["observation"]["owed_terror"], Value::Null);
+            app.capture("late-kidnap");
+        }
+        app.choose("finish");
+        let finished = app.observe();
+        assert_eq!(
+            finished["observation"]["next_options"]
+                .as_array()
+                .unwrap()
+                .contains(&json!("Event")),
+            kidnap
+        );
+        assert!(
+            finished["table"]["standings"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|s| s["visible"] == true)
+        );
+        app.capture("finished");
+        app.quit();
+    }
+}
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
 fn native_controls_hover_camera_finish_and_process_restarts() {
@@ -182,17 +385,15 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     app.activate("standing:0", 0);
     assert_eq!(app.observe()["table"]["pinned"], "Government");
     app.activate("close", 0);
-    for control in ["0:kidnap", "0:terror", "0:remove"] {
-        app.activate(control, 0);
-        let disclosed = app.observe();
-        assert!(
-            disclosed["table"]["notice"]
-                .as_str()
-                .unwrap()
-                .contains("Incomplete")
-        );
-        assert_eq!(disclosed["observation"], initial["observation"]);
-    }
+    app.activate("0:remove", 0);
+    let disclosed = app.observe();
+    assert!(
+        disclosed["table"]["notice"]
+            .as_str()
+            .unwrap()
+            .contains("Incomplete")
+    );
+    assert_eq!(disclosed["observation"], initial["observation"]);
     for id in [
         "havana",
         "camaguey-city",

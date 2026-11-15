@@ -1,5 +1,6 @@
 //! Cuba-owned rules from the accepted deacd635 tactical handoff (R 1.3–1.8, 2.3, 7).
 use serde::{Deserialize, Serialize};
+use unfolded_tabletop::random::SeededRandom;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Faction {
@@ -108,6 +109,19 @@ pub struct Game {
     pub(crate) draw_deck: Vec<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) transfer: Option<Transfer>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) kidnap: Option<Kidnap>,
+}
+/// The committed die and its actual proceeds. Balances at the roll remain
+/// inspectable even when subsequent Terror or donations change current balances.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Kidnap {
+    pub die: u8,
+    pub proceeds: u8,
+    pub government_before: u8,
+    pub m26_before: u8,
+    pub random_before: u64,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -148,6 +162,7 @@ pub struct Observation {
     pub special_activity: Option<String>,
     pub owed_terror: Option<String>,
     pub transfer: Option<Transfer>,
+    pub kidnap: Option<Kidnap>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Choice {
@@ -322,6 +337,7 @@ impl Game {
             random: 17,
             draw_deck,
             transfer: None,
+            kidnap: None,
             available: vec![
                 group(Government, Troops, 3),
                 group(Government, Police, 8),
@@ -368,27 +384,34 @@ impl Game {
             aid: 15,
             alliance: "Firm",
             cash_available: 4,
-            terror_available: 20,
+            terror_available: 20 - self.spaces.iter().map(|s| s.terror).sum::<u8>(),
             capabilities: vec![],
             momentum: vec![],
             finished: self.finished,
             choices: self.choices(),
             next_options: if self.finished {
-                vec![
+                let mut next = vec![
                     "Pass (+1 if executed later)".into(),
                     "Limited Operation".into(),
-                ]
+                ];
+                if self.kidnap.is_some() {
+                    next.push("Event".into());
+                }
+                next
             } else {
                 vec![]
             },
-            operation: if self.finished {
+            operation: if self.finished && self.kidnap.is_some() {
+                "Operation + Special Activity completed"
+            } else if self.finished {
                 "Operation Only completed; no Pass income"
             } else {
                 "Full Terror already selected"
             },
-            special_activity: None,
-            owed_terror: None,
+            special_activity: self.kidnap.as_ref().map(|_| "Kidnap".into()),
+            owed_terror: self.owes_santiago().then(|| "santiago".into()),
             transfer: self.transfer.clone(),
+            kidnap: self.kidnap.clone(),
         }
     }
     pub fn standings(&self) -> Vec<Standing> {
@@ -519,6 +542,7 @@ impl Game {
                 amount,
             }) => {
                 let limit = self.resources[giver.index()]
+                    .saturating_sub(u8::from(self.owes_santiago() && giver == Faction::M26))
                     .min(49u8.saturating_sub(self.resources[recipient.index()]));
                 let mut choices = vec![];
                 if amount > 0 {
@@ -546,16 +570,65 @@ impl Game {
             }
             None => {}
         }
-        [("finish","Finish Operation Only",true,"Zero-space completion uses the accepted interpretation. No Pass income."),
-         ("kidnap","Kidnap in Santiago",false,"2 Guerrillas > 1 Police; die 1–6 takes up to Government's current Resources. Incomplete until ticket #14."),
-         ("terror","Terror in Santiago / Oriente",false,"Each costs 1 Resource and needs an Underground Guerrilla. Compare 26July's current Resources above. Incomplete until #14."),
+        let mut choices: Vec<_> = [("finish",if self.kidnap.is_some() {"Finish Operation + Kidnap"} else {"Finish Operation Only"},!self.owes_santiago(),if self.owes_santiago() {"Santiago Terror is owed. The accepted commitment policy requires its payment and activation before Finish."} else {"Complete the selected Operation. Zero-space completion uses the accepted interpretation; no Pass income."}),
          ("transfer","Resource transfer",true,"Choose a direction, then hand the decision to its giver."),
-         ("remove","Voluntary own removal",false,"26July may remove its Guerrillas or Sierra Maestra Base. Incomplete until #15.")].into_iter().map(|(id,label,supported,explanation)|Choice{id:format!("{}:{id}",self.revision),label:label.into(),supported,explanation:explanation.into()}).collect()
+         ("remove","Voluntary own removal",false,"26July may remove its Guerrillas or Sierra Maestra Base. Incomplete until #15.")].into_iter().map(|(id,label,supported,explanation)|Choice{id:format!("{}:{id}",self.revision),label:label.into(),supported,explanation:explanation.into()}).collect();
+        for id in ["santiago", "oriente"] {
+            let space = self.spaces.iter().find(|s| s.id == id).unwrap();
+            if space.terror == 0
+                && self.resources[1] > u8::from(self.owes_santiago() && id != "santiago")
+                && space.pieces.iter().any(|p| {
+                    p.faction == Faction::M26
+                        && p.kind == Kind::Guerrilla
+                        && p.state == State::Underground
+                        && p.count > 0
+                })
+            {
+                choices.push(Choice { id: format!("{}:terror:{id}", self.revision), label: format!("Terror · {} · pay 1", space.name), supported: true, explanation: "Activate 1 Underground Guerrilla, place Terror and shift toward Active Opposition.".into() });
+            }
+        }
+        if self.kidnap.is_none() {
+            let santiago = self.spaces.iter().find(|s| s.id == "santiago").unwrap();
+            let count = |kind, faction, state: Option<State>| -> u8 {
+                santiago
+                    .pieces
+                    .iter()
+                    .filter(|p| {
+                        p.kind == kind && p.faction == faction && state.is_none_or(|s| p.state == s)
+                    })
+                    .map(|p| p.count)
+                    .sum()
+            };
+            let guerrillas = count(Kind::Guerrilla, Faction::M26, None);
+            let police = count(Kind::Police, Faction::Government, None);
+            let feasible = santiago.terror > 0
+                || (count(Kind::Guerrilla, Faction::M26, Some(State::Underground)) > 0
+                    && (self.resources[1] > 0 || self.resources[0] > 0));
+            choices.push(Choice {
+                id: format!("{}:kidnap", self.revision), label: "Kidnap · Santiago · Government".into(), supported: guerrillas > police && feasible,
+                explanation: format!("{guerrillas} Guerrillas (Active + Underground) vs {police} Police; must outnumber. Die 1–6: proceeds {}–{} from Government. {}", self.resources[0].min(1), self.resources[0].min(6), if feasible {"Santiago Terror was resolved or is guaranteed feasible on every roll; an early roll commits its payment and Underground Guerrilla."} else {"Santiago needs an Underground Guerrilla and guaranteed payment without a promised donation or favorable roll."}),
+            });
+        }
+        choices
     }
 }
 impl Game {
     pub fn random_state(&self) -> u64 {
         self.random
+    }
+    /// Deterministic prepared task for a supplied random state. Ordinary saves
+    /// use OS entropy once; resumed saves always keep their consumed state.
+    pub fn prepared_with_seed(seed: u64) -> Self {
+        let mut game = Self::prepared();
+        game.random = seed;
+        game
+    }
+    fn owes_santiago(&self) -> bool {
+        self.kidnap.is_some()
+            && self
+                .spaces
+                .iter()
+                .any(|s| s.id == "santiago" && s.terror == 0)
     }
     pub fn submit(&mut self, owner: Faction, revision: u64, choice: &str) -> Result<(), String> {
         if revision != self.revision {
@@ -582,6 +655,27 @@ impl Game {
         }
         match self.transfer.clone() {
             None if action == "finish" => self.finished = true,
+            None if action == "kidnap" => {
+                let mut random = SeededRandom::new(self.random);
+                let die = (random.index(6) + 1) as u8;
+                let proceeds = die.min(self.resources[0]);
+                self.kidnap = Some(Kidnap {
+                    die,
+                    proceeds,
+                    government_before: self.resources[0],
+                    m26_before: self.resources[1],
+                    random_before: self.random,
+                });
+                self.random = random.state();
+                self.resources[0] -= proceeds;
+                self.resources[1] += proceeds.min(49 - self.resources[1]);
+            }
+            None if action.starts_with("terror:") => {
+                let id = action.strip_prefix("terror:").unwrap();
+                let space = self.spaces.iter_mut().find(|s| s.id == id).unwrap();
+                Self::resolve_terror(space);
+                self.resources[1] -= 1;
+            }
             None => self.transfer = Some(Transfer::Selecting),
             Some(_) if action == "back" || action == "decline" => self.transfer = None,
             Some(Transfer::Selecting) => {
@@ -600,6 +694,10 @@ impl Game {
                 amount,
             }) => {
                 if action == "authorize" {
+                    if self.owes_santiago() && giver == Faction::M26 && amount >= self.resources[1]
+                    {
+                        return Err("Santiago Terror is owed: retain 1 Resource under the accepted commitment policy.".into());
+                    }
                     self.resources[giver.index()] -= amount;
                     self.resources[recipient.index()] += amount;
                     self.transfer = None;
@@ -615,15 +713,65 @@ impl Game {
         self.revision = next_revision;
         Ok(())
     }
-    /// Admit only this prepared board, conserved transfers and zero-space Finish.
+    fn resolve_terror(space: &mut Space) {
+        let underground = space
+            .pieces
+            .iter_mut()
+            .find(|p| {
+                p.faction == Faction::M26
+                    && p.kind == Kind::Guerrilla
+                    && p.state == State::Underground
+            })
+            .unwrap();
+        underground.count -= 1;
+        space.pieces.retain(|p| p.count > 0);
+        space.pieces.push(Group {
+            faction: Faction::M26,
+            kind: Kind::Guerrilla,
+            state: State::Active,
+            count: 1,
+        });
+        space.terror += 1;
+        space.support = (space.support - 1).max(-2);
+    }
+    /// Admit this prepared board, transfers and the two supported Terror effects.
     pub fn validate(&self) -> Result<(), String> {
-        let mut expected = Self::prepared();
+        let mut expected = Self::prepared_with_seed(self.random);
+        let mut paid = 0;
+        for space in &mut expected.spaces {
+            if let Some(actual) = self.spaces.iter().find(|s| s.id == space.id)
+                && actual.terror == 1
+                && matches!(space.id.as_str(), "santiago" | "oriente")
+            {
+                Self::resolve_terror(space);
+                paid += 1;
+            }
+        }
         if self.resources.iter().any(|&n| n > 49)
-            || self.resources.iter().map(|&n| n as u16).sum::<u16>() != 26
+            || self.resources.iter().map(|&n| n as u16).sum::<u16>() != 26 - paid
+            || self.revision
+                < u64::from(paid) + u64::from(self.kidnap.is_some()) + u64::from(self.finished)
             || (self.revision == 0 && *self != expected)
             || (self.finished && self.transfer.is_some())
         {
             return Err("Unsupported transfer balances or decision state.".into());
+        }
+        if let Some(kidnap) = &self.kidnap {
+            let mut rng = SeededRandom::new(kidnap.random_before);
+            let die = (rng.index(6) + 1) as u8;
+            if kidnap.die != die
+                || self.random != rng.state()
+                || kidnap.government_before > 26
+                || kidnap.m26_before > 26
+                || u16::from(kidnap.government_before) + u16::from(kidnap.m26_before) > 26
+                || kidnap.proceeds != die.min(kidnap.government_before)
+                || (self.owes_santiago()
+                    && (self.finished
+                        || self.resources[1] == 0
+                        || (kidnap.government_before == 0 && kidnap.m26_before == 0)))
+            {
+                return Err("Unsupported Kidnap result or impossible owed Santiago Terror.".into());
+            }
         }
         if let Some(Transfer::Authorizing {
             giver,
@@ -633,6 +781,7 @@ impl Game {
             && (giver == recipient
                 || (giver != Faction::M26 && recipient != Faction::M26)
                 || amount > self.resources[giver.index()]
+                || (self.owes_santiago() && giver == Faction::M26 && amount >= self.resources[1])
                 || u16::from(self.resources[recipient.index()]) + u16::from(amount) > 49)
         {
             return Err("Unsupported pending giver authorization.".into());
@@ -641,10 +790,10 @@ impl Game {
         expected.revision = self.revision;
         expected.resources = self.resources;
         expected.transfer = self.transfer.clone();
+        expected.kidnap = self.kidnap.clone();
         if *self != expected {
             return Err(
-                "State is not a supported prepared transfer or zero-space finished position."
-                    .into(),
+                "State is not a supported prepared transfer/Terror/Kidnap position.".into(),
             );
         }
         Ok(())

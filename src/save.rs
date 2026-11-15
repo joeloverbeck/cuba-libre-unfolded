@@ -2,6 +2,7 @@
 use crate::{Faction, Game, Observation, assets};
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use unfolded_tabletop::record_replacement::{self as records, Replacement};
 const LIMIT: u64 = 256 * 1024;
@@ -79,7 +80,11 @@ impl Session {
                     "Main save is missing but recovery history exists; recover explicitly to an unused path"
                 );
             }
-            (Game::prepared(), None)
+            // Ubuntu application: draw OS entropy once, then persist the exact
+            // shared RNG state. Reopening any existing record never reseeds it.
+            let mut seed = [0; 8];
+            std::fs::File::open("/dev/urandom")?.read_exact(&mut seed)?;
+            (Game::prepared_with_seed(u64::from_ne_bytes(seed)), None)
         };
         let bytes = baseline.clone().unwrap_or(encode(&game)?);
         if baseline.is_none() {

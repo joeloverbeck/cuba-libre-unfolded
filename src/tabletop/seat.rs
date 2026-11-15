@@ -113,13 +113,18 @@ impl SeatGame for Table {
             .map(|(e, f, t)| (e, f.0, t.0.clone()))
             .collect();
         let standings:Vec<_>=standing_rows.into_iter().map(|(entity,faction,text)|json!({"faction":faction,"text":text,"visible":shared::ui_target(world,entity,size).is_some_and(|t|t.on_screen)})).collect();
+        let details_height = world
+            .query_filtered::<&ComputedNode, With<Details>>()
+            .iter(world)
+            .next()
+            .map(|node| node.size().y * node.inverse_scale_factor);
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
         let pose = world.resource::<Orbit>().pose();
         let water_frame = world.get_resource::<Water>().map(|water| water.frame);
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
-            table: json!({"controls":controls,"standings":standings,"water_frame":water_frame,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"pinned":ui.pinned,"hover":ui.hover.visible(),"inspected":ui.inspected,"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
+            table: json!({"controls":controls,"standings":standings,"details_height":details_height,"water_frame":water_frame,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"pinned":ui.pinned,"hover":ui.hover.visible(),"inspected":ui.inspected,"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
         }
     }
     fn revision(&self, world: &mut World) -> u64 {

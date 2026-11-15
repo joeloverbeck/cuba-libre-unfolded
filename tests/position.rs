@@ -100,7 +100,7 @@ fn zero_space_finish_has_no_pass_income_or_deck_advance_and_refuses_wrong_author
         (Faction::Government, 0, "0:finish"),
         (Faction::M26, 1, "0:finish"),
         (Faction::M26, 0, "1:finish"),
-        (Faction::M26, 0, "0:kidnap"),
+        (Faction::M26, 0, "0:remove"),
     ] {
         let mut game = initial.clone();
         assert!(game.submit(owner, revision, choice).is_err());

@@ -1,4 +1,136 @@
 use cuba_libre_unfolded::{Faction, save::Session};
+
+#[test]
+fn committed_roll_and_terror_resume_without_reroll_or_duplicate_effect() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("kidnap.json");
+    let mut session = Session::open(&path, None).unwrap();
+    let initial_rng = session.game().random_state();
+    session.submit(Faction::M26, 0, "0:kidnap").unwrap();
+    let rolled = session.observe();
+    let consumed = session.game().random_state();
+    assert_ne!(consumed, initial_rng);
+    let kidnap = rolled.kidnap.as_ref().unwrap();
+    assert!((1..=6).contains(&kidnap.die));
+    assert_eq!(kidnap.proceeds, kidnap.die);
+    assert_eq!(rolled.owed_terror.as_deref(), Some("santiago"));
+    drop(session);
+    let mut session = Session::open(&path, None).unwrap();
+    assert_eq!(session.observe(), rolled);
+    assert_eq!(session.game().random_state(), consumed);
+    let bytes = std::fs::read(&path).unwrap();
+    for (rev, action) in [(0, "0:kidnap"), (1, "1:kidnap"), (1, "1:finish")] {
+        assert!(session.submit(Faction::M26, rev, action).is_err());
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    }
+    session
+        .submit(Faction::M26, 1, "1:terror:santiago")
+        .unwrap();
+    let terror = session.observe();
+    drop(session);
+    let mut session = Session::open(&path, None).unwrap();
+    assert_eq!(session.observe(), terror);
+    assert_eq!(session.game().random_state(), consumed);
+    assert_eq!(terror.standings[1].score, 8);
+    assert_eq!(terror.owed_terror, None);
+    assert!(
+        session
+            .submit(Faction::M26, 2, "2:terror:santiago")
+            .is_err()
+    );
+    session.submit(Faction::M26, 2, "2:finish").unwrap();
+    assert!(session.observe().next_options.contains(&"Event".into()));
+}
+
+#[test]
+fn new_sessions_seed_once_from_entropy_while_resume_preserves_the_exact_seed() {
+    let dir = tempfile::tempdir().unwrap();
+    let first_path = dir.path().join("first.json");
+    let first = Session::open(&first_path, None).unwrap();
+    let second = Session::open(&dir.path().join("second.json"), None).unwrap();
+    assert_ne!(first.game().random_state(), second.game().random_state());
+    assert_eq!(
+        Session::open(&first_path, None)
+            .unwrap()
+            .game()
+            .random_state(),
+        first.game().random_state()
+    );
+}
+
+#[test]
+fn admission_refuses_forged_roll_effects_and_impossible_revision_without_replacing_bytes() {
+    use sha2::{Digest, Sha256};
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("effects.json");
+    let mut session = Session::open(&path, None).unwrap();
+    session.submit(Faction::M26, 0, "0:kidnap").unwrap();
+    let rolled: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    session
+        .submit(Faction::M26, 1, "1:terror:santiago")
+        .unwrap();
+    let resolved: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    let previous = std::fs::read(path.with_file_name("effects.json.previous")).unwrap();
+    let mut cases = vec![];
+    for (field, value) in [
+        ("die", 7u64),
+        ("proceeds", 7),
+        ("government_before", 49),
+        ("random_before", u64::MAX),
+    ] {
+        let mut record = rolled.clone();
+        record["game"]["kidnap"][field] = value.into();
+        cases.push(record);
+    }
+    let mut record = rolled.clone();
+    record["game"]["finished"] = true.into();
+    cases.push(record);
+    let mut record = resolved.clone();
+    record["game"]["revision"] = 1.into();
+    cases.push(record);
+    let mut record = resolved.clone();
+    record["game"]["spaces"][2]["support"] = 0.into();
+    cases.push(record);
+    let mut record = resolved.clone();
+    record["game"]["spaces"][2]["terror"] = 2.into();
+    cases.push(record);
+    let mut record = resolved;
+    record["game"]["spaces"][2]["pieces"][3]["count"] = 2.into();
+    cases.push(record);
+    for mut record in cases {
+        let game: cuba_libre_unfolded::Game =
+            serde_json::from_value(record["game"].clone()).unwrap();
+        record["checksum"] = format!(
+            "{:x}",
+            Sha256::digest(
+                serde_json::to_vec(&(1u32, &record["source"], &record["art"], game)).unwrap()
+            )
+        )
+        .into();
+        let bytes = serde_json::to_vec(&record).unwrap();
+        std::fs::write(&path, &bytes).unwrap();
+        assert!(Session::open(&path, None).is_err(), "admitted {record}");
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        assert_eq!(
+            std::fs::read(path.with_file_name("effects.json.previous")).unwrap(),
+            previous
+        );
+    }
+}
+
+#[test]
+fn failed_record_replacement_does_not_consume_the_roll_or_publish_its_effect() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("roll.json");
+    let mut session = Session::open(&path, None).unwrap();
+    let before = session.game().clone();
+    let bytes = std::fs::read(&path).unwrap();
+    std::fs::create_dir(path.with_file_name("roll.json.previous")).unwrap();
+    assert!(session.submit(Faction::M26, 0, "0:kidnap").is_err());
+    assert_eq!(session.game(), &before);
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+}
 #[test]
 fn real_record_replacement_resumes_both_states_and_preserves_previous() {
     let dir = tempfile::tempdir().unwrap();
