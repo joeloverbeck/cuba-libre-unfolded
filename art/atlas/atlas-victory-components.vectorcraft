@@ -1,0 +1,3289 @@
+{
+  "format": "vectorcraft",
+  "version": 4,
+  "generator": "VectorCraft 0.24.1",
+  "pdfCompatible": true,
+  "pdf": {
+    "mime": "application/pdf",
+    "blob": [
+      0,
+      11933
+    ]
+  },
+  "document": {
+    "version": 3,
+    "title": "Selected victory emblems and hover components",
+    "units": "Pixels",
+    "rulers": "artboard",
+    "color_mode": "Rgb",
+    "artboards": [
+      {
+        "id": 1,
+        "name": "icon-government",
+        "rect": {
+          "x0": 0.0,
+          "y0": 0.0,
+          "x1": 44.0,
+          "y1": 44.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 2,
+        "name": "icon-26july",
+        "rect": {
+          "x0": 80.0,
+          "y0": 0.0,
+          "x1": 124.0,
+          "y1": 44.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 3,
+        "name": "icon-directorio",
+        "rect": {
+          "x0": 160.0,
+          "y0": 0.0,
+          "x1": 204.0,
+          "y1": 44.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 4,
+        "name": "icon-syndicate",
+        "rect": {
+          "x0": 240.0,
+          "y0": 0.0,
+          "x1": 284.0,
+          "y1": 44.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 5,
+        "name": "tag-government",
+        "rect": {
+          "x0": 0.0,
+          "y0": 120.0,
+          "x1": 468.0,
+          "y1": 560.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 6,
+        "name": "tag-26july",
+        "rect": {
+          "x0": 520.0,
+          "y0": 120.0,
+          "x1": 988.0,
+          "y1": 560.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 7,
+        "name": "tag-directorio",
+        "rect": {
+          "x0": 1040.0,
+          "y0": 120.0,
+          "x1": 1508.0,
+          "y1": 560.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 8,
+        "name": "tag-syndicate",
+        "rect": {
+          "x0": 1560.0,
+          "y0": 120.0,
+          "x1": 2028.0,
+          "y1": 560.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 9,
+        "name": "hover",
+        "rect": {
+          "x0": 0.0,
+          "y0": 600.0,
+          "x1": 104.0,
+          "y1": 712.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 10,
+        "name": "rule",
+        "rect": {
+          "x0": 160.0,
+          "y0": 600.0,
+          "x1": 580.0,
+          "y1": 601.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      }
+    ],
+    "layers": [
+      {
+        "id": 1,
+        "name": "Layer 1",
+        "kind": {
+          "type": "layer",
+          "color": {
+            "Preset": 0
+          },
+          "template": false,
+          "printable": true,
+          "children": [
+            {
+              "id": 2,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.19215687,
+                        "g": 0.43529412,
+                        "b": 0.6117647
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            22.0,
+                            1.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            41.97218684219823,
+                            15.510643118126104
+                          ]
+                        },
+                        {
+                          "p": [
+                            34.34349029814194,
+                            38.989356881873896
+                          ]
+                        },
+                        {
+                          "p": [
+                            9.656509701858067,
+                            38.989356881873896
+                          ]
+                        },
+                        {
+                          "p": [
+                            2.0278131578017735,
+                            15.510643118126108
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "polygon",
+                  "radius": 21.0,
+                  "sides": 5,
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    22.0,
+                    22.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 3,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  22.0,
+                  27.0
+                ],
+                "runs": [
+                  {
+                    "text": "G",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Bold",
+                      "size": 15.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.972549,
+                          "g": 0.95686275,
+                          "b": 0.9098039
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Center",
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 4,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.627451,
+                        "g": 0.20784314,
+                        "b": 0.19215687
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            102.0,
+                            0.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            109.05342302750968,
+                            12.29179606750063
+                          ]
+                        },
+                        {
+                          "p": [
+                            122.92324335849338,
+                            15.201626123751158
+                          ]
+                        },
+                        {
+                          "p": [
+                            113.41267819554184,
+                            25.70820393249937
+                          ]
+                        },
+                        {
+                          "p": [
+                            114.9312755504344,
+                            39.798373876248846
+                          ]
+                        },
+                        {
+                          "p": [
+                            102.0,
+                            34.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            89.0687244495656,
+                            39.798373876248846
+                          ]
+                        },
+                        {
+                          "p": [
+                            90.58732180445816,
+                            25.70820393249937
+                          ]
+                        },
+                        {
+                          "p": [
+                            81.07675664150662,
+                            15.20162612375116
+                          ]
+                        },
+                        {
+                          "p": [
+                            94.94657697249032,
+                            12.291796067500632
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 5,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  102.0,
+                  27.0
+                ],
+                "runs": [
+                  {
+                    "text": "26",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Bold",
+                      "size": 15.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.972549,
+                          "g": 0.95686275,
+                          "b": 0.9098039
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Center",
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 6,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.6901961,
+                        "g": 0.5411765,
+                        "b": 0.14901961
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            182.0,
+                            0.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            204.0,
+                            22.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            182.0,
+                            44.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            160.0,
+                            22.000000000000004
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "polygon",
+                  "radius": 22.0,
+                  "sides": 4,
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    182.0,
+                    22.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 7,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  182.0,
+                  27.0
+                ],
+                "runs": [
+                  {
+                    "text": "D",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Bold",
+                      "size": 15.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.972549,
+                          "g": 0.95686275,
+                          "b": 0.9098039
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Center",
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 8,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.25490198,
+                        "g": 0.45882353,
+                        "b": 0.34117648
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            242.0,
+                            22.0
+                          ],
+                          "in": [
+                            242.0,
+                            33.04569499661587
+                          ],
+                          "out": [
+                            242.0,
+                            10.954305003384128
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            262.0,
+                            2.0
+                          ],
+                          "in": [
+                            250.95430500338412,
+                            2.0
+                          ],
+                          "out": [
+                            273.04569499661585,
+                            2.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            282.0,
+                            22.0
+                          ],
+                          "in": [
+                            282.0,
+                            10.954305003384128
+                          ],
+                          "out": [
+                            282.0,
+                            33.04569499661587
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            262.0,
+                            42.0
+                          ],
+                          "in": [
+                            273.04569499661585,
+                            42.0
+                          ],
+                          "out": [
+                            250.95430500338412,
+                            42.0
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "ellipse",
+                  "w": 40.0,
+                  "h": 40.0,
+                  "pie": [
+                    0.0,
+                    360.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    242.0,
+                    2.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 9,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  262.0,
+                  27.0
+                ],
+                "runs": [
+                  {
+                    "text": "S",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Bold",
+                      "size": 15.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.972549,
+                          "g": 0.95686275,
+                          "b": 0.9098039
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Center",
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 10,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.6627451,
+                        "g": 0.7137255,
+                        "b": 0.69803923
+                      }
+                    },
+                    "width": 1.2
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            13.0,
+                            121.0
+                          ],
+                          "in": [
+                            6.372583002030478,
+                            121.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            455.0,
+                            121.0
+                          ],
+                          "out": [
+                            461.62741699796953,
+                            121.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            467.0,
+                            133.0
+                          ],
+                          "in": [
+                            467.0,
+                            126.37258300203048
+                          ]
+                        },
+                        {
+                          "p": [
+                            467.0,
+                            547.0
+                          ],
+                          "out": [
+                            467.0,
+                            553.6274169979695
+                          ]
+                        },
+                        {
+                          "p": [
+                            455.0,
+                            559.0
+                          ],
+                          "in": [
+                            461.62741699796953,
+                            559.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            13.0,
+                            559.0
+                          ],
+                          "out": [
+                            6.372583002030478,
+                            559.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1.0,
+                            547.0
+                          ],
+                          "in": [
+                            1.0,
+                            553.6274169979695
+                          ]
+                        },
+                        {
+                          "p": [
+                            1.0,
+                            133.0
+                          ],
+                          "out": [
+                            1.0,
+                            126.37258300203048
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 466.0,
+                  "h": 438.0,
+                  "radii": [
+                    12.0,
+                    12.0,
+                    12.0,
+                    12.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    121.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 11,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.19215687,
+                        "g": 0.43529412,
+                        "b": 0.6117647
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            2.0,
+                            120.0
+                          ],
+                          "in": [
+                            0.8954305003384129,
+                            120.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            3.0,
+                            120.0
+                          ],
+                          "out": [
+                            4.104569499661587,
+                            120.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            5.0,
+                            122.0
+                          ],
+                          "in": [
+                            5.0,
+                            120.8954305003384
+                          ]
+                        },
+                        {
+                          "p": [
+                            5.0,
+                            558.0
+                          ],
+                          "out": [
+                            5.0,
+                            559.1045694996616
+                          ]
+                        },
+                        {
+                          "p": [
+                            3.0,
+                            560.0
+                          ],
+                          "in": [
+                            4.104569499661587,
+                            560.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            2.0,
+                            560.0
+                          ],
+                          "out": [
+                            0.8954305003384129,
+                            560.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            0.0,
+                            558.0
+                          ],
+                          "in": [
+                            0.0,
+                            559.1045694996616
+                          ]
+                        },
+                        {
+                          "p": [
+                            0.0,
+                            122.0
+                          ],
+                          "out": [
+                            0.0,
+                            120.8954305003384
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 5.0,
+                  "h": 440.0,
+                  "radii": [
+                    2.0,
+                    2.0,
+                    2.0,
+                    2.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    0.0,
+                    120.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 12,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.6627451,
+                        "g": 0.7137255,
+                        "b": 0.69803923
+                      }
+                    },
+                    "width": 1.2
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            533.0,
+                            121.0
+                          ],
+                          "in": [
+                            526.3725830020305,
+                            121.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            975.0,
+                            121.0
+                          ],
+                          "out": [
+                            981.6274169979695,
+                            121.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            987.0,
+                            133.0
+                          ],
+                          "in": [
+                            987.0,
+                            126.37258300203048
+                          ]
+                        },
+                        {
+                          "p": [
+                            987.0,
+                            547.0
+                          ],
+                          "out": [
+                            987.0,
+                            553.6274169979695
+                          ]
+                        },
+                        {
+                          "p": [
+                            975.0,
+                            559.0
+                          ],
+                          "in": [
+                            981.6274169979695,
+                            559.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            533.0,
+                            559.0
+                          ],
+                          "out": [
+                            526.3725830020305,
+                            559.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            521.0,
+                            547.0
+                          ],
+                          "in": [
+                            521.0,
+                            553.6274169979695
+                          ]
+                        },
+                        {
+                          "p": [
+                            521.0,
+                            133.0
+                          ],
+                          "out": [
+                            521.0,
+                            126.37258300203048
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 466.0,
+                  "h": 438.0,
+                  "radii": [
+                    12.0,
+                    12.0,
+                    12.0,
+                    12.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    521.0,
+                    121.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 13,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.627451,
+                        "g": 0.20784314,
+                        "b": 0.19215687
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            522.0,
+                            120.0
+                          ],
+                          "in": [
+                            520.8954305003384,
+                            120.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            523.0,
+                            120.0
+                          ],
+                          "out": [
+                            524.1045694996616,
+                            120.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            525.0,
+                            122.0
+                          ],
+                          "in": [
+                            525.0,
+                            120.8954305003384
+                          ]
+                        },
+                        {
+                          "p": [
+                            525.0,
+                            558.0
+                          ],
+                          "out": [
+                            525.0,
+                            559.1045694996616
+                          ]
+                        },
+                        {
+                          "p": [
+                            523.0,
+                            560.0
+                          ],
+                          "in": [
+                            524.1045694996616,
+                            560.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            522.0,
+                            560.0
+                          ],
+                          "out": [
+                            520.8954305003384,
+                            560.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            520.0,
+                            558.0
+                          ],
+                          "in": [
+                            520.0,
+                            559.1045694996616
+                          ]
+                        },
+                        {
+                          "p": [
+                            520.0,
+                            122.0
+                          ],
+                          "out": [
+                            520.0,
+                            120.8954305003384
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 5.0,
+                  "h": 440.0,
+                  "radii": [
+                    2.0,
+                    2.0,
+                    2.0,
+                    2.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    520.0,
+                    120.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 14,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.6627451,
+                        "g": 0.7137255,
+                        "b": 0.69803923
+                      }
+                    },
+                    "width": 1.2
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1053.0,
+                            121.0
+                          ],
+                          "in": [
+                            1046.3725830020305,
+                            121.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1495.0,
+                            121.0
+                          ],
+                          "out": [
+                            1501.6274169979695,
+                            121.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1507.0,
+                            133.0
+                          ],
+                          "in": [
+                            1507.0,
+                            126.37258300203048
+                          ]
+                        },
+                        {
+                          "p": [
+                            1507.0,
+                            547.0
+                          ],
+                          "out": [
+                            1507.0,
+                            553.6274169979695
+                          ]
+                        },
+                        {
+                          "p": [
+                            1495.0,
+                            559.0
+                          ],
+                          "in": [
+                            1501.6274169979695,
+                            559.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1053.0,
+                            559.0
+                          ],
+                          "out": [
+                            1046.3725830020305,
+                            559.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1041.0,
+                            547.0
+                          ],
+                          "in": [
+                            1041.0,
+                            553.6274169979695
+                          ]
+                        },
+                        {
+                          "p": [
+                            1041.0,
+                            133.0
+                          ],
+                          "out": [
+                            1041.0,
+                            126.37258300203048
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 466.0,
+                  "h": 438.0,
+                  "radii": [
+                    12.0,
+                    12.0,
+                    12.0,
+                    12.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1041.0,
+                    121.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 15,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.6901961,
+                        "g": 0.5411765,
+                        "b": 0.14901961
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1042.0,
+                            120.0
+                          ],
+                          "in": [
+                            1040.8954305003383,
+                            120.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1043.0,
+                            120.0
+                          ],
+                          "out": [
+                            1044.1045694996617,
+                            120.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1045.0,
+                            122.0
+                          ],
+                          "in": [
+                            1045.0,
+                            120.8954305003384
+                          ]
+                        },
+                        {
+                          "p": [
+                            1045.0,
+                            558.0
+                          ],
+                          "out": [
+                            1045.0,
+                            559.1045694996616
+                          ]
+                        },
+                        {
+                          "p": [
+                            1043.0,
+                            560.0
+                          ],
+                          "in": [
+                            1044.1045694996617,
+                            560.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1042.0,
+                            560.0
+                          ],
+                          "out": [
+                            1040.8954305003383,
+                            560.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1040.0,
+                            558.0
+                          ],
+                          "in": [
+                            1040.0,
+                            559.1045694996616
+                          ]
+                        },
+                        {
+                          "p": [
+                            1040.0,
+                            122.0
+                          ],
+                          "out": [
+                            1040.0,
+                            120.8954305003384
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 5.0,
+                  "h": 440.0,
+                  "radii": [
+                    2.0,
+                    2.0,
+                    2.0,
+                    2.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1040.0,
+                    120.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 16,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.6627451,
+                        "g": 0.7137255,
+                        "b": 0.69803923
+                      }
+                    },
+                    "width": 1.2
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1573.0,
+                            121.0
+                          ],
+                          "in": [
+                            1566.3725830020305,
+                            121.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            2015.0,
+                            121.0
+                          ],
+                          "out": [
+                            2021.6274169979695,
+                            121.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            2027.0,
+                            133.0
+                          ],
+                          "in": [
+                            2027.0,
+                            126.37258300203048
+                          ]
+                        },
+                        {
+                          "p": [
+                            2027.0,
+                            547.0
+                          ],
+                          "out": [
+                            2027.0,
+                            553.6274169979695
+                          ]
+                        },
+                        {
+                          "p": [
+                            2015.0,
+                            559.0
+                          ],
+                          "in": [
+                            2021.6274169979695,
+                            559.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1573.0,
+                            559.0
+                          ],
+                          "out": [
+                            1566.3725830020305,
+                            559.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1561.0,
+                            547.0
+                          ],
+                          "in": [
+                            1561.0,
+                            553.6274169979695
+                          ]
+                        },
+                        {
+                          "p": [
+                            1561.0,
+                            133.0
+                          ],
+                          "out": [
+                            1561.0,
+                            126.37258300203048
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 466.0,
+                  "h": 438.0,
+                  "radii": [
+                    12.0,
+                    12.0,
+                    12.0,
+                    12.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1561.0,
+                    121.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 17,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.25490198,
+                        "g": 0.45882353,
+                        "b": 0.34117648
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1562.0,
+                            120.0
+                          ],
+                          "in": [
+                            1560.8954305003383,
+                            120.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1563.0,
+                            120.0
+                          ],
+                          "out": [
+                            1564.1045694996617,
+                            120.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1565.0,
+                            122.0
+                          ],
+                          "in": [
+                            1565.0,
+                            120.8954305003384
+                          ]
+                        },
+                        {
+                          "p": [
+                            1565.0,
+                            558.0
+                          ],
+                          "out": [
+                            1565.0,
+                            559.1045694996616
+                          ]
+                        },
+                        {
+                          "p": [
+                            1563.0,
+                            560.0
+                          ],
+                          "in": [
+                            1564.1045694996617,
+                            560.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1562.0,
+                            560.0
+                          ],
+                          "out": [
+                            1560.8954305003383,
+                            560.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1560.0,
+                            558.0
+                          ],
+                          "in": [
+                            1560.0,
+                            559.1045694996616
+                          ]
+                        },
+                        {
+                          "p": [
+                            1560.0,
+                            122.0
+                          ],
+                          "out": [
+                            1560.0,
+                            120.8954305003384
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 5.0,
+                  "h": 440.0,
+                  "radii": [
+                    2.0,
+                    2.0,
+                    2.0,
+                    2.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1560.0,
+                    120.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 18,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.8862745,
+                        "g": 0.92941177,
+                        "b": 0.94509804
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            12.0,
+                            600.0
+                          ],
+                          "in": [
+                            5.372583002030478,
+                            600.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            92.0,
+                            600.0
+                          ],
+                          "out": [
+                            98.62741699796952,
+                            600.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            104.0,
+                            612.0
+                          ],
+                          "in": [
+                            104.0,
+                            605.3725830020305
+                          ]
+                        },
+                        {
+                          "p": [
+                            104.0,
+                            700.0
+                          ],
+                          "out": [
+                            104.0,
+                            706.6274169979695
+                          ]
+                        },
+                        {
+                          "p": [
+                            92.0,
+                            712.0
+                          ],
+                          "in": [
+                            98.62741699796952,
+                            712.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            12.0,
+                            712.0
+                          ],
+                          "out": [
+                            5.372583002030478,
+                            712.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            0.0,
+                            700.0
+                          ],
+                          "in": [
+                            0.0,
+                            706.6274169979695
+                          ]
+                        },
+                        {
+                          "p": [
+                            0.0,
+                            612.0
+                          ],
+                          "out": [
+                            0.0,
+                            605.3725830020305
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 104.0,
+                  "h": 112.0,
+                  "radii": [
+                    12.0,
+                    12.0,
+                    12.0,
+                    12.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    0.0,
+                    600.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 19,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.827451,
+                        "g": 0.85882354,
+                        "b": 0.84313726
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            160.0,
+                            600.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            580.0,
+                            600.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            580.0,
+                            601.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            160.0,
+                            601.0
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 420.0,
+                  "h": 1.0,
+                  "radii": [
+                    0.0,
+                    0.0,
+                    0.0,
+                    0.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    160.0,
+                    600.0
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "swatches": [
+      {
+        "name": "[None]",
+        "paint": {
+          "type": "none"
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "White",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 1.0,
+            "g": 1.0,
+            "b": 1.0
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Black",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Red",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.92941177,
+            "g": 0.10980392,
+            "b": 0.14117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Orange Red",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.94509804,
+            "g": 0.3529412,
+            "b": 0.14117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Orange",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.96862745,
+            "g": 0.5764706,
+            "b": 0.11764706
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Amber",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.9843137,
+            "g": 0.6901961,
+            "b": 0.23137255
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Yellow",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.9882353,
+            "g": 0.93333334,
+            "b": 0.12941177
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Yellow Green",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.8509804,
+            "g": 0.8784314,
+            "b": 0.12941177
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Lime",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.54901963,
+            "g": 0.7764706,
+            "b": 0.24705882
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Green",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.22352941,
+            "g": 0.70980394,
+            "b": 0.2901961
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Emerald",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.57254905,
+            "b": 0.27058825
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Teal",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.40784314,
+            "b": 0.21568628
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Aqua",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.13333334,
+            "g": 0.70980394,
+            "b": 0.4509804
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Cyan Green",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.6627451,
+            "b": 0.6156863
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Cyan",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.16078432,
+            "g": 0.67058825,
+            "b": 0.8862745
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Azure",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.44313726,
+            "b": 0.7372549
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Blue",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.18039216,
+            "g": 0.19215687,
+            "b": 0.57254905
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Indigo",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.105882354,
+            "g": 0.078431375,
+            "b": 0.39215687
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Violet",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.4,
+            "g": 0.1764706,
+            "b": 0.5686275
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Purple",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.5764706,
+            "g": 0.15294118,
+            "b": 0.56078434
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Magenta",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.61960787,
+            "g": 0.0,
+            "b": 0.3647059
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Rose",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.83137256,
+            "g": 0.078431375,
+            "b": 0.3529412
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Pink",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.92941177,
+            "g": 0.11764706,
+            "b": 0.4745098
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Brown",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.78039217,
+            "g": 0.69803923,
+            "b": 0.6
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Tan",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.6,
+            "g": 0.5254902,
+            "b": 0.45882353
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Coffee",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.4509804,
+            "g": 0.3882353,
+            "b": 0.34117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Chocolate",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.3254902,
+            "g": 0.2784314,
+            "b": 0.25490198
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Sand",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.7764706,
+            "g": 0.6117647,
+            "b": 0.42745098
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Copper",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.6509804,
+            "g": 0.4862745,
+            "b": 0.32156864
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Rust",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.54901963,
+            "g": 0.38431373,
+            "b": 0.22352941
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Walnut",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.45882353,
+            "g": 0.29803923,
+            "b": 0.14117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Espresso",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.3764706,
+            "g": 0.21960784,
+            "b": 0.07450981
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "White, Black",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Radial White, Black",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Radial",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Sunset",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.9843137,
+                  "g": 0.6901961,
+                  "b": 0.23137255
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.83137256,
+                  "g": 0.078431375,
+                  "b": 0.3529412
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Ocean",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.16078432,
+                  "g": 0.67058825,
+                  "b": 0.8862745
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.18039216,
+                  "g": 0.19215687,
+                  "b": 0.57254905
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      }
+    ],
+    "swatch_groups": [
+      {
+        "name": "Grays",
+        "swatches": [
+          {
+            "name": "K=90",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.9
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=80",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.8
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=70",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.7
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=60",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.6
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=50",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.5
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=40",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.4
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=30",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.3
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=20",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.2
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=10",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.1
+              }
+            },
+            "global": false,
+            "spot": false
+          }
+        ]
+      },
+      {
+        "name": "Brights",
+        "swatches": [
+          {
+            "name": "Bright Red",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 1.0,
+                "g": 0.11372549,
+                "b": 0.14509805
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Yellow",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 1.0,
+                "g": 0.9019608,
+                "b": 0.0
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Green",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 0.0,
+                "g": 0.9019608,
+                "b": 0.4627451
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Blue",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 0.16078432,
+                "g": 0.4745098,
+                "b": 1.0
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Violet",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 0.8352941,
+                "g": 0.0,
+                "b": 0.9764706
+              }
+            },
+            "global": false,
+            "spot": false
+          }
+        ]
+      }
+    ],
+    "graphic_styles": [
+      {
+        "name": "Default Graphic Style",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0
+                }
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                }
+              },
+              "width": 1.0
+            }
+          ]
+        },
+        "id": 1,
+        "unit_box": true
+      },
+      {
+        "name": "Black Outline",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "none"
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                }
+              },
+              "width": 1.0
+            }
+          ]
+        },
+        "id": 2,
+        "unit_box": true
+      },
+      {
+        "name": "Heavy Ink",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.105882354,
+                  "g": 0.078431375,
+                  "b": 0.39215687
+                }
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                }
+              },
+              "width": 4.0
+            }
+          ]
+        },
+        "id": 3,
+        "unit_box": true
+      },
+      {
+        "name": "Sunshine",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.9843137,
+                  "g": 0.6901961,
+                  "b": 0.23137255
+                }
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.94509804,
+                  "g": 0.3529412,
+                  "b": 0.14117648
+                }
+              },
+              "width": 2.0
+            }
+          ]
+        },
+        "id": 4,
+        "unit_box": true
+      }
+    ],
+    "symbols": [],
+    "guides": [],
+    "grid": {
+      "spacing": 72.0,
+      "subdivisions": 8
+    },
+    "raster_effects_ppi": 72.0,
+    "images": {},
+    "next_id": 20,
+    "metadata": {
+      "author": "",
+      "authorTitle": "",
+      "description": "",
+      "keywords": [],
+      "rating": 0,
+      "copyrightStatus": "unknown",
+      "copyrightNotice": "",
+      "copyrightUrl": "",
+      "created": 1794739571,
+      "modified": 1794739576
+    }
+  },
+  "images": {}
+}
+ VCBLOBS %PDF-1.7
+%ÄÄÄÄ
+
+1 0 obj
+<</Type/Pages/Count 10/Kids[15 0 R 16 0 R 17 0 R 18 0 R 19 0 R 20 0 R 21 0 R 22 0 R 23 0 R 24 0 R]>>
+endobj
+2 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 12 0 R>>>>
+endobj
+3 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 12 0 R>>>>
+endobj
+4 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 12 0 R>>>>
+endobj
+5 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 12 0 R>>>>
+endobj
+6 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+7 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+8 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+9 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+10 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+11 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+12 0 obj
+<</Type/Font/Subtype/Type0/BaseFont/YODAND+Lato-Bold/Encoding/Identity-H/DescendantFonts[13 0 R]/ToUnicode 26 0 R>>
+endobj
+13 0 obj
+<</Type/Font/Subtype/CIDFontType2/BaseFont/YODAND+Lato-Bold/CIDSystemInfo<</Registry(Adobe)/Ordering(Identity)/Supplement 0>>/FontDescriptor 14 0 R/DW 0/CIDToGIDMap/Identity/W[0 0 547 1 1 726 2 3 580 4 4 760.5 5 5 548.5]>>
+endobj
+14 0 obj
+<</Type/FontDescriptor/FontName/YODAND+Lato-Bold/Flags 131076/FontBBox[21 -8 722.5 731]/ItalicAngle 0/Ascent 805/Descent -195/CapHeight 723/StemV 168.6/CIDSet 25 0 R/FontFile2 27 0 R>>
+endobj
+15 0 obj
+<</Type/Page/Resources 2 0 R/MediaBox[0 0 44 44]/BleedBox[0 0 44 44]/TrimBox[0 0 44 44]/Parent 1 0 R/Contents 28 0 R>>
+endobj
+16 0 obj
+<</Type/Page/Resources 3 0 R/MediaBox[0 0 44 44]/BleedBox[0 0 44 44]/TrimBox[0 0 44 44]/Parent 1 0 R/Contents 29 0 R>>
+endobj
+17 0 obj
+<</Type/Page/Resources 4 0 R/MediaBox[0 0 44 44]/BleedBox[0 0 44 44]/TrimBox[0 0 44 44]/Parent 1 0 R/Contents 30 0 R>>
+endobj
+18 0 obj
+<</Type/Page/Resources 5 0 R/MediaBox[0 0 44 44]/BleedBox[0 0 44 44]/TrimBox[0 0 44 44]/Parent 1 0 R/Contents 31 0 R>>
+endobj
+19 0 obj
+<</Type/Page/Resources 6 0 R/MediaBox[0 0 468 440]/BleedBox[0 0 468 440]/TrimBox[0 0 468 440]/Parent 1 0 R/Contents 32 0 R>>
+endobj
+20 0 obj
+<</Type/Page/Resources 7 0 R/MediaBox[0 0 468 440]/BleedBox[0 0 468 440]/TrimBox[0 0 468 440]/Parent 1 0 R/Contents 33 0 R>>
+endobj
+21 0 obj
+<</Type/Page/Resources 8 0 R/MediaBox[0 0 468 440]/BleedBox[0 0 468 440]/TrimBox[0 0 468 440]/Parent 1 0 R/Contents 34 0 R>>
+endobj
+22 0 obj
+<</Type/Page/Resources 9 0 R/MediaBox[0 0 468 440]/BleedBox[0 0 468 440]/TrimBox[0 0 468 440]/Parent 1 0 R/Contents 35 0 R>>
+endobj
+23 0 obj
+<</Type/Page/Resources 10 0 R/MediaBox[0 0 104 112]/BleedBox[0 0 104 112]/TrimBox[0 0 104 112]/Parent 1 0 R/Contents 36 0 R>>
+endobj
+24 0 obj
+<</Type/Page/Resources 11 0 R/MediaBox[0 0 420 1]/BleedBox[0 0 420 1]/TrimBox[0 0 420 1]/Parent 1 0 R/Contents 37 0 R>>
+endobj
+25 0 obj
+<</Length 9/Filter/FlateDecode>>
+stream
+xú˚  ˝ ˝
+endstream
+endobj
+26 0 obj
+<</Length 367/Type/CMap/Filter/FlateDecode/WMode 0>>
+stream
+xúmRÀn¬0ºÁ+∂Kp†q¥BH-4R<DP{ˆB-€≤ùC˛æ≤ù@UıG≥;Îô±Mû’‰ç´3NÚg
+G¥™5'Îm≠B6äµJ∑C‰»áÆ]Ä6äYt∞.7•.!§îÏ÷r8ˇQﬁÒ*‰É‡5`›ZßöÑêìp7\¿( xÇí£t¬u@«	!üh¨PrYB»á‰k’xs6I{HF±
+\Ñ‰¶WÇ≥◊M≤)p¡\è¬ öZá·™≥õR^‰ë≈[›3 “#^Öu¶ÉQ06éóÿŸéF»+å≥øöU´ıΩI†°äíáÍ√ÔÍ!Ìﬂ´}J»•Sß±ﬂ ˝⁄*>Ä,Zdä£’5CSÀ+&KJ)]¡≤(äbÂˇÙÁqÍ|aﬂµ	ÏlKJgØ´Ä¶Â”àÚà^"öEÊ,¢y@Û<®Ù˚y=¨˜Ä¨5•ß“xÎB‚˝z¥“~*|·^á'‚—æ¯È=‘¸
+endstream
+endobj
+27 0 obj
+<</Length 3565/Filter/FlateDecode>>
+stream
+xú≠X{l[◊}˛Œ}P≠˜”%˚PWîeﬁ{©˜[ñeR§lKâÈGb“n\^ìí-ÎYI±ï2•N]ÉC“mX‚√dùΩ[ÉﬂUV’ÕÍŒ@ãa@;,€Pt√ˆœ∞¿€Äbs2,√GŒ%%ÀâºŒ¡(ÄøÔúÛùﬂ˚úK]0 €∞Õ©ãºˇÓÍõ ~ ‡ˆ¯‹ŸÈ*˛Ó¿~ÿvıÏ‘≥„Uw}ˆ
+ù≥“Óü_J†Û‹π1´Æeı ÍœM/.’ˆ≥Ä≤ ∂OÕ¶,Â∂¸PñP4m-Õ±?/ºîÕ‡3÷Ùÿ“Í’I†Ï◊ eenvaq≠)†zH¨œÕèÕÕz&zÅÍ4ÄÔ„ˇ˛Y√n‚¶zP$`ÕŒ[]{J]ΩwG)ª˜av¥ô£^WpÔﬂÔ≥‘Ô*eÎc¨`/„e◊7‘ÎÚk“ábŒıö˙é¸äÙè¨?/øˆ Áí¸ ºÕˆ~˙†WÍOøﬁpx úd<í‡|‰äéåêÎÿ…8µ{©1ëÁô'„$˘≠Ôª·F*•ùÒ˙|Ñ!¨≠Ä!úôƒ‚…qì$Éß9›äë“pr•ëy¬ëT‰Ë©∏OÛy3qN±X‹GÉ	/ßnÅ∫	ngIVöcq_nƒ©Y¨7Ê≠XúèÛL∆‚‰â≈ì^N\¨yÍ®3ÈM&	/1=ë–±¯X"aíl'≈o•9©·XúT-D.-‰ı˘ƒí&)ÜÊ”|<m´gB\¨dçãoRìë…'WògxÜòn7´~Réƒì1Øu4◊>NÉ«‚ƒtØ*gŸ$’†º∞æ)õóAyZH„-dëtfúXäXí‘ÄIyNnßn(8√ÖL&%9‰8È6VÚ∂!	|…Œ7Læ'´ÖÈ!Lä?…#ÕÖp2Ø»&q/n‰ádøfeMl{»v™è≈≈Ê¡≠6àû—B+€<r$ÓÛjæD¿gR°aKRÑ“÷êIE±$ÁT>$∂s*–B	*££qNÖZ(aR±¡©ƒI	ø° ï—,*
+'y&…©Hi&ï#«„∂íJ‘S·ò∂dR©1r$>r,;Èı%Í©‹ô/3láüå€≈≈abVàäu—§$˘CvÅ¯*î¸!bU'Ÿã€"y§¯CôwÃ|1k{≥Îbã‰wfT¶¬pí§Kıê⁄@π6D,LXaå9µ*7`CäèS±‚⁄¶Ö»£ëöÒ$1Îª%%EÖ2IªÃ•”3∫∑.aRÖa£\7©“∞ôêUÜ-	Ymÿ≤ê€[ráa´B>fÿ.!ΩÜù'dçaªÖ¨5Ï|!˜<HÏiì¯äI∫ÊM⁄iÄ
+ı/‡„.√∆N›$nÿLHüaKB÷∂,§fÿäêıÜ≠
+È7lóêÜù'‰n√vŸhÿ˘BÔwZÕ4xíJí<¨KäzZ‚¯¢ﬂÇô:ôìöŒá˘C*°Y›ö∏∆˛WÜ◊ó0©y£<¨äö∂ *#ÒÊÑ`ÀÊÃ|~π’‡éømàE>oÑòæ•q1è™?r$CZ∑› *&µºü?ƒ_BÿÍ6©√V˜õ‘˘À®ƒ¬©nì∫[Bïü˘∞8º$˘f2√⁄∞fÒ¯Ø∏µ–J'cïì∫B)~R¸ÖÚ√˙X&®qﬁüÈ6©Á˛2fuê¢ÖãSRú˜¡#Òw%.sÔªRÉ¸X"$Ó@wòg4á≠Eì§Ñ?{îí‚ ^ˆR8ô÷H[ÈXú§∞Â%9úw–g˜XÁ§4hQ´€´ë;%…OÓ∞c%…∑2¢eo;%úπW˝©ü”JJÉà»Ô8·O¶cŸ[Óæ≠ÑIΩ"úsRr9–˙ªMÍs¶…≠Ö8ÁQmX’ÍwR&»e«„AﬁØ˘º¬„‹$æ¨ß‹Â'’pÛ”7[®≠:8WM¥Òﬁú·ı“$≈„˘≥!Æór¿–xPd-z4Œ˚A;»*tìˆmL«6O>»ﬁí≥ﬂ†n}K•!ÉzÙÁ˝¢Y2›[pH	)®õﬁË∞ıÏäÊ“x?j›9uCÜÌV¸°/–ä√ˇ_›'‹˜Kø÷Ìım™∑/ëÛ1"í±TƒÔô.Ê‚ÿyÿ TfÁ
+ƒ9,R{¿§ô?hÿ`Â‘0ÈêA]ìFD÷"ÚhF≥÷Û4jàv§›§«ç`H7È	cLÄ√∆
+sfb∆
+sféND7È®‡pLp8.8<)8˚uìûNé q¡ !8a›§ìÇ#¿)¡‡KÇ#¿”Ç’M:-8|YpH
+é ñ‡ÑtìŒé )¡ -8å‘ªëÊq1†›§≥⁄ßõtŒÈß^ùuì&Í€`üá=È ¡ûrê†N‘øAùá:Î Aùsê†~≈†Ω‘y1p®‘E	Í3∆ª˘ä¥˛„)§ì{å‰˙ÿ“˙3≈ •FΩ]Ë√>DCê%&…lLëò2@í!•†@u+j
+˘˘Æ\Æ‘‹ÓºÚÚ“y£˚JK+¥@Mù«S´ó∞∂÷ùReEëRÃ¥›JG{ÉVW$iuªÀ€§‹¢§’%Ê+ıu˘J}ˇ÷ÛÎ©Ë‹{j≠AM≠zª‘UΩßÕ‹’¨o©˜◊ïƒ*Î[kkZ¸ïï˛ñö⁄÷˙ µ∑ÂèÓÌó'Ó^UûÓkàX}]á˚˛˙™‰ºøC˜Ôi”4£®§®ˆ”›5≠b[kMmK}ee}ãí˘Ôìµ`πwG=®Æ¢	{{Àôƒˆ0Ya≤|»≈T(≤™§ IÏõÅ,„Ä)åhBì÷h4jyû:+-bZ]}É‘—^÷Y/‚´Œ+bªÉ≤à∫≤bß‘÷⁄ŸU™’5ÏeÍ¡ôˇz’^˚áüÃúˇ´˙N¸õó¶Ã«ÀzÎ|°#c°…Ô<~iu.ˆbˇÍcµ“œ>˝ﬁëëô≥í∑æ≈J~<U”<W[XYﬁPSv‡Ú_¯—◊áÎjô´∂Ú0·ìb®´hFÎ`S-Éd2È$I>YûQ¿`,ÕF4_eπ™†ô5©û
+›ﬂZUÀ|Ìù]l@ÓhJ¬Òº"÷ƒ‰ırÂ±÷&ˇ¨±È.Ø¨fﬂÎ:—ªkg◊„Õ∆Ho£ß¥≥Ì´≈OΩÙ˚…Ùı°¶√Á{◊ﬁkz:p€ÙˇÊ—]UÏF˜x˙lO˚·NÔ≥ø>∏”]}Ó∑':˙¶ﬁx:vÂÖ≈˛µwãäE£·¯Ω;JTΩ/ö–<h2¶Ä†»p
+ëQô,≥/Å±)6Z[≥€_”T€h‘\ûjùÂmÙù”ZŸhXc≠“zL¢íß5`u˝≠]æ9øx„´ëc'X¢,b˛˝⁄Øˆ•Ü¢g˙˙íCæ˝I˘õï’ù”ø;5fø<zËk<?˛ÛEˆ€Î>©h<`ı§"ıç√Vw*∫€Òˇ-@Ω¶^Gv`◊`ÕzÎ§6Z'çQ_£Ø^Òl◊YÖ‰R4_©ØU©*SÖ{HÍµÛ∑÷>∫ˆÈﬂJªØ±¢[Á◊~±Ô‚€Á◊˛âÌ8ˇˆ≈}“_øπˆÒ≠ÛÍı…?Y˚¯Õã7/EÔ∫¢ónÇ!xÔéu{10ÿ∑ó1ï3IëLfêÁ +LVf¿òz
+™:9EëNAí¶§—æû@£_´yL´sy™t&zy#[ÆıtÓÓ ¶∑≠µ≥£=ËÍprUµ¸≠oEeÀ–©ÅÓ„=5=ßó^\:›~ÈΩ•»ÂÁßá=ºlGolrd·≈û”K/,ùÓŸ∑DÛÀ3™ºYYæ´aó∑9‹ÿ6‘‹†˜úxÒ‰ô?¯ïÉﬁ÷®˛RQ˘û÷=”„=ZÍªO~=u¯ı≈hÏ ƒªI˛˘ÙÂ⁄ø˙rqˇ`Gﬁ˚‚7Ì_˛Û∑üu‰øty?9ÙÈüzñ›W¡ê)˜ˆÑŸ7û’O˝ÁoxñMõ?.%äÄ˙áQÆ`TπÇ„ÍáxK9à Äe‹fÿ∑Ÿm)û’˛%¯\êC≈€¶mW!;´ExG %`óÅfp≥À9,¡Õ^ÕaO∞◊sXA˚ áUúcÁ∞e“ÈŒCRöÀa7ö•˜s83Ú∫≠mhñgr∏ ≠ÚÔ‰p·&ä–.øè0f1ág1è	ú≈9,Ç£)ÏG+ö—Çò9‘é3xãx1Ãb
+fê«(û¡$,,‡9p·9L`iG¶ùB˜"Ê–+ÓM\t˛Çé¶πMöÇHa”hr<∏à	,‚8éb√<.8z9¢ò≈å„Ô∞0ç1p‘a1ã:ØÑı1Ã8{≈Æg+Bèà‚ú≥Îbá1Áp7Î~PÉéßú›òp8-¢eãêr≤:áE, ËÏòB≥ò«Y4·0¢≈ûúüYØCN&“èúﬂﬁ|CGoÆjÌ[¨}6ÜVsÓ€®{L4£€˘ÓtÊ∑Æ‡TN˚x.gõj∏nŸ‹∞|ﬂó	,Ä√rÍ0À© 4,Ãc‹—˜Ë}|‰ø¨oÔw‡~§ù>„8éãéüiÃ"Â¨≠€Q.:Y]9ÅI«ìEá5Üè|=„_§9˜íπMº´ﬁ‚3rv4n3ˆjÇXˆ≈9Æ–ÍÃ…hgùäÄXÓ«›{]{‹’y™;75È:·ä(m.Æ:S€B?‹æ\æ\ºÏYv*Ú6JB?ƒ‡∆ü3'ßáÏzvÂHúØƒùQÉΩÁ^SØ§é;ìâD"1XêrvÔsÈÓyjA‡ª˜5R^±%ŸjZºtˇTÿm
+endstream
+endobj
+28 0 obj
+<</Length 172/Filter/FlateDecode>>
+stream
+xúUèΩjAÉ˚}
+ïIë…¸ÓÏ¥Ü<ÄaKwÅ≥	wÖÔ˝ãpq·∏“á@B∫C¿`|‚éÔLR*—GÇ…-¥\L]$ª'ˆ+T!ÿ‡Bï*#!A!‹›∞¬úÃÕ6®FY$VıË¡Ø¶k1}…ˇïØÌ÷ñvn˜Á>Èê|å¨‘: ˙Ëöq ◊`+Ï◊vö`Ã˝saH`.ˇ2ÊˆvaÊ≥ºœüˆ5€˘∞6ï
+endstream
+endobj
+29 0 obj
+<</Length 217/Filter/FlateDecode>>
+stream
+xúUêΩjAÉ˚}
+ïI·âÊgwv⁄@ötÜÎ‚T;E\ÿÔ_ÑªÃUﬂÄFËAáID‡Î
+ ∞åÆ†sÜkÄ¢e⁄«L‹/Pà+î%Ï5±“¨Å®ôîπ¥ãQámT]BmLXó‰4∆FC ’2‡%Y”s√4¯jf	«LªsQ˙L∑]‘TaéªØR1˙‹‹Íˇ¥Ôvn«v{l†.Õø*≠G≠¶è9,˚jYì^∏_⁄Îbπøú	ÌXŒèîUñÎ«”â‰â¥ıÁœÂΩΩ-Ì¯mLà
+endstream
+endobj
+30 0 obj
+<</Length 144/Filter/FlateDecode>>
+stream
+xúEç±
+¬@D˚˚ä)µ»9ªÓm≤≠‡ÆL'$"Ia˛øêS!’<^1ÔAtÇNú0√c≥%\¿\L§˜f±ø‹»† 6(™Xø¬¨ÅÛ0ƒöûiNcz!Ò¨·Z ˝/Ωã≈◊æ≈Ç1ÿót´ Í~ô	)®ÛÒ‘¶nßâ‰D⁄πæ“Ω¶ÒÈ=+ƒ
+endstream
+endobj
+31 0 obj
+<</Length 184/Filter/FlateDecode>>
+stream
+xúUè±ä1C{Ö ª">y<cè€@> ‡2ùas∂»˛º[,©ÙB3z#Å .	QBc£ò6¶Ê`TsólåYS™E€¢¨;$∆föi;)¡Ä‘©VßÂ_Yﬂ+∆yïVŒ¸ºPd 8{ß©_Ò„ë˛√Ó·}.J5∫1§z¨juÓö`≈ãTõ»ÊÃ€3\;àæ˝-D2ÙÂlö“◊ü…iø˝n=‹?€è?Ñ
+endstream
+endobj
+32 0 obj
+<</Length 250/Filter/FlateDecode>>
+stream
+xú’Q1R1Î˜˙ €±ù‰‘¿2π‚h¯>cÔﬁ› *…3ñd%W0Ñß s¬ºÄ hb:ÇòwófAit™_‡
+∆jñlAùãK”’Xº‘&÷˜©VÃd¶-◊ÃjJÙ!6È8#&»¬·¥è|r⁄Mp¨¿{Ï]œÌs{ﬂ^∂ÎØ≠=LçA•qh£µgi©x}¡˜ˇ.ˇˆgy¬ÊΩÅäVì°,Qüππ∂¯t·Ç0£hQò‘|DkB<ï>Lkr¡DTÈXâ#∑Ì§ä‰∫ÁC≤úÈ§ﬁ1AÈΩoyU\≤ﬂy¸Ùíôè¡
+endstream
+endobj
+33 0 obj
+<</Length 260/Filter/FlateDecode>>
+stream
+xú›R±m1Îo
+.Ü$[ñ5AÍOF8 IÒW|ö¨HÁ√˝… ©L$EæÉA \Çv¬∫ÅäõhÛ ⁄G”Ä‰É™„ÎZ+X‹4—>∏t±÷rˆa`È•öËÿßZ±&“f…7®÷©9’™ûÆÒÆπ)–:›zŒ*¸†Œ©YÖsS˘!¡©étG˛u˘\ﬁóÎrˇ≠á˛ †bÚË°gRÒ˙.ÇÔU«€üu»lC»F´‹@Ö]X˚∞¸"`!lP	K ≈≠05çb*˘ñ·⁄Íú$É∆â#˘yÏ‘úÍÆ&7
+˛Óv0ËI”H>Â¶‰?%8‘{∫=ˇ¸?åàù
+endstream
+endobj
+34 0 obj
+<</Length 265/Filter/FlateDecode>>
+stream
+xú›R9n1Ï˜ÛâîV/Hù‰	$)Ï¬iÚ˝Ä‰:XÒ‹Œ¡ÅÆ Çq¢®¿∫`ª@ ’t:∞æˆ:Ã°ÃU⁄ƒ˜'(÷¿J\@ùö∞Ù:4fö∞ˆ“Fµu[√ñ–t$e¿¨M
+f3•liËäÜfœQb‘eÖ«(
+ëÛvÀ∂|-ÀÎr˝∑ïÓ&FHt)o•G)µ·Ì,?œ[Œ˚„r¶pv/«î›À°ÓèÒg¥ÇUºQWït◊‚û1S‘˚í≤NÛïkˆs◊§ƒÂN3;(xîêéLiË0(©y€ë{◊§H&Â> Æ∞ÁÃ[ˆ?ÛÅT£’
+endstream
+endobj
+35 0 obj
+<</Length 270/Filter/FlateDecode>>
+stream
+xú›R;n√0›}äwÅ$%R“	:'9ÇÅ∂C<§KØ_êtZgh–¡¿{Äﬂá∫ÉA ú'V#¯∑n†2ªhõ‘ÜIWá4’âè7∞ˆ
+∆!÷Ä7	ìﬁÇIãï⁄E«Nk≈öP[OIájY;8®Œ¥v∞f†√X-<-8´Ò¡ iÎ!1é¿ê° èÉ˜¸æe]ﬁó◊Âº‹]≈<DT:ªïØb1äT\^¿E˘«π˛9éhõƒsÄJ”1§jï⁄òªµëØ∆,ÑÕ°˚RÊ∑¬‘<êú˘bT∆‘VT≤≤<R∑ªLı‡‡e¬:Ze†√ê§Á„z6p:RBòíÁ*ª√ﬁ3oŸ_ÕñÂ•
+endstream
+endobj
+36 0 obj
+<</Length 132/Filter/FlateDecode>>
+stream
+xúMé1C!CwN·~ ‰=R€Å?¥˜™È∑ìü•ÿÒqs—R1O0è—´J≥UìRT•—ü'JE'q¬ldœÑ-t∂|hm=úWo“}‘wF~a_`!”ü8,D—8∂Â_Œôò‡Ó_Æ◊◊+¥≈Æô^ÈëÓ_4‘/Ó
+endstream
+endobj
+37 0 obj
+<</Length 84/Filter/FlateDecode>>
+stream
+xúE ¡Ä D—;ULòñÖm√L‘¥ˇÉ!êx{…ˇÅ ëEPÑ8:dÛT≥q¿‹ìZÃJ≠©‡Ω0gAá˘T["⁄™ø-‹·˚Ôê
+endstream
+endobj
+38 0 obj
+<</Title(Selected victory emblems and hover components)/Creator(VectorCraft)/Producer(VectorCraft)/ModDate(D:20261115104616Z)/CreationDate(D:20261115104611Z)>>
+endobj
+39 0 obj
+<</Length 1096/Type/Metadata/Subtype/XML>>
+stream
+<?xpacket begin="Ôªø" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="xmp-writer"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"  xmlns:xmp="http://ns.adobe.com/xap/1.0/"  xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/"  xmlns:xmpTPg="http://ns.adobe.com/xap/1.0/t/pg/"  xmlns:pdf="http://ns.adobe.com/pdf/1.3/" ><dc:title><rdf:Alt><rdf:li xml:lang="x-default">Selected victory emblems and hover components</rdf:li></rdf:Alt></dc:title><xmp:CreatorTool>VectorCraft</xmp:CreatorTool><pdf:Producer>VectorCraft</pdf:Producer><xmp:ModifyDate>2026-11-15T10:46:16+00:00</xmp:ModifyDate><xmp:CreateDate>2026-11-15T10:46:11+00:00</xmp:CreateDate><xmpTPg:NPages>10</xmpTPg:NPages><dc:format>application/pdf</dc:format><xmpMM:InstanceID>RgkPG8oG72slmws0n5oqOQ==</xmpMM:InstanceID><xmpMM:DocumentID>RgkPG8oG72slmws0n5oqOQ==</xmpMM:DocumentID><xmpMM:RenditionClass>default</xmpMM:RenditionClass><pdf:PDFVersion>1.7</pdf:PDFVersion></rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="r"?>
+endstream
+endobj
+40 0 obj
+<</ViewerPreferences<</DisplayDocTitle true>>/Type/Catalog/Pages 1 0 R/Metadata 39 0 R>>
+endobj
+xref
+0 41
+0000000000 65535 f
+0000000016 00000 n
+0000000132 00000 n
+0000000204 00000 n
+0000000276 00000 n
+0000000348 00000 n
+0000000420 00000 n
+0000000473 00000 n
+0000000526 00000 n
+0000000579 00000 n
+0000000632 00000 n
+0000000686 00000 n
+0000000740 00000 n
+0000000872 00000 n
+0000001111 00000 n
+0000001312 00000 n
+0000001447 00000 n
+0000001582 00000 n
+0000001717 00000 n
+0000001852 00000 n
+0000001993 00000 n
+0000002134 00000 n
+0000002275 00000 n
+0000002416 00000 n
+0000002558 00000 n
+0000002694 00000 n
+0000002770 00000 n
+0000003224 00000 n
+0000006859 00000 n
+0000007100 00000 n
+0000007386 00000 n
+0000007599 00000 n
+0000007852 00000 n
+0000008171 00000 n
+0000008500 00000 n
+0000008834 00000 n
+0000009173 00000 n
+0000009374 00000 n
+0000009526 00000 n
+0000009702 00000 n
+0000010875 00000 n
+trailer
+<</Size 41/Root 40 0 R/Info 38 0 R/ID[(RgkPG8oG72slmws0n5oqOQ==)(RgkPG8oG72slmws0n5oqOQ==)]>>
+startxref
+10980
+%%EOF

@@ -27,3 +27,19 @@ _Avoid_: Victory margin (when referring to the complete set of requirements)
 **Victory margin**:
 The faction-specific numerical measure defined by the rules for ranking factions. It is distinct from satisfying every condition for a Propaganda victory check.
 _Avoid_: Victory standing, automatic win
+
+**Operation**:
+A faction action such as Terror, resolved through the choices and effects allowed for that action. Completing an Operation does not necessarily complete the current Event card.
+_Avoid_: Turn, complete card (when referring only to an Operation)
+
+**Special Activity**:
+A faction-specific activity that may accompany an eligible Operation, subject to its own timing and location restrictions. Kidnap is a 26July Special Activity that can accompany Terror.
+_Avoid_: Separate turn, mandatory continuation
+
+**Resources**:
+A faction's tracked spendable amount, used to pay costs such as Terror and transferable when the rules permit.
+_Avoid_: Cash
+
+**Cash**:
+A marker carried by a cube or Guerrilla, with specific transfer and use rules. Possessing Cash is distinct from having Resources available to pay a cost.
+_Avoid_: Resources, spendable balance

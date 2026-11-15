@@ -1,0 +1,15 @@
+# Terrain surfaces and population
+
+Decision-only studies for [the owner's #16 refinement](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/16#issuecomment-6893606452), based on accepted Atlas colors and the real prepared-position terrain/population distinctions. No study is production-adopted. Runtime regions remain solid3D; these exports show proposed surface artwork, not new province geometry. Below-sample terrain captions are comparison labels, not proposed on-map text.
+
+- **A — Engraved Atlas** (recommended): sparse grass tufts, broadleaf outlines, mountain ridges. Ivory census capsule combines person and numeral. Lowest visual competition with pieces/names; texture will need native-size contrast verification.
+- **B — Landscape Contours**: flowing field lines, canopy outlines, nested mountain forms. Population uses one/two/six countable people. A more continuous land treatment, with larger population footprint and slower reading at6.
+- **C — Field Symbols**: filled grass, broadleaf and peak silhouettes; round population seal. Strong categorical distinction, more ink and greater risk of competing with pieces.
+
+Independent population inventory from the accepted scenario and `Game::prepared`:1and2 on provinces/cities,6at Havana; ECs have zero population and separate gold economic values. Names remain; terrain words and bare population numerals will be replaced only with the selected treatment. Actual pieces, Terror counters, hover Control/opinion and victory UI remain unchanged. Inspection removal/window sizing are independently authorized runtime work, not contingent on this selection.
+
+`terrain-population.vectorcraft` is the editable source; artboards0/1/2 export a-engraved-atlas.png, b-landscape-contours.png, c-field-symbols.png at1pixel/point. All three rendered/inspected, source reopened with no warnings or missing/modified links. Authored through VectorCraft MCP CLI0.24.1; editor checkout9ddbf25bef7711c3404549d95b730f7dec3210e7 (not an independent claim about installed binary build provenance). Existing Lato license applies. No original board images or other external images used.
+
+Technical feasibility: existing Bevy material/image path consumes exported textures; background Blender5.2.3 inspection of `atlas-map.blend` finds no UV layers on the13region meshes. Add planar UV coordinates to province top surfaces and preserve side/bevel materials in a separately named source/export after selection. This is ordinary Blender material mapping and does not need another ArtCraft editor. No live Blender scene or existing file changed by inspection. Final texture density, labels and picking require actual native verification; these studies establish only the proposed design choice.
+
+The owner subsequently selected A, including its person-and-number badge, in [#16 comment6893736954](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/16#issuecomment-6893736954). The production derivation is documented in [TERRAIN.md](../../atlas/TERRAIN.md); B/C remain proposals only.
