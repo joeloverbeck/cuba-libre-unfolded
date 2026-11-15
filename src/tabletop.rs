@@ -1054,6 +1054,45 @@ fn draw_ui(
         let _ = entity;
     }
     if ui.reader {
+        let factions = |flags: [bool; 4]| {
+            let names = Faction::ALL
+                .into_iter()
+                .filter(|faction| flags[faction.index()])
+                .map(Faction::name)
+                .collect::<Vec<_>>();
+            if names.is_empty() {
+                "none".into()
+            } else {
+                names.join(", ")
+            }
+        };
+        let effects = |values: &[String]| {
+            if values.is_empty() {
+                "none".into()
+            } else {
+                values.join(", ")
+            }
+        };
+        text(
+            &mut commands,
+            &art,
+            format!(
+                "Aid {} · US Alliance {} · Capabilities: {} · Momentum: {}\nEligible: {}\nPassed: {}",
+                view.aid,
+                view.alliance,
+                effects(&view.capabilities),
+                effects(&view.momentum),
+                factions(view.eligible),
+                factions(view.passed)
+            ),
+            320.,
+            290.,
+            1200.,
+            18.,
+            s,
+            o,
+            4,
+        );
         picture(
             &mut commands,
             &art,
@@ -1185,6 +1224,11 @@ fn draw_ui(
                     }
                     None => operation_details(&view),
                 },
+            } + &if view.transfer.is_some() && view.owed_terror.is_some() {
+                let owed = view.spaces.iter().find(|space| Some(&space.id) == view.owed_terror.as_ref()).unwrap();
+                format!("\nCommitment: {} Terror owed; reserve 1.\n26July available to give: {} Resources.", owed.name, view.resources[Faction::M26.index()].saturating_sub(1))
+            } else {
+                String::new()
             },
             1404.,
             390.,
@@ -1212,7 +1256,9 @@ fn draw_ui(
                     },
                     [
                         1404.,
-                        (if view.transfer.is_some() || view.removal.is_some() {
+                        (if view.transfer.is_some() {
+                            570.
+                        } else if view.removal.is_some() {
                             540.
                         } else {
                             590.
