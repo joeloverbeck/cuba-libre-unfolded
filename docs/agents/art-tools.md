@@ -1,10 +1,12 @@
 # Art editor setup
 
-Start Claude Code or Codex from this repository's root. `.mcp.json` registers three stdio servers for Claude Code; `.codex/config.toml` provides the repository-scoped Codex configuration. Their names end in `cuba-libre` so Netrunner connections remain distinct. Codex documents project settings for trusted projects in its [MCP configuration guide](https://learn.chatgpt.com/docs/extend/mcp?surface=cli). The installed CLI's management commands did not discover the project entries during founding, even with a command-line trust override. The owner therefore approved registering the same three names in his user Codex configuration with absolute paths; `codex mcp list --json` confirms all three enabled. Restart/reconnect the client to load them in a new session.
+Start Claude Code or Codex from this repository's root. `.mcp.json` registers four stdio servers for Claude Code; `.codex/config.toml` provides the repository-scoped Codex configuration. Their names end in `cuba-libre` so Netrunner connections remain distinct. Codex documents project settings for trusted projects in its [MCP configuration guide](https://learn.chatgpt.com/docs/extend/mcp?surface=cli). The installed CLI's management commands did not discover the project entries during founding, even with a command-line trust override. The owner therefore approved registering the first three names (VectorCraft, EffectCraft and PhotoCraft) in his user Codex configuration with absolute paths; `codex mcp list --json` confirms all three enabled. FigCraft, added on 2026-11-15 at the owner's request, is not in that user configuration, so Codex sessions see it only if the project entry is discovered. Restart/reconnect the client to load them in a new session.
+
+FigCraft is an interface design and prototyping app from the same family. No foundation assigns it a use: every 2D visual design still goes through VectorCraft (`docs/foundation/04-art-and-assets.md`).
 
 ## Installed tools and recovery
 
-On the founding machine all three CLI programs are already installed in `~/.cargo/bin`, which is on PATH: VectorCraft 0.24.1, EffectCraft 0.24.1, and PhotoCraft 0.23.1. Each answered a live MCP inspection on 2026-11-14, initially through the existing Netrunner-scoped servers. That proves startup, not Cuba Libre asset creation or visual acceptance.
+On the founding machine all three CLI programs are already installed in `~/.cargo/bin`, which is on PATH: VectorCraft 0.24.1, EffectCraft 0.24.1, and PhotoCraft 0.23.1. Each answered a live MCP inspection on 2026-11-14, initially through the existing Netrunner-scoped servers. That proves startup, not Cuba Libre asset creation or visual acceptance. FigCraft 0.18.1 (`storytold/figcraft@0015eb5f`) was installed on 2026-11-15. On that day, launched with the exact command and arguments from `.mcp.json` from this checkout root, it completed initialization and tool discovery, refused an export to the checkout root outside `art/`, saved a native document and an export under `art/` and reopened the document. The probe-owned files were removed afterwards.
 
 If a binary is absent or the selected authoring task needs a newer command, inspect the editor checkout and its own instructions, then use its documented install command from that checkout:
 
@@ -12,9 +14,10 @@ If a binary is absent or the selected authoring task needs a newer command, insp
 cargo install --path apps/vectorcraft-cli --locked
 cargo install --path apps/effectcraft-cli --locked
 cargo install --path apps/photocraft-cli --locked
+cargo install --path apps/figcraft-cli --locked
 ```
 
-Run each command only in its corresponding repository, initially `../vectorcraft`, `../effectcraft`, or `../photocraft`. Their verified origin repositories are `https://github.com/storytold/vectorcraft`, `https://github.com/storytold/effectcraft`, and `https://github.com/storytold/photocraft`; verify access and the selected revision before installing. Record the tool revision used when creating an accepted asset; a matching version string alone is not a source revision.
+Run each command only in its corresponding repository, initially `../vectorcraft`, `../effectcraft`, `../photocraft`, or `../figcraft`. Their verified origin repositories are `https://github.com/storytold/vectorcraft`, `https://github.com/storytold/effectcraft`, `https://github.com/storytold/photocraft`, and `https://github.com/storytold/figcraft`; verify access and the selected revision before installing. Record the tool revision used when creating an accepted asset; a matching version string alone is not a source revision.
 
 ## File boundaries
 

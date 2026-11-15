@@ -11,6 +11,10 @@
     "photocraft-cuba-libre": {
       "command": "photocraft-cli",
       "args": ["mcp", "--headless", "--no-gpu", "--automation-read-root", ".", "--automation-write-root", "art"]
+    },
+    "figcraft-cuba-libre": {
+      "command": "figcraft-cli",
+      "args": ["mcp", "--automation-read-root", ".", "--automation-write-root", "art"]
     }
   }
 }
