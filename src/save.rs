@@ -4,7 +4,7 @@ use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Serialize};
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use unfolded_tabletop::record_replacement::{self as records, Replacement};
+use unfolded_record_replacement::{self as records, Replacement};
 const LIMIT: u64 = 256 * 1024;
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]

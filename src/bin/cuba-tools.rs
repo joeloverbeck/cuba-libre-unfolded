@@ -3,7 +3,7 @@ use std::{
     path::Path,
     time::{Duration, Instant},
 };
-use unfolded_tabletop::seat_client;
+use unfolded_seat_client as seat_client;
 fn run() -> Result<bool> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     if args.first().map(String::as_str) != Some("seat") || args.len() < 2 {
