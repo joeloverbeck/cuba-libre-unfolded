@@ -35,7 +35,6 @@ pub(super) fn inspect(
     if let Ok(target) = targets.get(event.entity) {
         event.propagate(false);
         ui.inspected = Some(target.0.clone());
-        ui.pinned = None;
         ui.dirty = true;
     }
 }

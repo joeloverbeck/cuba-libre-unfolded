@@ -40,6 +40,7 @@ use unfolded_tabletop::{
 };
 pub mod seat;
 mod status;
+mod victory;
 
 #[derive(Clone)]
 pub struct Options {
@@ -81,7 +82,6 @@ struct LabelSpec {
 }
 #[derive(Resource, Default)]
 struct Interface {
-    pinned: Option<Faction>,
     hover: Hover<Faction>,
     status: Hover<String>,
     reader: bool,
@@ -236,7 +236,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             dirty: true,
             ..default()
         })
-        .insert_resource(Orbit::new((Vec3::new(-0.2, 0., 0.35), 8.7)))
+        .insert_resource(Orbit::new((Vec3::new(0.35, 0., 0.35), 9.6)))
         // Atlas SVG map rim fill; the viewport continues the authored sea.
         .insert_resource(ClearColor(Color::srgb_u8(216, 231, 227)))
         .add_plugins((MeshPickingPlugin, count_label::CountLabelPlugin))
@@ -253,6 +253,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 camera_controls,
                 status::hover,
                 status::draw,
+                victory::draw,
                 animate_water,
             )
                 .chain(),
@@ -289,8 +290,8 @@ fn setup(
         Tonemapping::None,
         Camera {
             viewport: Some(Viewport {
-                physical_position: UVec2::new(40, 320),
-                physical_size: UVec2::new(1300, 540),
+                physical_position: UVec2::new(40, 176),
+                physical_size: UVec2::new(1300, 684),
                 ..default()
             }),
             ..default()
@@ -636,25 +637,7 @@ fn hover_standings(
 }
 
 fn detail_text(view: &crate::Observation, ui: &Interface) -> String {
-    if let Some(f) = ui.pinned.or_else(|| ui.hover.visible().copied()) {
-        let st = &view.standings[f.index()];
-        let available = view
-            .available
-            .iter()
-            .filter(|p| p.faction == f)
-            .map(|p| format!("{} {:?}", p.count, p.kind))
-            .collect::<Vec<_>>()
-            .join(" · ");
-        format!(
-            "{} · {}\n{}\nTotal {} · Margin {:+} · {}\nAvailable: {available}",
-            f.name(),
-            st.threshold,
-            st.contributions.join("\n"),
-            st.score,
-            st.margin,
-            st.extra
-        )
-    } else if let Some(id) = &ui.inspected {
+    if let Some(id) = &ui.inspected {
         let sp = view.spaces.iter().find(|sp| &sp.id == id).unwrap();
         format!(
             "{} · {:?}\nPopulation {} · Economy {}\nTerror/Sabotage {}\n{}",
@@ -676,7 +659,7 @@ fn detail_text(view: &crate::Observation, ui: &Interface) -> String {
                 .join("\n")
         )
     } else {
-        "Hover a city/province for Control and political opinion.\nClick a region for terrain, pieces and Terror.\nPoint at or click a standing for calculation and supply.\nRight drag / arrows orbit · wheel / + − zoom\nWASD pans · Home restores framing".into()
+        "Hover a city/province for Control and political opinion.\nClick a region for terrain, pieces and Terror.\nHover a faction emblem or margin for victory details.\nRight drag / arrows orbit · wheel / + − zoom\nWASD pans · Home restores framing".into()
     }
 }
 fn refresh_details(
@@ -705,22 +688,14 @@ fn click(
     let Ok(control) = controls.get(event.entity) else {
         return;
     };
-    if ui.reader
-        && !matches!(
-            control.action,
-            Action::Close | Action::Standing(_) | Action::Quit
-        )
-    {
+    if ui.reader && !matches!(control.action, Action::Close | Action::Quit) {
         return;
     }
     match &control.action {
-        Action::Standing(f) => {
-            ui.pinned = Some(*f);
-            ui.inspected = None;
-            ui.reader = false;
-        }
+        // Victory is a hover-only disclosure. Clicking never takes ownership
+        // of inspection, closes a reader, or changes a game decision.
+        Action::Standing(_) => return,
         Action::Close | Action::Cancel => {
-            ui.pinned = None;
             ui.inspected = None;
             ui.reader = false;
             ui.notice = "Inspection closed. Committed effects and rolls remain saved.".into();
@@ -730,7 +705,6 @@ fn click(
         }
         Action::Inspect(id) => {
             ui.inspected = Some(id.clone());
-            ui.pinned = None;
         }
         Action::Decision(owner, rev) => {
             let previous = play.game().observe();
@@ -820,8 +794,8 @@ fn camera_controls(
     mut cameras: Query<(&mut Transform, &mut Camera), With<Camera3d>>,
 ) {
     let (scale, offset) = layout(&window);
-    let min = offset + Vec2::new(40., 320.) * scale;
-    let size = Vec2::new(1300., 540.) * scale;
+    let min = offset + Vec2::new(40., 176.) * scale;
+    let size = Vec2::new(1300., 684.) * scale;
     let outside = window.cursor_position().is_none_or(|p| {
         p.x < min.x || p.y < min.y || p.x >= min.x + size.x || p.y >= min.y + size.y
     });
@@ -988,75 +962,17 @@ fn draw_ui(
         &mut commands,
         &art,
         if ui.reader {
-            "atlas-reader.png"
+            "atlas-victory-reader.png"
         } else {
-            "atlas-ui.png"
+            "atlas-victory-ui.png"
         },
         [0., 0., WIDTH, HEIGHT],
         s,
         o,
         0,
     );
-    for standing in &view.standings {
-        let x = 40. + 470. * standing.faction.index() as f32;
-        let metric = match standing.faction {
-            Faction::Government => "Support",
-            Faction::M26 => "Opposition + Bases",
-            Faction::Directorio => "Controlled Pop + Bases",
-            Faction::Syndicate => "Open Casinos",
-        };
-        let metric_entity = text(
-            &mut commands,
-            &art,
-            format!(
-                "{} {metric} · Resources {}",
-                standing.score,
-                view.resources[standing.faction.index()]
-            ),
-            x + 24.,
-            116.,
-            405.,
-            21.,
-            s,
-            o,
-            2,
-        );
-        commands
-            .entity(metric_entity)
-            .insert(StandingText(standing.faction));
-        text(
-            &mut commands,
-            &art,
-            format!("Margin {:+} · {}", standing.margin, standing.extra),
-            x + 24.,
-            150.,
-            405.,
-            16.,
-            s,
-            o,
-            2,
-        );
-        let entity = commands
-            .spawn((
-                UiRoot,
-                Node {
-                    position_type: PositionType::Absolute,
-                    left: px(o.x + x * s),
-                    top: px(o.y + 76. * s),
-                    width: px(450. * s),
-                    height: px(146. * s),
-                    ..default()
-                },
-                GlobalZIndex(3),
-                Control {
-                    name: format!("standing:{}", standing.faction.index()),
-                    choice: false,
-                    action: Action::Standing(standing.faction),
-                },
-            ))
-            .observe(click)
-            .id();
-        let _ = entity;
+    if !ui.reader {
+        victory::header(&mut commands, &art, &view, s, o);
     }
     if ui.reader {
         let factions = |flags: [bool; 4]| {

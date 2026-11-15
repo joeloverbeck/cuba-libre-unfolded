@@ -1,5 +1,39 @@
 use cuba_libre_unfolded::{Faction, Game};
 
+#[test]
+fn zero_and_positive_government_margins_do_not_satisfy_the_city_condition() {
+    // R7.2/7.3 arithmetic challenge at the public model seam. These deliberately
+    // altered boards are not admitted tactical saves or reachable slice states.
+    let mut record = serde_json::to_value(Game::prepared()).unwrap();
+    record["spaces"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|s| s["id"] == "las-villas")
+        .unwrap()["support"] = 1.into();
+    let zero: Game = serde_json::from_value(record.clone()).unwrap();
+    assert_eq!(zero.standings()[0].score, 18);
+    assert_eq!(zero.standings()[0].margin, 0);
+    assert_eq!(
+        zero.standings()[0].extra,
+        "Active Support cities 1/3 (not met)"
+    );
+    record["spaces"]
+        .as_array_mut()
+        .unwrap()
+        .iter_mut()
+        .find(|s| s["id"] == "la-habana")
+        .unwrap()["support"] = 2.into();
+    let positive: Game = serde_json::from_value(record).unwrap();
+    assert_eq!(positive.standings()[0].score, 19);
+    assert_eq!(positive.standings()[0].margin, 1);
+    assert_eq!(
+        positive.standings()[0].extra,
+        "Active Support cities 1/3 (not met)"
+    );
+    assert!(zero.validate().is_err() && positive.validate().is_err());
+}
+
 // Accepted handoff deacd635, prepared table and independently worked standings.
 #[test]
 fn prepared_position_exposes_complete_public_state_without_hidden_order() {

@@ -115,6 +115,205 @@ impl Drop for Native {
 
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_victory_emblems_keep_inspection_and_disclose_live_margins() {
+    let cards = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS")
+        .into();
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "local/verification/issue-16".into());
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("victory-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards,
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("task.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Victory native evidence: {}", app.root.display());
+    app.launch();
+    let initial = app.observe();
+    let margins = initial["table"]["standings"].as_array().unwrap();
+    for (faction, expected) in [
+        ("Government", "-2"),
+        ("M26", "-8"),
+        ("Directorio", "-8"),
+        ("Syndicate", "-15"),
+    ] {
+        assert!(
+            margins
+                .iter()
+                .any(|s| s["faction"] == faction && s["text"] == expected),
+            "only signed margins belong under emblems: {margins:?}"
+        );
+    }
+    app.capture("open-emblems");
+    app.activate("space:havana", 0);
+    let inspected = app.observe()["table"]["details"].clone();
+    for (index, faction) in ["Government", "M26", "Directorio", "Syndicate"]
+        .into_iter()
+        .enumerate()
+    {
+        for target in [format!("standing:{index}"), format!("margin:{index}")] {
+            let pointed = app.request(json!({"op":"point","revision":0,"component":target}), true);
+            if index > 0 || target.starts_with("margin:") {
+                assert_eq!(
+                    pointed["table"]["victory"]["faction"], faction,
+                    "open tags must switch without another dwell"
+                );
+            } else {
+                assert!(
+                    pointed["table"]["victory"].is_null(),
+                    "the first disclosure must wait for its dwell"
+                );
+            }
+            let shown = app.request(json!({"op":"settle"}), true);
+            assert_eq!(shown["table"]["details"], inspected);
+            assert_eq!(shown["table"]["victory"]["faction"], faction);
+            assert_eq!(shown["table"]["victory_count"], 1);
+            assert_eq!(
+                shown["table"]["victory"]["title"],
+                if faction == "M26" { "26July" } else { faction }
+            );
+            assert_victory_geometry(&shown);
+            assert_eq!(
+                shown["table"]["victory"]["formula"],
+                [
+                    "16 Support − 18 = -2",
+                    "6 Opposition + 1 Base − 15 = -8",
+                    "1 Controlled pop. + 0 Bases − 9 = -8",
+                    "Lower of -4 and -15 = -15"
+                ][index]
+            );
+            assert_eq!(
+                shown["table"]["victory"]["rows"].as_array().unwrap().len(),
+                [4, 5, 1, 3][index]
+            );
+            if index == 0 {
+                assert_eq!(
+                    shown["table"]["victory"]["conditions"],
+                    json!([
+                        "Support >18 · not met",
+                        "All Cities Active Support · 1/3 · not met",
+                        "Still needed: Camagüey City",
+                        "Still needed: Santiago de Cuba"
+                    ])
+                );
+            }
+            assert!(shown["table"]["status"].is_null());
+            app.activate(&target, 0);
+            assert_eq!(app.observe()["table"]["inspected"], "havana");
+        }
+        app.capture(&format!("victory-{index}"));
+    }
+    assert!(app.point("close")["table"]["victory"].is_null());
+    app.point("standing:0");
+    app.activate("reader", 0);
+    let reader = app.observe();
+    assert!(reader["table"]["victory"].is_null());
+    assert!(reader["table"]["standings"].as_array().unwrap().is_empty());
+    assert!(
+        !reader["table"]["controls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|c| c["name"].as_str().unwrap().starts_with("standing:"))
+    );
+    app.capture("reader-without-score-panels");
+    app.activate("close", 0);
+    // Real authorized transfers and Terror grow the contribution list and
+    // update both factions' margins without reopening a stale disclosure.
+    for action in [
+        "transfer",
+        "transfer:3:1",
+        "amount:2",
+        "authorize",
+        "terror:santiago",
+        "terror:oriente",
+    ] {
+        if action == "amount:2" {
+            app.choose("amount:1");
+            app.choose("amount:2");
+        } else {
+            app.choose(action);
+        }
+    }
+    let m26 = app.point("standing:1");
+    assert_eq!(
+        m26["table"]["victory"]["formula"],
+        "9 Opposition + 1 Base − 15 = -5"
+    );
+    assert!(
+        m26["table"]["victory"]["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|r| r[0] == "Santiago de Cuba" && r[1] == "1 × 1 = 1")
+    );
+    assert_victory_geometry(&m26);
+    app.capture("largest-live-opposition-breakdown");
+    let syndicate = app.point("margin:3");
+    assert_eq!(
+        syndicate["table"]["victory"]["formula"],
+        "Lower of -4 and -17 = -17"
+    );
+    for action in ["remove", "remove:sierra-maestra:base", "confirm-removal"] {
+        app.choose(action);
+    }
+    let removed = app.point("standing:1");
+    assert_eq!(
+        removed["table"]["victory"]["formula"],
+        "9 Opposition + 0 Bases − 15 = -6"
+    );
+    assert!(
+        removed["table"]["victory"]["footer"]
+            .as_str()
+            .unwrap()
+            .contains("4 Base")
+    );
+    assert_victory_geometry(&removed);
+    app.capture("removal-updates-victory-and-supply");
+    app.quit();
+}
+
+fn assert_victory_geometry(view: &Value) {
+    let rect = |v: &Value| -> [f64; 4] { std::array::from_fn(|i| v[i].as_f64().unwrap()) };
+    let tag = rect(&view["table"]["victory"]["bounds"]);
+    assert!(tag[0] >= 0. && tag[1] >= 112. && tag[2] <= 1920. && tag[3] <= 960.);
+    let mut texts = view["table"]["victory_text"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|t| rect(&t["bounds"]))
+        .collect::<Vec<_>>();
+    assert!(texts.len() >= 7);
+    texts.sort_by(|a, b| a[1].total_cmp(&b[1]));
+    for text in &texts {
+        assert!(
+            text[0] >= tag[0] && text[1] >= tag[1] && text[2] <= tag[2] && text[3] <= tag[3],
+            "text outside victory tag: {view}"
+        );
+    }
+    for (index, a) in texts.iter().enumerate() {
+        for b in &texts[index + 1..] {
+            assert!(
+                a[2] <= b[0] || a[0] >= b[2] || a[3] <= b[1] || a[1] >= b[3],
+                "victory text overlaps: {view}"
+            );
+        }
+    }
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
 fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
     let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
         .expect("Set CUBA_TEST_CARDS")
@@ -620,7 +819,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         "water texture must visibly advance; changed pixels: {changed}"
     );
     app.activate("standing:0", 0);
-    assert_eq!(app.observe()["table"]["pinned"], "Government");
+    assert!(app.observe()["table"]["inspected"].is_null());
     app.activate("close", 0);
     for id in [
         "havana",
@@ -665,8 +864,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     app.activate("reader", 0);
     let reading = app.observe();
     let standings = reading["table"]["standings"].as_array().unwrap();
-    assert_eq!(standings.len(), 4);
-    assert!(standings.iter().all(|standing| standing["visible"] == true));
+    assert!(standings.is_empty());
     app.capture("reader");
     let before = app.observe()["table"]["camera"].clone();
     app.request(json!({"op":"key","key":"KeyW","revision":0}), true);
@@ -734,6 +932,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     for line in cuba_libre_unfolded::assets::MANIFEST
         .lines()
         .chain(cuba_libre_unfolded::assets::STATUS_MANIFEST.lines())
+        .chain(cuba_libre_unfolded::assets::VICTORY_MANIFEST.lines())
     {
         let (_, path) = line.split_once("  ").unwrap();
         let relative = path.strip_prefix("art/atlas/").unwrap();
@@ -767,36 +966,40 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         changed_art.path().join("atlas-map.glb"),
     )
     .unwrap();
-    let status_path = changed_art.path().join("atlas-control-uncontrolled.png");
-    for missing in [false, true] {
-        if missing {
-            std::fs::remove_file(&status_path).unwrap();
-        } else {
-            std::fs::write(&status_path, b"changed presentation").unwrap();
-        }
-        let refused = Command::new(env!("CARGO_BIN_EXE_cuba-libre"))
-            .args([
-                "--cards",
-                app.cards.to_str().unwrap(),
-                "--art",
-                changed_art.path().to_str().unwrap(),
-                "--save",
-                app.save.to_str().unwrap(),
-                "--agent-seat",
-            ])
-            .output()
+    for asset in [
+        "atlas-control-uncontrolled.png",
+        "atlas-victory-icon-government.png",
+        "atlas-victory-ui.png",
+    ] {
+        let status_path = changed_art.path().join(asset);
+        for missing in [false, true] {
+            if missing {
+                std::fs::remove_file(&status_path).unwrap();
+            } else {
+                std::fs::write(&status_path, b"changed presentation").unwrap();
+            }
+            let refused = Command::new(env!("CARGO_BIN_EXE_cuba-libre"))
+                .args([
+                    "--cards",
+                    app.cards.to_str().unwrap(),
+                    "--art",
+                    changed_art.path().to_str().unwrap(),
+                    "--save",
+                    app.save.to_str().unwrap(),
+                    "--agent-seat",
+                ])
+                .output()
+                .unwrap();
+            assert!(!refused.status.success());
+            assert!(String::from_utf8_lossy(&refused.stderr).contains(asset));
+            assert_eq!(std::fs::read(&app.save).unwrap(), valid);
+            std::fs::write(
+                app.root.join(format!("{asset}-missing-{missing}.stderr")),
+                refused.stderr,
+            )
             .unwrap();
-        assert!(!refused.status.success());
-        assert!(
-            String::from_utf8_lossy(&refused.stderr).contains("atlas-control-uncontrolled.png")
-        );
-        assert_eq!(std::fs::read(&app.save).unwrap(), valid);
-        std::fs::write(
-            app.root
-                .join(format!("status-art-missing-{missing}.stderr")),
-            refused.stderr,
-        )
-        .unwrap();
+        }
+        std::fs::copy(Path::new("art/atlas").join(asset), &status_path).unwrap();
     }
     let original_path = app.save.clone();
     let previous = std::fs::read(original_path.with_file_name("task.json.previous")).unwrap();
@@ -1064,6 +1267,19 @@ fn native_hover_status_is_transient_and_inspection_has_distinct_facts() {
         assert_eq!(status["opinion"], opinion);
         assert_eq!(status["contribution"], contribution);
         assert_status_geometry(&status);
+        let viewport = status["viewport"].as_array().unwrap();
+        for occupied in status["occupied_bounds"].as_array().unwrap() {
+            for (axis, bound) in [(0, 0), (1, 1)] {
+                assert!(
+                    occupied[axis].as_f64().unwrap() >= viewport[bound].as_f64().unwrap(),
+                    "home framing clips island: {status}"
+                );
+                assert!(
+                    occupied[axis + 2].as_f64().unwrap() <= viewport[bound + 2].as_f64().unwrap(),
+                    "home framing clips island: {status}"
+                );
+            }
+        }
         app.capture(&format!("status-{id}"));
     }
     for id in [
@@ -1128,8 +1344,13 @@ fn native_hover_status_is_transient_and_inspection_has_distinct_facts() {
     app.capture("oriente-empty-control");
     let standing = app.point("standing:1");
     assert!(standing["table"]["status"].is_null());
-    let details = standing["table"]["details"].as_str().unwrap();
-    assert!(details.contains("Oriente") && details.contains("4"));
+    assert!(
+        standing["table"]["victory"]["rows"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|r| r[0] == "Oriente" && r[1] == "2 × 2 = 4")
+    );
     app.capture("standing-keeps-calculation");
     let final_state = app.observe()["observation"].clone();
     app.quit();
