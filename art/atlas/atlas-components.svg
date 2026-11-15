@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1920" height="1640" viewBox="0 0 1920 1640">
+  <title>a-atlas-states</title>
+  <g id="Layer_1" data-name="Layer 1">
+    <rect x="40" y="280" width="450" height="245" fill="#fbf8ef"/>
+    <rect x="510" y="280" width="450" height="245" fill="#fbf8ef"/>
+    <rect x="980" y="280" width="450" height="245" fill="#fbf8ef"/>
+    <rect x="1450" y="280" width="430" height="245" fill="#fbf8ef"/>
+    <rect x="40" y="550" width="600" height="320" fill="#fbf8ef"/>
+    <rect x="64" y="805" width="250" height="43" fill="#203238"/>
+    <rect x="330" y="805" width="286" height="43" fill="#e8e9e0"/>
+    <rect x="660" y="550" width="600" height="320" fill="#fbf8ef"/>
+    <rect x="684" y="805" width="552" height="43" fill="#e8e9e0"/>
+    <rect x="1280" y="550" width="600" height="320" fill="#fbf8ef"/>
+    <rect x="1304" y="805" width="552" height="43" fill="#a03531"/>
+    <rect x="40" y="895" width="600" height="445" fill="#fbf8ef"/>
+    <rect x="660" y="895" width="600" height="445" fill="#fbf8ef"/>
+    <polygon points="840,1194 841.763,1198.573 846.657,1198.837 842.853,1201.927 844.114,1206.663 840,1204 835.886,1206.663 837.147,1201.927 833.343,1198.837 838.237,1198.573" fill="#fff8e9"/>
+    <line x1="1145" y1="1214" x2="1190" y2="1238" fill="none" stroke="#fff8e9" stroke-width="4" stroke-miterlimit="10"/>
+    <rect x="1280" y="895" width="600" height="445" fill="#fbf8ef"/>
+    <rect x="1304" y="1230" width="552" height="65" fill="#203238"/>
+    <rect x="40" y="1365" width="1840" height="225" fill="#dce4dc"/>
+  </g>
+</svg>
