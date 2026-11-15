@@ -1,5 +1,5 @@
 {
-  "source": "atlas-map.vectorcraft",
+  "source": "atlas-labels.vectorcraft",
   "pixel_to_blender": "[(x-700)/100, (600-y)/100, surface_height+0.002]",
   "labels": [
     {
@@ -111,14 +111,14 @@
         67
       ],
       "bounds": [
-        1100.045,
-        629.3995,
+        1040.045,
+        639.3995,
         119.91000000000008,
         41.20099999999991
       ],
       "pieces": [
-        1160,
-        685
+        1240,
+        620
       ]
     },
     {
