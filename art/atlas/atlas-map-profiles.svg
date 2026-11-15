@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="1920" height="1280" viewBox="0 0 1920 1280">
+  <title>a-atlas</title>
+  <g id="Layer_1" data-name="Layer 1">
+    <polygon id="Pinar_del_Río" data-name="Pinar del Río" points="70,560 125,500 240,470 260,630 205,680 100,700" fill="#91b59a" stroke="#f8f4e8" stroke-width="3" stroke-linejoin="round"/>
+    <polygon id="La_Habana" data-name="La Habana" points="240,470 315,450 440,440 440,640 335,660 260,630" fill="#d9d9a1" stroke="#f8f4e8" stroke-width="3" stroke-linejoin="round"/>
+    <polygon id="Matanzas" points="440,440 515,425 610,440 630,505 610,565 630,650 525,675 440,640" fill="#d9d9a1" stroke="#f8f4e8" stroke-width="3" stroke-linejoin="round"/>
+    <polygon id="Las_Villas" data-name="Las Villas" points="610,440 700,450 780,465 810,515 795,590 820,670 710,685 630,650 610,565 630,505" fill="#c7b19a" stroke="#f8f4e8" stroke-width="3" stroke-linejoin="round"/>
+    <polygon id="Camagüey_Province" data-name="Camagüey Province" points="780,465 870,460 975,480 1000,525 985,575 1010,625 990,650 900,680 820,670 795,590 810,515" fill="#91b59a" stroke="#f8f4e8" stroke-width="3" stroke-linejoin="round"/>
+    <polygon id="Oriente" points="975,480 1060,470 1140,485 1230,490 1300,520 1320,565 1260,590 1150,610 1070,595 1035,625 1010,625 985,575 1000,525" fill="#91b59a" stroke="#f8f4e8" stroke-width="3" stroke-linejoin="round"/>
+    <polygon id="Sierra_Maestra" data-name="Sierra Maestra" points="1035,625 1070,595 1150,610 1260,590 1320,565 1330,630 1290,680 1180,710 1080,705 1035,690" fill="#c7b19a" stroke="#f8f4e8" stroke-width="3" stroke-linejoin="round"/>
+    <circle id="Havana_City" data-name="Havana City" cx="335" cy="365" r="100" fill="#f8f2df" stroke="#203238" stroke-width="2" stroke-miterlimit="10"/>
+    <circle id="Camagüey_City" data-name="Camagüey City" cx="910" cy="735" r="90" fill="#f8f2df" stroke="#203238" stroke-width="2" stroke-miterlimit="10"/>
+    <circle id="Santiago_de_Cuba_City" data-name="Santiago de Cuba City" cx="1220" cy="765" r="100" fill="#f8f2df" stroke="#a03531" stroke-width="3" stroke-miterlimit="10"/>
+    <circle id="Economic_Center_3" data-name="Economic Center 3" cx="250" cy="550" r="28" fill="#d9bb65" stroke="#203238" stroke-width="2" stroke-miterlimit="10"/>
+    <circle id="Economic_Center_3-2" data-name="Economic Center 3" cx="800" cy="550" r="28" fill="#d9bb65" stroke="#203238" stroke-width="2" stroke-miterlimit="10"/>
+    <circle id="Economic_Center_2" data-name="Economic Center 2" cx="1160" cy="608" r="28" fill="#d9bb65" stroke="#203238" stroke-width="2" stroke-miterlimit="10"/>
+  </g>
+</svg>
