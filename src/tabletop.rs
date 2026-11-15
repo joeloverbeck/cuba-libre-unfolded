@@ -399,7 +399,12 @@ fn sync_pieces(
         for (i, piece) in space.pieces.iter().enumerate() {
             let mesh = match piece.kind {
                 Kind::Troops | Kind::Police => Mesh::from(Cuboid::new(0.18, 0.18, 0.18)),
-                Kind::Guerrilla => Mesh::from(Cylinder::new(0.10, 0.24)),
+                Kind::Guerrilla => Cylinder::new(0.10, 0.24)
+                    .mesh()
+                    .resolution(8)
+                    .build()
+                    .with_duplicated_vertices()
+                    .with_computed_flat_normals(),
                 _ => Mesh::from(Cylinder::new(0.15, 0.075)),
             };
             let color = match piece.faction {
