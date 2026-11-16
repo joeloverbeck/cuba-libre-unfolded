@@ -35,7 +35,8 @@ use std::{
 use unfolded_hover::Hover;
 use unfolded_tabletop::{
     camera::{Capture, FrameInput, Orbit, wheel_steps},
-    count_label, token,
+    label_anchor::{LabelAnchor, LabelAnchorPlugin},
+    token,
 };
 pub mod seat;
 mod status;
@@ -237,7 +238,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .insert_resource(Orbit::new((Vec3::new(0.35, 0., 0.35), 9.6)))
         // Atlas SVG map rim fill; the viewport continues the authored sea.
         .insert_resource(ClearColor(Color::srgb_u8(216, 231, 227)))
-        .add_plugins((MeshPickingPlugin, count_label::CountLabelPlugin))
+        .add_plugins((MeshPickingPlugin, LabelAnchorPlugin))
         .add_systems(Startup, setup)
         .add_systems(
             Update,
@@ -466,25 +467,21 @@ fn sync_pieces(
                     },
                 );
             }
-            let label = count_label::spawn(
-                &mut commands,
-                token,
-                piece.count as u32,
-                Vec3::new(0., height + 0.06, 0.),
-            );
-            commands
-                .entity(label)
-                .insert((
-                    status::SpaceTarget(space.id.clone()),
-                    TextFont {
-                        font: art.font.clone().into(),
-                        font_size: 21.0.into(),
-                        ..default()
-                    },
-                    TextColor(Color::srgb(0.08, 0.08, 0.06)),
-                    GlobalZIndex(-1),
-                ))
-                .remove::<Pickable>();
+            commands.spawn((
+                count(
+                    piece.count.to_string(),
+                    token,
+                    Vec3::new(0., height + 0.06, 0.),
+                ),
+                status::SpaceTarget(space.id.clone()),
+                TextFont {
+                    font: art.font.clone().into(),
+                    font_size: 21.0.into(),
+                    ..default()
+                },
+                TextColor(Color::srgb(0.08, 0.08, 0.06)),
+                GlobalZIndex(-1),
+            ));
         }
         if space.terror > 0 {
             let token = token::spawn_body(
@@ -506,28 +503,40 @@ fn sync_pieces(
                 .entity(token)
                 .insert((PieceVisual, status::SpaceTarget(space.id.clone())))
                 .remove::<Pickable>();
-            let label = count_label::spawn(
-                &mut commands,
-                token,
-                space.terror as u32,
-                Vec3::new(0., 0.07, 0.),
-            );
-            commands
-                .entity(label)
-                .insert((
-                    status::SpaceTarget(space.id.clone()),
-                    Text::new(format!("T {}", space.terror)),
-                    TextFont {
-                        font: art.font.clone().into(),
-                        font_size: 18.0.into(),
-                        ..default()
-                    },
-                    TextColor(Color::srgb(0.08, 0.08, 0.06)),
-                    GlobalZIndex(-1),
-                ))
-                .remove::<Pickable>();
+            commands.spawn((
+                count(
+                    format!("T {}", space.terror),
+                    token,
+                    Vec3::new(0., 0.07, 0.),
+                ),
+                status::SpaceTarget(space.id.clone()),
+                TextFont {
+                    font: art.font.clone().into(),
+                    font_size: 18.0.into(),
+                    ..default()
+                },
+                TextColor(Color::srgb(0.08, 0.08, 0.06)),
+                GlobalZIndex(-1),
+            ));
         }
     }
+}
+/// A count of pieces or Terror, kept over its token.
+#[derive(Component)]
+struct Count;
+
+/// A count over its token. It stays pickable, so hovering it hovers its space.
+fn count(text: String, token: Entity, offset: Vec3) -> impl Bundle {
+    (
+        Count,
+        Text::new(text),
+        TextLayout::justify(Justify::Center),
+        Node {
+            position_type: PositionType::Absolute,
+            ..default()
+        },
+        LabelAnchor::entity(token, offset),
+    )
 }
 fn animate_water(
     time: Res<Time>,
