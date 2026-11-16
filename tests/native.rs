@@ -1022,6 +1022,8 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     assert_eq!(resumed["observation"], initial["observation"]);
     app.capture("initial-restarted");
     app.choose("terror");
+    // The record before Finish, which `.previous` keeps for recovery.
+    let chosen = app.observe();
     app.request(
         json!({"op":"activate","revision":1,"choice":"1:finish"}),
         true,
@@ -1194,7 +1196,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         String::from_utf8_lossy(&recovered.stderr)
     );
     std::fs::write(app.root.join("recovery-launch.jsonl"), recovered.stdout).unwrap();
-    assert_eq!(app.observe()["observation"], initial["observation"]);
+    assert_eq!(app.observe()["observation"], chosen["observation"]);
     app.capture("explicit-recovery");
     app.quit();
     assert_eq!(
