@@ -7,7 +7,7 @@ use crate::{
 use bevy::{
     app::AnimationSystems,
     asset::RenderAssetUsages,
-    camera::{RenderTarget, Viewport},
+    camera::Viewport,
     core_pipeline::tonemapping::Tonemapping,
     image::{
         CompressedImageFormats, ImageAddressMode, ImageSampler, ImageSamplerDescriptor, ImageType,
@@ -182,9 +182,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
     });
     if windowless {
         app.add_plugins(
-            plugins
-                .set(unfolded_tabletop::capture::no_window())
-                .disable::<bevy::winit::WinitPlugin>()
+            unfolded_tabletop::capture::windowless(plugins)
                 .disable::<bevy::render::pipelined_rendering::PipelinedRenderingPlugin>(),
         );
     } else {
@@ -342,6 +340,8 @@ fn setup(
     commands.spawn((
         Camera3d::default(),
         TableCamera,
+        // Renders the seat's image under the UI camera; nothing without one.
+        unfolded_tabletop::capture::OnSurface,
         // Preserve the authored unlit sea color against the UI's matching rim.
         Tonemapping::None,
         Camera {
