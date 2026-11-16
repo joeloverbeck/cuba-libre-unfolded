@@ -7,17 +7,17 @@ Consulted constitution: `EVID-1`, `EVID-2`, `EVID-7` (core revision 2026-11-15.1
 **Owner disposition, 2026-11-16, recorded in [PR #57](https://github.com/joeloverbeck/cuba-libre-unfolded/pull/57):**
 - **Adopted, as [ADR 0001](../adr/0001-baked-die-tumbles-land-on-the-committed-face.md):** the baked route, with the conditions the ADR names:
   - the face rotation below the animated node (condition 1);
-  - a flat tray outside the map relief (condition 4);
-  - the clip chosen from saved data independent of the die value (condition 6);
-  - bell-like admission: one face up, a rest tail, the landed face recorded, a hash file (part of condition 3).
+  - a flat tray outside the map relief (part of condition 4);
+  - the clip and yaw chosen from saved data, never a fresh random draw (part of condition 6);
+  - each clip ends flat with one face up, has a rest tail and a recorded landed face, and is hashed (part of condition 3).
 - **Adopted:** the die takes the rolling faction's colour, red for this Kidnap. Government's die and Event rolls are deferred.
 - **Adopted for the design round:** the three directions below, each landing in a flat tray outside the map relief. The layout round places the tray.
 - **Deferred:** a reduced-motion setting.
-- **Still proposals:** every other **[P]** item, including the rest of condition 3, until the implementation spec accepts it.
+- **Still proposals:** every other **[P]** item, until the implementation spec accepts it. This includes the rest of conditions 3, 4 and 6, and the review's addition that the clip data be independent of the die value. The art-tools checks in condition 3 are a repository standard, not a proposal.
 
 Review on 2026-11-16, after those decisions and before merge:
 - `EVID-3`, `EVID-4`, `EVID-6` and `REP-2` were read. Under `EVID-4` this study supports a plan, not a working die. `EVID-6` does not apply, because nothing is shared across repositories.
-- [Art tools](../agents/art-tools.md) was read. Its Interpenetration and Negative-control checks are added to condition 3 below. Its Seam check does not apply, because a tumble does not loop.
+- [Art tools](../agents/art-tools.md) was read. Its Interpenetration and Negative-control checks apply as a repository standard and are listed in condition 3 below. Its Seam check is reported as n/a, because a tumble does not loop.
 
 Labels used below: **[S]** a direct source statement; **[D]** my derived conclusion; **[P]** proposed local policy, not accepted until the owner accepts a specification.
 
@@ -183,7 +183,7 @@ Each direction is a starting point for one VectorCraft face sheet plus a Blender
    - channels only on the tumble node;
    - each clip's landed face recorded;
    - a hash file so a changed asset refuses at launch;
-   - the [art-tools animated-mesh checks](../agents/art-tools.md#animated-mesh-checks) Interpenetration (on every frame the die's world-space BVH overlap with the tray is empty) and Negative control (a broken clip is flagged). Seam does not apply to a tumble that does not loop.
+   - the [art-tools animated-mesh checks](../agents/art-tools.md#animated-mesh-checks) Interpenetration (on every frame the die's world-space BVH overlap with the tray is empty) and Negative control (a broken clip is flagged). Report Seam as n/a, because a tumble does not loop.
 4. **Flat tray, camera-independent framing.** It never rolls across map relief, and it never intercepts region picks. Placement comes from the layout round.
 5. **Shared-clock playback.**
    - `seek = min(now − start, duration)`, where `start` is set when the running app applies the commit.
