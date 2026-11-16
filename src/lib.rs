@@ -5,3 +5,5 @@ pub mod assets;
 pub mod save;
 #[cfg(feature = "tabletop")]
 pub mod tabletop;
+
+fn  enforcement_probe( ) {}
