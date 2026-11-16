@@ -23,6 +23,7 @@ use bevy::{
     },
     window::PrimaryWindow,
 };
+use emblems::Prose;
 use std::{
     collections::BTreeMap,
     path::PathBuf,
@@ -41,6 +42,7 @@ use unfolded_tabletop::{
     label_anchor::{LabelAnchor, LabelAnchorPlugin},
     token,
 };
+mod emblems;
 mod operation;
 pub mod seat;
 mod status;
@@ -309,7 +311,10 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             )
                 .chain(),
         )
-        .add_systems(PostUpdate, animate_terror.before(AnimationSystems));
+        .add_systems(
+            PostUpdate,
+            (animate_terror.before(AnimationSystems), emblems::ink),
+        );
     Ok(app)
 }
 fn render_ready(
@@ -899,7 +904,7 @@ fn camera_facts_and_viewport(
 fn text(
     commands: &mut Commands,
     art: &Art,
-    content: impl Into<String>,
+    content: impl Into<Prose>,
     x: f32,
     y: f32,
     w: f32,
@@ -908,16 +913,25 @@ fn text(
     offset: Vec2,
     z: i32,
 ) -> Entity {
-    commands
+    let content: Prose = content.into();
+    let font = TextFont {
+        font: art.font.clone().into(),
+        font_size: (size * scale).into(),
+        ..default()
+    };
+    let ink = TextColor(Color::srgb(0.12, 0.14, 0.12));
+    let segments = emblems::segments(&content.text, content.naming);
+    let (first, rest) = match segments.split_first() {
+        Some((emblems::Segment::Words(words), rest)) => (words.clone(), rest),
+        _ => (String::new(), &segments[..]),
+    };
+    let root = commands
         .spawn((
             UiRoot,
-            Text::new(content),
-            TextFont {
-                font: art.font.clone().into(),
-                font_size: (size * scale).into(),
-                ..default()
-            },
-            TextColor(Color::srgb(0.12, 0.14, 0.12)),
+            Text::new(first),
+            emblems::Plain(content.text),
+            font.clone(),
+            ink,
             Node {
                 position_type: PositionType::Absolute,
                 left: px(offset.x + x * scale),
@@ -928,7 +942,9 @@ fn text(
             GlobalZIndex(z),
             Pickable::IGNORE,
         ))
-        .id()
+        .id();
+    emblems::spawn_rest(commands, art, root, rest, &font, ink, size * scale);
+    root
 }
 fn picture(
     commands: &mut Commands,
