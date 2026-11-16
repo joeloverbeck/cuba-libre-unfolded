@@ -41,7 +41,8 @@ impl Item {
 /// Layout rectangles in reference pixels, from the FigCraft frame.
 const TRACK: [f32; 4] = [150., 18., 260., 64.];
 const LEDGER: [f32; 4] = [1688., 20., 192., 190.];
-/// The FigCraft `Atlas` variables `ink` and `ink-secondary`.
+/// The FigCraft `Atlas` variables: `ink` for values and titles, `ink-secondary`
+/// (QUIET) for secondary values and notes.
 const INK: Color = Color::srgb_u8(32, 50, 56);
 const QUIET: Color = Color::srgb_u8(83, 106, 109);
 
@@ -55,7 +56,8 @@ mod tag {
     pub const NOTE_LINE: f32 = 23.;
     pub const BOTTOM: f32 = 14.;
     /// Notes are broken by hand at this many characters, which a 420 px column
-    /// at 17 px always holds, so each authored line is one drawn line.
+    /// at 17 px holds with margin at Lato's widths (native captures show no wrap),
+    /// so each authored line is one drawn line.
     #[cfg(test)]
     pub const NOTE_CHARS: usize = 50;
 }
@@ -209,7 +211,7 @@ fn content(view: &crate::Observation, item: Item) -> Shown {
             vec![
                 // R 1.8, R 3.1
                 "Foreign assistance: added to Government Resources\nin each Propaganda Round's earnings and when an\nEvent says so. Aid itself cannot pay a cost.",
-                // R 5.1.1, R 6.3.1
+                // R 6.3.1 (and its note: Events adjust Aid as their text says)
                 "Events can raise or lower it. It falls by 10, to\nno less than 0, when a Propaganda Round finds\nTotal Support of 18 or less.",
             ],
         ),
@@ -263,7 +265,7 @@ fn content(view: &crate::Observation, item: Item) -> Shown {
             vec![
                 // R 4.5.2, R 6.2.4
                 "Each marker sits under a Guerrilla or cube and\nbelongs to that piece's faction.",
-                "After Operations without a Special Activity, its\nowner may remove it for a free Limited Operation.\nAt a Propaganda Round each becomes +6 Resources\nor a Base (Syndicate: an open Casino).",
+                "After Operations without a Special Activity, its\nowner may remove it for a free Limited Operation.\nAt a Propaganda Round each becomes +6 Resources\nor an available Base there (Syndicate: Casino).",
             ],
         ),
     };
@@ -482,6 +484,20 @@ mod tests {
                     assert!(line.chars().count() <= tag::NOTE_CHARS, "{line}");
                 }
             }
+        }
+    }
+
+    #[test]
+    fn every_level_has_an_admitted_track_and_keeps_its_observed_name() {
+        for level in UsAlliance::ALL {
+            let key = format!("atlas-top-us-alliance-{}.png", level.name().to_lowercase());
+            assert!(
+                crate::assets::TOP_MANIFEST
+                    .lines()
+                    .any(|line| line.ends_with(&format!("art/atlas/{key}"))),
+                "{key} is not admitted"
+            );
+            assert_eq!(serde_json::to_value(level).unwrap(), level.name());
         }
     }
 }
