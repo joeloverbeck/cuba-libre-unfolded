@@ -70,7 +70,7 @@ impl Play {
     fn game(&self) -> Game {
         self.session
             .as_ref()
-            .map_or_else(Game::prepared, |s| s.game().clone())
+            .map_or_else(Game::opening, |s| s.game().clone())
     }
 }
 #[derive(Resource)]
@@ -827,6 +827,12 @@ fn click(
                     } else if control.name.contains(":terror:") {
                         "Terror saved: paid 1, activated 1, placed marker and shifted Opposition."
                             .into()
+                    } else if control.name.ends_with(":pass") {
+                        "26July passed: +1 Resource and stays Eligible. Directorio is 1st Eligible. Saved.".into()
+                    } else if control.name.ends_with(":terror") {
+                        "Terror chosen: 26July is executing, and transfers are open. Saved.".into()
+                    } else if control.name.ends_with(":back-to-choice") {
+                        "Back at the action choice. Nothing had happened; any pending request is withdrawn. Saved.".into()
                     } else if control.name.ends_with(":finish") {
                         format!(
                             "Saved {}. No Pass income.",
