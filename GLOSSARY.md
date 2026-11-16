@@ -44,6 +44,14 @@ _Avoid_: Cash
 A marker carried by a cube or Guerrilla, with specific transfer and use rules. Possessing Cash is distinct from having Resources available to pay a cost.
 _Avoid_: Resources, spendable balance
 
+**Terror marker**:
+A marker in a City or Province that hinders later efforts to build Support or Opposition there; Civic Action or Agitation must remove the space's Terror markers before shifting it. Placed by the Terror Operation and by Government Reprisal. Several may occupy one space, and all are removed at Reset.
+_Avoid_: Terror (when meaning the marker rather than the Operation), Sabotage marker
+
+**Sabotage marker**:
+A marker on an economic center that blocks the Government's earnings from it. Placed by Terror in an economic center or during Government Earnings; at most one may occupy an economic center, and all are removed at Reset. It shares a single supply of 20 with Terror markers.
+_Avoid_: Terror marker
+
 **Layout**:
 The arrangement of interface areas on a screen or written document: which areas exist, where they sit, their sizes, grouping and spacing, and how they adapt to the display.
 _Avoid_: Graphic, mockup (when referring to the selected arrangement rather than a proposal)
