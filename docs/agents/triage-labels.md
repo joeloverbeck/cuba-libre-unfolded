@@ -8,4 +8,4 @@
 | ready-for-human | ready-for-human | Requires human implementation |
 | wontfix | wontfix | Will not be actioned |
 
-Use these exact strings whenever a skill names a canonical triage role. Readiness assessment and work activation are separate. Applying `ready-for-agent` must satisfy `WORK-1` and `OPS-1`; unattended execution also requires `AGENT-4`. The label itself grants neither implementation nor publication authority.
+Use these exact strings whenever a skill names a canonical triage role. Readiness assessment and work activation are separate. Applying `ready-for-agent` must satisfy `WORK-1` and `OPS-1`, and `FID-1` for rules-fidelity work; unattended execution also requires `AGENT-4`. The label itself grants neither implementation nor publication authority.

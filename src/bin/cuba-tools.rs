@@ -3,7 +3,7 @@ use std::{
     path::Path,
     time::{Duration, Instant},
 };
-use unfolded_tabletop::seat_client;
+use unfolded_seat_client::{self as seat_client, Connection, Outcome};
 fn run() -> Result<bool> {
     let args: Vec<_> = std::env::args().skip(1).collect();
     if args.first().map(String::as_str) != Some("seat") || args.len() < 2 {
@@ -12,20 +12,18 @@ fn run() -> Result<bool> {
         );
     }
     let requests = seat_client::requests(&args[2..], &mut std::io::stdin().lock())?;
-    let stream = seat_client::connect(Path::new(&args[1]))?;
-    stream.set_read_timeout(Some(Duration::from_millis(200)))?;
+    let connection = Connection::open(Path::new(&args[1]))?;
     let deadline = Instant::now() + Duration::from_secs(180);
-    let (answered, failed) =
-        seat_client::exchange(&stream, &requests, &mut std::io::stdout().lock(), || {
-            if Instant::now() >= deadline {
-                bail!("Seat response deadline exceeded");
-            }
-            Ok(())
-        })?;
-    if answered != requests.len() {
+    let outcome = connection.send(&requests, &mut std::io::stdout().lock(), || {
+        if Instant::now() >= deadline {
+            bail!("Seat response deadline exceeded");
+        }
+        Ok(())
+    })?;
+    if let Outcome::Short { answered } = outcome {
         eprintln!("Seat answered {answered}/{} requests", requests.len());
     }
-    Ok(!failed && answered == requests.len())
+    Ok(outcome == Outcome::Answered)
 }
 fn main() {
     match run() {

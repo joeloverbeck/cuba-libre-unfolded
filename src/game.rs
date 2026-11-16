@@ -1,6 +1,6 @@
 //! Cuba-owned rules from the accepted deacd635 tactical handoff (R 1.3–1.8, 2.3, 7).
 use serde::{Deserialize, Serialize};
-use unfolded_tabletop::random::SeededRandom;
+use unfolded_random::SeededRandom;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Faction {

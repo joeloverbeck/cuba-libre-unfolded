@@ -11,7 +11,15 @@ default = []
 tabletop = ["dep:bevy", "unfolded-tabletop/seat"]
 
 [dependencies]
-unfolded-tabletop = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "070701dfa6708338260c32228d108579bf19a760" }
+# Shared packages, all at one revision of one repository, the same as the `wgpu-hal`
+# patch below. The game, its saves and `cuba-tools` take only the packages that cannot
+# depend on Bevy; `unfolded-tabletop` comes with `tabletop`.
+unfolded-assets = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "3121c60b39744f8cd92e46ce3d634d7674897ebb" }
+unfolded-hover = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "3121c60b39744f8cd92e46ce3d634d7674897ebb" }
+unfolded-random = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "3121c60b39744f8cd92e46ce3d634d7674897ebb" }
+unfolded-record-replacement = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "3121c60b39744f8cd92e46ce3d634d7674897ebb" }
+unfolded-seat-client = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "3121c60b39744f8cd92e46ce3d634d7674897ebb" }
+unfolded-tabletop = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "3121c60b39744f8cd92e46ce3d634d7674897ebb", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
@@ -38,4 +46,4 @@ debug = 0
 opt-level = 3
 
 [patch.crates-io]
-wgpu-hal = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "070701dfa6708338260c32228d108579bf19a760" }
+wgpu-hal = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "3121c60b39744f8cd92e46ce3d634d7674897ebb" }

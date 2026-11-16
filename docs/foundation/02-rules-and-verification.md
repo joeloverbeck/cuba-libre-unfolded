@@ -1,6 +1,6 @@
 # Rules and verification
 
-This foundation specializes `EVID-3`, `EVID-4`, `REP-2`, `OPS-1`, and `INT-1` for a published board game. It defines the required source boundary; it does not certify an engine or substitute for the rules.
+This foundation specializes `EVID-3`, `EVID-4`, `REP-2`, `OPS-1`, `FID-1`–`FID-4`, `SIM-1`, `SIM-4`, and `INT-1` for a published board game. It defines the required source boundary; it does not certify an engine or substitute for the rules.
 
 ## Source authority
 

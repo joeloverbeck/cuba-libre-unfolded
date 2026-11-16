@@ -4,44 +4,39 @@ use bevy::{input::keyboard::Key, time::TimeUpdateStrategy};
 use serde_json::json;
 use unfolded_tabletop::{
     capture,
+    label_anchor::Anchor,
     seat::{
-        self as shared, Focus, Game as SeatGame, Hit, Logical, Name as TargetName, Observed, Seat,
-        SeatKey, socket,
+        self as shared, Game as SeatGame, Hit, Logical, Name as TargetName, Observed, SeatKey,
+        start::{self, Start},
     },
 };
-const DETACHED: &str = "CUBA_LIBRE_AGENT_SEAT_DETACHED";
+/// Cuba Libre's seat start: its marker, the shared limits and its words for an
+/// admission that ran out of time. The order of the steps and the refusals are shared.
+const START: Start = Start::new("CUBA_LIBRE_AGENT_SEAT_DETACHED", |_, limit| {
+    format!(
+        "Native admission failed: not finished within {} seconds.",
+        limit.as_secs()
+    )
+});
 pub(super) fn run(options: Options) -> Result<(), String> {
-    let listener = if let Some(path) = &options.socket {
-        if !socket::detached(DETACHED) {
-            return socket::launch(path, DETACHED).or_else(shared::refuse);
-        }
-        Some(socket::detach(path, DETACHED).or_else(shared::refuse)?)
-    } else {
-        None
-    };
-    let size = options.seat_size;
-    let mut app = build(options, true).or_else(shared::refuse)?;
-    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::ZERO));
-    capture::install::<Camera2d>(&mut app, size);
-    app.add_systems(
-        PostStartup,
-        |mut commands: Commands,
-         surface: Res<capture::Surface>,
-         camera: Single<Entity, With<Camera3d>>| {
-            commands
-                .entity(*camera)
-                .insert(RenderTarget::Image(surface.image().into()));
-        },
-    );
-    let mut seat = Seat::open(Table, &mut app)?;
-    seat.admit(&mut app, Duration::from_secs(120))
-        .map_err(|e| format!("Native admission failed: {e:?}"))?;
-    if let Some(listener) = listener {
-        socket::announce(&seat.ready(&mut app))?;
-        listener.serve(&mut seat, &mut app, Duration::from_secs(30 * 60))
-    } else {
-        seat.serve(&mut app, std::io::stdin().lock(), std::io::stdout().lock())
-    }
+    let socket = options.socket.clone();
+    START.run(socket.as_deref(), || {
+        let size = options.seat_size;
+        let mut app = build(options, true)?;
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::ZERO));
+        capture::install::<Camera2d>(&mut app, size);
+        app.add_systems(
+            PostStartup,
+            |mut commands: Commands,
+             surface: Res<capture::Surface>,
+             camera: Single<Entity, With<Camera3d>>| {
+                commands
+                    .entity(*camera)
+                    .insert(RenderTarget::Image(surface.image().into()));
+            },
+        );
+        Ok(start::Table::new(app, Table))
+    })
 }
 struct Table;
 fn named(control: &Control) -> TargetName {
@@ -52,11 +47,13 @@ fn named(control: &Control) -> TargetName {
     }
 }
 fn piece_name(world: &World, entity: Entity) -> Option<String> {
-    if let Some(label) = world.get::<count_label::Label>(entity) {
-        Some(format!(
-            "count:{}",
-            world.get::<Name>(label.token)?.as_str()
-        ))
+    if world.get::<Count>(entity).is_some()
+        && let Some(LabelAnchor {
+            to: Anchor::Entity { entity: token, .. },
+            ..
+        }) = world.get::<LabelAnchor>(entity)
+    {
+        Some(format!("count:{}", world.get::<Name>(*token)?.as_str()))
     } else {
         Some(format!("piece:{}", world.get::<Name>(entity)?.as_str()))
     }
@@ -266,9 +263,6 @@ impl SeatGame for Table {
             description: json!({"surface":"map or authored chrome"}),
         }
     }
-    fn focus(&self, _: &mut World) -> Focus {
-        Focus::Nothing
-    }
     fn unsettled(&self, world: &mut World) -> Vec<String> {
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
@@ -290,9 +284,6 @@ impl SeatGame for Table {
         }
         pending
     }
-    fn advance(&self, world: &mut World, by: Duration) {
-        *world.resource_mut::<TimeUpdateStrategy>() = TimeUpdateStrategy::ManualDuration(by);
-    }
     fn admission(&self, world: &World) -> shared::Admission {
         let play = world.resource::<Play>();
         if let Some(error) = &play.error {
@@ -302,12 +293,6 @@ impl SeatGame for Table {
         } else {
             shared::Admission::Checking
         }
-    }
-    fn pipelines_ready(&self, world: &World) -> bool {
-        world
-            .resource::<RenderReady>()
-            .pipelines
-            .load(Ordering::Acquire)
     }
     fn keys(&self) -> &[SeatKey] {
         &KEYS

@@ -1,6 +1,6 @@
 # Agent players and proclamations
 
-This foundation specializes `AUTH-1`, `SEM-1`, `REP-2`, `EVID-3`, `AGENT`, and `OPS-6`. Agent players are external Claude Code/Codex sessions connected to the running game. No built-in bots, automated Non-Player flowcharts, or autonomous model service are planned.
+This foundation specializes `AUTH-1`, `SEM-1`, `REP-2`, `EVID-3`, `SIM-1`, `SIM-4`, `AGENT`, and `OPS-6`. Agent players are external Claude Code/Codex sessions connected to the running game. No built-in bots, automated Non-Player flowcharts, or autonomous model service are planned.
 
 ## Seats and authority
 
