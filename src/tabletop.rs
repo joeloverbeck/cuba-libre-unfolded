@@ -34,7 +34,8 @@ use std::{
 use unfolded_hover::Hover;
 use unfolded_tabletop::{
     camera::{
-        Framing, Orbit, Scene, TableCamera, TableCameraPlugin, TableCameraSystems, TableFacts,
+        Framing, InScene, Orbit, Scene, TableCamera, TableCameraPlugin, TableCameraSystems,
+        TableFacts,
     },
     label_anchor::{LabelAnchor, LabelAnchorPlugin},
     token,
@@ -247,7 +248,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .configure_sets(
             Update,
             TableCameraSystems
-                .after(camera_controls)
+                .after(camera_facts_and_viewport)
                 .before(status::hover),
         )
         .add_systems(Startup, setup)
@@ -259,7 +260,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 bind_spaces,
                 hover_standings,
                 draw_ui,
-                camera_controls,
+                camera_facts_and_viewport,
                 status::hover,
                 status::draw,
                 victory::draw,
@@ -537,10 +538,12 @@ fn sync_pieces(
 #[derive(Component)]
 struct Count;
 
-/// A count over its token. It stays pickable, so hovering it hovers its space.
+/// A count over its token. It stays pickable, so hovering it hovers its space, and it
+/// is part of the scene, so the wheel and a drag over it still move the camera.
 fn count(text: String, token: Entity, offset: Vec3) -> impl Bundle {
     (
         Count,
+        InScene,
         Text::new(text),
         TextLayout::justify(Justify::Center),
         Node {
@@ -787,7 +790,7 @@ fn camera_facts(window: &Window, play: &Play, ui: &Interface) -> TableFacts {
         ..default()
     }
 }
-fn camera_controls(
+fn camera_facts_and_viewport(
     window: Single<&Window, With<PrimaryWindow>>,
     play: Res<Play>,
     ui: Res<Interface>,
