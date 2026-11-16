@@ -2,7 +2,16 @@
 
 Start Claude Code or Codex from this repository's root. `.mcp.json` registers four stdio servers for Claude Code; `.codex/config.toml` provides the repository-scoped Codex configuration. Their names end in `cuba-libre` so Netrunner connections remain distinct. Codex documents project settings for trusted projects in its [MCP configuration guide](https://learn.chatgpt.com/docs/extend/mcp?surface=cli). The installed CLI's management commands did not discover the project entries during founding, even with a command-line trust override. The owner therefore approved registering the same names in the owner's user Codex configuration with absolute paths: the three founding servers (VectorCraft, EffectCraft and PhotoCraft) and, on 2026-11-15, FigCraft. `codex mcp list --json` confirms all four enabled. Restart/reconnect the client to load them in a new session.
 
-FigCraft authors **layouts** and VectorCraft authors **graphics**; [the art foundation](../foundation/04-art-and-assets.md) owns that division and the layout authority.
+FigCraft authors **layouts** and VectorCraft authors **graphics**; [the art foundation](../foundation/04-art-and-assets.md) owns that division and the layout authority. Hover tags and tooltips are layouts too: author their geometry in FigCraft and implement the runtime against it, as `art/atlas/TOP.md` does.
+
+## VectorCraft pitfalls
+
+Each of these cost rework in #46:
+
+- **Masters:** keep off-artboard masters on a template layer, which exports leave out. Art merely placed beside an artboard leaks into its export wherever it overlaps.
+- **Scaled copies:** `object.scale` keeps stroke widths and corner radii unless you pass `strokes: true, corners: true`. Small previews made without them show heavy rims and over-rounded corners.
+- **Mirroring:** `reflect: "vertical"` mirrors left to right; `"horizontal"` flips top to bottom.
+- **Reading bounds:** use `doc_inspect` with `ids` and `depth: 0`. `document.node` returns every path point and costs thousands of tokens for one group.
 
 ## Installed tools and recovery
 
