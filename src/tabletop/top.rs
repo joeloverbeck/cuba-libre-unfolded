@@ -357,7 +357,7 @@ pub(super) fn draw(
         7,
     );
     commands.entity(plate).remove::<UiRoot>().insert(Tag);
-    let mut words = |content: &str, left: f32, top: f32, width: f32, size: f32, ink: Color| {
+    let mut words = |content: Prose, left: f32, top: f32, width: f32, size: f32, ink: Color| {
         let entity = text(
             &mut commands,
             &art,
@@ -375,15 +375,16 @@ pub(super) fn draw(
             .remove::<UiRoot>()
             .insert((Tag, TextColor(ink)));
     };
-    words(&shown.title, 24., 18., 420., 27., INK);
+    words((&shown.title).into(), 24., 18., 420., 27., INK);
     for (index, (label, value)) in shown.rows.iter().enumerate() {
         let top = tag::ROWS_TOP + index as f32 * tag::ROW_HEIGHT;
-        words(label, 24., top, 200., 18., INK);
-        words(value, 230., top, 214., 18., QUIET);
+        // Row labels introduce what their value belongs to; faction rows keep names.
+        words(Prose::named(label), 24., top, 200., 18., INK);
+        words(value.into(), 230., top, 214., 18., QUIET);
     }
     let mut top = tag::ROWS_TOP + shown.rows.len() as f32 * tag::ROW_HEIGHT + tag::NOTES_GAP;
     for note in &shown.notes {
-        words(note, 24., top, 420., 17., QUIET);
+        words(note.into(), 24., top, 420., 17., QUIET);
         top += note_lines(note) as f32 * tag::NOTE_LINE;
     }
     let rule = picture(

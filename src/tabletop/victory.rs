@@ -309,7 +309,7 @@ pub(super) fn draw(
         7,
     );
     commands.entity(plate).remove::<UiRoot>().insert(Tag);
-    let mut words = |content: &str, left: f32, top: f32, width: f32, size: f32, ink: Color| {
+    let mut words = |content: Prose, left: f32, top: f32, width: f32, size: f32, ink: Color| {
         let entity = text(
             &mut commands,
             &art,
@@ -329,14 +329,23 @@ pub(super) fn draw(
     };
     let ink = Color::srgb_u8(30, 50, 57);
     let quiet = Color::srgb_u8(83, 106, 109);
-    words(&shown.title, 24., 18., 420., 27., ink);
-    words(&shown.formula, 24., 59., 420., 20., color(shown.faction));
+    // The title introduces the faction, so it keeps its name.
+    words(Prose::named(&shown.title), 24., 18., 420., 27., ink);
+    words(
+        (&shown.formula).into(),
+        24.,
+        59.,
+        420.,
+        20.,
+        color(shown.faction),
+    );
     words(
         if shown.faction == Faction::Syndicate {
             "OPEN CASINOS"
         } else {
             "SCORE CONTRIBUTIONS"
-        },
+        }
+        .into(),
         24.,
         112.,
         420.,
@@ -345,12 +354,12 @@ pub(super) fn draw(
     );
     for (index, (label, value)) in shown.rows.iter().enumerate() {
         let top = 140. + index as f32 * 28.;
-        words(label, 24., top, 270., 18., ink);
-        words(value, 300., top, 144., 18., quiet);
+        words(label.into(), 24., top, 270., 18., ink);
+        words(value.into(), 300., top, 144., 18., quiet);
     }
     let condition_top = 160. + shown.rows.len() as f32 * 28.;
     words(
-        "AT THE NEXT PROPAGANDA CHECK",
+        "AT THE NEXT PROPAGANDA CHECK".into(),
         24.,
         condition_top,
         420.,
@@ -359,7 +368,7 @@ pub(super) fn draw(
     );
     for (index, line) in shown.conditions.iter().enumerate() {
         words(
-            line,
+            line.into(),
             24.,
             condition_top + 28. + index as f32 * 27.,
             420.,
@@ -368,7 +377,7 @@ pub(super) fn draw(
         );
     }
     let footer_top = condition_top + 54. + shown.conditions.len() as f32 * 27.;
-    words(&shown.footer, 24., footer_top, 420., 17., quiet);
+    words((&shown.footer).into(), 24., footer_top, 420., 17., quiet);
     for top in [98., condition_top - 14.] {
         let rule = picture(
             &mut commands,

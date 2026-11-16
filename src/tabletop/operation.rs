@@ -27,7 +27,7 @@ pub(super) fn panel(
     text(
         commands,
         art,
-        heading(view),
+        Prose::named(heading(view)),
         1404.,
         330.,
         450.,
@@ -268,7 +268,7 @@ fn terror_details(view: &crate::Observation) -> String {
     }
     if let Some(roll) = &view.kidnap {
         lines.push(format!(
-            "Kidnap rolled {} · {} Government → 26July",
+            "Kidnap rolled {} · {} (Government → 26July)",
             roll.die,
             units(roll.proceeds)
         ));

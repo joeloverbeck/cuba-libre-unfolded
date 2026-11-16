@@ -1852,6 +1852,312 @@ fn rect_of(value: &Value) -> [f64; 4] {
     [v[0], v[1], v[2], v[3]]
 }
 
+/// Checks every drawn text that carries inline emblems (#60) and returns how many
+/// emblems it checked. Each emblem is 0.9× its type size, lies inside its text's
+/// bounds, sits on its line's baseline (the commonest bottom of the letters beside
+/// it), and keeps text glued to it ("[S].") on its line.
+fn assert_inline_emblems(view: &Value) -> usize {
+    let rect = |v: &Value| -> [f64; 4] { std::array::from_fn(|i| v[i].as_f64().unwrap()) };
+    let viewport = view["table"]["viewport"].as_array().unwrap();
+    let (width, height) = (viewport[0].as_f64().unwrap(), viewport[1].as_f64().unwrap());
+    let mut checked = 0;
+    for text in view["table"]["inline_text"].as_array().unwrap() {
+        let bounds = rect(&text["bounds"]);
+        let size = text["font_size"].as_f64().unwrap();
+        assert!(
+            bounds[0] >= 0. && bounds[1] >= 0. && bounds[2] <= width && bounds[3] <= height,
+            "text leaves the window: {text}"
+        );
+        for emblem in text["emblems"].as_array().unwrap() {
+            let at = rect(&emblem["bounds"]);
+            assert!(
+                at[0] >= bounds[0] - 0.5
+                    && at[1] >= bounds[1] - 0.5
+                    && at[2] <= bounds[2] + 0.5
+                    && at[3] <= bounds[3] + 0.5,
+                "emblem clipped by its text: {text}"
+            );
+            assert!(
+                ((at[3] - at[1]) - 0.9 * size).abs() < 0.5,
+                "emblem is not 0.9× its type: {text}"
+            );
+            let baseline = emblem["baseline"]
+                .as_f64()
+                .expect("letters beside the emblem");
+            assert!(
+                (at[3] - baseline).abs() <= 1.5,
+                "emblem off its baseline: {text}"
+            );
+            assert_eq!(
+                emblem["glued_text_wrapped"], false,
+                "glued text wrapped away: {text}"
+            );
+            checked += 1;
+        }
+    }
+    checked
+}
+
+/// The emblems drawn in the text whose words are exactly `words`.
+fn emblems_in(view: &Value, words: &str) -> Vec<String> {
+    let texts = view["table"]["inline_text"].as_array().unwrap();
+    let found: Vec<_> = texts.iter().filter(|t| t["text"] == words).collect();
+    assert_eq!(found.len(), 1, "one drawn text {words:?}: {texts:?}");
+    found[0]["emblems"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|e| e["faction"].as_str().unwrap().to_owned())
+        .collect()
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
+    let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS")
+        .into();
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "local/verification/issue-60".into());
+    std::fs::create_dir_all(&evidence).unwrap();
+    for size in ["1920x1280", "4096x2160"] {
+        let root = tempfile::Builder::new()
+            .prefix(&format!("inline-{size}-"))
+            .tempdir_in(&evidence)
+            .unwrap()
+            .keep()
+            .canonicalize()
+            .unwrap();
+        let socket_dir = tempfile::tempdir().unwrap();
+        let mut app = Native {
+            cards: cards.clone(),
+            socket: socket_dir.path().join("seat.sock"),
+            save: root.join("task.json"),
+            root,
+            step: 0,
+        };
+        eprintln!("Inline emblem evidence: {}", app.root.display());
+        app.launch_size(size);
+        let mut checked = 0;
+
+        // The action choice (#61): card 17's order and 26July's Resources by emblem,
+        // and an unsupported option's explanation in the session notice.
+        let open = app.observe();
+        checked += assert_inline_emblems(&open);
+        let order = open["table"]["inline_text"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["text"].as_str().unwrap().starts_with("Order: "))
+            .expect("the order line");
+        let mut drawn: Vec<_> = order["emblems"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["faction"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            drawn.len(),
+            5,
+            "four in order, then 26July's Resources: {order}"
+        );
+        drawn.sort_unstable();
+        drawn.dedup();
+        assert_eq!(drawn.len(), 4);
+        app.capture("action-choice");
+        app.activate("0:rally", 0);
+        let refused = app.observe();
+        checked += assert_inline_emblems(&refused);
+        let notice = refused["table"]["notice"].as_str().unwrap().to_owned();
+        assert!(notice.contains("26July Guerrillas"));
+        let session = |view: &Value, words: &str| -> Vec<String> {
+            let texts = view["table"]["inline_text"].as_array().unwrap();
+            let found: Vec<_> = texts
+                .iter()
+                .filter(|t| t["text"].as_str().unwrap().ends_with(words))
+                .collect();
+            assert_eq!(
+                found.len(),
+                1,
+                "one session text ending {words:?}: {texts:?}"
+            );
+            found[0]["emblems"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|e| e["faction"].as_str().unwrap().to_owned())
+                .collect()
+        };
+        assert!(session(&refused, &notice).contains(&"26July".to_owned()));
+        app.capture("rally-explanation");
+        app.choose("terror");
+
+        // Panel text and a red primary button.
+        let initial = app.observe();
+        checked += assert_inline_emblems(&initial);
+        assert_eq!(
+            emblems_in(&initial, "Kidnap · Santiago · Government"),
+            ["Government"]
+        );
+        // The panel heading introduces the deciding faction, so it keeps its name.
+        assert!(
+            initial["table"]["inline_text"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|t| !t["text"].as_str().unwrap().starts_with("26July · "))
+        );
+        app.capture("initial");
+
+        // A tag note names Government by emblem; Resources rows keep faction names.
+        let aid = app.point("aid");
+        checked += assert_inline_emblems(&aid);
+        assert!(
+            aid["table"]["inline_text"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|t| t["text"]
+                    .as_str()
+                    .unwrap()
+                    .contains("added to Government Resources"))
+        );
+        app.capture("aid-tag");
+        let resources = app.point("resources");
+        checked += assert_inline_emblems(&resources);
+        let rows = resources["table"]["top_text"].as_array().unwrap();
+        for name in ["Government", "26July", "Directorio", "Syndicate"] {
+            assert!(rows.iter().any(|t| t["text"] == name), "row {name}");
+            assert!(
+                resources["table"]["inline_text"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|t| t["text"] != name),
+                "row label {name} drawn as an emblem"
+            );
+        }
+        app.capture("resources-tag");
+
+        // A region tag's contribution line.
+        let status = app.point("space:matanzas");
+        checked += assert_inline_emblems(&status);
+        assert_eq!(status["table"]["status"]["opinion"], "Passive Opposition");
+        let contribution = status["table"]["status"]["contribution"].as_str().unwrap();
+        assert_eq!(emblems_in(&status, contribution), ["26July"]);
+        app.capture("status-tag");
+
+        // Direction buttons are red: 26July keeps its name, the other giver is an emblem.
+        // Observations keep every name.
+        app.choose("transfer");
+        let directions = app.observe();
+        checked += assert_inline_emblems(&directions);
+        for (label, drawn) in [
+            ("Government → 26July", "Government"),
+            ("26July → Directorio", "Directorio"),
+            ("Syndicate → 26July", "Syndicate"),
+        ] {
+            assert!(
+                directions["observation"]["choices"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|c| c["label"] == label),
+                "observation keeps names: {label}"
+            );
+            assert_eq!(emblems_in(&directions, label), [drawn]);
+        }
+        app.capture("transfer-directions");
+
+        // Paper panel text draws 26July's emblem too.
+        app.choose("transfer:3:1");
+        app.choose("amount:1");
+        let authorizing = app.observe();
+        checked += assert_inline_emblems(&authorizing);
+        assert!(
+            authorizing["table"]["inline_text"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(
+                    |t| t["text"].as_str().unwrap().starts_with("Giver: Syndicate")
+                        && t["emblems"].as_array().unwrap().len() == 4
+                )
+        );
+        app.capture("transfer-authorization");
+
+        // The session notice: "[S] gave 1 to [26]. Saved." keeps its full stop.
+        app.choose("authorize");
+        let given = app.observe();
+        checked += assert_inline_emblems(&given);
+        assert_eq!(
+            given["table"]["notice"],
+            "Syndicate gave 1 to 26July. Saved."
+        );
+        app.capture("after-authorize");
+
+        // Kidnap's record and notice.
+        app.choose("kidnap");
+        let kidnap = app.observe();
+        checked += assert_inline_emblems(&kidnap);
+        assert!(
+            kidnap["table"]["inline_text"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|t| t["text"]
+                    .as_str()
+                    .unwrap()
+                    .contains("(Government → 26July)"))
+        );
+        app.capture("kidnap");
+
+        // The reader's Eligibility line.
+        let revision = kidnap["observation"]["revision"].as_u64().unwrap();
+        app.activate("reader", revision);
+        let reader = app.observe();
+        checked += assert_inline_emblems(&reader);
+        assert!(
+            reader["table"]["inline_text"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|t| t["text"]
+                    .as_str()
+                    .unwrap()
+                    .contains("Eligible: Government, 26July")
+                    && t["emblems"].as_array().unwrap().len() >= 4)
+        );
+        app.capture("reader");
+        app.activate("close", revision);
+        app.quit();
+
+        // Pass, on a fresh save: its notice and Directorio's options name factions by emblem.
+        app.save = app.root.join("pass.json");
+        app.launch_size(size);
+        app.choose("pass");
+        let passed = app.observe();
+        checked += assert_inline_emblems(&passed);
+        let notice = passed["table"]["notice"].as_str().unwrap().to_owned();
+        assert!(notice.starts_with("26July passed"), "{notice}");
+        assert_eq!(session(&passed, &notice), ["26July", "Directorio"]);
+        assert!(
+            passed["table"]["inline_text"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|t| t["text"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("Directorio is now 1st Eligible"))
+        );
+        app.capture("after-pass");
+        assert!(checked >= 20, "checked {checked} emblems");
+        app.quit();
+    }
+}
+
 /// #61: the action choice through the real controls. Pass ends the task; Terror,
 /// a pending request and going back return to the choice before any effect.
 #[test]

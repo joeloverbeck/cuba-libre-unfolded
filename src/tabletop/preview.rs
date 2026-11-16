@@ -181,6 +181,7 @@ fn wrap(sentence: &str, width: usize) -> Vec<String> {
     lines
 }
 
+#[allow(clippy::too_many_arguments)] // The shared hover, cached card and layout inputs.
 pub(super) fn draw(
     mut commands: Commands,
     play: Res<Play>,
@@ -189,20 +190,33 @@ pub(super) fn draw(
     window: Single<&Window, With<PrimaryWindow>>,
     roots: Query<Entity, With<Tag>>,
     mut previous: Local<Option<Shown>>,
+    mut cached: Local<Option<Shown>>,
 ) {
     let (scale, left) = layout(&window);
     let right = left + Vec2::new(window.width() - WIDTH * scale, 0.);
-    let view = play.game().observe();
-    let shown = ui
+    let target = ui
         .hover
         .visible()
         .filter(|_| !ui.reader)
         .and_then(|target| match target {
-            Target::Choice(id) => view.choices.iter().find(|c| &c.id == id),
+            Target::Choice(id) => Some(id.clone()),
             Target::Standing(_) | Target::Top(_) => None,
-        })
-        .map(|choice| {
-            let mut shown = content(&view, choice);
+        });
+    // A choice id carries its match revision, so its card is computed once rather
+    // than observing every preview on every frame.
+    if let Some(id) = &target
+        && cached.as_ref().is_none_or(|c| &c.choice != id)
+    {
+        let view = play.game().observe();
+        *cached = view
+            .choices
+            .iter()
+            .find(|c| &c.id == id)
+            .map(|choice| content(&view, choice));
+    }
+    let shown = target
+        .and_then(|id| cached.clone().filter(|c| c.choice == id))
+        .map(|mut shown| {
             let height = card::BODY_TOP + shown.lines.len() as f32 * card::LINE + card::BOTTOM;
             shown.bounds = [
                 right.x + card::X * scale,

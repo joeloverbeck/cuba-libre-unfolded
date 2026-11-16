@@ -22,3 +22,21 @@ At the 1920×1280 reference size, icons center at x780,900,1020,1140 and y40; ma
 Only icon and official signed margin are persistent victory information. One hover tag contains faction identity, calculation, contributions and exact conditions. Zero is not a win; Government's all-cities condition remains independent of its official margin. Available pieces remain in a quiet footer; since #46, Resources are on the top display's ledger ([TOP.md](TOP.md)), and only Syndicate's Resources stay in the tag, as its victory condition. Hovering/clicking standings must not replace or clear region inspection. Reader capture suppresses the tags. The accepted source and numerical examples are linked in the proposal README.
 
 VectorCraft CLI0.24.1 authored/exported these files. Existing Lato and DejaVu Serif typography and provenance are retained. Native sources reopen without missing links; exports and enlarged transparent aperture were inspected. This is component evidence, not a claim of working native interaction, final layout fit or owner acceptance of the new implementation.
+
+## Inline text emblems
+
+#60 reuses the four `atlas-victory-icon-*.png` exports inside running text without a new design round, as #58 allows. They are drawn 0.9× the type size and sit on the line's baseline. `victory.sha256` already requires these exports, so a missing or changed emblem refuses at launch. No separate text-height export exists.
+
+An ideal 18 px raster, approximated by an area resample, leaves the letters as illegible 4–5 px smudges. The letter is about 30% of the emblem's height, so a smaller export would not help.
+
+**Legibility by size:**
+
+| Size | Emblem | Letters | Legible |
+|---|---:|---:|---|
+| Default 1920×1280 | 15–17 px | about 5 px | No. Factions are told apart by shape and colour. |
+| 4096×2160 | 25–29 px | about 9 px | Yes |
+| Owner's 6144×3456 | about 1.6× the 4096×2160 size | larger again | Judged in #16 |
+
+**26July on red surfaces:** the 26July star is the same red as the primary button, so 26July keeps its name on those buttons. This is a reversible local choice that #68's round puts to the owner.
+
+The evidence is under `local/verification/issue-60/`.

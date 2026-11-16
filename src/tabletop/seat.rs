@@ -203,7 +203,7 @@ impl SeatGame for Table {
         let victory = world.query::<&victory::Shown>().iter(world).next().cloned();
         let victory_count = world.query::<&victory::Shown>().iter(world).count();
         let victory_text = world
-            .query_filtered::<(&Text, &ComputedNode, &UiGlobalTransform), With<victory::Tag>>()
+            .query_filtered::<(&emblems::Plain, &ComputedNode, &UiGlobalTransform), With<victory::Tag>>()
             .iter(world)
             .map(|(text, node, at)| json!({"text":text.0,"bounds":logical_bounds(node, at)}))
             .collect::<Vec<_>>();
@@ -222,10 +222,12 @@ impl SeatGame for Table {
             .map(|(_, part)| part)
             .collect::<Vec<_>>();
         let top_text = world
-            .query_filtered::<(&Text, &ComputedNode, &UiGlobalTransform), With<top::Tag>>()
+            .query_filtered::<(&emblems::Plain, &ComputedNode, &UiGlobalTransform), With<top::Tag>>(
+            )
             .iter(world)
             .map(|(text, node, at)| json!({"text":text.0,"bounds":logical_bounds(node, at)}))
             .collect::<Vec<_>>();
+        let inline_text = emblems::observe(world);
         let node = world.resource::<TerrorLoop>().node;
         let mut terror = world
             .query::<(&TerrorPlayer, &AnimationPlayer)>()
@@ -248,7 +250,7 @@ impl SeatGame for Table {
         let water_frame = world.get_resource::<Water>().map(|water| water.frame);
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
-            table: json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"top":top,"preview":preview,"top_text":top_text,"top_parts":top_parts,"water_frame":water_frame,"terror":terror,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
+            table: json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"top":top,"preview":preview,"top_text":top_text,"inline_text":inline_text,"top_parts":top_parts,"water_frame":water_frame,"terror":terror,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
         }
     }
     fn revision(&self, world: &mut World) -> u64 {
