@@ -57,7 +57,9 @@ pub(super) fn panel(
 
 /// The panel's title: the deciding faction and its step, or the finished record.
 fn heading(view: &crate::Observation) -> String {
-    if view.finished {
+    if view.action == crate::ActionChoice::Pass {
+        "26July passed\n+1 Resource · stays Eligible".into()
+    } else if view.finished {
         format!(
             "26July completed {}\nNo Pass income",
             if view.kidnap.is_some() {
@@ -78,6 +80,17 @@ fn heading(view: &crate::Observation) -> String {
 /// The body below the title: the open transfer or removal step, otherwise the
 /// Terror and Kidnap terms; a transfer under an owed Terror adds its reserve.
 fn details(view: &crate::Observation) -> String {
+    match view.action {
+        crate::ActionChoice::Open => return opening_details(view),
+        crate::ActionChoice::Pass => {
+            let r = view.resources[Faction::M26.index()];
+            return format!(
+                "26July Resources: {} → {r} (R 2.3.3)\nNo Operation: no piece, Terror or support changed.",
+                r - 1
+            );
+        }
+        crate::ActionChoice::Terror => {}
+    }
     let body = match &view.transfer {
         Some(crate::Transfer::Selecting) => "Choose the giver and recipient.\n26July must be one endpoint.\nThe giver chooses the quantity and authorizes.\nA request is not a donation.".into(),
         Some(crate::Transfer::Authorizing { giver, recipient, amount }) => format!(
@@ -113,6 +126,9 @@ fn details(view: &crate::Observation) -> String {
 /// One button per offered choice, stacked below the body. A choice the game marks
 /// unsupported still appears, and activating it shows its explanation.
 fn choices(commands: &mut Commands, art: &Art, view: &crate::Observation, s: f32, o: Vec2) {
+    if view.action == crate::ActionChoice::Open {
+        return opening_choices(commands, art, view, s, o);
+    }
     let top = if view.transfer.is_some() {
         570.
     } else if view.removal.is_some() {
@@ -131,7 +147,7 @@ fn choices(commands: &mut Commands, art: &Art, view: &crate::Observation, s: f32
                 choice.label.clone()
             },
             if choice.supported {
-                Action::Decision(view.owner, view.revision)
+                Action::Decision(choice.owner, view.revision)
             } else {
                 Action::Unsupported(choice.explanation.clone())
             },
@@ -146,6 +162,12 @@ fn choices(commands: &mut Commands, art: &Art, view: &crate::Observation, s: f32
 
 /// What the finished Operation leaves Directorio, shown in place of the choices.
 fn next(view: &crate::Observation) -> String {
+    if view.action == crate::ActionChoice::Pass {
+        return format!(
+            "Directorio is now 1st Eligible (display only):\n{}\n\nCard / eligibility have not advanced.",
+            view.next_options.join("\n")
+        );
+    }
     format!(
         "Directorio next (display only):\n{}\n\n{}\nCard / eligibility have not advanced.",
         view.next_options.join("\n"),
@@ -155,6 +177,44 @@ fn next(view: &crate::Observation) -> String {
             "No Event permission."
         }
     )
+}
+
+/// The action choice's body: card 17's order, 26July's Resources and what this task
+/// supports.
+fn opening_details(view: &crate::Observation) -> String {
+    let order = view.eligibility.order.map(Faction::name).join(", ");
+    format!(
+        "Order: {order}\n26July has {} Resources · all four Eligible\nPlayable here: Pass and Terror",
+        view.resources[Faction::M26.index()]
+    )
+}
+
+/// Every listed option in one compact stack; a Special Activity sits indented under
+/// the Operation it accompanies.
+fn opening_choices(commands: &mut Commands, art: &Art, view: &crate::Observation, s: f32, o: Vec2) {
+    for (i, choice) in view.choices.iter().enumerate() {
+        let indent = if choice.accompanies.is_some() {
+            36.
+        } else {
+            0.
+        };
+        control(
+            commands,
+            art,
+            &choice.id,
+            &choice.label,
+            if choice.supported {
+                Action::Decision(choice.owner, view.revision)
+            } else {
+                Action::Unsupported(choice.explanation.clone())
+            },
+            [1404. + indent, 480. + i as f32 * 40., 452. - indent, 36.],
+            s,
+            o,
+            choice.supported,
+            3,
+        );
+    }
 }
 
 /// The Terror and Kidnap terms for Santiago and Oriente, or the resolved record once

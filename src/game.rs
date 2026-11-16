@@ -129,6 +129,49 @@ pub struct Standing {
     pub extra: String,
     pub contributions: Vec<String>,
 }
+/// 26July's decision as 1st Eligible on card 17 (R 2.3.2–2.3.4).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ActionChoice {
+    /// The action choice is open: Pass and Terror are playable; the Event, Rally,
+    /// March and Attack are listed but not in this task.
+    Open,
+    /// R 2.3.3: +1 Resource, 26July stays Eligible and Directorio becomes 1st Eligible.
+    /// The task ends there.
+    Pass,
+    /// Terror is chosen: 26July executes it until Finish. A #8 save began here, at
+    /// revision 0, and has no `action` field; it resumes in this state.
+    #[default]
+    Terror,
+}
+/// The Sequence of Play box a faction's cylinder occupies once its action is recorded
+/// (R 2.3, record steps; R 2.3.4).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum SequenceBox {
+    Pass,
+    OperationOnly,
+    OperationWithSpecialActivity,
+}
+/// Card 17's Eligibility record. Nobody turns Ineligible inside the task: R 2.3.7
+/// adjusts cylinders only after the card.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct Eligibility {
+    /// Card 17's faction order, left to right (R 2.3.2).
+    pub order: [Faction; 4],
+    /// Eligible or Ineligible, indexed like `Faction::ALL`.
+    pub eligible: [bool; 4],
+    /// The 1st Eligible faction: Directorio after 26July Passes (R 2.3.3).
+    pub first: Faction,
+    pub second: Faction,
+    /// The box 26July's cylinder occupies, once its action is recorded.
+    pub m26_box: Option<SequenceBox>,
+}
+/// Card 17's order: 26July, Directorio, Government, Syndicate (rules baseline).
+pub const CARD_17_ORDER: [Faction; 4] = [
+    Faction::M26,
+    Faction::Directorio,
+    Faction::Government,
+    Faction::Syndicate,
+];
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Game {
@@ -145,6 +188,15 @@ pub struct Game {
     pub(crate) kidnap: Option<Kidnap>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) removal: Option<Removal>,
+    /// A #8 save lacks this field and resumes with Terror chosen.
+    #[serde(default)]
+    pub(crate) action: ActionChoice,
+    /// Set by the first real effect: an authorized nonzero transfer, a resolved
+    /// Terror, a Kidnap roll or a removal. Going back to the action choice is local
+    /// policy (#58) allowed only before it. A #8 save lacks it; `effected` also reads
+    /// such a save's state.
+    #[serde(default)]
+    pub(crate) effect: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -181,6 +233,13 @@ pub enum Transfer {
 pub struct Observation {
     pub revision: u64,
     pub owner: Faction,
+    /// 26July's action choice: open, Pass or Terror.
+    pub action: ActionChoice,
+    /// The faction executing an Operation now (glossary): 26July from choosing Terror
+    /// until Finish; none at the action choice or after Pass. Resource transfers are
+    /// offered only while it is set (R 1.5.1).
+    pub executing: Option<Faction>,
+    pub eligibility: Eligibility,
     pub resources: [u8; 4],
     pub spaces: Vec<Space>,
     pub available: Vec<Group>,
@@ -215,6 +274,12 @@ pub struct Choice {
     pub label: String,
     pub supported: bool,
     pub explanation: String,
+    /// The faction that may submit it. Usually the observation's owner; while a
+    /// Transfer request awaits its giver, 26July may still withdraw it.
+    pub owner: Faction,
+    /// For a Special Activity listed at the action choice, the id of the Operation
+    /// it accompanies (R 4.1).
+    pub accompanies: Option<String>,
 }
 fn group(faction: Faction, kind: Kind, count: u8) -> Group {
     Group {
@@ -229,6 +294,8 @@ fn group(faction: Faction, kind: Kind, count: u8) -> Group {
     }
 }
 impl Game {
+    /// #8's entry: the accepted prepared position with Terror already chosen, at
+    /// revision 0, as every #8 save began. New tasks start at `opening` instead.
     pub fn prepared() -> Self {
         use Faction::*;
         use Kind::*;
@@ -384,6 +451,8 @@ impl Game {
             transfer: None,
             kidnap: None,
             removal: None,
+            action: ActionChoice::Terror,
+            effect: false,
             available: vec![
                 group(Government, Troops, 3),
                 group(Government, Police, 8),
@@ -403,13 +472,10 @@ impl Game {
         played_cards.extend(13..=16);
         Observation {
             revision: self.revision,
-            owner: if self.finished {
-                Faction::Directorio
-            } else if let Some(Transfer::Authorizing { giver, .. }) = self.transfer {
-                giver
-            } else {
-                Faction::M26
-            },
+            owner: self.owner(),
+            action: self.action,
+            executing: self.executing(),
+            eligibility: self.eligibility(),
             resources: self.resources,
             spaces: self.spaces.clone(),
             available: self.available.clone(),
@@ -426,7 +492,7 @@ impl Game {
             played_cards,
             draw_count: self.draw_deck.len(),
             eligible: [true; 4],
-            passed: [false; 4],
+            passed: [false, self.action == ActionChoice::Pass, false, false],
             aid: 15,
             alliance: UsAlliance::Firm,
             cash_available: CASH_MARKERS,
@@ -435,7 +501,14 @@ impl Game {
             momentum: vec![],
             finished: self.finished,
             choices: self.choices(),
-            next_options: if self.finished {
+            next_options: if self.action == ActionChoice::Pass {
+                // R 2.3.3–2.3.4: Directorio, now 1st Eligible, has every 1st Eligible option.
+                vec![
+                    "Pass (+1 if executed later)".into(),
+                    "Operation (with or without a Special Activity)".into(),
+                    "Event".into(),
+                ]
+            } else if self.finished {
                 let mut next = vec![
                     "Pass (+1 if executed later)".into(),
                     "Limited Operation".into(),
@@ -447,12 +520,14 @@ impl Game {
             } else {
                 vec![]
             },
-            operation: if self.finished && self.kidnap.is_some() {
-                "Operation + Special Activity completed"
-            } else if self.finished {
-                "Operation Only completed; no Pass income"
-            } else {
-                "Full Terror already selected"
+            operation: match self.action {
+                ActionChoice::Open => "1st Eligible: choose an action",
+                ActionChoice::Pass => "Passed: +1 Resource, stays Eligible",
+                ActionChoice::Terror if self.finished && self.kidnap.is_some() => {
+                    "Operation + Special Activity completed"
+                }
+                ActionChoice::Terror if self.finished => "Operation Only completed; no Pass income",
+                ActionChoice::Terror => "executing Terror",
             },
             special_activity: self.kidnap.as_ref().map(|_| "Kidnap".into()),
             owed_terror: self.owes_santiago().then(|| "santiago".into()),
@@ -460,6 +535,57 @@ impl Game {
             kidnap: self.kidnap.clone(),
             removal: self.removal.clone(),
         }
+    }
+    fn executing(&self) -> Option<Faction> {
+        (self.action == ActionChoice::Terror && !self.finished).then_some(Faction::M26)
+    }
+    fn eligibility(&self) -> Eligibility {
+        let passed = self.action == ActionChoice::Pass;
+        Eligibility {
+            order: CARD_17_ORDER,
+            eligible: [true; 4],
+            first: if passed {
+                Faction::Directorio
+            } else {
+                Faction::M26
+            },
+            second: if passed {
+                Faction::Government
+            } else {
+                Faction::Directorio
+            },
+            m26_box: match self.action {
+                ActionChoice::Pass => Some(SequenceBox::Pass),
+                ActionChoice::Terror if self.finished && self.kidnap.is_some() => {
+                    Some(SequenceBox::OperationWithSpecialActivity)
+                }
+                ActionChoice::Terror if self.finished => Some(SequenceBox::OperationOnly),
+                _ => None,
+            },
+        }
+    }
+    /// Whether a real effect has happened. A #8 save has no `effect` flag, so its
+    /// state is read too: Resources, Terror, a roll or a removed piece. (A #8 save
+    /// whose transfers returned every Resource is indistinguishable from none.)
+    fn effected(&self) -> bool {
+        let prepared = Self::prepared();
+        self.effect
+            || self.kidnap.is_some()
+            || self.spaces.iter().any(|s| s.terror > 0)
+            || self.available != prepared.available
+            || self.resources != prepared.resources
+    }
+    /// Local policy (#58): back to the action choice until the first effect, from the
+    /// Operation menu or while a Transfer request awaits another faction.
+    fn may_go_back(&self) -> bool {
+        self.executing().is_some()
+            && self.removal.is_none()
+            && !self.effected()
+            && match self.transfer {
+                None => true,
+                Some(Transfer::Authorizing { giver, .. }) => giver != Faction::M26,
+                Some(Transfer::Selecting) => false,
+            }
     }
     pub fn standings(&self) -> Vec<Standing> {
         Faction::ALL
@@ -557,35 +683,159 @@ impl Game {
             })
             .collect()
     }
+    /// Who decides now: the giver of a pending authorization, Directorio once 26July's
+    /// action is recorded, otherwise 26July.
+    fn owner(&self) -> Faction {
+        if self.finished {
+            Faction::Directorio
+        } else if let Some(Transfer::Authorizing { giver, .. }) = self.transfer {
+            giver
+        } else {
+            Faction::M26
+        }
+    }
+    fn offer(
+        &self,
+        id: &str,
+        label: impl Into<String>,
+        supported: bool,
+        explanation: impl Into<String>,
+    ) -> Choice {
+        Choice {
+            id: format!("{}:{id}", self.revision),
+            label: label.into(),
+            supported,
+            explanation: explanation.into(),
+            owner: self.owner(),
+            accompanies: None,
+        }
+    }
+    /// 26July's complete option set as 1st Eligible on card 17 (R 2.3.4): Pass, the
+    /// Event's two texts and its four Operations, each Special Activity under the
+    /// Operations it may accompany (R 4.3.1–4.3.3).
+    fn opening_choices(&self) -> Vec<Choice> {
+        const ABSENT: &str =
+            "Listed so the option set is complete; not in this task, so it cannot be chosen here.";
+        let resources = self.resources[Faction::M26.index()];
+        let absent = |id: &str, label: &str, rule: &str| {
+            self.offer(
+                id,
+                format!("{label} · not in this task"),
+                false,
+                format!("{rule} {ABSENT}"),
+            )
+        };
+        let under = |mut choice: Choice, operation: &str| {
+            choice.accompanies = Some(format!("{}:{operation}", self.revision));
+            choice
+        };
+        vec![
+            self.offer(
+                "pass",
+                format!("Pass · +1 Resource ({resources} → {})", resources.saturating_add(1).min(49)),
+                true,
+                "R 2.3.3: 26July gains 1 Resource and stays Eligible; Directorio becomes 1st Eligible. The task ends without executing Directorio.",
+            ),
+            absent(
+                "event:unshaded",
+                "Event (unshaded)",
+                "R 2.3.4, 5.2. Card 17, Vet trains guerrillas: 26July or DR free Rallies in each space it has a Base (as if spaces Neutral).",
+            ),
+            absent(
+                "event:shaded",
+                "Event (shaded)",
+                "R 2.3.4, 5.2. Card 17, Mexico blocks training by Cuban expat: All 26July Guerrillas Active. 26July Ineligible through next card.",
+            ),
+            absent("rally", "Rally", "R 3.3.1: Rally places or flips 26July Guerrillas or a Base."),
+            under(
+                absent("rally:infiltrate", "Infiltrate · with Rally", "R 4.3.1: Infiltrate accompanies Rally or March."),
+                "rally",
+            ),
+            absent("march", "March", "R 3.3.2: March moves 26July Guerrillas."),
+            under(
+                absent("march:infiltrate", "Infiltrate · with March", "R 4.3.1: Infiltrate accompanies Rally or March."),
+                "march",
+            ),
+            absent("attack", "Attack", "R 3.3.3: Attack rolls to remove enemy pieces."),
+            under(
+                absent("attack:ambush", "Ambush · with Attack", "R 4.3.2: Ambush accompanies Attack."),
+                "attack",
+            ),
+            self.offer(
+                "terror",
+                "Terror · Operation",
+                true,
+                "R 3.3.4: in each selected space pay 1 Resource, flip 1 Underground Guerrilla there to Active, place Terror and shift 1 level toward Active Opposition. While 26July executes Terror, Resource transfers are open (R 1.5.1; offering them from this choice is local policy). Going back to this choice is allowed until the first effect (local policy).",
+            ),
+            under(
+                self.offer(
+                    "terror:kidnap",
+                    "Kidnap · with Terror · offered once chosen",
+                    false,
+                    "R 4.1, 4.3.3: Kidnap accompanies Terror in a space selected for that Terror, here Santiago. Choose Terror; Kidnap is then offered.",
+                ),
+                "terror",
+            ),
+        ]
+    }
     fn choices(&self) -> Vec<Choice> {
         if self.finished {
             return vec![];
         }
+        if self.action == ActionChoice::Open {
+            return self.opening_choices();
+        }
         if let Some(removal) = &self.removal {
             let mut choices = match removal {
                 Removal::Selecting => self.removal_choices(),
-                Removal::Confirming { space, kind, state } => vec![Choice {
-                    id: format!("{}:confirm-removal", self.revision),
-                    label: "Confirm · return 1 to Available".into(),
-                    supported: self.removable(space, *kind, *state),
-                    explanation:
-                        "Remove only this 26July piece. Earlier Terror and Opposition remain."
-                            .into(),
-                }],
+                Removal::Confirming { space, kind, state } => vec![self.offer(
+                    "confirm-removal",
+                    "Confirm · return 1 to Available",
+                    self.removable(space, *kind, *state),
+                    "Remove only this 26July piece. Earlier Terror and Opposition remain.",
+                )],
             };
-            choices.push(Choice {
-                id: format!("{}:cancel-removal", self.revision),
-                label: "Cancel removal · return to Operation".into(),
-                supported: true,
-                explanation: "No piece is removed until confirmation. Cancellation never reverses earlier effects.".into(),
-            });
+            choices.push(self.offer(
+                "cancel-removal",
+                "Cancel removal · return to Operation",
+                true,
+                "No piece is removed until confirmation. Cancellation never reverses earlier effects.",
+            ));
             return choices;
         }
         let choice = |id: String, label: String| {
-            Choice {
-            id: format!("{}:{id}", self.revision), label, supported: true,
-            explanation: "Only the giver selects the amount and authorizes; no resources move before authorization.".into(),
-        }
+            self.offer(
+                &id,
+                label,
+                true,
+                "Only the giver selects the amount and authorizes; no resources move before authorization.",
+            )
+        };
+        let finish = || {
+            self.offer(
+                "finish",
+                if self.kidnap.is_some() {
+                    "Finish Operation + Kidnap"
+                } else {
+                    "Finish Operation Only"
+                },
+                !self.owes_santiago(),
+                if self.owes_santiago() {
+                    "Santiago Terror is owed. The accepted commitment policy requires its payment and activation before Finish."
+                } else {
+                    "Complete the selected Operation. Zero-space completion uses the accepted interpretation; no Pass income."
+                },
+            )
+        };
+        let back = |label: &str| {
+            let mut back = self.offer(
+                "back-to-choice",
+                label,
+                true,
+                "Local policy (#58), not a publisher ruling: until the first effect (an authorized transfer, a resolved Terror, a Kidnap roll or a removal), 26July may return to its action choice. A pending Transfer request is withdrawn; nothing has moved.",
+            );
+            back.owner = Faction::M26;
+            back
         };
         match self.transfer {
             Some(Transfer::Selecting) => {
@@ -633,13 +883,36 @@ impl Game {
                     format!("{} declines", giver.name()),
                 ));
                 choices.push(choice("wait".into(), "Wait · keep this decision".into()));
+                // Local policy (#58): 26July's request does not hold 26July's own
+                // Operation hostage; ending it or going back withdraws the request.
+                if giver != Faction::M26 {
+                    if self.may_go_back() {
+                        choices.push(back("26July withdraws · back to action choice"));
+                    }
+                    let mut end = finish();
+                    end.label = format!("26July withdraws · {}", end.label);
+                    end.owner = Faction::M26;
+                    choices.push(end);
+                }
                 return choices;
             }
             None => {}
         }
-        let mut choices: Vec<_> = [("finish",if self.kidnap.is_some() {"Finish Operation + Kidnap"} else {"Finish Operation Only"},!self.owes_santiago(),if self.owes_santiago() {"Santiago Terror is owed. The accepted commitment policy requires its payment and activation before Finish."} else {"Complete the selected Operation. Zero-space completion uses the accepted interpretation; no Pass income."}),
-         ("transfer","Resource transfer",true,"Choose a direction, then hand the decision to its giver."),
-         ("remove","Voluntary own removal",true,"Choose one 26July Guerrilla or Base, then confirm or cancel. Only an already owed Terror restricts removal.")].into_iter().map(|(id,label,supported,explanation)|Choice{id:format!("{}:{id}",self.revision),label:label.into(),supported,explanation:explanation.into()}).collect();
+        let mut choices = vec![
+            finish(),
+            self.offer(
+                "transfer",
+                "Resource transfer",
+                true,
+                "Choose a direction, then hand the decision to its giver.",
+            ),
+            self.offer(
+                "remove",
+                "Voluntary own removal",
+                true,
+                "Choose one 26July Guerrilla or Base, then confirm or cancel. Only an already owed Terror restricts removal.",
+            ),
+        ];
         for id in ["santiago", "oriente"] {
             let space = self.spaces.iter().find(|s| s.id == id).unwrap();
             if space.terror == 0
@@ -651,7 +924,12 @@ impl Game {
                         && p.count > 0
                 })
             {
-                choices.push(Choice { id: format!("{}:terror:{id}", self.revision), label: format!("Terror · {} · pay 1", space.name), supported: true, explanation: "Activate 1 Underground Guerrilla, place Terror and shift toward Active Opposition.".into() });
+                choices.push(self.offer(
+                    &format!("terror:{id}"),
+                    format!("Terror · {} · pay 1", space.name),
+                    true,
+                    "Activate 1 Underground Guerrilla, place Terror and shift toward Active Opposition.",
+                ));
             }
         }
         if self.kidnap.is_none() {
@@ -671,10 +949,15 @@ impl Game {
             let feasible = santiago.terror > 0
                 || (count(Kind::Guerrilla, Faction::M26, Some(State::Underground)) > 0
                     && (self.resources[1] > 0 || self.resources[0] > 0));
-            choices.push(Choice {
-                id: format!("{}:kidnap", self.revision), label: "Kidnap · Santiago · Government".into(), supported: guerrillas > police && feasible,
-                explanation: format!("{guerrillas} Guerrillas (Active + Underground) vs {police} Police; must outnumber. Die 1–6: proceeds {}–{} from Government. {}", self.resources[0].min(1), self.resources[0].min(6), if feasible {"Santiago Terror was resolved or is guaranteed feasible on every roll; an early roll commits its payment and Underground Guerrilla."} else {"Santiago needs an Underground Guerrilla and guaranteed payment without a promised donation or favorable roll."}),
-            });
+            choices.push(self.offer(
+                "kidnap",
+                "Kidnap · Santiago · Government",
+                guerrillas > police && feasible,
+                format!("{guerrillas} Guerrillas (Active + Underground) vs {police} Police; must outnumber. Die 1–6: proceeds {}–{} from Government. {}", self.resources[0].min(1), self.resources[0].min(6), if feasible {"Santiago Terror was resolved or is guaranteed feasible on every roll; an early roll commits its payment and Underground Guerrilla."} else {"Santiago needs an Underground Guerrilla and guaranteed payment without a promised donation or favorable roll."}),
+            ));
+        }
+        if self.may_go_back() {
+            choices.push(back("Back to the action choice"));
         }
         choices
     }
@@ -698,12 +981,12 @@ impl Game {
                 (_, State::Active) => "active",
                 _ => "underground",
             };
-            Choice {
-                id: format!("{}:remove:{}:{suffix}", self.revision, s.id),
-                label: format!("{} · {} {suffix}", s.name, p.count),
-                supported: self.removable(&s.id, p.kind, p.state),
-                explanation: "Return one own piece to Available. If Santiago Terror is owed, the accepted commitment policy protects its last Underground Guerrilla.".into(),
-            }
+            self.offer(
+                &format!("remove:{}:{suffix}", s.id),
+                format!("{} · {} {suffix}", s.name, p.count),
+                self.removable(&s.id, p.kind, p.state),
+                "Return one own piece to Available. If Santiago Terror is owed, the accepted commitment policy protects its last Underground Guerrilla.",
+            )
         })).collect()
     }
 }
@@ -718,6 +1001,16 @@ impl Game {
         game.random = seed;
         game
     }
+    /// A new task: the prepared position at 26July's 1st Eligible action choice.
+    pub fn opening() -> Self {
+        Self::opening_with_seed(Self::prepared().random)
+    }
+    /// A new task for a supplied random state; new saves use OS entropy once.
+    pub fn opening_with_seed(seed: u64) -> Self {
+        let mut game = Self::prepared_with_seed(seed);
+        game.action = ActionChoice::Open;
+        game
+    }
     fn owes_santiago(&self) -> bool {
         self.kidnap.is_some()
             && self
@@ -729,14 +1022,14 @@ impl Game {
         if revision != self.revision {
             return Err("Stale match revision; observe again.".into());
         }
-        if owner != self.observe().owner {
-            return Err("Only the current decision owner may submit.".into());
-        }
         let offered = self
             .choices()
             .into_iter()
             .find(|c| c.id == choice)
             .ok_or("Stale or unknown choice identity.")?;
+        if owner != offered.owner {
+            return Err("Only the current decision owner may submit.".into());
+        }
         if !offered.supported {
             return Err(offered.explanation);
         }
@@ -748,6 +1041,33 @@ impl Game {
         if action == "wait" {
             return Ok(());
         }
+        match action {
+            // R 2.3.3. Only offered at the action choice.
+            "pass" => {
+                self.resources[Faction::M26.index()] = self.resources[Faction::M26.index()]
+                    .saturating_add(1)
+                    .min(49);
+                self.action = ActionChoice::Pass;
+                self.finished = true;
+            }
+            "terror" if self.action == ActionChoice::Open => self.action = ActionChoice::Terror,
+            // Local policy (#58): withdraws a pending request; nothing has moved.
+            "back-to-choice" => {
+                self.action = ActionChoice::Open;
+                self.transfer = None;
+            }
+            // Ending closes transfers and withdraws a pending request.
+            "finish" => {
+                self.finished = true;
+                self.transfer = None;
+            }
+            _ => return self.execute(action, next_revision),
+        }
+        self.revision = next_revision;
+        Ok(())
+    }
+    /// The #8 Operation steps: removal, transfers, Terror and Kidnap.
+    fn execute(&mut self, action: &str, next_revision: u64) -> Result<(), String> {
         if let Some(removal) = self.removal.clone() {
             if action == "cancel-removal" {
                 self.removal = None;
@@ -760,6 +1080,7 @@ impl Game {
                     .unwrap();
                 piece.count -= 1;
                 target.pieces.retain(|p| p.count > 0);
+                self.effect = true;
                 self.available
                     .iter_mut()
                     .find(|p| p.faction == Faction::M26 && p.kind == kind)
@@ -782,8 +1103,8 @@ impl Game {
         }
         match self.transfer.clone() {
             None if action == "remove" => self.removal = Some(Removal::Selecting),
-            None if action == "finish" => self.finished = true,
             None if action == "kidnap" => {
+                self.effect = true;
                 let mut random = SeededRandom::new(self.random);
                 let die = (random.index(6) + 1) as u8;
                 let proceeds = die.min(self.resources[0]);
@@ -803,6 +1124,7 @@ impl Game {
                 let space = self.spaces.iter_mut().find(|s| s.id == id).unwrap();
                 Self::resolve_terror(space);
                 self.resources[1] -= 1;
+                self.effect = true;
             }
             None => self.transfer = Some(Transfer::Selecting),
             Some(_) if action == "back" || action == "decline" => self.transfer = None,
@@ -829,6 +1151,8 @@ impl Game {
                     self.resources[giver.index()] -= amount;
                     self.resources[recipient.index()] += amount;
                     self.transfer = None;
+                    // Zero is a deliberate non-transfer, not an effect.
+                    self.effect |= amount > 0;
                 } else {
                     self.transfer = Some(Transfer::Authorizing {
                         giver,
@@ -862,7 +1186,8 @@ impl Game {
         space.terror += 1;
         space.support = (space.support - 1).max(-2);
     }
-    /// Admit only the prepared board, transfers, two Terror effects and own removal.
+    /// Admit only the prepared board at the action choice, after Pass, or with Terror
+    /// chosen: transfers, two Terror effects, Kidnap and own removal.
     pub fn validate(&self) -> Result<(), String> {
         let mut expected = Self::prepared_with_seed(self.random);
         let mut paid = 0;
@@ -905,8 +1230,23 @@ impl Game {
                 space.pieces.retain(|p| p.count > 0);
             }
         }
-        if self.resources.iter().any(|&n| n > 49)
-            || self.resources.iter().map(|&n| n as u16).sum::<u16>() != 26 - paid
+        // Pass and the choice itself have no other effect; only Terror executes.
+        let untouched = !self.effect
+            && paid == 0
+            && removed == 0
+            && self.kidnap.is_none()
+            && self.transfer.is_none()
+            && self.removal.is_none();
+        let consistent = match self.action {
+            ActionChoice::Open => untouched && !self.finished && self.resources == [6, 0, 5, 15],
+            ActionChoice::Pass => untouched && self.finished && self.resources == [6, 1, 5, 15],
+            ActionChoice::Terror => true,
+        };
+        expected.action = self.action;
+        if !consistent
+            || self.resources.iter().any(|&n| n > 49)
+            || self.resources.iter().map(|&n| n as u16).sum::<u16>()
+                != 26 - paid + u16::from(self.action == ActionChoice::Pass)
             || self.revision
                 < u64::from(paid)
                     + u64::from(self.kidnap.is_some())
@@ -969,6 +1309,7 @@ impl Game {
         expected.transfer = self.transfer.clone();
         expected.kidnap = self.kidnap.clone();
         expected.removal = self.removal.clone();
+        expected.effect = self.effect;
         if *self != expected {
             return Err(
                 "State is not a supported prepared transfer/Terror/Kidnap/removal position.".into(),

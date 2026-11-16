@@ -107,7 +107,7 @@ impl Session {
         } else {
             // Draw OS entropy once, then persist the exact shared RNG state.
             // Reopening any existing record never reseeds it.
-            let game = Game::prepared_with_seed(unfolded_random::fresh_seed()?);
+            let game = Game::opening_with_seed(unfolded_random::fresh_seed()?);
             let mut baseline = Baseline::default();
             save::write(&Cuba, path, &mut baseline, &game, Write::Create)
                 .map_err(|error| words(error, Action::Continue))?;

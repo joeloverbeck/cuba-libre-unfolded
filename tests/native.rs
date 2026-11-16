@@ -371,6 +371,7 @@ fn native_victory_emblems_disclose_live_margins_without_inspection() {
     // Real authorized transfers and Terror grow the contribution list and
     // update both factions' margins without reopening a stale disclosure.
     for action in [
+        "terror",
         "transfer",
         "transfer:3:1",
         "amount:2",
@@ -478,6 +479,7 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
     };
     eprintln!("Removal native evidence: {}", app.root.display());
     app.launch();
+    app.choose("terror");
     app.capture("before-removal");
     app.choose("remove");
     app.choose("remove:santiago:underground");
@@ -547,6 +549,7 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
     // A fresh zero-space path removes everything and still finishes.
     app.save = app.root.join("zero-space.json");
     app.launch();
+    app.choose("terror");
     for target in [
         "sierra-maestra:base",
         "santiago:underground",
@@ -574,6 +577,7 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
 
     app.save = app.root.join("owed.json");
     app.launch();
+    app.choose("terror");
     for action in [
         "kidnap",
         "remove",
@@ -634,6 +638,7 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
 
     app.save = app.root.join("split.json");
     app.launch();
+    app.choose("terror");
     for action in [
         "transfer",
         "transfer:2:1",
@@ -707,6 +712,7 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
     };
     eprintln!("Terror native evidence: {}", app.root.display());
     app.launch();
+    app.choose("terror");
     app.capture("before-roll");
     app.choose("kidnap");
     let rolled = app.observe();
@@ -725,7 +731,7 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
     assert_eq!(app.observe()["observation"], rolled["observation"]);
     assert_eq!(std::fs::read(&app.save).unwrap(), saved_roll);
     app.request(
-        json!({"op":"activate","revision":0,"choice":"0:kidnap"}),
+        json!({"op":"activate","revision":1,"choice":"1:kidnap"}),
         false,
     );
     assert_eq!(app.observe()["observation"], rolled["observation"]);
@@ -752,18 +758,18 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
             .iter()
             .all(|s| s["visible"] == true)
     );
-    app.activate("space:santiago", 2);
+    app.activate("space:santiago", 3);
     app.capture("santiago-after-terror");
     std::fs::copy(&app.save, app.root.join("terror-valid.json")).unwrap();
     app.quit();
     app.launch();
     assert_eq!(app.observe()["observation"], after["observation"]);
     app.request(
-        json!({"op":"activate","revision":1,"choice":"1:terror:santiago"}),
+        json!({"op":"activate","revision":2,"choice":"2:terror:santiago"}),
         false,
     );
     assert_eq!(app.observe()["observation"], after["observation"]);
-    app.activate("standing:1", 2);
+    app.activate("standing:1", 3);
     app.capture("santiago-standing");
     // Real Syndicate donation restores Oriente even if the real roll was 1.
     app.choose("transfer");
@@ -824,6 +830,7 @@ fn native_donations_enable_both_orders_without_or_with_late_kidnap() {
             step: 0,
         };
         app.launch();
+        app.choose("terror");
         app.choose("transfer");
         app.choose("transfer:2:1");
         app.choose("amount:1");
@@ -1014,13 +1021,14 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     let resumed = app.observe();
     assert_eq!(resumed["observation"], initial["observation"]);
     app.capture("initial-restarted");
+    app.choose("terror");
     app.request(
-        json!({"op":"activate","revision":0,"choice":"0:finish"}),
+        json!({"op":"activate","revision":1,"choice":"1:finish"}),
         true,
     );
     app.request(json!({"op":"settle"}), true);
     let finished = app.observe();
-    assert_eq!(finished["observation"]["revision"], 1);
+    assert_eq!(finished["observation"]["revision"], 2);
     assert_eq!(finished["observation"]["resources"], json!([6, 0, 5, 15]));
     assert_eq!(finished["observation"]["owner"], "Directorio");
     assert_eq!(
@@ -1030,7 +1038,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     app.capture("finished");
     let valid = std::fs::read(&app.save).unwrap();
     app.request(
-        json!({"op":"activate","revision":0,"choice":"0:finish"}),
+        json!({"op":"activate","revision":1,"choice":"1:finish"}),
         false,
     );
     assert_eq!(std::fs::read(&app.save).unwrap(), valid);
@@ -1219,6 +1227,7 @@ fn native_giver_transfers_all_directions_and_interrupted_authorization() {
     };
     eprintln!("Transfer evidence: {}", app.root.display());
     app.launch();
+    app.choose("terror");
     app.choose("transfer");
     app.capture("directions");
     app.choose("transfer:3:1");
@@ -1458,6 +1467,7 @@ fn native_hover_status_is_transient_without_region_inspection() {
     app.request(json!({"op":"settle"}), true);
     // Donated Resources exercise the actual Terror path without randomness.
     for action in [
+        "terror",
         "transfer",
         "transfer:3:1",
         "amount:1",
@@ -1596,6 +1606,7 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
     eprintln!("Terror bell evidence: {}", app.root.display());
     app.launch();
     assert_eq!(app.observe()["table"]["terror"], json!([]));
+    app.choose("terror");
     app.choose("transfer");
     app.choose("transfer:2:1");
     app.choose("amount:1");
@@ -1797,6 +1808,7 @@ fn native_top_display_matches_layout_and_follows_the_economy() {
         app.capture(&format!("tag-{component}"));
     }
     // Every Resources change reaches the ledger at once.
+    app.choose("terror");
     app.choose("transfer");
     app.choose("transfer:2:1");
     app.choose("amount:1");
@@ -1836,4 +1848,151 @@ fn rect_of(value: &Value) -> [f64; 4] {
         .map(|n| n.as_f64().unwrap())
         .collect();
     [v[0], v[1], v[2], v[3]]
+}
+
+/// #61: the action choice through the real controls. Pass ends the task; Terror,
+/// a pending request and going back return to the choice before any effect.
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained action-choice captures"]
+fn native_action_choice_pass_and_back_before_the_first_effect() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-61"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("action-choice-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("pass.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Action choice evidence: {}", app.root.display());
+    let ledger = |view: &Value| -> Vec<String> {
+        (0..4)
+            .map(|row| {
+                view["table"]["top_parts"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|p| p["part"] == format!("ledger-row-{row}-value"))
+                    .unwrap()["text"]
+                    .as_str()
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect()
+    };
+    let named = |view: &Value, name: &str| {
+        view["table"]["controls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == name)
+            .cloned()
+    };
+    app.launch();
+    let open = app.observe();
+    assert_eq!(open["observation"]["action"], "Open");
+    assert_eq!(open["observation"]["executing"], Value::Null);
+    let choices = open["observation"]["choices"].as_array().unwrap();
+    assert_eq!(choices.len(), 11);
+    // Every listed option is a real control; only Pass and Terror are playable.
+    for choice in choices {
+        let id = choice["id"].as_str().unwrap();
+        let control = named(&open, id).unwrap_or_else(|| panic!("{id} not drawn"));
+        assert_eq!(control["choice"], choice["supported"], "{id}");
+    }
+    app.capture("action-choice");
+    let saved = std::fs::read(&app.save).unwrap();
+    app.activate("0:rally", 0);
+    let refused = app.observe();
+    assert!(
+        refused["table"]["notice"]
+            .as_str()
+            .unwrap()
+            .contains("not in this task")
+    );
+    assert_eq!(refused["observation"], open["observation"]);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    app.capture("rally-not-in-this-task");
+    app.choose("pass");
+    let passed = app.observe();
+    assert_eq!(passed["observation"]["action"], "Pass");
+    assert_eq!(passed["observation"]["resources"], json!([6, 1, 5, 15]));
+    assert_eq!(passed["observation"]["owner"], "Directorio");
+    assert_eq!(passed["observation"]["eligibility"]["first"], "Directorio");
+    assert_eq!(passed["observation"]["eligibility"]["second"], "Government");
+    assert_eq!(passed["observation"]["eligibility"]["m26_box"], "Pass");
+    assert_eq!(
+        passed["observation"]["next_options"],
+        json!([
+            "Pass (+1 if executed later)",
+            "Operation (with or without a Special Activity)",
+            "Event"
+        ])
+    );
+    assert_eq!(ledger(&passed), ["6", "1", "5", "15"]);
+    assert!(named(&passed, "1:transfer").is_none());
+    app.capture("after-pass");
+    let valid = std::fs::read(&app.save).unwrap();
+    app.quit();
+    app.launch();
+    assert_eq!(app.observe()["observation"], passed["observation"]);
+    app.request(
+        json!({"op":"activate","revision":0,"choice":"0:pass"}),
+        false,
+    );
+    assert_eq!(std::fs::read(&app.save).unwrap(), valid);
+    app.capture("after-pass-restarted");
+    app.quit();
+
+    app.save = app.root.join("back.json");
+    app.launch();
+    app.choose("terror");
+    let terror = app.observe();
+    assert_eq!(terror["observation"]["executing"], "M26");
+    assert!(named(&terror, "1:transfer").is_some());
+    assert!(named(&terror, "1:back-to-choice").is_some());
+    app.capture("terror-chosen");
+    for action in ["transfer", "transfer:3:1", "amount:1"] {
+        app.choose(action);
+    }
+    let pending = app.observe();
+    assert_eq!(pending["observation"]["owner"], "Syndicate");
+    app.capture("pending-request-with-withdrawal");
+    app.quit();
+    app.launch();
+    assert_eq!(app.observe()["observation"], pending["observation"]);
+    app.choose("back-to-choice");
+    let back = app.observe();
+    assert_eq!(back["observation"]["action"], "Open");
+    assert_eq!(back["observation"]["transfer"], Value::Null);
+    assert_eq!(back["observation"]["resources"], json!([6, 0, 5, 15]));
+    assert_eq!(back["observation"]["revision"], 5);
+    assert_eq!(ledger(&back), ["6", "0", "5", "15"]);
+    assert!(
+        back["table"]["notice"]
+            .as_str()
+            .unwrap()
+            .contains("action choice")
+    );
+    app.capture("back-at-action-choice");
+    app.quit();
+    app.launch();
+    assert_eq!(app.observe()["observation"], back["observation"]);
+    app.choose("pass");
+    assert_eq!(
+        app.observe()["observation"]["resources"],
+        json!([6, 1, 5, 15])
+    );
+    app.capture("pass-after-going-back");
+    app.quit();
 }
