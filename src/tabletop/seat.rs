@@ -4,6 +4,7 @@ use bevy::{input::keyboard::Key, time::TimeUpdateStrategy};
 use serde_json::json;
 use unfolded_tabletop::{
     capture,
+    label_anchor::Anchor,
     seat::{
         self as shared, Game as SeatGame, Hit, Logical, Name as TargetName, Observed, SeatKey,
         start::{self, Start},
@@ -46,11 +47,12 @@ fn named(control: &Control) -> TargetName {
     }
 }
 fn piece_name(world: &World, entity: Entity) -> Option<String> {
-    if let Some(label) = world.get::<count_label::Label>(entity) {
-        Some(format!(
-            "count:{}",
-            world.get::<Name>(label.token)?.as_str()
-        ))
+    if let Some(LabelAnchor {
+        to: Anchor::Entity { entity: token, .. },
+        ..
+    }) = world.get::<LabelAnchor>(entity)
+    {
+        Some(format!("count:{}", world.get::<Name>(*token)?.as_str()))
     } else {
         Some(format!("piece:{}", world.get::<Name>(entity)?.as_str()))
     }
