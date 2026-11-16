@@ -1729,20 +1729,24 @@ fn native_top_display_matches_layout_and_follows_the_economy() {
             .unwrap_or_else(|| panic!("native top display has no {name}"))
             .clone()
     };
-    for (name, rect) in layout["parts"].as_object().unwrap() {
-        let r: Vec<f64> = rect
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|v| v.as_f64().unwrap() * ratio)
-            .collect();
-        let expected = [r[0], r[1], r[0] + r[2], r[1] + r[3]];
-        let native = rect_of(&part(&parts, name)["bounds"]);
-        for (n, e) in native.iter().zip(expected) {
-            assert!(
-                (n - e).abs() <= 2.,
-                "{name}: native {native:?} differs from layout {expected:?} by more than 2 px"
-            );
+    // Images on all four edges; text on left, top and right, since its line
+    // height is the renderer's rather than the layout's.
+    for (group, edges) in [("parts", 4), ("text", 3)] {
+        for (name, rect) in layout[group].as_object().unwrap() {
+            let r: Vec<f64> = rect
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_f64().unwrap() * ratio)
+                .collect();
+            let expected = [r[0], r[1], r[0] + r[2], r[1] + r[3]];
+            let native = rect_of(&part(&parts, name)["bounds"]);
+            for (n, e) in native.iter().zip(expected).take(edges) {
+                assert!(
+                    (n - e).abs() <= 2.,
+                    "{name}: native {native:?} differs from layout {expected:?} by more than 2 px"
+                );
+            }
         }
     }
     let ledger = |view: &Value| -> Vec<String> {
@@ -1762,7 +1766,7 @@ fn native_top_display_matches_layout_and_follows_the_economy() {
     let viewport = rect_of(&json!([0., 0., 3840., 2160.]));
     for (component, title) in [
         ("aid", "Aid"),
-        ("alliance", "US Alliance"),
+        ("us-alliance", "US Alliance"),
         ("resources", "Resources"),
         ("cash", "Cash"),
     ] {

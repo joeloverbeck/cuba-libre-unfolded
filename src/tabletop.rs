@@ -299,7 +299,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 admit,
                 sync_pieces,
                 bind_spaces,
-                hover_standings,
+                hover_disclosures,
                 draw_ui,
                 camera_facts_and_viewport,
                 status::hover,
@@ -730,7 +730,8 @@ fn bind_spaces(
         }
     }
 }
-fn hover_standings(
+/// One dwell for every hover disclosure: victory standings and the top display.
+fn hover_disclosures(
     hover: Res<HoverMap>,
     controls: Query<&Control>,
     time: Res<Time>,
@@ -1529,8 +1530,8 @@ mod tests {
             "M26"
         );
         assert_eq!(
-            serde_json::to_value(Target::Top(top::Item::Alliance)).unwrap(),
-            "alliance"
+            serde_json::to_value(Target::Top(top::Item::UsAlliance)).unwrap(),
+            "us-alliance"
         );
     }
     /// One frame of the shared camera at this table, from plain input values.

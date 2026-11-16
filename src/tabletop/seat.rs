@@ -39,6 +39,17 @@ pub(super) fn run(options: Options) -> Result<(), String> {
     })
 }
 struct Table;
+/// A UI node's rectangle in logical window pixels: [left, top, right, bottom].
+fn logical_bounds(node: &ComputedNode, at: &UiGlobalTransform) -> [f32; 4] {
+    let center = at.translation * node.inverse_scale_factor;
+    let half = node.size() * node.inverse_scale_factor / 2.;
+    [
+        center.x - half.x,
+        center.y - half.y,
+        center.x + half.x,
+        center.y + half.y,
+    ]
+}
 fn named(control: &Control) -> TargetName {
     if control.choice {
         TargetName::Choice(control.name.clone())
@@ -200,20 +211,17 @@ impl SeatGame for Table {
         let status = world.query::<&status::Shown>().iter(world).next().cloned();
         let victory = world.query::<&victory::Shown>().iter(world).next().cloned();
         let victory_count = world.query::<&victory::Shown>().iter(world).count();
-        let victory_text = world.query_filtered::<(&Text, &ComputedNode, &UiGlobalTransform), With<victory::Tag>>()
-            .iter(world).map(|(text, node, at)| {
-                let center = at.translation * node.inverse_scale_factor;
-                let half = node.size() * node.inverse_scale_factor / 2.;
-                json!({"text":text.0,"bounds":[center.x-half.x,center.y-half.y,center.x+half.x,center.y+half.y]})
-            }).collect::<Vec<_>>();
+        let victory_text = world
+            .query_filtered::<(&Text, &ComputedNode, &UiGlobalTransform), With<victory::Tag>>()
+            .iter(world)
+            .map(|(text, node, at)| json!({"text":text.0,"bounds":logical_bounds(node, at)}))
+            .collect::<Vec<_>>();
         let top = world.query::<&top::Shown>().iter(world).next().cloned();
         let mut top_parts = world
             .query::<(&top::Part, &ComputedNode, &UiGlobalTransform, Option<&Text>)>()
             .iter(world)
             .map(|(part, node, at, text)| {
-                let center = at.translation * node.inverse_scale_factor;
-                let half = node.size() * node.inverse_scale_factor / 2.;
-                (part.0.clone(), json!({"part":part.0,"text":text.map(|t| &t.0),"bounds":[center.x-half.x,center.y-half.y,center.x+half.x,center.y+half.y]}))
+                (part.0.clone(), json!({"part":part.0,"text":text.map(|t| &t.0),"bounds":logical_bounds(node, at)}))
             })
             .collect::<Vec<_>>();
         top_parts.sort_by(|a, b| a.0.cmp(&b.0));
@@ -221,12 +229,11 @@ impl SeatGame for Table {
             .into_iter()
             .map(|(_, part)| part)
             .collect::<Vec<_>>();
-        let top_text = world.query_filtered::<(&Text, &ComputedNode, &UiGlobalTransform), With<top::Tag>>()
-            .iter(world).map(|(text, node, at)| {
-                let center = at.translation * node.inverse_scale_factor;
-                let half = node.size() * node.inverse_scale_factor / 2.;
-                json!({"text":text.0,"bounds":[center.x-half.x,center.y-half.y,center.x+half.x,center.y+half.y]})
-            }).collect::<Vec<_>>();
+        let top_text = world
+            .query_filtered::<(&Text, &ComputedNode, &UiGlobalTransform), With<top::Tag>>()
+            .iter(world)
+            .map(|(text, node, at)| json!({"text":text.0,"bounds":logical_bounds(node, at)}))
+            .collect::<Vec<_>>();
         let node = world.resource::<TerrorLoop>().node;
         let mut terror = world
             .query::<(&TerrorPlayer, &AnimationPlayer)>()
