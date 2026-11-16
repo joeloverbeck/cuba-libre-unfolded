@@ -2,7 +2,17 @@
 
 Bounded research on 2026-11-16 against Cuba Libre commit `5c84f2526289fdcc0333ec44c7927d26fa182ea4`. This file is reference evidence for a future implementation specification and design round. It is not an accepted specification, not a design selection and not a claim that anything was built or rendered. No executable, Blender file, asset or native capture was produced.
 
-Consulted constitution: `EVID-1`, `EVID-2`, `EVID-7` (core revision 2026-11-15.1). Foundations read: [04 art and assets](../foundation/04-art-and-assets.md) in full, [02 rules](../foundation/02-rules-and-verification.md) source-authority section. Local inputs: [`art/atlas/TERROR.md`](../../art/atlas/TERROR.md), README Kidnap and development-seat sections, [rules baseline](rules-baseline-and-candidates.md) for source precedence.
+Consulted constitution: `EVID-1`, `EVID-2`, `EVID-7` (core revision 2026-11-15.1). Foundations read: [04 art and assets](../foundation/04-art-and-assets.md) in full, [02 rules](../foundation/02-rules-and-verification.md) source-authority section, and [05 players](../foundation/05-players-and-proclamations.md) for the absence of built-in Non-players.
+
+Review on 2026-11-16, before the owner relied on this study:
+- `EVID-3`, `EVID-4`, `EVID-6` and `REP-2` were read. Under `EVID-4` this study supports a plan, not a working die. `EVID-6` does not apply, because nothing is shared across repositories.
+- [Art tools](../agents/art-tools.md) was read. Its animated-mesh checks are added to condition 3 below.
+
+**Owner disposition, 2026-11-16, recorded in [PR #57](https://github.com/joeloverbeck/cuba-libre-unfolded/pull/57):**
+- **Adopted:** the baked route, as [ADR 0001](../adr/0001-baked-die-tumbles-land-on-the-committed-face.md).
+- **Adopted for the design round:** the three directions below, each in a flat tray off the map.
+- **Deferred:** a reduced-motion setting.
+- **Still proposals:** every other **[P]** item, until the implementation spec accepts it. Local inputs: [`art/atlas/TERROR.md`](../../art/atlas/TERROR.md), README Kidnap and development-seat sections, [rules baseline](rules-baseline-and-candidates.md) for source precedence.
 
 Labels used below: **[S]** a direct source statement; **[D]** my derived conclusion; **[P]** proposed local policy, not accepted until the owner accepts a specification.
 
@@ -52,7 +62,7 @@ P here is the third-printing playbook whose hash `dcaa5afd…015fe8` matches the
 - **Not found:** corrective nudging, meaning steering a live simulation toward a face. No examined primary source uses it, so it is not established here.
 - **Mapping to the proposal [D].** The proposed route is DSN's mechanism with the simulation moved offline into Blender and a small fixed set of trajectories. It needs no runtime physics.
 
-**Blender bake and glTF export** (Blender 5.2 LTS manual and Python API; the Terror bell used Blender 5.2.3 LTS).
+**Blender bake and glTF export.** Sources: the Blender 5.2 LTS manual for glTF, and the 5.2 Python API for the bake operator; the Terror bell used Blender 5.2.3 LTS. The Rigid Body pages were read only at the unpinned `/manual/en/latest/` address, the 5.3 manual on 2026-11-16. Recheck them against 5.2 LTS before relying on them.
 
 - **[S]** `bpy.ops.rigidbody.bake_to_keyframes(frame_start=1, frame_end=250, step=1)` will "Bake rigid body transformations of selected objects to keyframes" (API, Rigidbody Operators).
 - **[S]** The glTF exporter ignores the physics itself: "Animation of other properties, like physics, lights, or materials, will be ignored." It exports object transform animation. Its options include:
@@ -64,7 +74,7 @@ P here is the third-printing playbook whose hash `dcaa5afd…015fe8` matches the
 - **[S]** Rigid Body World exposes "Substeps Per Frame" and "Solver Iterations" (higher is more accurate). Its Cache can bake a frame range; an unsaved file's cache lives in memory (manual, Rigid Body World). The collision margin is "embedded" for Box shapes and is "best results when nonzero" (manual, Rigid Body Collisions).
 - **Pitfalls [D]:**
   - Bake explicitly to keyframes; do not rely on export-time sampling of a physics cache.
-  - Use one key per frame at a 60 fps scene rate. This matches the seat's 1/60 s step (`unfolded-tabletop` `063e811`, `src/seat.rs:125`).
+  - Use one key per frame at a 60 fps scene rate. This matches the seat's 1/60 s step (`unfolded-tabletop` `063e811`, `src/seat.rs:125`; the value is the same at Cuba's pinned `29de68f`).
   - Start the clip at 0.
   - Use a Box collider rather than a convex hull of a bevelled mesh, so the rest pose is flat and every cube symmetry is exact.
   - Make sure the clip has channels only on the tumble node (see Bevy below).
@@ -79,7 +89,7 @@ P here is the third-printing playbook whose hash `dcaa5afd…015fe8` matches the
   - The Terror bell already does `play(node).pause()` and then a per-frame `set_seek_time` in `PostUpdate` before `AnimationSystems` (`src/tabletop.rs:601-632,313`).
 - **Composition [S]:**
   - glTF rotation channels become curves on that node's local `Transform::rotation` (`bevy_gltf/src/loader/mod.rs:400-423`).
-  - Curves apply only to targets present in the clip (`lib.rs:1264`).
+  - Curves apply only to targets present in the clip (`lib.rs:1265`).
   - Mesh primitives spawn as *child* entities of the node, carrying a coordinate-conversion transform (`loader/mod.rs:1631-1686`).
 - **Interpolation [S]:** linear quaternion keys interpolate with `slerp` (`bevy_math/src/common_traits.rs:494-498`). glam's `slerp` flips to "the short way" (`glam/src/f32/sse2/quat.rs:808-818`).
 - **Correction to the proposal [D].** World pose is `P · A(t) · R`:
@@ -98,12 +108,14 @@ P here is the third-printing playbook whose hash `dcaa5afd…015fe8` matches the
   - WCAG 2.2.2 requires pause/stop/hide only for automatic motion lasting more than five seconds.
   - WCAG 2.3.3 (AAA): "Motion animation triggered by interaction can be disabled … unless the animation is essential". The understanding page suggests honouring the operating system's reduce-motion feature.
   - The Game Accessibility Guidelines list "Avoid any sudden unexpected movement or events" (Advanced) and "Ensure no essential information is conveyed by a fixed colour alone" (Basic).
-- **Applying them [D].** The landed die plus text conveys the result, so the tumble is non-essential. A reduced-motion setting can show the landed die directly. No such setting exists in the repository yet.
+- **Applying them [D].** The landed die plus text conveys the result, so the tumble is non-essential. A reduced-motion setting could show the landed die directly. No such setting exists in the repository yet, and the owner deferred one on 2026-11-16; a click or key skip serves this spec.
 - **Unambiguous, fair result.**
   - **[S]** The core commits the die, proceeds and RNG state before any presentation (`src/game.rs:786-800`, `Kidnap` at `163-169`). Today the panel shows "Kidnap rolled … Saved." immediately (`src/tabletop.rs:810-816,1473-1476`).
   - **[D]** The animation therefore cannot alter the result. Fairness as players perceive it rests on two conditions: every clip can show every face, and the choice of clip does not correlate with the value. I found no primary study of how players perceive precomputed rolls.
 
 ## Findings: theme
+
+The theme sources are mostly secondary: Wikipedia, Flags of the World, EcuRed, CiberCuba and collector sites. Here **[S]** marks what such a source says. It is not a verified primary fact, and it is weaker than the rules, code and manuals cited above.
 
 - **Precision casino dice.**
   - **[S]** Wikipedia (Dice, Construction › Manufacturing) describes them:
@@ -144,7 +156,7 @@ Each direction is a starting point for one VectorCraft face sheet plus a Blender
 
 | | **1. Box die, faction-cast** | **2. Havana casino precision die** | **3. Charada die** |
 |---|---|---|---|
-| Source basis | R p.2 dice and P p.2 faction colours; the physical game's own look | Precision casino dice (Wikipedia; KHS ca. 1950 red imprinted club die); 26July Kidnap closes Casinos and takes Syndicate Cash (R 4.3.3) | EcuRed/Farber charada 1–6; bolita in 1950s Cuba and the playbook's Trafficante note |
+| Source basis | R p.2 dice and P p.2 faction colours; the physical game's own look | Precision casino dice (Wikipedia; KHS ca. 1950 red imprinted club die, a delegated read I could not verify); 26July Kidnap closes Casinos and takes Syndicate Cash (R 4.3.3) | EcuRed/Farber charada 1–6; bolita in 1950s Cuba and the playbook's Trafficante note |
 | Look | Opaque cast die, softened edges, recessed contrasting pips; faction emblem at most as a small accent | Translucent cellulose-look body, razor edges, flush white pips, an invented gold house monogram and serial on one face | Opaque die; each face has a dominant pip group or numeral plus a small period-print figure (horse, butterfly, sailor, cat, nun, jicotea) |
 | Legibility | Pips only; strongest at small size | Hidden-face pips show through the body; needs high-opacity tint or muted back pips. Bevy transparency/transmission cost and sorting to test | Figure must stay secondary; choose the upright yaw (above); figure detail may vanish at 1920×1080 |
 | Faction follow | Body colour red, yellow or green; Government needs an invented colour (no box die) | Tinted red, amber or green translucent; check yellow and green contrast | Body or ink colour per faction; figures unchanged |
@@ -165,14 +177,15 @@ Each direction is a starting point for one VectorCraft face sheet plus a Blender
    - start at 0;
    - channels only on the tumble node;
    - each clip's landed face recorded;
-   - a hash file so a changed asset refuses at launch.
+   - a hash file so a changed asset refuses at launch;
+   - the [art-tools animated-mesh checks](../agents/art-tools.md#animated-mesh-checks): on every frame the die's world-space BVH overlap with the tray is empty, and a negative control (a broken clip) is flagged.
 4. **Flat tray, camera-independent framing.** It never rolls across map relief, and it never intercepts region picks. Placement comes from the layout round.
 5. **Shared-clock playback.**
    - `seek = min(now − start, duration)`, where `start` is set when the running app applies the commit.
    - Loading a save, or a skip by click or key, sets the landed pose and never replays.
    - The seat reports "die landing" as unsettled until landed. A plain `settle` then reaches the landed capture (default limit 1800 steps, `unfolded-tabletop` `src/seat.rs:127,978-1000`), and bounded steps capture mid-tumble frames.
-6. **Deterministic choice without RNG.** Choose the clip and yaw by a pure function of saved data (for example `Kidnap::random_before`). Never draw from the shared RNG, which would shift later results, or from OS entropy, which would break reproducible captures. A test shows every clip can show all six faces.
-7. **Text reveal.** The result text appears at landing or skip, naming the faction. A reduced-motion setting shows the landed die directly.
+6. **Deterministic choice without RNG.** Choose the clip and yaw by a pure function of saved data that is independent of the die value, for example a hash of the match revision at commit. Do not use `Kidnap::random_before`: it seeded the die itself (`src/game.rs:789-790`), so the clip would correlate with the value. Never draw from the shared RNG, which would shift later results, or from OS entropy, which would break reproducible captures. A test shows every clip can show all six faces.
+7. **Text reveal.** The result text appears at landing or skip, naming the faction. A reduced-motion setting that shows the landed die directly was deferred by the owner as a later candidate.
 8. **Future rolls.** Raúl rerolls, one-die-per-space Attacks and Event rolls remain later work. Separate trays or sequential rolls avoid baked paths colliding.
 
 **Rejected alternatives [D]:**
@@ -209,7 +222,7 @@ Each direction is a starting point for one VectorCraft face sheet plus a Blender
 - Rust crates: local crates.io sources for `bevy_animation` 0.20.0, `bevy_gltf` 0.20.0, `bevy_math` 0.20.0, `glam` 0.33.12.
 - Blender:
   - Manual 5.2 LTS, [glTF 2.0](https://docs.blender.org/manual/en/5.2/addons/import_export/scene_gltf2.html).
-  - [Rigid Body World](https://docs.blender.org/manual/en/latest/physics/rigid_body/world.html), [Rigid Body Collisions](https://docs.blender.org/manual/en/latest/physics/rigid_body/properties/collisions.html), [Rigid Body introduction](https://docs.blender.org/manual/en/latest/physics/rigid_body/introduction.html) (5.3 manual).
+  - [Rigid Body World](https://docs.blender.org/manual/en/latest/physics/rigid_body/world.html), [Rigid Body Collisions](https://docs.blender.org/manual/en/latest/physics/rigid_body/properties/collisions.html), [Rigid Body introduction](https://docs.blender.org/manual/en/latest/physics/rigid_body/introduction.html) (unpinned `latest`, the 5.3 manual when read on 2026-11-16; not checked against 5.2 LTS).
   - Python API 5.2, [Rigidbody Operators](https://docs.blender.org/api/5.2/bpy.ops.rigidbody.html).
 - Accessibility:
   - W3C, [Understanding 2.3.3 Animation from Interactions](https://www.w3.org/WAI/WCAG22/Understanding/animation-from-interactions.html); WCAG 2.2 SC 2.2.2 Pause, Stop, Hide.
