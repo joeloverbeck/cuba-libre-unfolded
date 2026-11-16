@@ -79,6 +79,7 @@ For a fresh transfer example, activate choices `0:transfer`, `1:transfer:3:1`, `
 | A save the owner continues or will review | `~/.local/share/cuba-libre-unfolded/saves/`, with a new file name for each review save |
 | Agent verification saves, captures, observations and retained logs | a fresh run directory under `local/verification/`, such as `issue-<N>/<run>/` for issue work |
 | Agent worktrees | `local/worktrees/<branch>/` |
+| The selected card faces on the owner's machine, for `--cards` and `CUBA_TEST_CARDS` | `local/issue-9-review/`, matching [the admitted hashes](art/atlas/README.md#private-card-admission) |
 | Handoff notes | `local/handoffs/`; the durable state belongs in an issue comment |
 
 `local/` is ignored by Git and survives reboots, but not `git clean -x` or deleting the checkout; it is no backup. A test copies an owner save into its own run directory and uses the copy. Existing saves and retained evidence are never migrated, overwritten or cleaned up.
