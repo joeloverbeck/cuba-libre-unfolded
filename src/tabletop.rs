@@ -41,6 +41,7 @@ use unfolded_tabletop::{
     label_anchor::{LabelAnchor, LabelAnchorPlugin},
     token,
 };
+mod operation;
 pub mod seat;
 mod status;
 mod top;
@@ -67,7 +68,7 @@ impl Play {
     fn game(&self) -> Game {
         self.session
             .as_ref()
-            .map_or_else(Game::prepared, |s| s.game().clone())
+            .map_or_else(Game::opening, |s| s.game().clone())
     }
 }
 #[derive(Resource)]
@@ -821,6 +822,12 @@ fn click(
                     } else if control.name.contains(":terror:") {
                         "Terror saved: paid 1, activated 1, placed marker and shifted Opposition."
                             .into()
+                    } else if control.name.ends_with(":pass") {
+                        "26July passed: +1 Resource and stays Eligible. Directorio is 1st Eligible. Saved.".into()
+                    } else if control.name.ends_with(":terror") {
+                        "Terror chosen: 26July is executing, and transfers are open. Saved.".into()
+                    } else if control.name.ends_with(":back-to-choice") {
+                        "Back at the action choice. Nothing had happened; any pending request is withdrawn. Saved.".into()
                     } else if control.name.ends_with(":finish") {
                         format!(
                             "Saved {}. No Pass income.",
@@ -1221,133 +1228,7 @@ fn draw_ui(
             4,
         );
     } else {
-        let o = right;
-        // The selected blank component hides static example action affordances
-        // after completion, so they cannot masquerade as current controls.
-        picture(
-            &mut commands,
-            &art,
-            "atlas-panel.png",
-            [1380., 287., 500., 653.],
-            s,
-            o,
-            2,
-        );
-        text(
-            &mut commands,
-            &art,
-            if view.finished {
-                format!(
-                    "26July completed {}\nNo Pass income",
-                    if view.kidnap.is_some() {
-                        "Operation + Kidnap"
-                    } else {
-                        "Operation Only"
-                    }
-                )
-            } else if view.transfer.is_some() {
-                format!("Resource transfer\n{} decides locally", view.owner.name())
-            } else if view.removal.is_some() {
-                "26July · voluntary own removal".into()
-            } else {
-                format!("{} · {}", view.owner.name(), view.operation)
-            },
-            1404.,
-            330.,
-            450.,
-            25.,
-            s,
-            o,
-            3,
-        );
-        text(
-            &mut commands,
-            &art,
-            match &view.transfer {
-                Some(crate::Transfer::Selecting) => "Choose the giver and recipient.\n26July must be one endpoint.\nThe giver chooses the quantity and authorizes.\nA request is not a donation.".into(),
-                Some(crate::Transfer::Authorizing { giver, recipient, amount }) => format!(
-                    "Giver: {} · balance {}\nRecipient: {} · balance {}\nAmount: {} Resources · whole numbers only\nAfter authorization: {} → {}; {} → {}\nZero is allowed. Decline moves nothing.",
-                    giver.name(), view.resources[giver.index()], recipient.name(), view.resources[recipient.index()], amount,
-                    giver.name(), view.resources[giver.index()] - amount, recipient.name(), view.resources[recipient.index()] + amount),
-                None => match &view.removal {
-                    Some(crate::Removal::Selecting) => format!("Choose one own piece to return to Available.\nCounts show how many remain in each group.\nConfirmation comes next; Cancel removes nothing.\n{}", if view.owed_terror.is_some() { "Owed Santiago: protect its last Underground." } else { "No obligation: removing all pieces is allowed." }),
-                    Some(crate::Removal::Confirming { space, kind, state }) => {
-                        let target = view.spaces.iter().find(|s| &s.id == space).unwrap();
-                        let supply = view.available.iter().find(|p| p.faction == Faction::M26 && p.kind == *kind).unwrap().count;
-                        format!("Remove 1 26July {state:?} {kind:?}\nfrom {}?\nAvailable {kind:?}: {supply} → {}\nControl and standings update immediately.\nEarlier Terror and Opposition stay.\nCancel leaves this piece on the map.", target.name, supply + 1)
-                    }
-                    None => operation_details(&view),
-                },
-            } + &if view.transfer.is_some() && view.owed_terror.is_some() {
-                let owed = view.spaces.iter().find(|space| Some(&space.id) == view.owed_terror.as_ref()).unwrap();
-                format!("\nCommitment: {} Terror owed; reserve 1.\n26July available to give: {} Resources.", owed.name, view.resources[Faction::M26.index()].saturating_sub(1))
-            } else {
-                String::new()
-            },
-            1404.,
-            390.,
-            450.,
-            18.,
-            s,
-            o,
-            3,
-        );
-        if !view.finished {
-            for (i, choice) in view.choices.iter().enumerate() {
-                control(
-                    &mut commands,
-                    &art,
-                    &choice.id,
-                    &if !choice.supported {
-                        format!("{} — unavailable", choice.label)
-                    } else {
-                        choice.label.clone()
-                    },
-                    if choice.supported {
-                        Action::Decision(view.owner, view.revision)
-                    } else {
-                        Action::Unsupported(choice.explanation.clone())
-                    },
-                    [
-                        1404.,
-                        (if view.transfer.is_some() {
-                            570.
-                        } else if view.removal.is_some() {
-                            540.
-                        } else {
-                            590.
-                        }) + i as f32 * 52.,
-                        452.,
-                        46.,
-                    ],
-                    s,
-                    o,
-                    choice.supported,
-                    3,
-                );
-            }
-        } else {
-            text(
-                &mut commands,
-                &art,
-                format!(
-                    "Directorio next (display only):\n{}\n\n{}\nCard / eligibility have not advanced.",
-                    view.next_options.join("\n"),
-                    if view.kidnap.is_some() {
-                        "Kidnap grants Event permission."
-                    } else {
-                        "No Event permission."
-                    }
-                ),
-                1404.,
-                590.,
-                450.,
-                25.,
-                s,
-                o,
-                3,
-            );
-        }
+        operation::panel(&mut commands, &art, &view, s, right);
         let o = left;
         picture(
             &mut commands,
@@ -1435,94 +1316,10 @@ fn draw_ui(
     }
 }
 
-fn operation_details(view: &crate::Observation) -> String {
-    let mut lines = vec![];
-    for id in ["santiago", "oriente"] {
-        let space = view.spaces.iter().find(|s| s.id == id).unwrap();
-        let count = |faction, kind, state: Option<State>| -> u8 {
-            space
-                .pieces
-                .iter()
-                .filter(|p| {
-                    p.faction == faction && p.kind == kind && state.is_none_or(|s| p.state == s)
-                })
-                .map(|p| p.count)
-                .sum()
-        };
-        lines.push(format!(
-            "{}: {} Underground · {} Active · {} Police{}",
-            if id == "santiago" {
-                "Santiago"
-            } else {
-                "Oriente"
-            },
-            count(Faction::M26, Kind::Guerrilla, Some(State::Underground)),
-            count(Faction::M26, Kind::Guerrilla, Some(State::Active)),
-            count(Faction::Government, Kind::Police, None),
-            if space.terror > 0 { " · done" } else { "" }
-        ));
-    }
-    if view.finished {
-        let paid: u8 = view.spaces.iter().map(|s| s.terror).sum();
-        // Balances are on the top display's Resources ledger (#46); costs stay here.
-        lines.push(format!("Resolved {paid} Terror · paid {paid} Resources"));
-    } else {
-        lines.push("Terror costs 1".into());
-        lines.push("Activate 1 · place Terror · shift toward Active Opposition".into());
-    }
-    if let Some(roll) = &view.kidnap {
-        lines.push(format!(
-            "Kidnap rolled {} · moved {} (Government → 26July)",
-            roll.die, roll.proceeds
-        ));
-        lines.push(format!(
-            "At roll: Government {} → {} · 26July {} → {}",
-            roll.government_before,
-            roll.government_before - roll.proceeds,
-            roll.m26_before,
-            roll.m26_before + roll.proceeds
-        ));
-    } else if view.finished {
-        lines.push("No Kidnap used.".into());
-    } else {
-        lines.push(format!(
-            "Kidnap die 1–6 · possible proceeds {}–{}",
-            view.resources[0].min(1),
-            view.resources[0].min(6)
-        ));
-        lines.push("Santiago: total Guerrillas must outnumber Police".into());
-        if view
-            .spaces
-            .iter()
-            .any(|s| s.id == "santiago" && s.terror == 0)
-        {
-            lines.push("Early Kidnap commits Santiago Terror (pay 1).".into());
-        }
-    }
-    if !view.finished {
-        lines.push(
-            if view.owed_terror.is_some() {
-                "Owed: Santiago · keep 1 Resource + 1 Underground"
-            } else {
-                "No Terror owed · Finish permitted"
-            }
-            .into(),
-        );
-    }
-    lines.join("\n")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use unfolded_tabletop::camera::Input;
-    #[test]
-    fn operation_text_keeps_costs_and_leaves_balances_to_the_ledger() {
-        let details = operation_details(&Game::prepared().observe());
-        assert!(details.contains("Terror costs 1\n"), "{details}");
-        assert!(!details.contains("26July Resources"), "{details}");
-        assert!(!details.contains("retains"), "{details}");
-    }
     #[test]
     fn top_display_targets_serialize_as_the_seat_reads_them() {
         assert_eq!(
