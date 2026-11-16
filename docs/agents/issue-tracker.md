@@ -22,7 +22,7 @@ GitHub issues and PRs share a number space. Resolve a bare number before acting,
 
 ## Closing issues
 
-Reference issues from commits and PRs with `For #N` or `Part of #N`. Use a closing keyword (`Closes #N`) only when merging that PR meets every one of the issue's acceptance criteria and no owner acceptance is still outstanding, such as a requested playtest. Publication authority never stands in for gameplay or visual acceptance; an issue awaiting it stays open after the merge.
+Reference issues from commits and PRs with `For #N` or `Part of #N`. Merging never closes an issue: the owner turned off **Auto-close issues with merged linked pull requests** (Settings → General → Issues) on 2026-11-16, and the API does not expose that setting. After the merge, close an issue as **Close** above describes, and only when every one of its acceptance criteria is met and no owner acceptance is still outstanding, such as a requested playtest. Publication authority never stands in for gameplay or visual acceptance; an issue awaiting it stays open.
 
 ## Authority
 
