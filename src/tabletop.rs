@@ -12,7 +12,6 @@ use bevy::{
     image::{
         CompressedImageFormats, ImageAddressMode, ImageSampler, ImageSamplerDescriptor, ImageType,
     },
-    input::mouse::AccumulatedMouseScroll,
     picking::{events::PointerClick, hover::HoverMap, pointer::PointerId},
     prelude::*,
     render::{
@@ -35,7 +34,10 @@ use std::{
 };
 use unfolded_hover::Hover;
 use unfolded_tabletop::{
-    camera::{Capture, FrameInput, Orbit, wheel_steps},
+    camera::{
+        Framing, InScene, Orbit, Scene, TableCamera, TableCameraPlugin, TableCameraSystems,
+        TableFacts,
+    },
     label_anchor::{LabelAnchor, LabelAnchorPlugin},
     token,
 };
@@ -266,10 +268,20 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             ..default()
         })
         // art/stage/preview-stage.blend mirrors this home framing; update it too.
-        .insert_resource(Orbit::new((Vec3::new(0.35, 0., 0.35), 9.6)))
+        .insert_resource(Orbit::new(Framing::new(Vec3::new(0.35, 0., 0.35), 9.6)))
         // Atlas SVG map rim fill; the viewport continues the authored sea.
         .insert_resource(ClearColor(Color::srgb_u8(216, 231, 227)))
-        .add_plugins((MeshPickingPlugin, LabelAnchorPlugin))
+        .add_plugins((
+            MeshPickingPlugin,
+            LabelAnchorPlugin,
+            TableCameraPlugin::<()>::default(),
+        ))
+        .configure_sets(
+            Update,
+            TableCameraSystems
+                .after(camera_facts_and_viewport)
+                .before(status::hover),
+        )
         .add_systems(Startup, setup)
         .add_systems(
             Update,
@@ -279,7 +291,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 bind_spaces,
                 hover_standings,
                 draw_ui,
-                camera_controls,
+                camera_facts_and_viewport,
                 status::hover,
                 status::draw,
                 victory::draw,
@@ -318,6 +330,7 @@ fn setup(
 ) {
     commands.spawn((
         Camera3d::default(),
+        TableCamera,
         // Preserve the authored unlit sea color against the UI's matching rim.
         Tonemapping::None,
         Camera {
@@ -556,10 +569,12 @@ fn sync_pieces(
 #[derive(Component)]
 struct Count;
 
-/// A count over its token. It stays pickable, so hovering it hovers its space.
+/// A count over its token. It stays pickable, so hovering it hovers its space, and it
+/// is part of the scene, so the wheel and a drag over it still move the camera.
 fn count(text: String, token: Entity, offset: Vec3) -> impl Bundle {
     (
         Count,
+        InScene,
         Text::new(text),
         TextLayout::justify(Justify::Center),
         Node {
@@ -823,48 +838,47 @@ fn layout(window: &Window) -> (f32, Vec2) {
         Vec2::new(0., (window.height() - HEIGHT * scale) / 2.),
     )
 }
-#[allow(clippy::too_many_arguments)]
-fn camera_controls(
-    keys: Res<ButtonInput<KeyCode>>,
-    buttons: Res<ButtonInput<MouseButton>>,
-    scroll: Res<AccumulatedMouseScroll>,
+/// The authored map rectangle, in logical window pixels: the only part of the window
+/// that shows the scene. Extra width on wide windows goes to the map.
+fn map_rect(window: &Window) -> Rect {
+    let (scale, offset) = layout(window);
+    let min = offset + Vec2::new(40., 176.) * scale;
+    let size = Vec2::new(window.width() - 620. * scale, 684. * scale);
+    Rect {
+        min,
+        max: min + size,
+    }
+}
+/// The camera's viewport: the map rectangle, in physical pixels.
+fn map_viewport(window: &Window) -> Viewport {
+    let map = map_rect(window);
+    let physical_position = (map.min * window.scale_factor()).round().as_uvec2();
+    let physical_end = (map.max * window.scale_factor()).round().as_uvec2();
+    Viewport {
+        physical_position,
+        physical_size: physical_end - physical_position,
+        ..default()
+    }
+}
+/// What the table says to the shared camera: the reader and an unopened session
+/// block it, and only the map shows the scene.
+fn camera_facts(window: &Window, play: &Play, ui: &Interface) -> TableFacts {
+    TableFacts {
+        blocks_camera: ui.reader || play.session.is_none(),
+        scene: Scene::Within(map_rect(window)),
+        ..default()
+    }
+}
+fn camera_facts_and_viewport(
     window: Single<&Window, With<PrimaryWindow>>,
     play: Res<Play>,
     ui: Res<Interface>,
-    time: Res<Time>,
-    mut orbit: ResMut<Orbit>,
-    mut cameras: Query<(&mut Transform, &mut Camera), With<Camera3d>>,
+    mut table: ResMut<TableFacts>,
+    mut cameras: Query<&mut Camera, With<TableCamera>>,
 ) {
-    let (scale, offset) = layout(&window);
-    let min = offset + Vec2::new(40., 176.) * scale;
-    let size = Vec2::new(window.width() - 620. * scale, 684. * scale);
-    let outside = window.cursor_position().is_none_or(|p| {
-        p.x < min.x || p.y < min.y || p.x >= min.x + size.x || p.y >= min.y + size.y
-    });
-    let blocked = ui.reader || play.session.is_none();
-    let step = orbit.step(FrameInput {
-        keys: &keys,
-        buttons: &buttons,
-        window: &window,
-        scroll_y: wheel_steps(&scroll),
-        dt: time.delta_secs(),
-        capture: Capture {
-            pointer_blocked: blocked,
-            over_ui: outside,
-            keyboard: blocked,
-            wheel: blocked || outside,
-            pan: Some(blocked),
-        },
-    });
-    for (mut transform, mut camera) in &mut cameras {
-        *transform = step.transform;
-        let physical_position = (min * window.scale_factor()).round().as_uvec2();
-        let physical_end = ((min + size) * window.scale_factor()).round().as_uvec2();
-        camera.viewport = Some(Viewport {
-            physical_position,
-            physical_size: physical_end - physical_position,
-            ..default()
-        });
+    *table = camera_facts(&window, &play, &ui);
+    for mut camera in &mut cameras {
+        camera.viewport = Some(map_viewport(&window));
     }
 }
 #[allow(clippy::too_many_arguments)] // Authored rectangle, type size and letterboxing coordinates.
@@ -1479,13 +1493,33 @@ fn operation_details(view: &crate::Observation) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::ecs::system::RunSystemOnce;
+    use unfolded_tabletop::camera::Input;
+    /// One frame of the shared camera at this table, from plain input values.
+    fn drive(
+        orbit: &mut Orbit,
+        window: &Window,
+        keys: &ButtonInput<KeyCode>,
+        wheel_lines: f32,
+        table: TableFacts,
+    ) {
+        orbit.drive(
+            Input {
+                keys,
+                buttons: &ButtonInput::default(),
+                window,
+                wheel_lines,
+                dt: 1. / 60.,
+                pointer_over_ui: false,
+                focus_on_button: false,
+            },
+            &table,
+        );
+    }
     #[test]
     fn camera_input_respects_authored_viewport_and_reader_capture() {
         let dir = tempfile::tempdir().unwrap();
         let save = dir.path().join("task.json");
-        let mut world = World::new();
-        world.insert_resource(Play {
+        let play = Play {
             session: Some(Session::open(&save, None).unwrap()),
             options: Options {
                 art: PathBuf::new(),
@@ -1498,59 +1532,39 @@ mod tests {
             },
             error: None,
             ready_frames: 5,
-        });
-        world.init_resource::<ButtonInput<KeyCode>>();
-        world.init_resource::<ButtonInput<MouseButton>>();
-        world.insert_resource(AccumulatedMouseScroll {
-            delta: Vec2::new(0., 1.),
+        };
+        let mut ui = Interface::default();
+        let mut window = Window {
+            resolution: (1920, 1280).into(),
+            focused: true,
             ..default()
-        });
-        let mut time = Time::<()>::default();
-        time.advance_by(Duration::from_secs_f32(1. / 60.));
-        world.insert_resource(time);
-        world.init_resource::<Interface>();
-        world.insert_resource(Orbit::new((Vec3::ZERO, 10.)));
-        let window = world
-            .spawn((
-                Window {
-                    resolution: (1920, 1280).into(),
-                    focused: true,
-                    ..default()
-                },
-                PrimaryWindow,
-            ))
-            .id();
-        world.spawn((Camera3d::default(), Camera::default(), Transform::default()));
-        world
-            .get_mut::<Window>(window)
-            .unwrap()
-            .set_cursor_position(Some(Vec2::new(700., 500.)));
-        world.run_system_once(camera_controls).unwrap();
-        assert!(world.resource::<Orbit>().pose().distance < 10.);
-        let inside = world.resource::<Orbit>().pose();
-        world
-            .get_mut::<Window>(window)
-            .unwrap()
-            .set_cursor_position(Some(Vec2::new(1500., 500.)));
-        world.run_system_once(camera_controls).unwrap();
-        assert_eq!(world.resource::<Orbit>().pose(), inside);
+        };
+        let mut orbit = Orbit::new(Framing::new(Vec3::ZERO, 10.));
+        let keys = ButtonInput::default();
+        window.set_cursor_position(Some(Vec2::new(700., 500.)));
+        drive(
+            &mut orbit,
+            &window,
+            &keys,
+            1.,
+            camera_facts(&window, &play, &ui),
+        );
+        assert!(orbit.pose().distance < 10.);
+        let inside = orbit.pose();
+        window.set_cursor_position(Some(Vec2::new(1500., 500.)));
+        drive(
+            &mut orbit,
+            &window,
+            &keys,
+            1.,
+            camera_facts(&window, &play, &ui),
+        );
+        assert_eq!(orbit.pose(), inside);
         // Maximizing a 3:2 design onto wider screens must put the extra
         // horizontal room into the map, retaining the 40 px outer inset.
-        world.resource_mut::<AccumulatedMouseScroll>().delta = Vec2::ZERO;
         for width in [2560, 3360] {
-            world
-                .get_mut::<Window>(window)
-                .unwrap()
-                .resolution
-                .set(width as f32, 1440.);
-            world.run_system_once(camera_controls).unwrap();
-            let viewport = world
-                .query_filtered::<&Camera, With<Camera3d>>()
-                .single(&world)
-                .unwrap()
-                .viewport
-                .as_ref()
-                .unwrap();
+            window.resolution.set(width as f32, 1440.);
+            let viewport = map_viewport(&window);
             assert_eq!(
                 viewport.physical_position.x, 45,
                 "maximized map has a wide left gap"
@@ -1563,15 +1577,17 @@ mod tests {
                 "extra window width must extend the map toward its right-anchored panels"
             );
         }
-        world.resource_mut::<Interface>().reader = true;
-        world
-            .get_mut::<Window>(window)
-            .unwrap()
-            .set_cursor_position(Some(Vec2::new(700., 500.)));
-        world
-            .resource_mut::<ButtonInput<KeyCode>>()
-            .press(KeyCode::KeyW);
-        world.run_system_once(camera_controls).unwrap();
-        assert_eq!(world.resource::<Orbit>().pose(), inside);
+        ui.reader = true;
+        window.set_cursor_position(Some(Vec2::new(700., 500.)));
+        let mut keys = ButtonInput::default();
+        keys.press(KeyCode::KeyW);
+        drive(
+            &mut orbit,
+            &window,
+            &keys,
+            0.,
+            camera_facts(&window, &play, &ui),
+        );
+        assert_eq!(orbit.pose(), inside);
     }
 }

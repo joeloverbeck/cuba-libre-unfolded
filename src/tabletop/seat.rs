@@ -1,12 +1,12 @@
 //! Development seat adapter: resolves real controls and never executes rules directly.
 use super::*;
-use bevy::{input::keyboard::Key, time::TimeUpdateStrategy};
+use bevy::time::TimeUpdateStrategy;
 use serde_json::json;
 use unfolded_tabletop::{
     capture,
     label_anchor::Anchor,
     seat::{
-        self as shared, Game as SeatGame, Hit, Logical, Name as TargetName, Observed, SeatKey,
+        self as shared, Game as SeatGame, Hit, Name as TargetName, Observed, SeatKey,
         start::{self, Start},
     },
 };
@@ -318,74 +318,6 @@ impl SeatGame for Table {
         }
     }
     fn keys(&self) -> &[SeatKey] {
-        &KEYS
+        &unfolded_tabletop::camera::SEAT_KEYS
     }
 }
-static KEYS: [SeatKey; 11] = [
-    SeatKey {
-        name: "KeyW",
-        code: KeyCode::KeyW,
-        logical: Logical::Typed("w"),
-        commits: false,
-    },
-    SeatKey {
-        name: "KeyA",
-        code: KeyCode::KeyA,
-        logical: Logical::Typed("a"),
-        commits: false,
-    },
-    SeatKey {
-        name: "KeyS",
-        code: KeyCode::KeyS,
-        logical: Logical::Typed("s"),
-        commits: false,
-    },
-    SeatKey {
-        name: "KeyD",
-        code: KeyCode::KeyD,
-        logical: Logical::Typed("d"),
-        commits: false,
-    },
-    SeatKey {
-        name: "Equal",
-        code: KeyCode::Equal,
-        logical: Logical::Typed("="),
-        commits: false,
-    },
-    SeatKey {
-        name: "Minus",
-        code: KeyCode::Minus,
-        logical: Logical::Typed("-"),
-        commits: false,
-    },
-    SeatKey {
-        name: "ArrowLeft",
-        code: KeyCode::ArrowLeft,
-        logical: Logical::Named(Key::ArrowLeft),
-        commits: false,
-    },
-    SeatKey {
-        name: "ArrowRight",
-        code: KeyCode::ArrowRight,
-        logical: Logical::Named(Key::ArrowRight),
-        commits: false,
-    },
-    SeatKey {
-        name: "ArrowUp",
-        code: KeyCode::ArrowUp,
-        logical: Logical::Named(Key::ArrowUp),
-        commits: false,
-    },
-    SeatKey {
-        name: "ArrowDown",
-        code: KeyCode::ArrowDown,
-        logical: Logical::Named(Key::ArrowDown),
-        commits: false,
-    },
-    SeatKey {
-        name: "Home",
-        code: KeyCode::Home,
-        logical: Logical::Named(Key::Home),
-        commits: false,
-    },
-];
