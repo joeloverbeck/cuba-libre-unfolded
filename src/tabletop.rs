@@ -114,6 +114,8 @@ enum Action {
 struct RenderReady {
     images: Vec<AssetId<Image>>,
     ready: Arc<AtomicBool>,
+    /// Whether every render pipeline compiled, which admission waits for. The agent
+    /// seat finds this for a capture itself.
     pipelines: Arc<AtomicBool>,
 }
 #[derive(Resource)]

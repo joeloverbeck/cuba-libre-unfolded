@@ -5,8 +5,7 @@ use serde_json::json;
 use unfolded_tabletop::{
     capture,
     seat::{
-        self as shared, Focus, Game as SeatGame, Hit, Logical, Name as TargetName, Observed,
-        SeatKey,
+        self as shared, Game as SeatGame, Hit, Logical, Name as TargetName, Observed, SeatKey,
         start::{self, Start},
     },
 };
@@ -261,9 +260,6 @@ impl SeatGame for Table {
             description: json!({"surface":"map or authored chrome"}),
         }
     }
-    fn focus(&self, _: &mut World) -> Focus {
-        Focus::Nothing
-    }
     fn unsettled(&self, world: &mut World) -> Vec<String> {
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
@@ -285,9 +281,6 @@ impl SeatGame for Table {
         }
         pending
     }
-    fn advance(&self, world: &mut World, by: Duration) {
-        *world.resource_mut::<TimeUpdateStrategy>() = TimeUpdateStrategy::ManualDuration(by);
-    }
     fn admission(&self, world: &World) -> shared::Admission {
         let play = world.resource::<Play>();
         if let Some(error) = &play.error {
@@ -297,12 +290,6 @@ impl SeatGame for Table {
         } else {
             shared::Admission::Checking
         }
-    }
-    fn pipelines_ready(&self, world: &World) -> bool {
-        world
-            .resource::<RenderReady>()
-            .pipelines
-            .load(Ordering::Acquire)
     }
     fn keys(&self) -> &[SeatKey] {
         &KEYS
