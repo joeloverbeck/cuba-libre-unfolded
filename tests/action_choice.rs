@@ -129,7 +129,7 @@ fn unsupported_options_and_execution_choices_are_refused_without_effect() {
             "transfer",
             "transfer:0:1",
             "remove",
-            "finish",
+            "end-terror",
             "kidnap",
             "terror:santiago",
             "back-to-choice",
@@ -193,7 +193,7 @@ fn pass_gains_one_resource_keeps_26july_eligible_and_makes_directorio_first_elig
         refused(
             &mut game,
             owner,
-            &["pass", "terror", "transfer", "finish", "back-to-choice"],
+            &["pass", "terror", "transfer", "end-terror", "back-to-choice"],
         );
     }
 }
@@ -221,7 +221,7 @@ fn eligibility_shows_order_and_roles_at_the_choice_during_terror_and_after_each_
         (Faction::M26, Faction::Directorio, None)
     );
     let mut only = game.clone();
-    choose(&mut only, "finish");
+    choose(&mut only, "end-terror");
     let view = only.observe();
     assert_eq!(
         (view.eligibility.first, view.eligibility.second),
@@ -242,7 +242,7 @@ fn eligibility_shows_order_and_roles_at_the_choice_during_terror_and_after_each_
     choose(&mut special, "terror");
     choose(&mut special, "kidnap");
     choose(&mut special, "terror:santiago");
-    choose(&mut special, "finish");
+    choose(&mut special, "end-terror");
     let view = special.observe();
     assert_eq!(view.resources, [3, 2, 5, 15]);
     assert_eq!(
@@ -275,7 +275,7 @@ fn transfers_are_offered_only_while_26july_executes_terror() {
     assert_eq!(view.executing, Some(Faction::M26));
     choose(&mut game, "decline");
     let mut finished = game.clone();
-    choose(&mut finished, "finish");
+    choose(&mut finished, "end-terror");
     assert_eq!(finished.observe().executing, None);
     assert!(finished.observe().choices.is_empty());
     refused(&mut finished, Faction::M26, &["transfer"]);
@@ -385,10 +385,10 @@ fn ending_the_operation_closes_transfers_and_withdraws_a_pending_request() {
         .observe()
         .choices
         .into_iter()
-        .find(|c| c.id.ends_with(":finish"))
+        .find(|c| c.id.ends_with(":end-terror"))
         .unwrap();
     assert_eq!(finish.owner, Faction::M26);
-    choose(&mut game, "finish");
+    choose(&mut game, "end-terror");
     let view = game.observe();
     assert!(view.finished);
     assert_eq!(view.transfer, None);

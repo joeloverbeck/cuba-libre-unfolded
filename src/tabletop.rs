@@ -44,6 +44,7 @@ use unfolded_tabletop::{
 };
 mod emblems;
 mod operation;
+mod preview;
 pub mod seat;
 mod status;
 mod top;
@@ -105,18 +106,26 @@ struct LabelSpec {
     #[serde(default)]
     pieces: Option<[f32; 2]>,
 }
-/// What one shared hover lifecycle can disclose: a victory standing or an element of
-/// the top display. Serialized for the seat as the faction or the element's name.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+/// What one shared hover lifecycle can disclose: a victory standing, an element of
+/// the top display, or a choice's preview. Serialized for the seat as the faction,
+/// the element's name or the choice id.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 #[serde(untagged)]
 enum Target {
     Standing(Faction),
     Top(top::Item),
+    Choice(String),
 }
 #[derive(Resource, Default)]
 struct Interface {
     hover: Hover<Target>,
     status: Hover<String>,
+    /// Set by a click; the next frame records the pointer's position in `rested`.
+    clicked: bool,
+    /// Where the pointer rested at its last click. A choice's preview stays closed
+    /// until the pointer moves, so the button that replaces the clicked one does not
+    /// open a card under a pointer that has not left it.
+    rested: Option<Vec2>,
     reader: bool,
     notice: String,
     dirty: bool,
@@ -307,6 +316,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 status::draw,
                 victory::draw,
                 top::draw,
+                preview::draw,
                 animate_water,
             )
                 .chain(),
@@ -740,16 +750,32 @@ fn bind_spaces(
 fn hover_disclosures(
     hover: Res<HoverMap>,
     controls: Query<&Control>,
+    pointers: Query<(&PointerId, &bevy::picking::pointer::PointerLocation)>,
     time: Res<Time>,
     mut ui: ResMut<Interface>,
 ) {
+    let at = pointers
+        .iter()
+        .find(|(id, _)| **id == PointerId::Mouse)
+        .and_then(|(_, l)| l.location.as_ref().map(|l| l.position));
+    if std::mem::take(&mut ui.clicked) {
+        ui.rested = at;
+    } else if ui.rested.is_some() && ui.rested != at {
+        ui.rested = None;
+    }
+    let rested = ui.rested.is_some();
     let target = hover.get(&PointerId::Mouse).and_then(|hits| {
-        hits.keys()
-            .find_map(|e| match controls.get(*e).ok()?.action {
+        hits.keys().find_map(|e| {
+            let control = controls.get(*e).ok()?;
+            match control.action {
                 Action::Standing(f) => Some(Target::Standing(f)),
                 Action::Top(item) => Some(Target::Top(item)),
+                Action::Decision(..) | Action::Unsupported(_) if !rested => {
+                    Some(Target::Choice(control.name.clone()))
+                }
                 _ => None,
-            })
+            }
+        })
     });
     let eligible = !ui.reader;
     ui.hover
@@ -770,6 +796,7 @@ fn click(
     let Ok(control) = controls.get(event.entity) else {
         return;
     };
+    ui.clicked = true;
     if ui.reader && !matches!(control.action, Action::Close | Action::Quit) {
         return;
     }
@@ -825,7 +852,7 @@ fn click(
                     } else if control.name.ends_with(":cancel-removal") {
                         "Removal cancelled. No piece removed; earlier effects remain.".into()
                     } else if control.name.contains(":terror:") {
-                        "Terror saved: paid 1, activated 1, placed marker and shifted Opposition."
+                        "Terror saved: paid 1 Resource, flipped 1 Underground Guerrilla to Active, placed a Terror marker and shifted 1 level toward Active Opposition."
                             .into()
                     } else if control.name.ends_with(":pass") {
                         "26July passed: +1 Resource and stays Eligible. Directorio is 1st Eligible. Saved.".into()
@@ -833,11 +860,11 @@ fn click(
                         "Terror chosen: 26July is executing, and transfers are open. Saved.".into()
                     } else if control.name.ends_with(":back-to-choice") {
                         "Back at the action choice. Nothing had happened; any pending request is withdrawn. Saved.".into()
-                    } else if control.name.ends_with(":finish") {
+                    } else if control.name.ends_with(":end-terror") {
                         format!(
-                            "Saved {}. No Pass income.",
+                            "Terror ended: {} recorded. Saved.",
                             if previous.kidnap.is_some() {
-                                "Operation + Kidnap"
+                                "Operation with Special Activity"
                             } else {
                                 "Operation Only"
                             }

@@ -41,7 +41,7 @@ fn zero_decline_and_wait_leave_resources_unchanged_and_preserve_giver_custody() 
     choose(&mut game, "transfer:1:3");
     choose(&mut game, "authorize");
     assert_eq!(game.observe().resources, [6, 0, 5, 15]);
-    choose(&mut game, "finish");
+    choose(&mut game, "end-terror");
     game.validate().unwrap();
 }
 
@@ -102,7 +102,7 @@ fn wrong_owner_stale_nonexecuting_pairs_and_invalid_quantities_have_no_effect() 
         (Faction::Government, 2, "2:amount:1.5"),
         (Faction::Government, 2, "2:amount:7"),
         (Faction::Government, 2, "2:amount:256"),
-        (Faction::Government, 2, "2:finish"),
+        (Faction::Government, 2, "2:end-terror"),
     ] {
         assert!(game.submit(owner, revision, choice).is_err());
         assert_eq!(game, before);

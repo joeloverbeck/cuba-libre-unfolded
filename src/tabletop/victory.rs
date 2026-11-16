@@ -261,7 +261,7 @@ pub(super) fn draw(
     offset.x += (window.width() - WIDTH * scale) / 2.;
     let standing = ui.hover.visible().and_then(|target| match target {
         Target::Standing(faction) => Some(faction),
-        Target::Top(_) => None,
+        Target::Top(_) | Target::Choice(_) => None,
     });
     let shown = standing.filter(|_| !ui.reader).map(|faction| {
         let mut shown = content(&play.game().observe(), *faction);
