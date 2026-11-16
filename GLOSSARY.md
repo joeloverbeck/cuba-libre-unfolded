@@ -44,6 +44,14 @@ _Avoid_: Cash
 A marker carried by a cube or Guerrilla, with specific transfer and use rules. Possessing Cash is distinct from having Resources available to pay a cost.
 _Avoid_: Resources, spendable balance
 
+**Aid**:
+Foreign assistance: a single level from 0 to 49 that adds to the Government's Resources in Propaganda Round earnings and when an Event says so. Aid itself is not Resources and cannot pay a cost.
+_Avoid_: Government Resources, US Alliance
+
+**US Alliance**:
+The United States' stance toward the Government, at one of three ordered levels: Firm, Reluctant or Embargoed. A worse level makes the Government's COIN Operations cost more and, at Embargoed, forbids Air Strike.
+_Avoid_: Aid, Alliance (on its own)
+
 **Terror marker**:
 A marker in a City or Province that hinders later efforts to build Support or Opposition there; Civic Action or Agitation must remove the space's Terror markers before shifting it. Placed by the Terror Operation and by Government Reprisal. Several may occupy one space, and all are removed at Reset.
 _Avoid_: Terror (when meaning the marker rather than the Operation), Sabotage marker
