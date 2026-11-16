@@ -1,7 +1,8 @@
 use cuba_libre_unfolded::{Faction, save::Session};
 use unfolded_record_replacement::{previous_path, save};
 
-/// Reseal an edited record, so only the game's own check can refuse it.
+/// Reseal an edited record, so its checksum is intact and only what was edited
+/// can be refused.
 fn reseal(record: &serde_json::Value) -> Vec<u8> {
     let identity = serde_json::from_value(record["identity"].clone()).unwrap();
     save::seal(&identity, &record["payload"])
@@ -294,9 +295,24 @@ fn corrupt_incompatible_and_semantically_wrong_records_preserve_recovery() {
     let mut wrong = record.clone();
     wrong["payload"]["resources"][1] = 9.into();
     cases.push(reseal(&wrong));
-    for bytes in cases {
+    // A payload that does not decode as a game is malformed.
+    let mut undecodable = record.clone();
+    undecodable["payload"]["resources"] = "not resources".into();
+    cases.push(reseal(&undecodable));
+    for (index, bytes) in cases.into_iter().enumerate() {
         std::fs::write(&path, &bytes).unwrap();
-        assert!(Session::open(&path, None).is_err());
+        let refusal = Session::open(&path, None).err().unwrap().to_string();
+        let expected = match index {
+            0 => "Malformed save",
+            1 => "This file exceeds",
+            2..=4 | 6 => "Incompatible save format",
+            5 => "Save checksum mismatch",
+            8 => "Malformed save",
+            _ => "",
+        };
+        assert!(refusal.starts_with(expected), "{index}: {refusal}");
+        // The game's own check keeps its own words.
+        assert!(index != 7 || !refusal.starts_with("Malformed"), "{refusal}");
         assert_eq!(std::fs::read(&path).unwrap(), bytes);
         assert_eq!(std::fs::read(&previous).unwrap(), initial);
         assert!(Session::open(&path, Some(&path)).is_err());

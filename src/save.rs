@@ -4,12 +4,16 @@
 //! baseline, the unchanged shortcut, validation of the previous record, the
 //! regular-file check and recovery into an unused path. This file keeps what
 //! identifies a compatible save (format, accepted source, selected art), the
-//! game's validity check, the size limit and the wording of every refusal.
+//! game's validity check, the size limit and the wording of Cuba Libre's
+//! refusals. Busy, too large and file-system failures keep the shared module's
+//! words.
 use crate::{Faction, Game, Observation, assets};
 use anyhow::{Result, anyhow};
 use std::path::{Path, PathBuf};
 use unfolded_record_replacement::save::{self, Baseline, Format, Identity, Write};
 const LIMIT: u64 = 256 * 1024;
+/// Marks a refusal from `Game::validate`.
+const VALIDITY: &str = "cuba-validity:";
 
 struct Cuba;
 impl Cuba {
@@ -32,15 +36,17 @@ impl Format for Cuba {
     fn accepts(&self, identity: &Identity) -> bool {
         *identity == Self::current()
     }
+    // Marked, so a refusal can tell the game's own check from a payload that
+    // does not decode as a game; `words` removes the mark.
     fn validate(&self, game: &Game) -> Result<(), String> {
         game.validate()
+            .map_err(|detail| format!("{VALIDITY}{detail}"))
     }
 }
 
 /// What the player was doing when a save was refused, for its wording.
 #[derive(Clone, Copy, PartialEq)]
 enum Action {
-    Open,
     Recover,
     Continue,
 }
@@ -54,7 +60,14 @@ fn words(error: save::Error, action: Action) -> anyhow::Error {
             anyhow::Error::msg(detail).context("Malformed save; original file preserved")
         }
         save::Error::Checksum => anyhow!("Save checksum mismatch; original file preserved"),
-        save::Error::Unreproducible(detail) | save::Error::Invalid(detail) => anyhow!(detail),
+        save::Error::Unreproducible(detail) | save::Error::Invalid(detail) => {
+            match detail.strip_prefix(VALIDITY) {
+                Some(detail) => anyhow!(detail.to_owned()),
+                None => {
+                    anyhow::Error::msg(detail).context("Malformed save; original file preserved")
+                }
+            }
+        }
         save::Error::NotRegularFile => {
             anyhow!("Save must be a regular file, not a symlink or directory")
         }
@@ -64,6 +77,9 @@ fn words(error: save::Error, action: Action) -> anyhow::Error {
         }
         save::Error::Occupied | save::Error::SameRecord if action == Action::Recover => {
             anyhow!("Recovery requires an unused destination; neither record was changed")
+        }
+        save::Error::Orphaned if action == Action::Recover => {
+            anyhow!("Destination changed before creation")
         }
         save::Error::Occupied => anyhow!("Destination changed before creation"),
         save::Error::Orphaned => anyhow!(
@@ -85,7 +101,7 @@ impl Session {
             save::recover(&Cuba, source, path, |_| Ok::<_, save::Error>(()))
                 .map_err(|error| words(error, Action::Recover))?
         } else if let Some(saved) =
-            save::load(&Cuba, path).map_err(|error| words(error, Action::Open))?
+            save::load(&Cuba, path).map_err(|error| words(error, Action::Continue))?
         {
             saved
         } else {
@@ -94,7 +110,7 @@ impl Session {
             let game = Game::prepared_with_seed(unfolded_random::fresh_seed()?);
             let mut baseline = Baseline::default();
             save::write(&Cuba, path, &mut baseline, &game, Write::Create)
-                .map_err(|error| words(error, Action::Open))?;
+                .map_err(|error| words(error, Action::Continue))?;
             (game, baseline)
         };
         Ok(Self {

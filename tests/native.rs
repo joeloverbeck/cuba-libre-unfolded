@@ -1503,13 +1503,16 @@ fn native_hover_status_is_transient_without_region_inspection() {
         let resumed = app.observe();
         assert_eq!(
             resumed["observation"]["revision"],
-            record["game"]["revision"]
+            record["payload"]["revision"]
         );
         assert_eq!(
             resumed["observation"]["resources"],
-            record["game"]["resources"]
+            record["payload"]["resources"]
         );
-        assert_eq!(resumed["observation"]["spaces"], record["game"]["spaces"]);
+        assert_eq!(
+            resumed["observation"]["spaces"],
+            record["payload"]["spaces"]
+        );
         app.point("space:havana");
         app.capture("legacy-save-resumed");
         app.quit();
