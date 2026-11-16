@@ -72,6 +72,7 @@ I recommend **A**. It has the clearest outline at every scale and the most direc
 - **Gameplay-scale captures come later.** Real in-app captures are part of the production step, after selection.
 - **GIF limits colour.** The 256-colour palette dithers the glow and the polished surfaces; the app has no such limit.
 - **Phase offset.** Santiago's token starts at loop frame 0 and Oriente's at frame 33, showing that the per-space offsets keep them out of step.
+- **Correction, after selection.** These previews used the camera transform in the app's `setup()`, not its `Orbit` home pose, which is about 9% closer with a shifted target. They were also lit about 1.65× too bright. The calibrated [`art/stage/preview-stage.blend`](../../stage/README.md) fixes both for future proposals. The selection itself is unaffected: B and C are not runtime inputs, and A's integration was checked in the app.
 
 ## Evidence
 

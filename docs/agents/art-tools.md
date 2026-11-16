@@ -41,3 +41,32 @@ Run this preflight before reporting an MCP editor unavailable or switching autho
 4. **Handshake failure.** The listener answers a read with `"status": "success"`: `(printf '{"type":"get_scene_info","params":{}}'; sleep 5) | nc 127.0.0.1 9876`. Keep the input open, as here: the add-on drops a connection whose input ends before it replies. For a Craft server, a handshake failure is an MCP initialization error in the session; quote it.
 
 If you started Blender for the check, quit it afterwards.
+
+## Blender from Claude Code
+
+This repository's `.mcp.json` registers no Blender server, so a Claude Code session drives the portable Blender above headless:
+
+```sh
+~/.local/opt/blender-5.2.3-linux-x64/blender -b --factory-startup --python <script> -- <args>
+```
+
+EEVEE renders headless on the founding machine.
+
+- **Scripts:** keep the Python script in the session scratchpad. It operates an external editor, and project-owned code is Rust only.
+- **What to commit:** the `.blend` source, its exports, and a prose record of the construction, as `art/atlas/TERROR.md` does.
+- **Gameplay-scale previews:** start from [`art/stage/preview-stage.blend`](../../art/stage/README.md) instead of rebuilding the app's camera, light and pieces.
+
+**Exporting a loop to glTF:**
+- Key frames 0 through L with frame L equal to frame 0, and set `frame_end = L` so the wrap key is exported.
+- Use `export_animation_mode='SCENE'` with `export_anim_scene_split_object=False` to get one clip.
+- `tests/terror_token.rs` holds the checks a shipped loop must pass.
+
+## Animated mesh checks
+
+Run these on every animated alternative before the owner sees it, and again on the production asset:
+
+- **Seam:** frame L renders pixel-identical to frame 0.
+- **Interpenetration:** on every frame 0–L, the world-space BVH overlap (`mathutils.bvhtree`) of each moving part against every part it can reach is empty. Exclude by name only parts that are joined on purpose, such as an axle in its bearing.
+- **Negative control:** break the motion's constraint once (for example, remove a limit) and confirm the checks flag it.
+
+Report the three results with the alternatives.
