@@ -12,7 +12,7 @@ Use `gh` from this clone. Before creating an issue, verify the target with `gh r
 - Comment: `gh issue comment <number> --body-file <file>`.
 - Label: `gh issue edit <number> --add-label "..."` or `--remove-label "..."`.
 - Close: post the explanation first, then `gh issue close <number>`.
-- Merge: first run the `code-review` skill against the PR's merge-base. Fix each finding, or record in the PR why it stays (a linked ticket or a stated reason). The review must cover the head you merge: commits pushed after it get a single-reviewer follow-up (`code-review`, marked a small follow-up). After a push, confirm the CI check is registered on the new head before `gh pr checks --watch`, which exits at once while no check exists. GitHub deletes the PR's head branch automatically; delete only the local branch.
+- Merge: first run the `code-review` skill against the PR's merge-base. Fix each finding, or record in the PR why it stays (a linked ticket or a stated reason). The review must cover the head you merge: review commits pushed after it with `code-review` from the last reviewed commit. After a push, wait until `gh pr checks <n>` lists `Rust checks` for the new head before `--watch`, which exits at once while no check is registered. GitHub deletes the PR's head branch automatically; delete only the local branch.
 
 Write multiline bodies to a file and use `--body-file`. When a skill says to publish to the tracker, create an issue; when it says to fetch a ticket, read the issue.
 
