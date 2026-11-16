@@ -27,7 +27,7 @@ pub(super) fn panel(
     text(
         commands,
         art,
-        heading(view),
+        Prose::named(heading(view)),
         1404.,
         330.,
         450.,
