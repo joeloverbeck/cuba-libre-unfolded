@@ -206,13 +206,29 @@ impl SeatGame for Table {
                 let half = node.size() * node.inverse_scale_factor / 2.;
                 json!({"text":text.0,"bounds":[center.x-half.x,center.y-half.y,center.x+half.x,center.y+half.y]})
             }).collect::<Vec<_>>();
+        let node = world.resource::<TerrorLoop>().node;
+        let mut terror = world
+            .query::<(&TerrorPlayer, &AnimationPlayer)>()
+            .iter(world)
+            .map(|(token, player)| {
+                (
+                    token.0.clone(),
+                    player.animation(node).map(|active| active.seek_time()),
+                )
+            })
+            .collect::<Vec<_>>();
+        terror.sort_by(|a, b| a.0.cmp(&b.0));
+        let terror = terror
+            .into_iter()
+            .map(|(space, seek)| json!({"space":space,"seek":seek}))
+            .collect::<Vec<_>>();
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
         let pose = world.resource::<Orbit>().pose();
         let water_frame = world.get_resource::<Water>().map(|water| water.frame);
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
-            table: json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"water_frame":water_frame,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
+            table: json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"water_frame":water_frame,"terror":terror,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
         }
     }
     fn revision(&self, world: &mut World) -> u64 {
@@ -281,6 +297,13 @@ impl SeatGame for Table {
         }
         if world.resource::<Orbit>().is_moving() {
             pending.push("camera movement".into());
+        }
+        // A newly placed bell is ready once its glTF scene spawned and plays the
+        // loop. The loop itself never holds the table unsettled.
+        let tokens = world.query::<&TerrorToken>().iter(world).count();
+        let playing = world.query::<&TerrorPlayer>().iter(world).count();
+        if playing < tokens {
+            pending.push("Terror token spawn".into());
         }
         pending
     }
