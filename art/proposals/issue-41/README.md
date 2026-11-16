@@ -97,3 +97,7 @@ I recommend **A**. It has the clearest outline at every scale and the most direc
 Blender 5.2.3 LTS built the geometry and keys by mechanical construction from primitives, lathes and tubes. It was operated as an external editor through its Python API, as the Atlas map was, and no generator script is part of this repository. The previews were rendered with EEVEE.
 
 No original board, token or Pictures-collection art was used. The physical counter's maroon starburst was deliberately not reproduced.
+
+## Selection
+
+The owner selected **A, Rebato bell**, in [#41](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/41#issuecomment-6923299180), and noted that in some frames the clapper showed through the bell. In this proposal the bell is solid with a shallow cavity, so the lagging clapper ball penetrated its wall. The production bell is a hollow shell whose clapper is limited by the bell's inner surface, checked on every frame. See [TERROR.md](../../atlas/TERROR.md). B and C remain proposals only, and these files are not runtime inputs.
