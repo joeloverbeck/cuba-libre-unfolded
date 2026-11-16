@@ -27,6 +27,6 @@ The portable project configurations do not grant access to Pictures. For a bound
 
 ## Verification before relying on an editor
 
-Use MCP initialization, tool discovery, and document inspection for each registered command. A bounded disposable probe should save an empty native document under `art/.mcp-probe*`, verify that saving outside `art/` is refused, and remove only its own probe files. Probe output is not designed art. A later art task must separately render and inspect the actual design, preserve its editable source, and confirm the exported file opens through the intended consumer.
+Use MCP initialization, tool discovery, and document inspection for each registered command. Probe a newly registered server from a restarted session through its own MCP tools. A bounded disposable probe should save an empty native document under `art/.mcp-probe*`, verify that saving outside `art/` is refused, and remove only its own probe files. Probe output is not designed art. A later art task must separately render and inspect the actual design, preserve its editable source, and confirm the exported file opens through the intended consumer.
 
 Current setup verification results are recorded in [founding evidence](../research/founding-evidence.md). No graphical asset should be authored by application code to work around a failed editor connection.

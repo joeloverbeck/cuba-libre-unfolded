@@ -1,6 +1,6 @@
 # Authored assets
 
-Keep the native VectorCraft or FigCraft document with its reviewed export. Preserve EffectCraft source for authored motion. Record provenance, fonts and the chosen design in the relevant issue/PR. See [the art foundation](../docs/foundation/04-art-and-assets.md).
+Keep the native editor document with its reviewed export. Preserve EffectCraft source for authored motion. Record provenance, fonts and the chosen design in the relevant issue/PR. See [the art foundation](../docs/foundation/04-art-and-assets.md).
 
 The owner selected **A, Atlas desk**, with solid 3D regions and counted representative pieces. See [the selected handoff](atlas/README.md), its editable sources and portable exports. The [three original studies](proposals/issue-9/README.md) remain historical comparison evidence. Selection is not native play acceptance.
 

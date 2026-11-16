@@ -49,7 +49,7 @@ Read `README.md` and `docs/foundation/01-mission-and-scope.md` before project wo
 
 - Rules and source fidelity: `docs/foundation/02-rules-and-verification.md`.
 - Any implementation, tooling, or sibling change: `docs/foundation/03-engineering-and-reuse.md`. Inspect all four named repositories before implementing a feature. Complete required shared extraction, consumer PRs, merges and pulls before continuing dependent work here.
-- Visual work, map, pieces, or imported assets: `docs/foundation/04-art-and-assets.md` and `docs/agents/art-tools.md`. Graphics are authored in VectorCraft and layouts in FigCraft, each with three competent alternatives for a new design. Simple shared 3D meshes and Blender modeling are permitted by the owner's clarification. Use EffectCraft for authored animation. Card faces are the only accepted imported original images.
+- Visual work (graphics, layouts, map, pieces, animation, imported assets): read `docs/foundation/04-art-and-assets.md` and `docs/agents/art-tools.md` first.
 - Agent seats, prompts or player communication: `docs/foundation/05-players-and-proclamations.md`. External Claude Code/Codex sessions play seats; there are no built-in bots. Faction proclamations are public written documents.
 - Development playtesting: foundation 3's required socket seat must ship with the first interactive slice. Reuse Arkham/mudsong/shared interaction and screenshot facilities. Perform feasible agent-operated functional and visual checks before asking the owner for a human playtest; faction players and the development seat are distinct capabilities within this game.
 
