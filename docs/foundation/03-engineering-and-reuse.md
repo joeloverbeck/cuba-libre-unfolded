@@ -1,6 +1,6 @@
 # Rust and shared mechanisms
 
-This foundation specializes `EVID-6`, `BOUND`, `INT`, `AGENT-1`, and `OPS-7`. All project-owned executable code is Rust, including tools, prototypes, asset preparation and test harnesses. Data/configuration files are not executable application code. Existing external editors remain external tools. No alternative-language game, asset generator, or test oracle is introduced as a shortcut.
+This foundation specializes `EVID-6`, `BOUND`, `INT`, `AGENT-1`, and `OPS-7`. All project-owned executable code is Rust, including tools, prototypes, asset preparation and test harnesses. Data/configuration files are not executable application code. The owner clarified on 2026-11-16 that this excludes other application languages such as TypeScript and Python; it does not cover shell scripts that run the checks, or GPU shader code. Existing external editors remain external tools. No alternative-language game, asset generator, or test oracle is introduced as a shortcut.
 
 ## Before every feature
 
