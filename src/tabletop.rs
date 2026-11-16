@@ -521,9 +521,14 @@ fn sync_pieces(
         }
     }
 }
+/// A count of pieces or Terror, kept over its token.
+#[derive(Component)]
+struct Count;
+
 /// A count over its token. It stays pickable, so hovering it hovers its space.
 fn count(text: String, token: Entity, offset: Vec3) -> impl Bundle {
     (
+        Count,
         Text::new(text),
         TextLayout::justify(Justify::Center),
         Node {

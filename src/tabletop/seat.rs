@@ -47,10 +47,11 @@ fn named(control: &Control) -> TargetName {
     }
 }
 fn piece_name(world: &World, entity: Entity) -> Option<String> {
-    if let Some(LabelAnchor {
-        to: Anchor::Entity { entity: token, .. },
-        ..
-    }) = world.get::<LabelAnchor>(entity)
+    if world.get::<Count>(entity).is_some()
+        && let Some(LabelAnchor {
+            to: Anchor::Entity { entity: token, .. },
+            ..
+        }) = world.get::<LabelAnchor>(entity)
     {
         Some(format!("count:{}", world.get::<Name>(*token)?.as_str()))
     } else {
