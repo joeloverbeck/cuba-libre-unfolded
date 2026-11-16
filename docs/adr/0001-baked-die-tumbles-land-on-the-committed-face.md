@@ -24,14 +24,9 @@ We chose this so a roll can never be rerolled or changed by its presentation, re
 ## Consequences
 
 - **The face rotation goes below the animated node.** On the parent it would tilt the whole trajectory. Only yaw and placement sit above.
-- **The die rolls in a flat tray, never across the map's relief.** A baked bounce cannot land reliably on uneven ground.
+- **The die rolls in a flat tray outside the map's relief.** A baked bounce cannot land reliably on uneven ground. The layout round places the tray.
 - **The tumble and its yaw are chosen from saved data independent of the die value,** never from a fresh draw on the shared random generator.
-- **Each exported tumble passes admission checks.** Without them the face rotation can come out wrong. They are the study's condition 3:
-  - it ends flat with one face up and no wall contact;
-  - it has a rest tail;
-  - the rotation between keys is bounded;
-  - it starts at 0;
-  - only the tumble node is animated;
-  - its landed face is recorded and its file is hashed;
-  - it passes the art-tools animated-mesh checks (no overlap with the tray on any frame, and a negative control is flagged).
+- **Each exported tumble is admitted like the Terror bell:** it ends flat with one face up, it has a rest tail, its landed face is recorded, and its file is hashed.
+  - The study's condition 3 lists further checks for the implementation spec to accept.
+  - The art-tools Interpenetration and Negative-control checks apply as a repository standard. Its Seam check does not, because a tumble does not loop.
 - **This decision covers 26July's Kidnap die only.** Attack's one die per space, Raúl's reroll and Event rolls, including what colour Government's die takes, each need their own decision.

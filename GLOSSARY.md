@@ -1,6 +1,6 @@
 # Cuba Libre Unfolded
 
-Terms for the game and its players, following the accepted [mission](docs/foundation/01-mission-and-scope.md), [rules source](docs/foundation/02-rules-and-verification.md), [development playtesting boundary](docs/foundation/03-engineering-and-reuse.md), and [player and proclamation policy](docs/foundation/05-players-and-proclamations.md). Rule terms follow the March 2019 Living Rules that foundation 2 selects.
+Terms for the game and its players, following the accepted [mission](docs/foundation/01-mission-and-scope.md), [rules source](docs/foundation/02-rules-and-verification.md), [development playtesting boundary](docs/foundation/03-engineering-and-reuse.md), and [player and proclamation policy](docs/foundation/05-players-and-proclamations.md). Rule terms follow the March 2019 Living Rules pinned by the accepted [rules baseline](docs/research/rules-baseline-and-candidates.md).
 
 ## Language
 
@@ -57,7 +57,7 @@ A Guerrilla in its exposed state. It still counts for Control and for outnumberi
 _Avoid_: Revealed Guerrilla, used Guerrilla
 
 **Activate**:
-To flip a Guerrilla to Active, or leave an already Active Guerrilla Active. It concerns a piece, never Resources.
+To flip an Underground Guerrilla to Active; unless the text specifies an Underground Guerrilla, an already Active one also counts and stays Active. It concerns a piece, never Resources.
 _Avoid_: Spend, use (when meaning flipping a Guerrilla)
 
 **Executing faction**:
@@ -77,7 +77,7 @@ The executing faction's return of its own on-map pieces, Casinos included, to Av
 _Avoid_: Retreat, casualty, elimination
 
 **Special Activity**:
-A faction-specific activity that may accompany an eligible Operation, subject to its own timing and location restrictions. Kidnap is a 26July Special Activity that can accompany Terror.
+A faction-specific activity that may accompany an eligible Operation, subject to its own timing and location restrictions. Kidnap is a 26July Special Activity that accompanies Terror, in a space that was or will be selected for that Terror.
 _Avoid_: Separate turn, mandatory continuation
 
 **Resources**:

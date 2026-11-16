@@ -2,17 +2,22 @@
 
 Bounded research on 2026-11-16 against Cuba Libre commit `5c84f2526289fdcc0333ec44c7927d26fa182ea4`. This file is reference evidence for a future implementation specification and design round. It is not an accepted specification, not a design selection and not a claim that anything was built or rendered. No executable, Blender file, asset or native capture was produced.
 
-Consulted constitution: `EVID-1`, `EVID-2`, `EVID-7` (core revision 2026-11-15.1). Foundations read: [04 art and assets](../foundation/04-art-and-assets.md) in full, [02 rules](../foundation/02-rules-and-verification.md) source-authority section, and [05 players](../foundation/05-players-and-proclamations.md) for the absence of built-in Non-players.
-
-Review on 2026-11-16, before the owner relied on this study:
-- `EVID-3`, `EVID-4`, `EVID-6` and `REP-2` were read. Under `EVID-4` this study supports a plan, not a working die. `EVID-6` does not apply, because nothing is shared across repositories.
-- [Art tools](../agents/art-tools.md) was read. Its animated-mesh checks are added to condition 3 below.
+Consulted constitution: `EVID-1`, `EVID-2`, `EVID-7` (core revision 2026-11-15.1). Foundations read: [04 art and assets](../foundation/04-art-and-assets.md) in full, [02 rules](../foundation/02-rules-and-verification.md) source-authority section, and [05 players](../foundation/05-players-and-proclamations.md) for the absence of built-in Non-players. Local inputs: [`art/atlas/TERROR.md`](../../art/atlas/TERROR.md), README Kidnap and development-seat sections, [rules baseline](rules-baseline-and-candidates.md) for source precedence.
 
 **Owner disposition, 2026-11-16, recorded in [PR #57](https://github.com/joeloverbeck/cuba-libre-unfolded/pull/57):**
-- **Adopted:** the baked route, as [ADR 0001](../adr/0001-baked-die-tumbles-land-on-the-committed-face.md).
-- **Adopted for the design round:** the three directions below, each in a flat tray off the map.
+- **Adopted, as [ADR 0001](../adr/0001-baked-die-tumbles-land-on-the-committed-face.md):** the baked route, with the conditions the ADR names:
+  - the face rotation below the animated node (condition 1);
+  - a flat tray outside the map relief (condition 4);
+  - the clip chosen from saved data independent of the die value (condition 6);
+  - bell-like admission: one face up, a rest tail, the landed face recorded, a hash file (part of condition 3).
+- **Adopted:** the die takes the rolling faction's colour, red for this Kidnap. Government's die and Event rolls are deferred.
+- **Adopted for the design round:** the three directions below, each landing in a flat tray outside the map relief. The layout round places the tray.
 - **Deferred:** a reduced-motion setting.
-- **Still proposals:** every other **[P]** item, until the implementation spec accepts it. Local inputs: [`art/atlas/TERROR.md`](../../art/atlas/TERROR.md), README Kidnap and development-seat sections, [rules baseline](rules-baseline-and-candidates.md) for source precedence.
+- **Still proposals:** every other **[P]** item, including the rest of condition 3, until the implementation spec accepts it.
+
+Review on 2026-11-16, after those decisions and before merge:
+- `EVID-3`, `EVID-4`, `EVID-6` and `REP-2` were read. Under `EVID-4` this study supports a plan, not a working die. `EVID-6` does not apply, because nothing is shared across repositories.
+- [Art tools](../agents/art-tools.md) was read. Its Interpenetration and Negative-control checks are added to condition 3 below. Its Seam check does not apply, because a tumble does not loop.
 
 Labels used below: **[S]** a direct source statement; **[D]** my derived conclusion; **[P]** proposed local policy, not accepted until the owner accepts a specification.
 
@@ -89,7 +94,7 @@ P here is the third-printing playbook whose hash `dcaa5afd…015fe8` matches the
   - The Terror bell already does `play(node).pause()` and then a per-frame `set_seek_time` in `PostUpdate` before `AnimationSystems` (`src/tabletop.rs:601-632,313`).
 - **Composition [S]:**
   - glTF rotation channels become curves on that node's local `Transform::rotation` (`bevy_gltf/src/loader/mod.rs:400-423`).
-  - Curves apply only to targets present in the clip (`lib.rs:1265`).
+  - Curves apply only to targets present in the clip (`lib.rs:1264-1266`).
   - Mesh primitives spawn as *child* entities of the node, carrying a coordinate-conversion transform (`loader/mod.rs:1631-1686`).
 - **Interpolation [S]:** linear quaternion keys interpolate with `slerp` (`bevy_math/src/common_traits.rs:494-498`). glam's `slerp` flips to "the short way" (`glam/src/f32/sse2/quat.rs:808-818`).
 - **Correction to the proposal [D].** World pose is `P · A(t) · R`:
@@ -178,13 +183,13 @@ Each direction is a starting point for one VectorCraft face sheet plus a Blender
    - channels only on the tumble node;
    - each clip's landed face recorded;
    - a hash file so a changed asset refuses at launch;
-   - the [art-tools animated-mesh checks](../agents/art-tools.md#animated-mesh-checks): on every frame the die's world-space BVH overlap with the tray is empty, and a negative control (a broken clip) is flagged.
+   - the [art-tools animated-mesh checks](../agents/art-tools.md#animated-mesh-checks) Interpenetration (on every frame the die's world-space BVH overlap with the tray is empty) and Negative control (a broken clip is flagged). Seam does not apply to a tumble that does not loop.
 4. **Flat tray, camera-independent framing.** It never rolls across map relief, and it never intercepts region picks. Placement comes from the layout round.
 5. **Shared-clock playback.**
    - `seek = min(now − start, duration)`, where `start` is set when the running app applies the commit.
    - Loading a save, or a skip by click or key, sets the landed pose and never replays.
    - The seat reports "die landing" as unsettled until landed. A plain `settle` then reaches the landed capture (default limit 1800 steps, `unfolded-tabletop` `src/seat.rs:127,978-1000`), and bounded steps capture mid-tumble frames.
-6. **Deterministic choice without RNG.** Choose the clip and yaw by a pure function of saved data that is independent of the die value, for example a hash of the match revision at commit. Do not use `Kidnap::random_before`: it seeded the die itself (`src/game.rs:789-790`), so the clip would correlate with the value. Never draw from the shared RNG, which would shift later results, or from OS entropy, which would break reproducible captures. A test shows every clip can show all six faces.
+6. **Deterministic choice without RNG.** Choose the clip and yaw by a pure function of saved data that is independent of the die value, for example a hash of the match revision at commit. Do not use `Kidnap::random_before`: it is the seed that produced the die (`src/game.rs:787-788` rolls from it; `:795` stores it), so the clip would correlate with the value. Never draw from the shared RNG, which would shift later results, or from OS entropy, which would break reproducible captures. A test shows every clip can show all six faces.
 7. **Text reveal.** The result text appears at landing or skip, naming the faction. A reduced-motion setting that shows the landed die directly was deferred by the owner as a later candidate.
 8. **Future rolls.** Raúl rerolls, one-die-per-space Attacks and Event rolls remain later work. Separate trays or sequential rolls avoid baked paths colliding.
 
