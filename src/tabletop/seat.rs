@@ -24,17 +24,8 @@ pub(super) fn run(options: Options) -> Result<(), String> {
         let size = options.seat_size;
         let mut app = build(options, true)?;
         app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::ZERO));
+        // The 3D camera is marked for the surface where the table spawns it.
         capture::install::<Camera2d>(&mut app, size);
-        app.add_systems(
-            PostStartup,
-            |mut commands: Commands,
-             surface: Res<capture::Surface>,
-             camera: Single<Entity, With<Camera3d>>| {
-                commands
-                    .entity(*camera)
-                    .insert(RenderTarget::Image(surface.image().into()));
-            },
-        );
         Ok(start::Table::new(app, Table))
     })
 }
