@@ -147,7 +147,7 @@ Every clip was checked on every frame by `local/verification/issue-67/blender/bu
     - keys thinned to every 8th frame fail the rotation bound at 162° and 174°.
   - **During selection:** of 40 seeded throws, 30 were rejected: 29 that came within 2 mm of a wall and others for the rotation bound, tilt or rest. Some throws failed more than one check.
 - **Seam:** n/a, because a tumble does not loop.
-- **Bevy 0.20:** a throwaway, never-committed example, run against the crate's `tabletop` build. The source and logs are kept under `local/verification/issue-67/bevy/`.
+- **Bevy 0.20:** a throwaway, never-committed example, built against the crate's `tabletop` build in a private target directory (`local/target-issue-67`). The source is kept as `local/verification/issue-67/bevy/die_probe.rs` and the logs under `local/verification/issue-67/bevy-private/`.
   - **What was played:** each of the 3 GLBs × 4 clips, through Bevy's own glTF loader, windowless, on a manual 1/60 s clock.
   - **24 rotations each:** every face with each of its four yaws, set as Die body's static rotation under a yawed placement.
   - **How the clip was driven:** `play().pause()`, then `set_seek_time(min(now − start, duration))` before `AnimationSystems`.
