@@ -1,0 +1,26 @@
+{
+  "source": "atlas-top-display.figcraft",
+  "note": "absoluteBounds [x, y, width, height] read from FigCraft get_node on frame 2. Image parts are compared on all four edges; text parts on left, top and right (line height is the renderer's).",
+  "frame": [6144, 3456],
+  "parts": {
+    "aid": [108.0, 81.0, 118.8, 102.6],
+    "us-alliance": [405.0, 48.6, 702.0, 172.8],
+    "ledger": [5517.6, 54.0, 518.4, 513.0],
+    "resources-icon": [5726.85, 75.6, 99.9, 99.9],
+    "ledger-row-0-emblem": [5560.8, 205.2, 72.9, 72.9],
+    "ledger-row-1-emblem": [5560.8, 288.9, 72.9, 72.9],
+    "ledger-row-2-emblem": [5560.8, 372.6, 72.9, 72.9],
+    "ledger-row-3-emblem": [5560.8, 456.3, 72.9, 72.9],
+    "cash-slot-0": [5566.2, 610.2, 97.2, 97.2],
+    "cash-slot-1": [5690.4, 610.2, 97.2, 97.2],
+    "cash-slot-2": [5814.6, 610.2, 97.2, 97.2],
+    "cash-slot-3": [5938.8, 610.2, 97.2, 97.2]
+  },
+  "text": {
+    "aid-value": [248.4, 81.0, 135.0, 97.0],
+    "ledger-row-0-value": [5793.0, 199.8, 199.8, 84.0],
+    "ledger-row-1-value": [5793.0, 283.5, 199.8, 84.0],
+    "ledger-row-2-value": [5793.0, 367.2, 199.8, 84.0],
+    "ledger-row-3-value": [5793.0, 450.9, 199.8, 84.0]
+  }
+}

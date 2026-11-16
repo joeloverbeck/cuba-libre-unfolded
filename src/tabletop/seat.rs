@@ -30,6 +30,17 @@ pub(super) fn run(options: Options) -> Result<(), String> {
     })
 }
 struct Table;
+/// A UI node's rectangle in logical window pixels: [left, top, right, bottom].
+fn logical_bounds(node: &ComputedNode, at: &UiGlobalTransform) -> [f32; 4] {
+    let center = at.translation * node.inverse_scale_factor;
+    let half = node.size() * node.inverse_scale_factor / 2.;
+    [
+        center.x - half.x,
+        center.y - half.y,
+        center.x + half.x,
+        center.y + half.y,
+    ]
+}
 fn named(control: &Control) -> TargetName {
     if control.choice {
         TargetName::Choice(control.name.clone())
@@ -191,12 +202,29 @@ impl SeatGame for Table {
         let status = world.query::<&status::Shown>().iter(world).next().cloned();
         let victory = world.query::<&victory::Shown>().iter(world).next().cloned();
         let victory_count = world.query::<&victory::Shown>().iter(world).count();
-        let victory_text = world.query_filtered::<(&Text, &ComputedNode, &UiGlobalTransform), With<victory::Tag>>()
-            .iter(world).map(|(text, node, at)| {
-                let center = at.translation * node.inverse_scale_factor;
-                let half = node.size() * node.inverse_scale_factor / 2.;
-                json!({"text":text.0,"bounds":[center.x-half.x,center.y-half.y,center.x+half.x,center.y+half.y]})
-            }).collect::<Vec<_>>();
+        let victory_text = world
+            .query_filtered::<(&Text, &ComputedNode, &UiGlobalTransform), With<victory::Tag>>()
+            .iter(world)
+            .map(|(text, node, at)| json!({"text":text.0,"bounds":logical_bounds(node, at)}))
+            .collect::<Vec<_>>();
+        let top = world.query::<&top::Shown>().iter(world).next().cloned();
+        let mut top_parts = world
+            .query::<(&top::Part, &ComputedNode, &UiGlobalTransform, Option<&Text>)>()
+            .iter(world)
+            .map(|(part, node, at, text)| {
+                (part.0.clone(), json!({"part":part.0,"text":text.map(|t| &t.0),"bounds":logical_bounds(node, at)}))
+            })
+            .collect::<Vec<_>>();
+        top_parts.sort_by(|a, b| a.0.cmp(&b.0));
+        let top_parts = top_parts
+            .into_iter()
+            .map(|(_, part)| part)
+            .collect::<Vec<_>>();
+        let top_text = world
+            .query_filtered::<(&Text, &ComputedNode, &UiGlobalTransform), With<top::Tag>>()
+            .iter(world)
+            .map(|(text, node, at)| json!({"text":text.0,"bounds":logical_bounds(node, at)}))
+            .collect::<Vec<_>>();
         let node = world.resource::<TerrorLoop>().node;
         let mut terror = world
             .query::<(&TerrorPlayer, &AnimationPlayer)>()
@@ -219,7 +247,7 @@ impl SeatGame for Table {
         let water_frame = world.get_resource::<Water>().map(|water| water.frame);
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
-            table: json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"water_frame":water_frame,"terror":terror,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
+            table: json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"top":top,"top_text":top_text,"top_parts":top_parts,"water_frame":water_frame,"terror":terror,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
         }
     }
     fn revision(&self, world: &mut World) -> u64 {
