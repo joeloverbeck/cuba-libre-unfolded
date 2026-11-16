@@ -76,6 +76,8 @@ Issue both sub-agent calls together, in the foreground, and aggregate the report
 
 If the spec is missing, skip the Spec sub-agent and note this in the final report.
 
+**Single reviewer.** When the caller marks the change a small follow-up, spawn one fresh sub-agent instead of two. Give it both prompts' contents and have it report `## Standards` and `## Spec` as separate sections, in that order, each under its own word limit.
+
 ### 5. Aggregate
 
 Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_).

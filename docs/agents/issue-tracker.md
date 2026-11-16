@@ -20,6 +20,10 @@ Prefer native sub-issues and blocking dependencies when supported by the install
 
 GitHub issues and PRs share a number space. Resolve a bare number before acting, using `gh pr view` and then `gh issue view` if it is not a PR.
 
+## Closing issues
+
+Reference issues from commits and PRs with `For #N` or `Part of #N`. Use a closing keyword (`Closes #N`) only when merging that PR meets every one of the issue's acceptance criteria and no owner acceptance is still outstanding, such as a requested playtest. Publication authority never stands in for gameplay or visual acceptance; an issue awaiting it stays open after the merge.
+
 ## Authority
 
 Specs and tickets must cite the applicable constitution rules and foundations, preserve their constraints, and identify the bounded outcome, evidence, acceptance boundary, and stop conditions. Read the root instruction file's applicable mandatory references before work selection, readiness changes, or publication. A label or skill invocation does not expand accepted scope.

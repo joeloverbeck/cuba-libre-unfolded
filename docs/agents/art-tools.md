@@ -30,3 +30,14 @@ The portable project configurations do not grant access to Pictures. For a bound
 Use MCP initialization, tool discovery, and document inspection for each registered command. Probe a newly registered server from a restarted session through its own MCP tools. A bounded disposable probe should save an empty native document under `art/.mcp-probe*`, verify that saving outside `art/` is refused, and remove only its own probe files. Probe output is not designed art. A later art task must separately render and inspect the actual design, preserve its editable source, and confirm the exported file opens through the intended consumer.
 
 Current setup verification results are recorded in [founding evidence](../research/founding-evidence.md). No graphical asset should be authored by application code to work around a failed editor connection.
+
+## When an editor seems unavailable
+
+Run this preflight before reporting an MCP editor unavailable or switching authoring route. Each step separates one cause; report the first that fails, with its output. Every step only reads, so a running editor and its open documents stay as they are.
+
+1. **Missing tooling.** `command -v vectorcraft-cli effectcraft-cli photocraft-cli figcraft-cli` prints each registered command. For Blender, take its executable and add-on location from the session's MCP configuration (`mcp-for-blender` in the user-level Codex configuration; this repository's `.mcp.json` does not register it). On the founding machine that is the portable `~/.local/opt/blender-5.2.3-linux-x64/blender`. Reinstall an absent tool as "Installed tools and recovery" describes; installing a new editor needs selection.
+2. **Stopped application.** The four Craft servers are stdio processes the client starts; a stopped one returns after reconnecting the MCP server or restarting the session. Blender's MCP server only relays to a running Blender: `pgrep -x blender`. If it is not running, start the configured Blender normally (not with `-b`); its add-on starts the listener once the startup file loads.
+3. **Inactive listener.** `ss -ltn 'sport = :9876'` shows the add-on's loopback listener. With Blender running but no listener, start the server from the add-on's sidebar panel.
+4. **Handshake failure.** The listener answers a read with `"status": "success"`: `(printf '{"type":"get_scene_info","params":{}}'; sleep 5) | nc 127.0.0.1 9876`. Keep the input open, as here: the add-on drops a connection whose input ends before it replies. For a Craft server, a handshake failure is an MCP initialization error in the session; quote it.
+
+If you started Blender for the check, quit it afterwards.

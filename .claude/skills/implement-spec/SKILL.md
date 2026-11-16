@@ -22,11 +22,11 @@ Communication to and from subagents should be sparse. Communicate primarily thro
 
 1. Read the spec and tickets to understand the task graph and accepted deliverable: executable code, source-only documents/research, or mixed work. Carry forward its evidence, owner-acceptance and publication boundaries; ticket dependencies do not supply missing authority.
 
-2. (optional) Use an **exploration subagent** to conduct any exploration required by the tickets - relevant codebase files or external documentation. Ensure the exploration subagent can save files - it should save its markdown notes in a directory outside the repo, accessible by all future subagents. This lets **implementer subagents** focus on implementation rather than exploration.
+2. (optional) Use an **exploration subagent** to conduct any exploration required by the tickets - relevant codebase files or external documentation. Ensure the exploration subagent can save files - it should save its markdown notes under `local/handoffs/`, which Git ignores, a reboot keeps, and all future subagents can read. This lets **implementer subagents** focus on implementation rather than exploration.
 
-3. Create the integration branch. If the issue tracker closes work through PRs, or the user asks for one, open a draft PR after the first merge in step 5 (a branch with no commits ahead of main can't open one), marked as closing the spec and tickets.
+3. Create the integration branch. If the issue tracker closes work through PRs, or the user asks for one, open a draft PR after the first merge in step 5 (a branch with no commits ahead of main can't open one), referencing the spec and tickets with `For #N`. A closing keyword waits for step 8.
 
-4. Use a fresh **implementer subagent** for each ticket, each in its own worktree on its own branch. Each implementer subagent:
+4. Use a fresh **implementer subagent** for each ticket, each in its own worktree under `local/worktrees/` on its own branch. Each implementer subagent:
    - confirms its worktree is based on the integration branch before starting, and resets onto it if not;
    - for executable changes, uses test-driven development within the accepted scope;
    - for source-only documents/research, reconciles the controlling sources and revisions, independently checks calculations where applicable, and checks that general rules, exceptions and worked examples agree. Cite the evidence and label interpretations or unresolved conflicts. Skip TDD and executable scaffolding for this branch. In mixed tickets, apply each verification path to the relevant changes;
@@ -38,6 +38,19 @@ Communication to and from subagents should be sparse. Communicate primarily thro
 
 7. Once all tickets are complete, call the Skill tool with `code-review` on the integration branch. Fix all issues raised by the code review in a single fresh **implementer subagent**.
 
-8. Report the artifact revision, checks and remaining evidence limits. Source review does not establish execution in a consumer or native usability. If a draft PR exists, mark it ready for review; otherwise report the integration branch. Resolve tickets only when their recorded acceptance conditions are met. Carry existing authorization through without duplicate confirmation, while preserving any outstanding owner acceptance or publication boundary.
+8. Report the artifact revision, checks and remaining evidence limits. Source review does not establish execution in a consumer or native usability. If a draft PR exists, mark it ready for review; otherwise report the integration branch. Resolve tickets only when their recorded acceptance conditions are met: switch a PR reference to a closing keyword only as `docs/agents/issue-tracker.md`, "Closing issues", allows. Carry existing authorization through without duplicate confirmation, while preserving any outstanding owner acceptance or publication boundary.
 
 9. Clean up all **implementer subagent** worktrees.
+
+## Small follow-up
+
+A **small follow-up** corrects one local behaviour of already accepted work, and all of these hold:
+
+- it touches a few files, with no new dependency, persisted-data or save-format change, shared or sibling change, CI, settings, skill or instruction change;
+- reverting its commit undoes it completely;
+- no other agent is working on the same files;
+- authority, acceptance boundary and publication set stay those of the work it corrects.
+
+For one, skip the subagents of steps 2, 4–6 and 9. Implement it yourself on one branch with `scripts/check` plus any native check the change reaches. Call the Skill tool with "code-review" for a single reviewer, and fix its findings yourself. Merge it yourself once checks pass and the reviewer leaves no unresolved finding, within the existing publication authority.
+
+Escalate to the full steps as soon as a condition fails, the reviewer finds something outside the correction, or the change outgrows its first plan.
