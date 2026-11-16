@@ -30,7 +30,51 @@ _Avoid_: Victory standing, automatic win
 
 **Operation**:
 A faction action such as Terror, resolved through the choices and effects allowed for that action. Completing an Operation does not necessarily complete the current Event card.
-_Avoid_: Turn, complete card (when referring only to an Operation)
+_Avoid_: Turn, complete card (when referring only to an Operation), full Operation, Full Terror
+
+**Limited Operation**:
+An Operation in exactly one space with no Special Activity. It still counts as an Operation for Eligibility.
+_Avoid_: Partial Operation, cheap Operation
+
+**Operation Only**:
+The record that the 1st Eligible faction executed an Operation without a Special Activity; it limits the 2nd Eligible faction to Pass or a Limited Operation. With a Special Activity the 2nd Eligible faction may instead execute the Event.
+_Avoid_: Full Terror, plain Operation
+
+**Eligible faction**:
+A faction that may act on the current card. The leftmost Eligible faction in the card's order is the 1st Eligible, the next is the 2nd Eligible.
+_Avoid_: Active faction, current player
+
+**Pass**:
+An Eligible faction's choice not to act on the card, gaining +1 Resource (+3 for the Government) and remaining Eligible.
+_Avoid_: Skip, end turn, zero-space Operation
+
+**Underground Guerrilla**:
+A Guerrilla in its concealed state. Terror requires one in each selected space.
+_Avoid_: Hidden Guerrilla, inactive Guerrilla
+
+**Active Guerrilla**:
+A Guerrilla in its exposed state. It still counts for Control and for outnumbering Police.
+_Avoid_: Revealed Guerrilla, used Guerrilla
+
+**Activate**:
+To flip an Underground Guerrilla to Active. It concerns a piece, never Resources.
+_Avoid_: Spend, use (when meaning flipping a Guerrilla)
+
+**Executing faction**:
+The faction currently carrying out an Operation, Special Activity or Event. Choosing an action, Passing or waiting for one's turn is not executing.
+_Avoid_: Active player, current turn (when meaning execution)
+
+**Resource transfer**:
+A voluntary movement of Resources from a giver to a recipient, decided by the giver, permitted only while the giver or the recipient is the executing faction.
+_Avoid_: Payment, donation (for a request not yet authorized)
+
+**Transfer request**:
+One faction's nonbinding ask that another give it Resources. It moves nothing; only the giver's authorization makes a Resource transfer.
+_Avoid_: Petition, demand, pending transfer
+
+**Voluntary removal**:
+The executing faction's return of its own on-map pieces to Available Forces during its Operation, Special Activity or Event. The rules set no count limit.
+_Avoid_: Retreat, casualty, elimination
 
 **Special Activity**:
 A faction-specific activity that may accompany an eligible Operation, subject to its own timing and location restrictions. Kidnap is a 26July Special Activity that can accompany Terror.
