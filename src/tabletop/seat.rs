@@ -5,43 +5,38 @@ use serde_json::json;
 use unfolded_tabletop::{
     capture,
     seat::{
-        self as shared, Focus, Game as SeatGame, Hit, Logical, Name as TargetName, Observed, Seat,
-        SeatKey, socket,
+        self as shared, Focus, Game as SeatGame, Hit, Logical, Name as TargetName, Observed,
+        SeatKey,
+        start::{self, Start},
     },
 };
-const DETACHED: &str = "CUBA_LIBRE_AGENT_SEAT_DETACHED";
+/// Cuba Libre's seat start: its marker, the shared limits and its words for an
+/// admission that ran out of time. The order of the steps and the refusals are shared.
+const START: Start = Start::new("CUBA_LIBRE_AGENT_SEAT_DETACHED", |_, limit| {
+    format!(
+        "Native admission failed: not finished within {} seconds.",
+        limit.as_secs()
+    )
+});
 pub(super) fn run(options: Options) -> Result<(), String> {
-    let listener = if let Some(path) = &options.socket {
-        if !socket::detached(DETACHED) {
-            return socket::launch(path, DETACHED).or_else(shared::refuse);
-        }
-        Some(socket::detach(path, DETACHED).or_else(shared::refuse)?)
-    } else {
-        None
-    };
-    let size = options.seat_size;
-    let mut app = build(options, true).or_else(shared::refuse)?;
-    app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::ZERO));
-    capture::install::<Camera2d>(&mut app, size);
-    app.add_systems(
-        PostStartup,
-        |mut commands: Commands,
-         surface: Res<capture::Surface>,
-         camera: Single<Entity, With<Camera3d>>| {
-            commands
-                .entity(*camera)
-                .insert(RenderTarget::Image(surface.image().into()));
-        },
-    );
-    let mut seat = Seat::open(Table, &mut app)?;
-    seat.admit(&mut app, Duration::from_secs(120))
-        .map_err(|e| format!("Native admission failed: {e:?}"))?;
-    if let Some(listener) = listener {
-        socket::announce(&seat.ready(&mut app))?;
-        listener.serve(&mut seat, &mut app, Duration::from_secs(30 * 60))
-    } else {
-        seat.serve(&mut app, std::io::stdin().lock(), std::io::stdout().lock())
-    }
+    let socket = options.socket.clone();
+    START.run(socket.as_deref(), || {
+        let size = options.seat_size;
+        let mut app = build(options, true)?;
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::ZERO));
+        capture::install::<Camera2d>(&mut app, size);
+        app.add_systems(
+            PostStartup,
+            |mut commands: Commands,
+             surface: Res<capture::Surface>,
+             camera: Single<Entity, With<Camera3d>>| {
+                commands
+                    .entity(*camera)
+                    .insert(RenderTarget::Image(surface.image().into()));
+            },
+        );
+        Ok(start::Table::new(app, Table))
+    })
 }
 struct Table;
 fn named(control: &Control) -> TargetName {
