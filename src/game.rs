@@ -836,17 +836,13 @@ impl Game {
     fn notes(&self, after: &Game, action: &str) -> Vec<String> {
         let mut notes = vec![];
         if action == "pass" {
-            notes.push("R 2.3.3: 26July stays Eligible, and Directorio becomes 1st Eligible. The task ends there; Directorio's options are shown, not executed.".into());
+            notes.push("26July stays Eligible (R 2.3.3). The task ends there; Directorio's options are shown, not executed.".into());
         } else if action == "end-terror" {
             let resolved = self.spaces.iter().any(|s| s.terror > 0);
             if self.kidnap.is_some() {
-                notes.push(
-                    "Records Operation with Special Activity: Terror with Kidnap (R 2.3.4).".into(),
-                );
-                notes.push(format!("Directorio, 2nd Eligible, may Pass, take a Limited Operation or execute card 17's Event, either text (R 2.3.4, 5.2). Shaded: \"{CARD_17_SHADED}\""));
+                notes.push(format!("After a Special Activity, Directorio may execute card 17's Event, either text (R 2.3.4, 5.2). Shaded: \"{CARD_17_SHADED}\""));
             } else {
-                notes.push("Records Operation Only (R 2.3.4).".into());
-                notes.push("Directorio, 2nd Eligible, may Pass or take a Limited Operation; the Event follows only an Operation with Special Activity (R 2.3.4).".into());
+                notes.push("No Event for Directorio: it follows only an Operation with Special Activity (R 2.3.4).".into());
             }
             if resolved {
                 notes.push("26July becomes Ineligible after this card (R 2.3.7).".into());

@@ -2078,7 +2078,7 @@ fn native_previews_disabled_targets_and_end_terror() {
     }
     let santiago = card(&mut app, "terror:santiago", "santiago-disabled");
     assert!(
-        santiago.contains("In this task: Kidnap here first or Request a Resource transfer"),
+        santiago.contains("In this task: Kidnap here first · Request a Resource transfer"),
         "{santiago}"
     );
     let zero = card(&mut app, "end-terror", "end-terror-zero-space");

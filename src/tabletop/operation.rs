@@ -134,7 +134,7 @@ fn choices(commands: &mut Commands, art: &Art, view: &crate::Observation, s: f32
     // replaces this temporary stack.
     let count = view.choices.len() as f32;
     let pitch = if count > 5. { 44. } else { 52. };
-    let top = (926. - count * pitch).min(590.);
+    let top = 926. - count * pitch;
     for (i, choice) in view.choices.iter().enumerate() {
         control(
             commands,
@@ -159,6 +159,11 @@ fn choices(commands: &mut Commands, art: &Art, view: &crate::Observation, s: f32
     }
 }
 
+/// A Resource count with its unit.
+fn units(n: u8) -> String {
+    format!("{n} Resource{}", if n == 1 { "" } else { "s" })
+}
+
 /// What activating a disabled choice reports: its reason and in-task remedies.
 fn refusal(choice: &crate::Choice) -> String {
     if choice.remedies.is_empty() {
@@ -167,7 +172,7 @@ fn refusal(choice: &crate::Choice) -> String {
         format!(
             "{} In this task: {}.",
             choice.explanation,
-            choice.remedies.join(" or ")
+            choice.remedies.join(" · ")
         )
     }
 }
@@ -246,30 +251,30 @@ fn terror_details(view: &crate::Observation) -> String {
             "No Terror resolved: no effect, no Pass income.".into()
         } else {
             format!(
-                "Terror resolved: {} · paid {} Resources",
+                "Terror resolved: {} · paid {}",
                 resolved.join(", "),
-                resolved.len()
+                units(resolved.len() as u8)
             )
         });
     } else {
-        lines.push(format!(
-            "Terror (R 3.3.4) · Cost: 1 Resource per space (26July has {m26})"
-        ));
-        lines.push("Each space: flip 1 Underground Guerrilla there".into());
-        lines.push("to Active, place a Terror marker, shift 1 level".into());
-        lines.push("toward Active Opposition.".into());
+        lines.push(format!("Cost: 1 Resource per space (26July has {m26})"));
+        lines.push("Terror (R 3.3.4), in each selected space:".into());
+        lines.push("flip 1 Underground Guerrilla there to Active,".into());
+        lines.push("place a Terror marker and shift 1 level toward".into());
+        lines.push("Active Opposition.".into());
         if !resolved.is_empty() {
             lines.push(format!("Resolved: {}", resolved.join(", ")));
         }
     }
     if let Some(roll) = &view.kidnap {
         lines.push(format!(
-            "Kidnap rolled {} · {} Resources Government → 26July",
-            roll.die, roll.proceeds
+            "Kidnap rolled {} · {} Government → 26July",
+            roll.die,
+            units(roll.proceeds)
         ));
     } else if !view.finished {
         lines.push(format!(
-            "Kidnap (Special Activity, R 4.1, 4.3.3): with Terror in\nSantiago; die 1–6 takes {}–{} Resources from Government.",
+            "Kidnap (Special Activity, R 4.1, 4.3.3): with\nTerror in Santiago, a die 1–6 takes {}–{}\nResources from Government.",
             view.resources[0].min(1),
             view.resources[0].min(6)
         ));

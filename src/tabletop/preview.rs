@@ -13,11 +13,12 @@ mod card {
     pub const WIDTH: f32 = 488.;
     pub const TITLE: f32 = 27.;
     pub const BODY_TOP: f32 = 70.;
-    pub const LINE: f32 = 23.;
+    pub const LINE: f32 = 20.5;
     pub const BOTTOM: f32 = 18.;
     /// Lines are broken by hand at this many characters, which a 440 px column at
-    /// 17 px holds with margin, so each authored line is one drawn line.
-    pub const CHARS: usize = 50;
+    /// 17 px holds with margin (native captures measure about 7.4 px a character),
+    /// so each authored line is one drawn line.
+    pub const CHARS: usize = 56;
 }
 const INK: Color = Color::srgb_u8(32, 50, 56);
 const QUIET: Color = Color::srgb_u8(83, 106, 109);
@@ -55,9 +56,9 @@ fn controller(faction: Option<Faction>) -> String {
 
 fn record(record: SequenceBox) -> &'static str {
     match record {
-        SequenceBox::Pass => "Pass",
-        SequenceBox::OperationOnly => "Operation Only",
-        SequenceBox::OperationWithSpecialActivity => "Operation with Special Activity",
+        SequenceBox::Pass => "Pass (R 2.3.3)",
+        SequenceBox::OperationOnly => "Operation Only (R 2.3.4)",
+        SequenceBox::OperationWithSpecialActivity => "Operation with Special Activity (R 2.3.4)",
     }
 }
 
@@ -143,7 +144,7 @@ fn content(view: &Observation, choice: &Choice) -> Shown {
         sentences.push(if choice.remedies.is_empty() {
             "Nothing in this task can make it available.".into()
         } else {
-            format!("In this task: {}.", choice.remedies.join(" or "))
+            format!("In this task: {}.", choice.remedies.join(" · "))
         });
     } else if let Some(preview) = &choice.preview {
         sentences.extend(consequences(view, preview));
@@ -284,7 +285,7 @@ mod tests {
             "{lines}"
         );
         assert!(
-            lines.contains("In this task: Kidnap here first or Request a Resource transfer."),
+            lines.contains("In this task: Kidnap here first · Request a Resource transfer."),
             "{lines}"
         );
     }
@@ -293,7 +294,7 @@ mod tests {
     fn the_zero_space_end_terror_card_warns_and_names_directorio() {
         let lines = card(&Game::prepared(), "end-terror").lines.join(" ");
         for fact in [
-            "Records: Operation Only",
+            "Records: Operation Only (R 2.3.4)",
             "Directorio, 2nd Eligible, may: Pass (+1 if executed later) · Limited Operation",
             "no Pass income",
         ] {
