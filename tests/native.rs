@@ -1941,6 +1941,58 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         app.launch_size(size);
         let mut checked = 0;
 
+        // The action choice (#61): card 17's order and 26July's Resources by emblem,
+        // and an unsupported option's explanation in the session notice.
+        let open = app.observe();
+        checked += assert_inline_emblems(&open);
+        let order = open["table"]["inline_text"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["text"].as_str().unwrap().starts_with("Order: "))
+            .expect("the order line");
+        let mut drawn: Vec<_> = order["emblems"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| e["faction"].as_str().unwrap())
+            .collect();
+        assert_eq!(
+            drawn.len(),
+            5,
+            "four in order, then 26July's Resources: {order}"
+        );
+        drawn.sort_unstable();
+        drawn.dedup();
+        assert_eq!(drawn.len(), 4);
+        app.capture("action-choice");
+        app.activate("0:rally", 0);
+        let refused = app.observe();
+        checked += assert_inline_emblems(&refused);
+        let notice = refused["table"]["notice"].as_str().unwrap().to_owned();
+        assert!(notice.contains("26July Guerrillas"));
+        let session = |view: &Value, words: &str| -> Vec<String> {
+            let texts = view["table"]["inline_text"].as_array().unwrap();
+            let found: Vec<_> = texts
+                .iter()
+                .filter(|t| t["text"].as_str().unwrap().ends_with(words))
+                .collect();
+            assert_eq!(
+                found.len(),
+                1,
+                "one session text ending {words:?}: {texts:?}"
+            );
+            found[0]["emblems"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|e| e["faction"].as_str().unwrap().to_owned())
+                .collect()
+        };
+        assert!(session(&refused, &notice).contains(&"26July".to_owned()));
+        app.capture("rally-explanation");
+        app.choose("terror");
+
         // Panel text and a red primary button.
         let initial = app.observe();
         checked += assert_inline_emblems(&initial);
@@ -2079,6 +2131,28 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         );
         app.capture("reader");
         app.activate("close", revision);
+        app.quit();
+
+        // Pass, on a fresh save: its notice and Directorio's options name factions by emblem.
+        app.save = app.root.join("pass.json");
+        app.launch_size(size);
+        app.choose("pass");
+        let passed = app.observe();
+        checked += assert_inline_emblems(&passed);
+        let notice = passed["table"]["notice"].as_str().unwrap().to_owned();
+        assert!(notice.starts_with("26July passed"), "{notice}");
+        assert_eq!(session(&passed, &notice), ["26July", "Directorio"]);
+        assert!(
+            passed["table"]["inline_text"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|t| t["text"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("Directorio is now 1st Eligible"))
+        );
+        app.capture("after-pass");
         assert!(checked >= 20, "checked {checked} emblems");
         app.quit();
     }
