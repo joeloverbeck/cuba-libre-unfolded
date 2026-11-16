@@ -22,7 +22,7 @@ Communication to and from subagents should be sparse. Communicate primarily thro
 
 1. Read the spec and tickets to understand the task graph and accepted deliverable: executable code, source-only documents/research, or mixed work. Carry forward its evidence, owner-acceptance and publication boundaries; ticket dependencies do not supply missing authority.
 
-2. (optional) Use an **exploration subagent** to conduct any exploration required by the tickets - relevant codebase files or external documentation. Ensure the exploration subagent can save files - it should save its markdown notes under `local/handoffs/`, which Git ignores, a reboot keeps, and all future subagents can read. This lets **implementer subagents** focus on implementation rather than exploration.
+2. (optional) Use an **exploration subagent** to conduct any exploration required by the tickets - relevant codebase files or external documentation. Ensure the exploration subagent can save files - it should save its markdown notes under `local/handoffs/` (README, "Where files live"), where all future subagents can read them. This lets **implementer subagents** focus on implementation rather than exploration.
 
 3. Create the integration branch. If the issue tracker closes work through PRs, or the user asks for one, open a draft PR after the first merge in step 5 (a branch with no commits ahead of main can't open one), referencing the spec and tickets with `For #N`. A closing keyword waits for step 8.
 
@@ -44,13 +44,13 @@ Communication to and from subagents should be sparse. Communicate primarily thro
 
 ## Small follow-up
 
-A **small follow-up** corrects one local behaviour of already accepted work, and all of these hold:
+A **small follow-up** corrects one local behaviour of delivered work, within that work's accepted scope, and all of these hold:
 
 - it touches a few files, with no new dependency, persisted-data or save-format change, shared or sibling change, CI, settings, skill or instruction change;
 - reverting its commit undoes it completely;
 - no other agent is working on the same files;
 - authority, acceptance boundary and publication set stay those of the work it corrects.
 
-For one, skip the subagents of steps 2, 4–6 and 9. Implement it yourself on one branch with `scripts/check` plus any native check the change reaches. Call the Skill tool with "code-review" for a single reviewer, and fix its findings yourself. Merge it yourself once checks pass and the reviewer leaves no unresolved finding, within the existing publication authority.
+For one, skip the subagents of steps 2, 4–6 and 9. Implement it yourself on one branch with `scripts/check` plus any native check the change reaches. Call the Skill tool with "code-review", marking the change a small follow-up so one reviewer runs, and fix its findings yourself. Merge it yourself once checks pass and the reviewer leaves no unresolved finding, within the existing publication authority.
 
 Escalate to the full steps as soon as a condition fails, the reviewer finds something outside the correction, or the change outgrows its first plan.

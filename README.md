@@ -76,7 +76,7 @@ For a fresh transfer example, activate choices `0:transfer`, `1:transfer:3:1`, `
 
 | What | Where |
 |---|---|
-| A save the owner continues or will review | `~/.local/share/cuba-libre-unfolded/saves/` (under `$XDG_DATA_HOME` when set), with a new file name for each review save |
+| A save the owner continues or will review | `~/.local/share/cuba-libre-unfolded/saves/`, with a new file name for each review save |
 | Agent verification saves, captures, observations and retained logs | a fresh run directory under `local/verification/`, such as `issue-<N>/<run>/` for issue work |
 | Agent worktrees | `local/worktrees/<branch>/` |
 | Handoff notes | `local/handoffs/`; the durable state belongs in an issue comment |

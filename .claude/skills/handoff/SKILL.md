@@ -5,7 +5,7 @@ argument-hint: "What will the next session be used for?"
 disable-model-invocation: true
 ---
 
-Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save it under `local/handoffs/` in this checkout: ignored by Git and kept across reboots, unlike `/tmp`. When the work has an issue, also post the current state and next step there, since the issue is the durable record.
+Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save it under `local/handoffs/` in this checkout (README, "Where files live"). When the work has an issue, also post the current state and next step there, since the issue is the durable record.
 
 Include a "suggested skills" section in the document, naming which skills the next agent should call the Skill tool for.
 

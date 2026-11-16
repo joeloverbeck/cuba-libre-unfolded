@@ -59,10 +59,9 @@ The Pictures resource collection is external reference material. Do not commit i
 
 ### Reading, output and waiting
 
-- Read a large file by section: find the heading with `grep -n`, then read that range. A truncated read is a signal to narrow, not to retry whole.
+- Read a large file by section: find the heading with `grep -n`, then read that range. After a truncated read, narrow the range.
 - Send verbose command output to a log under `local/verification/`, and report the result lines and the log path.
 - Wait for a subagent's or background command's completion notification; poll only state nothing will notify about, such as CI, at the pace it changes.
-- Rule readings already recorded for unchanged bounded work carry forward ("Mandatory reading").
 
 ## Agent skills
 
