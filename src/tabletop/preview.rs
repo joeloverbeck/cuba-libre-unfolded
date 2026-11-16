@@ -1,0 +1,312 @@
+//! A choice's preview, shown while the pointer rests on its button: the consequences
+//! the rules authority computed for an irreversible step, or why a disabled choice
+//! cannot be taken now and what in this task would allow it. This module only words
+//! and places the game's facts. It is a temporary card beside the Operation panel;
+//! the selected popover design (#69) replaces its placement.
+use super::*;
+use crate::{Choice, Observation, Preview, SequenceBox};
+
+/// Card geometry in reference pixels, right-anchored beside the Operation panel.
+mod card {
+    pub const X: f32 = 880.;
+    pub const Y: f32 = 287.;
+    pub const WIDTH: f32 = 488.;
+    pub const TITLE: f32 = 27.;
+    pub const BODY_TOP: f32 = 70.;
+    pub const LINE: f32 = 23.;
+    pub const BOTTOM: f32 = 18.;
+    /// Lines are broken by hand at this many characters, which a 440 px column at
+    /// 17 px holds with margin, so each authored line is one drawn line.
+    pub const CHARS: usize = 50;
+}
+const INK: Color = Color::srgb_u8(32, 50, 56);
+const QUIET: Color = Color::srgb_u8(83, 106, 109);
+
+#[derive(Component)]
+pub(super) struct Tag;
+
+/// What the card shows, as the development seat reads it.
+#[derive(Component, Clone, Debug, serde::Serialize, PartialEq)]
+pub(super) struct Shown {
+    pub choice: String,
+    pub title: String,
+    pub lines: Vec<String>,
+    pub bounds: [f32; 4],
+}
+
+fn space_name<'a>(view: &'a Observation, id: &'a str) -> &'a str {
+    view.spaces
+        .iter()
+        .find(|s| s.id == id)
+        .map_or(id, |s| s.name.as_str())
+}
+
+fn piece(kind: Kind, state: State) -> String {
+    match (kind, state) {
+        (Kind::Guerrilla, State::Underground) => "Underground Guerrilla".into(),
+        (Kind::Guerrilla, State::Active) => "Active Guerrilla".into(),
+        (kind, _) => format!("{kind:?}"),
+    }
+}
+
+fn controller(faction: Option<Faction>) -> String {
+    faction.map_or("uncontrolled".into(), |f| format!("{} Control", f.name()))
+}
+
+fn record(record: SequenceBox) -> &'static str {
+    match record {
+        SequenceBox::Pass => "Pass",
+        SequenceBox::OperationOnly => "Operation Only",
+        SequenceBox::OperationWithSpecialActivity => "Operation with Special Activity",
+    }
+}
+
+/// The preview's facts as sentences, in the order a player checks them.
+fn consequences(view: &Observation, preview: &Preview) -> Vec<String> {
+    let mut lines = vec![];
+    for r in &preview.resources {
+        lines.push(format!(
+            "{} Resources: {} → {}",
+            r.faction.name(),
+            r.from,
+            r.to
+        ));
+    }
+    for f in &preview.flips {
+        lines.push(format!(
+            "{}: flip {} {} to {}",
+            space_name(view, &f.space),
+            f.count,
+            piece(f.kind, f.from),
+            piece(f.kind, f.to).replace(" Guerrilla", "")
+        ));
+    }
+    for r in &preview.removed {
+        lines.push(format!(
+            "{}: {} {} {} returns to Available",
+            space_name(view, &r.space),
+            r.count,
+            r.faction.name(),
+            piece(r.kind, r.state)
+        ));
+    }
+    for space in &preview.terror {
+        lines.push(format!("{}: Terror marker placed", space_name(view, space)));
+    }
+    for s in &preview.support {
+        lines.push(format!("{}: {}", space_name(view, &s.space), s.label));
+    }
+    for c in &preview.control {
+        lines.push(format!(
+            "{}: {} → {}",
+            space_name(view, &c.space),
+            controller(c.from),
+            controller(c.to)
+        ));
+    }
+    for s in &preview.standings {
+        lines.push(format!(
+            "{} victory standing {} → {} (margin {} → {})",
+            s.faction.name(),
+            s.score_from,
+            s.score_to,
+            s.margin_from,
+            s.margin_to
+        ));
+    }
+    if lines.is_empty() {
+        lines.push("No Resources, pieces, support, Control or standings change.".into());
+    }
+    for u in &preview.unavailable {
+        lines.push(format!("Becomes unavailable: {}", u.label));
+    }
+    if let Some(records) = preview.records {
+        lines.push(format!("Records: {}", record(records)));
+    }
+    if let Some(next) = &preview.next {
+        lines.push(format!(
+            "{}, {}, may: {}",
+            next.faction.name(),
+            next.role,
+            next.options.join(" · ")
+        ));
+    }
+    lines.extend(preview.notes.iter().cloned());
+    lines
+}
+
+/// The card for one listed choice.
+fn content(view: &Observation, choice: &Choice) -> Shown {
+    let mut sentences = vec![];
+    if !choice.supported {
+        sentences.push(format!("Unavailable now. {}", choice.explanation));
+        sentences.push(if choice.remedies.is_empty() {
+            "Nothing in this task can make it available.".into()
+        } else {
+            format!("In this task: {}.", choice.remedies.join(" or "))
+        });
+    } else if let Some(preview) = &choice.preview {
+        sentences.extend(consequences(view, preview));
+    } else {
+        sentences.push(choice.explanation.clone());
+    }
+    Shown {
+        choice: choice.id.clone(),
+        title: choice.label.clone(),
+        lines: sentences
+            .iter()
+            .flat_map(|s| wrap(s, card::CHARS))
+            .collect(),
+        bounds: [0.; 4],
+    }
+}
+
+/// Breaks a sentence into lines of at most `width` characters at spaces.
+fn wrap(sentence: &str, width: usize) -> Vec<String> {
+    let mut lines = vec![];
+    let mut line = String::new();
+    for word in sentence.split_whitespace() {
+        if !line.is_empty() && line.chars().count() + 1 + word.chars().count() > width {
+            lines.push(std::mem::take(&mut line));
+        }
+        if !line.is_empty() {
+            line.push(' ');
+        }
+        line.push_str(word);
+    }
+    if !line.is_empty() {
+        lines.push(line);
+    }
+    lines
+}
+
+pub(super) fn draw(
+    mut commands: Commands,
+    play: Res<Play>,
+    ui: Res<Interface>,
+    art: Res<Art>,
+    window: Single<&Window, With<PrimaryWindow>>,
+    roots: Query<Entity, With<Tag>>,
+    mut previous: Local<Option<Shown>>,
+) {
+    let (scale, left) = layout(&window);
+    let right = left + Vec2::new(window.width() - WIDTH * scale, 0.);
+    let view = play.game().observe();
+    let shown = ui
+        .hover
+        .visible()
+        .filter(|_| !ui.reader)
+        .and_then(|target| match target {
+            Target::Choice(id) => view.choices.iter().find(|c| &c.id == id),
+            Target::Standing(_) | Target::Top(_) => None,
+        })
+        .map(|choice| {
+            let mut shown = content(&view, choice);
+            let height = card::BODY_TOP + shown.lines.len() as f32 * card::LINE + card::BOTTOM;
+            shown.bounds = [
+                right.x + card::X * scale,
+                right.y + card::Y * scale,
+                right.x + (card::X + card::WIDTH) * scale,
+                right.y + (card::Y + height) * scale,
+            ];
+            shown
+        });
+    if *previous == shown {
+        return;
+    }
+    for root in &roots {
+        commands.entity(root).despawn();
+    }
+    previous.clone_from(&shown);
+    let Some(shown) = shown else {
+        return;
+    };
+    let [x, y, right_edge, bottom] = shown.bounds;
+    let plate = picture(
+        &mut commands,
+        &art,
+        "atlas-top-tag.png",
+        [x, y, right_edge - x, bottom - y],
+        1.,
+        Vec2::ZERO,
+        7,
+    );
+    commands.entity(plate).remove::<UiRoot>().insert(Tag);
+    let mut words = |content: String, top: f32, size: f32, ink: Color| {
+        let entity = text(
+            &mut commands,
+            &art,
+            content,
+            x + 24. * scale,
+            y + top * scale,
+            440. * scale,
+            size * scale,
+            1.,
+            Vec2::ZERO,
+            9,
+        );
+        commands
+            .entity(entity)
+            .remove::<UiRoot>()
+            .insert((Tag, TextColor(ink)));
+    };
+    words(shown.title.clone(), 18., card::TITLE * 0.8, INK);
+    words(shown.lines.join("\n"), card::BODY_TOP, 17., QUIET);
+    let rule = picture(
+        &mut commands,
+        &art,
+        "atlas-victory-rule.png",
+        [x + 24. * scale, y + 58. * scale, 440. * scale, scale],
+        1.,
+        Vec2::ZERO,
+        8,
+    );
+    commands.entity(rule).remove::<UiRoot>().insert(Tag);
+    commands.entity(plate).insert(shown);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn card(game: &Game, action: &str) -> Shown {
+        let view = game.observe();
+        let id = format!("{}:{action}", view.revision);
+        let choice = view.choices.iter().find(|c| c.id == id).unwrap();
+        content(&view, choice)
+    }
+
+    #[test]
+    fn a_disabled_target_states_its_reason_and_remedies() {
+        let lines = card(&Game::prepared(), "terror:santiago").lines.join(" ");
+        assert!(
+            lines.contains("Cost: 1 Resource per space (26July has 0)"),
+            "{lines}"
+        );
+        assert!(
+            lines.contains("In this task: Kidnap here first or Request a Resource transfer."),
+            "{lines}"
+        );
+    }
+
+    #[test]
+    fn the_zero_space_end_terror_card_warns_and_names_directorio() {
+        let lines = card(&Game::prepared(), "end-terror").lines.join(" ");
+        for fact in [
+            "Records: Operation Only",
+            "Directorio, 2nd Eligible, may: Pass (+1 if executed later) · Limited Operation",
+            "no Pass income",
+        ] {
+            assert!(lines.contains(fact), "{fact}: {lines}");
+        }
+    }
+
+    #[test]
+    fn lines_fit_the_column() {
+        for action in ["end-terror", "terror:santiago", "terror:oriente", "kidnap"] {
+            for line in card(&Game::prepared(), action).lines {
+                assert!(line.chars().count() <= card::CHARS, "{line}");
+            }
+        }
+    }
+}

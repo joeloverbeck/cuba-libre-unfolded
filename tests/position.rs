@@ -131,9 +131,9 @@ fn prepared_position_exposes_complete_public_state_without_hidden_order() {
 fn zero_space_finish_has_no_pass_income_or_deck_advance_and_refuses_wrong_authority() {
     let initial = Game::prepared();
     for (owner, revision, choice) in [
-        (Faction::Government, 0, "0:finish"),
-        (Faction::M26, 1, "0:finish"),
-        (Faction::M26, 0, "1:finish"),
+        (Faction::Government, 0, "0:end-terror"),
+        (Faction::M26, 1, "0:end-terror"),
+        (Faction::M26, 0, "1:end-terror"),
         (Faction::M26, 0, "0:remove:santiago:police"),
     ] {
         let mut game = initial.clone();
@@ -141,7 +141,7 @@ fn zero_space_finish_has_no_pass_income_or_deck_advance_and_refuses_wrong_author
         assert_eq!(game, initial);
     }
     let mut game = initial.clone();
-    game.submit(Faction::M26, 0, "0:finish").unwrap();
+    game.submit(Faction::M26, 0, "0:end-terror").unwrap();
     let view = game.observe();
     assert_eq!(view.resources, [6, 0, 5, 15]);
     assert_eq!(view.spaces, initial.observe().spaces);
@@ -156,6 +156,6 @@ fn zero_space_finish_has_no_pass_income_or_deck_advance_and_refuses_wrong_author
     );
     assert_eq!(game.random_state(), initial.random_state());
     let finished = game.clone();
-    assert!(game.submit(Faction::M26, 0, "0:finish").is_err());
+    assert!(game.submit(Faction::M26, 0, "0:end-terror").is_err());
     assert_eq!(game, finished);
 }

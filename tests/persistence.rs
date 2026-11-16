@@ -25,7 +25,7 @@ fn pending_removal_and_owed_piece_survive_restart_without_duplicates() {
         "remove",
         "remove:santiago:active",
         "confirm-removal",
-        "finish",
+        "end-terror",
     ] {
         let v = session.observe();
         session
@@ -121,7 +121,7 @@ fn committed_roll_and_terror_resume_without_reroll_or_duplicate_effect() {
     assert_eq!(session.observe(), rolled);
     assert_eq!(session.game().random_state(), consumed);
     let bytes = std::fs::read(&path).unwrap();
-    for (rev, action) in [(1, "1:kidnap"), (2, "2:kidnap"), (2, "2:finish")] {
+    for (rev, action) in [(1, "1:kidnap"), (2, "2:kidnap"), (2, "2:end-terror")] {
         assert!(session.submit(Faction::M26, rev, action).is_err());
         assert_eq!(std::fs::read(&path).unwrap(), bytes);
     }
@@ -140,7 +140,7 @@ fn committed_roll_and_terror_resume_without_reroll_or_duplicate_effect() {
             .submit(Faction::M26, 3, "3:terror:santiago")
             .is_err()
     );
-    session.submit(Faction::M26, 3, "3:finish").unwrap();
+    session.submit(Faction::M26, 3, "3:end-terror").unwrap();
     assert!(session.observe().next_options.contains(&"Event".into()));
 }
 
@@ -231,7 +231,7 @@ fn real_record_replacement_resumes_both_states_and_preserves_previous() {
     assert_eq!(session.observe().resources, [6, 0, 5, 15]);
     act(&mut session, "terror");
     let initial = std::fs::read(&path).unwrap();
-    session.submit(Faction::M26, 1, "1:finish").unwrap();
+    session.submit(Faction::M26, 1, "1:end-terror").unwrap();
     let finished = std::fs::read(&path).unwrap();
     assert_ne!(initial, finished);
     assert_eq!(std::fs::read(previous_path(&path)).unwrap(), initial);

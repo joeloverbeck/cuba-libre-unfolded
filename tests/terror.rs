@@ -37,7 +37,7 @@ fn donated_oriente_terror_updates_pieces_resources_standing_and_next_permission(
     assert_eq!(view.standings[1].score, 9);
     assert_eq!(view.terror_available, 19);
     assert_eq!((view.map_piece_count, view.available_piece_count), (29, 57));
-    choose(&mut game, "finish");
+    choose(&mut game, "end-terror");
     assert_eq!(
         game.observe().next_options,
         ["Pass (+1 if executed later)", "Limited Operation"]
@@ -72,7 +72,7 @@ fn all_six_rolls_fund_the_owed_terror_and_change_affordable_continuations() {
             game.submit(
                 Faction::M26,
                 view.revision,
-                &format!("{}:finish", view.revision)
+                &format!("{}:end-terror", view.revision)
             )
             .is_err()
         );
@@ -93,7 +93,7 @@ fn all_six_rolls_fund_the_owed_terror_and_change_affordable_continuations() {
             assert_eq!(game.observe().resources, [government, remaining, 5, 15]);
             assert_eq!(game.observe().standings[1].score, 10);
         }
-        choose(&mut game, "finish");
+        choose(&mut game, "end-terror");
         assert_eq!(
             game.observe().next_options,
             ["Pass (+1 if executed later)", "Limited Operation", "Event"]
@@ -130,7 +130,7 @@ fn owed_santiago_limits_spending_only_until_its_terror_is_resolved() {
     choose(&mut game, "transfer:1:2");
     choose(&mut game, "amount:1");
     choose(&mut game, "authorize");
-    choose(&mut game, "finish");
+    choose(&mut game, "end-terror");
     assert_eq!(game.observe().resources, [4, 0, 7, 14]);
     game.validate().unwrap();
 }
@@ -169,7 +169,7 @@ fn actual_donations_allow_both_target_orders_and_early_during_late_or_no_kidnap(
                     .count(),
                 2
             );
-            choose(&mut game, "finish");
+            choose(&mut game, "end-terror");
             assert_eq!(
                 game.observe().next_options.contains(&"Event".into()),
                 timing.is_some()
@@ -218,7 +218,7 @@ fn depleted_government_needs_real_funding_before_early_zero_proceeds_kidnap() {
     assert_eq!(game.observe().kidnap.as_ref().unwrap().die, 3);
     assert_eq!(game.observe().resources, [0, 1, 10, 15]);
     choose(&mut game, "terror:santiago");
-    choose(&mut game, "finish");
+    choose(&mut game, "end-terror");
     assert!(game.observe().next_options.contains(&"Event".into()));
     game.validate().unwrap();
 }
@@ -251,7 +251,7 @@ fn refused_targets_activities_funds_duplicates_and_stale_input_preserve_all_stat
         (Faction::Government, 1, "1:terror:santiago"),
         (Faction::M26, 0, "0:kidnap"),
         (Faction::M26, 1, "1:kidnap"),
-        (Faction::M26, 1, "1:finish"),
+        (Faction::M26, 1, "1:end-terror"),
     ] {
         assert!(game.submit(owner, revision, action).is_err());
         assert_eq!(game, before);

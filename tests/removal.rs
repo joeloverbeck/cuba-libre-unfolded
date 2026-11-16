@@ -56,7 +56,7 @@ fn removal_requires_confirmation_and_defeats_kidnap_but_not_donated_terror() {
     choose(&mut game, "terror:santiago");
     assert_eq!(game.observe().resources, [6, 0, 4, 15]);
     assert_eq!(game.observe().standings[1].score, 8);
-    choose(&mut game, "finish");
+    choose(&mut game, "end-terror");
     assert_eq!(
         game.observe().next_options,
         ["Pass (+1 if executed later)", "Limited Operation"]
@@ -84,11 +84,17 @@ fn all_own_pieces_can_return_to_supply_and_zero_space_finish_remains_legal() {
     assert_eq!(v.spaces[8].control(), None);
     assert_eq!(v.resources, [6, 0, 5, 15]);
     assert_eq!(v.terror_available, 20);
-    assert!(!v.choices.iter().any(|c| c.id.contains(":terror:")));
+    // #62 lists lost targets disabled, with no remedy, instead of hiding them.
+    assert!(
+        v.choices
+            .iter()
+            .filter(|c| c.id.contains(":terror:"))
+            .all(|c| !c.supported && c.remedies.is_empty())
+    );
     choose(&mut game, "remove");
     assert_eq!(game.observe().choices.len(), 1); // explicit cancel, no forced target
     choose(&mut game, "cancel-removal");
-    choose(&mut game, "finish");
+    choose(&mut game, "end-terror");
     assert_eq!(
         game.observe().next_options,
         ["Pass (+1 if executed later)", "Limited Operation"]
@@ -132,7 +138,7 @@ fn owed_terror_protects_only_last_santiago_underground_and_effects_survive_remov
     choose(&mut game, "amount:1");
     choose(&mut game, "amount:2");
     choose(&mut game, "authorize");
-    choose(&mut game, "finish");
+    choose(&mut game, "end-terror");
     assert_eq!(game.observe().resources, [3, 0, 7, 15]);
     assert!(game.observe().next_options.contains(&"Event".into()));
     assert_eq!(game.random_state(), rng);
@@ -188,6 +194,6 @@ fn active_removal_preserves_other_group_and_both_terror_effects() {
     }
     assert_eq!(game.observe().standings[1].score, 9);
     assert_eq!(game.observe().terror_available, 18);
-    choose(&mut game, "finish");
+    choose(&mut game, "end-terror");
     game.validate().unwrap();
 }

@@ -61,9 +61,9 @@ fn heading(view: &crate::Observation) -> String {
         "26July passed\n+1 Resource · stays Eligible".into()
     } else if view.finished {
         format!(
-            "26July completed {}\nNo Pass income",
+            "26July ended Terror\n{} recorded",
             if view.kidnap.is_some() {
-                "Operation + Kidnap"
+                "Operation with Special Activity"
             } else {
                 "Operation Only"
             }
@@ -98,11 +98,11 @@ fn details(view: &crate::Observation) -> String {
             giver.name(), view.resources[giver.index()], recipient.name(), view.resources[recipient.index()], amount,
             giver.name(), view.resources[giver.index()] - amount, recipient.name(), view.resources[recipient.index()] + amount),
         None => match &view.removal {
-            Some(crate::Removal::Selecting) => format!("Choose one own piece to return to Available.\nCounts show how many remain in each group.\nConfirmation comes next; Cancel removes nothing.\n{}", if view.owed_terror.is_some() { "Owed Santiago: protect its last Underground." } else { "No obligation: removing all pieces is allowed." }),
+            Some(crate::Removal::Selecting) => format!("Voluntary removal (R 1.4.1): choose one own piece\nto return to Available. Point at a piece's button\nfor its preview; confirmation comes next.\n{}", if view.owed_terror.is_some() { "Santiago Terror is owed: its last Underground\nGuerrilla stays (accepted commitment policy)." } else { "No Terror is owed: any own piece may go." }),
             Some(crate::Removal::Confirming { space, kind, state }) => {
                 let target = view.spaces.iter().find(|s| &s.id == space).unwrap();
                 let supply = view.available.iter().find(|p| p.faction == Faction::M26 && p.kind == *kind).unwrap().count;
-                format!("Remove 1 26July {state:?} {kind:?}\nfrom {}?\nAvailable {kind:?}: {supply} → {}\nControl and standings update immediately.\nEarlier Terror and Opposition stay.\nCancel leaves this piece on the map.", target.name, supply + 1)
+                format!("Remove 1 26July {state:?} {kind:?}\nfrom {}?\nAvailable {kind:?}: {supply} → {}\nPoint at Confirm for its preview.\nEarlier Terror and Opposition stay.\nCancel leaves this piece on the map.", target.name, supply + 1)
             }
             None => terror_details(view),
         },
@@ -129,29 +129,28 @@ fn choices(commands: &mut Commands, art: &Art, view: &crate::Observation, s: f32
     if view.action == crate::ActionChoice::Open {
         return opening_choices(commands, art, view, s, o);
     }
-    let top = if view.transfer.is_some() {
-        570.
-    } else if view.removal.is_some() {
-        540.
-    } else {
-        590.
-    };
+    // The stack ends at the panel's foot. It tightens once it holds more than five
+    // buttons, such as the two disabled Terror targets; the selected design (#69)
+    // replaces this temporary stack.
+    let count = view.choices.len() as f32;
+    let pitch = if count > 5. { 44. } else { 52. };
+    let top = (926. - count * pitch).min(590.);
     for (i, choice) in view.choices.iter().enumerate() {
         control(
             commands,
             art,
             &choice.id,
             &if !choice.supported {
-                format!("{} — unavailable", choice.label)
+                format!("{} · unavailable", choice.label)
             } else {
                 choice.label.clone()
             },
             if choice.supported {
                 Action::Decision(choice.owner, view.revision)
             } else {
-                Action::Unsupported(choice.explanation.clone())
+                Action::Unsupported(refusal(choice))
             },
-            [1404., top + i as f32 * 52., 452., 46.],
+            [1404., top + i as f32 * pitch, 452., pitch - 6.],
             s,
             o,
             choice.supported,
@@ -160,21 +159,34 @@ fn choices(commands: &mut Commands, art: &Art, view: &crate::Observation, s: f32
     }
 }
 
+/// What activating a disabled choice reports: its reason and in-task remedies.
+fn refusal(choice: &crate::Choice) -> String {
+    if choice.remedies.is_empty() {
+        choice.explanation.clone()
+    } else {
+        format!(
+            "{} In this task: {}.",
+            choice.explanation,
+            choice.remedies.join(" or ")
+        )
+    }
+}
+
 /// What the finished Operation leaves Directorio, shown in place of the choices.
 fn next(view: &crate::Observation) -> String {
     if view.action == crate::ActionChoice::Pass {
         return format!(
-            "Directorio is now 1st Eligible (display only):\n{}\n\nCard / eligibility have not advanced.",
+            "Directorio is now 1st Eligible (shown, not executed):\n{}\n\nThe card and Eligibility have not advanced.",
             view.next_options.join("\n")
         );
     }
     format!(
-        "Directorio next (display only):\n{}\n\n{}\nCard / eligibility have not advanced.",
+        "Directorio, 2nd Eligible, may (shown, not executed):\n{}\n\n{}\nThe card and Eligibility have not advanced.",
         view.next_options.join("\n"),
         if view.kidnap.is_some() {
-            "Kidnap grants Event permission."
+            "After a Special Activity, card 17's Event\nis open to Directorio (R 2.3.4, 5.2)."
         } else {
-            "No Event permission."
+            "Operation Only: no Event for Directorio\n(R 2.3.4)."
         }
     )
 }
@@ -206,7 +218,7 @@ fn opening_choices(commands: &mut Commands, art: &Art, view: &crate::Observation
             if choice.supported {
                 Action::Decision(choice.owner, view.revision)
             } else {
-                Action::Unsupported(choice.explanation.clone())
+                Action::Unsupported(refusal(choice))
             },
             [1404. + indent, 480. + i as f32 * 40., 452. - indent, 36.],
             s,
@@ -217,81 +229,56 @@ fn opening_choices(commands: &mut Commands, art: &Art, view: &crate::Observation
     }
 }
 
-/// The Terror and Kidnap terms for Santiago and Oriente, or the resolved record once
-/// the Operation is finished.
+/// The Terror and Kidnap terms with units and rule references, or the resolved record
+/// once Terror has ended. The map shows the pieces; each button's preview shows what
+/// it changes.
 fn terror_details(view: &crate::Observation) -> String {
+    let m26 = view.resources[Faction::M26.index()];
+    let resolved: Vec<&str> = view
+        .spaces
+        .iter()
+        .filter(|s| s.terror > 0)
+        .map(|s| s.name.as_str())
+        .collect();
     let mut lines = vec![];
-    for id in ["santiago", "oriente"] {
-        let space = view.spaces.iter().find(|s| s.id == id).unwrap();
-        let count = |faction, kind, state: Option<State>| -> u8 {
-            space
-                .pieces
-                .iter()
-                .filter(|p| {
-                    p.faction == faction && p.kind == kind && state.is_none_or(|s| p.state == s)
-                })
-                .map(|p| p.count)
-                .sum()
-        };
-        lines.push(format!(
-            "{}: {} Underground · {} Active · {} Police{}",
-            if id == "santiago" {
-                "Santiago"
-            } else {
-                "Oriente"
-            },
-            count(Faction::M26, Kind::Guerrilla, Some(State::Underground)),
-            count(Faction::M26, Kind::Guerrilla, Some(State::Active)),
-            count(Faction::Government, Kind::Police, None),
-            if space.terror > 0 { " · done" } else { "" }
-        ));
-    }
     if view.finished {
-        let paid: u8 = view.spaces.iter().map(|s| s.terror).sum();
-        // Balances are on the top display's Resources ledger (#46); costs stay here.
-        lines.push(format!("Resolved {paid} Terror · paid {paid} Resources"));
+        lines.push(if resolved.is_empty() {
+            "No Terror resolved: no effect, no Pass income.".into()
+        } else {
+            format!(
+                "Terror resolved: {} · paid {} Resources",
+                resolved.join(", "),
+                resolved.len()
+            )
+        });
     } else {
-        lines.push("Terror costs 1".into());
-        lines.push("Activate 1 · place Terror · shift toward Active Opposition".into());
+        lines.push(format!(
+            "Terror (R 3.3.4) · Cost: 1 Resource per space (26July has {m26})"
+        ));
+        lines.push("Each space: flip 1 Underground Guerrilla there".into());
+        lines.push("to Active, place a Terror marker, shift 1 level".into());
+        lines.push("toward Active Opposition.".into());
+        if !resolved.is_empty() {
+            lines.push(format!("Resolved: {}", resolved.join(", ")));
+        }
     }
     if let Some(roll) = &view.kidnap {
         lines.push(format!(
-            "Kidnap rolled {} · moved {} (Government → 26July)",
+            "Kidnap rolled {} · {} Resources Government → 26July",
             roll.die, roll.proceeds
         ));
+    } else if !view.finished {
         lines.push(format!(
-            "At roll: Government {} → {} · 26July {} → {}",
-            roll.government_before,
-            roll.government_before - roll.proceeds,
-            roll.m26_before,
-            roll.m26_before + roll.proceeds
-        ));
-    } else if view.finished {
-        lines.push("No Kidnap used.".into());
-    } else {
-        lines.push(format!(
-            "Kidnap die 1–6 · possible proceeds {}–{}",
+            "Kidnap (Special Activity, R 4.1, 4.3.3): with Terror in\nSantiago; die 1–6 takes {}–{} Resources from Government.",
             view.resources[0].min(1),
             view.resources[0].min(6)
         ));
-        lines.push("Santiago: total Guerrillas must outnumber Police".into());
-        if view
-            .spaces
-            .iter()
-            .any(|s| s.id == "santiago" && s.terror == 0)
-        {
-            lines.push("Early Kidnap commits Santiago Terror (pay 1).".into());
-        }
     }
-    if !view.finished {
-        lines.push(
-            if view.owed_terror.is_some() {
-                "Owed: Santiago · keep 1 Resource + 1 Underground"
-            } else {
-                "No Terror owed · Finish permitted"
-            }
-            .into(),
-        );
+    if view.owed_terror.is_some() {
+        lines.push("Santiago Terror owed (accepted commitment policy):\nkeep 1 Resource and 1 Underground Guerrilla there.".into());
+    }
+    if view.executing.is_some() {
+        lines.push("Resource transfers open: 26July is executing Terror.".into());
     }
     lines.join("\n")
 }
@@ -300,10 +287,19 @@ fn terror_details(view: &crate::Observation) -> String {
 mod tests {
     use super::*;
     #[test]
-    fn operation_text_keeps_costs_and_leaves_balances_to_the_ledger() {
+    fn operation_text_spells_out_units_and_activation_without_piece_counts() {
         let details = terror_details(&Game::prepared().observe());
-        assert!(details.contains("Terror costs 1\n"), "{details}");
-        assert!(!details.contains("26July Resources"), "{details}");
-        assert!(!details.contains("retains"), "{details}");
+        assert!(
+            details.contains("Cost: 1 Resource per space (26July has 0)"),
+            "{details}"
+        );
+        assert!(
+            details.contains("flip 1 Underground Guerrilla there"),
+            "{details}"
+        );
+        assert!(details.contains("R 3.3.4"), "{details}");
+        assert!(!details.contains("Police"), "{details}");
+        assert!(!details.contains("Activate 1"), "{details}");
+        assert!(!details.contains("Full Terror"), "{details}");
     }
 }

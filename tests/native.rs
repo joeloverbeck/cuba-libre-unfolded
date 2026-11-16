@@ -538,7 +538,7 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
         "remove",
         "remove:oriente:underground",
         "confirm-removal",
-        "finish",
+        "end-terror",
     ] {
         app.choose(action);
     }
@@ -566,7 +566,7 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
             app.capture("base-removed-standing-six");
         }
     }
-    app.choose("finish");
+    app.choose("end-terror");
     let zero = app.observe();
     assert_eq!(zero["observation"]["map_piece_count"], 25);
     assert_eq!(zero["observation"]["available_piece_count"], 61);
@@ -625,7 +625,7 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
         app.choose(&format!("amount:{n}"));
     }
     app.choose("authorize");
-    app.choose("finish");
+    app.choose("end-terror");
     assert_eq!(app.observe()["observation"]["resources"][1], 0);
     assert!(
         app.observe()["observation"]["next_options"]
@@ -675,7 +675,7 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
         "remove",
         "remove:sierra-maestra:base",
         "confirm-removal",
-        "finish",
+        "end-terror",
     ] {
         app.choose(action);
     }
@@ -736,7 +736,7 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
     );
     assert_eq!(app.observe()["observation"], rolled["observation"]);
     let rev = rolled["observation"]["revision"].as_u64().unwrap();
-    app.activate(&format!("{rev}:finish"), rev);
+    app.activate(&format!("{rev}:end-terror"), rev);
     assert!(
         app.observe()["table"]["notice"]
             .as_str()
@@ -781,7 +781,7 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
     let both = app.observe();
     assert_eq!(both["observation"]["standings"][1]["score"], 10);
     app.capture("both-terrors");
-    app.choose("finish");
+    app.choose("end-terror");
     let finished = app.observe();
     assert_eq!(
         finished["observation"]["next_options"],
@@ -865,7 +865,7 @@ fn native_donations_enable_both_orders_without_or_with_late_kidnap() {
             assert_eq!(roll["observation"]["owed_terror"], Value::Null);
             app.capture("late-kidnap");
         }
-        app.choose("finish");
+        app.choose("end-terror");
         let finished = app.observe();
         assert_eq!(
             finished["observation"]["next_options"]
@@ -1025,7 +1025,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     // The record before Finish, which `.previous` keeps for recovery.
     let chosen = app.observe();
     app.request(
-        json!({"op":"activate","revision":1,"choice":"1:finish"}),
+        json!({"op":"activate","revision":1,"choice":"1:end-terror"}),
         true,
     );
     app.request(json!({"op":"settle"}), true);
@@ -1040,7 +1040,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     app.capture("finished");
     let valid = std::fs::read(&app.save).unwrap();
     app.request(
-        json!({"op":"activate","revision":1,"choice":"1:finish"}),
+        json!({"op":"activate","revision":1,"choice":"1:end-terror"}),
         false,
     );
     assert_eq!(std::fs::read(&app.save).unwrap(), valid);
@@ -1295,7 +1295,7 @@ fn native_giver_transfers_all_directions_and_interrupted_authorization() {
         app.observe()["observation"]["resources"],
         json!([6, 1, 5, 14])
     );
-    app.choose("finish");
+    app.choose("end-terror");
     assert_eq!(app.observe()["observation"]["finished"], true);
     app.capture("transfers-finished");
     app.quit();
@@ -1996,5 +1996,141 @@ fn native_action_choice_pass_and_back_before_the_first_effect() {
         json!([6, 1, 5, 15])
     );
     app.capture("pass-after-going-back");
+    app.quit();
+}
+
+/// #62: each irreversible step's preview and each disabled Terror target's reason and
+/// remedies, as the real panel shows them while the pointer rests on a button. The
+/// captures cover the panel before and after Terror and End Terror's preview with no
+/// Terror, after Terror, and after Kidnap.
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained preview captures"]
+fn native_previews_disabled_targets_and_end_terror() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-62"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("previews-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("previews.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Preview evidence: {}", app.root.display());
+    // Rests the pointer on a choice's button and returns the card it opens.
+    let card = |app: &mut Native, action: &str, capture: &str| -> String {
+        let view = app.observe();
+        let revision = view["observation"]["revision"].as_u64().unwrap();
+        let id = format!("{revision}:{action}");
+        // A disabled choice's button is a plain component; a playable one is a choice.
+        let playable = view["observation"]["choices"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|c| c["id"] == id && c["supported"] == true);
+        let key = if playable { "choice" } else { "component" };
+        app.request(json!({"op":"point","revision":revision,(key):id}), true);
+        app.request(json!({"op":"settle"}), true);
+        let view = app.observe();
+        let shown = &view["table"]["preview"];
+        assert_eq!(shown["choice"], format!("{revision}:{action}"), "{view}");
+        app.capture(capture);
+        let lines: Vec<_> = shown["lines"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|l| l.as_str().unwrap().to_owned())
+            .collect();
+        lines.join(" ")
+    };
+    app.launch();
+    let pass = card(&mut app, "pass", "pass-preview");
+    assert!(pass.contains("26July Resources: 0 → 1"), "{pass}");
+    assert!(pass.contains("Directorio, 1st Eligible"), "{pass}");
+    app.choose("terror");
+    app.capture("panel-before-terror");
+    let before = app.observe();
+    let names: Vec<_> = before["observation"]["choices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["id"].as_str().unwrap().to_owned())
+        .collect();
+    // Every listed choice, the disabled targets included, is a real control.
+    for name in &names {
+        assert!(
+            before["table"]["controls"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|c| &c["name"] == name),
+            "{name}"
+        );
+    }
+    let santiago = card(&mut app, "terror:santiago", "santiago-disabled");
+    assert!(
+        santiago.contains("In this task: Kidnap here first or Request a Resource transfer"),
+        "{santiago}"
+    );
+    let zero = card(&mut app, "end-terror", "end-terror-zero-space");
+    for fact in [
+        "No Terror resolved",
+        "no Pass income",
+        "Back to the action choice",
+    ] {
+        assert!(zero.contains(fact), "{fact}: {zero}");
+    }
+    let saved = std::fs::read(&app.save).unwrap();
+    let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.activate(&format!("{revision}:terror:santiago"), revision);
+    assert!(
+        app.observe()["table"]["notice"]
+            .as_str()
+            .unwrap()
+            .contains("Kidnap here first")
+    );
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    for step in ["transfer", "transfer:2:1", "amount:1", "authorize"] {
+        app.choose(step);
+    }
+    let funded = card(&mut app, "terror:santiago", "santiago-preview");
+    assert!(funded.contains("26July Resources: 1 → 0"), "{funded}");
+    assert!(
+        funded.contains("26July victory standing 7 → 8 (margin -8 → -7)"),
+        "{funded}"
+    );
+    assert!(funded.contains("Neutral → Passive Opposition"), "{funded}");
+    app.choose("terror:santiago");
+    app.capture("panel-after-terror");
+    let after = app.observe();
+    assert_eq!(after["observation"]["standings"][1]["score"], 8);
+    let only = card(&mut app, "end-terror", "end-terror-after-terror");
+    assert!(only.contains("Records: Operation Only"), "{only}");
+    assert!(!only.contains("No Terror resolved"), "{only}");
+    app.choose("kidnap");
+    let special = card(&mut app, "end-terror", "end-terror-after-kidnap");
+    assert!(
+        special.contains("Records: Operation with Special Activity"),
+        "{special}"
+    );
+    assert!(
+        special.contains("All 26July Guerrillas Active. 26July Ineligible through next card."),
+        "{special}"
+    );
+    app.choose("end-terror");
+    app.capture("ended");
+    assert_eq!(
+        app.observe()["observation"]["eligibility"]["m26_box"],
+        "OperationWithSpecialActivity"
+    );
     app.quit();
 }
