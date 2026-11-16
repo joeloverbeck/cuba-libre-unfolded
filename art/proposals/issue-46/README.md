@@ -6,6 +6,16 @@ These are decision-only alternatives for [#46](https://github.com/joeloverbeck/c
 
 The baseline is `771aabf7e887d16ea30dc36b0325fa7a9b9654a7`. No runtime code or admission manifest consumes these files. Selection is not native play acceptance.
 
+**Selected on 2026-11-16:**
+- **Graphics:** Cash B, Aid B, US Alliance A, Resources C.
+- **Layout:** A in general, with C's Resources ledger and Cash placement.
+- **Owner changes:**
+  - remove the "CUBA LIBRE" title and put Aid and the US Alliance in the top-left corner;
+  - make the Cash band wrap around the bundle in perspective;
+  - redraw the eagle from heraldic references.
+
+The production components and layout are recorded in [`../../atlas/TOP.md`](../../atlas/TOP.md). These studies remain as comparison evidence.
+
 ## What to choose
 
 Pick one letter per row. Graphics and layout are chosen independently: any graphic works in any layout.

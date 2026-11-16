@@ -16,7 +16,7 @@ pub(super) struct Shown {
     pub bounds: [f32; 4],
 }
 
-fn key(faction: Faction) -> &'static str {
+pub(super) fn key(faction: Faction) -> &'static str {
     match faction {
         Faction::Government => "government",
         Faction::M26 => "26july",
@@ -233,14 +233,9 @@ fn content(view: &crate::Observation, faction: Faction) -> Shown {
         })
         .collect::<Vec<_>>()
         .join(" · ");
-    let footer = if faction == Faction::Syndicate {
-        format!("Available: {supplies}")
-    } else {
-        format!(
-            "Resources {}\nAvailable: {supplies}",
-            view.resources[faction.index()]
-        )
-    };
+    // Resources are on the top display's ledger (#46); Syndicate's stay in its
+    // calculation because they are a victory condition.
+    let footer = format!("Available: {supplies}");
     Shown {
         faction,
         title: faction.name().into(),
@@ -264,7 +259,11 @@ pub(super) fn draw(
 ) {
     let (scale, mut offset) = layout(&window);
     offset.x += (window.width() - WIDTH * scale) / 2.;
-    let shown = ui.hover.visible().filter(|_| !ui.reader).map(|faction| {
+    let standing = ui.hover.visible().and_then(|target| match target {
+        Target::Standing(faction) => Some(faction),
+        Target::Top(_) => None,
+    });
+    let shown = standing.filter(|_| !ui.reader).map(|faction| {
         let mut shown = content(&play.game().observe(), *faction);
         let height = 246.
             + shown.rows.len() as f32 * 28.
@@ -383,4 +382,25 @@ pub(super) fn draw(
         commands.entity(rule).remove::<UiRoot>().insert(Tag);
     }
     commands.entity(plate).insert(shown);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn footers_leave_resources_to_the_ledger_but_syndicate_keeps_its_condition() {
+        let view = crate::Game::prepared().observe();
+        for faction in Faction::ALL {
+            let shown = content(&view, faction);
+            assert!(shown.footer.starts_with("Available: "), "{}", shown.footer);
+            assert!(!shown.footer.contains("Resources"), "{}", shown.footer);
+        }
+        assert!(
+            content(&view, Faction::Syndicate)
+                .conditions
+                .iter()
+                .any(|line| line.starts_with("Resources >30 · 15 − 30"))
+        );
+    }
 }
