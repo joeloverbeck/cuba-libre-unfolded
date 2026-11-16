@@ -304,7 +304,9 @@ fn corrupt_incompatible_and_semantically_wrong_records_preserve_recovery() {
         let refusal = Session::open(&path, None).err().unwrap().to_string();
         let expected = match index {
             0 => "Malformed save",
-            1 => "This file exceeds",
+            // The shared default since unfolded-tabletop #39, which dropped
+            // Arkham's "bounded experiment" wording.
+            1 => "The save exceeds its size limit.",
             2..=4 | 6 => "Incompatible save format",
             5 => "Save checksum mismatch",
             8 => "Malformed save",
