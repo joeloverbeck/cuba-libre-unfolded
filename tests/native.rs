@@ -1142,7 +1142,8 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         std::fs::copy(Path::new("art/atlas").join(asset), &status_path).unwrap();
     }
     let original_path = app.save.clone();
-    let previous = std::fs::read(original_path.with_file_name("task.json.previous")).unwrap();
+    let previous =
+        std::fs::read(unfolded_record_replacement::previous_path(&original_path)).unwrap();
     std::fs::write(&original_path, b"interrupted record").unwrap();
     let refused = Command::new(env!("CARGO_BIN_EXE_cuba-libre"))
         .args([
@@ -1161,7 +1162,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         b"interrupted record"
     );
     assert_eq!(
-        std::fs::read(original_path.with_file_name("task.json.previous")).unwrap(),
+        std::fs::read(unfolded_record_replacement::previous_path(&original_path)).unwrap(),
         previous
     );
     app.save = app.root.join("recovered.json");
@@ -1502,13 +1503,16 @@ fn native_hover_status_is_transient_without_region_inspection() {
         let resumed = app.observe();
         assert_eq!(
             resumed["observation"]["revision"],
-            record["game"]["revision"]
+            record["payload"]["revision"]
         );
         assert_eq!(
             resumed["observation"]["resources"],
-            record["game"]["resources"]
+            record["payload"]["resources"]
         );
-        assert_eq!(resumed["observation"]["spaces"], record["game"]["spaces"]);
+        assert_eq!(
+            resumed["observation"]["spaces"],
+            record["payload"]["spaces"]
+        );
         app.point("space:havana");
         app.capture("legacy-save-resumed");
         app.quit();

@@ -1,110 +1,121 @@
-//! Cuba semantic admission around shared locked replacement; no parallel filesystem protocol.
+//! Cuba Libre's adapter onto the shared save record.
+//!
+//! `unfolded_record_replacement::save` owns the envelope, its checksum, the write
+//! baseline, the unchanged shortcut, validation of the previous record, the
+//! regular-file check and recovery into an unused path. This file keeps what
+//! identifies a compatible save (format, accepted source, selected art), the
+//! game's validity check, the size limit and the wording of Cuba Libre's
+//! refusals. Busy, too large and file-system failures keep the shared module's
+//! words.
 use crate::{Faction, Game, Observation, assets};
-use anyhow::{Context, Result, bail};
-use serde::{Deserialize, Serialize};
-use std::io::Read;
+use anyhow::{Result, anyhow};
 use std::path::{Path, PathBuf};
-use unfolded_record_replacement::{self as records, Replacement};
+use unfolded_record_replacement::save::{self, Baseline, Format, Identity, Write};
 const LIMIT: u64 = 256 * 1024;
-#[derive(Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Record {
-    format: u32,
-    source: String,
-    art: String,
-    game: Game,
-    checksum: String,
-}
-impl Record {
-    fn checksum(&self) -> Result<String> {
-        Ok(assets::digest(&serde_json::to_vec(&(
-            self.format,
-            &self.source,
-            &self.art,
-            &self.game,
-        ))?))
+/// Marks a refusal from `Game::validate`.
+const VALIDITY: &str = "cuba-validity:";
+
+struct Cuba;
+impl Cuba {
+    fn current() -> Identity {
+        [
+            ("format", "1"),
+            ("source", assets::SOURCE),
+            ("art", &assets::identity()),
+        ]
+        .into_iter()
+        .collect()
     }
 }
-fn encode(game: &Game) -> Result<Vec<u8>> {
-    game.validate().map_err(anyhow::Error::msg)?;
-    let mut record = Record {
-        format: 1,
-        source: assets::SOURCE.into(),
-        art: assets::identity(),
-        game: game.clone(),
-        checksum: String::new(),
-    };
-    record.checksum = record.checksum()?;
-    Ok(serde_json::to_vec_pretty(&record)?)
-}
-fn decode(bytes: &[u8]) -> Result<Game> {
-    let record: Record =
-        serde_json::from_slice(bytes).context("Malformed save; original file preserved")?;
-    if record.format != 1 || record.source != assets::SOURCE || record.art != assets::identity() {
-        bail!("Incompatible save format, accepted source or selected art; original file preserved");
+impl Format for Cuba {
+    type Payload = Game;
+    const LIMIT: u64 = LIMIT;
+    fn identity(&self, _: &Game) -> Identity {
+        Self::current()
     }
-    if record.checksum != record.checksum()? {
-        bail!("Save checksum mismatch; original file preserved");
+    fn accepts(&self, identity: &Identity) -> bool {
+        *identity == Self::current()
     }
-    record.game.validate().map_err(anyhow::Error::msg)?;
-    Ok(record.game)
-}
-fn read(path: &Path) -> Result<Vec<u8>> {
-    if !std::fs::symlink_metadata(path)?.is_file() {
-        bail!("Save must be a regular file, not a symlink or directory");
+    // Marked, so a refusal can tell the game's own check from a payload that
+    // does not decode as a game; `words` removes the mark.
+    fn validate(&self, game: &Game) -> Result<(), String> {
+        game.validate()
+            .map_err(|detail| format!("{VALIDITY}{detail}"))
     }
-    records::read(path, LIMIT, anyhow::Error::msg)
 }
+
+/// What the player was doing when a save was refused, for its wording.
+#[derive(Clone, Copy, PartialEq)]
+enum Action {
+    Recover,
+    Continue,
+}
+
+fn words(error: save::Error, action: Action) -> anyhow::Error {
+    match error {
+        save::Error::Unsupported(_) => anyhow!(
+            "Incompatible save format, accepted source or selected art; original file preserved"
+        ),
+        save::Error::Malformed(detail) => {
+            anyhow::Error::msg(detail).context("Malformed save; original file preserved")
+        }
+        save::Error::Checksum => anyhow!("Save checksum mismatch; original file preserved"),
+        save::Error::Unreproducible(detail) | save::Error::Invalid(detail) => {
+            match detail.strip_prefix(VALIDITY) {
+                Some(detail) => anyhow!(detail.to_owned()),
+                None => {
+                    anyhow::Error::msg(detail).context("Malformed save; original file preserved")
+                }
+            }
+        }
+        save::Error::NotRegularFile => {
+            anyhow!("Save must be a regular file, not a symlink or directory")
+        }
+        save::Error::Stale => anyhow!("Save changed in another session; reload before continuing"),
+        save::Error::Missing => {
+            anyhow!("Save disappeared; refusing to overwrite an unobserved baseline")
+        }
+        save::Error::Occupied | save::Error::SameRecord if action == Action::Recover => {
+            anyhow!("Recovery requires an unused destination; neither record was changed")
+        }
+        save::Error::Orphaned if action == Action::Recover => {
+            anyhow!("Destination changed before creation")
+        }
+        save::Error::Occupied => anyhow!("Destination changed before creation"),
+        save::Error::Orphaned => anyhow!(
+            "Main save is missing but recovery history exists; recover explicitly to an unused path"
+        ),
+        other => anyhow!(other),
+    }
+}
+
 pub struct Session {
     path: PathBuf,
-    baseline: Vec<u8>,
+    baseline: Baseline,
     game: Game,
 }
 impl Session {
     /// Native callers invoke this only after art decoding and render admission.
     pub fn open(path: &Path, recover_from: Option<&Path>) -> Result<Self> {
         let (game, baseline) = if let Some(source) = recover_from {
-            if path.try_exists()? {
-                bail!("Recovery requires an unused destination; neither record was changed");
-            }
-            let bytes = read(&records::previous_path(source))?;
-            let game = decode(&bytes)?;
-            (game, None)
-        } else if path.try_exists()? {
-            let bytes = read(path)?;
-            let game = decode(&bytes)?;
-            (game, Some(bytes))
+            save::recover(&Cuba, source, path, |_| Ok::<_, save::Error>(()))
+                .map_err(|error| words(error, Action::Recover))?
+        } else if let Some(saved) =
+            save::load(&Cuba, path).map_err(|error| words(error, Action::Continue))?
+        {
+            saved
         } else {
-            if records::previous_path(path).try_exists()? {
-                bail!(
-                    "Main save is missing but recovery history exists; recover explicitly to an unused path"
-                );
-            }
-            // Ubuntu application: draw OS entropy once, then persist the exact
-            // shared RNG state. Reopening any existing record never reseeds it.
-            let mut seed = [0; 8];
-            std::fs::File::open("/dev/urandom")?.read_exact(&mut seed)?;
-            (Game::prepared_with_seed(u64::from_ne_bytes(seed)), None)
+            // Draw OS entropy once, then persist the exact shared RNG state.
+            // Reopening any existing record never reseeds it.
+            let game = Game::prepared_with_seed(unfolded_random::fresh_seed()?);
+            let mut baseline = Baseline::default();
+            save::write(&Cuba, path, &mut baseline, &game, Write::Create)
+                .map_err(|error| words(error, Action::Continue))?;
+            (game, baseline)
         };
-        let bytes = baseline.clone().unwrap_or(encode(&game)?);
-        if baseline.is_none() {
-            records::replace(
-                path,
-                &bytes,
-                LIMIT,
-                anyhow::Error::msg,
-                |existing| {
-                    if existing.is_some() || records::previous_path(path).try_exists()? {
-                        bail!("Destination changed before creation");
-                    }
-                    Ok(Replacement::Create)
-                },
-                |_| Ok(()),
-            )?;
-        }
         Ok(Self {
             path: path.to_path_buf(),
-            baseline: bytes,
+            baseline,
             game,
         })
     }
@@ -127,31 +138,14 @@ impl Session {
         self.persist(&self.game.clone())
     }
     fn persist(&mut self, candidate: &Game) -> Result<()> {
-        let bytes = encode(candidate)?;
-        records::replace(
+        save::write(
+            &Cuba,
             &self.path,
-            &bytes,
-            LIMIT,
-            anyhow::Error::msg,
-            |existing| {
-                let existing = existing
-                    .context("Save disappeared; refusing to overwrite an unobserved baseline")?;
-                decode(existing)?;
-                if existing != self.baseline {
-                    bail!("Save changed in another session; reload before continuing");
-                }
-                Ok(if existing == bytes {
-                    Replacement::Unchanged
-                } else {
-                    Replacement::Replace
-                })
-            },
-            |previous| {
-                decode(&read(previous)?)?;
-                Ok(())
-            },
-        )?;
-        self.baseline = bytes;
+            &mut self.baseline,
+            candidate,
+            Write::Replace,
+        )
+        .map_err(|error| words(error, Action::Continue))?;
         Ok(())
     }
 }
