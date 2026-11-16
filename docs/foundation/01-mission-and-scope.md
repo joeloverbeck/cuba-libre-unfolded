@@ -6,7 +6,7 @@ This foundation records the owner's founding request and clarifications of 2026-
 
 Purpose class: recreation and personal utility. The intended benefit is playing Cuba Libre with its asymmetric faction objectives and negotiations, while the application performs rules bookkeeping and makes the situation and legal choices understandable. External Claude Code/Codex players can occupy any seats handed to them. Period-inspired faction proclamations make political communication part of the experience.
 
-The owner's binding selections are Cuba Libre, Rust, reuse across the unfolded games, VectorCraft-authored visuals, three-dimensional pieces resembling the physical components, imported card faces, no built-in bots, and external agent seats. A successful product must support an intelligible game and worthwhile interaction with the other factions. A correct transition, attractive map, or convincing proclamation alone cannot demonstrate that experience.
+The owner's binding selections are Cuba Libre, Rust, reuse across the unfolded games, VectorCraft-authored graphics and FigCraft-authored layouts, three-dimensional pieces resembling the physical components, imported card faces, no built-in bots, and external agent seats. A successful product must support an intelligible game and worthwhile interaction with the other factions. A correct transition, attractive map, or convincing proclamation alone cannot demonstrate that experience.
 
 The accepted initial complete product is the standard four-faction game, with the human able to choose any faction, external agents controlling the remaining seats, and save/resume. Platform and language are Ubuntu and English. Human takeover remains available; an absent agent must not force an automatic move or substitute bot.
 

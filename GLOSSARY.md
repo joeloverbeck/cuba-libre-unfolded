@@ -43,3 +43,11 @@ _Avoid_: Cash
 **Cash**:
 A marker carried by a cube or Guerrilla, with specific transfer and use rules. Possessing Cash is distinct from having Resources available to pay a cost.
 _Avoid_: Resources, spendable balance
+
+**Layout**:
+The arrangement of interface areas on a screen or written document: which areas exist, where they sit, their sizes, grouping and spacing, and how they adapt to the display.
+_Avoid_: Graphic, mockup (when referring to the selected arrangement rather than a proposal)
+
+**Graphic**:
+A single drawn visual element, such as an icon, marker, region outline, frame or ornament, that a layout places.
+_Avoid_: Layout, asset (when referring only to drawn elements)
