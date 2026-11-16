@@ -28,6 +28,12 @@ The [top display](art/atlas/TOP.md) replaces the title and the text that repeate
 
 Hover any of the four for a tag that explains it: the rules effect, the per-level costs, each faction's Resources, and Cash on the map. The tags share the emblems' dwell and switching. Costs, transfer previews and the Syndicate's Resources >30 condition stay in text. Read both cards opens their complete faces. Right-drag or arrow keys orbit; wheel or `+`/`-` zoom; WASD pans; Home restores the enlarged map framing. The card reader captures camera input. Wider windows extend the map between the left inset and right-anchored operation/session panels; emblems stay centered and text and icons keep their proportions.
 
+Running text names factions by their [victory emblems](art/atlas/VICTORY.md#inline-text-emblems): panel text, buttons, session notices, tags and the reader's Eligibility line, as in "[S] gave 1 to [26]. Saved." Each emblem is 0.9× the type size and sits on the line's baseline. Some places keep the full name:
+- headings and labels that introduce a faction, such as the panel heading, a victory tag's title and the Resources tag's rows;
+- 26July on the red primary buttons, where its red star would vanish. This is a local choice that #68's design round puts to the owner.
+
+Seat observations and choice labels keep every name. At the default 1920×1280 the emblems' letters are about 5 px and illegible, so there the factions are told apart by shape and colour. The letters are legible from 4096×2160. Legibility on the owner's 6144×3456 display is judged in #16.
+
 Kidnap in Santiago rolls one six-sided die and transfers up to that result from Government, including zero if depleted. Before rolling, the panel shows possible proceeds and the early-roll commitment. A fresh save seeds the shared RNG once from Ubuntu's OS entropy; restart preserves its exact consumed state and actual result. Each Terror costs 1, activates one Underground Guerrilla, places a marker, and shifts toward Active Opposition. A space's Terror shows as the selected [Rebato bell](art/atlas/TERROR.md), a small bell gable whose bell swings in alarm on a seamless 3.6 s loop, with a plain count for the number of markers. Neighbouring bells swing out of step. Active Guerrillas display the authored star. Santiago and Oriente can each resolve once, in either affordable order; donations can fund either target without Kidnap, or enable Kidnap during/after Terror.
 
 An early Kidnap commits Santiago Terror. Its payment and Underground Guerrilla must be guaranteed before rolling; afterward, spending or transfers cannot consume the reserved Resource, and Finish remains unavailable until Santiago resolves. This is the accepted local commitment policy. After fulfillment, Finish preserves remaining Resources. Without Kidnap, Finish displays Directorio Pass/Limited Operation; with Kidnap, Event is also permitted. Zero-space Operation Only remains available without Pass income. None executes Directorio or advances the card/eligibility. Reading cards never undoes an effect or rerolls.
@@ -64,7 +70,13 @@ The focused `native_hover_status` test also checks all ten city/province tags, t
 - a transfer, both Terror payments and a Kidnap each update the ledger;
 - the reader hides the top display (its re-exported frame, without the title, is checked by its manifest and inspected in the capture).
 
-Its captures go under `local/verification/issue-46/top-display-*`. Run native regressions serially with `--test-threads=1`. Optionally set `CUBA_COMPAT_SAVE` to a record an earlier build wrote in the shared save record: the hover and responsive tests copy it into their evidence directories and verify preserved save bytes. The hover test also checks two process resumes. They never open the supplied original as an application save path.
+Its captures go under `local/verification/issue-46/top-display-*`. `native_inline_emblems_sit_on_their_baseline_inside_their_text` runs at 1920×1280 and 4096×2160. It checks that every inline emblem, in the panel, buttons, notice, tags and reader:
+- is 0.9× its type size;
+- lies inside its text's bounds;
+- sits within 1.5 px of its line's baseline;
+- keeps glued punctuation on its line.
+
+It also checks that observations keep the names. Its captures go under `local/verification/issue-60/inline-*`. The seat reports this geometry as `table.inline_text`. Bevy's text layout, parley 0.11, always permits a line break right after an inline image, whatever character follows it, so a word joiner cannot prevent the break. A full stop glued to an emblem ("[S].") could therefore wrap to the next line; the test asserts it does not in the states it exercises. Run native regressions serially with `--test-threads=1`. Optionally set `CUBA_COMPAT_SAVE` to a record an earlier build wrote in the shared save record: the hover and responsive tests copy it into their evidence directories and verify preserved save bytes. The hover test also checks two process resumes. They never open the supplied original as an application save path.
 
 The shared development seat operates the same Bevy scene, UI and input path without opening an OS window. It uses a fixed manual clock and disables Winit and pipelined rendering; it cannot establish physical mouse comfort. It is distinct from a faction player's connection. Use an isolated verification save in a fresh run directory, from the checkout root:
 

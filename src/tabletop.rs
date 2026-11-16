@@ -920,7 +920,7 @@ fn text(
         ..default()
     };
     let ink = TextColor(Color::srgb(0.12, 0.14, 0.12));
-    let segments = emblems::segments(&content.text, content.naming);
+    let segments = emblems::segments(&content.text, content.naming, content.red);
     let (first, rest) = match segments.split_first() {
         Some((emblems::Segment::Words(words), rest)) => (words.clone(), rest),
         _ => (String::new(), &segments[..]),
@@ -943,7 +943,15 @@ fn text(
             Pickable::IGNORE,
         ))
         .id();
-    emblems::spawn_rest(commands, art, root, rest, &font, ink, size * scale);
+    emblems::spawn_rest(
+        commands,
+        art,
+        root,
+        rest,
+        &font,
+        ink,
+        size * scale * emblems::HEIGHT,
+    );
     root
 }
 fn picture(
@@ -1009,10 +1017,12 @@ fn control(
             action,
         })
         .observe(click);
+    // The primary button is red: 26July keeps its name there (emblems::Prose::red).
+    let label = Prose::from(label);
     let words = text(
         commands,
         art,
-        label,
+        if choice { label.on_red() } else { label },
         rect[0] + 12.,
         rect[1] + 10.,
         rect[2] - 24.,

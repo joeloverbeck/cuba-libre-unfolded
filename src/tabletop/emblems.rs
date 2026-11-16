@@ -25,12 +25,16 @@ pub(super) enum Naming {
 pub(super) struct Prose {
     pub text: String,
     pub naming: Naming,
+    /// Drawn on a red surface, such as a primary button, where the red 26July star
+    /// would vanish: 26July keeps its name there (local choice, put to the owner in #68).
+    pub red: bool,
 }
 impl Prose {
     pub fn named(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
             naming: Naming::Names,
+            red: false,
         }
     }
     // Briefings arrive with later #58 tickets (#69 onward).
@@ -39,7 +43,11 @@ impl Prose {
         Self {
             text: text.into(),
             naming: Naming::FirstMention,
+            red: false,
         }
+    }
+    pub fn on_red(self) -> Self {
+        Self { red: true, ..self }
     }
 }
 impl From<String> for Prose {
@@ -47,6 +55,7 @@ impl From<String> for Prose {
         Self {
             text,
             naming: Naming::Emblems,
+            red: false,
         }
     }
 }
@@ -77,8 +86,8 @@ pub(super) enum Segment {
 }
 
 /// Splits `text` into words and emblems. A name becomes an emblem only as a whole
-/// word, so "Governments" or "126July" stay text.
-pub(super) fn segments(text: &str, naming: Naming) -> Vec<Segment> {
+/// word, so "Governments" or "126July" stay text. On a `red` surface 26July keeps its name.
+pub(super) fn segments(text: &str, naming: Naming, red: bool) -> Vec<Segment> {
     if naming == Naming::Names {
         return vec![Segment::Words(text.into())];
     }
@@ -94,7 +103,7 @@ pub(super) fn segments(text: &str, naming: Naming) -> Vec<Segment> {
                     && !after.chars().next().is_some_and(char::is_alphanumeric)
             })
         });
-        if let Some(faction) = found {
+        if let Some(faction) = found.filter(|f| !(red && *f == Faction::M26)) {
             if naming == Naming::FirstMention && !seen[faction.index()] {
                 words.push_str(faction.name());
                 words.push(' ');
@@ -118,13 +127,17 @@ pub(super) fn segments(text: &str, naming: Naming) -> Vec<Segment> {
     out
 }
 
+/// An emblem's height as a fraction of the type size. Lato's line reserves about
+/// 0.94 em above the baseline (measured natively), so a 0.9 em emblem stays inside its line.
+pub(super) const HEIGHT: f32 = 0.9;
+
 /// The admitted export drawn for a faction's emblem.
 pub(super) fn image(faction: Faction) -> String {
     format!("atlas-victory-icon-{}.png", victory::key(faction))
 }
 
 /// Adds the words and emblems after the first segment as children of the text
-/// `root`. Each emblem is `height` logical pixels tall: the type size.
+/// `root`. Each emblem is `height` logical pixels tall.
 pub(super) fn spawn_rest(
     commands: &mut Commands,
     art: &Art,
@@ -177,8 +190,8 @@ pub(super) fn ink(
 
 /// Every drawn text containing an emblem, for the development seat. Each entry has
 /// the text's words with every faction named, its font size and bounds, and for each
-/// emblem its faction, bounds, the baseline of its line (the median bottom of the
-/// letters beside it) and whether text glued to it ("[S]." or "[26]'s") wrapped
+/// emblem its faction, bounds, the baseline of its line (the commonest bottom of
+/// the letters beside it) and whether text glued to it ("[S]." or "[26]'s") wrapped
 /// away from it. Rectangles are logical window pixels, [left, top, right, bottom].
 pub(super) fn observe(world: &mut World) -> Vec<serde_json::Value> {
     let mut texts = vec![];
@@ -209,14 +222,23 @@ pub(super) fn observe(world: &mut World) -> Vec<serde_json::Value> {
             .inline_boxes
             .iter()
             .map(|(entity, _, r)| {
-                let mut bottoms: Vec<f32> = layout
+                // Most letters and digits rest on the baseline; symbols such as "×",
+                // "·" and "+" float above it and descenders drop below. The commonest
+                // whole-pixel bottom is the baseline.
+                let mut counts = BTreeMap::<i32, usize>::new();
+                for g in layout
                     .glyphs
                     .iter()
                     .filter(|g| g.position.y > r.min.y && g.position.y < r.max.y)
-                    .map(|g| g.position.y + g.atlas_info.rect.size().y / 2.)
-                    .collect();
-                bottoms.sort_by(f32::total_cmp);
-                let baseline = bottoms.get(bottoms.len() / 2).map(|b| origin.y + b * scale);
+                {
+                    *counts
+                        .entry((g.position.y + g.atlas_info.rect.size().y / 2.).round() as i32)
+                        .or_default() += 1;
+                }
+                let baseline = counts
+                    .into_iter()
+                    .max_by_key(|(bottom, count)| (*count, *bottom))
+                    .map(|(bottom, _)| origin.y + bottom as f32 * scale);
                 let follower = sections
                     .iter()
                     .position(|e| e == entity)
@@ -226,7 +248,8 @@ pub(super) fn observe(world: &mut World) -> Vec<serde_json::Value> {
                         .glyphs
                         .iter()
                         .find(|g| g.section_index as usize == f)
-                        .map(|g| g.position.y > r.max.y)
+                        // On the next line even a full stop starts below this baseline.
+                        .map(|g| g.position.y - g.atlas_info.rect.size().y / 2. > r.max.y)
                 });
                 (
                     *entity,
@@ -285,7 +308,7 @@ mod tests {
     #[test]
     fn running_text_names_factions_by_emblem() {
         assert_eq!(
-            segments("Syndicate gave 1 to 26July. Saved.", Naming::Emblems),
+            segments("Syndicate gave 1 to 26July. Saved.", Naming::Emblems, false),
             [
                 E(Faction::Syndicate),
                 w(" gave 1 to "),
@@ -294,7 +317,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            segments("Kidnap · Santiago · Government", Naming::Emblems),
+            segments("Kidnap · Santiago · Government", Naming::Emblems, false),
             [w("Kidnap · Santiago · "), E(Faction::Government)]
         );
     }
@@ -302,10 +325,10 @@ mod tests {
     #[test]
     fn only_whole_names_become_emblems() {
         for text in ["Governments", "126July", "26Julys", "No faction here", ""] {
-            assert_eq!(segments(text, Naming::Emblems), [w(text)]);
+            assert_eq!(segments(text, Naming::Emblems, false), [w(text)]);
         }
         assert_eq!(
-            segments("(Government → 26July)", Naming::Emblems),
+            segments("(Government → 26July)", Naming::Emblems, false),
             [
                 w("("),
                 E(Faction::Government),
@@ -319,11 +342,12 @@ mod tests {
     #[test]
     fn headings_keep_names_and_briefings_name_each_faction_once() {
         let text = "26July · Terror";
-        assert_eq!(segments(text, Naming::Names), [w(text)]);
+        assert_eq!(segments(text, Naming::Names, false), [w(text)]);
         assert_eq!(
             segments(
                 "Directorio may act. 26July pays; Directorio then Passes.",
-                Naming::FirstMention
+                Naming::FirstMention,
+                false
             ),
             [
                 w("Directorio "),
@@ -334,6 +358,18 @@ mod tests {
                 E(Faction::Directorio),
                 w(" then Passes.")
             ]
+        );
+    }
+
+    #[test]
+    fn red_surfaces_keep_26july_named_and_draw_the_others() {
+        assert_eq!(
+            segments("Syndicate → 26July", Naming::Emblems, true),
+            [E(Faction::Syndicate), w(" → 26July")]
+        );
+        assert_eq!(
+            segments("26July → Government", Naming::Emblems, true),
+            [w("26July → "), E(Faction::Government)]
         );
     }
 
