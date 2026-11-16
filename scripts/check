@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# The repository's checks; CI runs this same entry point. It stops at the first
+# failure. The ignored native tests need private cards and a GPU, so they stay
+# manual (README, "Checks and development seat").
+set -euo pipefail
+
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+# Name what was checked, so a saved log identifies its source.
+echo "revision: $(git rev-parse HEAD)"
+changes=$(git status --porcelain --untracked-files=normal)
+if [[ -z $changes ]]; then
+  echo "working tree: clean"
+else
+  echo "working tree: $(wc -l <<<"$changes") changed path(s) differ from the revision; this log checks uncommitted source"
+fi
+# Builds are bounded by `.cargo/config.toml`, which every Cargo command here reads.
+cargo fmt --all --check
+cargo clippy --locked --all-targets -- -D warnings
+cargo test --locked
+cargo clippy --locked --all-targets --features tabletop -- -D warnings
+cargo test --locked --features tabletop

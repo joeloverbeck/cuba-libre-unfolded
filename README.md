@@ -36,12 +36,10 @@ All decisions save before the changed state is published in memory. Reading, cam
 ## Checks and development seat
 
 ```sh
-cargo fmt --all --check
-cargo clippy --locked --all-targets -- -D warnings
-cargo test --locked
-cargo clippy --locked --all-targets --features tabletop -- -D warnings
-cargo test --locked --features tabletop
+scripts/check
 ```
+
+It prints the checked revision and whether the working tree differs from it, then stops at the first failing check. CI runs the same command on every pull request, and `main` requires it to pass. A single focused command is only partial evidence.
 
 Core tests require no private inputs or GPU. The explicitly ignored native regression requires the selected card directory and a working renderer:
 
@@ -51,7 +49,7 @@ CUBA_TEST_CARDS="/path/to/cards" cargo test --locked --features tabletop --test 
 
 It retains isolated saves, JSON observations and screenshots under `local/verification/issue-12/native-*`, `local/verification/issue-13/transfers-*`, `local/verification/issue-14/{terror,donated-terror}-*`, and `local/verification/issue-15/removal-*`. It exercises actual pointer/key controls, hover, all 13 region picks, camera capture, rendered water progression and looping, Finish, all transfer directions, decline/wait/zero, pending giver and accepted transfer process restarts, Kidnap/owed and post-Terror process restarts, both donated Terror orders with no/late Kidnap, removal confirmation/cancel, removal/owed process restarts, protected-piece refusal, split Active/Underground removal, all-pieces-removed Finish, stale refusal, input refusal and explicit recovery. Core checks cover all six actual shared-RNG outcomes and independent source-derived consequences. Inspect the images separately; passing assertions do not prove readability or owner acceptance. `CUBA_NATIVE_EVIDENCE` can select another evidence directory. A user-selected `CARGO_TARGET_DIR` can reuse a compatible warm build cache; it is not a runtime dependency.
 
-The focused `native_hover_status` test also checks all ten city/province tags, three EC exclusions, piece/count hover, reader suppression, camera navigation, complete home framing and Terror/removal updates. Its captures go under `local/verification/issue-16/hover-status-*`. `native_victory_emblems` checks both emblem and margin targets, one tag, reader/leave dismissal, actual transfer/Terror/removal updates and rendered text bounds, including the largest reachable contribution list. Its captures go under `local/verification/issue-16/victory-*`. `native_responsive_layout` exercises 3:2, 16:9 and 21:9 native surfaces, all region picks, piece/count hover, centered emblems, panel anchors, reader and unchanged save bytes. Its captures go under `local/verification/issue-16/layout-*`. Run native regressions serially with `--test-threads=1`. Optionally set `CUBA_COMPAT_SAVE` to an earlier valid record: the hover and responsive tests copy it into their evidence directories and verify preserved save bytes. The hover test also checks two process resumes. They never open the supplied original as an application save path.
+The focused `native_hover_status` test also checks all ten city/province tags, three EC exclusions, piece/count hover, reader suppression, camera navigation, complete home framing and Terror/removal updates. Its captures go under `local/verification/issue-16/hover-status-*`. `native_victory_emblems` checks both emblem and margin targets, one tag, reader/leave dismissal, actual transfer/Terror/removal updates and rendered text bounds, including the largest reachable contribution list. Its captures go under `local/verification/issue-16/victory-*`. `native_responsive_layout` exercises 3:2, 16:9 and 21:9 native surfaces (agent-chosen regression coverage, not owner display policy; see the art foundation), all region picks, piece/count hover, centered emblems, panel anchors, reader and unchanged save bytes. Its captures go under `local/verification/issue-16/layout-*`. Run native regressions serially with `--test-threads=1`. Optionally set `CUBA_COMPAT_SAVE` to an earlier valid record: the hover and responsive tests copy it into their evidence directories and verify preserved save bytes. The hover test also checks two process resumes. They never open the supplied original as an application save path.
 
 The shared development seat operates the same Bevy scene, UI and input path without opening an OS window. It uses a fixed manual clock and disables Winit and pipelined rendering; it cannot establish physical mouse comfort. It is distinct from a faction player's connection. Use isolated verification saves:
 
