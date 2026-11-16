@@ -43,6 +43,7 @@ use unfolded_tabletop::{
 };
 pub mod seat;
 mod status;
+mod top;
 mod victory;
 
 #[derive(Clone)]
@@ -101,9 +102,17 @@ struct LabelSpec {
     #[serde(default)]
     pieces: Option<[f32; 2]>,
 }
+/// What one shared hover lifecycle can disclose: a victory standing or an element of
+/// the top display. Serialized for the seat as the faction or the element's name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(untagged)]
+enum Target {
+    Standing(Faction),
+    Top(top::Item),
+}
 #[derive(Resource, Default)]
 struct Interface {
-    hover: Hover<Faction>,
+    hover: Hover<Target>,
     status: Hover<String>,
     reader: bool,
     notice: String,
@@ -124,6 +133,7 @@ struct Control {
 #[derive(Clone)]
 enum Action {
     Standing(Faction),
+    Top(top::Item),
     Close,
     Reader,
     Space(String),
@@ -289,12 +299,13 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 admit,
                 sync_pieces,
                 bind_spaces,
-                hover_standings,
+                hover_disclosures,
                 draw_ui,
                 camera_facts_and_viewport,
                 status::hover,
                 status::draw,
                 victory::draw,
+                top::draw,
                 animate_water,
             )
                 .chain(),
@@ -719,7 +730,8 @@ fn bind_spaces(
         }
     }
 }
-fn hover_standings(
+/// One dwell for every hover disclosure: victory standings and the top display.
+fn hover_disclosures(
     hover: Res<HoverMap>,
     controls: Query<&Control>,
     time: Res<Time>,
@@ -728,7 +740,8 @@ fn hover_standings(
     let target = hover.get(&PointerId::Mouse).and_then(|hits| {
         hits.keys()
             .find_map(|e| match controls.get(*e).ok()?.action {
-                Action::Standing(f) => Some(f),
+                Action::Standing(f) => Some(Target::Standing(f)),
+                Action::Top(item) => Some(Target::Top(item)),
                 _ => None,
             })
     });
@@ -756,7 +769,7 @@ fn click(
     }
     match &control.action {
         // Hover disclosures and development-seat map picks never change a decision.
-        Action::Standing(_) | Action::Space(_) => return,
+        Action::Standing(_) | Action::Top(_) | Action::Space(_) => return,
         Action::Close => {
             ui.reader = false;
         }
@@ -1050,8 +1063,9 @@ fn draw_ui(
         );
     }
     if !ui.reader {
+        // The owner retired the "CUBA LIBRE" title in #46: its corner holds Aid and
+        // the US Alliance (top::header).
         for (key, rect, offset) in [
-            ("atlas-layout-title.png", [40., 0., 240., 64.], left),
             (
                 "atlas-layout-map-fill.png",
                 [40., 136., 1300. + extra / s, 40.],
@@ -1083,6 +1097,7 @@ fn draw_ui(
             picture(&mut commands, &art, key, rect, s, offset, layer);
         }
         victory::header(&mut commands, &art, &view, s, centered);
+        top::header(&mut commands, &art, &view, s, left, right);
     }
     if ui.reader {
         picture(
@@ -1117,9 +1132,7 @@ fn draw_ui(
             &mut commands,
             &art,
             format!(
-                "Aid {} · US Alliance {} · Capabilities: {} · Momentum: {}\nEligible: {}\nPassed: {}",
-                view.aid,
-                view.alliance,
+                "Capabilities: {} · Momentum: {}\nEligible: {}\nPassed: {}",
                 effects(&view.capabilities),
                 effects(&view.momentum),
                 factions(view.eligible),
@@ -1382,7 +1395,19 @@ fn draw_ui(
             2,
         );
         let o = right;
-        let status=play.error.clone().unwrap_or_else(||if play.session.is_none(){"Loading selected assets; no save created.".into()}else{format!("Saved revision {} · {} map / {} available\nCash 4 · Terror/Sabotage {} available",view.revision,view.map_piece_count,view.available_piece_count,view.terror_available)});
+        let status = play.error.clone().unwrap_or_else(|| {
+            if play.session.is_none() {
+                "Loading selected assets; no save created.".into()
+            } else {
+                format!(
+                    "Saved revision {} · {} map / {} available\nTerror/Sabotage {} available",
+                    view.revision,
+                    view.map_piece_count,
+                    view.available_piece_count,
+                    view.terror_available
+                )
+            }
+        });
         text(
             &mut commands,
             &art,
@@ -1439,13 +1464,10 @@ fn operation_details(view: &crate::Observation) -> String {
     }
     if view.finished {
         let paid: u8 = view.spaces.iter().map(|s| s.terror).sum();
+        // Balances are on the top display's Resources ledger (#46); costs stay here.
         lines.push(format!("Resolved {paid} Terror · paid {paid} Resources"));
-        lines.push(format!("26July retains {} Resources", view.resources[1]));
     } else {
-        lines.push(format!(
-            "Terror costs 1 · 26July Resources {}",
-            view.resources[1]
-        ));
+        lines.push("Terror costs 1".into());
         lines.push("Activate 1 · place Terror · shift toward Active Opposition".into());
     }
     if let Some(roll) = &view.kidnap {
@@ -1494,6 +1516,24 @@ fn operation_details(view: &crate::Observation) -> String {
 mod tests {
     use super::*;
     use unfolded_tabletop::camera::Input;
+    #[test]
+    fn operation_text_keeps_costs_and_leaves_balances_to_the_ledger() {
+        let details = operation_details(&Game::prepared().observe());
+        assert!(details.contains("Terror costs 1\n"), "{details}");
+        assert!(!details.contains("26July Resources"), "{details}");
+        assert!(!details.contains("retains"), "{details}");
+    }
+    #[test]
+    fn top_display_targets_serialize_as_the_seat_reads_them() {
+        assert_eq!(
+            serde_json::to_value(Target::Standing(Faction::M26)).unwrap(),
+            "M26"
+        );
+        assert_eq!(
+            serde_json::to_value(Target::Top(top::Item::UsAlliance)).unwrap(),
+            "us-alliance"
+        );
+    }
     /// One frame of the shared camera at this table, from plain input values.
     fn drive(
         orbit: &mut Orbit,

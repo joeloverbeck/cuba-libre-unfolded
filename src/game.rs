@@ -28,6 +28,38 @@ impl Faction {
         }
     }
 }
+/// The US Alliance track, best level first (R 6.3.1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UsAlliance {
+    Firm,
+    Reluctant,
+    Embargoed,
+}
+impl UsAlliance {
+    pub const ALL: [Self; 3] = [Self::Firm, Self::Reluctant, Self::Embargoed];
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Firm => "Firm",
+            Self::Reluctant => "Reluctant",
+            Self::Embargoed => "Embargoed",
+        }
+    }
+    /// Resources each Government COIN Operation costs per space; Garrison pays it
+    /// once in total (R 6.3.1).
+    pub fn coin_cost(self) -> u8 {
+        match self {
+            Self::Firm => 2,
+            Self::Reluctant => 3,
+            Self::Embargoed => 4,
+        }
+    }
+    /// Embargoed forbids Air Strike (R 4.2.2, R 6.3.1).
+    pub fn allows_air_strike(self) -> bool {
+        self != Self::Embargoed
+    }
+}
+/// The game's Cash markers; any others are spares (R 4.5.2).
+pub const CASH_MARKERS: u8 = 4;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Kind {
     Troops,
@@ -162,7 +194,7 @@ pub struct Observation {
     pub eligible: [bool; 4],
     pub passed: [bool; 4],
     pub aid: u8,
-    pub alliance: &'static str,
+    pub alliance: UsAlliance,
     pub cash_available: u8,
     pub terror_available: u8,
     pub capabilities: Vec<String>,
@@ -396,8 +428,8 @@ impl Game {
             eligible: [true; 4],
             passed: [false; 4],
             aid: 15,
-            alliance: "Firm",
-            cash_available: 4,
+            alliance: UsAlliance::Firm,
+            cash_available: CASH_MARKERS,
             terror_available: 20 - self.spaces.iter().map(|s| s.terror).sum::<u8>(),
             capabilities: vec![],
             momentum: vec![],

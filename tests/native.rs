@@ -1688,3 +1688,152 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
     app.capture("hover-bell");
     app.quit();
 }
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_top_display_matches_layout_and_follows_the_economy() {
+    let cards = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS")
+        .into();
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "local/verification/issue-46".into());
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("top-display-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards,
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("task.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Top display native evidence: {}", app.root.display());
+    // 3840x2160 is 16:9 like the owner's 6144x3456 display that the layout frames.
+    app.launch_size("3840x2160");
+    let rest = app.observe();
+    let layout: Value =
+        serde_json::from_str(include_str!("../art/atlas/atlas-top-display.layout.json")).unwrap();
+    let ratio = 3840. / layout["frame"][0].as_f64().unwrap();
+    let parts = rest["table"]["top_parts"].as_array().unwrap().clone();
+    let part = |parts: &[Value], name: &str| {
+        parts
+            .iter()
+            .find(|p| p["part"] == name)
+            .unwrap_or_else(|| panic!("native top display has no {name}"))
+            .clone()
+    };
+    // Images on all four edges; text on left, top and right, since its line
+    // height is the renderer's rather than the layout's.
+    for (group, edges) in [("parts", 4), ("text", 3)] {
+        for (name, rect) in layout[group].as_object().unwrap() {
+            let r: Vec<f64> = rect
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_f64().unwrap() * ratio)
+                .collect();
+            let expected = [r[0], r[1], r[0] + r[2], r[1] + r[3]];
+            let native = rect_of(&part(&parts, name)["bounds"]);
+            for (n, e) in native.iter().zip(expected).take(edges) {
+                assert!(
+                    (n - e).abs() <= 2.,
+                    "{name}: native {native:?} differs from layout {expected:?} by more than 2 px"
+                );
+            }
+        }
+    }
+    let ledger = |view: &Value| -> Vec<String> {
+        let parts = view["table"]["top_parts"].as_array().unwrap();
+        (0..4)
+            .map(|row| {
+                part(parts, &format!("ledger-row-{row}-value"))["text"]
+                    .as_str()
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect()
+    };
+    assert_eq!(ledger(&rest), ["6", "0", "5", "15"]);
+    assert_eq!(part(&parts, "aid-value")["text"], "15");
+    app.capture("rest");
+    let viewport = rect_of(&json!([0., 0., 3840., 2160.]));
+    for (component, title) in [
+        ("aid", "Aid"),
+        ("us-alliance", "US Alliance"),
+        ("resources", "Resources"),
+        ("cash", "Cash"),
+    ] {
+        let shown = app.point(component);
+        assert_eq!(shown["table"]["hover"], component);
+        assert_eq!(shown["table"]["top"]["item"], component);
+        assert_eq!(shown["table"]["top"]["title"], title);
+        assert!(shown["table"]["victory"].is_null());
+        let plate = rect_of(&shown["table"]["top"]["bounds"]);
+        assert!(plate[0] >= viewport[0] && plate[2] <= viewport[2] && plate[3] <= viewport[3]);
+        for line in shown["table"]["top_text"].as_array().unwrap() {
+            let text = rect_of(&line["bounds"]);
+            assert!(
+                text[0] >= plate[0] && text[2] <= plate[2] && text[3] <= plate[3],
+                "{component} tag line {line} leaves its plate {plate:?}"
+            );
+        }
+        if component == "resources" {
+            // The Resources tag opens beside the ledger and leaves Cash visible.
+            for slot in 0..4 {
+                let cash = rect_of(&part(&parts, &format!("cash-slot-{slot}"))["bounds"]);
+                assert!(
+                    plate[3] <= cash[1] || plate[2] <= cash[0],
+                    "covers cash slot {slot}"
+                );
+            }
+        }
+        app.capture(&format!("tag-{component}"));
+    }
+    // Every Resources change reaches the ledger at once.
+    app.choose("transfer");
+    app.choose("transfer:2:1");
+    app.choose("amount:1");
+    app.choose("amount:2");
+    app.choose("authorize");
+    assert_eq!(ledger(&app.observe()), ["6", "2", "3", "15"]);
+    app.capture("after-transfer");
+    app.choose("terror:santiago");
+    app.choose("terror:oriente");
+    assert_eq!(ledger(&app.observe()), ["6", "0", "3", "15"]);
+    app.capture("after-terror");
+    app.choose("kidnap");
+    let roll = app.observe();
+    let resources: Vec<String> = roll["observation"]["resources"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.to_string())
+        .collect();
+    assert_ne!(resources[0], "6", "a Kidnap roll takes at least 1");
+    assert_eq!(ledger(&roll), resources);
+    app.capture("after-kidnap");
+    let revision = roll["observation"]["revision"].as_u64().unwrap();
+    app.activate("reader", revision);
+    let reader = app.observe();
+    assert!(reader["table"]["top"].is_null());
+    assert!(reader["table"]["top_parts"].as_array().unwrap().is_empty());
+    app.capture("reader-without-title");
+    app.quit();
+}
+
+fn rect_of(value: &Value) -> [f64; 4] {
+    let v: Vec<f64> = value
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| n.as_f64().unwrap())
+        .collect();
+    [v[0], v[1], v[2], v[3]]
+}
