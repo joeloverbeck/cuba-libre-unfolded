@@ -1,6 +1,6 @@
 # Cuba Libre Unfolded
 
-Terms for the game and its players, following the accepted [mission](docs/foundation/01-mission-and-scope.md), [development playtesting boundary](docs/foundation/03-engineering-and-reuse.md), and [player and proclamation policy](docs/foundation/05-players-and-proclamations.md).
+Terms for the game and its players, following the accepted [mission](docs/foundation/01-mission-and-scope.md), [rules source](docs/foundation/02-rules-and-verification.md), [development playtesting boundary](docs/foundation/03-engineering-and-reuse.md), and [player and proclamation policy](docs/foundation/05-players-and-proclamations.md). Rule terms follow the March 2019 Living Rules pinned by the accepted [rules baseline](docs/research/rules-baseline-and-candidates.md).
 
 ## Language
 
@@ -30,10 +30,54 @@ _Avoid_: Victory standing, automatic win
 
 **Operation**:
 A faction action such as Terror, resolved through the choices and effects allowed for that action. Completing an Operation does not necessarily complete the current Event card.
-_Avoid_: Turn, complete card (when referring only to an Operation)
+_Avoid_: Turn, complete card (when referring only to an Operation), full Operation, Full Terror
+
+**Limited Operation**:
+An Operation with no Special Activity that selects a single space; a Garrison, Sweep or March may still draw pieces from several spaces into its one destination. It counts as an Operation.
+_Avoid_: Partial Operation, cheap Operation
+
+**Operation Only**:
+The record that the 1st Eligible faction executed an Operation without a Special Activity, which limits the 2nd Eligible faction to Pass or a Limited Operation.
+_Avoid_: Plain Operation
+
+**Eligible faction**:
+A faction that started the current card in the Eligible box. In the card's faction order the leftmost is the 1st Eligible and the next is the 2nd Eligible; when one Passes, the next Eligible faction takes its place.
+_Avoid_: Active faction, current player
+
+**Pass**:
+An Eligible faction's choice not to act on the card, gaining +1 Resource (+3 for the Government) and remaining Eligible.
+_Avoid_: Skip, end turn, zero-space Operation
+
+**Underground Guerrilla**:
+A Guerrilla in its concealed state. Terror requires one in each selected space.
+_Avoid_: Hidden Guerrilla, inactive Guerrilla
+
+**Active Guerrilla**:
+A Guerrilla in its exposed state. It still counts for Control and for outnumbering Police.
+_Avoid_: Revealed Guerrilla, used Guerrilla
+
+**Activate**:
+To flip an Underground Guerrilla to Active; unless the text specifies an Underground Guerrilla, an already Active one also counts and stays Active. It concerns a piece, never Resources.
+_Avoid_: Spend, use (when meaning flipping a Guerrilla)
+
+**Executing faction**:
+The faction currently carrying out an Operation, Special Activity or Event. Passing is not executing.
+_Avoid_: Active player, current turn (when meaning execution)
+
+**Resource transfer**:
+A voluntary movement of Resources from a giver to a recipient, decided by the giver, permitted only while the giver or the recipient is the executing faction. Movements the rules require, such as Kidnap proceeds, are not Resource transfers.
+_Avoid_: Donation, gift, payment
+
+**Transfer request**:
+One faction's nonbinding ask that another give it Resources. It moves nothing; only the giver's authorization makes a Resource transfer.
+_Avoid_: Petition, demand, pending transfer
+
+**Voluntary removal**:
+The executing faction's return of its own on-map pieces, Casinos included, to Available Forces during its Operation, Special Activity or Event. The rules set no count limit, and the Syndicate may instead close a Casino.
+_Avoid_: Retreat, casualty, elimination
 
 **Special Activity**:
-A faction-specific activity that may accompany an eligible Operation, subject to its own timing and location restrictions. Kidnap is a 26July Special Activity that can accompany Terror.
+A faction-specific activity that may accompany an eligible Operation, subject to its own timing and location restrictions. Kidnap is a 26July Special Activity that accompanies Terror, in a space that was or will be selected for that Terror.
 _Avoid_: Separate turn, mandatory continuation
 
 **Resources**:
