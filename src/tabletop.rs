@@ -265,6 +265,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             dirty: true,
             ..default()
         })
+        // art/stage/preview-stage.blend mirrors this home framing; update it too.
         .insert_resource(Orbit::new((Vec3::new(0.35, 0., 0.35), 9.6)))
         // Atlas SVG map rim fill; the viewport continues the authored sea.
         .insert_resource(ClearColor(Color::srgb_u8(216, 231, 227)))
@@ -307,6 +308,8 @@ fn render_ready(
         queue.on_submitted_work_done(move || flag.store(true, Ordering::Release));
     }
 }
+/// art/stage/preview-stage.blend mirrors this viewport, light, sea and region
+/// tops, and `sync_pieces`' placement; update it when they change.
 fn setup(
     mut commands: Commands,
     art: Res<Art>,

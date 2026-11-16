@@ -44,7 +44,7 @@ If you started Blender for the check, quit it afterwards.
 
 ## Blender from Claude Code
 
-This repository's `.mcp.json` registers no Blender server, so a Claude Code session drives the portable Blender above headless:
+Claude Code has no Blender MCP (preflight step 1), so it drives the portable Blender headless:
 
 ```sh
 ~/.local/opt/blender-5.2.3-linux-x64/blender -b --factory-startup --python <script> -- <args>
@@ -52,14 +52,20 @@ This repository's `.mcp.json` registers no Blender server, so a Claude Code sess
 
 EEVEE renders headless on the founding machine.
 
-- **Scripts:** keep the Python script in the session scratchpad. It operates an external editor, and project-owned code is Rust only.
-- **What to commit:** the `.blend` source, its exports, and a prose record of the construction, as `art/atlas/TERROR.md` does.
-- **Gameplay-scale previews:** start from [`art/stage/preview-stage.blend`](../../art/stage/README.md) instead of rebuilding the app's camera, light and pieces.
+**Rust-only boundary.** The script operates Blender through its own Python API, as the Blender MCP's code execution does and as the Atlas map was built. It is editor operation, not a project tool or test oracle. So:
+- Keep the script out of Git, saved with its log under `local/verification/<issue>/` so the evidence can be re-run.
+- Commit the `.blend` source and its exports, with a prose record of the construction (as `art/atlas/TERROR.md` does).
+- Committed checks of a shipped asset are Rust tests.
 
-**Exporting a loop to glTF:**
-- Key frames 0 through L with frame L equal to frame 0, and set `frame_end = L` so the wrap key is exported.
-- Use `export_animation_mode='SCENE'` with `export_anim_scene_split_object=False` to get one clip.
-- `tests/terror_token.rs` holds the checks a shipped loop must pass.
+**Gameplay-scale previews:** start from [`art/stage/preview-stage.blend`](../../art/stage/README.md) instead of rebuilding the app's camera, light and pieces.
+
+**Exporting a loop of L frames to glTF:**
+- Render frames 0 to L−1.
+- Key frames 0 through L, with frame L equal to frame 0.
+- Export with `frame_end = L` so the wrap key is included.
+- Use `export_animation_mode='SCENE'` with `export_anim_scene_split_object=False` for one clip.
+
+`tests/terror_token.rs` checks the shipped bell's seam, duration and entity names; give each new loop a test of the same properties.
 
 ## Animated mesh checks
 

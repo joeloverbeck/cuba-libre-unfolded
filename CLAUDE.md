@@ -47,7 +47,7 @@ If required text cannot be located or read, substantive work is unauthorized. Pr
 
 Read `README.md` and `docs/foundation/01-mission-and-scope.md` before project work. These files record the owner's founding decisions; unresolved implementation details are not accepted product policy.
 
-- Rules and source fidelity: `docs/foundation/02-rules-and-verification.md`. Rule text: `pdftotext -layout "$HOME/Pictures/Cuba Libre Resources/resources/documents/rules-3rd-printing-living-march-2019.pdf"` into the scratchpad, then grep the rule number (pinned hash in `docs/research/founding-evidence.md`).
+- Rules and source fidelity: `docs/foundation/02-rules-and-verification.md`.
 - Any implementation, tooling, or sibling change: `docs/foundation/03-engineering-and-reuse.md`. Inspect all four named repositories before implementing a feature. Complete required shared extraction, consumer PRs, merges and pulls before continuing dependent work here.
 - Visual work (graphics, layouts, map, pieces, animation, imported assets): read `docs/foundation/04-art-and-assets.md` and `docs/agents/art-tools.md` first.
 - Agent seats, prompts or player communication: `docs/foundation/05-players-and-proclamations.md`. External Claude Code/Codex sessions play seats; there are no built-in bots. Faction proclamations are public written documents.
