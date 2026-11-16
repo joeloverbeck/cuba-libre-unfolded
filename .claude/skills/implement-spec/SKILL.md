@@ -24,7 +24,7 @@ Communication to and from subagents should be sparse. Communicate primarily thro
 
 2. (optional) Use an **exploration subagent** to conduct any exploration required by the tickets - relevant codebase files or external documentation. Ensure the exploration subagent can save files - it should save its markdown notes under `local/handoffs/` (README, "Where files live"), where all future subagents can read them. This lets **implementer subagents** focus on implementation rather than exploration.
 
-3. Create the integration branch. If the issue tracker closes work through PRs, or the user asks for one, open a draft PR after the first merge in step 5 (a branch with no commits ahead of main can't open one), referencing the spec and tickets with `For #N`. A closing keyword waits for step 8.
+3. Create the integration branch. If the issue tracker closes work through PRs, or the user asks for one, open a draft PR after the first merge in step 5 (a branch with no commits ahead of main can't open one), referencing the spec and tickets with `For #N`.
 
 4. Use a fresh **implementer subagent** for each ticket, each in its own worktree under `local/worktrees/` on its own branch. Each implementer subagent:
    - confirms its worktree is based on the integration branch before starting, and resets onto it if not;
@@ -38,7 +38,7 @@ Communication to and from subagents should be sparse. Communicate primarily thro
 
 7. Once all tickets are complete, call the Skill tool with `code-review` on the integration branch. Fix all issues raised by the code review in a single fresh **implementer subagent**.
 
-8. Report the artifact revision, checks and remaining evidence limits. Source review does not establish execution in a consumer or native usability. If a draft PR exists, mark it ready for review; otherwise report the integration branch. Resolve tickets only when their recorded acceptance conditions are met: switch a PR reference to a closing keyword only as `docs/agents/issue-tracker.md`, "Closing issues", allows. Carry existing authorization through without duplicate confirmation, while preserving any outstanding owner acceptance or publication boundary.
+8. Report the artifact revision, checks and remaining evidence limits. Source review does not establish execution in a consumer or native usability. If a draft PR exists, mark it ready for review; otherwise report the integration branch. Resolve tickets only when their recorded acceptance conditions are met, closing them after the merge as `docs/agents/issue-tracker.md`, "Closing issues", describes. Carry existing authorization through without duplicate confirmation, while preserving any outstanding owner acceptance or publication boundary.
 
 9. Clean up all **implementer subagent** worktrees.
 
