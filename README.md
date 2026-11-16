@@ -39,7 +39,7 @@ All decisions save before the changed state is published in memory. Reading, cam
 scripts/check
 ```
 
-It prints the checked revision and whether the working tree differs from it, then runs formatting, Clippy and tests, core and with `--features tabletop`, stopping at the first failure. CI runs the same command on every pull request, and `main` requires it to pass. A single focused command is only partial evidence.
+It prints the checked revision and whether the working tree differs from it, then stops at the first failing check. CI runs the same command on every pull request, and `main` requires it to pass. A single focused command is only partial evidence.
 
 Core tests require no private inputs or GPU. The explicitly ignored native regression requires the selected card directory and a working renderer:
 
