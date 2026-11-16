@@ -1554,3 +1554,137 @@ fn assert_status_geometry(status: &Value) {
         "leader needs visible separation: {status}"
     );
 }
+
+/// Pixels that differ inside a token's crop of two same-size captures.
+fn token_changes(first: &Path, second: &Path, at: [f64; 2]) -> usize {
+    let a = image::open(first).unwrap().to_rgb8();
+    let b = image::open(second).unwrap().to_rgb8();
+    assert_eq!(a.dimensions(), b.dimensions());
+    // The bell rises above its base anchor; keep the crop on the token.
+    let (x0, y0) = ((at[0] - 45.).max(0.) as u32, (at[1] - 70.).max(0.) as u32);
+    (x0..(x0 + 90).min(a.width()))
+        .flat_map(|x| (y0..(y0 + 100).min(a.height())).map(move |y| (x, y)))
+        .filter(|&(x, y)| a.get_pixel(x, y) != b.get_pixel(x, y))
+        .count()
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
+    let cards = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS")
+        .into();
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "local/verification/issue-41".into());
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("terror-bell-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards,
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("task.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Terror bell evidence: {}", app.root.display());
+    app.launch();
+    assert_eq!(app.observe()["table"]["terror"], json!([]));
+    app.choose("transfer");
+    app.choose("transfer:2:1");
+    app.choose("amount:1");
+    app.choose("amount:2");
+    app.choose("authorize");
+    app.choose("terror:santiago");
+    app.choose("terror:oriente");
+    let start = app.observe();
+    assert_eq!(start["table"]["settled"], true);
+    let revision = start["observation"]["revision"].as_u64().unwrap();
+    let seeks = |view: &Value| {
+        let bells = view["table"]["terror"].as_array().unwrap();
+        assert_eq!(
+            bells.iter().map(|b| &b["space"]).collect::<Vec<_>>(),
+            [&json!("oriente"), &json!("santiago")],
+            "one playing bell per Terror space"
+        );
+        bells
+            .iter()
+            .map(|b| b["seek"].as_f64().unwrap())
+            .collect::<Vec<_>>()
+    };
+    let initial = seeks(&start);
+    assert!(initial.iter().all(|s| (0.0..3.6).contains(s)));
+    assert!(
+        (initial[0] - initial[1]).abs() > 0.3,
+        "neighbouring bells must not swing in unison: {initial:?}"
+    );
+    let position = |view: &Value, name: &str| {
+        let control = view["table"]["controls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == name)
+            .unwrap_or_else(|| panic!("{name} is on screen"));
+        [
+            control["position"][0].as_f64().unwrap(),
+            control["position"][1].as_f64().unwrap(),
+        ]
+    };
+    let bells = [
+        position(&start, "piece:santiago Terror"),
+        position(&start, "piece:oriente Terror"),
+    ];
+    app.capture("loop-start");
+    // Each key press steps the seat's manual clock twice (2 × 16,666,667 ns), so
+    // 54 presses are half the 3.6 s authored loop and 108 are one whole loop.
+    let press = |app: &mut Native, times: usize| {
+        for _ in 0..times {
+            let pressed = app.request(json!({"op":"key","revision":revision,"key":"Home"}), true);
+            assert_eq!(
+                pressed["table"]["settled"], true,
+                "the loop never holds the table"
+            );
+        }
+    };
+    press(&mut app, 54);
+    app.capture("loop-half");
+    press(&mut app, 54);
+    app.capture("loop-whole");
+    let whole = seeks(&app.observe());
+    for (a, b) in initial.iter().zip(&whole) {
+        assert!(
+            (a - b).abs() < 1e-4,
+            "one loop returns each bell: {initial:?} {whole:?}"
+        );
+    }
+    for at in bells {
+        let half = token_changes(
+            &app.root.join("loop-start.png"),
+            &app.root.join("loop-half.png"),
+            at,
+        );
+        assert!(half > 20, "the bell visibly swings: {half} changed pixels");
+        let seam = token_changes(
+            &app.root.join("loop-start.png"),
+            &app.root.join("loop-whole.png"),
+            at,
+        );
+        assert_eq!(seam, 0, "one whole loop renders the bell identically");
+    }
+    for (space, name) in [
+        ("santiago", "piece:santiago Terror"),
+        ("oriente", "piece:oriente Terror"),
+        ("santiago", "count:santiago Terror"),
+    ] {
+        let hovered = app.point(name);
+        assert_eq!(hovered["table"]["status"]["space"], space, "{name}");
+    }
+    app.capture("hover-bell");
+    app.quit();
+}

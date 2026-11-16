@@ -5,6 +5,7 @@ use crate::{
     save::Session,
 };
 use bevy::{
+    app::AnimationSystems,
     asset::RenderAssetUsages,
     camera::{RenderTarget, Viewport},
     core_pipeline::tonemapping::Tonemapping,
@@ -74,8 +75,25 @@ struct Art {
     images: BTreeMap<String, Handle<Image>>,
     font: Handle<Font>,
     scene: Handle<WorldAsset>,
+    terror: Handle<WorldAsset>,
+    terror_clip: Handle<AnimationClip>,
     labels: Vec<LabelSpec>,
 }
+/// The authored Terror bell loop, played as one graph node by every token.
+#[derive(Resource)]
+struct TerrorLoop {
+    clip: Handle<AnimationClip>,
+    graph: Handle<AnimationGraph>,
+    node: AnimationNodeIndex,
+}
+/// A space's Terror token. `phase` is its fixed place in the loop, as a fraction.
+#[derive(Component)]
+struct TerrorToken {
+    phase: f64,
+}
+/// Marks the token's glTF animation player once it plays the loop for `space`.
+#[derive(Component)]
+struct TerrorPlayer(String);
 #[derive(serde::Deserialize, Clone)]
 struct LabelSpec {
     space: String,
@@ -198,10 +216,15 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .world_mut()
         .resource_mut::<Assets<Font>>()
         .add(Font::from_bytes(verified.files["Lato-Regular.ttf"].clone()));
-    let scene = app
-        .world()
-        .resource::<AssetServer>()
-        .load("atlas-terrain-map.glb#Scene0");
+    let server = app.world().resource::<AssetServer>();
+    let scene = server.load("atlas-terrain-map.glb#Scene0");
+    let terror = server.load("atlas-terror-token.glb#Scene0");
+    let terror_clip = server.load("atlas-terror-token.glb#Animation0");
+    let (graph, node) = AnimationGraph::from_clip(terror_clip.clone());
+    let graph = app
+        .world_mut()
+        .resource_mut::<Assets<AnimationGraph>>()
+        .add(graph);
     #[derive(serde::Deserialize)]
     struct Labels {
         labels: Vec<LabelSpec>,
@@ -225,7 +248,14 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             images,
             font,
             scene,
+            terror,
+            terror_clip: terror_clip.clone(),
             labels: labels.labels,
+        })
+        .insert_resource(TerrorLoop {
+            clip: terror_clip,
+            graph,
+            node,
         })
         .insert_resource(Play {
             session: None,
@@ -237,6 +267,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             dirty: true,
             ..default()
         })
+        // art/stage/preview-stage.blend mirrors this home framing; update it too.
         .insert_resource(Orbit::new(Framing::new(Vec3::new(0.35, 0., 0.35), 9.6)))
         // Atlas SVG map rim fill; the viewport continues the authored sea.
         .insert_resource(ClearColor(Color::srgb_u8(216, 231, 227)))
@@ -267,7 +298,8 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 animate_water,
             )
                 .chain(),
-        );
+        )
+        .add_systems(PostUpdate, animate_terror.before(AnimationSystems));
     Ok(app)
 }
 fn render_ready(
@@ -288,6 +320,8 @@ fn render_ready(
         queue.on_submitted_work_done(move || flag.store(true, Ordering::Release));
     }
 }
+/// art/stage/preview-stage.blend mirrors this viewport, light, sea and region
+/// tops, and `sync_pieces`' placement; update it when they change.
 fn setup(
     mut commands: Commands,
     art: Res<Art>,
@@ -497,35 +531,32 @@ fn sync_pieces(
             ));
         }
         if space.terror > 0 {
-            let token = token::spawn_body(
-                &mut commands,
-                &mut meshes,
-                &mut materials,
-                token::Body {
-                    name: format!("{} Terror", space.id),
-                    mesh: Cylinder::new(0.12, 0.045).into(),
-                    color: Color::srgb(0.18, 0.18, 0.16),
-                    transform: Transform::from_xyz(
+            // One authored bell per space; the count carries the quantity. Its glTF
+            // meshes stay pickable, and hover walks up to this SpaceTarget.
+            let index = game.spaces.iter().position(|s| s.id == space.id).unwrap();
+            let token = commands
+                .spawn((
+                    Name::new(format!("{} Terror", space.id)),
+                    WorldAssetRoot(art.terror.clone()),
+                    Transform::from_xyz(
                         piece_at.x + if space.id == "oriente" { 0.38 } else { 0. },
-                        top + 0.0225,
+                        top,
                         piece_at.z + if space.id == "oriente" { 0. } else { 0.36 },
                     ),
-                },
-            );
-            commands
-                .entity(token)
-                .insert((PieceVisual, status::SpaceTarget(space.id.clone())))
-                .remove::<Pickable>();
+                    TerrorToken {
+                        // Golden-ratio steps keep neighbouring bells out of unison.
+                        phase: (index as f64 * 0.618_033_988_75).fract(),
+                    },
+                    PieceVisual,
+                    status::SpaceTarget(space.id.clone()),
+                ))
+                .id();
             commands.spawn((
-                count(
-                    format!("T {}", space.terror),
-                    token,
-                    Vec3::new(0., 0.07, 0.),
-                ),
+                count(space.terror.to_string(), token, Vec3::new(0., 0.33, 0.)),
                 status::SpaceTarget(space.id.clone()),
                 TextFont {
                     font: art.font.clone().into(),
-                    font_size: 18.0.into(),
+                    font_size: 21.0.into(),
                     ..default()
                 },
                 TextColor(Color::srgb(0.08, 0.08, 0.06)),
@@ -553,6 +584,42 @@ fn count(text: String, token: Entity, offset: Vec3) -> impl Bundle {
         LabelAnchor::entity(token, offset),
     )
 }
+/// Bind each spawned bell's glTF player to the loop and pose it from the shared
+/// clock. A token respawned by a state change keeps its place in the loop, and the
+/// development seat's manual clock drives it exactly like desktop time.
+fn animate_terror(
+    mut commands: Commands,
+    time: Res<Time>,
+    terror: Res<TerrorLoop>,
+    clips: Res<Assets<AnimationClip>>,
+    tokens: Query<(&TerrorToken, &status::SpaceTarget)>,
+    parents: Query<&ChildOf>,
+    mut players: Query<(Entity, &mut AnimationPlayer, Has<TerrorPlayer>)>,
+) {
+    let Some(length) = clips.get(&terror.clip).map(AnimationClip::duration) else {
+        return;
+    };
+    for (entity, mut player, bound) in &mut players {
+        let Some((token, space)) = parents
+            .iter_ancestors(entity)
+            .find_map(|ancestor| tokens.get(ancestor).ok())
+        else {
+            continue;
+        };
+        if !bound {
+            commands.entity(entity).insert((
+                AnimationGraphHandle(terror.graph.clone()),
+                TerrorPlayer(space.0.clone()),
+            ));
+            player.play(terror.node).pause();
+        }
+        let seek = (time.elapsed_secs_f64() + token.phase * f64::from(length))
+            .rem_euclid(f64::from(length));
+        if let Some(active) = player.animation_mut(terror.node) {
+            active.set_seek_time(seek as f32);
+        }
+    }
+}
 fn animate_water(
     time: Res<Time>,
     water: Option<ResMut<Water>>,
@@ -577,6 +644,7 @@ fn admit(
     art: Res<Art>,
     server: Res<AssetServer>,
     scenes: Res<Assets<WorldAsset>>,
+    clips: Res<Assets<AnimationClip>>,
     fonts: Res<Assets<Font>>,
     mut context: ResMut<bevy::text::FontCx>,
     ready: Res<RenderReady>,
@@ -585,10 +653,21 @@ fn admit(
     if play.error.is_some() || play.session.is_some() {
         return;
     }
-    let report =
-        unfolded_tabletop::loading::required_assets(&server, &[art.scene.id().untyped()], |_| {
-            scenes.get(&art.scene).is_some()
-        });
+    let report = unfolded_tabletop::loading::required_assets(
+        &server,
+        &[
+            art.scene.id().untyped(),
+            art.terror.id().untyped(),
+            art.terror_clip.id().untyped(),
+        ],
+        |id| {
+            if id == art.terror_clip.id().untyped() {
+                clips.get(&art.terror_clip).is_some()
+            } else {
+                scenes.contains(id.typed::<WorldAsset>())
+            }
+        },
+    );
     if !report.failures.is_empty() {
         play.error = Some(report.failures.join("; "));
         ui.dirty = true;

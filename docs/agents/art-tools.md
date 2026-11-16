@@ -41,3 +41,38 @@ Run this preflight before reporting an MCP editor unavailable or switching autho
 4. **Handshake failure.** The listener answers a read with `"status": "success"`: `(printf '{"type":"get_scene_info","params":{}}'; sleep 5) | nc 127.0.0.1 9876`. Keep the input open, as here: the add-on drops a connection whose input ends before it replies. For a Craft server, a handshake failure is an MCP initialization error in the session; quote it.
 
 If you started Blender for the check, quit it afterwards.
+
+## Blender from Claude Code
+
+Claude Code has no Blender MCP (preflight step 1), so it drives the portable Blender headless:
+
+```sh
+~/.local/opt/blender-5.2.3-linux-x64/blender -b --factory-startup --python <script> -- <args>
+```
+
+EEVEE renders headless on the founding machine.
+
+**Rust-only boundary.** The script operates Blender through its own Python API, as the Blender MCP's code execution does and as the Atlas map was built. It is editor operation, not a project tool or test oracle. So:
+- Keep the script out of Git, saved with its log under `local/verification/<issue>/` so the evidence can be re-run.
+- Commit the `.blend` source and its exports, with a prose record of the construction (as `art/atlas/TERROR.md` does).
+- Committed checks of a shipped asset are Rust tests.
+
+**Gameplay-scale previews:** start from [`art/stage/preview-stage.blend`](../../art/stage/README.md) instead of rebuilding the app's camera, light and pieces.
+
+**Exporting a loop of L frames to glTF:**
+- Render frames 0 to L−1.
+- Key frames 0 through L, with frame L equal to frame 0.
+- Export with `frame_end = L` so the wrap key is included.
+- Use `export_animation_mode='SCENE'` with `export_anim_scene_split_object=False` for one clip.
+
+`tests/terror_token.rs` checks the shipped bell's seam, duration and entity names; give each new loop a test of the same properties.
+
+## Animated mesh checks
+
+Run these on every animated alternative before the owner sees it, and again on the production asset:
+
+- **Seam:** frame L renders pixel-identical to frame 0.
+- **Interpenetration:** on every frame 0–L, the world-space BVH overlap (`mathutils.bvhtree`) of each moving part against every part it can reach is empty. Exclude by name only parts that are joined on purpose, such as an axle in its bearing.
+- **Negative control:** break the motion's constraint once (for example, remove a limit) and confirm the checks flag it.
+
+Report the three results with the alternatives.
