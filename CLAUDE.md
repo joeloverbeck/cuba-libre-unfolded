@@ -57,6 +57,12 @@ All project-owned executable code is Rust; bash, such as `scripts/check`, and GP
 
 The Pictures resource collection is external reference material. Do not commit it, execute its Workshop scripts, or treat its art as current rules authority. Original editable art belongs in `art/`; credentials, saves, imports and temporary probes stay out of Git. Source-only checks do not establish native play, agent competence, or owner acceptance.
 
+### Reading, output and waiting
+
+- Read a large file by section: find the heading with `grep -n`, then read that range. After a truncated read, narrow the range.
+- Send verbose command output to a log under `local/verification/`, and report the result lines and the log path.
+- Wait for a subagent's or background command's completion notification; poll only state nothing will notify about, such as CI, at the pace it changes.
+
 ## Agent skills
 
 ### Issue tracker

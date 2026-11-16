@@ -12,8 +12,11 @@ From the checkout root:
 
 ```sh
 cargo build --locked --features tabletop --bins
-cargo run --locked --features tabletop --bin cuba-libre -- --cards "/path/to/cards" --save "/path/to/task.json"
+mkdir -p ~/.local/share/cuba-libre-unfolded/saves
+cargo run --locked --features tabletop --bin cuba-libre -- --cards "/path/to/cards" --save ~/.local/share/cuba-libre-unfolded/saves/task.json
 ```
+
+Keep a save you continue outside `/tmp`; see [Where files live](#where-files-live).
 
 `--cards` names a directory containing the selected private `card-17.png` and `card-18.png`, with the exact hashes in [the asset handoff](art/atlas/README.md#private-card-admission). No card images are downloaded or redistributed. `--art` defaults to `art/atlas`; use its absolute path when running the binary from another directory. Missing/changed art or cards refuse before creating or replacing a save. PNGs are decoded, fonts registered, and the real scene/render path admitted before save creation.
 
@@ -51,13 +54,14 @@ It retains isolated saves, JSON observations and screenshots under `local/verifi
 
 The focused `native_hover_status` test also checks all ten city/province tags, three EC exclusions, piece/count hover, reader suppression, camera navigation, complete home framing and Terror/removal updates. Its captures go under `local/verification/issue-16/hover-status-*`. `native_victory_emblems` checks both emblem and margin targets, one tag, reader/leave dismissal, actual transfer/Terror/removal updates and rendered text bounds, including the largest reachable contribution list. Its captures go under `local/verification/issue-16/victory-*`. `native_responsive_layout` exercises 3:2, 16:9 and 21:9 native surfaces (agent-chosen regression coverage, not owner display policy; see the art foundation), all region picks, piece/count hover, centered emblems, panel anchors, reader and unchanged save bytes. Its captures go under `local/verification/issue-16/layout-*`. Run native regressions serially with `--test-threads=1`. Optionally set `CUBA_COMPAT_SAVE` to a record an earlier build wrote in the shared save record: the hover and responsive tests copy it into their evidence directories and verify preserved save bytes. The hover test also checks two process resumes. They never open the supplied original as an application save path.
 
-The shared development seat operates the same Bevy scene, UI and input path without opening an OS window. It uses a fixed manual clock and disables Winit and pipelined rendering; it cannot establish physical mouse comfort. It is distinct from a faction player's connection. Use isolated verification saves:
+The shared development seat operates the same Bevy scene, UI and input path without opening an OS window. It uses a fixed manual clock and disables Winit and pipelined rendering; it cannot establish physical mouse comfort. It is distinct from a faction player's connection. Use an isolated verification save in a fresh run directory, from the checkout root:
 
 ```sh
-cargo run --locked --features tabletop --bin cuba-libre -- --cards "/path/to/cards" --save "/tmp/cuba-check.json" --agent-seat --socket /tmp/cuba-check.sock
+run=local/verification/seat-$(date +%Y%m%d-%H%M%S) && mkdir -p "$run"
+cargo run --locked --features tabletop --bin cuba-libre -- --cards "/path/to/cards" --save "$run/task.json" --agent-seat --socket /tmp/cuba-check.sock
 cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"observe"}'
 cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"point","revision":0,"component":"standing:0"}' '{"op":"settle"}'
-cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"capture","path":"/tmp/cuba-standing.png"}'
+cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock "{\"op\":\"capture\",\"path\":\"$PWD/$run/standing.png\"}"
 cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"activate","revision":0,"choice":"0:finish"}' '{"op":"settle"}'
 cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"quit"}'
 ```
@@ -65,6 +69,19 @@ cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"quit"}'
 Use the actual observed revision and exact control/choice names. Other components include `standing:1` through `standing:3`, `margin:0` through `margin:3`, `space:havana`, `reader`, and `close` while the reader is open. Add `--seat-size 1920x1080` or `--seat-size 2520x1080` to exercise wider surfaces through the same renderer; the default is 1920×1280. Key requests use e.g. `{"op":"key","revision":0,"key":"Home"}`. A held seat idles out after 30 minutes. The Rust client uses the shared JSON-line transport, exits nonzero for refusals/misses/skips/malformed or missing replies, and has a 180-second response deadline. A refused connection stops subsequent mutations on that connection; reconnect and observe before deciding again. The development seat has no authority to invent legal game choices.
 
 For a fresh transfer example, activate choices `0:transfer`, `1:transfer:3:1`, `2:amount:1`, then `3:authorize`, using revisions 0, 1, 2 and 3 and settling after each. This requests Syndicate → 26July, lets Syndicate choose 1, then authorizes balances Government/26July/Directorio/Syndicate = 6/1/5/14. Observe after each step; the returned owner and choices bind the next local decision. `3:wait` preserves revision 3, while `3:decline` returns to 26July without moving Resources.
+
+## Where files live
+
+`/tmp` is a RAM filesystem here and is emptied at every reboot. Use it only for sockets and disposable probes. Anything worth keeping goes in one of these places:
+
+| What | Where |
+|---|---|
+| A save the owner continues or will review | `~/.local/share/cuba-libre-unfolded/saves/`, with a new file name for each review save |
+| Agent verification saves, captures, observations and retained logs | a fresh run directory under `local/verification/`, such as `issue-<N>/<run>/` for issue work |
+| Agent worktrees | `local/worktrees/<branch>/` |
+| Handoff notes | `local/handoffs/`; the durable state belongs in an issue comment |
+
+`local/` is ignored by Git and survives reboots, but not `git clean -x` or deleting the checkout; it is no backup. A test copies an owner save into its own run directory and uses the copy. Existing saves and retained evidence are never migrated, overwritten or cleaned up.
 
 ## Recovery
 
