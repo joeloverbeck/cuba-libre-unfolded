@@ -17,7 +17,7 @@
 //!   the roll is an effect, opening and cancelling are not.
 //!
 //! The six die faces are #8's recorded shared-RNG faces for those seeds
-//! (`tests/terror.rs`), so a cancel that consumed randomness would change them.
+//! (`tests/integration/terror.rs`), so a cancel that consumed randomness would change them.
 use cuba_libre_unfolded::{CARD_17_SHADED, Faction, Game, KidnapStakes, save::Session};
 
 fn choose(game: &mut Game, action: &str) {

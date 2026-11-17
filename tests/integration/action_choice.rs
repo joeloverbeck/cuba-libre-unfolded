@@ -241,7 +241,7 @@ fn eligibility_shows_order_and_roles_at_the_choice_during_terror_and_after_each_
         view.next.as_ref().unwrap().options,
         ["Pass (+1 if executed later)", "Limited Operation"]
     );
-    // Seed 5 is a diagnostic input whose actual shared roll is 3 (tests/terror.rs).
+    // Seed 5 is a diagnostic input whose actual shared roll is 3 (tests/integration/terror.rs).
     let mut special = Game::opening_with_seed(5);
     choose(&mut special, "terror");
     choose(&mut special, "kidnap");

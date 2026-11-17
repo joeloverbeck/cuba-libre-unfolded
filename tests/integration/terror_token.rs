@@ -3,7 +3,7 @@
 use cuba_libre_unfolded::Game;
 use serde_json::Value;
 
-const GLB: &[u8] = include_bytes!("../art/atlas/atlas-terror-token.glb");
+const GLB: &[u8] = include_bytes!("../../art/atlas/atlas-terror-token.glb");
 /// The authored loop length, in seconds.
 const LOOP_SECONDS: f32 = 3.6;
 /// glTF accessor component type for 32-bit floats.

@@ -2,7 +2,7 @@
 # Runs one heavy command (a cargo build or test, scripts/check, scripts/native) alone:
 # under the shared heavy lock, in a fresh memory scope, and with a worktree's private
 # Cargo target (docs/agents/parallel-work.md). Run it from the checkout the command is
-# for: `scripts/heavy cargo test --locked --test seat_brief`.
+# for: `scripts/heavy cargo test --locked --test integration seat_brief::`.
 set -euo pipefail
 
 if (($# == 0)); then

@@ -13,7 +13,7 @@ The main checkout stays on `main`. Commit, switch branches and edit tracked file
 - **Heavy lock.** Every cargo build, `scripts/check`, test run and native suite runs alone, in a fresh memory scope, through `scripts/heavy` from the checkout it is for:
 
   ```sh
-  scripts/heavy cargo test --locked --test seat_brief
+  scripts/heavy cargo test --locked --test integration seat_brief::
   scripts/heavy scripts/check
   ```
 

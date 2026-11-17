@@ -1,6 +1,6 @@
 //! Foundation 2, "Engine authority": legal-action discovery stays complete for the
 //! supported decision, even when presented hierarchically. During the Terror phase
-//! every choice the authority offers to 26July, in every state `tests/honest_hints.rs`
+//! every choice the authority offers to 26July, in every state `tests/integration/honest_hints.rs`
 //! explores, must have a surface that presents it: a panel step that pins and commits
 //! it (or states its refusal), the commit or Kidnap's Cancel at the panel's foot, the
 //! transfer modal, or a piece popover in removal mode.
