@@ -826,7 +826,7 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
     assert_eq!(app.observe()["observation"], after["observation"]);
     app.activate("standing:1", 4);
     app.capture("santiago-standing");
-    // Real Syndicate donation restores Oriente even if the real roll was 1.
+    // A real Syndicate Resource transfer restores Oriente even if the real roll was 1.
     app.choose("transfer");
     app.choose("ask:3:1");
     app.choose("authorize:1");
@@ -1032,7 +1032,7 @@ fn native_kidnap_opens_cancels_and_rolls_through_the_panel() {
 
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
-fn native_donations_enable_both_orders_without_or_with_late_kidnap() {
+fn native_resource_transfers_enable_both_orders_without_or_with_late_kidnap() {
     let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
         .expect("Set CUBA_TEST_CARDS")
         .into();
@@ -1048,7 +1048,10 @@ fn native_donations_enable_both_orders_without_or_with_late_kidnap() {
         .canonicalize()
         .unwrap();
     let socket_dir = tempfile::tempdir().unwrap();
-    eprintln!("Donated Terror native evidence: {}", root.display());
+    eprintln!(
+        "Terror after Resource transfers, native evidence: {}",
+        root.display()
+    );
     for (name, order, kidnap) in [
         ("no-santiago-first", ["santiago", "oriente"], false),
         ("no-oriente-first", ["oriente", "santiago"], false),
@@ -3151,7 +3154,7 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
         let revision = landed["observation"]["revision"].as_u64().unwrap();
         if die == 1 {
             app.request(
-                json!({"op":"key","revision":revision,"key":"Enter","focused":"Continue Terror"}),
+                json!({"op":"key","revision":revision,"key":"Enter","focused":"kidnap-die:continue"}),
                 true,
             );
             app.request(json!({"op":"settle"}), true);

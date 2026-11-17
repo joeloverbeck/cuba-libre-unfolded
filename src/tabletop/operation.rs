@@ -20,10 +20,16 @@
 //!   positioning itself against this stack.
 //! - Appetite: keep it working for #58's checks; no design or polish effort.
 //! - Replacement: #72/#73 (map popovers for targets and removals) and #71 (transfer
-//!   modal). #73's removal mode replaced the list of removal groups: the stack now
-//!   holds only Done there. #71 replaced the transfer part: the modal (`transfer.rs`)
-//!   owns the give, ask, authorize, decline, Wait and Cancel choices, and this stack
-//!   keeps only the button that opens it and 26July's withdrawals of a pending request.
+//!   modal) replaced parts of it, and the rest is still this bootstrap. #73's removal
+//!   mode replaced the list of removal groups: the stack now holds only Done there.
+//!   #71 replaced the transfer part: the modal (`transfer.rs`) owns the give, ask,
+//!   authorize, decline, Wait and Cancel choices, and this stack keeps only the button
+//!   that opens it and 26July's withdrawals of a pending request. #72's space popover
+//!   offers Terror and opening Kidnap on the map, and the stack still offers them too
+//!   (#58 tests Terror from the panel). What remains in the stack during Terror: the
+//!   Terror targets, Kidnap and its roll or cancel, Resource transfer, Remove own
+//!   pieces, End Terror and Back to the action choice; no selected design replaces
+//!   these yet.
 //! - Expiry: before #75's end-to-end verification.
 use super::*;
 
@@ -40,15 +46,7 @@ pub(super) fn panel(
     let (s, o) = (scale, offset);
     // The selected blank component hides static example action affordances
     // after completion, so they cannot masquerade as current controls.
-    picture(
-        commands,
-        art,
-        "atlas-panel.png",
-        [1380., 287., 500., 653.],
-        s,
-        o,
-        2,
-    );
+    picture(commands, art, "atlas-panel.png", PANEL, s, o, 2);
     if view.action == crate::ActionChoice::Open && !view.finished {
         return super::choice::panel(commands, art, view, ui, s, o);
     }
@@ -163,7 +161,7 @@ fn removal_details(view: &crate::Observation) -> String {
 
 /// A choice the transfer modal shows and submits, not this stack.
 fn modal_owned(choice: &crate::Choice) -> bool {
-    let action = choice.id.split_once(':').map_or("", |(_, a)| a);
+    let action = choice.action();
     ["give:", "ask:", "authorize:"]
         .iter()
         .any(|p| action.starts_with(p))
@@ -180,8 +178,9 @@ fn choices(commands: &mut Commands, art: &Art, view: &crate::Observation, s: f32
         .filter(|c| c.removal().is_none() && !modal_owned(c))
         .collect();
     // The stack ends at the panel's foot. It tightens once it holds more than five
-    // buttons, such as the two disabled Terror targets; the selected design (#69)
-    // replaces this temporary stack.
+    // buttons, such as the two disabled Terror targets. It is the execution part of
+    // this module's WORK-2 bootstrap (record above), which expires before #75; #69's
+    // AC-B design replaced only the action choice's part.
     let count = shown.len() as f32;
     let pitch = if count > 5. { 44. } else { 52. };
     let top = 926. - count * pitch;

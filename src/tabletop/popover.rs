@@ -18,6 +18,7 @@
 //! authority": the first consumer implements against the layout). The anchor dot and
 //! leader are the accepted Atlas status components. Wording is presentation; every
 //! fact and number is the authority's own preview, reason or remedy.
+use super::palette::{DESK, INK, PAPER, PRIMARY, QUIET, RULE};
 use super::*;
 use crate::{
     Choice, KIDNAP_SPACE, Observation,
@@ -26,15 +27,6 @@ use crate::{
 use bevy::ui::{BoxShadow, FlexWrap};
 use emblems::Naming;
 use highlights::Targeting;
-
-/// The FigCraft `Atlas` variables the popover uses.
-const INK: Color = Color::srgb_u8(32, 50, 56);
-const INK_SECONDARY: Color = Color::srgb_u8(83, 106, 109);
-const PAPER: Color = Color::srgb_u8(248, 244, 232);
-const DESK: Color = Color::srgb_u8(238, 233, 220);
-const RULE: Color = Color::srgb_u8(211, 219, 215);
-/// `action/primary`.
-const PRIMARY: Color = Color::srgb_u8(160, 53, 49);
 
 /// Layout values in reference pixels, from the A-P1/A-P3/A-P4 masters.
 mod frame {
@@ -229,10 +221,6 @@ pub(super) struct Card {
 const FOOTER: &str = "Choose a row to see what it does; only the button acts.";
 const NO_REMEDY: &str = "Nothing in this task can change this, so no remedy is offered.";
 
-fn action(choice: &Choice) -> &str {
-    choice.id.split_once(':').map_or(&choice.id, |(_, a)| a)
-}
-
 /// "R 3.3.4. Cost: …" reads as "Cost: … R 3.3.4", as the layout's reason line does.
 fn reason(explanation: &str) -> String {
     match explanation.split_once(". ") {
@@ -365,7 +353,7 @@ fn preview_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
     for u in &preview.unavailable {
         lines.push((Tone::Plain, format!("Then unavailable: {}.", u.label)));
     }
-    let terror = action(choice).starts_with("terror:");
+    let terror = choice.action().starts_with("terror:");
     for note in &preview.notes {
         // The procedure and Kidnap's rule are already stated above.
         if (terror && note.starts_with("R 3.3.4:")) || note.starts_with("R 4.3.3:") {
@@ -396,11 +384,11 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
     }
     let place = view.spaces.iter().find(|s| s.id == space)?;
     let chosen = selected
-        .and_then(|a| here.iter().find(|c| c.supported && action(c) == a))
+        .and_then(|a| here.iter().find(|c| c.supported && c.action() == a))
         .or_else(|| here.iter().find(|c| c.supported))
         .map(|c| c.id.clone());
     let head = |choice: &Choice| -> (String, String) {
-        if action(choice) == "kidnap" {
+        if choice.action() == "kidnap" {
             ("Kidnap · from Government".into(), "Special Activity".into())
         } else {
             ("Terror".into(), "Operation".into())
@@ -425,7 +413,7 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
             remedies: vec![],
             no_remedy: None,
             button: is_chosen.then(|| {
-                if action(choice) == "kidnap" {
+                if choice.action() == "kidnap" {
                     "Open Kidnap · nothing rolled yet".into()
                 } else {
                     format!("Terror in {} · pay 1 Resource", place.name)
@@ -460,7 +448,7 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
     {
         let (head, _) = head(choice);
         // A Terror already resolved here is history, not a missing requirement.
-        let done = action(choice).starts_with("terror:") && place.terror > 0;
+        let done = choice.action().starts_with("terror:") && place.terror > 0;
         rows.push(Row {
             choice: Some(choice.id.clone()),
             owner: choice.owner,
@@ -1049,7 +1037,7 @@ fn spawn(
         false,
         &regular,
         11. * s,
-        INK_SECONDARY,
+        QUIET,
         false,
     );
     match card.kind {
@@ -1075,7 +1063,7 @@ fn spawn(
         false,
         &regular,
         11. * s,
-        INK_SECONDARY,
+        QUIET,
         false,
     );
     commands.entity(root).insert(Root {
@@ -1099,10 +1087,10 @@ fn lines(
     let regular = ink.art.font.clone();
     for (tone, line) in lines {
         let (font, size, color) = match tone {
-            Tone::Plain => (&regular, 12.5, if done { INK_SECONDARY } else { INK }),
+            Tone::Plain => (&regular, 12.5, if done { QUIET } else { INK }),
             Tone::Strong => (bold, 12.5, INK),
-            Tone::Quiet => (&regular, 11., INK_SECONDARY),
-            Tone::Secondary => (&regular, 12.5, INK_SECONDARY),
+            Tone::Quiet => (&regular, 11., QUIET),
+            Tone::Secondary => (&regular, 12.5, QUIET),
         };
         words(
             commands,
@@ -1241,7 +1229,7 @@ fn space_rows(
             false,
             bold,
             13. * s,
-            if quiet_head { INK_SECONDARY } else { INK },
+            if quiet_head { QUIET } else { INK },
             true,
         );
         words(
@@ -1256,7 +1244,7 @@ fn space_rows(
             if row.mark == Mark::NotYet {
                 PRIMARY
             } else {
-                INK_SECONDARY
+                QUIET
             },
             false,
         );
@@ -1310,7 +1298,7 @@ fn space_rows(
                 false,
                 &regular,
                 11. * s,
-                INK_SECONDARY,
+                QUIET,
                 false,
             );
             for remedy in &row.remedies {
@@ -1547,7 +1535,7 @@ fn piece_body(
                     border_radius: BorderRadius::all(px(2. * s)),
                     ..default()
                 },
-                BorderColor::all(INK_SECONDARY),
+                BorderColor::all(QUIET),
                 Control {
                     name: "popover:cancel".into(),
                     choice: false,

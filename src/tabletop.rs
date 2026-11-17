@@ -49,6 +49,7 @@ mod eligibility;
 mod emblems;
 mod highlights;
 mod operation;
+mod palette;
 mod popover;
 mod preview;
 pub mod seat;
@@ -224,6 +225,18 @@ struct Water {
 }
 const WIDTH: f32 = 1920.;
 const HEIGHT: f32 = 1280.;
+/// The Operation panel's authored frame (`atlas-panel.png`) in reference pixels:
+/// x, y, width, height.
+const PANEL: [f32; 4] = [1380., 287., 500., 653.];
+/// A faction's lower-case slug, as export file names and seat names spell it.
+fn slug(faction: Faction) -> &'static str {
+    match faction {
+        Faction::Government => "government",
+        Faction::M26 => "26july",
+        Faction::Directorio => "directorio",
+        Faction::Syndicate => "syndicate",
+    }
+}
 // The authored region mesh, labels and group centers share the same map coordinates.
 fn map_at(x: f32, y: f32, height: f32) -> Vec3 {
     Vec3::new((x - 700.) / 100., height, (y - 600.) / 100.)

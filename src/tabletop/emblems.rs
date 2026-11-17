@@ -144,7 +144,7 @@ pub(super) const HEIGHT: f32 = 0.9;
 
 /// The admitted export drawn for a faction's emblem.
 pub(super) fn image(faction: Faction) -> String {
-    format!("atlas-victory-icon-{}.png", victory::key(faction))
+    format!("atlas-victory-icon-{}.png", slug(faction))
 }
 
 /// Adds the words and emblems after the first segment as children of the text

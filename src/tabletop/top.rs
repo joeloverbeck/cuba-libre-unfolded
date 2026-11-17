@@ -3,6 +3,7 @@
 //! including the hover tags, follows `art/atlas/atlas-top-display.figcraft`; every
 //! drawn element is a VectorCraft export from `atlas-top-display.vectorcraft`. The
 //! game owns the values and the rules they follow.
+use super::palette::{INK, QUIET};
 use super::*;
 use crate::{CASH_MARKERS, UsAlliance};
 
@@ -41,10 +42,6 @@ impl Item {
 /// Layout rectangles in reference pixels, from the FigCraft frame.
 const TRACK: [f32; 4] = [150., 18., 260., 64.];
 const LEDGER: [f32; 4] = [1688., 20., 192., 190.];
-/// The FigCraft `Atlas` variables: `ink` for values and titles, `ink-secondary`
-/// (QUIET) for secondary values and notes.
-pub(super) const INK: Color = Color::srgb_u8(32, 50, 56);
-pub(super) const QUIET: Color = Color::srgb_u8(83, 106, 109);
 
 /// Hover-tag geometry from the FigCraft `hover tag` frame, in reference pixels.
 mod tag {
@@ -120,7 +117,7 @@ pub(super) fn header(
         let row = faction.index();
         place(
             format!("ledger-row-{row}-emblem"),
-            &format!("atlas-victory-icon-{}.png", victory::key(faction)),
+            &format!("atlas-victory-icon-{}.png", slug(faction)),
             [1704., 76. + 31. * row as f32, 27., 27.],
             right,
             3,

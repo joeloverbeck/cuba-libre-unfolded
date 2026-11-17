@@ -48,9 +48,7 @@ fn resources(n: u8) -> String {
 
 /// The choice listed now whose id ends with `:{action}`.
 fn listed<'a>(view: &'a Observation, action: &str) -> Option<&'a Choice> {
-    view.choices
-        .iter()
-        .find(|c| c.id.split_once(':').is_some_and(|(_, a)| a == action))
+    view.choices.iter().find(|c| c.action() == action)
 }
 
 /// "A, B or C".

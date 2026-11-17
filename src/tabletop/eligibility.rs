@@ -15,7 +15,7 @@
 //! The observation's Eligibility record is the only source of state (#58): the
 //! presentation derives nothing. Hovering changes nothing in the match.
 use super::emblems::{self, Naming};
-use super::top::{INK, QUIET};
+use super::palette::{INK, QUIET};
 use super::*;
 use crate::{ActionChoice, Observation, SequenceBox};
 use bevy::text::{Justify, LetterSpacing, LineHeight};
@@ -428,7 +428,7 @@ pub(super) fn indicator(commands: &mut Commands, art: &Art, view: &Observation, 
     );
     part(commands, eligible, "eligibility-label:eligible".into());
     for (index, row) in track.rows.iter().enumerate() {
-        let key_name = victory::key(row.faction);
+        let key_name = slug(row.faction);
         let center = layout.tops[index] + layout.heights[index] / 2.;
         let number = label(
             commands,

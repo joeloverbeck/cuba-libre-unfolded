@@ -17,8 +17,10 @@
 //!   action-choice use: there the pinned AC-B briefing is the preview, and the
 //!   option rows and commit open no card. #72's space popover now previews Terror and
 //!   opening Kidnap on the map, and #73's piece popover previews each removal, whose
-//!   buttons left the panel; this card still serves the execution panel's remaining
-//!   buttons (End Terror, transfers, Kidnap's roll and Back).
+//!   buttons left the panel. This card still serves every button of the execution
+//!   panel's stack (`operation.rs`, the same bootstrap): the Terror targets and
+//!   Kidnap, which the space popover also offers, Kidnap's roll and cancel, Resource
+//!   transfer, Remove own pieces, End Terror and Back.
 //! - Expiry: before #75's end-to-end verification.
 use super::*;
 use crate::{Choice, KidnapStakes, Observation, Preview, SequenceBox};
@@ -37,7 +39,7 @@ mod card {
     /// so each authored line is one drawn line.
     pub const CHARS: usize = 56;
 }
-use super::top::{INK, QUIET};
+use super::palette::{INK, QUIET};
 
 #[derive(Component)]
 pub(super) struct Tag;

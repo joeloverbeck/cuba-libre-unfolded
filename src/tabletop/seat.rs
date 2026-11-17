@@ -552,7 +552,7 @@ mod tests {
             // The seat itself refuses keys while the die is in the air.
             let refused = ask(
                 &mut app,
-                json!({"op":"key","revision":3,"key":"Enter","focused":"Continue Terror"}),
+                json!({"op":"key","revision":3,"key":"Enter","focused":"kidnap-die:continue"}),
             );
             assert_eq!(refused["status"], "refused", "{refused}");
             ask(

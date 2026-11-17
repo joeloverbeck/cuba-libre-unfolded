@@ -403,6 +403,11 @@ pub struct Choice {
     pub preview: Option<Preview>,
 }
 impl Choice {
+    /// The action without its match revision: `terror:santiago` for the id
+    /// `3:terror:santiago`.
+    pub fn action(&self) -> &str {
+        self.id.split_once(':').map_or(self.id.as_str(), |(_, a)| a)
+    }
     /// The map space this choice acts on, so the map can offer it there: a Terror
     /// target, or opening Kidnap in its space. Other choices act on no space.
     pub fn space(&self) -> Option<&str> {
@@ -411,7 +416,7 @@ impl Choice {
         if self.accompanies.is_some() {
             return None;
         }
-        let action = self.id.split_once(':').map_or(self.id.as_str(), |(_, a)| a);
+        let action = self.action();
         match action {
             "kidnap" => Some(KIDNAP_SPACE),
             _ => action.strip_prefix("terror:"),

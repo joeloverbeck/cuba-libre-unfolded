@@ -16,7 +16,7 @@
 //! through the same checked seam as every other control.
 use super::briefing::{self, Briefing};
 use super::emblems::{self, Naming};
-use super::top::{INK, QUIET};
+use super::palette::{INK, PAPER, QUIET};
 use super::*;
 use crate::{ActionChoice, Observation};
 use bevy::text::{Justify, LetterSpacing, LineHeight};
@@ -187,11 +187,6 @@ fn listing(action: &str) -> (&'static str, Option<&'static str>) {
     }
 }
 
-/// A choice id's action, without its revision.
-fn action(id: &str) -> &str {
-    id.split_once(':').map_or(id, |(_, a)| a)
-}
-
 fn resources(n: u8) -> String {
     format!("{n} Resource{}", if n == 1 { "" } else { "s" })
 }
@@ -230,10 +225,10 @@ struct Commit {
     enabled: bool,
 }
 fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
-    let choice = pinned.and_then(|p| view.choices.iter().find(|c| action(&c.id) == p));
+    let choice = pinned.and_then(|p| view.choices.iter().find(|c| c.action() == p));
     match choice {
         Some(c) if c.supported => Commit {
-            label: match action(&c.id) {
+            label: match c.action() {
                 "pass" => "Pass · +1 Resource".into(),
                 "terror" => "Choose Terror".into(),
                 other => listing(other).0.into(),
@@ -243,8 +238,8 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
             enabled: true,
         },
         Some(c) => {
-            let (name, _) = listing(action(&c.id));
-            let label = if action(&c.id) == "terror:kidnap" {
+            let (name, _) = listing(c.action());
+            let label = if c.action() == "terror:kidnap" {
                 "Kidnap is offered once Terror is chosen".into()
             } else {
                 format!("{} is not in this task", name.split(" · ").next().unwrap_or(name))
@@ -360,7 +355,7 @@ pub(super) fn panel(
         part(commands, label, name);
     }
     for (choice, top) in view.choices.iter().zip(fig::ROWS) {
-        let act = action(&choice.id);
+        let act = choice.action();
         let name = format!("option:{act}");
         let (label, pill) = listing(act);
         let row = rect(fig::ROW_X, top, fig::ROW_W, fig::ROW_H);
@@ -576,11 +571,7 @@ pub(super) fn primary(
         5,
     );
     commands.entity(words).insert((
-        TextColor(if enabled {
-            Color::srgb_u8(248, 244, 232)
-        } else {
-            QUIET
-        }),
+        TextColor(if enabled { PAPER } else { QUIET }),
         TextLayout::justify(Justify::Center),
     ));
     style(
@@ -649,7 +640,7 @@ fn focusable(view: &Observation, ui: &Interface) -> Vec<String> {
         ActionChoice::Open => view
             .choices
             .iter()
-            .map(|c| format!("option:{}", action(&c.id)))
+            .map(|c| format!("option:{}", c.action()))
             .chain([commit(view, ui.choice.pinned.as_deref()).name])
             .collect(),
         ActionChoice::Terror if view.executing.is_some() => {
@@ -879,7 +870,7 @@ pub(super) fn draw(
     let o = left + Vec2::new(window.width() - WIDTH * s, 0.);
     let at = |x: f32, y: f32| o + Vec2::new(rx(x), ry(y)) * s;
     // The active row's outline at the action choice.
-    if !tabs && let Some(i) = view.choices.iter().position(|c| action(&c.id) == option) {
+    if !tabs && let Some(i) = view.choices.iter().position(|c| c.action() == option) {
         let plate = picture(
             &mut commands,
             &art,
@@ -975,11 +966,7 @@ pub(super) fn draw(
                 y + fig::TAB_TEXT[1],
                 w - fig::TAB_TEXT[0],
                 fig::TAB_SIZE,
-                if active {
-                    Color::srgb_u8(248, 244, 232)
-                } else {
-                    INK
-                },
+                if active { PAPER } else { INK },
                 true,
                 0.,
             );
@@ -1159,7 +1146,7 @@ mod tests {
         let view = Game::opening().observe();
         assert_eq!(view.choices.len(), fig::ROWS.len());
         for choice in &view.choices {
-            let (label, pill) = listing(action(&choice.id));
+            let (label, pill) = listing(choice.action());
             assert!(!label.is_empty(), "{}", choice.id);
             assert_eq!(pill.is_none(), choice.supported, "{}", choice.id);
         }

@@ -16,14 +16,6 @@ pub(super) struct Shown {
     pub bounds: [f32; 4],
 }
 
-pub(super) fn key(faction: Faction) -> &'static str {
-    match faction {
-        Faction::Government => "government",
-        Faction::M26 => "26july",
-        Faction::Directorio => "directorio",
-        Faction::Syndicate => "syndicate",
-    }
-}
 fn center(faction: Faction) -> f32 {
     780. + 120. * faction.index() as f32
 }
@@ -57,7 +49,7 @@ pub(super) fn header(
         picture(
             commands,
             art,
-            &format!("atlas-victory-icon-{}.png", key(faction)),
+            &format!("atlas-victory-icon-{}.png", slug(faction)),
             [x - 22., 18., 44., 44.],
             scale,
             offset,
@@ -302,7 +294,7 @@ pub(super) fn draw(
     let plate = picture(
         &mut commands,
         &art,
-        &format!("atlas-victory-tag-{}.png", key(shown.faction)),
+        &format!("atlas-victory-tag-{}.png", slug(shown.faction)),
         [x, y, right - x, bottom - y],
         1.,
         Vec2::ZERO,

@@ -22,7 +22,7 @@
 //! the shared camera while it is shown. The standings and the Resources ledger stay
 //! clear of the scrim.
 use super::emblems;
-use super::top::{INK, QUIET};
+use super::palette::{INK, PAPER, PRIMARY, QUIET};
 use super::*;
 use crate::{Bound, Observation, Transfer, TransferTerms};
 use bevy::text::{Justify, LetterSpacing};
@@ -193,13 +193,10 @@ pub(super) fn shown(transfer: Option<&Transfer>, ui: &Interface) -> bool {
 /// The deciding faction's colour key, or "ink" while 26July composes.
 fn tone(view: &Observation) -> &'static str {
     match &view.transfer {
-        Some(Transfer::Authorizing { giver, .. }) => victory::key(*giver),
+        Some(Transfer::Authorizing { giver, .. }) => slug(*giver),
         _ => "ink",
     }
 }
-const PAPER: Color = Color::srgb_u8(248, 244, 232);
-/// `action/primary` in the FigCraft variables.
-const PRIMARY: Color = Color::srgb_u8(160, 53, 49);
 
 /// What the modal shows now, worked out from the observation and the modal's state.
 #[derive(Clone, Debug, PartialEq)]
@@ -358,7 +355,7 @@ pub(super) fn input(ui: &mut Interface, view: &Observation, input: Input) {
 
 /// A seat-reachable name for a modal control.
 fn tab_name(faction: Faction) -> String {
-    format!("transfer:tab:{}", victory::key(faction))
+    format!("transfer:tab:{}", slug(faction))
 }
 
 /// The modal's controls in Tab order, by their seat names.
@@ -1931,7 +1928,7 @@ fn footer(
     let (key, name, action) = match &shown.commit {
         Some(choice) => (
             match decision {
-                Some(giver) => format!("atlas-transfer-primary-{}.png", victory::key(giver)),
+                Some(giver) => format!("atlas-transfer-primary-{}.png", slug(giver)),
                 None => "atlas-transfer-primary.png".into(),
             },
             choice.id.clone(),
@@ -2021,7 +2018,7 @@ fn pending(commands: &mut Commands, art: &Art, view: &Observation, s: f32, cente
             ChildOf(tab),
         ));
     };
-    let tone = victory::key(giver);
+    let tone = slug(giver);
     emblem(commands, recipient);
     let band = commands
         .spawn((

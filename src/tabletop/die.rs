@@ -24,6 +24,7 @@
 //!   content area below the BRIEFING ribbon, and Continue takes AC-B's primary action.
 //!
 //! [ADR 0001]: ../../../docs/adr/0001-baked-die-tumbles-land-on-the-committed-face.md
+use super::palette::{INK, QUIET};
 use super::*;
 use bevy::{camera::visibility::RenderLayers, light::CascadeShadowConfigBuilder};
 use serde_json::{Value, json};
@@ -61,11 +62,10 @@ const TITLE: [f32; 3] = [1407.407, 307.407, 26.667];
 const TITLE_WIDTH: f32 = 1812. - 1407.407;
 const RESULT: [f32; 3] = [1407.407, 800., 26.667];
 const DETAIL: [f32; 3] = [1407.407, 835.185, 20.741];
-/// The layout's `ink` and its muted detail colour.
-const INK: Color = Color::srgb_u8(0x20, 0x32, 0x38);
-const MUTED: Color = Color::srgb_u8(0x53, 0x6a, 0x6d);
 /// Continue takes AC-B's primary action at the panel's foot (`choice::primary`).
 const CONTINUE_LABEL: &str = "Continue Terror";
+/// The Continue control's stable seat name.
+const CONTINUE: &str = "kidnap-die:continue";
 /// The tray camera of #67's placement C: 80° above the floor, Blender's 50 mm lens on a
 /// 36 mm sensor across the viewport's width, distance fitted so the inner floor fills
 /// 2–98% of the frame.
@@ -579,15 +579,7 @@ pub(super) fn panel(
     offset: Vec2,
 ) {
     let (s, o) = (scale, offset);
-    picture(
-        commands,
-        art,
-        "atlas-panel.png",
-        [1380., 287., 500., 653.],
-        s,
-        o,
-        2,
-    );
+    picture(commands, art, "atlas-panel.png", PANEL, s, o, 2);
     let [x, y, size] = TITLE;
     let title = styled(
         commands,
@@ -649,7 +641,7 @@ pub(super) fn panel(
             if kidnap.proceeds == 1 { "" } else { "s" }
         ),
         &art.font,
-        MUTED,
+        QUIET,
         [x, y, 450., size],
         s,
         o,
@@ -660,13 +652,13 @@ pub(super) fn panel(
         commands,
         art,
         Control {
-            name: "kidnap-die:continue".into(),
+            name: CONTINUE.into(),
             choice: false,
             action: Action::ContinueDie,
         },
         CONTINUE_LABEL,
         true,
-        "kidnap-die:continue",
+        CONTINUE,
         s,
         o,
     );
@@ -801,10 +793,10 @@ fn top_face(world: &mut World) -> Option<f32> {
     Some(area.sqrt())
 }
 
-/// What Enter reaches at the seat: Continue once the die has landed.
+/// What Enter reaches at the seat: Continue, by its control id, once the die has landed.
 pub(super) fn focus(world: &mut World) -> Option<&'static str> {
     let landed = world.resource::<Roll>().landed;
     let reader = world.resource::<Interface>().reader;
     let shown = world.query::<&Stage>().iter(world).next().is_some();
-    (shown && landed && !reader).then_some(CONTINUE_LABEL)
+    (shown && landed && !reader).then_some(CONTINUE)
 }

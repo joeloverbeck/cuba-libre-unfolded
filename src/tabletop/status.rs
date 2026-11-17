@@ -303,12 +303,7 @@ pub(super) fn draw(
     };
     let [x, y, _, _] = shown.bounds;
     let space = game.spaces.iter().find(|s| s.id == shown.space).unwrap();
-    let controller = space.control().map_or("uncontrolled", |f| match f {
-        Faction::Government => "government",
-        Faction::M26 => "26july",
-        Faction::Directorio => "directorio",
-        Faction::Syndicate => "syndicate",
-    });
+    let controller = space.control().map_or("uncontrolled", slug);
     let political = match space.support {
         -2 => "active-opposition",
         -1 => "passive-opposition",
