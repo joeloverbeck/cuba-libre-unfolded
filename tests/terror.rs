@@ -10,21 +10,20 @@ fn choose(game: &mut Game, action: &str) {
     .unwrap();
 }
 
-fn donate(game: &mut Game, giver: usize, amount: u8) {
+fn transfer_resources(game: &mut Game, giver: usize, amount: u8) {
     choose(game, "transfer");
-    choose(game, &format!("transfer:{giver}:1"));
-    for n in 1..=amount {
-        choose(game, &format!("amount:{n}"));
-    }
-    choose(game, "authorize");
+    choose(game, &format!("ask:{giver}:{amount}"));
+    choose(game, &format!("authorize:{amount}"));
 }
 
-// Accepted deacd635 handoff witness: DR donates 1, Oriente Terror, no Kidnap.
+// Accepted deacd635 handoff witness: DR gives 1 by Resource transfer, Oriente Terror,
+// no Kidnap.
 // R 3.3.4: cost 1, activate 1 Underground, Terror, toward Active Opposition.
 #[test]
-fn donated_oriente_terror_updates_pieces_resources_standing_and_next_permission() {
+fn oriente_terror_after_a_resource_transfer_updates_pieces_resources_standing_and_next_permission()
+{
     let mut game = Game::prepared();
-    donate(&mut game, 2, 1);
+    transfer_resources(&mut game, 2, 1);
     choose(&mut game, "terror:oriente");
     let view = game.observe();
     assert_eq!(view.resources, [6, 0, 4, 15]);
@@ -37,9 +36,9 @@ fn donated_oriente_terror_updates_pieces_resources_standing_and_next_permission(
     assert_eq!(view.standings[1].score, 9);
     assert_eq!(view.terror_available, 19);
     assert_eq!((view.map_piece_count, view.available_piece_count), (29, 57));
-    choose(&mut game, "finish");
+    choose(&mut game, "end-terror");
     assert_eq!(
-        game.observe().next_options,
+        game.observe().next.unwrap().options,
         ["Pass (+1 if executed later)", "Limited Operation"]
     );
     assert_eq!(game.observe().eligible, [true; 4]);
@@ -62,6 +61,7 @@ fn all_six_rolls_fund_the_owed_terror_and_change_affordable_continuations() {
         fixture["random"] = seed.into();
         let mut game: Game = serde_json::from_value(fixture).unwrap();
         choose(&mut game, "kidnap");
+        choose(&mut game, "kidnap:roll");
         let view = game.observe();
         assert_eq!(view.resources, [government, die, 5, 15]);
         assert_eq!(view.owed_terror.as_deref(), Some("santiago"));
@@ -72,7 +72,7 @@ fn all_six_rolls_fund_the_owed_terror_and_change_affordable_continuations() {
             game.submit(
                 Faction::M26,
                 view.revision,
-                &format!("{}:finish", view.revision)
+                &format!("{}:end-terror", view.revision)
             )
             .is_err()
         );
@@ -93,9 +93,9 @@ fn all_six_rolls_fund_the_owed_terror_and_change_affordable_continuations() {
             assert_eq!(game.observe().resources, [government, remaining, 5, 15]);
             assert_eq!(game.observe().standings[1].score, 10);
         }
-        choose(&mut game, "finish");
+        choose(&mut game, "end-terror");
         assert_eq!(
-            game.observe().next_options,
+            game.observe().next.unwrap().options,
             ["Pass (+1 if executed later)", "Limited Operation", "Event"]
         );
         game.validate().unwrap();
@@ -106,17 +106,16 @@ fn all_six_rolls_fund_the_owed_terror_and_change_affordable_continuations() {
 fn owed_santiago_limits_spending_only_until_its_terror_is_resolved() {
     let mut game = Game::prepared_with_seed(0); // actual shared roll 2
     choose(&mut game, "kidnap");
+    choose(&mut game, "kidnap:roll");
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:1:2");
-    choose(&mut game, "amount:1");
     let before = game.clone();
     let v = game.observe();
     assert!(
-        game.submit(v.owner, v.revision, &format!("{}:amount:2", v.revision))
+        game.submit(v.owner, v.revision, &format!("{}:give:2:2", v.revision))
             .is_err()
     );
     assert_eq!(game, before);
-    choose(&mut game, "authorize");
+    choose(&mut game, "give:2:1");
     assert_eq!(game.observe().resources, [4, 1, 6, 15]);
     let v = game.observe();
     assert!(
@@ -125,31 +124,31 @@ fn owed_santiago_limits_spending_only_until_its_terror_is_resolved() {
             .any(|c| c.id.ends_with("terror:oriente") && c.supported)
     );
     choose(&mut game, "terror:santiago");
-    donate(&mut game, 3, 1);
+    transfer_resources(&mut game, 3, 1);
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:1:2");
-    choose(&mut game, "amount:1");
-    choose(&mut game, "authorize");
-    choose(&mut game, "finish");
+    choose(&mut game, "give:2:1");
+    choose(&mut game, "end-terror");
     assert_eq!(game.observe().resources, [4, 0, 7, 14]);
     game.validate().unwrap();
 }
 
 #[test]
-fn actual_donations_allow_both_target_orders_and_early_during_late_or_no_kidnap() {
+fn actual_resource_transfers_allow_both_target_orders_and_early_during_late_or_no_kidnap() {
     for order in [["santiago", "oriente"], ["oriente", "santiago"]] {
         for timing in [Some(0), Some(1), Some(2), None] {
             let mut game = Game::prepared_with_seed(5); // shared roll 3
-            donate(&mut game, 2, 2);
+            transfer_resources(&mut game, 2, 2);
             for (index, target) in order.into_iter().enumerate() {
                 if timing == Some(index) {
                     choose(&mut game, "kidnap");
+                    choose(&mut game, "kidnap:roll");
                 }
                 choose(&mut game, &format!("terror:{target}"));
                 game.validate().unwrap();
             }
             if timing == Some(2) {
                 choose(&mut game, "kidnap");
+                choose(&mut game, "kidnap:roll");
             }
             assert_eq!(
                 game.observe().resources,
@@ -169,9 +168,13 @@ fn actual_donations_allow_both_target_orders_and_early_during_late_or_no_kidnap(
                     .count(),
                 2
             );
-            choose(&mut game, "finish");
+            choose(&mut game, "end-terror");
             assert_eq!(
-                game.observe().next_options.contains(&"Event".into()),
+                game.observe()
+                    .next
+                    .unwrap()
+                    .options
+                    .contains(&"Event".into()),
                 timing.is_some()
             );
             assert_eq!(
@@ -185,11 +188,12 @@ fn actual_donations_allow_both_target_orders_and_early_during_late_or_no_kidnap(
             game.validate().unwrap();
         }
     }
-    // The result-1 source witness: a real later donation restores Oriente.
+    // The result-1 source witness: a real later Resource transfer restores Oriente.
     let mut game = Game::prepared_with_seed(19);
     choose(&mut game, "kidnap");
+    choose(&mut game, "kidnap:roll");
     choose(&mut game, "terror:santiago");
-    donate(&mut game, 3, 1);
+    transfer_resources(&mut game, 3, 1);
     choose(&mut game, "terror:oriente");
     assert_eq!(game.observe().resources, [5, 0, 5, 14]);
     assert_eq!(game.observe().standings[1].score, 10);
@@ -198,13 +202,9 @@ fn actual_donations_allow_both_target_orders_and_early_during_late_or_no_kidnap(
 #[test]
 fn depleted_government_needs_real_funding_before_early_zero_proceeds_kidnap() {
     let mut game = Game::prepared_with_seed(5);
-    donate(&mut game, 0, 6);
+    transfer_resources(&mut game, 0, 6);
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:1:2");
-    for n in 1..=6 {
-        choose(&mut game, &format!("amount:{n}"));
-    }
-    choose(&mut game, "authorize");
+    choose(&mut game, "give:2:6");
     let before = game.clone();
     let v = game.observe();
     assert!(
@@ -212,14 +212,21 @@ fn depleted_government_needs_real_funding_before_early_zero_proceeds_kidnap() {
             .is_err()
     );
     assert_eq!(game, before);
-    donate(&mut game, 2, 1);
+    transfer_resources(&mut game, 2, 1);
     choose(&mut game, "kidnap");
+    choose(&mut game, "kidnap:roll");
     assert_eq!(game.observe().kidnap.as_ref().unwrap().proceeds, 0);
     assert_eq!(game.observe().kidnap.as_ref().unwrap().die, 3);
     assert_eq!(game.observe().resources, [0, 1, 10, 15]);
     choose(&mut game, "terror:santiago");
-    choose(&mut game, "finish");
-    assert!(game.observe().next_options.contains(&"Event".into()));
+    choose(&mut game, "end-terror");
+    assert!(
+        game.observe()
+            .next
+            .unwrap()
+            .options
+            .contains(&"Event".into())
+    );
     game.validate().unwrap();
 }
 
@@ -246,12 +253,13 @@ fn refused_targets_activities_funds_duplicates_and_stale_input_preserve_all_stat
         assert_eq!(game, before);
     }
     choose(&mut game, "kidnap");
+    choose(&mut game, "kidnap:roll");
     let before = game.clone();
     for (owner, revision, action) in [
         (Faction::Government, 1, "1:terror:santiago"),
         (Faction::M26, 0, "0:kidnap"),
         (Faction::M26, 1, "1:kidnap"),
-        (Faction::M26, 1, "1:finish"),
+        (Faction::M26, 1, "1:end-terror"),
     ] {
         assert!(game.submit(owner, revision, action).is_err());
         assert_eq!(game, before);

@@ -1,0 +1,30 @@
+{
+  "selected": "HF-A Survey ink, #68 (issuecomment-6940684089)",
+  "source": "art/proposals/issue-66/map-highlights.vectorcraft",
+  "pixel_to_map": "atlas units: map_at(x, y, height) = [(x-700)/100, height, (y-600)/100]; each graphic covers rect [x, y, w, h] at 4 px per unit",
+  "shown": "a graphic is drawn while every space it lists is in its state",
+  "graphics": [
+    {"file": "atlas-highlight-selectable-santiago.png", "artboard": "A-sel-santiago", "state": "selectable", "spaces": ["santiago"], "rect": [1060, 715, 240, 240], "height": 0.242},
+    {"file": "atlas-highlight-blocked-santiago.png", "artboard": "A-blk-santiago", "state": "blocked", "spaces": ["santiago"], "rect": [1060, 715, 240, 240], "height": 0.242},
+    {"file": "atlas-highlight-selectable-oriente.png", "artboard": "A-sel-oriente", "state": "selectable", "spaces": ["oriente"], "rect": [880, 550, 370, 186], "height": 0.142},
+    {"file": "atlas-highlight-blocked-oriente.png", "artboard": "A-blk-oriente", "state": "blocked", "spaces": ["oriente"], "rect": [880, 550, 370, 186], "height": 0.142},
+    {"file": "atlas-highlight-veil-sierra-maestra.png", "artboard": "A-dim-sierra", "state": "not-involved", "spaces": ["sierra-maestra"], "rect": [914, 648, 416, 194], "height": 0.142},
+    {"file": "atlas-highlight-veil-provinces.png", "artboard": "A-dim-provinces", "state": "not-involved", "spaces": ["pinar-del-rio", "la-habana", "matanzas", "las-villas", "camaguey-province"], "rect": [50, 317, 968, 395], "height": 0.142},
+    {"file": "atlas-highlight-veil-cities.png", "artboard": "A-dim-cities", "state": "not-involved", "spaces": ["havana", "camaguey-city"], "rect": [220, 150, 695, 660], "height": 0.242},
+    {"file": "atlas-highlight-veil-ecs.png", "artboard": "A-dim-ecs", "state": "not-involved", "spaces": ["ec-pinar-la-habana", "ec-las-villas-camaguey", "ec-oriente-sierra"], "rect": [204, 365, 1004, 373], "height": 0.282},
+    {"file": "atlas-highlight-veil-santiago.png", "artboard": "A-dim-santiago", "state": "not-involved", "spaces": ["santiago"], "rect": [1060, 715, 240, 240], "height": 0.242},
+    {"file": "atlas-highlight-veil-oriente.png", "artboard": "A-dim-oriente", "state": "not-involved", "spaces": ["oriente"], "rect": [880, 550, 370, 186], "height": 0.142}
+  ],
+  "piece_placement": "a marker is a flat unlit square of `size` atlas units centred under its piece, `lift` above the region top, at 8 px per unit",
+  "pieces": [
+    {"file": "atlas-piece-removable.png", "artboard": "A-piece-removable", "mark": "removable", "size": 64, "lift": 0.003},
+    {"file": "atlas-piece-protected.png", "artboard": "A-piece-protected", "mark": "protected", "size": 64, "lift": 0.003}
+  ],
+  "marks_source": "art/proposals/issue-66/highlight-popover-layouts.figcraft, page \"Popover masters (1920x1280 reference units)\": the 10 px row state marks, exported at 8x",
+  "marks": [
+    {"file": "atlas-popover-mark-selectable.png", "node": "A-P1 4901", "mark": "selectable", "size": 10},
+    {"file": "atlas-popover-mark-not-yet.png", "node": "A-P4 4984", "mark": "not-yet", "size": 10},
+    {"file": "atlas-popover-mark-unavailable.png", "node": "A-P4 4998", "mark": "unavailable", "size": 10},
+    {"file": "atlas-popover-mark-done.png", "node": "A-P3 4950", "mark": "done", "size": 10}
+  ]
+}

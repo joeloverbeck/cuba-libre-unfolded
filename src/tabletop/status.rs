@@ -80,11 +80,13 @@ pub(super) fn draw(
     ui: Res<Interface>,
     art: Res<Art>,
     window: Single<&Window, With<PrimaryWindow>>,
-    camera: Single<(&Camera, &GlobalTransform), With<Camera3d>>,
+    camera: Single<(&Camera, &GlobalTransform), With<TableCamera>>,
     meshes: Query<(Entity, &Mesh3d, &Aabb, &GlobalTransform)>,
     mesh_assets: Res<Assets<Mesh>>,
     targets: Query<&SpaceTarget>,
     labels: Query<(&SpaceTarget, &ComputedNode, &UiGlobalTransform)>,
+    // An open space popover (#72): the tag stays visible beside it.
+    cards: Query<(&ComputedNode, &UiGlobalTransform), With<super::popover::CardNode>>,
     controls: Query<&Control>,
     parents: Query<&ChildOf>,
     roots: Query<Entity, With<Tag>>,
@@ -178,6 +180,12 @@ pub(super) fn draw(
                 }
                 occupied.push(r);
             }
+        }
+        for (node, at) in &cards {
+            occupied.push(Rect::from_center_size(
+                at.translation * node.inverse_scale_factor,
+                node.size() * node.inverse_scale_factor,
+            ));
         }
         for (_, node, at) in &labels {
             let center = at.translation * node.inverse_scale_factor;
@@ -295,12 +303,7 @@ pub(super) fn draw(
     };
     let [x, y, _, _] = shown.bounds;
     let space = game.spaces.iter().find(|s| s.id == shown.space).unwrap();
-    let controller = space.control().map_or("uncontrolled", |f| match f {
-        Faction::Government => "government",
-        Faction::M26 => "26july",
-        Faction::Directorio => "directorio",
-        Faction::Syndicate => "syndicate",
-    });
+    let controller = space.control().map_or("uncontrolled", slug);
     let political = match space.support {
         -2 => "active-opposition",
         -1 => "passive-opposition",

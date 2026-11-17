@@ -1,0 +1,248 @@
+{
+  "source": "atlas-popover.figcraft",
+  "note": "FigCraft bounds [x, y, width, height] in reference pixels (1920x1280 units) of the HF-A space popover master A-P1 (page 'Popover masters (1920x1280 reference units)'), relative to the card: Santiago at revision 1, Kidnap chosen and Terror not yet. Parts are named as the runtime names them. 'plates' are the production plates (frame 'Production plates'), drawn at reference size and exported at 3x: 'outset' is the export's margin around the plate's own box (the card's drop shadow), 'slice' the nine-slice border in reference pixels (none: stretched). The native regression native_space_popover_matches_layout compares the running popover with 'parts' at 3840x2160.",
+  "frame": "A-P1 Santiago popover: Kidnap selected, Terror not yet (rev 1)",
+  "frame_node": 4893,
+  "size": [
+    340.0,
+    474.0
+  ],
+  "parts": {
+    "popover-card": [
+      0.0,
+      0.0,
+      340.0,
+      474.0
+    ],
+    "popover-rule": [
+      1.0,
+      1.0,
+      338.0,
+      3.0
+    ],
+    "popover-header": [
+      1.0,
+      4.0,
+      338.0,
+      50.0
+    ],
+    "popover-row-chosen": [
+      1.0,
+      55.0,
+      338.0,
+      282.0
+    ],
+    "popover-commit": [
+      15.0,
+      296.0,
+      310.0,
+      31.0
+    ],
+    "popover-row": [
+      1.0,
+      338.0,
+      338.0,
+      106.0
+    ],
+    "popover-footer": [
+      1.0,
+      444.0,
+      338.0,
+      19.0
+    ],
+    "popover-divider:0": [
+      1.0,
+      54.0,
+      338.0,
+      1.0
+    ],
+    "popover-divider:1": [
+      1.0,
+      337.0,
+      338.0,
+      1.0
+    ]
+  },
+  "plates": {
+    "atlas-popover-cancel": {
+      "node": 6197,
+      "size": [
+        40,
+        33
+      ],
+      "export": [
+        120,
+        99
+      ],
+      "outset": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "slice": 6
+    },
+    "atlas-popover-card": {
+      "node": 6195,
+      "size": [
+        100,
+        100
+      ],
+      "export": [
+        390,
+        390
+      ],
+      "outset": [
+        15.0,
+        12.0,
+        15.0,
+        18.0
+      ],
+      "slice": 40
+    },
+    "atlas-popover-chip": {
+      "node": 6198,
+      "size": [
+        40,
+        22
+      ],
+      "export": [
+        120,
+        66
+      ],
+      "outset": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "slice": 6
+    },
+    "atlas-popover-divider": {
+      "node": 6202,
+      "size": [
+        40,
+        1
+      ],
+      "export": [
+        120,
+        3
+      ],
+      "outset": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "slice": null
+    },
+    "atlas-popover-primary": {
+      "node": 6196,
+      "size": [
+        40,
+        31
+      ],
+      "export": [
+        120,
+        93
+      ],
+      "outset": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "slice": 6
+    },
+    "atlas-popover-row-chosen": {
+      "node": 6199,
+      "size": [
+        40,
+        20
+      ],
+      "export": [
+        120,
+        60
+      ],
+      "outset": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "slice": null
+    },
+    "atlas-popover-rule-ink": {
+      "node": 6201,
+      "size": [
+        40,
+        3
+      ],
+      "export": [
+        120,
+        9
+      ],
+      "outset": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "slice": null
+    },
+    "atlas-popover-rule-primary": {
+      "node": 6200,
+      "size": [
+        40,
+        3
+      ],
+      "export": [
+        120,
+        9
+      ],
+      "outset": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "slice": null
+    },
+    "atlas-popover-stepper": {
+      "node": 6203,
+      "size": [
+        80,
+        26
+      ],
+      "export": [
+        240,
+        78
+      ],
+      "outset": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "slice": 6
+    },
+    "atlas-popover-stepper-value": {
+      "node": 6204,
+      "size": [
+        30,
+        24
+      ],
+      "export": [
+        90,
+        72
+      ],
+      "outset": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "slice": 3
+    }
+  }
+}

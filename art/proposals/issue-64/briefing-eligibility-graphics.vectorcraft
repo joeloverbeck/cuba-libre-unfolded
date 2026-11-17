@@ -1,0 +1,4892 @@
+{
+  "format": "vectorcraft",
+  "version": 4,
+  "generator": "VectorCraft 0.24.1",
+  "pdfCompatible": true,
+  "pdf": {
+    "mime": "application/pdf",
+    "blob": [
+      0,
+      17145
+    ]
+  },
+  "document": {
+    "version": 3,
+    "title": "briefing-eligibility-graphics",
+    "units": "Pixels",
+    "rulers": "artboard",
+    "color_mode": "Rgb",
+    "artboards": [
+      {
+        "id": 1,
+        "name": "pin",
+        "rect": {
+          "x0": 0.0,
+          "y0": 0.0,
+          "x1": 24.0,
+          "y1": 24.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 2,
+        "name": "reminder-seal",
+        "rect": {
+          "x0": 64.0,
+          "y0": 0.0,
+          "x1": 96.0,
+          "y1": 32.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 3,
+        "name": "reminder-ribbon",
+        "rect": {
+          "x0": 136.0,
+          "y0": 0.0,
+          "x1": 172.0,
+          "y1": 112.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 4,
+        "name": "paperclip",
+        "rect": {
+          "x0": 212.0,
+          "y0": 0.0,
+          "x1": 228.0,
+          "y1": 40.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 5,
+        "name": "chevron-closed",
+        "rect": {
+          "x0": 268.0,
+          "y0": 0.0,
+          "x1": 282.0,
+          "y1": 14.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 6,
+        "name": "chevron-open",
+        "rect": {
+          "x0": 322.0,
+          "y0": 0.0,
+          "x1": 336.0,
+          "y1": 14.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 7,
+        "name": "not-in-task-hatch",
+        "rect": {
+          "x0": 376.0,
+          "y0": 0.0,
+          "x1": 596.0,
+          "y1": 36.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 8,
+        "name": "tag-1st",
+        "rect": {
+          "x0": 636.0,
+          "y0": 0.0,
+          "x1": 688.0,
+          "y1": 22.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 9,
+        "name": "tag-2nd",
+        "rect": {
+          "x0": 728.0,
+          "y0": 0.0,
+          "x1": 780.0,
+          "y1": 22.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 10,
+        "name": "mark-eligible",
+        "rect": {
+          "x0": 820.0,
+          "y0": 0.0,
+          "x1": 838.0,
+          "y1": 18.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 11,
+        "name": "mark-ineligible",
+        "rect": {
+          "x0": 878.0,
+          "y0": 0.0,
+          "x1": 896.0,
+          "y1": 18.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 12,
+        "name": "badge-1",
+        "rect": {
+          "x0": 936.0,
+          "y0": 0.0,
+          "x1": 960.0,
+          "y1": 24.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 13,
+        "name": "badge-2",
+        "rect": {
+          "x0": 1000.0,
+          "y0": 0.0,
+          "x1": 1024.0,
+          "y1": 24.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 14,
+        "name": "slot-vacant",
+        "rect": {
+          "x0": 1064.0,
+          "y0": 0.0,
+          "x1": 1104.0,
+          "y1": 40.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 15,
+        "name": "order-chevron",
+        "rect": {
+          "x0": 1144.0,
+          "y0": 0.0,
+          "x1": 1158.0,
+          "y1": 22.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 16,
+        "name": "track-header",
+        "rect": {
+          "x0": 1198.0,
+          "y0": 0.0,
+          "x1": 1398.0,
+          "y1": 30.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      }
+    ],
+    "layers": [
+      {
+        "id": 1,
+        "name": "Layer 1",
+        "kind": {
+          "type": "layer",
+          "color": {
+            "Preset": 0
+          },
+          "template": false,
+          "printable": true,
+          "children": [
+            {
+              "id": 2,
+              "name": "pin needle",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 1.4,
+                    "cap": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            12.2,
+                            12.6
+                          ]
+                        },
+                        {
+                          "p": [
+                            4.0,
+                            21.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 3,
+              "name": "pin head",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.627451,
+                        "g": 0.20784314,
+                        "b": 0.19215687
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.43137255,
+                        "g": 0.12156863,
+                        "b": 0.10980392
+                      }
+                    },
+                    "width": 1.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            11.0,
+                            7.5
+                          ],
+                          "in": [
+                            11.0,
+                            10.261423749153968
+                          ],
+                          "out": [
+                            11.0,
+                            4.738576250846032
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            16.0,
+                            2.5
+                          ],
+                          "in": [
+                            13.238576250846032,
+                            2.5
+                          ],
+                          "out": [
+                            18.76142374915397,
+                            2.5
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            21.0,
+                            7.5
+                          ],
+                          "in": [
+                            21.0,
+                            4.738576250846032
+                          ],
+                          "out": [
+                            21.0,
+                            10.261423749153968
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            16.0,
+                            12.5
+                          ],
+                          "in": [
+                            18.76142374915397,
+                            12.5
+                          ],
+                          "out": [
+                            13.238576250846032,
+                            12.5
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "ellipse",
+                  "w": 10.0,
+                  "h": 10.0,
+                  "pie": [
+                    0.0,
+                    360.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    11.0,
+                    2.5
+                  ]
+                }
+              }
+            },
+            {
+              "id": 4,
+              "name": "pin highlight",
+              "opacity": 0.7,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            13.6,
+                            6.1
+                          ],
+                          "in": [
+                            13.6,
+                            6.9284271247461895
+                          ],
+                          "out": [
+                            13.6,
+                            5.27157287525381
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            15.100000000000001,
+                            4.6
+                          ],
+                          "in": [
+                            14.27157287525381,
+                            4.6
+                          ],
+                          "out": [
+                            15.928427124746191,
+                            4.6
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            16.6,
+                            6.1
+                          ],
+                          "in": [
+                            16.6,
+                            5.27157287525381
+                          ],
+                          "out": [
+                            16.6,
+                            6.9284271247461895
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            15.100000000000001,
+                            7.6
+                          ],
+                          "in": [
+                            15.928427124746191,
+                            7.6
+                          ],
+                          "out": [
+                            14.27157287525381,
+                            7.6
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "ellipse",
+                  "w": 3.0000000000000018,
+                  "h": 3.0,
+                  "pie": [
+                    0.0,
+                    360.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    13.6,
+                    4.6
+                  ]
+                }
+              }
+            },
+            {
+              "id": 5,
+              "name": "seal ring",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 1.5
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            66.0,
+                            16.0
+                          ],
+                          "in": [
+                            66.0,
+                            23.73198649763111
+                          ],
+                          "out": [
+                            66.0,
+                            8.268013502368891
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            80.0,
+                            2.0
+                          ],
+                          "in": [
+                            72.26801350236889,
+                            2.0
+                          ],
+                          "out": [
+                            87.73198649763111,
+                            2.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            94.0,
+                            16.0
+                          ],
+                          "in": [
+                            94.0,
+                            8.268013502368891
+                          ],
+                          "out": [
+                            94.0,
+                            23.73198649763111
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            80.0,
+                            30.0
+                          ],
+                          "in": [
+                            87.73198649763111,
+                            30.0
+                          ],
+                          "out": [
+                            72.26801350236889,
+                            30.0
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "ellipse",
+                  "w": 28.0,
+                  "h": 28.0,
+                  "pie": [
+                    0.0,
+                    360.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    66.0,
+                    2.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 6,
+              "name": "seal inner ring",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 0.6
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            69.0,
+                            16.0
+                          ],
+                          "in": [
+                            69.0,
+                            22.07513224813873
+                          ],
+                          "out": [
+                            69.0,
+                            9.924867751861271
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            80.0,
+                            5.0
+                          ],
+                          "in": [
+                            73.92486775186127,
+                            5.0
+                          ],
+                          "out": [
+                            86.07513224813873,
+                            5.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            91.0,
+                            16.0
+                          ],
+                          "in": [
+                            91.0,
+                            9.924867751861271
+                          ],
+                          "out": [
+                            91.0,
+                            22.07513224813873
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            80.0,
+                            27.0
+                          ],
+                          "in": [
+                            86.07513224813873,
+                            27.0
+                          ],
+                          "out": [
+                            73.92486775186127,
+                            27.0
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "ellipse",
+                  "w": 22.0,
+                  "h": 22.0,
+                  "pie": [
+                    0.0,
+                    360.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    69.0,
+                    5.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 7,
+              "name": "seal book",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 1.1,
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            73.0,
+                            11.5
+                          ],
+                          "out": [
+                            75.33333333333333,
+                            10.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            80.0,
+                            11.8
+                          ],
+                          "in": [
+                            77.66666666666667,
+                            10.6
+                          ]
+                        },
+                        {
+                          "p": [
+                            80.0,
+                            21.5
+                          ],
+                          "out": [
+                            77.66666666666667,
+                            20.366666666666667
+                          ]
+                        },
+                        {
+                          "p": [
+                            73.0,
+                            21.2
+                          ],
+                          "in": [
+                            75.33333333333333,
+                            20.266666666666666
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            87.0,
+                            11.5
+                          ],
+                          "out": [
+                            84.66666666666667,
+                            10.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            80.0,
+                            11.8
+                          ],
+                          "in": [
+                            82.33333333333333,
+                            10.6
+                          ]
+                        },
+                        {
+                          "p": [
+                            80.0,
+                            21.5
+                          ],
+                          "out": [
+                            82.33333333333333,
+                            20.366666666666667
+                          ]
+                        },
+                        {
+                          "p": [
+                            87.0,
+                            21.2
+                          ],
+                          "in": [
+                            84.66666666666667,
+                            20.266666666666666
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 8,
+              "name": "ribbon body",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.627451,
+                        "g": 0.20784314,
+                        "b": 0.19215687
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            138.0,
+                            0.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            170.0,
+                            0.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            170.0,
+                            110.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            154.0,
+                            97.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            138.0,
+                            110.0
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 9,
+              "name": "ribbon stitch",
+              "opacity": 0.7,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    },
+                    "width": 0.7,
+                    "dash": {
+                      "pattern": [
+                        2.0,
+                        2.0
+                      ],
+                      "offset": 0.0,
+                      "align_corners": false
+                    }
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            141.5,
+                            0.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            141.5,
+                            103.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            166.5,
+                            0.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            166.5,
+                            103.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 10,
+              "name": "ribbon book",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    },
+                    "width": 1.0,
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            147.5,
+                            80.0
+                          ],
+                          "out": [
+                            149.70000000000002,
+                            79.06666666666666
+                          ]
+                        },
+                        {
+                          "p": [
+                            154.0,
+                            80.2
+                          ],
+                          "in": [
+                            151.86666666666667,
+                            79.13333333333333
+                          ]
+                        },
+                        {
+                          "p": [
+                            154.0,
+                            88.5
+                          ],
+                          "out": [
+                            151.86666666666667,
+                            87.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            147.5,
+                            88.2
+                          ],
+                          "in": [
+                            149.70000000000002,
+                            87.4
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            160.5,
+                            80.0
+                          ],
+                          "out": [
+                            158.29999999999998,
+                            79.06666666666666
+                          ]
+                        },
+                        {
+                          "p": [
+                            154.0,
+                            80.2
+                          ],
+                          "in": [
+                            156.13333333333333,
+                            79.13333333333333
+                          ]
+                        },
+                        {
+                          "p": [
+                            154.0,
+                            88.5
+                          ],
+                          "out": [
+                            156.13333333333333,
+                            87.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            160.5,
+                            88.2
+                          ],
+                          "in": [
+                            158.29999999999998,
+                            87.4
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 11,
+              "name": "paperclip",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.3254902,
+                        "g": 0.41568628,
+                        "b": 0.42745098
+                      }
+                    },
+                    "width": 1.5,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            219.5,
+                            13.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            219.5,
+                            30.5
+                          ],
+                          "out": [
+                            219.5,
+                            32.833333333333336
+                          ]
+                        },
+                        {
+                          "p": [
+                            221.75,
+                            34.0
+                          ],
+                          "in": [
+                            220.25,
+                            34.0
+                          ],
+                          "out": [
+                            223.25,
+                            34.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            224.0,
+                            30.5
+                          ],
+                          "in": [
+                            224.0,
+                            32.833333333333336
+                          ]
+                        },
+                        {
+                          "p": [
+                            224.0,
+                            7.5
+                          ],
+                          "out": [
+                            224.0,
+                            4.166666666666667
+                          ]
+                        },
+                        {
+                          "p": [
+                            219.75,
+                            2.5
+                          ],
+                          "in": [
+                            222.58333333333334,
+                            2.5
+                          ],
+                          "out": [
+                            216.91666666666666,
+                            2.5
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            215.5,
+                            7.5
+                          ],
+                          "in": [
+                            215.5,
+                            4.166666666666667
+                          ]
+                        },
+                        {
+                          "p": [
+                            215.5,
+                            33.0
+                          ],
+                          "out": [
+                            215.5,
+                            36.333333333333336
+                          ]
+                        },
+                        {
+                          "p": [
+                            220.0,
+                            38.0
+                          ],
+                          "in": [
+                            217.0,
+                            38.0
+                          ],
+                          "out": [
+                            223.0,
+                            38.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            224.5,
+                            34.5
+                          ],
+                          "in": [
+                            224.5,
+                            36.833333333333336
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 12,
+              "name": "chevron closed",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 1.6,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            273.0,
+                            3.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            278.5,
+                            7.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            273.0,
+                            11.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 13,
+              "name": "chevron open",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 1.6,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            325.0,
+                            5.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            329.0,
+                            10.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            333.0,
+                            5.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 14,
+              "name": "tag 1st body",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            636.0,
+                            0.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            688.0,
+                            0.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            682.0,
+                            11.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            688.0,
+                            22.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            636.0,
+                            22.0
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 15,
+              "name": "tag 2nd body",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.3254902,
+                        "g": 0.41568628,
+                        "b": 0.42745098
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            728.0,
+                            0.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            780.0,
+                            0.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            774.0,
+                            11.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            780.0,
+                            22.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            728.0,
+                            22.0
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 16,
+              "name": "eligible ring",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 1.3
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            821.0,
+                            9.0
+                          ],
+                          "in": [
+                            821.0,
+                            13.41827799864635
+                          ],
+                          "out": [
+                            821.0,
+                            4.5817220013536515
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            829.0,
+                            1.0
+                          ],
+                          "in": [
+                            824.5817220013537,
+                            1.0
+                          ],
+                          "out": [
+                            833.4182779986463,
+                            1.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            837.0,
+                            9.0
+                          ],
+                          "in": [
+                            837.0,
+                            4.5817220013536515
+                          ],
+                          "out": [
+                            837.0,
+                            13.41827799864635
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            829.0,
+                            17.0
+                          ],
+                          "in": [
+                            833.4182779986463,
+                            17.0
+                          ],
+                          "out": [
+                            824.5817220013537,
+                            17.0
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "ellipse",
+                  "w": 16.0,
+                  "h": 16.0,
+                  "pie": [
+                    0.0,
+                    360.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    821.0,
+                    1.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 17,
+              "name": "eligible check",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 1.7,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            825.0,
+                            9.2
+                          ]
+                        },
+                        {
+                          "p": [
+                            828.0,
+                            12.2
+                          ]
+                        },
+                        {
+                          "p": [
+                            833.2,
+                            6.2
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 18,
+              "name": "ineligible ring",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.93333334,
+                        "g": 0.9137255,
+                        "b": 0.8627451
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.3254902,
+                        "g": 0.41568628,
+                        "b": 0.42745098
+                      }
+                    },
+                    "width": 1.3
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            879.0,
+                            9.0
+                          ],
+                          "in": [
+                            879.0,
+                            13.41827799864635
+                          ],
+                          "out": [
+                            879.0,
+                            4.5817220013536515
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            887.0,
+                            1.0
+                          ],
+                          "in": [
+                            882.5817220013537,
+                            1.0
+                          ],
+                          "out": [
+                            891.4182779986463,
+                            1.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            895.0,
+                            9.0
+                          ],
+                          "in": [
+                            895.0,
+                            4.5817220013536515
+                          ],
+                          "out": [
+                            895.0,
+                            13.41827799864635
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            887.0,
+                            17.0
+                          ],
+                          "in": [
+                            891.4182779986463,
+                            17.0
+                          ],
+                          "out": [
+                            882.5817220013537,
+                            17.0
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "ellipse",
+                  "w": 16.0,
+                  "h": 16.0,
+                  "pie": [
+                    0.0,
+                    360.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    879.0,
+                    1.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 19,
+              "name": "ineligible cross",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.3254902,
+                        "g": 0.41568628,
+                        "b": 0.42745098
+                      }
+                    },
+                    "width": 1.7,
+                    "cap": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            883.6,
+                            5.6
+                          ]
+                        },
+                        {
+                          "p": [
+                            890.4,
+                            12.4
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            890.4,
+                            5.6
+                          ]
+                        },
+                        {
+                          "p": [
+                            883.6,
+                            12.4
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 20,
+              "name": "badge 1 disc",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            937.0,
+                            12.0
+                          ],
+                          "in": [
+                            937.0,
+                            18.07513224813873
+                          ],
+                          "out": [
+                            937.0,
+                            5.924867751861271
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            948.0,
+                            1.0
+                          ],
+                          "in": [
+                            941.9248677518613,
+                            1.0
+                          ],
+                          "out": [
+                            954.0751322481387,
+                            1.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            959.0,
+                            12.0
+                          ],
+                          "in": [
+                            959.0,
+                            5.924867751861271
+                          ],
+                          "out": [
+                            959.0,
+                            18.07513224813873
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            948.0,
+                            23.0
+                          ],
+                          "in": [
+                            954.0751322481387,
+                            23.0
+                          ],
+                          "out": [
+                            941.9248677518613,
+                            23.0
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "ellipse",
+                  "w": 22.0,
+                  "h": 22.0,
+                  "pie": [
+                    0.0,
+                    360.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    937.0,
+                    1.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 21,
+              "name": "badge 2 disc",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 1.5
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1001.75,
+                            12.0
+                          ],
+                          "in": [
+                            1001.75,
+                            17.660918685765633
+                          ],
+                          "out": [
+                            1001.75,
+                            6.339081314234366
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            1012.0,
+                            1.75
+                          ],
+                          "in": [
+                            1006.3390813142344,
+                            1.75
+                          ],
+                          "out": [
+                            1017.6609186857656,
+                            1.75
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            1022.25,
+                            12.0
+                          ],
+                          "in": [
+                            1022.25,
+                            6.339081314234366
+                          ],
+                          "out": [
+                            1022.25,
+                            17.660918685765633
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            1012.0,
+                            22.25
+                          ],
+                          "in": [
+                            1017.6609186857656,
+                            22.25
+                          ],
+                          "out": [
+                            1006.3390813142344,
+                            22.25
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "ellipse",
+                  "w": 20.5,
+                  "h": 20.5,
+                  "pie": [
+                    0.0,
+                    360.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1001.75,
+                    1.75
+                  ]
+                }
+              }
+            },
+            {
+              "id": 22,
+              "name": "vacant slot",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.3254902,
+                        "g": 0.41568628,
+                        "b": 0.42745098
+                      }
+                    },
+                    "width": 1.2,
+                    "dash": {
+                      "pattern": [
+                        3.0,
+                        3.0
+                      ],
+                      "offset": 0.0,
+                      "align_corners": false
+                    }
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1066.0,
+                            20.0
+                          ],
+                          "in": [
+                            1066.0,
+                            29.941125496954285
+                          ],
+                          "out": [
+                            1066.0,
+                            10.058874503045717
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            1084.0,
+                            2.0
+                          ],
+                          "in": [
+                            1074.0588745030457,
+                            2.0
+                          ],
+                          "out": [
+                            1093.9411254969543,
+                            2.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            1102.0,
+                            20.0
+                          ],
+                          "in": [
+                            1102.0,
+                            10.058874503045717
+                          ],
+                          "out": [
+                            1102.0,
+                            29.941125496954285
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            1084.0,
+                            38.0
+                          ],
+                          "in": [
+                            1093.9411254969543,
+                            38.0
+                          ],
+                          "out": [
+                            1074.0588745030457,
+                            38.0
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "ellipse",
+                  "w": 36.0,
+                  "h": 36.0,
+                  "pie": [
+                    0.0,
+                    360.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1066.0,
+                    2.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 23,
+              "name": "order chevron",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.3254902,
+                        "g": 0.41568628,
+                        "b": 0.42745098
+                      }
+                    },
+                    "width": 1.6,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1147.5,
+                            4.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1154.5,
+                            11.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1147.5,
+                            18.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 24,
+              "name": "header rules heavy",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 1.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1212.0,
+                            2.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1384.0,
+                            2.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1212.0,
+                            28.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1384.0,
+                            28.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 25,
+              "name": "header rules light",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 0.5
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1212.0,
+                            5.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1384.0,
+                            5.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1212.0,
+                            25.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1384.0,
+                            25.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 26,
+              "name": "header diamond left",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.627451,
+                        "g": 0.20784314,
+                        "b": 0.19215687
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1204.0,
+                            10.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1209.0,
+                            15.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1204.0,
+                            20.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1199.0,
+                            15.0
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "polygon",
+                  "radius": 5.0,
+                  "sides": 4,
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1204.0,
+                    15.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 27,
+              "name": "header diamond right",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.627451,
+                        "g": 0.20784314,
+                        "b": 0.19215687
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "none"
+                    },
+                    "width": 0.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1392.0,
+                            10.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1397.0,
+                            15.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1392.0,
+                            20.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1387.0,
+                            15.0
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "polygon",
+                  "radius": 5.0,
+                  "sides": 4,
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1392.0,
+                    15.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 28,
+              "name": "not-in-task hatch",
+              "opacity": 0.22,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.3254902,
+                        "g": 0.41568628,
+                        "b": 0.42745098
+                      }
+                    },
+                    "width": 0.8
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            376.0,
+                            8.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            384.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            376.0,
+                            16.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            392.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            376.0,
+                            24.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            400.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            376.0,
+                            32.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            408.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            380.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            416.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            388.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            424.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            396.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            432.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            404.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            440.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            412.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            448.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            420.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            456.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            428.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            464.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            436.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            472.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            444.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            480.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            452.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            488.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            460.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            496.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            468.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            504.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            476.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            512.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            484.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            520.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            492.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            528.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            500.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            536.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            508.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            544.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            516.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            552.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            524.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            560.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            532.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            568.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            540.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            576.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            548.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            584.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            556.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            592.0,
+                            0.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            564.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            596.0,
+                            4.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            572.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            596.0,
+                            12.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            580.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            596.0,
+                            20.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            588.0,
+                            36.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            596.0,
+                            28.0
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 29,
+              "name": "hatch edge rules",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.827451,
+                        "g": 0.85882354,
+                        "b": 0.84313726
+                      }
+                    },
+                    "width": 1.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            376.0,
+                            0.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            596.0,
+                            0.5
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            376.0,
+                            35.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            596.0,
+                            35.5
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 30,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  657.0,
+                  15.6
+                ],
+                "runs": [
+                  {
+                    "text": "1st",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Bold",
+                      "size": 13.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.972549,
+                          "g": 0.95686275,
+                          "b": 0.9098039
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Center",
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 31,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  749.0,
+                  15.6
+                ],
+                "runs": [
+                  {
+                    "text": "2nd",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Bold",
+                      "size": 13.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.972549,
+                          "g": 0.95686275,
+                          "b": 0.9098039
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Center",
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 32,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  948.0,
+                  17.0
+                ],
+                "runs": [
+                  {
+                    "text": "1",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Bold",
+                      "size": 14.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.972549,
+                          "g": 0.95686275,
+                          "b": 0.9098039
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Center",
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 33,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  1012.0,
+                  17.0
+                ],
+                "runs": [
+                  {
+                    "text": "2",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Bold",
+                      "size": 14.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.1254902,
+                          "g": 0.19607843,
+                          "b": 0.21960784
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Center",
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 34,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  6.123233995736766e-17,
+                  -1.0,
+                  1.0,
+                  6.123233995736766e-17,
+                  157.87,
+                  42.72999999999999
+                ],
+                "runs": [
+                  {
+                    "text": "BRIEFING",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Bold",
+                      "size": 10.0,
+                      "tracking": 120.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.972549,
+                          "g": 0.95686275,
+                          "b": 0.9098039
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Center",
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              },
+              "bbox_angle": 90.0
+            }
+          ]
+        }
+      }
+    ],
+    "swatches": [
+      {
+        "name": "[None]",
+        "paint": {
+          "type": "none"
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "White",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 1.0,
+            "g": 1.0,
+            "b": 1.0
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Black",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Red",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.92941177,
+            "g": 0.10980392,
+            "b": 0.14117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Orange Red",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.94509804,
+            "g": 0.3529412,
+            "b": 0.14117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Orange",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.96862745,
+            "g": 0.5764706,
+            "b": 0.11764706
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Amber",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.9843137,
+            "g": 0.6901961,
+            "b": 0.23137255
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Yellow",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.9882353,
+            "g": 0.93333334,
+            "b": 0.12941177
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Yellow Green",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.8509804,
+            "g": 0.8784314,
+            "b": 0.12941177
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Lime",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.54901963,
+            "g": 0.7764706,
+            "b": 0.24705882
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Green",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.22352941,
+            "g": 0.70980394,
+            "b": 0.2901961
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Emerald",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.57254905,
+            "b": 0.27058825
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Teal",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.40784314,
+            "b": 0.21568628
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Aqua",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.13333334,
+            "g": 0.70980394,
+            "b": 0.4509804
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Cyan Green",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.6627451,
+            "b": 0.6156863
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Cyan",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.16078432,
+            "g": 0.67058825,
+            "b": 0.8862745
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Azure",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.44313726,
+            "b": 0.7372549
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Blue",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.18039216,
+            "g": 0.19215687,
+            "b": 0.57254905
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Indigo",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.105882354,
+            "g": 0.078431375,
+            "b": 0.39215687
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Violet",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.4,
+            "g": 0.1764706,
+            "b": 0.5686275
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Purple",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.5764706,
+            "g": 0.15294118,
+            "b": 0.56078434
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Magenta",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.61960787,
+            "g": 0.0,
+            "b": 0.3647059
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Rose",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.83137256,
+            "g": 0.078431375,
+            "b": 0.3529412
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Pink",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.92941177,
+            "g": 0.11764706,
+            "b": 0.4745098
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Brown",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.78039217,
+            "g": 0.69803923,
+            "b": 0.6
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Tan",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.6,
+            "g": 0.5254902,
+            "b": 0.45882353
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Coffee",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.4509804,
+            "g": 0.3882353,
+            "b": 0.34117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Chocolate",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.3254902,
+            "g": 0.2784314,
+            "b": 0.25490198
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Sand",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.7764706,
+            "g": 0.6117647,
+            "b": 0.42745098
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Copper",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.6509804,
+            "g": 0.4862745,
+            "b": 0.32156864
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Rust",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.54901963,
+            "g": 0.38431373,
+            "b": 0.22352941
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Walnut",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.45882353,
+            "g": 0.29803923,
+            "b": 0.14117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Espresso",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.3764706,
+            "g": 0.21960784,
+            "b": 0.07450981
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "White, Black",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Radial White, Black",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Radial",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Sunset",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.9843137,
+                  "g": 0.6901961,
+                  "b": 0.23137255
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.83137256,
+                  "g": 0.078431375,
+                  "b": 0.3529412
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Ocean",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.16078432,
+                  "g": 0.67058825,
+                  "b": 0.8862745
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.18039216,
+                  "g": 0.19215687,
+                  "b": 0.57254905
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      }
+    ],
+    "swatch_groups": [
+      {
+        "name": "Grays",
+        "swatches": [
+          {
+            "name": "K=90",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.9
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=80",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.8
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=70",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.7
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=60",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.6
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=50",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.5
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=40",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.4
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=30",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.3
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=20",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.2
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=10",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.1
+              }
+            },
+            "global": false,
+            "spot": false
+          }
+        ]
+      },
+      {
+        "name": "Brights",
+        "swatches": [
+          {
+            "name": "Bright Red",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 1.0,
+                "g": 0.11372549,
+                "b": 0.14509805
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Yellow",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 1.0,
+                "g": 0.9019608,
+                "b": 0.0
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Green",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 0.0,
+                "g": 0.9019608,
+                "b": 0.4627451
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Blue",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 0.16078432,
+                "g": 0.4745098,
+                "b": 1.0
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Violet",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 0.8352941,
+                "g": 0.0,
+                "b": 0.9764706
+              }
+            },
+            "global": false,
+            "spot": false
+          }
+        ]
+      }
+    ],
+    "graphic_styles": [
+      {
+        "name": "Default Graphic Style",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0
+                }
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                }
+              },
+              "width": 1.0
+            }
+          ]
+        },
+        "id": 1,
+        "unit_box": true
+      },
+      {
+        "name": "Black Outline",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "none"
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                }
+              },
+              "width": 1.0
+            }
+          ]
+        },
+        "id": 2,
+        "unit_box": true
+      },
+      {
+        "name": "Heavy Ink",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.105882354,
+                  "g": 0.078431375,
+                  "b": 0.39215687
+                }
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                }
+              },
+              "width": 4.0
+            }
+          ]
+        },
+        "id": 3,
+        "unit_box": true
+      },
+      {
+        "name": "Sunshine",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.9843137,
+                  "g": 0.6901961,
+                  "b": 0.23137255
+                }
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.94509804,
+                  "g": 0.3529412,
+                  "b": 0.14117648
+                }
+              },
+              "width": 2.0
+            }
+          ]
+        },
+        "id": 4,
+        "unit_box": true
+      }
+    ],
+    "symbols": [],
+    "guides": [],
+    "grid": {
+      "spacing": 72.0,
+      "subdivisions": 8
+    },
+    "raster_effects_ppi": 72.0,
+    "images": {},
+    "next_id": 35,
+    "metadata": {
+      "author": "",
+      "authorTitle": "",
+      "description": "",
+      "keywords": [],
+      "rating": 0,
+      "copyrightStatus": "unknown",
+      "copyrightNotice": "",
+      "copyrightUrl": "",
+      "created": 1794871059,
+      "modified": 1794871165
+    }
+  },
+  "images": {}
+}
+ VCBLOBS %PDF-1.7
+%ÄÄÄÄ
+
+1 0 obj
+<</Type/Pages/Count 16/Kids[26 0 R 27 0 R 28 0 R 29 0 R 30 0 R 31 0 R 32 0 R 33 0 R 34 0 R 35 0 R 36 0 R 37 0 R 38 0 R 39 0 R 40 0 R 41 0 R]>>
+endobj
+2 0 obj
+<</Type/ExtGState/ca 0.7/CA 0.7>>
+endobj
+3 0 obj
+<</Type/ExtGState/ca 0.22/CA 0.22>>
+endobj
+4 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+5 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+6 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+7 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/ExtGState<</g0 2 0 R>>/XObject<</x0 61 0 R>>>>
+endobj
+8 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+9 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/ExtGState<</g0 2 0 R>>/XObject<</x0 62 0 R>>/Font<</f0 23 0 R>>>>
+endobj
+10 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+11 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+12 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+13 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/ExtGState<</g0 3 0 R>>/XObject<</x0 63 0 R>>>>
+endobj
+14 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 23 0 R>>>>
+endobj
+15 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 23 0 R>>>>
+endobj
+16 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+17 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+18 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 23 0 R>>>>
+endobj
+19 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 23 0 R>>>>
+endobj
+20 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+21 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+22 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]>>
+endobj
+23 0 obj
+<</Type/Font/Subtype/Type0/BaseFont/APBRHA+Lato-Bold/Encoding/Identity-H/DescendantFonts[24 0 R]/ToUnicode 43 0 R>>
+endobj
+24 0 obj
+<</Type/Font/Subtype/CIDFontType2/BaseFont/APBRHA+Lato-Bold/CIDSystemInfo<</Registry(Adobe)/Ordering(Identity)/Supplement 0>>/FontDescriptor 25 0 R/DW 0/CIDToGIDMap/Identity/W[0 0 547 1 1 658.5 2 2 643 3 3 296.5 4 4 575 5 5 566 6 6 770.5 7 7 726 8 8 580 9 9 439.5 10 10 372 11 11 580 12 12 564 13 13 567.5]>>
+endobj
+25 0 obj
+<</Type/FontDescriptor/FontName/APBRHA+Lato-Bold/Flags 131076/FontBBox[17 -8 690 743]/ItalicAngle 0/Ascent 805/Descent -195/CapHeight 723/StemV 168.6/CIDSet 42 0 R/FontFile2 44 0 R>>
+endobj
+26 0 obj
+<</Type/Page/Resources 7 0 R/MediaBox[0 0 24 24]/BleedBox[0 0 24 24]/TrimBox[0 0 24 24]/Parent 1 0 R/Contents 45 0 R>>
+endobj
+27 0 obj
+<</Type/Page/Resources 8 0 R/MediaBox[0 0 32 32]/BleedBox[0 0 32 32]/TrimBox[0 0 32 32]/Parent 1 0 R/Contents 46 0 R>>
+endobj
+28 0 obj
+<</Type/Page/Resources 9 0 R/MediaBox[0 0 36 112]/BleedBox[0 0 36 112]/TrimBox[0 0 36 112]/Parent 1 0 R/Contents 47 0 R>>
+endobj
+29 0 obj
+<</Type/Page/Resources 10 0 R/MediaBox[0 0 16 40]/BleedBox[0 0 16 40]/TrimBox[0 0 16 40]/Parent 1 0 R/Contents 48 0 R>>
+endobj
+30 0 obj
+<</Type/Page/Resources 11 0 R/MediaBox[0 0 14 14]/BleedBox[0 0 14 14]/TrimBox[0 0 14 14]/Parent 1 0 R/Contents 49 0 R>>
+endobj
+31 0 obj
+<</Type/Page/Resources 12 0 R/MediaBox[0 0 14 14]/BleedBox[0 0 14 14]/TrimBox[0 0 14 14]/Parent 1 0 R/Contents 50 0 R>>
+endobj
+32 0 obj
+<</Type/Page/Resources 13 0 R/MediaBox[0 0 220 36]/BleedBox[0 0 220 36]/TrimBox[0 0 220 36]/Parent 1 0 R/Contents 51 0 R>>
+endobj
+33 0 obj
+<</Type/Page/Resources 14 0 R/MediaBox[0 0 52 22]/BleedBox[0 0 52 22]/TrimBox[0 0 52 22]/Parent 1 0 R/Contents 52 0 R>>
+endobj
+34 0 obj
+<</Type/Page/Resources 15 0 R/MediaBox[0 0 52 22]/BleedBox[0 0 52 22]/TrimBox[0 0 52 22]/Parent 1 0 R/Contents 53 0 R>>
+endobj
+35 0 obj
+<</Type/Page/Resources 16 0 R/MediaBox[0 0 18 18]/BleedBox[0 0 18 18]/TrimBox[0 0 18 18]/Parent 1 0 R/Contents 54 0 R>>
+endobj
+36 0 obj
+<</Type/Page/Resources 17 0 R/MediaBox[0 0 18 18]/BleedBox[0 0 18 18]/TrimBox[0 0 18 18]/Parent 1 0 R/Contents 55 0 R>>
+endobj
+37 0 obj
+<</Type/Page/Resources 18 0 R/MediaBox[0 0 24 24]/BleedBox[0 0 24 24]/TrimBox[0 0 24 24]/Parent 1 0 R/Contents 56 0 R>>
+endobj
+38 0 obj
+<</Type/Page/Resources 19 0 R/MediaBox[0 0 24 24]/BleedBox[0 0 24 24]/TrimBox[0 0 24 24]/Parent 1 0 R/Contents 57 0 R>>
+endobj
+39 0 obj
+<</Type/Page/Resources 20 0 R/MediaBox[0 0 40 40]/BleedBox[0 0 40 40]/TrimBox[0 0 40 40]/Parent 1 0 R/Contents 58 0 R>>
+endobj
+40 0 obj
+<</Type/Page/Resources 21 0 R/MediaBox[0 0 14 22]/BleedBox[0 0 14 22]/TrimBox[0 0 14 22]/Parent 1 0 R/Contents 59 0 R>>
+endobj
+41 0 obj
+<</Type/Page/Resources 22 0 R/MediaBox[0 0 200 30]/BleedBox[0 0 200 30]/TrimBox[0 0 200 30]/Parent 1 0 R/Contents 60 0 R>>
+endobj
+42 0 obj
+<</Length 10/Filter/FlateDecode>>
+stream
+xú˚ˇ ¸¸
+endstream
+endobj
+43 0 obj
+<</Length 405/Type/CMap/Filter/FlateDecode/WMode 0>>
+stream
+xúmíÀnÎ Ü˜~ä9§të«πúFQ§÷©%/zQSùÆò§H1 åy˚#úVU∆˙f˛a˛ÿü◊˝Ù^öNÀ[oÿõ¡	úVO≠Õ€1t®˝3¢D9f˚5XgDè™f◊hÂ3∆-ŒÉƒQÛõ‰OJ	B®Üﬁõ.cÏ]˘3ÆaBàû†ë®ΩÚ‡7cˇ–ı Ë5cèZV¶Ê˙,O= uFÏ—√QiÈR'8ÑæY1©ÑOW—µ6Ô/Ω«Æ—G%©‰`ì  √ìÍΩª¿$ªâG º8âNÈLF≥ﬂí˚¡⁄3ì¿cµåˇ<ˇ‹vy¯MSBÒzøXL‰OFéPêEa$ˆ∂ËZ}¬l√9Á[ÿ‘u]oC«˘¢§≤√Q|∂. ã-l8üœ∂ëfëâJ ›ÕâD¢%—íËëhE¥"˙©,àÓ"≠J¢{¢9—)S˜*“2Ìπ#ö«±íˇ0`∏«Îâä¡9‘>^c<æpVJ„ı=XcCU¸‚Cﬂd†ó˙?©ÍÓ
+endstream
+endobj
+44 0 obj
+<</Length 4411/Filter/FlateDecode>>
+stream
+xú≠Y{l[◊yˇùsÔ%)J¢DI§lSíyI=»{©˜√≤,3§(’¢lS~Ö¥ÏÑ4)YéeIëï8q€@âì‘Í§Èñ:¡∂ﬁCká&9T«.ö†XçaXä÷›ñÊèaE∑Etùì†…ñXÚp.)ENúu)F¡¸~Áúﬂ˘Œ˜:ﬂïØ@ cZ2Œ≥æõóˇ¿˜ ¸bbˆ¯©∑´˛È@˛(æx|Í·âü≈ãîˆEòOg-oø8˚ tMNéßKœ·¿9¿;yj˛°`™úœËôö…§Ìá LÄÛ:Ä∫SÈáf…õ•g Á l:}j¸°ÀO’ÂÄº<;sz~µ¿uM¨œŒçœŒXOÙÆ∑\≈ˇ˝≥äUºÜ◊î%@¶¿jŒ|yıêr˘÷π‚÷;˘—Fé≤$„÷{≥îW‰äµ1ñ±å«Ò∏ÈieIzñæ#ÊLœ*/JËø›∂˛EÈŸ€8Á§∑Ò6û˜√€≠R~hÿıú¡á∆8&¢I∆bW`çq”˛√	ﬁ·‚ç…‘[<ò‡‘óæjÅôåzÃÂvs$9"Í¿2"©∞Œâ∆YjBÁTcY∆øÁr˝·ÂFbçD3—}c	∑Ív-&è«nJ∫Ô®'ôdπ<)ùÂçÒÑª0bºE¨∑Ê˜„	6¡”å[„âîãq&÷¨u	‘ïr•í…§ãì@2©rƒ„…§Œ%çEó}È,„J$û‡äÊ&5Ïrªìú§t.k™[u≥lN9fb%∏¯ÊJ*ö·íﬂÕ∏)¬Ÿ"'Å\ã‚„r˝h"w•˜%j“ÕxhÇìÄK8U8YÁä∆Õë¿2h>4&çõ’∞ 8‘pö”cúd8Iq≈Øs≥∆Ñë≈ëÃ«ò–¿C©§†§#-⁄≤πëhÿÔ^vëv{≠y-$†rD∏ÏK±Ë¢öâ0"óà&g.Zèó|jz DÒglÁﬁxBl›iSâ®5º\lï¢	∑Ku'˝nùój9J£<õ–πM„$≈/âãÌåó®·$/£}	∆K’pRÁe„ÂFHÿôE5Õmë[L1nS√™ŒÀµÿÅDNŒ$Ωºt\}HÁv-6öàÌœO∫‹I/Ø4Ê+¥ "π≤≤'È0/à"Â‘ŒïàØRÍs‚Tó|ÒDNèÀæ‚"3éıªUN“kÿï_[®œòIÚí»/ç•8Ω=Uüë¿P©p·Ë_&Ñπ™‘êçH25Ã¢ºXs´ ïTò•8IøR^N`C8ºò Uò¸ÅÄÀì‘yïñCe@Á-GÑtj9*dµñìÑ‹§Âd!7k9E»-ZŒ$§KÀôÖ¨—r!kµ\ëêMrrTÁ~‹ØÛÄÊt^ßÅó~∑j9‘tŒ¥“≠Â®ê-'	©j9YHØñSÑÙi9ìêıZŒ,dÉñ≥Ÿ®ÂäÑ‘4÷gîöÆ±/O±à IJ‰3-Æè&Í-®q=¿uøŒõ5∆ÜÿgdBM˜®¢ç˝Øó;©ÛñıÙ'oˆÁ‚à&ZíÜÉ≠#ÛÈÂ6çuˆ∂k‡$˙ÈC8	‹Òp1Á_íÅ~µ'◊F~ùwh¨è}ÜΩëtèŒ;µ`uüŒª~ïìH¶GÁ›Zé¬ÈcA6$./ßæ]ããCÍêöfâc.—’r!é*øŒ{4'ó}\ˆ^	å/U∆˙{tæÌ„eÃÎ‡≤,∆S‚æáF/S&1◊À¥^⁄íãhâ∞E’`´É).G>yïR¢Âõ=ç§≤*ó"Èl<¡i$Ì‚R$%z–'˜§U∆∏\Ø¶{\*∑D9ıqKƒ8%≈ÓtàöÔvr$%bØ¯“\˘îV.◊è|ÜæT6ûÔrüï‘yØàcå+ıÖ®}=:ﬂnLsãfå™C‚0ë≠>#d¬ÅBDq d}™€%,.L2aÀZ»M>Æ¯vm|˙Êuß
+.dFeº£`Ad-5)Òx˛§ãk©Ï◊TQ‹ó`}…`.H™:ﬂπ>ﬂ8∫ù}GŒ]Ô	‹QiX„€ãåıâbYÏπáÀë tYØ∞µËä‚RY™=uZŒ"˚¬øC)˝Uü0_Ùó>µ«Âﬁêow≤`cTcÕˇA·ø[D^òXc›Â!ç√ëøúÀ˜∞2»;¸:ˇ¬gÃÔ“r Uïº”ØÛaçw˚uQã™,»’ÙZúF4Qé<–˘nmË|è∂"¿^mô3qmô3£ÇË|ü‡∞_p8 8úª:?$8‹-8$GÄ§‡D:?,8å	é GGÄ£Ç3–˘=Ç#¿ΩÇ#@JpHN8†ÛcÇ#@Fp»
+é „Ô]ÛÑ˛ÄŒèhg@ÁìF=ıx(†ÛﬂæŒæOˆI	ˆîÅıî∆˚÷©”b`Pg$®≥‘˚5æcù:'ı¥Åuﬁ@Ç˙ÄˆrëL◊~y
+∏eúKﬁ¯Ckœê·‰e	*∫±;Ö!QB%2"S"O†h2ã¨dPTdJ¬d ƒ`±òì0õ≥Êëù˝v{UcΩÍØÒX≠µÅ ~“ﬁVGU6πå®ı˝rgGΩÍ±Q’”PŸ—OãTı)q€››nª˚?∑=ìú›”T„o™äÛ€vSuSªæµ%Ëmı∫ <Âqá∑≠∂¶’Áp¯Zkj€ºé’oKÔﬁ¥›%ù∏yQ˛bpg}4ΩΩ{ÔvøœÎLÕ˘:æ¶vU’lÂ∂⁄ïÜö6±≠≠¶∂’Îpx[Â≈GïZ@¬%@˛â≤Ñ8–ÑÅ–]åJÜAA@I∆L$I≥YŒƒLP∆†(Ye§⁄YZJ–XÔl™n*uîVï€äãPBJä¨U_[?ÌÏR’Ωô∂∑u	œ;˛öe√k∑ùæõÿ·™ç≠æÛ”≈Áü˙ªG˚Ív¶#ƒ?¯‰µGV~ˆ˜ﬁæ∏ﬁÎ¨YM»ÚÍ=ŸS˜ßÆweüJ∂WGn˘√˚C ®∞_±*K∞¬ãÆPªõH √¬RâB Ä√‚LL&îfÈ¡&ß£™“^Z\dÜïXÕ÷™ 1Ï≠;Q=$HƒÓ∂ª◊LÆ#’Ù–»˝ªºœ<˚È»{—≠´◊ÌMçßWﬂ#WÔæ
+åûŸ¢U–˜Î#G∫ß\e+÷.Ú„-Œï7î•”œŸıÿ}ÒÍ≤¶a+yIYÇÑ P9…ƒ d1b/ßVg†âÿ›‰•’wâM¸áyæ‹™,°Õ!MÃPê¥â(äúÑH(ïíê§¨4bº(∂ãèŸ∫Y8‡p˛ëó»á´&˙ÿÕYÈkÚı’ôØKY˙È˝Eh
+’ØÈWà,Z˝Y*T°Hh6Y7≠i6Ù“∫ï]}◊–z‡≠ïóÖ“5ªï¨≤'‘3â:ñ%Ji&Fà·0 'úvß[±Và]ı‘7ß√Æ⁄≈Ω®&A“iW≤ã,PµRj˙èˆÕï≈Ù}IVñ><Ïÿ,]˜‹<Ø,IEv€Õu†VöAÏ÷eórÕÿÍ≠$î4I&í4l"
+dIë3†îåÅêì1H∆ L∂4£Ym‘’|‰lDıxÎigGEó◊∞«l#AI‹^GUù®ËnaÒ¢Ïö˛Ôßr´ˇÚ∆Ù}? Œœüõ“wWÙz‹·—Ò…ŒÜáΩ<§ÔÚñZ˙Ê ´£±Èk§¸“üíÚkS5≠É˛≥µ•é ˙öä/<˘Ω˘/˝‡+CûZb™u<ÇsÄ\¨|v4Ü|63Õ_Höâ…%áÛU¿ªÀnAÙ9‹ùn{G∑ŸFÇ§ôêvª\|ÛÁƒ']ØP∑n2Ì!Wﬂ∏zı™kÎ|—f6ïù$g>≤ã\µﬁ∫!5ÀÿÅÌ°ûÑ(uÑ t Å4I&í<Ωvè¶cêe:JßË»ˆmjC≥Í1â®â†©Í19™ÍLkù≠°;ﬂ€Û¡‘it>g5˝ï’iØhÍä6Ô⁄:|ÙP†sÚ˘lÁ¯—Ωu€äÎ™´õ∫vıh;õ*Cc˜é⁄“œ‹{ﬂãΩRoyi’Ê™˛6∑Óq±¶ùâ˛·/èµWzÇÆ{Ï[Í∂8<˙&o–„bÅpj`Á‹¡ˆ¡m˘zÙ‹∫AˇYÈÉ≥!k!#PËpå€‚âP-®DÁdBàQı1q¡pƒLåÍpÖº∆:LD!&evh…êÉ†÷µ…YYa//+5…è≈ZP<ıù˘jÈÆÏ'€Û∑ß )"“ﬁÊ‹JlÑ\ÚÈU5ﬁ°‘8H≈ÍØõõ™∑VW€,√]_-ø¯›±eÀ1ŸTÂ\}çØ¸cKWqIqqÒCz–mê5Â2Z–jÆ%†:!†¢\§1H“…òL í!Y2B†∫ïäå“¨ù⁄YK‹ù]›§_2Z∂«FÕ6“L˙•µGîôÙìvÈÕ∆ÊõÃQM^Ìæªwk]˜Ó-÷€hµwµ?VvË—øHeó7ÔΩØwıªÕG˝ø–}øøos∑ì\Èô»ﬂ÷±∑ÀµYÔÛÎ,’ìt¢s˚‘sG„Áø4ﬂ∑˙≤≠Ã·, ˝ó\ÅÕx•“x¸ƒx]<™ •L«$bx‡
+9!À¢5x}!˘™ªRuxQå„Ì™]<tMf£±TìÙ÷ËÓD«Å«Ó÷?8îÕ∂}p±•Lz|kßœ±Ì¯”áVN”˜Ôm[Ÿ"S]‘EÙ÷;“oî°8*´'êÀA	úÑi8&ﬁ˝ÑjDπåãF.èAñßc ÑéI˘ßçK¥øO,Sö#;3“H2d≥€ÌˆÜFØ∑—ct† Ÿÿk*Ì™ßπpø÷.êùÆ˙3€zá<µ]{ZvOµ|p±µ‘—È‰ÅØéw˜œˇ…¯°≥-Ùfªﬂ\Úó˜™°ÌÚ7?l”3Câ¡'Æ=2wÌk£]AZkƒ^¸rÛ÷ﬁ‡èÓ-Î˚6õ≈{]¸‰óﬂzÿêˇﬁÌ˙hxÂo¨ñã (-ºç%@˛Õ¶ıÚG√|›∫`h⁄¯±…É+>\RL∏DGqI~ó‰)\2)∏§|1˘<ŒI3h•øÑG>èygÂD,‡Á§ãÏ!èêø$o”a∫@ﬂïR“_À6y°`≥øF9ûÜ	q§pFºÌ.æ©∞˙¢@r@û
+ò¿Bû,`
+y™Ä%Ï!ﬂ(`‰ÌV0Iﬁ/`*Ë=lFäŒ∞-ÙzaZZ;´-“tó†M˙fón∞«ÜÈ:"ò¡,∆N‡8&1ÜFd–Ü6¥†≠–®«0ÊÒ0‚ò¡“òF#x 'ë∆iú√ Œ‚∆ë5d∆–)tœcΩ‚yá3∆O––4ªASÃ‡öŒ‡Ê1	Ü}«iåcz1Éi√ﬁ=H„∆¡‡¡“ò«<Vâ”«1mÏª0NzÑì∆Æ˝ÿÖ0Ï≈¨¡›®˚vªO„Ñ¡ahE≠w42FTg1è”;¶ƒÊpÕÿãAå†©`gﬁÍ∞âÏÁéoÔ∫∂Æ£∑êµé;¨}“á6ﬁæû˜NËhAèÒ›eÃﬂ9ÉSÌÖòùﬁê√µìııì?∂ÂNÉ!m‰ai#+ßê∆NÇ˙>ù?˜éﬂV∑W‡]»u∆p g;≥òA∆X[;Kx9oDUTÂ	ú4,ô7X„xsﬂÅœÒﬂ•©GÆvÒ∑≤;|bW∑˚9BûJríQ5õÉ)|y˙`óGÅ_B%iÀnÀSì•⁄¨X
+S'Mwõ¢rªâ)∆Tq¯ıMïe÷††»üCy¯uÑ÷å9);êÛíÛ£	:ü0FıbÙ]Àà:ü9`L&ì…d®$cŸkŸi
+X6õïˇrÎ	._»Q‰îÏ ÄˇG,ïÓ
+endstream
+endobj
+45 0 obj
+<</Length 199/Filter/FlateDecode>>
+stream
+xúÕQªn√0€ı¸Å^éß”√{Å›“|ÇÅ∏Cç"È–~~q≤ÕﬁE‰A"§n äß sÃ+Th≈'µ`S’÷=C≈vé∑Pﬂ ^Aã£bÖ√àètIÁt˚À∂ZÛ¬∞ûÙ±¿Xjo∏/ —§`‚“r/≠:ò≈ÖI7ò¡.≠“-èŸé
+€|Ê T±xÊw£ÅÛa¡v¡£h∑JÔÈ˙(ñgÊf•å‚"Lç∫®S◊<Ÿ®Î_ˇuZÀ◊ÈGÒ¸ôŒøì∆he
+endstream
+endobj
+46 0 obj
+<</Length 290/Filter/FlateDecode>>
+stream
+xúÕë;n1D˚=≈\ II¸ú uí#,êÅ]8çØ–kG[∏s5AC>étÜÄ¡xºXGS¨'0•ÎËYbXò˙(…‹?_0ÉNµ©KáÎ¶†ÜbE8yìL(≤Ocˆ*^k◊vuÑOo„*oåuvl\§iﬁÎrX>ó∑Â¸8ÇT÷RiÏ—òÙ¶Ò˛
+°ÅÀˇâÚÒD&´(yãíHJÌaoõ2åfT#ˆ!≠c eZSna™õEwfıÎcx•˘k™^¥iﬂFx6éê‡¡7ºAÍüNA≠ñAò‹…jı:ZM&BQÈZ«ùEôZ)ﬂuQ&Ω^CÖÍóÔ¥„r@¯ù}á›Úò<-ì<ªLr¯ù|ß∑ó˚Û≥U
+endstream
+endobj
+47 0 obj
+<</Length 295/Filter/FlateDecode>>
+stream
+xúÖëΩN1Ñ{?≈î§8g÷øÎÅêË◊™Hπ(JÑŸóRàœ¯÷Û≠˜ND'Ëƒ'à8lé†M.á(†uÃº–JqìfúàWGHÆ◊mi*î\Ö◊È®ÃŒlÕ úñ1|.øàáèÍØıP≤ã°Tì&ócï,J_Ú¡≤ç–÷I(6#ÀT$ä’îR;ÔΩo≠)≠√fîjckx*‘6Êh∂aJ◊Ò∆Ñ:ò$Òá’˙7]p7πS·»m9#wLøp'Tùﬂkõ-ˇ¨$Œ; t◊?ª˙“RJDp6…p{‘Á¡‹˜ ˙ÛrK—oˇX›˙„€›ö‰öîE'éìs3Ág.Ã\¸ß2Õ\^º˜œÊ±7´oíyçò
+endstream
+endobj
+48 0 obj
+<</Length 180/Filter/FlateDecode>>
+stream
+xúUé1íB1C{N°‡±e;…?3t¿~∑≥ø†⁄Î3ŒR$R"+ÔÉBq4iD(÷*ŒåE	ï∞l£qîdè‘e‡zÇI‚Ü3?†-í0«ˆîÆí¯} pw'H&<@öÙ©Vê˛æçØtÏE	ÙΩíÅkµ$%+JŒÔzNπÇ÷d±÷˙Û)%?ßØ Jñvü¿S6)ÇB∞≈]«D›}Ï±“Úµ≠á€·Ú À
+B6
+endstream
+endobj
+49 0 obj
+<</Length 85/Filter/FlateDecode>>
+stream
+xú-»;@PE—ﬁ(ˆº‹sﬂ◊$:A'*”¢[Y¬0z—{i(±ùXêÁ4òøä’ñ"¸7ÀàB·FLàØë»â◊2ï„â£[ª˘˝ö/
+endstream
+endobj
+50 0 obj
+<</Length 84/Filter/FlateDecode>>
+stream
+xú-∆ªÄ @—û)Óê˜î	LÏ‘ÏVÆoL<’πQ!*—Õ–Ã9ê§Vr˚÷™Lsv$ŸˆMïeEπp+n:ÓN°á#l/—Ë∫
+endstream
+endobj
+51 0 obj
+<</Length 96/Filter/FlateDecode>>
+stream
+xú= 1Ä —ûS¸†ª,ÿõX£G∞∞ëb„ÒòÿΩL¶é·∏«á0_&õ
+Å`VbÄÏ4$ΩrÉ¶‰D}£ñË÷Ì•AQ†”ß≥7—?vûf3˘”¥p
+endstream
+endobj
+52 0 obj
+<</Length 159/Filter/FlateDecode>>
+stream
+xúEç±¬0D˜|≈ç04ÿN„&+[•lî§¬–"µ‚ˇÖıp~√ÈﬁÅ–0
+‹gêgâm&1 J]j»Àè±>`e¬M	Ñ	öÃí≠LµÒ¬‰ûntΩ[6#≥œ1JÑ˙êÌÙ+œùŸ¢&ï.RN2÷á; z	P∆m–^ô/ªÅàÜ[ÕwÕ◊˛ZŒÓT\ˇ,≤3
+endstream
+endobj
+53 0 obj
+<</Length 158/Filter/FlateDecode>>
+stream
+xúEç-1D}≈HW¶ﬂ≠%¡‡.©„P$=ƒù∏˛A∂$∞bÁâŸ}b2òíÕ∞Ø‘Œ_hAÌMà9⁄,hì,}Öîâ)À˘Üî<å»î/€h¸Äÿ‘[55´„o,:ß`¢vE&~›%â\`òSd…t}U◊
+¢ˆK#åCmˇuúíçŸ∆ÓÁgΩ´[UÛb3
+endstream
+endobj
+54 0 obj
+<</Length 179/Filter/FlateDecode>>
+stream
+xúÕè1NAE˚=≈ª@F∂ggmü )pÑï !RÑ&◊Gû ¥ïüÏ/€Ôä"'Â&h∞_êñncÕÇ±≈f>
+%CzÚ˘Jòí\f]€u3¬Óàñ(;—{[5zµ∫¢›…9wtFÃ„êˆ˚Ø»œ÷jÍ1>üÿó∑Âey\ÆøòhâàÂ&kGö}3OhÎ‹˛õ—Ûﬂåú Âù∞A6õnÅZ3>Êc∆V\∑æ pÔeÀ
+endstream
+endobj
+55 0 obj
+<</Length 186/Filter/FlateDecode>>
+stream
+xúÕè1ND1D˚äπ¿Z±«„ m·K@¡K≥◊GŒÆ–o®hH·å3OvÊ
+EC√IqbJÏ4…æŒ(©=ÃM8-Ü+æﬁ¡H$.Î‚‘0iKBAV›¡T ^OÈ4π|áˆB,x†„>!
+˘ôk›_üÿ∑èÌm{ﬁÆøDÈÊ#õ°…Püú∆íï§%ÒÚïé€KÙ˙∑DÅgê]&\f%À&j2˘h∆ÇÓF-˛È≠iU
+endstream
+endobj
+56 0 obj
+<</Length 184/Filter/FlateDecode>>
+stream
+xúMè±n√0Dw}≈çÌï§(Q\ÙhÃTN¿C¸ˇC@;à3ÒÅ∏;Ú`'∆…KÉ(¶îY™:Iê7≤ÆîÂ≈XØb`¡≤AÕ.⁄õ5∏Ú∆ÜkcÇWÕdïKÏ™™´GHH‹wï|§l)RBÛéémú?˚3S∫•9ù”„(eŸ∂wrãRµı&V…;«zMøÑ±˛ÃVå˘â1ñØ]˛ø«=˝çt~X2?x
+endstream
+endobj
+57 0 obj
+<</Length 206/Filter/FlateDecode>>
+stream
+xú›êΩn1Ñ{?≈îP`f◊Á	•&qIw“E∫Çkx}‰Ûq@)u*ª≥≥^ÕÇÿ	vBÍ—è†ÕIÉœBÏ¢¶Pëπ£Àò.Rl
+≈∏—:óŸâ´ùπ¥)ä6Í+'#ÛCRµ˙Óm—yz)öG_ÏãPW7Ï_æ}àÀïO˜zvoæÕ`NÊ˙[R†V ë©Û¥∫0>? 6‡ˆOí¯zO"ŸÏë˛í√t1á¢L˚Åè2<◊‘ßåõ3…3≈mÀè9s∫éz˛
+endstream
+endobj
+58 0 obj
+<</Length 142/Filter/FlateDecode>>
+stream
+xúMé±1C˜˚
+ˇ¿UNö∂È0åà©,70Ò˚(=b{qlÀob¨¬j0bÏ` Z¨S¡dR™Wı@mVÿ◊$)>˜å¸ û÷
+%ˆÉÑâ≈ΩÑÕ&C!tÉb@ÿsÍ&¢0>?ú 0MÍ·ç 3ì˝h >´Œ˛)«äø»1j,ØÂ∂l_å*.
+endstream
+endobj
+59 0 obj
+<</Length 92/Filter/FlateDecode>>
+stream
+xú5»±ÉPE—û)ÓX~∆˛|&@¢#!]E™¨è(ËéŒ·8£•L"¯ú∏MQπx‡ñ™÷[Ùõ1g˘“y≠»ƒÜ¯"ÂlEr"UZ!q<≠Œ1ºá˝∑å„
+endstream
+endobj
+60 0 obj
+<</Length 158/Filter/FlateDecode>>
+stream
+xú•Õ1¬0D—ﬁßò$⁄YØcÔ	®Å# ERÑÜÎ#'&§CÇnÙãy3Å†#:“¢‡2Azj2≠À…≈"§◊∂q:ÄJÖbc1(∆V ñ
+∆p«0ˇlHü\”˚6m“ñ4}ìÕñXﬂÜ∂ò 4îå«T1PÍ°äÉ+"ï∫Ë˚F¡Ó·˙]=∑Û⁄V0ñ}˚Ä/ˇdUÿ
+endstream
+endobj
+61 0 obj
+<</Length 120/Type/XObject/Subtype/Form/Filter/FlateDecode/Resources 4 0 R/BBox[13.6 16.4 16.6 19.4]/Group<</Type/Group/S/Transparency/I true/CS/DeviceRGB>>>>
+stream
+xúUéAB1D˜=≈\@RhÅˆûÅD›¸Öﬁa¯µQW<2Ã0O0**.9§#Tö.⁄gÇ⁄0qM¨s‘6Ò∫Éå«B%qVo‡æ©ìÅï¯ÑHú2∫¯Ïœî[¶≈∆œÈ◊‰;-!~ﬁú¬j≥Mª[îGπïÎZ‡+Ω
+endstream
+endobj
+62 0 obj
+<</Length 93/Type/XObject/Subtype/Form/Filter/FlateDecode/Resources 5 0 R/BBox[5.149994 9 30.850006 112]/Group<</Type/Group/S/Transparency/I true/CS/DeviceRGB>>>>
+stream
+xú5»1¬0D—>ß¯à5≥é◊Ò	®ÅQAI
+*ÆèA˜Ùﬁ!f3ª&vÿP=⁄2v¥\3z€©±™.'T:ü[wÒƒãKCl?YïŒ¸Ô°cßÎt˛où©
+endstream
+endobj
+63 0 obj
+<</Length 225/Type/XObject/Subtype/Form/Filter/FlateDecode/Resources 6 0 R/BBox[-0.2828369 -0.28284454 220.28284 36.282845]/Group<</Type/Group/S/Transparency/I true/CS/DeviceRGB>>>>
+stream
+xú=—1rC!E—ﬁ´x!$!Vê:…“~
+Wﬁ~$πÉ;√ÅA/4œÜgÜn¯[†´≥ $]“‘‹ÿ˜íá(M«œËrº±è8∫˜Ÿ7€aÚ'∞`Aà>°Û	¡iﬂ∫ Õ2xNtûw-HTH2H†“∏B†¬Öj†¬ÖZ†“âJ°û®ÍâZ°3QKT)—ë®∂D=QÂDg¢∫7î’®R°®∂B5PÂB-PÌÖZ¢RËHT
+ÕA©öÉR+tdáQË44ﬁ•&µüC5™S˜„˜Ò˝0#w‹
+endstream
+endobj
+64 0 obj
+<</Title(briefing-eligibility-graphics)/Creator(VectorCraft)/Producer(VectorCraft)/ModDate(D:20261116231925Z)/CreationDate(D:20261116231739Z)>>
+endobj
+65 0 obj
+<</Length 1080/Type/Metadata/Subtype/XML>>
+stream
+<?xpacket begin="Ôªø" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="xmp-writer"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"  xmlns:xmp="http://ns.adobe.com/xap/1.0/"  xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/"  xmlns:xmpTPg="http://ns.adobe.com/xap/1.0/t/pg/"  xmlns:pdf="http://ns.adobe.com/pdf/1.3/" ><dc:title><rdf:Alt><rdf:li xml:lang="x-default">briefing-eligibility-graphics</rdf:li></rdf:Alt></dc:title><xmp:CreatorTool>VectorCraft</xmp:CreatorTool><pdf:Producer>VectorCraft</pdf:Producer><xmp:ModifyDate>2026-11-16T23:19:25+00:00</xmp:ModifyDate><xmp:CreateDate>2026-11-16T23:17:39+00:00</xmp:CreateDate><xmpTPg:NPages>16</xmpTPg:NPages><dc:format>application/pdf</dc:format><xmpMM:InstanceID>GpdCE+MQ0DmrRXgjYa0nsg==</xmpMM:InstanceID><xmpMM:DocumentID>GpdCE+MQ0DmrRXgjYa0nsg==</xmpMM:DocumentID><xmpMM:RenditionClass>default</xmpMM:RenditionClass><pdf:PDFVersion>1.7</pdf:PDFVersion></rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="r"?>
+endstream
+endobj
+66 0 obj
+<</ViewerPreferences<</DisplayDocTitle true>>/Type/Catalog/Pages 1 0 R/Metadata 65 0 R>>
+endobj
+xref
+0 67
+0000000000 65535 f
+0000000016 00000 n
+0000000174 00000 n
+0000000223 00000 n
+0000000274 00000 n
+0000000327 00000 n
+0000000380 00000 n
+0000000433 00000 n
+0000000531 00000 n
+0000000584 00000 n
+0000000701 00000 n
+0000000755 00000 n
+0000000809 00000 n
+0000000863 00000 n
+0000000962 00000 n
+0000001035 00000 n
+0000001108 00000 n
+0000001162 00000 n
+0000001216 00000 n
+0000001289 00000 n
+0000001362 00000 n
+0000001416 00000 n
+0000001470 00000 n
+0000001524 00000 n
+0000001656 00000 n
+0000001981 00000 n
+0000002180 00000 n
+0000002315 00000 n
+0000002450 00000 n
+0000002588 00000 n
+0000002724 00000 n
+0000002860 00000 n
+0000002996 00000 n
+0000003135 00000 n
+0000003271 00000 n
+0000003407 00000 n
+0000003543 00000 n
+0000003679 00000 n
+0000003815 00000 n
+0000003951 00000 n
+0000004087 00000 n
+0000004223 00000 n
+0000004362 00000 n
+0000004440 00000 n
+0000004932 00000 n
+0000009413 00000 n
+0000009681 00000 n
+0000010040 00000 n
+0000010404 00000 n
+0000010653 00000 n
+0000010806 00000 n
+0000010958 00000 n
+0000011122 00000 n
+0000011350 00000 n
+0000011577 00000 n
+0000011825 00000 n
+0000012080 00000 n
+0000012333 00000 n
+0000012608 00000 n
+0000012819 00000 n
+0000012979 00000 n
+0000013206 00000 n
+0000013519 00000 n
+0000013809 00000 n
+0000014250 00000 n
+0000014410 00000 n
+0000015567 00000 n
+trailer
+<</Size 67/Root 66 0 R/Info 64 0 R/ID[(GpdCE+MQ0DmrRXgjYa0nsg==)(GpdCE+MQ0DmrRXgjYa0nsg==)]>>
+startxref
+15672
+%%EOF

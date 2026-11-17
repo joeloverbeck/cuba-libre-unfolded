@@ -15,6 +15,38 @@ pub const LAYOUT_MANIFEST: &str = include_str!("../art/atlas/layout.sha256");
 pub const TERRAIN_MANIFEST: &str = include_str!("../art/atlas/terrain.sha256");
 pub const TERROR_MANIFEST: &str = include_str!("../art/atlas/terror.sha256");
 pub const TOP_MANIFEST: &str = include_str!("../art/atlas/top.sha256");
+/// The selected map highlight family (HF-A, #72): stateless presentation, like the
+/// status tags, so it does not change the save-bound identity.
+pub const HIGHLIGHT_MANIFEST: &str = include_str!("../art/atlas/highlights.sha256");
+pub const CHOICE_MANIFEST: &str = include_str!("../art/atlas/choice.sha256");
+/// The selected EL-A eligibility indicator (#70): stateless presentation.
+pub const ELIGIBILITY_MANIFEST: &str = include_str!("../art/atlas/eligibility.sha256");
+/// The selected transfer modal (TM-B, #71): stateless presentation.
+pub const TRANSFER_MANIFEST: &str = include_str!("../art/atlas/transfer.sha256");
+/// The Kidnap die, its tray and its record (#74). Like the Terror bell, presentation
+/// art that does not change what a save records.
+pub const KIDNAP_MANIFEST: &str = include_str!("../art/atlas/kidnap.sha256");
+/// The selected HF-A popover's production plates (#58 review): stateless presentation.
+pub const POPOVER_MANIFEST: &str = include_str!("../art/atlas/popover.sha256");
+/// The selected EX-A execution panel's pills (#84): stateless presentation.
+pub const EXECUTION_MANIFEST: &str = include_str!("../art/atlas/execution.sha256");
+/// Every manifest admitted at launch, in the order `inspect` reads them.
+pub const MANIFESTS: [&str; 14] = [
+    MANIFEST,
+    STATUS_MANIFEST,
+    VICTORY_MANIFEST,
+    LAYOUT_MANIFEST,
+    TERRAIN_MANIFEST,
+    TERROR_MANIFEST,
+    TOP_MANIFEST,
+    HIGHLIGHT_MANIFEST,
+    CHOICE_MANIFEST,
+    ELIGIBILITY_MANIFEST,
+    TRANSFER_MANIFEST,
+    KIDNAP_MANIFEST,
+    POPOVER_MANIFEST,
+    EXECUTION_MANIFEST,
+];
 pub const SOURCE: &str = "deacd635db5f71f4d3f092bd9cc99a9d96bb7aab;R:8152cb0056e3690fdc01c7b4ff893369ad7eff288941abc540ceee2c9d606792;P:dcaa5afd6f01c0c9ed4746c18199c1b09058823d67b627384fd3184ed4015fe8";
 const CARD_17: &str = "141f592b5dee5a8c7a6d26651410b0ee1171a7dcf2c2b5331a63b48407cec9ab";
 const CARD_18: &str = "50df7058e660bb4dc620096823945eeb095fe4123e0aead68fec6244ab097c4e";
@@ -30,15 +62,7 @@ pub struct Verified {
 }
 pub fn inspect(root: &Path, cards: &Path) -> Result<Verified> {
     let mut files = BTreeMap::new();
-    for line in MANIFEST
-        .lines()
-        .chain(STATUS_MANIFEST.lines())
-        .chain(VICTORY_MANIFEST.lines())
-        .chain(LAYOUT_MANIFEST.lines())
-        .chain(TERRAIN_MANIFEST.lines())
-        .chain(TERROR_MANIFEST.lines())
-        .chain(TOP_MANIFEST.lines())
-    {
+    for line in MANIFESTS.iter().flat_map(|manifest| manifest.lines()) {
         let (hash, path) = line
             .split_once("  ")
             .context("Invalid compiled art manifest")?;

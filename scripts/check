@@ -13,6 +13,19 @@ if [[ -z $changes ]]; then
 else
   echo "working tree: $(wc -l <<<"$changes") changed path(s) differ from the revision; this log checks uncommitted source"
 fi
+# A merge's conflict markers left in any tracked text file (#71 committed some in
+# README) fail before anything is built. `git grep` exits 0 on a match, 1 on none,
+# and above 1 on an error, which must not pass as "none".
+rc=0
+git grep -I -n -E '^(<<<<<<< |>>>>>>> )' || rc=$?
+if ((rc == 0)); then
+  echo "conflict markers found in tracked files" >&2
+  exit 1
+elif ((rc > 1)); then
+  echo "conflict-marker search failed: git grep exited $rc" >&2
+  exit 1
+fi
+echo "conflict markers: none"
 # Builds are bounded by `.cargo/config.toml`, which every Cargo command here reads.
 cargo fmt --all --check
 cargo clippy --locked --all-targets -- -D warnings

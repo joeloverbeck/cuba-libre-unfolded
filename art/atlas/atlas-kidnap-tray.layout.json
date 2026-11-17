@@ -1,0 +1,16 @@
+{
+  "source": "atlas-action-choice.figcraft",
+  "frame": [6144, 3456],
+  "selected": "Box die in tray placement C (#68), composed into the selected AC-B panel at #74's merge: frame 'AC-B panel · Kidnap die presented' (node 2145), panel node 2179",
+  "note": "absoluteBounds [x, y, width, height] read from FigCraft get_node, minus the frame's page origin (6244, 6900). Frame C's tray, title and result text come unchanged from art/proposals/issue-67/kidnap-tray-placements.figcraft (node 37); the tray and the result moved down 324 units (120 reference px) so that the tray starts 21.6 units below the BRIEFING ribbon, and Continue Terror takes AC-B's primary action (choice-commit). The viewport, Continue and the ribbon are compared on all four edges; runtime text, whose width is its content's, on left and top.",
+  "parts": {
+    "kidnap-tray viewport": [4689.0, 1080.0, 1344.0, 1024.0],
+    "kidnap-die:continue": [4750.8, 2354.4, 1220.4, 140.4],
+    "briefing-ribbon": [5874.0, 756.0, 97.2, 302.4]
+  },
+  "text": {
+    "panel title": [4760.0, 830.0, 811.0, 86.0],
+    "kidnap-result title": [4760.0, 2160.0, 420.0, 86.0],
+    "kidnap-result detail": [4760.0, 2255.0, 1076.0, 67.0]
+  }
+}

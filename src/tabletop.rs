@@ -1,7 +1,8 @@
 //! Selected Atlas presentation. Input travels through Bevy picking into the checked game seam.
 use crate::{
-    Faction, Game, Kind, State, Terrain,
+    Choice, Faction, Game, Kind, Observation, State, Terrain, Transfer, TransferChoice,
     assets::{self, Verified},
+    resources,
     save::Session,
 };
 use bevy::{
@@ -23,6 +24,7 @@ use bevy::{
     },
     window::PrimaryWindow,
 };
+use emblems::Prose;
 use std::{
     collections::BTreeMap,
     path::PathBuf,
@@ -41,9 +43,21 @@ use unfolded_tabletop::{
     label_anchor::{LabelAnchor, LabelAnchorPlugin},
     token,
 };
+mod briefing;
+mod choice;
+pub mod die;
+#[cfg(test)]
+mod discovery;
+mod eligibility;
+mod emblems;
+mod execution;
+mod highlights;
+mod palette;
+mod popover;
 pub mod seat;
 mod status;
 mod top;
+mod transfer;
 mod victory;
 
 #[derive(Clone)]
@@ -67,7 +81,7 @@ impl Play {
     fn game(&self) -> Game {
         self.session
             .as_ref()
-            .map_or_else(Game::prepared, |s| s.game().clone())
+            .map_or_else(Game::opening, |s| s.game().clone())
     }
 }
 #[derive(Resource)]
@@ -75,6 +89,9 @@ struct Art {
     verified: Verified,
     images: BTreeMap<String, Handle<Image>>,
     font: Handle<Font>,
+    /// Lato Bold, for the action choice's labels (FigCraft `Choice/*` styles) and the
+    /// Kidnap result.
+    bold: Handle<Font>,
     scene: Handle<WorldAsset>,
     terror: Handle<WorldAsset>,
     terror_clip: Handle<AnimationClip>,
@@ -102,21 +119,38 @@ struct LabelSpec {
     #[serde(default)]
     pieces: Option<[f32; 2]>,
 }
-/// What one shared hover lifecycle can disclose: a victory standing or an element of
-/// the top display. Serialized for the seat as the faction or the element's name.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+/// What one shared hover lifecycle can disclose: a victory standing, an element of
+/// the top display, or a choice's preview. Serialized for the seat as the faction,
+/// the element's name or the choice id.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 #[serde(untagged)]
 enum Target {
     Standing(Faction),
     Top(top::Item),
+    Choice(String),
+    /// An action box of the eligibility indicator, by its seat name.
+    Sequence(eligibility::Slot),
 }
 #[derive(Resource, Default)]
 struct Interface {
     hover: Hover<Target>,
     status: Hover<String>,
+    /// Set by a click; the next frame records the pointer's position in `rested`.
+    clicked: bool,
+    /// Where the pointer rested at its last click. A choice's preview stays closed
+    /// until the pointer moves, so the button that replaces the clicked one does not
+    /// open a card under a pointer that has not left it.
+    rested: Option<Vec2>,
     reader: bool,
     notice: String,
     dirty: bool,
+    /// The action choice's pinned option, keyboard focus and briefing ribbon.
+    choice: choice::State,
+    /// The transfer modal's counterpart, direction, typed amount and focus.
+    transfer: transfer::State,
+    /// The revision a Kidnap roll just created in this run, until the die's
+    /// presentation starts it from the shared clock in the same frame (`die::present`).
+    rolled: Option<u64>,
 }
 #[derive(Component)]
 struct UiRoot;
@@ -124,6 +158,14 @@ struct UiRoot;
 struct StandingText(Faction);
 #[derive(Component)]
 struct PieceVisual;
+/// A 26July group's token: removal mode marks it, and a click on it opens its piece
+/// popover (#73). `key` is `space:group` as removal ids name it; `base` is the region
+/// top it stands on.
+#[derive(Component)]
+struct OwnPiece {
+    key: String,
+    base: f32,
+}
 #[derive(Component, Clone)]
 struct Control {
     name: String,
@@ -138,8 +180,39 @@ enum Action {
     Reader,
     Space(String),
     Decision(Faction, u64),
+    /// A commit at the panel's foot: the action choice's for its pinned option, or EX-A's
+    /// for its pinned or open step, and Kidnap's Cancel (#84). Its preview is the
+    /// pinned tag, so the pointer on it opens nothing.
+    Commit(Faction, u64),
+    /// An option row at the action choice: pins (or unpins) its briefing.
+    Pin(String),
+    /// The BRIEFING ribbon during Terror: opens or closes the briefing tag.
+    Ribbon,
+    /// A briefing tab during Terror: "terror" or "terror:kidnap".
+    Tab(String),
+    /// An action box of the eligibility indicator: a hover disclosure only.
+    Sequence(eligibility::Slot),
     Unsupported(String),
+    /// Lands the Kidnap die at once.
+    SkipDie,
+    /// Closes the landed Kidnap die and returns the panel to Terror.
+    ContinueDie,
     Quit,
+    /// A space popover row: shows that action's preview, and decides nothing.
+    Row(String),
+    /// A control named apart from the choice it submits, as the panel's `Decision`
+    /// does: a space popover's button, and EX-A's commit while it opens a pending
+    /// request, whose choice TM-B's pending tab already carries (#84).
+    Submit(Faction, u64, String),
+    /// A 26July piece on the map: opens its popover in removal mode, else nothing.
+    Piece(String),
+    /// The piece popover's stepper: one fewer or one more; decides nothing.
+    Quantity(i8),
+    /// The piece popover's Cancel: closes it; decides nothing.
+    Dismiss,
+    /// A transfer modal control that decides nothing: a counterpart tab, the
+    /// direction, a quick value, the amount field or the pending tab's Open.
+    Transfer(transfer::Input),
 }
 #[derive(Resource, Clone)]
 struct RenderReady {
@@ -157,6 +230,18 @@ struct Water {
 }
 const WIDTH: f32 = 1920.;
 const HEIGHT: f32 = 1280.;
+/// The Operation panel's authored frame (`atlas-panel.png`) in reference pixels:
+/// x, y, width, height.
+const PANEL: [f32; 4] = [1380., 287., 500., 653.];
+/// A faction's lower-case slug, as export file names and seat names spell it.
+fn slug(faction: Faction) -> &'static str {
+    match faction {
+        Faction::Government => "government",
+        Faction::M26 => "26july",
+        Faction::Directorio => "directorio",
+        Faction::Syndicate => "syndicate",
+    }
+}
 // The authored region mesh, labels and group centers share the same map coordinates.
 fn map_at(x: f32, y: f32, height: f32) -> Vec3 {
     Vec3::new((x - 700.) / 100., height, (y - 600.) / 100.)
@@ -224,6 +309,11 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .world_mut()
         .resource_mut::<Assets<Font>>()
         .add(Font::from_bytes(verified.files["Lato-Regular.ttf"].clone()));
+    let bold = app
+        .world_mut()
+        .resource_mut::<Assets<Font>>()
+        .add(Font::from_bytes(verified.files["Lato-Bold.ttf"].clone()));
+    let die_art = die::DieArt::load(&mut app, &verified.files["kidnap-die.json"])?;
     let server = app.world().resource::<AssetServer>();
     let scene = server.load("atlas-terrain-map.glb#Scene0");
     let terror = server.load("atlas-terror-token.glb#Scene0");
@@ -255,11 +345,14 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             verified,
             images,
             font,
+            bold,
             scene,
             terror,
             terror_clip: terror_clip.clone(),
             labels: labels.labels,
         })
+        .insert_resource(die_art)
+        .init_resource::<die::Roll>()
         .insert_resource(TerrorLoop {
             clip: terror_clip,
             graph,
@@ -290,25 +383,51 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 .after(camera_facts_and_viewport)
                 .before(status::hover),
         )
-        .add_systems(Startup, setup)
+        .init_resource::<highlights::Targeting>()
+        .init_resource::<popover::Popover>()
+        .add_systems(Startup, (setup, highlights::setup, popover::setup))
+        .add_observer(map_click_closes_tag)
         .add_systems(
             Update,
             (
                 admit,
+                highlights::refresh,
+                highlights::show,
                 sync_pieces,
+                highlights::markers,
+                popover::hover_piece,
                 bind_spaces,
                 hover_disclosures,
+                // The presented die takes Space and Enter, so the action choice and the
+                // modal read the keyboard first and stand aside while it is shown.
+                (choice::keys, transfer::keys, die::present).chain(),
                 draw_ui,
                 camera_facts_and_viewport,
                 status::hover,
                 status::draw,
                 victory::draw,
                 top::draw,
+                popover::draw,
+                popover::place,
+                // Bevy chains at most 20 systems in one tuple.
+                (
+                    choice::draw,
+                    eligibility::draw,
+                    transfer::draw,
+                    transfer::plates,
+                )
+                    .chain(),
                 animate_water,
             )
                 .chain(),
         )
-        .add_systems(PostUpdate, animate_terror.before(AnimationSystems));
+        .add_systems(
+            PostUpdate,
+            (
+                (animate_terror, die::animate).before(AnimationSystems),
+                emblems::ink,
+            ),
+        );
     Ok(app)
 }
 fn render_ready(
@@ -506,6 +625,27 @@ fn sync_pieces(
                 .entity(token)
                 .insert((PieceVisual, status::SpaceTarget(space.id.clone())))
                 .remove::<Pickable>();
+            if piece.faction == Faction::M26 {
+                let key = format!(
+                    "{}:{}",
+                    space.id,
+                    crate::removal_group(piece.kind, piece.state)
+                );
+                commands
+                    .entity(token)
+                    .insert((
+                        OwnPiece {
+                            key: key.clone(),
+                            base: top,
+                        },
+                        Control {
+                            name: format!("own-piece:{key}"),
+                            choice: false,
+                            action: Action::Piece(key),
+                        },
+                    ))
+                    .observe(click);
+            }
             let mark = match piece.state {
                 State::Active => Some("atlas-active-star.png"),
                 State::Closed => Some("atlas-closed-slash.png"),
@@ -660,33 +800,41 @@ fn admit(
     mut context: ResMut<bevy::text::FontCx>,
     ready: Res<RenderReady>,
     mut ui: ResMut<Interface>,
+    die: Res<die::DieArt>,
 ) {
     if play.error.is_some() || play.session.is_some() {
         return;
     }
-    let report = unfolded_tabletop::loading::required_assets(
-        &server,
-        &[
-            art.scene.id().untyped(),
-            art.terror.id().untyped(),
-            art.terror_clip.id().untyped(),
-        ],
-        |id| {
-            if id == art.terror_clip.id().untyped() {
-                clips.get(&art.terror_clip).is_some()
-            } else {
-                scenes.contains(id.typed::<WorldAsset>())
-            }
-        },
-    );
+    let clip_ids: Vec<bevy::asset::UntypedAssetId> = std::iter::once(&art.terror_clip)
+        .chain(&die.clips)
+        .map(|clip| clip.id().untyped())
+        .collect();
+    let required: Vec<bevy::asset::UntypedAssetId> = [
+        art.scene.id().untyped(),
+        art.terror.id().untyped(),
+        die.die.id().untyped(),
+        die.tray.id().untyped(),
+    ]
+    .into_iter()
+    .chain(clip_ids.iter().copied())
+    .collect();
+    let report = unfolded_tabletop::loading::required_assets(&server, &required, |id| {
+        if clip_ids.contains(&id) {
+            clips.contains(id.typed::<AnimationClip>())
+        } else {
+            scenes.contains(id.typed::<WorldAsset>())
+        }
+    });
     if !report.failures.is_empty() {
         play.error = Some(report.failures.join("; "));
         ui.dirty = true;
         return;
     }
-    let font_ready = fonts
-        .get(&art.font)
-        .is_some_and(|font| unfolded_tabletop::loading::font_registered(font, &mut context));
+    let font_ready = [&art.font, &art.bold].into_iter().all(|font| {
+        fonts
+            .get(font)
+            .is_some_and(|font| unfolded_tabletop::loading::font_registered(font, &mut context))
+    });
     if !report.loaded
         || !font_ready
         || !ready.ready.load(Ordering::Acquire)
@@ -734,28 +882,49 @@ fn bind_spaces(
 fn hover_disclosures(
     hover: Res<HoverMap>,
     controls: Query<&Control>,
+    pointers: Query<(&PointerId, &bevy::picking::pointer::PointerLocation)>,
     time: Res<Time>,
     mut ui: ResMut<Interface>,
 ) {
+    let at = pointers
+        .iter()
+        .find(|(id, _)| **id == PointerId::Mouse)
+        .and_then(|(_, l)| l.location.as_ref().map(|l| l.position));
+    if std::mem::take(&mut ui.clicked) {
+        ui.rested = at;
+    } else if ui.rested.is_some() && ui.rested != at {
+        ui.rested = None;
+    }
+    let rested = ui.rested.is_some();
     let target = hover.get(&PointerId::Mouse).and_then(|hits| {
-        hits.keys()
-            .find_map(|e| match controls.get(*e).ok()?.action {
+        hits.keys().find_map(|e| {
+            let control = controls.get(*e).ok()?;
+            match control.action {
                 Action::Standing(f) => Some(Target::Standing(f)),
                 Action::Top(item) => Some(Target::Top(item)),
+                Action::Sequence(slot) => Some(Target::Sequence(slot)),
+                Action::Decision(..) | Action::Unsupported(_) | Action::Pin(_) if !rested => {
+                    Some(Target::Choice(control.name.clone()))
+                }
                 _ => None,
-            })
+            }
+        })
     });
     let eligible = !ui.reader;
     ui.hover
         .update(target, eligible, time.delta(), Duration::from_millis(400));
 }
 
+#[allow(clippy::too_many_arguments)] // A Bevy observer: its parameters are the resources it reads.
 fn click(
     mut event: On<PointerClick>,
     controls: Query<&Control>,
     mut play: ResMut<Play>,
     mut ui: ResMut<Interface>,
     mut exit: MessageWriter<AppExit>,
+    mut roll: ResMut<die::Roll>,
+    targeting: Res<highlights::Targeting>,
+    mut popover: ResMut<popover::Popover>,
 ) {
     event.propagate(false);
     if event.button != bevy::picking::pointer::PointerButton::Primary || play.session.is_none() {
@@ -764,85 +933,278 @@ fn click(
     let Ok(control) = controls.get(event.entity) else {
         return;
     };
+    // A popover's button, or a commit named apart from its choice, submits its choice
+    // exactly as the panel's button does.
+    let control = &match &control.action {
+        Action::Submit(owner, revision, choice) => Control {
+            name: choice.clone(),
+            choice: true,
+            action: Action::Decision(*owner, *revision),
+        },
+        _ => control.clone(),
+    };
+    ui.clicked = true;
     if ui.reader && !matches!(control.action, Action::Close | Action::Quit) {
         return;
     }
     match &control.action {
-        // Hover disclosures and development-seat map picks never change a decision.
-        Action::Standing(_) | Action::Top(_) | Action::Space(_) => return,
+        // Hover disclosures never change a decision.
+        Action::Standing(_) | Action::Top(_) | Action::Sequence(_) => return,
+        // A region click opens or closes a space popover while Terror targets are
+        // chosen, and does nothing otherwise; it never decides anything itself. An
+        // opened popover wins over the AC-B briefing tag, which reopens from the
+        // BRIEFING ribbon (owner's clash rule, #58).
+        Action::Space(space) => {
+            // The transfer modal's scrim takes the map's input beneath it.
+            if transfer::shown(play.game().transfer.as_ref()) {
+                return;
+            }
+            if popover.click_space(space, &targeting) {
+                ui.choice.close();
+            }
+            return;
+        }
+        Action::Row(action) => {
+            popover.choose_row(action);
+            return;
+        }
+        Action::Piece(key) => {
+            popover.click_piece(key, &targeting);
+            // A piece popover wins over a step's tag, as a space popover does.
+            if popover.open() {
+                ui.choice.close();
+                ui.dirty = true;
+            }
+            return;
+        }
+        Action::Quantity(step) => {
+            popover.step(*step, &targeting);
+            return;
+        }
+        Action::Dismiss => {
+            popover.close();
+            return;
+        }
+        Action::Submit(..) => return,
         Action::Close => {
             ui.reader = false;
         }
         Action::Reader => {
             ui.reader = true;
         }
-        Action::Decision(owner, rev) => {
-            let previous = play.game().observe();
-            match play
-                .session
-                .as_mut()
-                .unwrap()
-                .submit(*owner, *rev, &control.name)
+        Action::Decision(owner, rev) | Action::Commit(owner, rev) => {
+            decide(&mut play, &mut ui, *owner, *rev, &control.name);
+        }
+        Action::Pin(_) | Action::Ribbon | Action::Tab(_) => {
+            choice::activate(&mut ui, &control.action);
+            // Whichever opened last wins: the tag opened from the ribbon, or a step's
+            // tag pinned from its row during Terror (#84), closes an open popover
+            // (orchestrator implementation judgement, #58 carry-forward).
+            let step = matches!(control.action, Action::Pin(_))
+                && play.game().action == crate::ActionChoice::Terror;
+            if (ui.choice.ribbon && matches!(control.action, Action::Ribbon))
+                || (step && ui.choice.pinned.is_some())
             {
-                Ok(()) => {
-                    ui.notice = if control.name.ends_with(":authorize") {
-                        if let Some(crate::Transfer::Authorizing {
-                            giver,
-                            recipient,
-                            amount,
-                        }) = previous.transfer
-                        {
-                            format!(
-                                "{} gave {amount} to {}. Saved.",
-                                giver.name(),
-                                recipient.name()
-                            )
-                        } else {
-                            "Decision saved.".into()
-                        }
-                    } else if control.name.ends_with(":decline") {
-                        format!("{} declined. No resources moved.", owner.name())
-                    } else if control.name.ends_with(":wait") {
-                        format!(
-                            "Waiting for {}. Save / quit keeps this decision.",
-                            owner.name()
-                        )
-                    } else if control.name.ends_with(":kidnap") {
-                        let view = play.game().observe();
-                        let roll = view.kidnap.as_ref().unwrap();
-                        format!(
-                            "Kidnap rolled {} · transferred {}.\nGovernment {} · 26July {}. Saved.",
-                            roll.die, roll.proceeds, view.resources[0], view.resources[1]
-                        )
-                    } else if control.name.ends_with(":confirm-removal") {
-                        "Removed 1 own piece to Available. Control and standings updated; earlier Terror and Opposition remain.".into()
-                    } else if control.name.ends_with(":cancel-removal") {
-                        "Removal cancelled. No piece removed; earlier effects remain.".into()
-                    } else if control.name.contains(":terror:") {
-                        "Terror saved: paid 1, activated 1, placed marker and shifted Opposition."
-                            .into()
-                    } else if control.name.ends_with(":finish") {
-                        format!(
-                            "Saved {}. No Pass income.",
-                            if previous.kidnap.is_some() {
-                                "Operation + Kidnap"
-                            } else {
-                                "Operation Only"
-                            }
-                        )
-                    } else {
-                        "Decision saved; resources unchanged.".into()
-                    };
-                }
-                Err(e) => ui.notice = e.to_string(),
-            };
+                popover.close_all();
+            }
         }
         Action::Unsupported(reason) => ui.notice = reason.clone(),
+        Action::Transfer(input) => transfer::input(&mut ui, &play.game().observe(), *input),
+        // Presentation only: the roll was saved before the die moved.
+        Action::SkipDie => roll.skip(),
+        Action::ContinueDie => roll.close(play.game().observe().revision),
         Action::Quit => {
             exit.write(AppExit::Success);
         }
     }
     ui.dirty = true;
+}
+/// A primary click on the map, outside any interface node, closes the open AC-B
+/// briefing tag, or during Terror the pinned EX-A step tag (#84), so the Santiago and
+/// Oriente targets it covers become clickable (orchestrator implementation judgement,
+/// recorded in #58's carry-forward; the owner accepted the coverage). A click on the
+/// tag itself is an interface node and keeps it.
+fn map_click_closes_tag(
+    event: On<PointerClick>,
+    nodes: Query<(), With<Node>>,
+    play: Res<Play>,
+    mut ui: ResMut<Interface>,
+) {
+    if event.button != bevy::picking::pointer::PointerButton::Primary
+        || play.session.is_none()
+        || nodes.contains(event.entity)
+    {
+        return;
+    }
+    let step = play.game().action == crate::ActionChoice::Terror && ui.choice.pinned.is_some();
+    if !(ui.choice.ribbon || step) {
+        return;
+    }
+    ui.choice.close();
+    ui.dirty = true;
+}
+/// Submits a decision through the checked game seam and words its outcome. Pointer
+/// clicks and the keyboard's Enter on a focused control both come here.
+fn decide(play: &mut Play, ui: &mut Interface, owner: Faction, rev: u64, name: &str) {
+    let previous = play.game().observe();
+    match play.session.as_mut().unwrap().submit(owner, rev, name) {
+        Ok(()) => {
+            let after = play.game().observe();
+            if name.ends_with(":kidnap:roll") {
+                // The result is saved; the tray shows it from this frame's clock
+                // (die::present), and the notice names it once the die lands.
+                ui.rolled = Some(after.revision);
+            }
+            ui.notice = notice(&previous, &after, owner, name);
+        }
+        Err(e) => ui.notice = e.to_string(),
+    };
+    // A committed decision leaves its step; its pin and focus go with it, and a step
+    // the decision opened holds the panel with its tag pinned (EX-A, #84).
+    ui.choice.decided(&play.game().observe());
+}
+/// "a, b and c".
+fn listing(parts: &[String]) -> String {
+    match parts {
+        [] => String::new(),
+        [one] => one.clone(),
+        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+    }
+}
+/// The session notice for the committed decision `name`. Every rules fact it states
+/// is the authority's (foundation 2, "Engine authority"): the decision's own id, read
+/// through `Choice`'s accessors; the preview the authority showed for it, from
+/// `previous`; or the record in `after`, the observation once it was committed.
+fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &str) -> String {
+    let choice = previous.choices.iter().find(|c| c.id == name);
+    let action = name.split_once(':').map_or(name, |(_, a)| a);
+    let place = |id: &str| {
+        after
+            .spaces
+            .iter()
+            .find(|s| s.id == id)
+            .map_or(id.to_owned(), |s| s.name.clone())
+    };
+    if let Some(transfer) = choice.and_then(Choice::transfer) {
+        return match transfer {
+            TransferChoice::Give { recipient, amount } => {
+                format!("26July gave {amount} to {}. Saved.", recipient.name())
+            }
+            TransferChoice::Ask { .. } => match after.transfer {
+                Some(Transfer::Authorizing { giver, amount, .. }) => format!(
+                    "Transfer request saved: 26July asks {} for {amount}. Nothing moves until {} decides.",
+                    giver.name(),
+                    giver.name()
+                ),
+                _ => "Transfer request saved.".into(),
+            },
+            TransferChoice::Authorize { amount } => match previous.transfer {
+                Some(Transfer::Authorizing {
+                    giver, recipient, ..
+                }) => format!(
+                    "{} gave {amount} to {}. Saved.",
+                    giver.name(),
+                    recipient.name()
+                ),
+                _ => "Decision saved.".into(),
+            },
+        };
+    }
+    if let Some((_, _, n)) = choice.and_then(Choice::removal) {
+        return format!(
+            "Removed {n} own piece{} to Available. Removal stays open until Done; earlier Terror, support shifts and Kidnap results remain. Saved.",
+            if n == 1 { "" } else { "s" }
+        );
+    }
+    if let Some(space) = action.strip_prefix("terror:") {
+        // What the authority previewed for this Terror, which committing applied.
+        let Some(preview) = choice.and_then(|c| c.preview.as_ref()) else {
+            return format!("Terror saved in {}.", place(space));
+        };
+        let mut done = vec![];
+        for r in preview.resources.iter().filter(|r| r.to < r.from) {
+            done.push(format!("paid {}", resources(r.from - r.to)));
+        }
+        let state = |state: State| match state {
+            State::Underground => "Underground",
+            State::Active => "Active",
+            _ => "",
+        };
+        for f in &preview.flips {
+            done.push(format!(
+                "flipped {} {} Guerrilla{} to {}",
+                f.count,
+                state(f.from),
+                if f.count == 1 { "" } else { "s" },
+                state(f.to)
+            ));
+        }
+        for _ in &preview.terror {
+            done.push("placed a Terror marker".into());
+        }
+        for shift in &preview.support {
+            done.push(format!("shifted {}", shift.label));
+        }
+        return format!("Terror saved in {}: {}.", place(space), listing(&done));
+    }
+    match action {
+        "decline" => format!("{} declined. No resources moved.", owner.name()),
+        "wait" => format!(
+            "Waiting for {}. The request stays pending. Saved.",
+            owner.name()
+        ),
+        "reopen" => format!("{} decides the Transfer request. Saved.", owner.name()),
+        "back" => "Transfer closed. Nothing moved. Saved.".into(),
+        "transfer" => "Resource transfer open: nothing has moved. Saved.".into(),
+        "kidnap" => "Kidnap opened: nothing rolled. Roll the die or cancel. Saved.".into(),
+        "kidnap:cancel" => "Kidnap cancelled: nothing rolled and nothing changed. Saved.".into(),
+        "kidnap:roll" => {
+            "Kidnap roll saved. The die is landing: click it or press Space to skip.".into()
+        }
+        "remove" => "Removal mode: click a ringed 26July piece on the map. Saved.".into(),
+        "done-removal" => "Removal mode closed; removed pieces stay in Available. Saved.".into(),
+        "pass" => {
+            // The record Pass committed: its Resources, 26July's Eligibility for the
+            // next card and the next faction's role.
+            let gained: Vec<String> = after
+                .recorded_resources
+                .iter()
+                .map(|r| format!("+{}", resources(r.to.saturating_sub(r.from))))
+                .collect();
+            let eligibility = match after.eligibility.m26_next_card {
+                Some(true) => " and stays Eligible",
+                Some(false) => " and becomes Ineligible after this card",
+                None => "",
+            };
+            let next = after.next.as_ref().map_or(String::new(), |n| {
+                format!(" {} is {}.", n.faction.name(), n.role)
+            });
+            format!(
+                "26July passed: {}{eligibility}.{next} Saved.",
+                listing(&gained)
+            )
+        }
+        "terror" => match after.executing {
+            Some(executing) => {
+                let open = after
+                    .choices
+                    .iter()
+                    .any(|c| c.supported && c.action() == "transfer");
+                format!(
+                    "Terror chosen: {} is executing{}. Saved.",
+                    executing.name(),
+                    if open { ", and transfers are open" } else { "" }
+                )
+            }
+            None => "Terror chosen. Saved.".into(),
+        },
+        "back-to-choice" => "Back at the action choice. Nothing had happened; any pending request is withdrawn. Saved.".into(),
+        "end-terror" => match after.eligibility.m26_box {
+            Some(record) => format!("Terror ended: {} recorded. Saved.", record.name()),
+            None => "Terror ended. Saved.".into(),
+        },
+        _ => "Decision saved.".into(),
+    }
 }
 fn layout(window: &Window) -> (f32, Vec2) {
     let scale = (window.width() / WIDTH).min(window.height() / HEIGHT);
@@ -873,11 +1235,20 @@ fn map_viewport(window: &Window) -> Viewport {
         ..default()
     }
 }
-/// What the table says to the shared camera: the reader and an unopened session
-/// block it, and only the map shows the scene.
-fn camera_facts(window: &Window, play: &Play, ui: &Interface) -> TableFacts {
+/// What the table says to the shared camera: the reader, an unopened session, the
+/// transfer modal and a presented Kidnap die block it, and only the map shows the
+/// scene. The die's camera is a second `Camera3d`, which the shared count anchors do
+/// not follow, so the map holds still under its counts while the die is shown.
+fn camera_facts(window: &Window, play: &Play, ui: &Interface, roll: &die::Roll) -> TableFacts {
+    let (modal, die) = play.session.as_ref().map_or((false, false), |session| {
+        let game = session.game();
+        (
+            transfer::shown(game.transfer.as_ref()),
+            die::presented(game.revision, game.kidnap.as_ref(), roll).is_some(),
+        )
+    });
     TableFacts {
-        blocks_camera: ui.reader || play.session.is_none(),
+        blocks_camera: ui.reader || play.session.is_none() || modal || die,
         scene: Scene::Within(map_rect(window)),
         ..default()
     }
@@ -886,10 +1257,11 @@ fn camera_facts_and_viewport(
     window: Single<&Window, With<PrimaryWindow>>,
     play: Res<Play>,
     ui: Res<Interface>,
+    roll: Res<die::Roll>,
     mut table: ResMut<TableFacts>,
     mut cameras: Query<&mut Camera, With<TableCamera>>,
 ) {
-    *table = camera_facts(&window, &play, &ui);
+    *table = camera_facts(&window, &play, &ui, &roll);
     for mut camera in &mut cameras {
         camera.viewport = Some(map_viewport(&window));
     }
@@ -898,7 +1270,7 @@ fn camera_facts_and_viewport(
 fn text(
     commands: &mut Commands,
     art: &Art,
-    content: impl Into<String>,
+    content: impl Into<Prose>,
     x: f32,
     y: f32,
     w: f32,
@@ -907,16 +1279,52 @@ fn text(
     offset: Vec2,
     z: i32,
 ) -> Entity {
-    commands
+    styled(
+        commands,
+        art,
+        content,
+        &art.font,
+        Color::srgb(0.12, 0.14, 0.12),
+        [x, y, w, size],
+        scale,
+        offset,
+        z,
+    )
+}
+/// Text in a chosen face and colour: `place` is the authored left, top, width and type
+/// size. Inline emblems keep the same height and baseline as in `text`.
+#[allow(clippy::too_many_arguments)]
+fn styled(
+    commands: &mut Commands,
+    art: &Art,
+    content: impl Into<Prose>,
+    face: &Handle<Font>,
+    color: Color,
+    place: [f32; 4],
+    scale: f32,
+    offset: Vec2,
+    z: i32,
+) -> Entity {
+    let [x, y, w, size] = place;
+    let content: Prose = content.into();
+    let font = TextFont {
+        font: face.clone().into(),
+        font_size: (size * scale).into(),
+        ..default()
+    };
+    let ink = TextColor(color);
+    let segments = emblems::segments(&content.text, content.naming, content.red);
+    let (first, rest) = match segments.split_first() {
+        Some((emblems::Segment::Words(words), rest)) => (words.clone(), rest),
+        _ => (String::new(), &segments[..]),
+    };
+    let root = commands
         .spawn((
             UiRoot,
-            Text::new(content),
-            TextFont {
-                font: art.font.clone().into(),
-                font_size: (size * scale).into(),
-                ..default()
-            },
-            TextColor(Color::srgb(0.12, 0.14, 0.12)),
+            Text::new(first),
+            emblems::Plain(content.text),
+            font.clone(),
+            ink,
             Node {
                 position_type: PositionType::Absolute,
                 left: px(offset.x + x * scale),
@@ -927,7 +1335,17 @@ fn text(
             GlobalZIndex(z),
             Pickable::IGNORE,
         ))
-        .id()
+        .id();
+    emblems::spawn_rest(
+        commands,
+        art,
+        root,
+        rest,
+        &font,
+        ink,
+        size * scale * emblems::HEIGHT,
+    );
+    root
 }
 fn picture(
     commands: &mut Commands,
@@ -992,10 +1410,12 @@ fn control(
             action,
         })
         .observe(click);
+    // The primary button is red: 26July keeps its name there (emblems::Prose::red).
+    let label = Prose::from(label);
     let words = text(
         commands,
         art,
-        label,
+        if choice { label.on_red() } else { label },
         rect[0] + 12.,
         rect[1] + 10.,
         rect[2] - 24.,
@@ -1017,6 +1437,7 @@ fn draw_ui(
     roots: Query<Entity, With<UiRoot>>,
     window: Single<&Window, With<PrimaryWindow>>,
     mut previous_size: Local<Vec2>,
+    roll: Res<die::Roll>,
 ) {
     let size = Vec2::new(window.width(), window.height());
     if !ui.dirty && *previous_size == size {
@@ -1097,7 +1518,14 @@ fn draw_ui(
             picture(&mut commands, &art, key, rect, s, offset, layer);
         }
         victory::header(&mut commands, &art, &view, s, centered);
-        top::header(&mut commands, &art, &view, s, left, right);
+        top::header(
+            &mut commands,
+            &art,
+            &die::ledger(&view, &roll),
+            s,
+            left,
+            right,
+        );
     }
     if ui.reader {
         picture(
@@ -1221,133 +1649,12 @@ fn draw_ui(
             4,
         );
     } else {
-        let o = right;
-        // The selected blank component hides static example action affordances
-        // after completion, so they cannot masquerade as current controls.
-        picture(
-            &mut commands,
-            &art,
-            "atlas-panel.png",
-            [1380., 287., 500., 653.],
-            s,
-            o,
-            2,
-        );
-        text(
-            &mut commands,
-            &art,
-            if view.finished {
-                format!(
-                    "26July completed {}\nNo Pass income",
-                    if view.kidnap.is_some() {
-                        "Operation + Kidnap"
-                    } else {
-                        "Operation Only"
-                    }
-                )
-            } else if view.transfer.is_some() {
-                format!("Resource transfer\n{} decides locally", view.owner.name())
-            } else if view.removal.is_some() {
-                "26July · voluntary own removal".into()
-            } else {
-                format!("{} · {}", view.owner.name(), view.operation)
-            },
-            1404.,
-            330.,
-            450.,
-            25.,
-            s,
-            o,
-            3,
-        );
-        text(
-            &mut commands,
-            &art,
-            match &view.transfer {
-                Some(crate::Transfer::Selecting) => "Choose the giver and recipient.\n26July must be one endpoint.\nThe giver chooses the quantity and authorizes.\nA request is not a donation.".into(),
-                Some(crate::Transfer::Authorizing { giver, recipient, amount }) => format!(
-                    "Giver: {} · balance {}\nRecipient: {} · balance {}\nAmount: {} Resources · whole numbers only\nAfter authorization: {} → {}; {} → {}\nZero is allowed. Decline moves nothing.",
-                    giver.name(), view.resources[giver.index()], recipient.name(), view.resources[recipient.index()], amount,
-                    giver.name(), view.resources[giver.index()] - amount, recipient.name(), view.resources[recipient.index()] + amount),
-                None => match &view.removal {
-                    Some(crate::Removal::Selecting) => format!("Choose one own piece to return to Available.\nCounts show how many remain in each group.\nConfirmation comes next; Cancel removes nothing.\n{}", if view.owed_terror.is_some() { "Owed Santiago: protect its last Underground." } else { "No obligation: removing all pieces is allowed." }),
-                    Some(crate::Removal::Confirming { space, kind, state }) => {
-                        let target = view.spaces.iter().find(|s| &s.id == space).unwrap();
-                        let supply = view.available.iter().find(|p| p.faction == Faction::M26 && p.kind == *kind).unwrap().count;
-                        format!("Remove 1 26July {state:?} {kind:?}\nfrom {}?\nAvailable {kind:?}: {supply} → {}\nControl and standings update immediately.\nEarlier Terror and Opposition stay.\nCancel leaves this piece on the map.", target.name, supply + 1)
-                    }
-                    None => operation_details(&view),
-                },
-            } + &if view.transfer.is_some() && view.owed_terror.is_some() {
-                let owed = view.spaces.iter().find(|space| Some(&space.id) == view.owed_terror.as_ref()).unwrap();
-                format!("\nCommitment: {} Terror owed; reserve 1.\n26July available to give: {} Resources.", owed.name, view.resources[Faction::M26.index()].saturating_sub(1))
-            } else {
-                String::new()
-            },
-            1404.,
-            390.,
-            450.,
-            18.,
-            s,
-            o,
-            3,
-        );
-        if !view.finished {
-            for (i, choice) in view.choices.iter().enumerate() {
-                control(
-                    &mut commands,
-                    &art,
-                    &choice.id,
-                    &if !choice.supported {
-                        format!("{} — unavailable", choice.label)
-                    } else {
-                        choice.label.clone()
-                    },
-                    if choice.supported {
-                        Action::Decision(view.owner, view.revision)
-                    } else {
-                        Action::Unsupported(choice.explanation.clone())
-                    },
-                    [
-                        1404.,
-                        (if view.transfer.is_some() {
-                            570.
-                        } else if view.removal.is_some() {
-                            540.
-                        } else {
-                            590.
-                        }) + i as f32 * 52.,
-                        452.,
-                        46.,
-                    ],
-                    s,
-                    o,
-                    choice.supported,
-                    3,
-                );
-            }
+        if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
+            die::panel(&mut commands, &art, kidnap, roll.landed(), s, right);
         } else {
-            text(
-                &mut commands,
-                &art,
-                format!(
-                    "Directorio next (display only):\n{}\n\n{}\nCard / eligibility have not advanced.",
-                    view.next_options.join("\n"),
-                    if view.kidnap.is_some() {
-                        "Kidnap grants Event permission."
-                    } else {
-                        "No Event permission."
-                    }
-                ),
-                1404.,
-                590.,
-                450.,
-                25.,
-                s,
-                o,
-                3,
-            );
+            execution::panel(&mut commands, &art, &view, &ui, s, right);
         }
+        eligibility::indicator(&mut commands, &art, &view, s, left);
         let o = left;
         picture(
             &mut commands,
@@ -1435,93 +1742,138 @@ fn draw_ui(
     }
 }
 
-fn operation_details(view: &crate::Observation) -> String {
-    let mut lines = vec![];
-    for id in ["santiago", "oriente"] {
-        let space = view.spaces.iter().find(|s| s.id == id).unwrap();
-        let count = |faction, kind, state: Option<State>| -> u8 {
-            space
-                .pieces
-                .iter()
-                .filter(|p| {
-                    p.faction == faction && p.kind == kind && state.is_none_or(|s| p.state == s)
-                })
-                .map(|p| p.count)
-                .sum()
-        };
-        lines.push(format!(
-            "{}: {} Underground · {} Active · {} Police{}",
-            if id == "santiago" {
-                "Santiago"
-            } else {
-                "Oriente"
-            },
-            count(Faction::M26, Kind::Guerrilla, Some(State::Underground)),
-            count(Faction::M26, Kind::Guerrilla, Some(State::Active)),
-            count(Faction::Government, Kind::Police, None),
-            if space.terror > 0 { " · done" } else { "" }
-        ));
-    }
-    if view.finished {
-        let paid: u8 = view.spaces.iter().map(|s| s.terror).sum();
-        // Balances are on the top display's Resources ledger (#46); costs stay here.
-        lines.push(format!("Resolved {paid} Terror · paid {paid} Resources"));
-    } else {
-        lines.push("Terror costs 1".into());
-        lines.push("Activate 1 · place Terror · shift toward Active Opposition".into());
-    }
-    if let Some(roll) = &view.kidnap {
-        lines.push(format!(
-            "Kidnap rolled {} · moved {} (Government → 26July)",
-            roll.die, roll.proceeds
-        ));
-        lines.push(format!(
-            "At roll: Government {} → {} · 26July {} → {}",
-            roll.government_before,
-            roll.government_before - roll.proceeds,
-            roll.m26_before,
-            roll.m26_before + roll.proceeds
-        ));
-    } else if view.finished {
-        lines.push("No Kidnap used.".into());
-    } else {
-        lines.push(format!(
-            "Kidnap die 1–6 · possible proceeds {}–{}",
-            view.resources[0].min(1),
-            view.resources[0].min(6)
-        ));
-        lines.push("Santiago: total Guerrillas must outnumber Police".into());
-        if view
-            .spaces
-            .iter()
-            .any(|s| s.id == "santiago" && s.terror == 0)
-        {
-            lines.push("Early Kidnap commits Santiago Terror (pay 1).".into());
-        }
-    }
-    if !view.finished {
-        lines.push(
-            if view.owed_terror.is_some() {
-                "Owed: Santiago · keep 1 Resource + 1 Underground"
-            } else {
-                "No Terror owed · Finish permitted"
-            }
-            .into(),
-        );
-    }
-    lines.join("\n")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use unfolded_tabletop::camera::Input;
+
+    /// The notice for `action` submitted by its owner, with `tamper` applied to the
+    /// observations before and after it: each fact the notice states must follow them.
+    fn noticed(
+        game: &mut Game,
+        action: &str,
+        tamper: impl FnOnce(&mut Observation, &mut Observation),
+    ) -> String {
+        let mut previous = game.observe();
+        let id = format!("{}:{action}", previous.revision);
+        let owner = previous.choices.iter().find(|c| c.id == id).unwrap().owner;
+        game.submit(owner, previous.revision, &id).unwrap();
+        let mut after = game.observe();
+        tamper(&mut previous, &mut after);
+        notice(&previous, &after, owner, &id)
+    }
+
+    /// Foundation 2, "Engine authority": the notices state the record the decision
+    /// committed. Pass's gain, 26July's Eligibility and the next faction's role come
+    /// from the observation after it; changed there to facts the old fixed sentence
+    /// ("+1 Resource", "Directorio is 1st Eligible") would misstate, they follow.
     #[test]
-    fn operation_text_keeps_costs_and_leaves_balances_to_the_ledger() {
-        let details = operation_details(&Game::prepared().observe());
-        assert!(details.contains("Terror costs 1\n"), "{details}");
-        assert!(!details.contains("26July Resources"), "{details}");
-        assert!(!details.contains("retains"), "{details}");
+    fn the_pass_notice_states_the_recorded_pass() {
+        let pass = noticed(&mut Game::opening(), "pass", |_, _| {});
+        assert_eq!(
+            pass,
+            "26July passed: +1 Resource and stays Eligible. Directorio is 1st Eligible. Saved."
+        );
+        let capped = noticed(&mut Game::opening(), "pass", |_, after| {
+            after.recorded_resources[0].from = 49;
+            after.recorded_resources[0].to = 49;
+            after.eligibility.m26_next_card = Some(false);
+            let next = after.next.as_mut().unwrap();
+            next.faction = Faction::Government;
+            next.role = "2nd Eligible".into();
+        });
+        assert_eq!(
+            capped,
+            "26July passed: +0 Resources and becomes Ineligible after this card. Government is 2nd Eligible. Saved."
+        );
+    }
+
+    /// The End Terror notice names the box the authority recorded, not one guessed
+    /// from whether Kidnap was rolled.
+    #[test]
+    fn the_end_terror_notice_states_the_recorded_box() {
+        let mut game = Game::prepared();
+        let only = noticed(&mut game.clone(), "end-terror", |_, _| {});
+        assert_eq!(only, "Terror ended: Operation Only recorded. Saved.");
+        let recorded = noticed(&mut game, "end-terror", |previous, after| {
+            previous.kidnap = Some(crate::Kidnap {
+                die: 3,
+                proceeds: 3,
+                government_before: 6,
+                m26_before: 0,
+                random_before: 0,
+                revision: 0,
+            });
+            after.eligibility.m26_box = Some(crate::SequenceBox::OperationOnly);
+        });
+        assert_eq!(recorded, "Terror ended: Operation Only recorded. Saved.");
+    }
+
+    /// A Terror notice words the authority's preview of that Terror, which committing
+    /// applied: Santiago is Neutral, so it shifts to Passive Opposition (R 3.3.4).
+    /// A changed preview changes the notice, which the old fixed sentence ("paid 1
+    /// Resource … shifted 1 level") did not follow.
+    #[test]
+    fn a_terror_notice_states_the_authority_s_preview() {
+        let mut funded = Game::prepared_with_seed(5);
+        funded.submit(Faction::M26, 0, "0:transfer").unwrap();
+        funded
+            .submit(
+                Faction::M26,
+                1,
+                &format!("1:ask:{}:2", Faction::Syndicate.index()),
+            )
+            .unwrap();
+        funded
+            .submit(Faction::Syndicate, 2, "2:authorize:2")
+            .unwrap();
+        let santiago = noticed(&mut funded.clone(), "terror:santiago", |_, _| {});
+        assert_eq!(
+            santiago,
+            "Terror saved in Santiago de Cuba: paid 1 Resource, flipped 1 Underground Guerrilla to Active, placed a Terror marker and shifted Neutral → Passive Opposition."
+        );
+        let changed = noticed(&mut funded, "terror:santiago", |previous, _| {
+            let choice = previous
+                .choices
+                .iter_mut()
+                .find(|c| c.action() == "terror:santiago")
+                .unwrap();
+            let preview = choice.preview.as_mut().unwrap();
+            preview.resources[0].to = preview.resources[0].from - 2;
+            preview.flips[0].count = 2;
+            preview.support.clear();
+        });
+        assert_eq!(
+            changed,
+            "Terror saved in Santiago de Cuba: paid 2 Resources, flipped 2 Underground Guerrillas to Active and placed a Terror marker."
+        );
+    }
+
+    /// Transfer notices read the decision through its typed accessor and the request
+    /// the authority recorded.
+    #[test]
+    fn transfer_notices_name_the_decision_and_the_recorded_request() {
+        let mut game = Game::prepared();
+        game.submit(Faction::M26, 0, "0:transfer").unwrap();
+        let asked = noticed(
+            &mut game.clone(),
+            &format!("ask:{}:2", Faction::Government.index()),
+            |_, _| {},
+        );
+        assert_eq!(
+            asked,
+            "Transfer request saved: 26July asks Government for 2. Nothing moves until Government decides."
+        );
+        let mut gave = Game::prepared();
+        gave.submit(Faction::M26, 0, "0:transfer").unwrap();
+        gave.submit(
+            Faction::M26,
+            1,
+            &format!("1:ask:{}:2", Faction::Syndicate.index()),
+        )
+        .unwrap();
+        let authorized = noticed(&mut gave, "authorize:2", |_, _| {});
+        assert_eq!(authorized, "Syndicate gave 2 to 26July. Saved.");
     }
     #[test]
     fn top_display_targets_serialize_as_the_seat_reads_them() {
@@ -1587,7 +1939,7 @@ mod tests {
             &window,
             &keys,
             1.,
-            camera_facts(&window, &play, &ui),
+            camera_facts(&window, &play, &ui, &die::Roll::default()),
         );
         assert!(orbit.pose().distance < 10.);
         let inside = orbit.pose();
@@ -1597,7 +1949,7 @@ mod tests {
             &window,
             &keys,
             1.,
-            camera_facts(&window, &play, &ui),
+            camera_facts(&window, &play, &ui, &die::Roll::default()),
         );
         assert_eq!(orbit.pose(), inside);
         // Maximizing a 3:2 design onto wider screens must put the extra
@@ -1626,7 +1978,7 @@ mod tests {
             &window,
             &keys,
             0.,
-            camera_facts(&window, &play, &ui),
+            camera_facts(&window, &play, &ui, &die::Roll::default()),
         );
         assert_eq!(orbit.pose(), inside);
     }

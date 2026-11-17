@@ -3,6 +3,7 @@
 //! including the hover tags, follows `art/atlas/atlas-top-display.figcraft`; every
 //! drawn element is a VectorCraft export from `atlas-top-display.vectorcraft`. The
 //! game owns the values and the rules they follow.
+use super::palette::{INK, QUIET};
 use super::*;
 use crate::{CASH_MARKERS, UsAlliance};
 
@@ -41,10 +42,6 @@ impl Item {
 /// Layout rectangles in reference pixels, from the FigCraft frame.
 const TRACK: [f32; 4] = [150., 18., 260., 64.];
 const LEDGER: [f32; 4] = [1688., 20., 192., 190.];
-/// The FigCraft `Atlas` variables: `ink` for values and titles, `ink-secondary`
-/// (QUIET) for secondary values and notes.
-const INK: Color = Color::srgb_u8(32, 50, 56);
-const QUIET: Color = Color::srgb_u8(83, 106, 109);
 
 /// Hover-tag geometry from the FigCraft `hover tag` frame, in reference pixels.
 mod tag {
@@ -120,7 +117,7 @@ pub(super) fn header(
         let row = faction.index();
         place(
             format!("ledger-row-{row}-emblem"),
-            &format!("atlas-victory-icon-{}.png", victory::key(faction)),
+            &format!("atlas-victory-icon-{}.png", slug(faction)),
             [1704., 76. + 31. * row as f32, 27., 27.],
             right,
             3,
@@ -310,7 +307,7 @@ pub(super) fn draw(
         .filter(|_| !ui.reader)
         .and_then(|target| match target {
             Target::Top(item) => Some(*item),
-            Target::Standing(_) => None,
+            Target::Standing(_) | Target::Choice(_) | Target::Sequence(_) => None,
         })
         .map(|item| {
             let mut shown = content(&play.game().observe(), item);
@@ -357,7 +354,7 @@ pub(super) fn draw(
         7,
     );
     commands.entity(plate).remove::<UiRoot>().insert(Tag);
-    let mut words = |content: &str, left: f32, top: f32, width: f32, size: f32, ink: Color| {
+    let mut words = |content: Prose, left: f32, top: f32, width: f32, size: f32, ink: Color| {
         let entity = text(
             &mut commands,
             &art,
@@ -375,15 +372,16 @@ pub(super) fn draw(
             .remove::<UiRoot>()
             .insert((Tag, TextColor(ink)));
     };
-    words(&shown.title, 24., 18., 420., 27., INK);
+    words((&shown.title).into(), 24., 18., 420., 27., INK);
     for (index, (label, value)) in shown.rows.iter().enumerate() {
         let top = tag::ROWS_TOP + index as f32 * tag::ROW_HEIGHT;
-        words(label, 24., top, 200., 18., INK);
-        words(value, 230., top, 214., 18., QUIET);
+        // Row labels introduce what their value belongs to; faction rows keep names.
+        words(Prose::named(label), 24., top, 200., 18., INK);
+        words(value.into(), 230., top, 214., 18., QUIET);
     }
     let mut top = tag::ROWS_TOP + shown.rows.len() as f32 * tag::ROW_HEIGHT + tag::NOTES_GAP;
     for note in &shown.notes {
-        words(note, 24., top, 420., 17., QUIET);
+        words(note.into(), 24., top, 420., 17., QUIET);
         top += note_lines(note) as f32 * tag::NOTE_LINE;
     }
     let rule = picture(
