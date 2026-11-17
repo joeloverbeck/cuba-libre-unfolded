@@ -3432,3 +3432,274 @@ fn native_space_popover_closes_the_briefing_tag() {
     app.capture("clash-popover-closes-tag");
     app.quit();
 }
+
+/// The EL-A eligibility indicator (#70) in each state the task reaches: the opening
+/// (unchanged all through Terror), after Pass, after Operation Only and after Operation
+/// with Special Activity. At 3840×2160 every drawn part is compared with the layout
+/// record from `atlas-eligibility.figcraft` within 2 px, the drawn state agrees with the
+/// rules authority's Eligibility observation, nobody is shown Ineligible, and every
+/// box's hover tag is reachable through the seat and dismisses when the pointer leaves.
+/// Crops of the panel are retained for inspection against the layout's exports.
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained eligibility captures"]
+fn native_eligibility_indicator_matches_layout_in_every_state() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-70"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("el-a-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS")
+        .into();
+    eprintln!("EL-A evidence: {}", root.display());
+    let layout: Value =
+        serde_json::from_str(include_str!("../art/atlas/atlas-eligibility.layout.json")).unwrap();
+    let ratio = 3840. / layout["frame"][0].as_f64().unwrap();
+    let scaled =
+        |r: &Value| -> [f64; 4] { std::array::from_fn(|i| r[i].as_f64().unwrap() * ratio) };
+    let part = |view: &Value, name: &str| -> [f64; 4] {
+        let found = view["table"]["eligibility"]["parts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["part"] == name)
+            .unwrap_or_else(|| panic!("no native part {name}: {}", view["table"]["eligibility"]))
+            .clone();
+        rect_of(&found["bounds"])
+    };
+    // Each group's edges: left, top, right, bottom, or the horizontal centre (4).
+    let compare = |view: &Value, group: &Value, edges: &[usize], shift: [f64; 2]| {
+        for (name, r) in group.as_object().unwrap() {
+            let [x, y, w, h] = scaled(r);
+            let (x, y) = (x + shift[0], y + shift[1]);
+            let expected = [x, y, x + w, y + h, x + w / 2.];
+            let n = part(view, name);
+            let native = [n[0], n[1], n[2], n[3], (n[0] + n[2]) / 2.];
+            for &edge in edges {
+                assert!(
+                    (native[edge] - expected[edge]).abs() <= 2.,
+                    "{name} edge {edge}: native {n:?} differs from layout {expected:?} by more than 2 px"
+                );
+            }
+        }
+    };
+    let compare_state = |view: &Value, state: &str| {
+        let record = &layout["states"][state];
+        assert!(record.is_object(), "no layout state {state}");
+        compare(view, &record["images"], &[0, 1, 2, 3], [0., 0.]);
+        compare(view, &record["text"], &[0, 1], [0., 0.]);
+        compare(view, &record["centered_text"], &[1, 4], [0., 0.]);
+    };
+    // The drawn track agrees with the rules authority's record, and nobody is
+    // Ineligible inside the task (R 2.3.7).
+    let agree = |view: &Value| {
+        let e = &view["observation"]["eligibility"];
+        let track = &view["table"]["eligibility"]["track"];
+        assert_eq!(e["eligible"], json!([true, true, true, true]));
+        let rows = track["rows"].as_array().unwrap();
+        assert_eq!(
+            rows.iter()
+                .map(|r| r["faction"].clone())
+                .collect::<Vec<_>>(),
+            e["order"].as_array().unwrap().clone()
+        );
+        for row in rows {
+            assert_eq!(row["eligible"], true, "{row}");
+            let role = if row["faction"] == e["first"] {
+                json!("1st")
+            } else if row["faction"] == e["second"] {
+                json!("2nd")
+            } else {
+                Value::Null
+            };
+            assert_eq!(row["role"], role, "{row}");
+            assert_eq!(
+                row["acted"],
+                json!(row["faction"] == "M26" && !e["m26_box"].is_null())
+            );
+            let name = row["faction"].as_str().unwrap();
+            let key = if name == "M26" {
+                "26july".to_owned()
+            } else {
+                name.to_lowercase()
+            };
+            assert!(
+                view["table"]["eligibility"]["parts"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|p| p["part"] == format!("eligibility-row:{key}:eligible")),
+                "{key} is not marked Eligible"
+            );
+        }
+        let occupied = match e["m26_box"].as_str() {
+            None => Value::Null,
+            Some("Pass") => json!("eligibility:pass"),
+            Some("OperationOnly") => json!("eligibility:operation-only"),
+            Some(_) => json!("eligibility:operation-special-activity"),
+        };
+        assert_eq!(track["occupied"], occupied);
+        assert_eq!(track["ineligible"], json!([]));
+    };
+    let boxes = [
+        "eligibility:pass",
+        "eligibility:operation-only",
+        "eligibility:operation-special-activity",
+    ];
+    // Hovering each box opens its tag beside the panel, at the layout's offset from
+    // that box, without changing the match; pointing away dismisses it.
+    let hover_all = |app: &mut Native, state: &str| {
+        let before = app.observe();
+        let tag = &layout["tag"];
+        let anchor = scaled(
+            &layout["states"]["operation-special-activity"]["images"]["eligibility:operation-special-activity"],
+        );
+        for name in boxes {
+            let view = app.point(name);
+            let view = if view["table"]["eligibility"]["tag"].is_object() {
+                view
+            } else {
+                app.observe()
+            };
+            let shown = &view["table"]["eligibility"]["tag"];
+            assert_eq!(shown["slot"], name, "{state}: {}", view["table"]);
+            let occupied = before["table"]["eligibility"]["track"]["occupied"] == name;
+            assert_eq!(shown["occupied"], occupied);
+            assert!(
+                shown["note"]
+                    .as_str()
+                    .unwrap()
+                    .contains("Nobody becomes Ineligible during this card")
+            );
+            let target = part(&view, name);
+            let shift = [0., target[1] - anchor[1]];
+            compare(&view, &tag["stretched"], &[0, 1, 2], shift);
+            compare(&view, &tag["images"], &[0, 1, 2, 3], shift);
+            compare(&view, &tag["text"], &[0, 1], shift);
+            compare(&view, &tag["right_text"], &[1, 2], shift);
+            compare(&view, &tag["note"], &[0], shift);
+            let plate = part(&view, "eligibility-tag");
+            let note = part(&view, "eligibility-tag-note");
+            assert!(note[3] <= plate[3], "the tag's plate holds its note");
+            assert_eq!(view["observation"], before["observation"]);
+            if occupied || state == "open" {
+                app.capture(&format!(
+                    "{state}-hover-{}",
+                    name.trim_start_matches("eligibility:")
+                ));
+            }
+        }
+        // The tag dismisses like the other hover tags when the pointer leaves.
+        let away = app.point("reader");
+        assert!(away["table"]["eligibility"]["tag"].is_null());
+        assert_eq!(app.observe()["table"]["eligibility"]["tag"], Value::Null);
+    };
+    let crop = |app: &Native, capture: &str, name: &str| {
+        let image = image::open(app.root.join(format!("{capture}.png")))
+            .unwrap()
+            .to_rgb8();
+        let [x, y, w, h] = scaled(&layout["crop"]);
+        image::imageops::crop_imm(&image, x as u32, y as u32, w as u32, h as u32)
+            .to_image()
+            .save(app.root.join(format!("{name}.png")))
+            .unwrap();
+    };
+    let session = |name: &str| {
+        let socket_dir = tempfile::tempdir().unwrap();
+        let app = Native {
+            cards: cards.clone(),
+            socket: socket_dir.path().join("seat.sock"),
+            save: root.join(format!("{name}.json")),
+            root: root.join(name),
+            step: 0,
+        };
+        std::fs::create_dir_all(&app.root).unwrap();
+        (app, socket_dir)
+    };
+
+    // The opening, and all through Terror until End Terror.
+    let (mut app, _socket) = session("opening");
+    app.launch_size("3840x2160");
+    let open = app.observe();
+    assert_eq!(open["observation"]["action"], "Open");
+    agree(&open);
+    compare_state(&open, "open");
+    app.capture("open");
+    crop(&app, "open", "panel-open");
+    hover_all(&mut app, "open");
+    app.choose("terror");
+    let terror = app.observe();
+    agree(&terror);
+    compare_state(&terror, "open");
+    app.capture("during-terror");
+    app.choose("end-terror");
+    let only = app.observe();
+    assert_eq!(
+        only["observation"]["eligibility"]["m26_box"],
+        "OperationOnly"
+    );
+    agree(&only);
+    compare_state(&only, "operation-only");
+    app.capture("operation-only");
+    crop(&app, "operation-only", "panel-operation-only");
+    hover_all(&mut app, "operation-only");
+    app.quit();
+
+    // After Pass: Directorio 1st, Government 2nd, 26July in the Pass box (R 2.3.3).
+    let (mut app, _socket) = session("pass");
+    app.launch_size("3840x2160");
+    app.choose("pass");
+    let pass = app.observe();
+    assert_eq!(pass["observation"]["eligibility"]["first"], "Directorio");
+    agree(&pass);
+    compare_state(&pass, "pass");
+    app.capture("pass");
+    crop(&app, "pass", "panel-pass");
+    hover_all(&mut app, "pass");
+    // A restart shows the same recorded state.
+    app.quit();
+    app.launch_size("3840x2160");
+    let restarted = app.observe();
+    assert_eq!(restarted["observation"], pass["observation"]);
+    assert_eq!(
+        restarted["table"]["eligibility"]["track"],
+        pass["table"]["eligibility"]["track"]
+    );
+    app.quit();
+
+    // Operation with Special Activity: the layout's 16:9 frame, with its box's tag.
+    let (mut app, _socket) = session("special-activity");
+    app.launch_size("3840x2160");
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "end-terror",
+    ] {
+        app.choose(action);
+        agree(&app.observe());
+    }
+    let special = app.observe();
+    assert_eq!(
+        special["observation"]["eligibility"]["m26_box"],
+        "OperationWithSpecialActivity"
+    );
+    compare_state(&special, "operation-special-activity");
+    hover_all(&mut app, "operation-special-activity");
+    let view = app.point("eligibility:operation-special-activity");
+    assert!(view["table"]["eligibility"]["tag"].is_object());
+    app.capture("operation-special-activity");
+    crop(
+        &app,
+        "operation-special-activity",
+        "panel-operation-special-activity",
+    );
+    app.quit();
+}
