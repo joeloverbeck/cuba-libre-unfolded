@@ -30,7 +30,7 @@ Blender 5.2.3 LTS built the token mechanically through its Python API, operated 
 - **Blender loop:** the preview renders frame 90 pixel-identical to frame 0.
 - **In the app:** `native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space` checks four things:
   - Santiago's and Oriente's bells play out of step.
-  - Development-seat captures exactly one loop apart, 108 `Home` presses or 216 manual-clock steps, are pixel-identical inside both token crops.
+  - Development-seat captures exactly one loop apart, 216 manual-clock steps, asked for with `advance`, are pixel-identical inside both token crops.
   - Half a loop visibly changes them.
   - Hovering either bell or its count discloses its space.
 - **Not established:** physical-display readability and the owner's acceptance of the integrated look. At the default framing on a 1920-wide window, a bell is about 20–25 pixels tall and the swing is subtle; it becomes legible at the owner's display scale or when zoomed in.
