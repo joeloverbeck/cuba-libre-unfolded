@@ -1,6 +1,6 @@
 # Playing this build
 
-What you can do in the current build and how to operate it. [README](../README.md) says how to build and launch it. This guide does not restate the rules: the in-game briefings and the [rules baseline](research/rules-baseline-and-candidates.md) cover those. Nor does it restate the visuals: each selected design's spec in [`art/atlas/`](../art/atlas/) covers those. Rule interpretations this project made are in [local-rule-policies.md](local-rule-policies.md). An agent driving the build reads [the seat reference](agents/seat.md) instead.
+What you can do in the current build and how to operate it. [README](../README.md) says how to build and launch it. It names a rule effect only where you need it to operate the build; the in-game briefings and the [rules baseline](research/rules-baseline-and-candidates.md) are the rules authority. It does not describe the visuals: each selected design's spec in [`art/atlas/`](../art/atlas/) covers those. Rule interpretations this project made are in [local-rule-policies.md](local-rule-policies.md). An agent driving the build reads [the seat reference](agents/seat.md) instead.
 
 ## What the task covers
 
@@ -32,7 +32,7 @@ During Terror the panel lists the steps: Terror in Santiago and Oriente, with Ki
 
 - **Previews:** hover or focus a step for its preview, and click to pin it; the foot button commits the pinned step. A preview is computed by the rules authority on a copy of the match. It shows Resources, flipped Guerrillas, returned pieces, Terror markers, support and Control shifts, standings, choices that would become unavailable, the recorded box and Directorio's options. Reading a preview changes nothing, including randomness.
 - **The map:** each space is marked selectable, blocked (an in-task action would allow it) or not involved ([HIGHLIGHTS.md](../art/atlas/HIGHLIGHTS.md)). Hover a selectable or blocked space for its popover, and click to keep it open. The popover lists every action there with its preview and the one button that acts.
-- **Unavailable targets:** a target 26July cannot act on now stays listed, disabled, with its reason and in-task remedies, such as "Kidnap here first" or "Request a Resource transfer". A target already resolved, or lost to removal, has none.
+- **Unavailable targets:** a target 26July cannot act on now stays listed, disabled, with its reason and in-task remedies: "Request a Resource transfer", and for Santiago "Kidnap here first" while Kidnap would take at least 1 Resource. A target already resolved, or lost to removal, has none.
 - **Each Terror** costs 1 Resource, activates one Underground Guerrilla, places a Terror marker and shifts toward Active Opposition. Santiago and Oriente can each resolve once, in either order you can afford.
 - **End Terror** records Operation Only without Kidnap, so Directorio may Pass or take a Limited Operation, and Operation with Special Activity with Kidnap, which also lets Directorio take card 17's Event (R 2.3.4, 5.2). Ending with no space resolved is allowed ([local policy](local-rule-policies.md#zero-space-operation-only)). Directorio's options are shown, not executed.
 - The [BRIEFING ribbon](../art/atlas/CHOICE.md) on the panel's top edge reopens the Terror and Kidnap briefings.
@@ -54,11 +54,11 @@ The Resource transfer step opens the transfer modal ([TRANSFER.md](../art/atlas/
 - **Ask** creates a Transfer request that moves nothing yet. The modal turns to the giver's colours. The giver authorizes any amount from 0 to its limit, declines, or waits.
 - **Wait** closes the modal and keeps the request pending, also across Save / quit; its tab in the top band reopens it.
 
-Repeated transfers are allowed, and zero is a deliberate non-transfer. These are local faction decisions, not external agent players or binding promises. Transfers are offered only while 26July executes ([local policy](local-rule-policies.md#transfers-open-once-terror-is-chosen)), and going back or ending Terror withdraws a pending request ([local policy](local-rule-policies.md#a-pending-transfer-request-is-withdrawn)).
+Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfer can fund either Terror target without Kidnap, or make Kidnap possible during or after Terror. These are local faction decisions, not external agent players or binding promises. Transfers are offered only while 26July executes ([local policy](local-rule-policies.md#transfers-open-once-terror-is-chosen)), and going back or ending Terror withdraws a pending request ([local policy](local-rule-policies.md#a-pending-transfer-request-is-withdrawn)).
 
 ## Removing your own pieces
 
-"Remove own pieces" opens removal mode (#73). The map marks 26July's removable Guerrillas and Base and dims every other space ([HIGHLIGHTS.md, "Removal mode"](../art/atlas/HIGHLIGHTS.md#removal-mode-73)). Click a piece to keep its popover open, with a quantity for a stack, the preview, Remove and Cancel. Each Remove returns that many pieces to Available, and the mode stays open until Done.
+"Remove own pieces" opens removal mode (#73). The map marks 26July's removable Guerrillas and Base and dims every other space ([HIGHLIGHTS.md, "Removal mode"](../art/atlas/HIGHLIGHTS.md#removal-mode-73)). Click a piece to keep its popover open, with a quantity for a stack, the preview, Remove and Cancel. Each Remove returns that many pieces to Available, and the mode stays open until Done. The mode survives Save / quit; an open popover does not.
 
 Supply, Control, standings and legal choices update at once; earlier Terror, support shifts and Kidnap results stay. While Santiago Terror is owed, its last Underground Guerrilla is locked ([local policy](local-rule-policies.md#owed-terror-after-an-early-kidnap)). Other factions cannot remove their pieces in this Operation.
 
@@ -78,4 +78,4 @@ The card reader and the transfer modal take camera input while open.
 
 ## Saving and quitting
 
-Every decision is saved before the running app takes on its result. Reading, previews, camera moves and cancelling have no effect on the match. Reading cards never undoes an effect or rerolls. **Save / quit** exits, and relaunching with the same `--save` resumes that record, including an open Kidnap, a landed die, removal mode and a pending request. README covers recovering a damaged save.
+Reading, previews, camera moves and cancelling have no effect on the match. Reading cards never undoes an effect or rerolls. **Save / quit** exits, and relaunching with the same `--save` resumes that record, including an open Kidnap, a landed die, removal mode and a pending request. README covers recovering a damaged save.

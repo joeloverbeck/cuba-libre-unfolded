@@ -69,10 +69,9 @@ The only accepted imported original images are local `card-17.png` SHA-256 `141f
 
 ## Launch admission
 
-The app checks every manifest that `src/assets.rs` lists in `MANIFESTS` before it creates or replaces a save, so a missing or altered asset refuses at launch.
+Before it creates or replaces a save, the app checks every manifest that `src/assets.rs` lists in `MANIFESTS`, decodes the PNGs, registers the fonts and admits the real scene and render path. A missing or altered asset refuses at launch.
 
-- **Save identity:** only `runtime.sha256`, with the two card hashes above, is part of what a save records ([docs/agents/saves.md](../../docs/agents/saves.md)).
-- **Presentation manifests:** the others, one per selected design (`status`, `victory`, `layout`, `terrain`, `terror`, `top`, `highlights`, `choice`, `eligibility`, `transfer`, `kidnap`, `popover`, `execution`), are presentation only. Adding one does not change what a save records, and does not weaken source, checksum or state admission.
+Apart from `runtime.sha256`, which enters a save's identity ([docs/agents/saves.md](../../docs/agents/saves.md)), there is one manifest per selected design: `status`, `victory`, `layout`, `terrain`, `terror`, `top`, `highlights`, `choice`, `eligibility`, `transfer`, `kidnap`, `popover` and `execution`. These are presentation only: adding one does not change what a save records, and does not weaken source, checksum or state admission.
 
 ## Evidence limits and native check
 

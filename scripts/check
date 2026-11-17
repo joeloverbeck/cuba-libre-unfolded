@@ -48,8 +48,17 @@ echo "native catalogue: $(wc -l <<<"$defined") tests, all listed once"
 # kept verbatim. Untracked files are included so a new document is checked before
 # it is committed. C.UTF-8 makes ${#line} count characters, not bytes.
 long_lines() {
-  local LC_ALL=C.UTF-8 file line number fenced found=0
-  while IFS= read -r -d '' file; do
+  local LC_ALL=C.UTF-8 file line number fenced found=0 files
+  # A failed listing must not pass as "no files": wait reports the
+  # process substitution's status.
+  mapfile -d '' -t files < <(git ls-files -z --cached --others --exclude-standard -- \
+    README.md 'docs/*.md' 'art/*.md' ':(exclude)docs/principles/')
+  wait "$!" || { echo "Markdown line length: git ls-files failed" >&2; return 1; }
+  if ((${#files[@]} == 0)); then
+    echo "Markdown line length: found no Markdown files to check" >&2
+    return 1
+  fi
+  for file in "${files[@]}"; do
     [[ -f $file ]] || continue
     number=0
     fenced=0
@@ -57,20 +66,19 @@ long_lines() {
       number=$((number + 1))
       if [[ $line =~ ^[[:space:]]*(\`\`\`|~~~) ]]; then
         fenced=$((1 - fenced))
-      elif ((!fenced)) && [[ $line != '|'* ]] && ((${#line} > 1000)); then
+      elif ((!fenced)) && ! [[ $line =~ ^[[:space:]]*\| ]] && ((${#line} > 1000)); then
         echo "$file:$number: ${#line} characters" >&2
         found=1
       fi
     done <"$file"
-  done < <(git ls-files -z --cached --others --exclude-standard -- \
-    README.md 'docs/*.md' 'art/*.md' ':(exclude)docs/principles/')
+  done
   return "$found"
 }
 if ! long_lines; then
-  echo "Markdown lines over 1,000 characters: split them into shorter paragraphs or a list" >&2
+  echo "Markdown line length: split each line above into shorter paragraphs or a list" >&2
   exit 1
 fi
-echo "Markdown line length: every line at most 1,000 characters"
+echo "Markdown line length: no prose line over 1,000 characters in README, docs/ or art/"
 # Builds are bounded by `.cargo/config.toml`, which every Cargo command here reads.
 cargo fmt --all --check
 cargo clippy --locked --all-targets -- -D warnings

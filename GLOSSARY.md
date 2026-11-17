@@ -105,8 +105,8 @@ A marker on an economic center that blocks the Government's earnings from it. Pl
 _Avoid_: Terror marker
 
 **Local policy**:
-An interpretation this project adopts where the rules are silent, or do not define how software should handle a case. It is not a publisher ruling.
-_Avoid_: House rule, official ruling
+An interpretation this project applies where the rules are silent, or do not define how software should handle a case. It is not a publisher ruling, and is owner-accepted only where that acceptance is recorded.
+_Avoid_: House rule, local ruling
 
 **Layout**:
 The arrangement of interface areas on a screen or written document: which areas exist, where they sit, their sizes, grouping and spacing, and how they adapt to the display.

@@ -23,11 +23,11 @@ The owner's [acceptance of the rules baseline and tactical scenario](https://git
 
 **Rules:** R 3.1 and 3.3.4 set no minimum number of Terror spaces, whereas R 4.1 requires at least one space for a Special Activity.
 
-**Policy:** End Terror with no resolved space and no Kidnap is an Operation Only. It earns no Pass income, leaves 26July Ineligible after the card, and lets Directorio only Pass or take a Limited Operation. Its preview warns of this.
+**Policy:** End Terror with no resolved space and no Kidnap is an Operation Only. It earns no Pass income and lets Directorio only Pass or take a Limited Operation. Its preview warns of this, and that 26July, like after any Operation, is Ineligible after the card.
 
 ## Specified in a ticket, without a separate owner ruling
 
-These three were specified in [#61](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/61), whose acceptance criteria required them to be labelled local policy, and merged in PR #76. No owner ruling on them as rules interpretations is recorded.
+These three were specified in [#61](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/61), part of #58, and merged in PR #76. #61's labelling criterion names the first two; the withdrawal is specified in its body. The app labels all three "local policy, #58". No owner ruling on them as rules interpretations is recorded.
 
 ### Going back from Terror
 

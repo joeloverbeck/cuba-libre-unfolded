@@ -22,9 +22,15 @@ cargo run --locked --features tabletop --bin cuba-libre -- --cards "/path/to/car
 **Inputs:**
 - `--cards` names a directory holding the private `card-17.png` and `card-18.png`, matching [the admitted hashes](art/atlas/README.md#private-card-admission). No card images are downloaded or redistributed.
 - `--art` defaults to `art/atlas`; pass its absolute path when running the binary from another directory.
-- `--save` names the save to create or continue. Relaunching the same command resumes it. Keep it outside `/tmp`; see [Where files live](#where-files-live).
+- `--save` names the save to create or continue. Keep it outside `/tmp`; see [Where files live](#where-files-live).
 
-Missing or changed art or cards refuse before a save is created or replaced. [docs/playing.md](docs/playing.md) explains how to play the build, including camera and keys.
+Missing or changed art or cards refuse before a save is created or replaced.
+
+## Playing this build
+
+A new save opens on 26July's decision as 1st Eligible on card 17. Choose Pass or Terror in the panel on the right; hovering an option explains it before you commit. Right-drag or the arrow keys orbit the map, the wheel zooms, WASD pans and Home restores the framing. **Save / quit** exits, and relaunching the same command resumes.
+
+[docs/playing.md](docs/playing.md) covers the rest: reading the table, Terror, Kidnap, transfers, removal and every key.
 
 ## Checks and development seat
 
@@ -32,7 +38,7 @@ Missing or changed art or cards refuse before a save is created or replaced. [do
 scripts/check
 ```
 
-It prints the checked revision and whether the working tree differs from it, then stops at the first failing check. CI runs the same command on every pull request, and `main` requires it to pass. A single focused command is only partial evidence. When several agents share the machine, run builds and checks through `scripts/heavy` ([parallel work](docs/agents/parallel-work.md)).
+It prints the checked revision and whether the working tree differs from it, then stops at the first failing check. CI runs the same command on every pull request, and `main` requires it to pass. A single focused command is only partial evidence.
 
 Core tests need no private inputs or GPU. The ignored native regressions need the card directory and a working renderer. `scripts/native` runs them all serially and passes extra arguments (a name filter, `--nocapture`) through:
 
@@ -58,9 +64,9 @@ The development seat drives the same scene, UI and input path without opening a 
 
 `local/` is ignored by Git and survives reboots, but not `git clean -x` or deleting the checkout; it is no backup. A test copies an owner save into its own run directory and uses the copy. Existing saves and retained evidence are never migrated, overwritten or cleaned up. Saves, imports and verification evidence stay outside Git.
 
-## Recovery
+## Saves and recovery
 
-Each successful save keeps the prior valid record beside it as `task.json.previous`. A save that is malformed, from an incompatible version, or left in doubt by a failed write is refused, and the app leaves every file as it was rather than starting a fresh task.
+Each successful save keeps the prior valid record beside it as `task.json.previous`. A save the app cannot admit is refused, and every file is left as it was; [docs/agents/saves.md](docs/agents/saves.md#admission-and-refusal) lists what is refused and why.
 
 To recover an original record's `.previous` into an **unused** destination:
 
@@ -68,7 +74,7 @@ To recover an original record's `.previous` into an **unused** destination:
 cargo run --locked --features tabletop --bin cuba-libre -- --cards "/path/to/cards" --save "/path/to/recovered.json" --recover-from "/path/to/task.json"
 ```
 
-The original and its recovery bytes stay untouched. Inspect the recovered state before choosing it as your continuing save. What a save records, and its limits, are in [docs/agents/saves.md](docs/agents/saves.md).
+The original and its recovery bytes stay untouched. Inspect the recovered state before choosing it as your continuing save.
 
 ## Where to read next
 
