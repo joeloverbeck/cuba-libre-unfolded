@@ -527,9 +527,11 @@ mod tests {
             capture::install::<Camera2d>(&mut app, size);
             let mut seat = shared::Seat::open(Table, &mut app).unwrap();
             seat.admit(&mut app, Duration::from_secs(180)).unwrap();
+            // A table that has exited fails the test here, with its reason, rather
+            // than answering every later request as if it were still being played.
             let mut ask = |app: &mut App, request: Value| -> Value {
-                let (response, _) = seat.respond(app, &request.to_string());
-                response
+                seat.respond(app, &request.to_string())
+                    .unwrap_or_else(|exited| panic!("{request}: {exited}"))
             };
             // AC-B (#69): Terror is pinned before its commit submits it.
             let pinned = ask(
