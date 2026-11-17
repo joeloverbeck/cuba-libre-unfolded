@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The repository's checks; CI runs this same entry point. It stops at the first
 # failure. The ignored native tests need private cards and a GPU, so they stay
-# manual (README, "Checks and development seat").
+# manual (README, "Checks and development seat"; docs/agents/seat.md).
 set -euo pipefail
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
