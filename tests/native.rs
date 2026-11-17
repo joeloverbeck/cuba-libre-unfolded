@@ -1849,7 +1849,9 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
             );
         }
     };
-    press(&mut app, 54);
+    press(&mut app, 27);
+    app.capture("loop-quarter");
+    press(&mut app, 27);
     app.capture("loop-half");
     press(&mut app, 54);
     app.capture("loop-whole");
@@ -1861,12 +1863,25 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
         );
     }
     for at in bells {
-        let half = token_changes(
-            &app.root.join("loop-start.png"),
-            &app.root.join("loop-half.png"),
-            at,
+        // A swing is symmetric, so a bell caught mid-swing looks the same half a
+        // loop later; a quarter loop later it is at an end. Either pair shows the
+        // swing, whatever the bell's phase.
+        let swing = [
+            token_changes(
+                &app.root.join("loop-start.png"),
+                &app.root.join("loop-half.png"),
+                at,
+            ),
+            token_changes(
+                &app.root.join("loop-start.png"),
+                &app.root.join("loop-quarter.png"),
+                at,
+            ),
+        ];
+        assert!(
+            swing.iter().any(|n| *n > 20),
+            "the bell visibly swings: {swing:?} changed pixels"
         );
-        assert!(half > 20, "the bell visibly swings: {half} changed pixels");
         let seam = token_changes(
             &app.root.join("loop-start.png"),
             &app.root.join("loop-whole.png"),
