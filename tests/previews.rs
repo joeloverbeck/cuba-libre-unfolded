@@ -285,6 +285,7 @@ fn a_target_lost_to_removal_has_no_remedy() {
 fn while_santiago_terror_is_owed_oriente_is_disabled_by_the_reserve() {
     let mut game = Game::prepared_with_seed(19); // actual shared roll 1: 26July 0 → 1
     choose(&mut game, "kidnap");
+    choose(&mut game, "kidnap:roll");
     assert_eq!(game.observe().resources[1], 1);
     assert!(target(&game, "santiago").supported);
     let oriente = target(&game, "oriente");
@@ -334,6 +335,7 @@ fn end_terror_records_operation_only_and_directorio_may_pass_or_take_a_limited_o
 fn end_terror_after_kidnap_records_the_special_activity_and_names_card_17_shaded() {
     let mut game = Game::prepared_with_seed(5); // actual shared roll 3
     choose(&mut game, "kidnap");
+    choose(&mut game, "kidnap:roll");
     choose(&mut game, "terror:santiago");
     let p = preview(&game, "end-terror");
     assert_eq!(p.records, Some(SequenceBox::OperationWithSpecialActivity));
@@ -414,10 +416,13 @@ fn no_old_finish_labels_remain() {
 fn reading_every_preview_changes_neither_the_state_nor_the_randomness() {
     let mut owed = Game::prepared_with_seed(19);
     choose(&mut owed, "kidnap");
+    choose(&mut owed, "kidnap:roll");
     let mut removing = Game::prepared();
     choose(&mut removing, "remove");
     let mut confirming = removing.clone();
     choose(&mut confirming, "remove:santiago:underground");
+    let mut opened = Game::prepared();
+    choose(&mut opened, "kidnap");
     for game in [
         Game::opening(),
         Game::prepared(),
@@ -425,6 +430,7 @@ fn reading_every_preview_changes_neither_the_state_nor_the_randomness() {
         owed,
         removing,
         confirming,
+        opened,
     ] {
         let before = game.clone();
         let random = game.random_state();
@@ -432,12 +438,14 @@ fn reading_every_preview_changes_neither_the_state_nor_the_randomness() {
         assert!(view.choices.iter().any(|c| c.preview.is_some()));
         assert_eq!(game, before);
         assert_eq!(game.random_state(), random);
-        // Kidnap's roll is never previewed here (#63 owns its preview).
+        // Kidnap's roll is never applied to a copy (#63): opening it and its roll show
+        // only the stakes, never a Resource result.
         assert!(
             view.choices
                 .iter()
-                .filter(|c| c.id.ends_with(":kidnap"))
-                .all(|c| c.preview.is_none())
+                .filter(|c| c.id.ends_with(":kidnap") || c.id.ends_with(":kidnap:roll"))
+                .filter_map(|c| c.preview.as_ref())
+                .all(|p| p.kidnap.is_some() && p.resources.is_empty())
         );
     }
 }

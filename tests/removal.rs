@@ -106,6 +106,7 @@ fn all_own_pieces_can_return_to_supply_and_zero_space_finish_remains_legal() {
 fn owed_terror_protects_only_last_santiago_underground_and_effects_survive_removal() {
     let mut game = Game::prepared_with_seed(5); // actual roll 3, source witness
     choose(&mut game, "kidnap");
+    choose(&mut game, "kidnap:roll");
     let rng = game.random_state();
     remove(&mut game, "santiago:underground");
     choose(&mut game, "remove");
@@ -176,6 +177,7 @@ fn foreign_removal_wrong_owner_and_stale_duplicate_leave_state_and_rng_unchanged
 fn active_removal_preserves_other_group_and_both_terror_effects() {
     let mut game = Game::prepared_with_seed(5);
     choose(&mut game, "kidnap");
+    choose(&mut game, "kidnap:roll");
     choose(&mut game, "terror:santiago");
     choose(&mut game, "terror:oriente");
     remove(&mut game, "santiago:active");
