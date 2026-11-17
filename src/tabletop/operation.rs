@@ -367,7 +367,8 @@ mod tests {
     }
 
     /// GLOSSARY.md: "Voluntary removal" and "Resource transfer", never their
-    /// _Avoid_ terms "donation" or "voluntary own removal".
+    /// _Avoid_ terms "donation", "gift" or "voluntary own removal", in the panel or in
+    /// the offered choices' labels and explanations.
     #[test]
     fn transfer_and_removal_steps_use_the_glossary_terms() {
         let mut game = Game::prepared();
@@ -378,6 +379,14 @@ mod tests {
             "{transfer}"
         );
         assert!(!transfer.to_lowercase().contains("donat"), "{transfer}");
+        for choice in &game.observe().choices {
+            let words = format!("{} {}", choice.label, choice.explanation).to_lowercase();
+            assert!(
+                !words.contains("gift") && !words.contains("donat"),
+                "{}: {words}",
+                choice.id
+            );
+        }
         let mut game = Game::prepared();
         game.submit(Faction::M26, 0, "0:remove").unwrap();
         assert_eq!(heading(&game.observe()), "26July · Voluntary removal");

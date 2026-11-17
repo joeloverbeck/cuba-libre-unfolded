@@ -115,7 +115,7 @@ pub(super) mod fig {
 /// 26July's two transfer decisions (R 1.5.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 pub(super) enum Direction {
-    /// 26July gives; the gift moves on confirmation.
+    /// 26July gives; the Resource transfer moves on confirmation.
     Give,
     /// 26July asks; the counterpart decides what moves.
     Ask,
@@ -1900,7 +1900,7 @@ fn footer(
     };
     let note = match (decision, shown.giver) {
         (Some(_), _) => "Wait keeps it pending, across save and quit.".to_owned(),
-        (None, Some(Faction::M26)) => "26July's own gift moves at once.".into(),
+        (None, Some(Faction::M26)) => "26July's own Resource transfer moves at once.".into(),
         (None, Some(giver)) => format!("Nothing moves until {} authorizes.", giver.name()),
         (None, None) => "Zero and repeated transfers are allowed.".into(),
     };

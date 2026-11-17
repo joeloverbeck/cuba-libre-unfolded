@@ -10,18 +10,20 @@ fn choose(game: &mut Game, action: &str) {
     .unwrap();
 }
 
-fn donate(game: &mut Game, giver: usize, amount: u8) {
+fn transfer_resources(game: &mut Game, giver: usize, amount: u8) {
     choose(game, "transfer");
     choose(game, &format!("ask:{giver}:{amount}"));
     choose(game, &format!("authorize:{amount}"));
 }
 
-// Accepted deacd635 handoff witness: DR donates 1, Oriente Terror, no Kidnap.
+// Accepted deacd635 handoff witness: DR gives 1 by Resource transfer, Oriente Terror,
+// no Kidnap.
 // R 3.3.4: cost 1, activate 1 Underground, Terror, toward Active Opposition.
 #[test]
-fn donated_oriente_terror_updates_pieces_resources_standing_and_next_permission() {
+fn oriente_terror_after_a_resource_transfer_updates_pieces_resources_standing_and_next_permission()
+{
     let mut game = Game::prepared();
-    donate(&mut game, 2, 1);
+    transfer_resources(&mut game, 2, 1);
     choose(&mut game, "terror:oriente");
     let view = game.observe();
     assert_eq!(view.resources, [6, 0, 4, 15]);
@@ -122,7 +124,7 @@ fn owed_santiago_limits_spending_only_until_its_terror_is_resolved() {
             .any(|c| c.id.ends_with("terror:oriente") && c.supported)
     );
     choose(&mut game, "terror:santiago");
-    donate(&mut game, 3, 1);
+    transfer_resources(&mut game, 3, 1);
     choose(&mut game, "transfer");
     choose(&mut game, "give:2:1");
     choose(&mut game, "end-terror");
@@ -131,11 +133,11 @@ fn owed_santiago_limits_spending_only_until_its_terror_is_resolved() {
 }
 
 #[test]
-fn actual_donations_allow_both_target_orders_and_early_during_late_or_no_kidnap() {
+fn actual_resource_transfers_allow_both_target_orders_and_early_during_late_or_no_kidnap() {
     for order in [["santiago", "oriente"], ["oriente", "santiago"]] {
         for timing in [Some(0), Some(1), Some(2), None] {
             let mut game = Game::prepared_with_seed(5); // shared roll 3
-            donate(&mut game, 2, 2);
+            transfer_resources(&mut game, 2, 2);
             for (index, target) in order.into_iter().enumerate() {
                 if timing == Some(index) {
                     choose(&mut game, "kidnap");
@@ -182,12 +184,12 @@ fn actual_donations_allow_both_target_orders_and_early_during_late_or_no_kidnap(
             game.validate().unwrap();
         }
     }
-    // The result-1 source witness: a real later donation restores Oriente.
+    // The result-1 source witness: a real later Resource transfer restores Oriente.
     let mut game = Game::prepared_with_seed(19);
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     choose(&mut game, "terror:santiago");
-    donate(&mut game, 3, 1);
+    transfer_resources(&mut game, 3, 1);
     choose(&mut game, "terror:oriente");
     assert_eq!(game.observe().resources, [5, 0, 5, 14]);
     assert_eq!(game.observe().standings[1].score, 10);
@@ -196,7 +198,7 @@ fn actual_donations_allow_both_target_orders_and_early_during_late_or_no_kidnap(
 #[test]
 fn depleted_government_needs_real_funding_before_early_zero_proceeds_kidnap() {
     let mut game = Game::prepared_with_seed(5);
-    donate(&mut game, 0, 6);
+    transfer_resources(&mut game, 0, 6);
     choose(&mut game, "transfer");
     choose(&mut game, "give:2:6");
     let before = game.clone();
@@ -206,7 +208,7 @@ fn depleted_government_needs_real_funding_before_early_zero_proceeds_kidnap() {
             .is_err()
     );
     assert_eq!(game, before);
-    donate(&mut game, 2, 1);
+    transfer_resources(&mut game, 2, 1);
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     assert_eq!(game.observe().kidnap.as_ref().unwrap().proceeds, 0);

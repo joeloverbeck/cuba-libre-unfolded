@@ -50,9 +50,9 @@ fn actions(game: &Game) -> Vec<String> {
         .collect()
 }
 
-/// 26July gives a faction Resources: the gift moves on confirmation.
+/// 26July gives a faction Resources: the Resource transfer moves on confirmation.
 #[test]
-fn twenty_six_july_s_own_gift_moves_at_once() {
+fn twenty_six_july_s_own_resource_transfer_moves_at_once() {
     let mut game = Game::prepared();
     choose(&mut game, "transfer");
     choose(&mut game, "ask:3:3");
@@ -197,7 +197,7 @@ fn zero_and_repeated_transfers_are_allowed_and_zero_is_no_effect() {
 /// The limits, worked from the position: the giver's balance binds every request in
 /// the prepared position (the richest holds 15, so the 49 cap has room).
 #[test]
-fn the_giver_s_balance_bounds_gifts_requests_and_authorizations() {
+fn the_giver_s_balance_bounds_own_transfers_requests_and_authorizations() {
     let mut game = Game::prepared();
     choose(&mut game, "transfer");
     let view = game.observe();
@@ -252,20 +252,20 @@ fn the_giver_s_balance_bounds_gifts_requests_and_authorizations() {
 /// Santiago's Terror is owed, so 26July can give at most 2 (accepted commitment
 /// policy). Requests from others are not reserved.
 #[test]
-fn the_owed_terror_reserve_bounds_26july_s_gifts_until_it_resolves() {
+fn the_owed_terror_reserve_bounds_26july_s_own_transfers_until_it_resolves() {
     let mut game = Game::prepared_with_seed(5); // shared roll 3
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     assert_eq!(game.observe().resources, [3, 3, 5, 15]);
     choose(&mut game, "transfer");
     let view = game.observe();
-    let gift = view
+    let give = view
         .transfer_terms
         .iter()
         .find(|t| t.giver == M26 && t.recipient == D)
         .unwrap();
     assert_eq!(
-        (gift.balance, gift.reserved, gift.limit, gift.bound),
+        (give.balance, give.reserved, give.limit, give.bound),
         (3, 1, 2, Bound::Reserve)
     );
     let ask = view
@@ -283,12 +283,12 @@ fn the_owed_terror_reserve_bounds_26july_s_gifts_until_it_resolves() {
     choose(&mut game, "terror:santiago");
     choose(&mut game, "transfer");
     let view = game.observe();
-    let gift = view
+    let give = view
         .transfer_terms
         .iter()
         .find(|t| t.giver == M26 && t.recipient == D)
         .unwrap();
-    assert_eq!((gift.balance, gift.reserved, gift.limit), (0, 0, 0));
+    assert_eq!((give.balance, give.reserved, give.limit), (0, 0, 0));
     game.validate().unwrap();
 }
 

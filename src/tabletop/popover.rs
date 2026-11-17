@@ -6,8 +6,8 @@
 //! step's consequences are visible before the committing click. Blocked rows state
 //! what is missing and the in-task remedies the authority names.
 //!
-//! In removal mode (#73) the same card is the piece popover: hovering a 26July piece
-//! shows it, clicking a removable one keeps it open. It names the piece, its state and
+//! In removal mode (#73) the same card is the piece popover: clicking a removable
+//! 26July piece opens it (#58 story 49), and hovering one opens nothing. It names the piece, its state and
 //! space, offers a quantity for a stack, previews the removal the authority computes,
 //! and acts only through Remove; Cancel closes it. The protected Guerrilla shows its
 //! reason on hover, and a click on it opens nothing.
@@ -1761,14 +1761,19 @@ pub(super) fn draw(
     let space = if ui.reader { None } else { pinned.clone() };
     let shown = if targeting.removal.is_some() {
         let kept = popover.piece.as_ref().map(|(key, _)| key.clone());
+        // A removable piece's popover opens on a click only (#58 story 49); hover
+        // shows only the protected Guerrilla's reason tag (story 48).
         let key = if ui.reader {
             None
         } else {
             kept.clone().or_else(|| {
-                popover
-                    .hovered
-                    .clone()
-                    .filter(|_| ui.status.visible().is_some() && ui.rested.is_none())
+                popover.hovered.clone().filter(|key| {
+                    ui.status.visible().is_some()
+                        && ui.rested.is_none()
+                        && targeting
+                            .piece(key)
+                            .is_some_and(|t| t.mark == PieceState::Protected)
+                })
             })
         };
         key.and_then(|key| {

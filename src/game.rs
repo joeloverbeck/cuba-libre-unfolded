@@ -255,7 +255,7 @@ pub fn removal_piece(group: &str) -> Option<(Kind, State)> {
     }
 }
 /// The committed die and its actual proceeds. Balances at the roll remain
-/// inspectable even when subsequent Terror or donations change current balances.
+/// inspectable even when subsequent Terror or Resource transfers change current balances.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Kidnap {
@@ -1406,7 +1406,7 @@ impl Game {
                                 &format!("give:{}:{n}", other.index()),
                                 format!("Give {n} to {}", other.name()),
                                 true,
-                                "26July's own gift moves at once (R 1.5.1).",
+                                "26July's own Resource transfer moves at once (R 1.5.1).",
                             )
                         } else {
                             self.offer(
@@ -1879,8 +1879,8 @@ impl Game {
             })
             .collect()
     }
-    /// Why an amount beyond its limit is refused, in the terms' own words: a gift or
-    /// request the modal offers, or the pending request's authorization.
+    /// Why an amount beyond its limit is refused, in the terms' own words: 26July's own Resource
+    /// transfer or request the modal offers, or the pending request's authorization.
     fn transfer_refusal(&self, action: &str) -> Option<String> {
         let terms = self.transfer_terms();
         let parts: Vec<_> = action.split(':').collect();

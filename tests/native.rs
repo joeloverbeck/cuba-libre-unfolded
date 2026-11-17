@@ -1550,7 +1550,8 @@ fn native_transfer_modal_gives_asks_and_waits_for_the_giver() {
         app.observe()["observation"]["resources"],
         json!([6, 5, 5, 10])
     );
-    // 26July's own gift moves at once; more than it holds is refused in the modal.
+    // 26July's own Resource transfer moves at once; more than it holds is refused in
+    // the modal.
     app.choose("transfer");
     let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
     app.activate("transfer:tab:directorio", revision);
@@ -1849,7 +1850,7 @@ fn native_hover_status_is_transient_without_region_inspection() {
     }
     app.request(json!({"op":"key","revision":0,"key":"Home"}), true);
     app.request(json!({"op":"settle"}), true);
-    // Donated Resources exercise the actual Terror path without randomness.
+    // Resource transfers exercise the actual Terror path without randomness.
     for action in [
         "terror",
         "transfer",
@@ -3492,7 +3493,8 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
     inert(&mut app, "santiago");
     app.choose("kidnap:cancel");
 
-    // After a donation both targets are selectable; Terror from the map popover.
+    // After a Resource transfer both targets are selectable; Terror from the map
+    // popover.
     for step in ["transfer", "ask:3:1", "authorize:1"] {
         app.choose(step);
     }
@@ -3550,7 +3552,7 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
     app.activate("space:santiago", revision);
     assert_eq!(app.observe()["table"]["popover"], Value::Null);
 
-    // Terror from the panel after another donation.
+    // Terror from the panel after another Resource transfer.
     for step in ["transfer", "ask:3:1", "authorize:1"] {
         app.choose(step);
     }
@@ -4283,10 +4285,9 @@ fn native_removal_mode_marks_pieces_and_removes_through_the_piece_popover() {
     );
     app.capture("removal-mode");
 
-    // Hovering a removable piece shows its popover; a click keeps it open.
+    // Hovering a removable piece opens no popover (#58 story 49); a click opens it.
     let hovered = app.point(&format!("piece:{}", piece("santiago:underground")));
-    assert_eq!(hovered["table"]["popover"]["kind"], "piece");
-    assert_eq!(hovered["table"]["popover"]["pinned"], false);
+    assert_eq!(hovered["table"]["popover"], Value::Null, "{hovered}");
     let revision = mode["observation"]["revision"].as_u64().unwrap();
     app.activate(
         &format!("piece:{}", piece("santiago:underground")),

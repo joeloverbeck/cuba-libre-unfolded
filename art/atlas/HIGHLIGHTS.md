@@ -43,7 +43,7 @@ No space rule shows in removal mode. Each marker is the proposal's `graphics/pie
 
 ## The piece popover (#73)
 
-In removal mode, hovering a 26July piece shows its popover after the region tag's dwell; clicking a removable piece keeps it open, and clicking it again, Cancel, a region or any decision closes it. A protected piece shows A-P6's tag on hover, and a click on it opens nothing. Removal mode stays open after each removal until the panel's Done.
+In removal mode, clicking a removable 26July piece opens its popover (#58 story 49); hovering it opens nothing. Clicking it again, Cancel, a region or any decision closes it. A protected piece shows A-P6's tag on hover (story 48), and a click on it opens nothing. Until #58's final review a hover also opened a removable piece's popover, unpinned. Removal mode stays open after each removal until the panel's Done.
 
 The frames are A-P5 (a stack, with the quantity stepper), A-P7 (one piece) and A-P6 (the protected tag) on the same FigCraft page. `src/tabletop/popover.rs` implements their values in reference pixels:
 - **Card and header:** as the space popover. A-P6 is 300 wide with an `ink` top rule; it informs and nothing on it acts.
