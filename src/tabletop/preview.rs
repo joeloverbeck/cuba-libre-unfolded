@@ -13,11 +13,12 @@
 //! - Prohibited dependents: #16's owner review, any release, and any other UI
 //!   positioning itself against this card.
 //! - Appetite: keep it working for #58's checks; no design or polish effort.
-//! - Replacement: the selected designs in #69 (action choice and briefings) and
-//!   #72/#73 (map popovers for targets and removals). #72's space popover now
-//!   previews Terror and opening Kidnap on the map, and #73's piece popover previews
-//!   each removal, whose buttons left the panel; this card still serves the panel's
-//!   remaining buttons until #69 replaces it.
+//! - Replacement: #72/#73 (map popovers for targets and removals). #69 replaced its
+//!   action-choice use: there the pinned AC-B briefing is the preview, and the
+//!   option rows and commit open no card. #72's space popover now previews Terror and
+//!   opening Kidnap on the map, and #73's piece popover previews each removal, whose
+//!   buttons left the panel; this card still serves the execution panel's remaining
+//!   buttons (End Terror, transfers, Kidnap's roll and Back).
 //! - Expiry: before #75's end-to-end verification.
 use super::*;
 use crate::{Choice, KidnapStakes, Observation, Preview, SequenceBox};

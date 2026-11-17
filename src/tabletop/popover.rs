@@ -77,14 +77,15 @@ pub(super) struct Popover {
 
 impl Popover {
     /// A region click while targeting. Outside targeting states it does nothing.
-    pub fn click_space(&mut self, space: &str, targeting: &Targeting) {
+    /// Returns whether the click opened (kept open) a space's popover.
+    pub fn click_space(&mut self, space: &str, targeting: &Targeting) -> bool {
         let Some(revision) = targeting.view.as_ref().map(|v| v.revision) else {
-            return;
+            return false;
         };
         // In removal mode a region click only closes a piece popover.
         if targeting.removal.is_some() {
             self.piece = None;
-            return;
+            return false;
         }
         match targeting.state(space) {
             None => {}
@@ -102,6 +103,7 @@ impl Popover {
                 self.selected = None;
             }
         }
+        self.pinned.as_ref().is_some_and(|(s, _)| s == space)
     }
     pub fn choose_row(&mut self, action: &str) {
         self.selected = Some(action.into());
@@ -1135,7 +1137,7 @@ fn commit(
             Control {
                 name: "popover:commit".into(),
                 choice: false,
-                action: Action::Commit(owner, revision, choice.into()),
+                action: Action::PopoverCommit(owner, revision, choice.into()),
             },
             ChildOf(parent),
         ))
