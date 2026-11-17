@@ -52,6 +52,7 @@ Read `README.md` and `docs/foundation/01-mission-and-scope.md` before project wo
 - Visual work (graphics, layouts, map, pieces, animation, imported assets): read `docs/foundation/04-art-and-assets.md` and `docs/agents/art-tools.md` first.
 - Agent seats, prompts or player communication: `docs/foundation/05-players-and-proclamations.md`. External Claude Code/Codex sessions play seats; there are no built-in bots. Faction proclamations are public written documents.
 - Development playtesting: foundation 3's required socket seat must ship with the first interactive slice. Reuse Arkham/mudsong/shared interaction and screenshot facilities. Perform feasible agent-operated functional and visual checks before asking the owner for a human playtest; faction players and the development seat are distinct capabilities within this game.
+- Driving the development seat or reading its native evidence: `docs/agents/seat.md` (launch, `--brief` replies, keys, components, choices, native tests).
 
 All project-owned executable code is Rust; bash, such as `scripts/check`, and GPU code are allowed (foundation 3). The initial tactical application is an isolated integration candidate; read README for its supported paths, checks, external inputs and recovery. Bind build and launch claims to executed evidence. GitHub Issues and PRs in `joeloverbeck/cuba-libre-unfolded` own active work after founding; local docs are not a ticket queue. All specs and tickets must cite the applicable principles and foundations and preserve their constraints.
 

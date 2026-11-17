@@ -1,0 +1,227 @@
+# Development seat
+
+The shared development seat drives the same Bevy scene, UI and input path as a window, without opening one. It uses a fixed manual clock and disables Winit and pipelined rendering, so it cannot establish physical mouse comfort.
+
+It is distinct from a faction player's connection (foundation 5). It has no authority to invent legal game choices: it offers only what the rules authority lists.
+
+## Launch and connect
+
+Use an isolated verification save in a fresh run directory, from the checkout root:
+
+```sh
+run=local/verification/seat-$(date +%Y%m%d-%H%M%S) && mkdir -p "$run"
+cargo run --locked --features tabletop --bin cuba-libre -- --cards "/path/to/cards" --save "$run/task.json" --agent-seat --socket /tmp/cuba-check.sock
+cargo run --locked --bin cuba-tools -- seat --brief /tmp/cuba-check.sock '{"op":"observe"}'
+cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"point","revision":0,"component":"standing:0"}' '{"op":"settle"}'
+cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock "{\"op\":\"capture\",\"path\":\"$PWD/$run/standing.png\"}"
+cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"activate","revision":0,"component":"option:terror"}' '{"op":"settle"}'
+cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"activate","revision":0,"choice":"0:terror"}' '{"op":"settle"}'
+cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"activate","revision":1,"component":"step:end-terror"}' '{"op":"settle"}'
+cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"activate","revision":1,"choice":"1:end-terror"}' '{"op":"settle"}'
+cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"quit"}'
+```
+
+- **Launch.** The launch command returns with status 0 as soon as the seat is admitted, after printing its `ready` response. That exit is the launcher's, not the seat's: the seat keeps serving in the background.
+- **Log.** The seat writes its diagnostics to the socket path with `.log` appended (`/tmp/cuba-check.sock.log` here).
+- **Connections.** Each `cuba-tools seat` invocation is its own connection, and closing it does not end the session.
+- **Session end.** The session ends at `quit`, at the table's own exit, or after 30 minutes without a request; then the socket is removed.
+- **Second launch.** A launch on a socket where a seat still answers is refused and leaves that seat untouched: send it `quit` or choose another path.
+- **Size.** Add `--seat-size 1920x1080` or `--seat-size 2520x1080` to exercise wider surfaces through the same renderer. The default is 1920×1280, and sizes run from 640×480 to 4096×2160 (#50 tracks reaching the owner's 6144×3456).
+
+## Requests and replies
+
+- Use the actual observed revision and the exact component and choice names.
+- `cuba-tools seat` uses the shared JSON-line transport. It exits nonzero for refused, missed or skipped replies, for malformed or missing ones, and has a 180-second response deadline.
+- A refusal stops the later mutations on its connection (they are `skipped`): reconnect and observe before deciding again.
+- `{"op":"advance","steps":216}` steps the table's clock 216 steps of 1/60 s with no input, settled or not.
+- Key requests look like `{"op":"key","revision":0,"key":"Home"}`. See [Keys](#keys).
+
+### Brief replies
+
+Every full reply carries the whole rules observation and the whole table: many kilobytes. `cuba-tools seat --brief SOCKET [REQUEST ...]` prints each reply as one short JSON line instead:
+
+```json
+{"status":"observed","revision":4,"settled":true,"choices":[{"id":"4:end-terror","label":"End Terror","supported":true},{"id":"4:terror:santiago","label":"Terror · Santiago de Cuba","supported":false,"explanation":"R 3.3.4. Terror already resolved here: each space at most once per Operation (R 3.1)."}]}
+```
+
+- It keeps the reply's `status`, `revision`, `settled` and `error`, when present.
+- It keeps each rules choice's `id`, `label` and `supported`, and the `explanation` of an unsupported one.
+- It drops everything else: the rest of the observation, the table, and component names. Observe without `--brief` when you need those.
+- A reply without an observation keeps only its envelope fields. A line that is no JSON reply with a `status` prints as it came.
+- Exit status, stderr and request handling are the same with and without the flag.
+
+## Keys
+
+| Key | Effect |
+|---|---|
+| Camera keys | Orbit, zoom, pan and Home framing, as README "Build and launch" lists them. |
+| `Tab` | Moves keyboard focus through the action choice's options (`option:pass` … `option:terror:kidnap`) and its commit. During Terror it also moves through `briefing-ribbon`, `briefing-tab:kidnap`, `briefing-tab:terror` and the execution panel's steps. |
+| `Escape` | Unpins or closes the briefing; cancels an open transfer (Wait in a giver's decision); closes an open space popover, piece popover or briefing tag. |
+| `Backspace`, `0`–`9` | Edit the transfer amount. |
+| `Enter`, `Space` | Activate the focused control, which the request must name in `"focused"`, e.g. `{"op":"key","revision":0,"key":"Enter","focused":"option:pass"}`. |
+
+- A landed Kidnap die closes with Enter naming its Continue: `{"op":"key","revision":4,"key":"Enter","focused":"kidnap-die:continue"}`.
+- While the die is in the air, Enter or Space naming `kidnap-die` skips the tumble; the seat refuses other input as busy (#87).
+
+## Components
+
+Name these in a request's `"component"`. Families use `<…>` for the varying part.
+
+| Component | Where | What it does |
+|---|---|---|
+| `standing:0`–`standing:3` | Victory standings | Hover target for a faction's standing tag. |
+| `margin:0`–`margin:3` | Victory margins | Hover target for a faction's margin tag. |
+| `aid`, `us-alliance`, `resources`, `cash` | Top display | Each opens its tag. |
+| `space:<space>`, e.g. `space:havana` | Map | Picks the space; opens its popover where the rules allow. |
+| `reader` | "Read both cards" | Opens the card reader on both cards' complete faces. |
+| `close` | Card reader | Closes the reader while it is open. |
+| `option:<option>`, `option:pass` … `option:terror:kidnap` | Action choice | Pins the option. |
+| `choice-commit` | Action choice | Commits the pinned option. |
+| `briefing-ribbon` | Terror | Reopens the briefings. |
+| `briefing-tab:kidnap`, `briefing-tab:terror` | Briefing tag | Switches the briefing. |
+| `eligibility:pass`, `eligibility:operation-only`, `eligibility:operation-special-activity` | Eligibility indicator | Hover targets for each box's tag. |
+| `step:terror:santiago`, `step:terror:oriente`, `step:kidnap`, `step:transfer`, `step:remove`, `step:end-terror`, `step:back-to-choice` | Execution panel (EX-A) during Terror | Pins the step's tag. The commit is then the pinned step's choice. |
+| `execution-commit` | Execution panel | The commit while it is disabled. |
+| `kidnap-die` | Kidnap die tray | Skips the tumble while the die is in the air. |
+| `kidnap-die:continue` | Landed die | Continues past the result. |
+| `transfer:tab:<faction>`, e.g. `transfer:tab:syndicate` | Transfer modal | Selects the counterpart. |
+| `transfer:direction:give`, `transfer:direction:ask` | Transfer modal | Sets the direction. |
+| `transfer:quick:1`, `transfer:quick:2`, `transfer:quick:max` | Transfer modal | Sets the amount. |
+| `transfer:slider` | Transfer modal | Sets the amount. |
+| `transfer:field` | Transfer modal | Focuses the amount field for the digit keys. |
+| `transfer:primary` | Transfer modal | The primary button while no amount can commit; its activation shows why. |
+| `pending-open` | Top band | Shows a waiting transfer decision again (choice `<revision>:reopen`). |
+| `popover:row:<action>` | Space popover | The row for `<action>`. |
+| `popover:commit` | Space or piece popover | Commits. |
+| `popover:quantity:minus`, `popover:quantity:plus` | Piece popover | Steps the quantity. |
+| `popover:cancel` | Piece popover | Cancels. |
+| `own-piece:<space>:<group>` | Removal mode | Opens a 26July piece's popover. The seat reaches it as `piece:<space> M26 <Kind> <State>`. |
+
+[`art/atlas/EXECUTION.md`](../../art/atlas/EXECUTION.md) lists every name in the execution panel.
+
+## Choices
+
+Name these in a request's `"choice"`. Each starts with the revision it was offered at; take ids from the observation's `choices` (or a `--brief` reply).
+
+| Choice | Meaning |
+|---|---|
+| `<revision>:pass`, `<revision>:terror` | 26July's action choice. |
+| `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap`, `<revision>:transfer`, `<revision>:remove` | Execution steps during Terror. |
+| `<revision>:kidnap:roll`, `<revision>:kidnap:cancel` | Kidnap's Roll and Cancel. |
+| `<revision>:give:<faction>:<amount>` | 26July gives Resources; moves at once. |
+| `<revision>:ask:<faction>:<amount>` | 26July asks a faction for Resources, which it decides. |
+| `<revision>:authorize:<amount>`, `<revision>:decline`, `<revision>:wait` | The asked faction's decision. Wait sets the request aside. |
+| `<revision>:reopen` | Shows a waiting decision again. |
+
+Faction indices in choices: Government 0, Directorio 2, Syndicate 3.
+
+### Example: a Resource transfer
+
+From a fresh save:
+
+1. Activate component `option:terror` to pin it, then choice `0:terror`, then choice `1:transfer`.
+2. In the modal, activate components `transfer:tab:syndicate` and `transfer:direction:ask`.
+3. Type the amount with key requests (`Backspace`, then digits such as `{"op":"key","revision":2,"key":"1"}`), or use `transfer:quick:1`, `transfer:quick:2`, `transfer:quick:max` or `transfer:slider`.
+4. Activate the primary button, whose choice is `2:ask:3:1`.
+5. Syndicate decides at revision 3. Type its amount and activate `3:authorize:1` (Government/26July/Directorio/Syndicate Resources = 6/1/5/14), or `3:decline`, or `3:wait`.
+6. After Wait, the request is saved set aside at revision 4. The top band's pending tab (component `pending-open`, choice `4:reopen`) shows the decision again.
+
+## What the table reports
+
+The full reply's `table` describes what is drawn. Drawn parts are reported by name; they are not activated.
+
+| Field | Reports |
+|---|---|
+| `table.briefing`, `table.choice`, `table.choice_parts` | The briefing; the action choice's pinned option, focus, ribbon and tab; its drawn parts. |
+| `table.eligibility` | The drawn `track`, the shown `tag` and the drawn `parts`. |
+| `table.die` | The presented Kidnap roll. |
+| `table.map_targets`, `table.highlights` | Map states and visible highlights. |
+| `table.popover` | The open popover; `parts` for its layout. |
+| `table.removal`, `table.markers` | Removal mode and its piece markers. |
+| `table.transfer.state` | The transfer modal: shown, pending, counterpart, direction, entry, limit, refusal, commit. |
+| `table.inline_text` | Inline emblem geometry. |
+
+Drawn-part names:
+
+- **Transfer modal** (`table.transfer.parts`): `account:26july`, `account:counterpart`, `header`, `direction-toggle`, `flow-band`, `number-field`, `track`, `limits`, `limit:<icon>` and `button:<action>`.
+- **Eligibility indicator** (`table.eligibility.parts`): `eligibility-row:<faction>:<part>`, where the part is `number`, `emblem`, `name`, `acted`, `1st` or `2nd`, `eligible` or `ineligible`. Also `eligibility-box:ineligible` with its `:label` and `:note`, `eligibility-label:eligible` and `eligibility-label:recorded`.
+
+## Native regressions
+
+The ignored native regressions need the selected card directory and a working renderer. `scripts/native` runs them all serially, both `tests/native.rs` and the in-process ones in the library, and passes extra arguments (a name filter, `--nocapture`) to both:
+
+```sh
+CUBA_TEST_CARDS="/path/to/cards" scripts/native
+```
+
+- Each test keeps isolated saves, JSON observations and screenshots under its evidence directory, below. `CUBA_NATIVE_EVIDENCE` selects another evidence directory.
+- Inspect the images separately: passing assertions do not prove readability or owner acceptance.
+- Run native regressions serially (`--test-threads=1`).
+- Optionally set `CUBA_COMPAT_SAVE` to a record an earlier build wrote in the shared save record. The hover and responsive tests copy it into their evidence directories and verify the preserved save bytes; the hover test also checks two process resumes. They never open the supplied original as an application save path.
+- A user-selected `CARGO_TARGET_DIR` can reuse a compatible warm build cache; it is not a runtime dependency.
+
+The first five tests below (evidence under `issue-12` to `issue-15`) together exercise:
+
+- actual pointer and key controls, hover, all 13 region picks, camera capture, and rendered water progression and looping;
+- End Terror, all transfer directions, decline, wait and zero, and pending-giver and accepted-transfer process restarts;
+- Kidnap/owed and post-Terror process restarts, and both Terror orders funded by Resource transfers with no or late Kidnap;
+- removal mode with quantity and Done, removal/owed process restarts, protected-piece refusal, split Active/Underground removal, and all-pieces-removed End Terror;
+- stale refusal, input refusal and explicit recovery.
+
+Core checks cover all six actual shared-RNG outcomes and independent source-derived consequences.
+
+- `native_controls_hover_camera_finish_and_process_restarts`: evidence in `local/verification/issue-12/native-*`.
+- `native_transfer_modal_gives_asks_and_waits_for_the_giver`: evidence in `local/verification/issue-13/transfers-*`.
+- `native_kidnap_owed_terror_restart_and_next_permissions`: evidence in `local/verification/issue-14/terror-*`.
+- `native_resource_transfers_enable_both_orders_without_or_with_late_kidnap`: evidence in `local/verification/issue-14/donated-terror-*`.
+- `native_own_removal_restart_obligation_and_all_pieces_finish`: evidence in `local/verification/issue-15/removal-*`.
+- `native_hover_status_is_transient_without_region_inspection`: all ten city/province tags, three EC exclusions, piece/count hover, reader suppression, camera navigation, complete home framing, and Terror/removal updates. Evidence: `local/verification/issue-16/hover-status-*`.
+- `native_victory_emblems_disclose_live_margins_without_inspection`: emblem and margin targets, one tag, reader/leave dismissal, actual transfer/Terror/removal updates, and rendered text bounds, including the largest reachable contribution list. Evidence: `local/verification/issue-16/victory-*`.
+- `native_responsive_layout_uses_width_and_preserves_picks`: 3:2, 16:9 and 21:9 native surfaces (agent-chosen regression coverage, not owner display policy; see the art foundation), all region picks, piece/count hover, centered emblems, panel anchors, the reader and unchanged save bytes. Evidence: `local/verification/issue-16/layout-*`.
+- `native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space`: resolves both Terrors and checks three things.
+  - Captures exactly one loop apart (216 manual-clock steps, asked for with `advance`) are pixel-identical around each bell.
+  - Each bell, advanced to the fixed seek times 0, 0.225, 0.45 and 0.675 s, visibly changes between two of those poses whatever the run's phase.
+  - Bell/count hover discloses its space.
+  - Evidence: `local/verification/issue-41/terror-bell-*`.
+- `native_top_display_matches_layout_and_follows_the_economy`: the top display at 3840×2160 (16:9). Evidence: `local/verification/issue-46/top-display-*`.
+  - Every image part, and the left, top and right edges of every value, lie within 2 px of [the FigCraft layout record](../../art/atlas/atlas-top-display.layout.json).
+  - The `aid`, `us-alliance`, `resources` and `cash` tags each open, with their lines inside the plate, and the Resources tag leaves Cash visible.
+  - A transfer, both Terror payments and a Kidnap each update the ledger.
+  - The reader hides the top display (its re-exported frame, without the title, is checked by its manifest and inspected in the capture).
+- `native_inline_emblems_sit_on_their_baseline_inside_their_text`: at 1920×1280 and 4096×2160, every inline emblem in the panel, buttons, notice, tags and reader. Evidence: `local/verification/issue-60/inline-*`.
+  - It is 0.9× its type size, lies inside its text's bounds, sits within 1.5 px of its line's baseline, and keeps glued punctuation on its line.
+  - Observations keep the names. The seat reports this geometry as `table.inline_text`.
+  - Bevy's text layout, parley 0.11, always permits a line break right after an inline image, whatever character follows it, so a word joiner cannot prevent the break. A full stop glued to an emblem ("[S].") could therefore wrap to the next line; the test asserts it does not in the states it exercises.
+- `native_action_choice_pass_and_back_before_the_first_effect`: lists and refuses the unsupported options, Passes and restarts, then chooses Terror, opens a Transfer request, restarts, goes back and Passes. Evidence: `local/verification/issue-61/action-choice-*`.
+- `native_previews_disabled_targets_and_end_terror`: each irreversible step's preview and each disabled Terror target's reason and remedies, as the panel shows them while the pointer rests on a button. Evidence: `local/verification/issue-62/previews-*`.
+- `native_kidnap_opens_cancels_and_rolls_through_the_panel`: previews Kidnap's stakes, opens it, previews the roll, cancels, reopens, restarts while open, then rolls and restarts. Opening and cancelling leave the saved randomness unchanged, and a stale roll is refused. Evidence: `local/verification/issue-63/kidnap-*`.
+- `native_action_choice_matches_layout_and_briefs_every_option`: compares the action choice with its [layout record](../../art/atlas/CHOICE.md) at 3840×2160 and hovers every option's briefing. Evidence: `local/verification/issue-69/ac-b-*`.
+  - It pins Pass and Terror, commits Terror by keyboard, reopens the Terror and Kidnap briefings from the ribbon, and checks their values after a transfer, a Terror and a removal.
+- `native_space_popover_closes_the_briefing_tag`: opens the briefing tag at 3840×2160, finds Santiago under it, then opens Oriente's popover and checks that the tag closed and the match did not change (the owner's clash rule). Evidence: `local/verification/issue-69/clash-*`.
+  - It also checks that opening the tag from the ribbon closes an open popover, that Escape or a click on the map outside the tag closes the tag, and that Escape closes an open space popover.
+- `native_eligibility_indicator_matches_layout_in_every_state`: compares the indicator with its [layout record](../../art/atlas/ELIGIBILITY.md) at 3840×2160 at the opening, during Terror, after Operation Only, after Pass (and its restart) and after Operation with Special Activity. Evidence: `local/verification/issue-70/el-a-*` (captures and panel crops).
+  - The drawn track agrees with the observation's Eligibility record, and nobody is shown Ineligible.
+  - It hovers every box's tag and dismisses it.
+- `native_transfer_modal_matches_layout`: the TM-B modal at the owner's 16:9 aspect against its FigCraft layout record, in the 16:9 frame's state (26July asks Syndicate for 2). Evidence: `local/verification/issue-71/transfer-layout-*`.
+- `native_map_targets_and_space_popovers_follow_the_rules`: clicks spaces at the action choice, while Kidnap is open, in removal mode and after End Terror, and finds nothing changed. Evidence: `local/verification/issue-72/targets-*`.
+  - It hovers blocked Oriente, which shows only its status tag, and clicks it open at 0 Resources and after a Resource transfer.
+  - It opens Kidnap and Terror from Santiago's popover and Oriente's Terror from the panel.
+  - After each transfer, Terror and removal, the map states, the visible highlights and the popover rows agree with the observation's choices, reasons and remedies. It also refuses a changed highlight at launch.
+- `native_map_targets_at_the_owner_s_aspect`: captures the same states at 3840×2160 for comparison with the selected 16:9 frame. Evidence: `local/verification/issue-72/targets-16x9-*`.
+- `native_space_popover_matches_layout`: compares Santiago's popover with its [layout record](../../art/atlas/HIGHLIGHTS.md) at 3840×2160, within 4 px, from `table.popover.parts`. Evidence: `local/verification/review-fix-2/popover-layout-*`.
+- `native_removal_mode_marks_pieces_and_removes_through_the_piece_popover`: enters removal mode and checks each piece's marker and the dimmed spaces against the authority's choices. Evidence: `local/verification/issue-73/removal-mode-*` (one capture at 3840×2160).
+  - It hovers Santiago's stack, which opens nothing, then clicks it open, steps its quantity to 2 and back, and cancels.
+  - It removes one Guerrilla (Kidnap is then unavailable), restarts in removal mode, removes the Base and leaves with Done.
+  - After a Kidnap roll it shows the owed-Terror limit and the protected Guerrilla's tag, whose click opens nothing. Escape closes a piece popover.
+- `native_kidnap_die_lands_on_each_face_and_restarts_landed`: runs at 3840×2160 from #8's six seeds, and restarts once during the tumble. Evidence: `local/verification/issue-74/die-*`.
+  - For each face it checks the tray, result text, Continue and BRIEFING ribbon against the AC-B die-presented frame ([record](../../art/atlas/KIDNAP.md)), and that they do not overlap.
+  - The landed top face meets the study's "about 70 px" floor, made explicit as 69.5 px (139 px at this size).
+  - The manual clock moves the die while the seat reports `Kidnap die landing` unsettled. It checks the ledger before and after landing, the landed face and result, and Continue by button and by Enter.
+- `native_right_drag_orbits_and_the_wheel_zooms_the_table_camera`: drives the table camera's right-drag orbit and wheel zoom through the seat's `drag` and `scroll` requests. Evidence: `local/verification/issue-79/native-*`.
+- `native_execution_panel_matches_layout_and_previews_every_step`: the EX-A panel against its FigCraft layout record at 3840×2160, within 2 px, and every step's tag before its committing click. Evidence: `local/verification/issue-84/ex-a-*`.
+  - It covers Terror targets from the panel, Kidnap opened (Roll and Cancel), End Terror's previews, the clash rule with a space popover, Escape and an outside click, the keyboard, and the ended panel.
+- `native_seat_skips_the_die_by_enter_space_or_a_click_on_the_tray` (in the library: `cargo test --features tabletop --lib -- --ignored native_seat_skips`): skips mid-tumble through the seat's own requests, by Enter or Space naming `kidnap-die` or by an activation of the tray. Tab is still refused as busy, and Enter naming Continue is refused (#87). Evidence: `local/verification/issue-87/skip-*`.
+- `native_refused_end_terror_while_a_request_waits_and_the_ended_panels`: runs at 3840×2160. Evidence: `local/verification/review-fix-3/refused-end-*`.
+  - After an early Kidnap roll owes Santiago's Terror and a Transfer request waits on Directorio, the End Terror row, its tag, the commit's refusal and the request's tag all give the authority's reason and its remedy, timed "once Directorio has decided".
+  - Pressing the disabled commit submits nothing.
+  - The Terror, End Terror and Pass notices and both ended panels state the authority's record.
