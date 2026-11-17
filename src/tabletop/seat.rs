@@ -532,6 +532,15 @@ mod tests {
             assert_eq!(pinned["status"], "activated", "{pinned}");
             ask(&mut app, json!({"op":"settle"}));
             for (revision, choice) in [(0, "0:terror"), (1, "1:kidnap"), (2, "2:kidnap:roll")] {
+                // EX-A (#84): a Terror step is pinned by its row before its commit.
+                if choice == "1:kidnap" {
+                    let step = ask(
+                        &mut app,
+                        json!({"op":"activate","revision":revision,"component":"step:kidnap"}),
+                    );
+                    assert_eq!(step["status"], "activated", "{step}");
+                    ask(&mut app, json!({"op":"settle"}));
+                }
                 let done = ask(
                     &mut app,
                     json!({"op":"activate","revision":revision,"choice":choice}),
