@@ -147,6 +147,14 @@ struct UiRoot;
 struct StandingText(Faction);
 #[derive(Component)]
 struct PieceVisual;
+/// A 26July group's token: removal mode marks it, and a click on it opens its piece
+/// popover (#73). `key` is `space:group` as removal ids name it; `base` is the region
+/// top it stands on.
+#[derive(Component)]
+struct OwnPiece {
+    key: String,
+    base: f32,
+}
 #[derive(Component, Clone)]
 struct Control {
     name: String,
@@ -176,6 +184,12 @@ enum Action {
     Row(String),
     /// A space popover's button: submits its choice like the panel's `Decision`.
     PopoverCommit(Faction, u64, String),
+    /// A 26July piece on the map: opens its popover in removal mode, else nothing.
+    Piece(String),
+    /// The piece popover's stepper: one fewer or one more; decides nothing.
+    Quantity(i8),
+    /// The piece popover's Cancel: closes it; decides nothing.
+    Dismiss,
     /// A transfer modal control that decides nothing: a counterpart tab, the
     /// direction, a quick value, the amount field or the pending tab's Open.
     Transfer(transfer::Input),
@@ -338,6 +352,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .init_resource::<highlights::Targeting>()
         .init_resource::<popover::Popover>()
         .add_systems(Startup, (setup, highlights::setup, popover::setup))
+        .add_observer(map_click_closes_tag)
         .add_systems(
             Update,
             (
@@ -345,10 +360,11 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 highlights::refresh,
                 highlights::show,
                 sync_pieces,
+                highlights::markers,
+                popover::hover_piece,
                 bind_spaces,
                 hover_disclosures,
-                choice::keys,
-                transfer::keys,
+                (choice::keys, transfer::keys).chain(),
                 draw_ui,
                 camera_facts_and_viewport,
                 status::hover,
@@ -358,8 +374,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 preview::draw,
                 popover::draw,
                 popover::place,
-                choice::draw,
-                transfer::draw,
+                (choice::draw, transfer::draw).chain(),
                 animate_water,
             )
                 .chain(),
@@ -565,6 +580,27 @@ fn sync_pieces(
                 .entity(token)
                 .insert((PieceVisual, status::SpaceTarget(space.id.clone())))
                 .remove::<Pickable>();
+            if piece.faction == Faction::M26 {
+                let key = format!(
+                    "{}:{}",
+                    space.id,
+                    crate::removal_group(piece.kind, piece.state)
+                );
+                commands
+                    .entity(token)
+                    .insert((
+                        OwnPiece {
+                            key: key.clone(),
+                            base: top,
+                        },
+                        Control {
+                            name: format!("own-piece:{key}"),
+                            choice: false,
+                            action: Action::Piece(key),
+                        },
+                    ))
+                    .observe(click);
+            }
             let mark = match piece.state {
                 State::Active => Some("atlas-active-star.png"),
                 State::Closed => Some("atlas-closed-slash.png"),
@@ -875,6 +911,18 @@ fn click(
             popover.choose_row(action);
             return;
         }
+        Action::Piece(key) => {
+            popover.click_piece(key, &targeting);
+            return;
+        }
+        Action::Quantity(step) => {
+            popover.step(*step, &targeting);
+            return;
+        }
+        Action::Dismiss => {
+            popover.close();
+            return;
+        }
         Action::PopoverCommit(..) => return,
         Action::Close => {
             ui.reader = false;
@@ -886,7 +934,12 @@ fn click(
             decide(&mut play, &mut ui, *owner, *rev, &control.name);
         }
         Action::Pin(_) | Action::Ribbon | Action::Tab(_) => {
-            choice::activate(&mut ui, &control.action)
+            choice::activate(&mut ui, &control.action);
+            // Whichever opened last wins: the tag opened from the ribbon closes an open
+            // popover (orchestrator implementation judgement, #58 carry-forward).
+            if ui.choice.ribbon && matches!(control.action, Action::Ribbon) {
+                popover.close_all();
+            }
         }
         Action::Unsupported(reason) => ui.notice = reason.clone(),
         Action::Transfer(input) => transfer::input(&mut ui, &play.game().observe(), *input),
@@ -894,6 +947,26 @@ fn click(
             exit.write(AppExit::Success);
         }
     }
+    ui.dirty = true;
+}
+/// A primary click on the map, outside any interface node, closes the open AC-B
+/// briefing tag, so the Santiago and Oriente targets it covers become clickable
+/// (orchestrator implementation judgement, recorded in #58's carry-forward; the owner
+/// accepted the coverage). A click on the tag itself is an interface node and keeps it.
+fn map_click_closes_tag(
+    event: On<PointerClick>,
+    nodes: Query<(), With<Node>>,
+    play: Res<Play>,
+    mut ui: ResMut<Interface>,
+) {
+    if event.button != bevy::picking::pointer::PointerButton::Primary
+        || play.session.is_none()
+        || !ui.choice.ribbon
+        || nodes.contains(event.entity)
+    {
+        return;
+    }
+    ui.choice.close();
     ui.dirty = true;
 }
 /// Submits a decision through the checked game seam and words its outcome. Pointer
@@ -948,10 +1021,16 @@ fn decide(play: &mut Play, ui: &mut Interface, owner: Faction, rev: u64, name: &
                     "Kidnap rolled {} · transferred {}.\nGovernment {} · 26July {}. Saved.",
                     roll.die, roll.proceeds, view.resources[0], view.resources[1]
                 )
-            } else if name.ends_with(":confirm-removal") {
-                "Removed 1 own piece to Available. Control and standings updated; earlier Terror and Opposition remain.".into()
-            } else if name.ends_with(":cancel-removal") {
-                "Removal cancelled. No piece removed; earlier effects remain.".into()
+            } else if name.contains(":remove:") {
+                let n = name.rsplit(':').next().unwrap_or("1");
+                format!(
+                    "Removed {n} own piece{} to Available. Removal stays open until Done; earlier Terror, support shifts and Kidnap results remain. Saved.",
+                    if n == "1" { "" } else { "s" }
+                )
+            } else if name.ends_with(":remove") {
+                "Removal mode: click a ringed 26July piece on the map. Saved.".into()
+            } else if name.ends_with(":done-removal") {
+                "Removal mode closed; removed pieces stay in Available. Saved.".into()
             } else if name.contains(":terror:") {
                 "Terror saved: paid 1 Resource, flipped 1 Underground Guerrilla to Active, placed a Terror marker and shifted 1 level toward Active Opposition."
                     .into()

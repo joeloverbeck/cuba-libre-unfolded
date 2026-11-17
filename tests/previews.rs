@@ -37,8 +37,8 @@ fn transfer(game: &mut Game, giver: Faction, recipient: Faction, amount: u8) {
 
 fn remove(game: &mut Game, target: &str) {
     choose(game, "remove");
-    choose(game, &format!("remove:{target}"));
-    choose(game, "confirm-removal");
+    choose(game, &format!("remove:{target}:1"));
+    choose(game, "done-removal");
 }
 
 fn choice(game: &Game, action: &str) -> Choice {
@@ -146,7 +146,7 @@ fn oriente_terror_previews_a_shift_to_active_opposition_and_standing_plus_2() {
 fn removing_a_santiago_guerrilla_before_kidnap_previews_kidnap_becoming_unavailable() {
     let mut game = Game::prepared();
     choose(&mut game, "remove");
-    let p = preview(&game, "remove:santiago:underground");
+    let p = preview(&game, "remove:santiago:underground:1");
     let removed: Vec<_> = p
         .removed
         .iter()
@@ -169,16 +169,19 @@ fn removing_a_santiago_guerrilla_before_kidnap_previews_kidnap_becoming_unavaila
     assert!(kidnap.reason.contains("1 Police"), "{}", kidnap.reason);
     // A removal is a real effect, so going back to the action choice ends too.
     assert!(unavailable(&p).contains(&"back-to-choice"));
-    // The confirmation step previews the same consequences.
-    choose(&mut game, "remove:santiago:underground");
-    assert_eq!(preview(&game, "confirm-removal"), p);
+    // Removal mode stays open after it; the consequences are the same.
+    choose(&mut game, "remove:santiago:underground:1");
+    assert_eq!(
+        game.observe().removal,
+        Some(cuba_libre_unfolded::Removal::Selecting)
+    );
 }
 
 #[test]
 fn removing_the_base_previews_standing_minus_1_and_sierra_maestra_uncontrolled() {
     let mut game = Game::prepared();
     choose(&mut game, "remove");
-    let p = preview(&game, "remove:sierra-maestra:base");
+    let p = preview(&game, "remove:sierra-maestra:base:1");
     assert_eq!(standing(&p, Faction::M26), Some([7, 6, -8, -9]));
     let control: Vec<_> = p
         .control
@@ -418,7 +421,7 @@ fn reading_every_preview_changes_neither_the_state_nor_the_randomness() {
     let mut removing = Game::prepared();
     choose(&mut removing, "remove");
     let mut confirming = removing.clone();
-    choose(&mut confirming, "remove:santiago:underground");
+    choose(&mut confirming, "remove:santiago:underground:1");
     let mut opened = Game::prepared();
     choose(&mut opened, "kidnap");
     for game in [

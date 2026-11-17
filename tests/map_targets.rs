@@ -9,8 +9,8 @@
 //! starts with 0 Resources, so neither Terror can be paid until a transfer or Kidnap
 //! funds it.
 use cuba_libre_unfolded::{
-    Faction, Game,
-    targets::{SpaceState, space_targets},
+    Faction, Game, Kind, State,
+    targets::{PieceState, SpaceState, removal_targets, space_targets},
 };
 
 fn choose(game: &mut Game, action: &str) {
@@ -116,8 +116,8 @@ fn a_resolved_terror_leaves_its_space_not_involved() {
 fn removing_a_santiago_guerrilla_before_kidnap_leaves_only_the_transfer_remedy() {
     let mut game = Game::prepared();
     choose(&mut game, "remove");
-    choose(&mut game, "remove:santiago:underground");
-    choose(&mut game, "confirm-removal");
+    choose(&mut game, "remove:santiago:underground:1");
+    choose(&mut game, "done-removal");
     // 1 Guerrilla does not exceed 1 Police, so Kidnap is gone; a transfer still
     // funds Terror there.
     assert_eq!(
@@ -140,8 +140,8 @@ fn removing_a_santiago_guerrilla_before_kidnap_leaves_only_the_transfer_remedy()
 fn removing_oriente_s_only_guerrilla_leaves_it_not_involved() {
     let mut game = Game::prepared();
     choose(&mut game, "remove");
-    choose(&mut game, "remove:oriente:underground");
-    choose(&mut game, "confirm-removal");
+    choose(&mut game, "remove:oriente:underground:1");
+    choose(&mut game, "done-removal");
     // No Underground Guerrilla to flip, and nothing in this task places one.
     assert_eq!(state(&game, "oriente").0, SpaceState::NotInvolved);
 }
@@ -180,4 +180,120 @@ fn ending_terror_ends_targeting() {
     let mut game = Game::prepared();
     choose(&mut game, "end-terror");
     assert_eq!(space_targets(&game.observe()), None);
+}
+
+/// #73: removal mode marks every 26July group (both Santiago Guerrillas, the Oriente
+/// Guerrilla and the Sierra Maestra Base, R 1.4.1) and dims every other space.
+#[test]
+fn removal_mode_marks_each_own_group_and_dims_the_spaces_without_one() {
+    let mut game = Game::prepared();
+    assert_eq!(removal_targets(&game.observe()), None);
+    choose(&mut game, "remove");
+    let targets = removal_targets(&game.observe()).unwrap();
+    let pieces: Vec<_> = targets
+        .pieces
+        .iter()
+        .map(|p| {
+            (
+                p.space.as_str(),
+                p.kind,
+                p.state,
+                p.count,
+                p.removable,
+                p.mark,
+            )
+        })
+        .collect();
+    assert_eq!(
+        pieces,
+        [
+            (
+                "santiago",
+                Kind::Guerrilla,
+                State::Underground,
+                2,
+                2,
+                PieceState::Removable
+            ),
+            (
+                "oriente",
+                Kind::Guerrilla,
+                State::Underground,
+                1,
+                1,
+                PieceState::Removable
+            ),
+            (
+                "sierra-maestra",
+                Kind::Base,
+                State::Ordinary,
+                1,
+                1,
+                PieceState::Removable
+            ),
+        ]
+    );
+    assert_eq!(
+        targets.pieces[0].choices,
+        [
+            "1:remove:santiago:underground:1",
+            "1:remove:santiago:underground:2"
+        ]
+    );
+    let view = game.observe();
+    let mut dimmed: Vec<&str> = view
+        .spaces
+        .iter()
+        .map(|s| s.id.as_str())
+        .filter(|id| !matches!(*id, "santiago" | "oriente" | "sierra-maestra"))
+        .collect();
+    dimmed.sort_unstable();
+    let mut shown = targets
+        .dimmed
+        .iter()
+        .map(String::as_str)
+        .collect::<Vec<_>>();
+    shown.sort_unstable();
+    assert_eq!(shown, dimmed);
+    // Space targeting pauses: region clicks do not open the space popover.
+    assert_eq!(space_targets(&view), None);
+}
+
+#[test]
+fn the_owed_terror_marks_santiago_s_last_underground_guerrilla_protected() {
+    let mut game = Game::prepared();
+    choose(&mut game, "kidnap");
+    choose(&mut game, "kidnap:roll");
+    choose(&mut game, "remove");
+    let santiago = |game: &Game| {
+        removal_targets(&game.observe())
+            .unwrap()
+            .pieces
+            .into_iter()
+            .find(|p| p.space == "santiago")
+            .unwrap()
+    };
+    // Two, of which one may go.
+    let stack = santiago(&game);
+    assert_eq!(
+        (stack.count, stack.removable, stack.mark),
+        (2, 1, PieceState::Removable)
+    );
+    choose(&mut game, "remove:santiago:underground:1");
+    let last = santiago(&game);
+    assert_eq!(
+        (last.count, last.removable, last.mark),
+        (1, 0, PieceState::Protected)
+    );
+    // Oriente's Guerrilla and the Base go; Santiago still holds its protected one, so
+    // only Oriente and Sierra Maestra are then dimmed besides the never-involved.
+    choose(&mut game, "remove:oriente:underground:1");
+    choose(&mut game, "remove:sierra-maestra:base:1");
+    let targets = removal_targets(&game.observe()).unwrap();
+    assert_eq!(targets.pieces.len(), 1);
+    assert!(targets.dimmed.iter().any(|s| s == "oriente"));
+    assert!(targets.dimmed.iter().any(|s| s == "sierra-maestra"));
+    assert!(!targets.dimmed.iter().any(|s| s == "santiago"));
+    choose(&mut game, "done-removal");
+    assert_eq!(removal_targets(&game.observe()), None);
 }

@@ -26,7 +26,6 @@ use super::top::{INK, QUIET};
 use super::*;
 use crate::{Bound, Observation, Transfer, TransferTerms};
 use bevy::text::{Justify, LetterSpacing};
-use bevy::image::TextureSlicer;
 use bevy::ui::widget::NodeImageMode;
 use bevy::ui_widgets::{
     Slider, SliderDragState, SliderPrecision, SliderRange, SliderStep, SliderThumb, SliderValue,

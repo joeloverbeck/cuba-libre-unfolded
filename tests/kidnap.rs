@@ -227,8 +227,8 @@ fn the_feasibility_and_outnumbering_refusals_are_unchanged_and_open_nothing() {
     // One Santiago Guerrilla removed: 1 does not outnumber 1 Police.
     let mut game = Game::prepared();
     choose(&mut game, "remove");
-    choose(&mut game, "remove:santiago:underground");
-    choose(&mut game, "confirm-removal");
+    choose(&mut game, "remove:santiago:underground:1");
+    choose(&mut game, "done-removal");
     let before = game.clone();
     let v = game.observe();
     let kidnap = v

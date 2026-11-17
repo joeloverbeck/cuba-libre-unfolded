@@ -149,6 +149,33 @@ impl Native {
             "typed amount"
         );
     }
+    /// Removes `n` of a 26July group through removal mode's real route (#73): a click
+    /// on the piece opens its popover, the stepper sets the quantity and Remove
+    /// commits the authority's choice for that quantity. `group` is `space:group` as
+    /// removal ids name it.
+    fn remove(&mut self, group: &str, n: u8) {
+        let revision = self.observe()["observation"]["revision"].as_u64().unwrap();
+        // As a player would: rest on the piece, then click it.
+        self.point(&format!("piece:{}", piece(group)));
+        self.activate(&format!("piece:{}", piece(group)), revision);
+        for _ in 1..n {
+            self.activate("popover:quantity:plus", revision);
+        }
+        let popover = self.observe()["table"]["popover"].clone();
+        assert_eq!(popover["piece"], group, "{popover}");
+        assert_eq!(
+            popover["card"]["rows"][0]["choice"],
+            format!("{revision}:remove:{group}:{n}"),
+            "{popover}"
+        );
+        self.activate("popover:commit", revision);
+        // The pointer rests on the map where the card was; let its hover dwell end.
+        self.request(json!({"op":"settle"}), true);
+        assert_eq!(
+            self.observe()["observation"]["revision"].as_u64().unwrap(),
+            revision + 1
+        );
+    }
     fn capture(&mut self, name: &str) {
         self.request(
             json!({"op":"capture","path":self.root.join(format!("{name}.png"))}),
@@ -158,6 +185,17 @@ impl Native {
     fn quit(&mut self) {
         self.request(json!({"op":"quit"}), true);
     }
+}
+/// The seat's name for a 26July group's piece: `santiago:underground` is the piece
+/// `santiago M26 Guerrilla Underground`.
+fn piece(group: &str) -> String {
+    let (space, group) = group.split_once(':').unwrap();
+    let kind = match group {
+        "base" => "Base Ordinary",
+        "active" => "Guerrilla Active",
+        _ => "Guerrilla Underground",
+    };
+    format!("{space} M26 {kind}")
 }
 impl Drop for Native {
     fn drop(&mut self) {
@@ -448,9 +486,9 @@ fn native_victory_emblems_disclose_live_margins_without_inspection() {
         syndicate["table"]["victory"]["formula"],
         "Lower of -4 and -17 = -17"
     );
-    for action in ["remove", "remove:sierra-maestra:base", "confirm-removal"] {
-        app.choose(action);
-    }
+    app.choose("remove");
+    app.remove("sierra-maestra:base", 1);
+    app.choose("done-removal");
     let removed = app.point("standing:1");
     assert_eq!(
         removed["table"]["victory"]["formula"],
@@ -497,7 +535,7 @@ fn assert_victory_geometry(view: &Value) {
 
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
-fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
+fn native_own_removal_restart_obligation_and_all_pieces_finish() {
     let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
         .expect("Set CUBA_TEST_CARDS")
         .into();
@@ -524,23 +562,25 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
     app.launch();
     app.choose("terror");
     app.capture("before-removal");
+    // Removal mode is saved before it is shown, and a restart resumes it.
     app.choose("remove");
-    app.choose("remove:santiago:underground");
-    app.capture("pending-confirmation");
-    let pending = app.observe();
-    assert_eq!(pending["observation"]["map_piece_count"], 29);
-    std::fs::copy(&app.save, app.root.join("pending-valid.json")).unwrap();
+    app.capture("removal-mode");
+    let mode = app.observe();
+    assert_eq!(mode["observation"]["map_piece_count"], 29);
+    assert_eq!(mode["observation"]["removal"], "Selecting");
+    std::fs::copy(&app.save, app.root.join("removal-mode-valid.json")).unwrap();
     app.quit();
     app.launch();
-    assert_eq!(app.observe()["observation"], pending["observation"]);
-    app.choose("cancel-removal");
+    assert_eq!(app.observe()["observation"], mode["observation"]);
+    // Done with nothing removed removes nothing.
+    app.choose("done-removal");
     assert_eq!(app.observe()["observation"]["map_piece_count"], 29);
     app.choose("remove");
-    app.choose("remove:santiago:underground");
     let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
-    app.choose("confirm-removal");
+    app.remove("santiago:underground", 1);
     let removed = app.observe();
     assert_eq!(removed["observation"]["map_piece_count"], 28);
+    assert_eq!(removed["observation"]["removal"], "Selecting");
     assert!(
         removed["table"]["notice"]
             .as_str()
@@ -548,8 +588,9 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
             .contains("Available")
     );
     app.capture("pre-kidnap-removal");
+    // The same removal at the stale revision is refused and changes nothing.
     app.request(
-        json!({"op":"activate","revision":revision,"choice":format!("{revision}:confirm-removal")}),
+        json!({"op":"activate","revision":revision,"component":"popover:commit"}),
         false,
     );
     assert_eq!(app.observe()["observation"], removed["observation"]);
@@ -557,6 +598,7 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
     app.quit();
     app.launch();
     assert_eq!(app.observe()["observation"], removed["observation"]);
+    app.choose("done-removal");
     // A real giver funds the remaining Guerrilla after Kidnap was defeated.
     for action in [
         "transfer",
@@ -564,50 +606,38 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
         "authorize:1",
         "terror:santiago",
         "remove",
-        "remove:santiago:active",
-        "confirm-removal",
-        "remove",
-        "remove:sierra-maestra:base",
-        "confirm-removal",
     ] {
         app.choose(action);
     }
+    app.remove("santiago:active", 1);
+    app.remove("sierra-maestra:base", 1);
+    app.choose("done-removal");
     let rev = app.observe()["observation"]["revision"].as_u64().unwrap();
     app.activate("standing:1", rev);
     app.capture("base-and-active-removed");
     assert_eq!(app.observe()["observation"]["standings"][1]["score"], 7);
-    for action in [
-        "remove",
-        "remove:oriente:underground",
-        "confirm-removal",
-        "end-terror",
-    ] {
-        app.choose(action);
-    }
+    app.choose("remove");
+    app.remove("oriente:underground", 1);
+    app.choose("done-removal");
+    app.choose("end-terror");
     app.capture("all-pieces-after-terror-finished");
     assert_eq!(app.observe()["observation"]["map_piece_count"], 25);
     app.quit();
 
-    // A fresh zero-space path removes everything and still finishes.
+    // A fresh zero-space path removes everything and still finishes; Santiago's two
+    // Guerrillas go in one decision.
     app.save = app.root.join("zero-space.json");
     app.launch();
     app.choose("terror");
-    for target in [
-        "sierra-maestra:base",
-        "santiago:underground",
-        "santiago:underground",
-        "oriente:underground",
-    ] {
-        app.choose("remove");
-        app.choose(&format!("remove:{target}"));
-        app.choose("confirm-removal");
-        if target == "sierra-maestra:base" {
-            let rev = app.observe()["observation"]["revision"].as_u64().unwrap();
-            app.activate("standing:1", rev);
-            assert_eq!(app.observe()["observation"]["standings"][1]["score"], 6);
-            app.capture("base-removed-standing-six");
-        }
-    }
+    app.choose("remove");
+    app.remove("sierra-maestra:base", 1);
+    let rev = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.activate("standing:1", rev);
+    assert_eq!(app.observe()["observation"]["standings"][1]["score"], 6);
+    app.capture("base-removed-standing-six");
+    app.remove("santiago:underground", 2);
+    app.remove("oriente:underground", 1);
+    app.choose("done-removal");
     app.choose("end-terror");
     let zero = app.observe();
     assert_eq!(zero["observation"]["map_piece_count"], 25);
@@ -620,44 +650,31 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
     app.save = app.root.join("owed.json");
     app.launch();
     app.choose("terror");
-    for action in [
-        "kidnap",
-        "kidnap:roll",
-        "remove",
-        "remove:santiago:underground",
-        "confirm-removal",
-        "remove",
-    ] {
+    for action in ["kidnap", "kidnap:roll", "remove"] {
         app.choose(action);
     }
+    app.remove("santiago:underground", 1);
+    // The last Santiago Underground Guerrilla is protected: a click on it opens
+    // nothing and changes nothing.
     let owed = app.observe();
+    let saved = std::fs::read(&app.save).unwrap();
     let rev = owed["observation"]["revision"].as_u64().unwrap();
-    app.activate(&format!("{rev}:remove:santiago:underground"), rev);
-    assert!(
-        app.observe()["table"]["notice"]
-            .as_str()
-            .unwrap()
-            .contains("owed")
-    );
+    app.activate(&format!("piece:{}", piece("santiago:underground")), rev);
     assert_eq!(app.observe()["observation"], owed["observation"]);
-    app.capture("owed-removal-refused");
+    assert_eq!(app.observe()["table"]["popover"], Value::Null);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    app.capture("owed-removal-protected");
     std::fs::copy(&app.save, app.root.join("owed-valid.json")).unwrap();
     app.quit();
     app.launch();
     assert_eq!(app.observe()["observation"], owed["observation"]);
-    for action in [
-        "remove:sierra-maestra:base",
-        "confirm-removal",
-        "remove",
-        "remove:oriente:underground",
-        "confirm-removal",
-        "terror:santiago",
-        "remove",
-        "remove:santiago:active",
-        "confirm-removal",
-    ] {
-        app.choose(action);
-    }
+    app.remove("sierra-maestra:base", 1);
+    app.remove("oriente:underground", 1);
+    app.choose("done-removal");
+    app.choose("terror:santiago");
+    app.choose("remove");
+    app.remove("santiago:active", 1);
+    app.choose("done-removal");
     let v = app.observe();
     assert_eq!(v["observation"]["map_piece_count"], 25);
     assert_eq!(v["observation"]["standings"][1]["score"], 7);
@@ -689,9 +706,7 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
         app.choose(action);
     }
     app.capture("split-active-underground-removal");
-    for action in ["remove:santiago:active", "confirm-removal"] {
-        app.choose(action);
-    }
+    app.remove("santiago:active", 1);
     let split = app.observe();
     assert_eq!(
         split["observation"]["spaces"][2]["pieces"]
@@ -702,20 +717,11 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
         "Underground"
     );
     app.capture("active-removed-underground-remains");
-    for action in [
-        "remove",
-        "remove:santiago:underground",
-        "confirm-removal",
-        "remove",
-        "remove:oriente:active",
-        "confirm-removal",
-        "remove",
-        "remove:sierra-maestra:base",
-        "confirm-removal",
-        "end-terror",
-    ] {
-        app.choose(action);
-    }
+    app.remove("santiago:underground", 1);
+    app.remove("oriente:active", 1);
+    app.remove("sierra-maestra:base", 1);
+    app.choose("done-removal");
+    app.choose("end-terror");
     assert_eq!(app.observe()["observation"]["standings"][1]["score"], 9);
     assert_eq!(app.observe()["observation"]["map_piece_count"], 25);
     app.capture("both-terrors-remain-after-all-removal");
@@ -1750,9 +1756,9 @@ fn native_hover_status_is_transient_without_region_inspection() {
     assert_eq!(status["opinion"], "Active Opposition");
     assert_eq!(status["contribution"], "×2 · 26July +4");
     app.capture("oriente-after-terror");
-    for action in ["remove", "remove:oriente:active", "confirm-removal"] {
-        app.choose(action);
-    }
+    app.choose("remove");
+    app.remove("oriente:active", 1);
+    app.choose("done-removal");
     let status = app.point("space:oriente")["table"]["status"].clone();
     assert_eq!(status["control"], "Uncontrolled");
     assert_eq!(status["opinion"], "Active Opposition");
@@ -2770,9 +2776,12 @@ fn assert_map_agrees(view: &Value) {
             "not-involved"
         };
         assert_eq!(target_state(view, space), state, "{space}: {view}");
-        if state != "not-involved" {
-            expected_files.push(format!("atlas-highlight-{state}-{space}.png"));
-        }
+        // #73's veils dim Santiago and Oriente too once nothing is left there.
+        expected_files.push(if state == "not-involved" {
+            format!("atlas-highlight-veil-{space}.png")
+        } else {
+            format!("atlas-highlight-{state}-{space}.png")
+        });
     }
     for target in view["table"]["map_targets"].as_array().unwrap() {
         let space = target["space"].as_str().unwrap();
@@ -3018,11 +3027,11 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
     assert_eq!(target_state(&panel, "oriente"), "not-involved");
     app.capture("after-oriente-terror-from-panel");
 
-    // Removal mode pauses targeting; a removal can leave a space with no remedy.
+    // Removal mode pauses space targeting; a removal can leave a space with no remedy.
     app.choose("remove");
     inert(&mut app, "santiago");
-    app.choose("remove:santiago:active");
-    app.choose("confirm-removal");
+    app.remove("santiago:active", 1);
+    app.choose("done-removal");
     let removed = app.observe();
     // 1 Guerrilla does not exceed 1 Police: Kidnap is gone, Terror there resolved.
     assert_map_agrees(&removed);
@@ -3404,11 +3413,19 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
     app.capture("after-terror");
     // After removing a Santiago Guerrilla, Kidnap is no longer possible there: 1
     // Guerrilla does not outnumber 1 Police (R 4.3.3).
-    for action in ["remove", "remove:santiago:underground", "confirm-removal"] {
-        app.choose(action);
-    }
+    // #73: removal is on the map; the open tag covers Santiago, so Escape closes it
+    // first, and the ribbon reopens it afterwards.
+    app.choose("remove");
+    let rev = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.request(json!({"op":"key","revision":rev,"key":"Escape"}), true);
+    app.request(json!({"op":"settle"}), true);
+    app.remove("santiago:underground", 1);
+    app.choose("done-removal");
     let after = app.observe();
     let rev = after["observation"]["revision"].as_u64().unwrap();
+    if after["table"]["choice"]["ribbon"] != true {
+        app.activate("briefing-ribbon", rev);
+    }
     app.activate("briefing-tab:kidnap", rev);
     let view = app.observe();
     let words = briefing(&view);
@@ -3494,5 +3511,347 @@ fn native_space_popover_closes_the_briefing_tag() {
     assert_eq!(popover["observation"]["revision"], rev);
     assert_eq!(std::fs::read(&app.save).unwrap(), saved);
     app.capture("clash-popover-closes-tag");
+    // Clicking Oriente again closes its popover (#73 made it settle at this size).
+    app.activate("space:oriente", rev);
+    assert_eq!(app.observe()["table"]["popover"], Value::Null);
+    app.activate("space:oriente", rev);
+    assert_eq!(app.observe()["table"]["popover"]["space"], "oriente");
+
+    // Orchestrator implementation judgement (#58 carry-forward): whichever opened
+    // last wins, and the tag closes by Escape or a click on the map outside it.
+    // Opening the tag from the ribbon closes the open popover.
+    app.activate("briefing-ribbon", rev);
+    let reopened = app.observe();
+    assert_eq!(reopened["table"]["choice"]["ribbon"], true);
+    assert_eq!(reopened["table"]["popover"], Value::Null);
+    app.capture("clash-tag-closes-popover");
+    // Escape closes the tag; the targets under it are clickable again.
+    app.request(json!({"op":"key","revision":rev,"key":"Escape"}), true);
+    app.request(json!({"op":"settle"}), true);
+    let escaped = app.observe();
+    assert_eq!(escaped["table"]["choice"]["ribbon"], false);
+    assert_eq!(escaped["table"]["briefing"], Value::Null);
+    app.activate("space:santiago", rev);
+    assert_eq!(app.observe()["table"]["popover"]["space"], "santiago");
+    // A click on the map outside the tag closes it too, and changes nothing else.
+    app.activate("briefing-ribbon", rev);
+    assert_eq!(app.observe()["table"]["popover"], Value::Null);
+    app.activate("space:camaguey-city", rev);
+    let outside = app.observe();
+    assert_eq!(outside["table"]["choice"]["ribbon"], false);
+    assert_eq!(outside["table"]["briefing"], Value::Null);
+    assert_eq!(outside["table"]["popover"], Value::Null);
+    assert_eq!(outside["observation"], popover["observation"]);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    app.activate("space:santiago", rev);
+    assert_eq!(app.observe()["table"]["popover"]["space"], "santiago");
+    app.capture("clash-map-click-closed-tag");
+    app.quit();
+}
+
+/// Rows of the shown piece popover as one text, for checking previewed facts.
+fn popover_text(view: &Value) -> String {
+    view["table"]["popover"]["card"]["rows"][0]["lines"]
+        .as_array()
+        .unwrap_or_else(|| panic!("no piece popover: {}", view["table"]["popover"]))
+        .iter()
+        .map(|l| l[1].as_str().unwrap().to_owned())
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// Removal mode's map agrees with the authority: a marker under each 26July group in
+/// the state its choices give, and the veil on exactly the spaces holding no 26July
+/// piece; no space rule shows.
+fn assert_removal_map_agrees(view: &Value) {
+    let removal = &view["table"]["removal"];
+    let choices = view["observation"]["choices"].as_array().unwrap();
+    let mut expected = vec![];
+    for piece in removal["pieces"].as_array().unwrap() {
+        let supported = piece["choices"].as_array().unwrap().iter().any(|id| {
+            choices
+                .iter()
+                .any(|c| c["id"] == *id && c["supported"] == true)
+        });
+        let mark = if supported { "removable" } else { "protected" };
+        assert_eq!(piece["mark"], mark, "{piece}");
+        expected.push(json!({
+            "piece": format!("{}:{}", piece["space"].as_str().unwrap(), piece["group"].as_str().unwrap()),
+            "file": format!("atlas-piece-{mark}.png"),
+        }));
+    }
+    let mut shown: Vec<Value> = view["table"]["markers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| {
+            // Each marker is on screen, under its piece.
+            assert!(m["at"].is_array(), "{m}");
+            json!({"piece": m["piece"], "file": m["file"]})
+        })
+        .collect();
+    let key = |v: &Value| v["piece"].to_string();
+    expected.sort_by_key(key);
+    shown.sort_by_key(key);
+    assert_eq!(shown, expected);
+    let highlights: Vec<&str> = view["table"]["highlights"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|h| h.as_str().unwrap())
+        .collect();
+    assert!(
+        highlights.iter().all(|h| h.contains("-veil-")),
+        "{highlights:?}"
+    );
+    let dimmed = removal["dimmed"].as_array().unwrap();
+    for (space, file) in [
+        ("santiago", "atlas-highlight-veil-santiago.png"),
+        ("oriente", "atlas-highlight-veil-oriente.png"),
+        ("sierra-maestra", "atlas-highlight-veil-sierra-maestra.png"),
+    ] {
+        assert_eq!(
+            highlights.contains(&file),
+            dimmed.iter().any(|d| d == space),
+            "{space}: {highlights:?}"
+        );
+    }
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained removal-mode captures against art/proposals/issue-66/hf-a-survey-ink-states.jpg"]
+fn native_removal_mode_marks_pieces_and_removes_through_the_piece_popover() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-73"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("removal-mode-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("removal.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Removal mode evidence: {}", app.root.display());
+    app.launch();
+    app.choose("terror");
+    app.choose("remove");
+    // Entering: each own group is marked removable; every other space is dimmed.
+    let mode = app.observe();
+    assert_removal_map_agrees(&mode);
+    assert_eq!(mode["table"]["markers"].as_array().unwrap().len(), 3);
+    assert_eq!(mode["table"]["map_targets"], Value::Null);
+    // The panel offers only Done; the removals are on the map.
+    let panel: Vec<&str> = mode["table"]["controls"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|c| c["choice"] == true)
+        .map(|c| c["name"].as_str().unwrap())
+        .collect();
+    assert!(panel.iter().all(|c| !c.contains(":remove:")), "{panel:?}");
+    assert!(
+        panel.iter().any(|c| c.ends_with(":done-removal")),
+        "{panel:?}"
+    );
+    app.capture("removal-mode");
+
+    // Hovering a removable piece shows its popover; a click keeps it open.
+    let hovered = app.point(&format!("piece:{}", piece("santiago:underground")));
+    assert_eq!(hovered["table"]["popover"]["kind"], "piece");
+    assert_eq!(hovered["table"]["popover"]["pinned"], false);
+    let revision = mode["observation"]["revision"].as_u64().unwrap();
+    app.activate(
+        &format!("piece:{}", piece("santiago:underground")),
+        revision,
+    );
+    let santiago = app.observe();
+    let card = &santiago["table"]["popover"]["card"];
+    assert_eq!(santiago["table"]["popover"]["pinned"], true);
+    assert_eq!(card["title"], "26July Guerrilla · Underground");
+    assert_eq!(card["stepper"], json!({"value": 1, "max": 2, "count": 2}));
+    // Removing 1 before Kidnap: 1 Guerrilla does not exceed 1 Police (R 4.3.3).
+    let text = popover_text(&santiago);
+    assert!(text.contains("Then unavailable: Kidnap"), "{text}");
+    assert!(text.contains("Control: unchanged (Government)."), "{text}");
+    assert_popover_placed(&santiago);
+    assert!(assert_inline_emblems(&santiago) > 0);
+    assert!(
+        emblems_in(&santiago, "Control: unchanged (Government). Then unavailable: Kidnap, going back to the action choice.")
+            .contains(&"Government".to_owned())
+    );
+    app.capture("santiago-popover");
+
+    // A quantity greater than one: the stepper chooses the authority's choice for 2.
+    app.activate("popover:quantity:plus", revision);
+    let two = app.observe();
+    assert_eq!(two["table"]["popover"]["card"]["stepper"]["value"], 2);
+    assert_eq!(
+        two["table"]["popover"]["card"]["rows"][0]["button"],
+        "Remove 2 Guerrillas"
+    );
+    assert!(popover_text(&two).contains("2 Underground Guerrillas return to Available."));
+    app.capture("santiago-popover-two");
+    // Back to 1, and Cancel closes it with nothing decided.
+    app.activate("popover:quantity:minus", revision);
+    assert_eq!(
+        app.observe()["table"]["popover"]["card"]["stepper"]["value"],
+        1
+    );
+    let saved = std::fs::read(&app.save).unwrap();
+    app.activate("popover:cancel", revision);
+    let cancelled = app.observe();
+    assert_eq!(cancelled["table"]["popover"], Value::Null);
+    assert_eq!(cancelled["observation"], mode["observation"]);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+
+    // Removing a Santiago Guerrilla: Kidnap becomes unavailable, the mode stays open.
+    app.remove("santiago:underground", 1);
+    let one = app.observe();
+    assert_eq!(one["observation"]["removal"], "Selecting");
+    assert_eq!(one["observation"]["map_piece_count"], 28);
+    assert_eq!(one["table"]["popover"], Value::Null);
+    assert_removal_map_agrees(&one);
+    app.capture("after-santiago-removal");
+    // Restart in removal mode after a removal: the same state, once.
+    app.quit();
+    app.launch();
+    let resumed = app.observe();
+    assert_eq!(resumed["observation"], one["observation"]);
+    assert_removal_map_agrees(&resumed);
+
+    // Removing the Base: 26July 7 → 6, Sierra Maestra uncontrolled.
+    let revision = resumed["observation"]["revision"].as_u64().unwrap();
+    app.point(&format!("piece:{}", piece("sierra-maestra:base")));
+    app.activate(&format!("piece:{}", piece("sierra-maestra:base")), revision);
+    let base = app.observe();
+    assert_eq!(base["table"]["popover"]["card"]["title"], "26July Base");
+    assert_eq!(base["table"]["popover"]["card"]["stepper"], Value::Null);
+    let text = popover_text(&base);
+    assert!(
+        text.contains("Control of Sierra Maestra: 26July → none."),
+        "{text}"
+    );
+    assert!(text.contains("26July 7 → 6 (margin -8 → -9)"), "{text}");
+    app.capture("base-popover");
+    app.activate("popover:commit", revision);
+    app.request(json!({"op":"settle"}), true);
+    let after = app.observe();
+    assert_eq!(after["observation"]["standings"][1]["score"], 6);
+    // Sierra Maestra now holds no 26July piece, so it dims.
+    assert_removal_map_agrees(&after);
+    assert!(
+        after["table"]["highlights"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("atlas-highlight-veil-sierra-maestra.png"))
+    );
+    app.capture("after-base-removal");
+
+    // Done leaves the mode: the markers go and Terror targeting returns.
+    app.request(json!({"op":"settle"}), true);
+    app.choose("done-removal");
+    let done = app.observe();
+    assert_eq!(done["observation"]["removal"], Value::Null);
+    assert_eq!(done["table"]["removal"], Value::Null);
+    assert_eq!(done["table"]["markers"], json!([]));
+    assert_map_agrees(&done);
+    let kidnap = done["observation"]["choices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"].as_str().unwrap().ends_with(":kidnap"))
+        .unwrap()
+        .clone();
+    assert_eq!(kidnap["supported"], false);
+    app.capture("done");
+    app.quit();
+
+    // The protected piece: after the Kidnap roll owes Santiago's Terror, one of the
+    // two may go; the last shows its reason on hover, and a click opens nothing.
+    app.save = app.root.join("protected.json");
+    app.launch();
+    for action in ["terror", "kidnap", "kidnap:roll", "remove"] {
+        app.choose(action);
+    }
+    let owed = app.observe();
+    let revision = owed["observation"]["revision"].as_u64().unwrap();
+    app.activate(
+        &format!("piece:{}", piece("santiago:underground")),
+        revision,
+    );
+    let limited = app.observe();
+    assert_eq!(
+        limited["table"]["popover"]["card"]["stepper"],
+        json!({"value": 1, "max": 1, "count": 2})
+    );
+    assert!(popover_text(&limited).contains("At most 1: the other is protected"));
+    let controls: Vec<&str> = limited["table"]["controls"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["name"].as_str().unwrap())
+        .collect();
+    assert!(!controls.contains(&"popover:quantity:plus"), "{controls:?}");
+    app.capture("owed-stack-at-most-one");
+    app.activate("popover:commit", revision);
+    app.request(json!({"op":"settle"}), true);
+    let last = app.observe();
+    assert_removal_map_agrees(&last);
+    let marker = last["table"]["markers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["piece"] == "santiago:underground")
+        .unwrap()
+        .clone();
+    assert_eq!(marker["file"], "atlas-piece-protected.png");
+    let tag = app.point(&format!("piece:{}", piece("santiago:underground")));
+    assert_eq!(tag["table"]["popover"]["kind"], "protected");
+    assert_eq!(
+        tag["table"]["popover"]["card"]["title"],
+        "Protected · 26July Guerrilla"
+    );
+    assert!(popover_text(&tag).contains("accepted commitment policy"));
+    app.capture("protected-tag");
+    let saved = std::fs::read(&app.save).unwrap();
+    let revision = last["observation"]["revision"].as_u64().unwrap();
+    app.activate(
+        &format!("piece:{}", piece("santiago:underground")),
+        revision,
+    );
+    let clicked = app.observe();
+    assert_eq!(clicked["observation"], last["observation"]);
+    assert_eq!(clicked["table"]["popover"], Value::Null);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    app.quit();
+
+    // At the owner's aspect, for comparison with the selected design's states.
+    app.save = app.root.join("owner-aspect.json");
+    app.launch_size("3840x2160");
+    app.choose("terror");
+    app.choose("remove");
+    let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.activate(
+        &format!("piece:{}", piece("santiago:underground")),
+        revision,
+    );
+    let wide = app.observe();
+    let [left, _, right, _] = rect_of(&wide["table"]["popover"]["bounds"]);
+    let scale = (3840f64 / 1920.).min(2160. / 1280.);
+    assert!(
+        (right - left - 340. * scale).abs() <= 2.,
+        "{}",
+        wide["table"]["popover"]
+    );
+    app.capture("removal-popover-3840x2160");
     app.quit();
 }

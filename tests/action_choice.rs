@@ -312,8 +312,7 @@ fn going_back_is_allowed_before_the_first_effect_and_restores_the_choice() {
     assert_eq!(game, waiting);
     choose(&mut game, "decline");
     choose(&mut game, "remove");
-    choose(&mut game, "remove:santiago:underground");
-    choose(&mut game, "cancel-removal");
+    choose(&mut game, "done-removal");
     assert!(offered(&game, "back-to-choice"));
     let revision = game.observe().revision;
     choose(&mut game, "back-to-choice");
@@ -442,8 +441,8 @@ fn going_back_is_refused_after_each_kind_of_effect() {
     // A removal.
     let mut game = terror();
     choose(&mut game, "remove");
-    choose(&mut game, "remove:sierra-maestra:base");
-    choose(&mut game, "confirm-removal");
+    choose(&mut game, "remove:sierra-maestra:base:1");
+    choose(&mut game, "done-removal");
     back_refused(&mut game);
     // While a request is pending after an effect, the requester cannot go back either.
     choose(&mut game, "transfer");
@@ -479,7 +478,7 @@ fn a_record_without_the_new_fields_resumes_with_terror_chosen() {
     // A #8 record after an effect resumes without going back.
     for steps in [
         &["kidnap", "kidnap:roll"][..],
-        &["remove", "remove:oriente:underground", "confirm-removal"],
+        &["remove", "remove:oriente:underground:1", "done-removal"],
         &["transfer", "ask:3:1", "authorize:1"],
     ] {
         let mut played = Game::prepared_with_seed(5);
