@@ -16,8 +16,9 @@
 //! - Replacement: #72/#73 (map popovers for targets and removals). #69 replaced its
 //!   action-choice use: there the pinned AC-B briefing is the preview, and the
 //!   option rows and commit open no card. #72's space popover now previews Terror and
-//!   opening Kidnap on the map; this card still serves the execution panel's buttons
-//!   until #73 replaces it.
+//!   opening Kidnap on the map, and #73's piece popover previews each removal, whose
+//!   buttons left the panel; this card still serves the execution panel's remaining
+//!   buttons (End Terror, transfers, Kidnap's roll and Back).
 //! - Expiry: before #75's end-to-end verification.
 use super::*;
 use crate::{Choice, KidnapStakes, Observation, Preview, SequenceBox};

@@ -18,14 +18,15 @@ fn pending_removal_and_owed_piece_survive_restart_without_duplicates() {
         "kidnap",
         "kidnap:roll",
         "remove",
-        "remove:santiago:underground",
-        "confirm-removal",
+        "remove:santiago:underground:1",
+        "done-removal",
         "remove",
-        "cancel-removal",
+        "done-removal",
         "terror:santiago",
         "remove",
-        "remove:santiago:active",
-        "confirm-removal",
+        "remove:santiago:active:1",
+        "remove:sierra-maestra:base:1",
+        "done-removal",
         "end-terror",
     ] {
         let v = session.observe();
@@ -46,8 +47,46 @@ fn pending_removal_and_owed_piece_survive_restart_without_duplicates() {
         );
         assert_eq!(std::fs::read(&path).unwrap(), bytes);
     }
-    assert_eq!(session.observe().map_piece_count, 27);
-    assert_eq!(session.observe().standings[1].score, 8);
+    assert_eq!(session.observe().map_piece_count, 26);
+    // 7 + 1 for Santiago's Terror − 1 for the Base.
+    assert_eq!(session.observe().standings[1].score, 7);
+}
+
+/// #73: removal mode and a removal of several pieces are saved before they are
+/// published, resume exactly, and cannot be applied twice.
+#[test]
+fn removal_mode_and_a_quantity_removal_resume_exactly_once() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("quantity.json");
+    let mut session = Session::open(&path, None).unwrap();
+    for action in ["terror", "remove", "remove:santiago:underground:2"] {
+        let v = session.observe();
+        session
+            .submit(v.owner, v.revision, &format!("{}:{action}", v.revision))
+            .unwrap();
+        let after = session.observe();
+        let bytes = std::fs::read(&path).unwrap();
+        drop(session);
+        session = Session::open(&path, None).unwrap();
+        assert_eq!(session.observe(), after);
+        assert_eq!(session.observe().removal.is_some(), action != "terror");
+        assert!(
+            session
+                .submit(v.owner, v.revision, &format!("{}:{action}", v.revision))
+                .is_err()
+        );
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    }
+    // Both Guerrillas left once: 29 − 2 on the map, 12 + 2 Available.
+    let view = session.observe();
+    assert_eq!(view.map_piece_count, 27);
+    let guerrillas = view
+        .available
+        .iter()
+        .find(|p| p.faction == Faction::M26 && p.kind == cuba_libre_unfolded::Kind::Guerrilla)
+        .unwrap()
+        .count;
+    assert_eq!(guerrillas, 14);
 }
 
 #[test]
@@ -60,8 +99,8 @@ fn removal_admission_refuses_foreign_changes_wrong_supply_and_impossible_obligat
         "kidnap",
         "kidnap:roll",
         "remove",
-        "remove:santiago:underground",
-        "confirm-removal",
+        "remove:santiago:underground:1",
+        "done-removal",
     ] {
         let v = session.observe();
         session

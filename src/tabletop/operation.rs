@@ -18,7 +18,8 @@
 //!   positioning itself against this stack.
 //! - Appetite: keep it working for #58's checks; no design or polish effort.
 //! - Replacement: #72/#73 (map popovers for targets and removals) and #71 (transfer
-//!   modal).
+//!   modal). #73's removal mode replaced the list of removal groups: the stack now
+//!   holds only Done there.
 //! - Expiry: before #75's end-to-end verification.
 use super::*;
 
@@ -128,15 +129,8 @@ fn details(view: &crate::Observation) -> String {
             "Giver: {} · balance {}\nRecipient: {} · balance {}\nAmount: {} Resources · whole numbers only\nAfter authorization: {} → {}; {} → {}\nZero is allowed. Decline moves nothing.",
             giver.name(), view.resources[giver.index()], recipient.name(), view.resources[recipient.index()], amount,
             giver.name(), view.resources[giver.index()] - amount, recipient.name(), view.resources[recipient.index()] + amount),
-        None => match &view.removal {
-            Some(crate::Removal::Selecting) => format!("Voluntary removal (R 1.4.1): choose one own piece\nto return to Available. Point at a piece's button\nfor its preview; confirmation comes next.\n{}", if view.owed_terror.is_some() { "Santiago Terror is owed: its last Underground\nGuerrilla stays (accepted commitment policy)." } else { "No Terror is owed: any own piece may go." }),
-            Some(crate::Removal::Confirming { space, kind, state }) => {
-                let target = view.spaces.iter().find(|s| &s.id == space).unwrap();
-                let supply = view.available.iter().find(|p| p.faction == Faction::M26 && p.kind == *kind).unwrap().count;
-                format!("Remove 1 26July {state:?} {kind:?}\nfrom {}?\nAvailable {kind:?}: {supply} → {}\nPoint at Confirm for its preview.\nEarlier Terror and Opposition stay.\nCancel leaves this piece on the map.", target.name, supply + 1)
-            }
-            None => terror_details(view),
-        },
+        None if view.removal.is_some() => removal_details(view),
+        None => terror_details(view),
     };
     body + &if view.transfer.is_some() && view.owed_terror.is_some() {
         let owed = view
@@ -154,16 +148,42 @@ fn details(view: &crate::Observation) -> String {
     }
 }
 
+/// Removal mode (#73): the map marks the pieces and each piece's popover decides, so
+/// the panel says how and keeps only Done.
+fn removal_details(view: &crate::Observation) -> String {
+    let mut sentences = vec![
+        "Voluntary removal (R 1.4.1). Each 26July piece on the map carries a mark: a red ring where it may be removed.".to_owned(),
+        "Click a ringed piece to see what removing it changes, choose how many from a stack, then Remove or Cancel.".to_owned(),
+        "Removal stays open for more pieces until Done. Earlier Terror markers, support shifts and Kidnap results stay.".to_owned(),
+    ];
+    sentences.push(if view.owed_terror.is_some() {
+        "Santiago Terror is owed: its last Underground Guerrilla carries the ink lock and stays (accepted commitment policy, local).".into()
+    } else {
+        "No Terror is owed: any own piece may go.".into()
+    });
+    sentences
+        .iter()
+        .flat_map(|s| super::preview::wrap(s, 48))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// One button per offered choice, stacked below the body. A choice the game marks
-/// unsupported still appears, and activating it shows its explanation.
+/// unsupported still appears, and activating it shows its explanation. In removal mode
+/// the pieces' popovers offer the removals, so only Done is a button.
 fn choices(commands: &mut Commands, art: &Art, view: &crate::Observation, s: f32, o: Vec2) {
+    let shown: Vec<&crate::Choice> = view
+        .choices
+        .iter()
+        .filter(|c| c.removal().is_none())
+        .collect();
     // The stack ends at the panel's foot. It tightens once it holds more than five
     // buttons, such as the two disabled Terror targets; the selected design (#69)
     // replaces this temporary stack.
-    let count = view.choices.len() as f32;
+    let count = shown.len() as f32;
     let pitch = if count > 5. { 44. } else { 52. };
     let top = 926. - count * pitch;
-    for (i, choice) in view.choices.iter().enumerate() {
+    for (i, choice) in shown.into_iter().enumerate() {
         control(
             commands,
             art,

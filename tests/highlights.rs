@@ -1,5 +1,7 @@
 //! #72: the shipped map highlights are the selected HF-A exports, unchanged, each with
 //! its place on the map in a presentation manifest and admitted by hash at launch.
+//! #73 adds the Santiago and Oriente veils, the removal-mode piece markers and the
+//! popover's four row marks, admitted the same way.
 use cuba_libre_unfolded::{Game, assets};
 use serde_json::Value;
 
@@ -29,14 +31,54 @@ fn size(bytes: &[u8]) -> (u32, u32) {
 fn every_highlight_is_an_unchanged_hf_a_export_admitted_by_hash() {
     let manifest = manifest();
     let graphics = manifest["graphics"].as_array().unwrap();
-    assert_eq!(graphics.len(), 8);
+    assert_eq!(graphics.len(), 10);
+    let pieces = manifest["pieces"].as_array().unwrap();
+    let marks = manifest["marks"].as_array().unwrap();
     // The manifest itself is admitted, so a changed placement refuses at launch too.
     let json = std::fs::read("art/atlas/highlights.json").unwrap();
     assert_eq!(admitted("art/atlas/highlights.json"), assets::digest(&json));
     assert_eq!(
         assets::HIGHLIGHT_MANIFEST.lines().count(),
-        graphics.len() + 1
+        graphics.len() + pieces.len() + marks.len() + 1
     );
+    // Removal mode's markers: the proposal's HF-A piece exports, byte for byte, at
+    // 8 px per unit over the square they are placed on.
+    let mut states = vec![];
+    for piece in pieces {
+        let file = piece["file"].as_str().unwrap();
+        let bytes = std::fs::read(format!("art/atlas/{file}")).unwrap();
+        assert_eq!(
+            admitted(&format!("art/atlas/{file}")),
+            assets::digest(&bytes)
+        );
+        let artboard = piece["artboard"].as_str().unwrap();
+        assert!(artboard.starts_with("A-piece-"), "{artboard}");
+        let proposal = std::fs::read(format!(
+            "art/proposals/issue-66/graphics/piece-{artboard}.png"
+        ))
+        .unwrap();
+        assert_eq!(bytes, proposal, "{file}");
+        let side = piece["size"].as_f64().unwrap() * 8.;
+        assert_eq!(size(&bytes), (side as u32, side as u32), "{file}");
+        states.push(piece["mark"].as_str().unwrap().to_owned());
+    }
+    states.sort();
+    assert_eq!(states, ["protected", "removable"]);
+    // The four popover row marks, exported from the layout at 8x.
+    let mut kinds = vec![];
+    for mark in marks {
+        let file = mark["file"].as_str().unwrap();
+        let bytes = std::fs::read(format!("art/atlas/{file}")).unwrap();
+        assert_eq!(
+            admitted(&format!("art/atlas/{file}")),
+            assets::digest(&bytes)
+        );
+        let side = mark["size"].as_f64().unwrap() * 8.;
+        assert_eq!(size(&bytes), (side as u32, side as u32), "{file}");
+        kinds.push(mark["mark"].as_str().unwrap().to_owned());
+    }
+    kinds.sort();
+    assert_eq!(kinds, ["done", "not-yet", "selectable", "unavailable"]);
     for graphic in graphics {
         let file = graphic["file"].as_str().unwrap();
         let bytes = std::fs::read(format!("art/atlas/{file}")).unwrap();
@@ -68,8 +110,10 @@ fn every_highlight_is_an_unchanged_hf_a_export_admitted_by_hash() {
     }
 }
 
+/// Every space has a veil, so any space with nothing left in this task, Santiago and
+/// Oriente included, dims (#72's known gap, closed by #73); only those two get rules.
 #[test]
-fn the_veils_cover_every_space_that_is_never_a_target_and_only_targets_get_rules() {
+fn every_space_has_a_veil_and_only_targets_get_rules() {
     let manifest = manifest();
     let game = Game::prepared().observe();
     let mut veiled = vec![];
@@ -95,12 +139,7 @@ fn the_veils_cover_every_space_that_is_never_a_target_and_only_targets_get_rules
         }
     }
     veiled.sort_unstable();
-    let mut never_targets: Vec<&str> = game
-        .spaces
-        .iter()
-        .map(|s| s.id.as_str())
-        .filter(|id| !matches!(*id, "santiago" | "oriente"))
-        .collect();
-    never_targets.sort_unstable();
-    assert_eq!(veiled, never_targets);
+    let mut every: Vec<&str> = game.spaces.iter().map(|s| s.id.as_str()).collect();
+    every.sort_unstable();
+    assert_eq!(veiled, every);
 }

@@ -649,6 +649,7 @@ pub(super) fn keys(
     keys: Res<ButtonInput<KeyCode>>,
     mut play: ResMut<Play>,
     mut ui: ResMut<Interface>,
+    mut popover: ResMut<super::popover::Popover>,
 ) {
     let tab = keys.just_pressed(KeyCode::Tab);
     let enter = keys.any_just_pressed([KeyCode::Enter, KeyCode::NumpadEnter, KeyCode::Space]);
@@ -695,6 +696,10 @@ pub(super) fn keys(
         activate(&mut ui, &Action::Pin(option.into()));
     } else if focused == "briefing-ribbon" {
         activate(&mut ui, &Action::Ribbon);
+        // Whichever opened last wins (orchestrator implementation judgement, #58).
+        if ui.choice.ribbon {
+            popover.close_all();
+        }
     } else if let Some((option, ..)) = fig::TABS
         .iter()
         .find(|(option, ..)| tab_name(option) == focused)
