@@ -45,6 +45,8 @@ use unfolded_tabletop::{
 mod briefing;
 mod choice;
 pub mod die;
+#[cfg(test)]
+mod discovery;
 mod eligibility;
 mod emblems;
 mod execution;
