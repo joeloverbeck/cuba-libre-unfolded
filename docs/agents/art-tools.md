@@ -35,9 +35,9 @@ The committed configurations are portable when launched from the checkout root: 
 
 The portable project configurations do not grant access to Pictures. For a bounded authoring task, copy needed references into ignored `local/` with their hashes, or add an explicit read-only root in local client settings. The owner's user-level Codex registrations already add `~/Pictures/Cuba Libre Resources` as a read root and retain `art/` as the only write root. A symlink is not an access grant. Never overwrite the source collection. A clean clone without Pictures can still start an empty editor and review the foundations.
 
-**From a worktree.** The servers start from the main checkout, so their write root is the main checkout's `art/`, even for an agent working in `local/worktrees/<branch>`. Author and save under the main checkout's `art/` at the relative path you intend to commit. Then move the files to the same path in your worktree, and confirm `git -C <main checkout> status --porcelain` is empty. The worktree is inside the read root, so reopen the moved sources from there to prove they open and render with no absolute path back to the main checkout. Each server is one shared session, so close or save your documents before handing over.
+**From a worktree.** The servers start from the main checkout, so their write root is the main checkout's `art/`, even for an agent working in `local/worktrees/<branch>`. Author and save under the main checkout's `art/` at the relative path you intend to commit. Then move the files to the same path in your worktree, and confirm `git -C <main checkout> status --porcelain -- <that path>` is empty. The worktree is inside the read root, so reopen the moved sources from there to prove they open and render with no absolute path back to the main checkout. Each server is one shared session for every agent on the machine, so one ticket holds them at a time; close or save your documents before handing over.
 
-**Private artwork stays out of Git.** Seat captures show the supplied card faces in the "Card information" panel. Before committing anything derived from a capture, whether a frame, a crop or an image embedded in a FigCraft or VectorCraft source, blank the card slots as `art/proposals/issue-67/tray-*.png` do, then inspect every slot zoomed in. #64, #65 and #66 committed card faces through this route; #51 tracks redacting at capture time instead.
+**Private artwork stays out of Git.** Until #51 redacts at capture time, seat captures show the supplied card faces in the "Card information" panel. Before committing anything derived from a capture, whether a frame, a crop or an image embedded in a FigCraft or VectorCraft source, blank the card slots as `art/proposals/issue-67/tray-*.png` do, then inspect every slot zoomed in. #64, #65 and #66 committed card faces through this route.
 
 ## Verification before relying on an editor
 
@@ -73,7 +73,7 @@ flock <main checkout>/local/blender.lock systemd-run --user --scope --collect -q
   -p MemoryHigh=4G -p MemoryMax=5G -p MemorySwapMax=0 -- <blender command>
 ```
 
-In #66, two concurrent jobs, a 6144×3456 composite and a crop, took 6 GB and froze the owner's terminal. Crop or composite PNGs with PhotoCraft. If a render cannot fit in 4 GB, stop and report it.
+In #66, two concurrent jobs, a 6144×3456 composite and a crop, took 6 GB and froze the owner's terminal. Never use Blender just to crop a PNG; crop with PhotoCraft. If a render cannot fit in 4 GB, stop and report it.
 
 **Rust-only boundary.** The script operates Blender through its own Python API, as the Blender MCP's code execution does and as the Atlas map was built. It is editor operation, not a project tool or test oracle. So:
 - Keep the script out of Git, saved with its log under `local/verification/<issue>/` so the evidence can be re-run.
