@@ -2422,26 +2422,34 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         assert_eq!(emblems_in(&status, contribution), ["26July"]);
         app.capture("status-tag");
 
-        // Direction buttons are red: 26July keeps its name, the other giver is an emblem.
-        // Observations keep every name.
+        // The transfer modal (TM-B, #71) names factions in full, as its selected layout
+        // does; the panel text beneath it still draws 26July's emblem. Observations
+        // keep every name.
         app.choose("transfer");
         let directions = app.observe();
         checked += assert_inline_emblems(&directions);
-        for (label, drawn) in [
-            ("Government → 26July", "Government"),
-            ("26July → Directorio", "Directorio"),
-            ("Syndicate → 26July", "Syndicate"),
-        ] {
-            assert!(
-                directions["observation"]["choices"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .any(|c| c["label"] == label),
-                "observation keeps names: {label}"
-            );
-            assert_eq!(emblems_in(&directions, label), [drawn]);
-        }
+        assert_eq!(
+            emblems_in(
+                &directions,
+                "The transfer is open: give 26July's Resources\nto a faction, or ask one for Resources.\nA request is not a Resource transfer."
+            ),
+            ["26July"]
+        );
+        assert!(
+            directions["observation"]["choices"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|c| c["label"] == "Ask Syndicate for 1"),
+            "observation keeps names"
+        );
+        assert!(
+            directions["table"]["transfer"]["parts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|p| p["text"] == "RESOURCE TRANSFER")
+        );
         app.capture("transfer-directions");
 
         // Paper panel text draws 26July's emblem too.
@@ -2656,16 +2664,19 @@ fn native_action_choice_pass_and_back_before_the_first_effect() {
     }
     let pending = app.observe();
     assert_eq!(pending["observation"]["owner"], "Syndicate");
+    // The giver's decision covers the panel; after Wait, 26July's withdrawals show.
+    app.choose("wait");
     app.capture("pending-request-with-withdrawal");
     app.quit();
     app.launch();
     assert_eq!(app.observe()["observation"], pending["observation"]);
+    app.choose("wait");
     app.choose("back-to-choice");
     let back = app.observe();
     assert_eq!(back["observation"]["action"], "Open");
     assert_eq!(back["observation"]["transfer"], Value::Null);
     assert_eq!(back["observation"]["resources"], json!([6, 0, 5, 15]));
-    assert_eq!(back["observation"]["revision"], 5);
+    assert_eq!(back["observation"]["revision"], 4);
     assert_eq!(ledger(&back), ["6", "0", "5", "15"]);
     assert!(
         back["table"]["notice"]

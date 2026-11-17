@@ -197,15 +197,6 @@ fn tone(view: &Observation) -> &'static str {
         _ => "ink",
     }
 }
-fn color(tone: &str) -> Color {
-    match tone {
-        "government" => Color::srgb_u8(49, 111, 156),
-        "26july" => Color::srgb_u8(167, 46, 43),
-        "directorio" => Color::srgb_u8(159, 119, 15),
-        "syndicate" => Color::srgb_u8(65, 117, 87),
-        _ => INK,
-    }
-}
 const PAPER: Color = Color::srgb_u8(248, 244, 232);
 /// `action/primary` in the FigCraft variables.
 const PRIMARY: Color = Color::srgb_u8(160, 53, 49);
@@ -970,7 +961,6 @@ fn modal(
     let state = &ui.transfer;
     let shown = content(view, state);
     let tone = tone(view);
-    let deciding = color(tone);
     let decision = matches!(view.transfer, Some(Transfer::Authorizing { .. }));
     let refused = shown.refusal.is_some();
     // A full reference-area box centres the modal; it takes no input itself.
@@ -1454,7 +1444,7 @@ fn modal(
             );
         }
     }
-    amount(commands, art, view, state, &shown, tone, deciding, root, s);
+    amount(commands, art, view, state, &shown, tone, root, s);
     commands.spawn((
         ImageNode::new(image(art, "atlas-transfer-rule.png")).with_mode(NodeImageMode::Stretch),
         Node {
@@ -1464,7 +1454,7 @@ fn modal(
         Pickable::IGNORE,
         ChildOf(root),
     ));
-    footer(commands, art, view, &shown, tone, root, s);
+    footer(commands, art, view, &shown, root, s);
 }
 
 /// The amount: label, field and quick values, the refusal, the slider and the limits.
@@ -1476,7 +1466,6 @@ fn amount(
     state: &State,
     shown: &Shown,
     tone: &str,
-    deciding: Color,
     root: Entity,
     s: f32,
 ) {
@@ -1858,7 +1847,6 @@ fn amount(
         );
         part(commands, t, &format!("limit:{icon}"));
     }
-    let _ = deciding;
 }
 
 /// The footer: a note and the buttons, right-aligned.
@@ -1867,7 +1855,6 @@ fn footer(
     art: &Art,
     view: &Observation,
     shown: &Shown,
-    tone: &str,
     root: Entity,
     s: f32,
 ) {
@@ -1972,7 +1959,6 @@ fn footer(
         action,
     );
     part(commands, primary, "button:primary");
-    let _ = tone;
     words(
         commands,
         art,
