@@ -52,6 +52,7 @@ mod preview;
 pub mod seat;
 mod status;
 mod top;
+mod transfer;
 mod victory;
 
 #[derive(Clone)]
@@ -137,6 +138,8 @@ struct Interface {
     dirty: bool,
     /// The action choice's pinned option, keyboard focus and briefing ribbon.
     choice: choice::State,
+    /// The transfer modal's counterpart, direction, typed amount and focus.
+    transfer: transfer::State,
 }
 #[derive(Component)]
 struct UiRoot;
@@ -173,6 +176,9 @@ enum Action {
     Row(String),
     /// A space popover's button: submits its choice like the panel's `Decision`.
     PopoverCommit(Faction, u64, String),
+    /// A transfer modal control that decides nothing: a counterpart tab, the
+    /// direction, a quick value, the amount field or the pending tab's Open.
+    Transfer(transfer::Input),
 }
 #[derive(Resource, Clone)]
 struct RenderReady {
@@ -319,6 +325,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .insert_resource(ClearColor(Color::srgb_u8(216, 231, 227)))
         .add_plugins((
             MeshPickingPlugin,
+            bevy::ui_widgets::SliderPlugin,
             LabelAnchorPlugin,
             TableCameraPlugin::<()>::default(),
         ))
@@ -341,6 +348,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 bind_spaces,
                 hover_disclosures,
                 choice::keys,
+                transfer::keys,
                 draw_ui,
                 camera_facts_and_viewport,
                 status::hover,
@@ -351,6 +359,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 popover::draw,
                 popover::place,
                 choice::draw,
+                transfer::draw,
                 animate_water,
             )
                 .chain(),
@@ -853,6 +862,10 @@ fn click(
         // opened popover wins over the AC-B briefing tag, which reopens from the
         // BRIEFING ribbon (owner's clash rule, #58).
         Action::Space(space) => {
+            // The transfer modal's scrim takes the map's input beneath it.
+            if transfer::shown(play.game().transfer.as_ref(), &ui) {
+                return;
+            }
             if popover.click_space(space, &targeting) {
                 ui.choice.close();
             }
@@ -876,6 +889,7 @@ fn click(
             choice::activate(&mut ui, &control.action)
         }
         Action::Unsupported(reason) => ui.notice = reason.clone(),
+        Action::Transfer(input) => transfer::input(&mut ui, &play.game().observe(), *input),
         Action::Quit => {
             exit.write(AppExit::Success);
         }
@@ -888,28 +902,41 @@ fn decide(play: &mut Play, ui: &mut Interface, owner: Faction, rev: u64, name: &
     let previous = play.game().observe();
     match play.session.as_mut().unwrap().submit(owner, rev, name) {
         Ok(()) => {
-            ui.notice = if name.ends_with(":authorize") {
-                if let Some(crate::Transfer::Authorizing {
-                    giver,
-                    recipient,
-                    amount,
-                }) = previous.transfer
-                {
-                    format!(
-                        "{} gave {amount} to {}. Saved.",
-                        giver.name(),
-                        recipient.name()
-                    )
-                } else {
-                    "Decision saved.".into()
+            ui.notice = if let Some(n) = name.split(":authorize:").nth(1) {
+                match previous.transfer {
+                    Some(crate::Transfer::Authorizing {
+                        giver, recipient, ..
+                    }) => format!("{} gave {n} to {}. Saved.", giver.name(), recipient.name()),
+                    _ => "Decision saved.".into(),
                 }
+            } else if let Some((other, n)) = name
+                .split(":give:")
+                .nth(1)
+                .and_then(|rest| rest.split_once(':'))
+            {
+                let other = Faction::ALL[other.parse::<usize>().unwrap_or(0).min(3)];
+                format!("26July gave {n} to {}. Saved.", other.name())
+            } else if let Some((other, n)) = name
+                .split(":ask:")
+                .nth(1)
+                .and_then(|rest| rest.split_once(':'))
+            {
+                let other = Faction::ALL[other.parse::<usize>().unwrap_or(0).min(3)];
+                format!(
+                    "Transfer request saved: 26July asks {} for {n}. Nothing moves until {} decides.",
+                    other.name(),
+                    other.name()
+                )
             } else if name.ends_with(":decline") {
                 format!("{} declined. No resources moved.", owner.name())
             } else if name.ends_with(":wait") {
+                ui.transfer.hide();
                 format!(
-                    "Waiting for {}. Save / quit keeps this decision.",
+                    "Waiting for {}. The request stays pending; Save / quit keeps it.",
                     owner.name()
                 )
+            } else if name.ends_with(":back") {
+                "Transfer closed. Nothing moved. Saved.".into()
             } else if name.ends_with(":kidnap") {
                 "Kidnap opened: nothing rolled. Roll the die or cancel. Saved.".into()
             } else if name.ends_with(":kidnap:cancel") {
@@ -985,8 +1012,12 @@ fn map_viewport(window: &Window) -> Viewport {
 /// What the table says to the shared camera: the reader and an unopened session
 /// block it, and only the map shows the scene.
 fn camera_facts(window: &Window, play: &Play, ui: &Interface) -> TableFacts {
+    let modal = play
+        .session
+        .as_ref()
+        .is_some_and(|session| transfer::shown(session.game().transfer.as_ref(), ui));
     TableFacts {
-        blocks_camera: ui.reader || play.session.is_none(),
+        blocks_camera: ui.reader || play.session.is_none() || modal,
         scene: Scene::Within(map_rect(window)),
         ..default()
     }

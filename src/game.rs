@@ -1376,7 +1376,7 @@ impl Game {
                                 &format!("ask:{}:{n}", other.index()),
                                 format!("Ask {} for {n}", other.name()),
                                 true,
-                                &format!("A Transfer request: nothing moves until {} decides the actual amount (R 1.5.1).", other.name()),
+                                format!("A Transfer request: nothing moves until {} decides the actual amount (R 1.5.1).", other.name()),
                             )
                         });
                     }
@@ -1762,11 +1762,15 @@ impl Game {
     /// commitment policy's reserve).
     fn transfer_terms(&self) -> Vec<TransferTerms> {
         let pairs = match self.transfer {
-            Some(Transfer::Selecting) => [Faction::Government, Faction::Directorio, Faction::Syndicate]
-                .into_iter()
-                .flat_map(|other| [(other, Faction::M26), (Faction::M26, other)])
-                .collect(),
-            Some(Transfer::Authorizing { giver, recipient, .. }) => vec![(giver, recipient)],
+            Some(Transfer::Selecting) => {
+                [Faction::Government, Faction::Directorio, Faction::Syndicate]
+                    .into_iter()
+                    .flat_map(|other| [(other, Faction::M26), (Faction::M26, other)])
+                    .collect()
+            }
+            Some(Transfer::Authorizing {
+                giver, recipient, ..
+            }) => vec![(giver, recipient)],
             None => vec![],
         };
         pairs

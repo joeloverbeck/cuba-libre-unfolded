@@ -89,7 +89,12 @@ fn ask_hands_the_amount_to_the_giver_who_may_choose_another() {
         .choices
         .iter()
         .filter(|c| c.id.contains(":authorize:"))
-        .map(|c| (c.id.rsplit_once(':').unwrap().1.parse::<u8>().unwrap(), c.owner))
+        .map(|c| {
+            (
+                c.id.rsplit_once(':').unwrap().1.parse::<u8>().unwrap(),
+                c.owner,
+            )
+        })
         .collect();
     assert_eq!(authorize, (0..=15).map(|n| (n, S)).collect::<Vec<_>>());
     let terms = &view.transfer_terms;
@@ -175,7 +180,10 @@ fn zero_and_repeated_transfers_are_allowed_and_zero_is_no_effect() {
         }
         let view = game.observe();
         assert_eq!(view.resources, expected, "{step}");
-        assert_eq!(view.resources.iter().map(|&n| u16::from(n)).sum::<u16>(), 26);
+        assert_eq!(
+            view.resources.iter().map(|&n| u16::from(n)).sum::<u16>(),
+            26
+        );
         assert_eq!(game.random_state(), 17, "a transfer consumed randomness");
         game.validate().unwrap();
     }
@@ -216,7 +224,9 @@ fn the_giver_s_balance_bounds_gifts_requests_and_authorizations() {
         );
     }
     let offered = actions(&game);
-    for limit in ["ask:0:6", "ask:2:5", "ask:3:15", "give:0:0", "give:2:0", "give:3:0"] {
+    for limit in [
+        "ask:0:6", "ask:2:5", "ask:3:15", "give:0:0", "give:2:0", "give:3:0",
+    ] {
         assert!(offered.contains(&limit.to_owned()), "{limit}");
     }
     for over in ["ask:0:7", "ask:2:6", "ask:3:16", "give:0:1", "give:3:1"] {
@@ -386,7 +396,8 @@ fn the_reserved_state_is_decided_by_26july_within_its_reserve() {
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     let mut record = serde_json::to_value(&game).unwrap();
-    record["transfer"] = serde_json::json!({"Authorizing":{"giver":"M26","recipient":"Directorio","amount":2}});
+    record["transfer"] =
+        serde_json::json!({"Authorizing":{"giver":"M26","recipient":"Directorio","amount":2}});
     record["revision"] = (game.observe().revision + 1).into();
     let mut reserved: Game = serde_json::from_value(record).unwrap();
     reserved.validate().unwrap();

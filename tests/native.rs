@@ -104,11 +104,50 @@ impl Native {
             assert_eq!(view["table"]["choice"]["pinned"], action, "pinned");
             revision = view["observation"]["revision"].as_u64().unwrap();
         }
+        // A transfer's amount and, while composing, its counterpart and direction are
+        // set in the modal before its button submits them (#71).
+        let parts: Vec<&str> = action.split(':').collect();
+        let amount = match parts[..] {
+            [verb @ ("give" | "ask"), other, n] => {
+                let key = ["government", "26july", "directorio", "syndicate"]
+                    [other.parse::<usize>().unwrap()];
+                self.activate(&format!("transfer:tab:{key}"), revision);
+                self.activate(&format!("transfer:direction:{verb}"), revision);
+                Some(n)
+            }
+            ["authorize", n] => Some(n),
+            _ => None,
+        };
+        if let Some(n) = amount {
+            self.type_amount(n);
+        }
         self.request(
             json!({"op":"activate","revision":revision,"choice":format!("{revision}:{action}")}),
             true,
         );
         self.request(json!({"op":"settle"}), true);
+    }
+    /// Types an amount into the transfer modal's field: clears it, then the digits.
+    fn type_amount(&mut self, digits: &str) {
+        let revision = self.observe()["observation"]["revision"].as_u64().unwrap();
+        for _ in 0..2 {
+            self.request(
+                json!({"op":"key","key":"Backspace","revision":revision}),
+                true,
+            );
+        }
+        for digit in digits.chars() {
+            self.request(
+                json!({"op":"key","key":digit.to_string(),"revision":revision}),
+                true,
+            );
+        }
+        self.request(json!({"op":"settle"}), true);
+        assert_eq!(
+            self.observe()["table"]["transfer"]["state"]["entry"],
+            digits,
+            "typed amount"
+        );
     }
     fn capture(&mut self, name: &str) {
         self.request(
@@ -383,18 +422,12 @@ fn native_victory_emblems_disclose_live_margins_without_inspection() {
     for action in [
         "terror",
         "transfer",
-        "transfer:3:1",
-        "amount:2",
-        "authorize",
+        "ask:3:2",
+        "authorize:2",
         "terror:santiago",
         "terror:oriente",
     ] {
-        if action == "amount:2" {
-            app.choose("amount:1");
-            app.choose("amount:2");
-        } else {
-            app.choose(action);
-        }
+        app.choose(action);
     }
     let m26 = app.point("standing:1");
     assert_eq!(
@@ -527,9 +560,8 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
     // A real giver funds the remaining Guerrilla after Kidnap was defeated.
     for action in [
         "transfer",
-        "transfer:2:1",
-        "amount:1",
-        "authorize",
+        "ask:2:1",
+        "authorize:1",
         "terror:santiago",
         "remove",
         "remove:santiago:active",
@@ -631,11 +663,7 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
     assert_eq!(v["observation"]["standings"][1]["score"], 7);
     let amount = v["observation"]["resources"][1].as_u64().unwrap();
     app.choose("transfer");
-    app.choose("transfer:1:2");
-    for n in 1..=amount {
-        app.choose(&format!("amount:{n}"));
-    }
-    app.choose("authorize");
+    app.choose(&format!("give:2:{amount}"));
     app.choose("end-terror");
     assert_eq!(app.observe()["observation"]["resources"][1], 0);
     assert!(
@@ -652,10 +680,8 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
     app.choose("terror");
     for action in [
         "transfer",
-        "transfer:2:1",
-        "amount:1",
-        "amount:2",
-        "authorize",
+        "ask:2:2",
+        "authorize:2",
         "terror:santiago",
         "terror:oriente",
         "remove",
@@ -785,9 +811,8 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
     app.capture("santiago-standing");
     // Real Syndicate donation restores Oriente even if the real roll was 1.
     app.choose("transfer");
-    app.choose("transfer:3:1");
-    app.choose("amount:1");
-    app.choose("authorize");
+    app.choose("ask:3:1");
+    app.choose("authorize:1");
     app.capture("donated-continuation");
     app.choose("terror:oriente");
     let both = app.observe();
@@ -1025,11 +1050,9 @@ fn native_donations_enable_both_orders_without_or_with_late_kidnap() {
         app.launch();
         app.choose("terror");
         app.choose("transfer");
-        app.choose("transfer:2:1");
-        app.choose("amount:1");
-        app.choose("amount:2");
+        app.choose("ask:2:2");
         app.capture("donor-authorization");
-        app.choose("authorize");
+        app.choose("authorize:2");
         assert_eq!(
             app.observe()["observation"]["resources"],
             json!([6, 2, 3, 15])
@@ -1401,7 +1424,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
 
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained transfer captures"]
-fn native_giver_transfers_all_directions_and_interrupted_authorization() {
+fn native_transfer_modal_gives_asks_and_waits_for_the_giver() {
     let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("local/verification/issue-13"));
@@ -1424,73 +1447,125 @@ fn native_giver_transfers_all_directions_and_interrupted_authorization() {
     eprintln!("Transfer evidence: {}", app.root.display());
     app.launch();
     app.choose("terror");
+    // #71: the TM-B transfer modal. Expected balances are worked from the prepared
+    // position (Government 6, 26July 0, Directorio 5, Syndicate 15) and R 1.5.1.
     app.choose("transfer");
-    app.capture("directions");
-    app.choose("transfer:3:1");
-    assert_eq!(app.observe()["observation"]["owner"], "Syndicate");
-    app.choose("amount:1");
-    app.capture("giver-authorization");
-    let pending = app.observe()["observation"].clone();
+    let opened = app.observe();
+    let modal = |view: &Value| view["table"]["transfer"]["state"].clone();
+    assert_eq!(modal(&opened)["shown"], true);
+    assert_eq!(modal(&opened)["label"], "Choose a counterpart");
+    app.capture("opened");
+    // The standings stay visible above the scrim; the map and camera take no input.
+    for standing in opened["table"]["standings"].as_array().unwrap() {
+        assert_eq!(standing["visible"], true, "{standing}");
+    }
+    let revision = opened["observation"]["revision"].as_u64().unwrap();
+    let camera = opened["table"]["camera"].clone();
+    app.request(
+        json!({"op":"point","revision":revision,"component":"space:santiago"}),
+        false,
+    );
+    app.request(json!({"op":"key","key":"KeyW","revision":revision}), true);
+    app.request(json!({"op":"settle"}), true);
+    assert_eq!(app.observe()["table"]["camera"], camera, "camera moved");
+    // Ask Syndicate: the slider's track spans its 15; a click at its middle sets 8.
+    app.activate("transfer:tab:syndicate", revision);
+    app.activate("transfer:direction:ask", revision);
+    app.activate("transfer:slider", revision);
+    assert_eq!(modal(&app.observe())["amount"], 8);
+    app.activate("transfer:quick:2", revision);
+    let asking = app.observe();
+    assert_eq!(modal(&asking)["label"], "Send request: 2 from Syndicate");
+    assert_eq!(modal(&asking)["limit"], 15);
+    app.capture("ask-syndicate");
+    app.choose("ask:3:2");
+    let deciding = app.observe();
+    assert_eq!(deciding["observation"]["owner"], "Syndicate");
+    assert_eq!(deciding["observation"]["resources"], json!([6, 0, 5, 15]));
+    assert_eq!(modal(&deciding)["entry"], "2", "prefilled with the request");
+    assert_eq!(modal(&deciding)["label"], "Syndicate authorizes 2");
+    app.capture("giver-decision");
+    // Wait: the modal closes, the request stays pending, nothing is written.
+    let pending = deciding["observation"].clone();
     let saved = std::fs::read(&app.save).unwrap();
     app.choose("wait");
+    let waiting = app.observe();
     assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    assert_eq!(modal(&waiting)["shown"], false);
+    assert_eq!(modal(&waiting)["pending"], true);
+    app.capture("after-wait");
     // Each request reconnects; quitting and relaunching additionally crosses processes.
     app.quit();
     app.launch();
-    assert_eq!(app.observe()["observation"], pending);
+    let restarted = app.observe();
+    assert_eq!(restarted["observation"], pending);
+    assert_eq!(modal(&restarted)["shown"], true);
+    assert_eq!(modal(&restarted)["entry"], "2");
     app.capture("giver-restarted");
+    // The giver authorizes more than was asked.
     let revision = pending["revision"].as_u64().unwrap();
-    app.choose("authorize");
-    assert_eq!(
-        app.observe()["observation"]["resources"],
-        json!([6, 1, 5, 14])
-    );
+    app.choose("authorize:5");
     let after = app.observe()["observation"].clone();
+    assert_eq!(after["resources"], json!([6, 5, 5, 10]));
     app.capture("accepted-balances");
     app.quit();
     app.launch();
     assert_eq!(app.observe()["observation"], after);
     app.request(
-        json!({"op":"activate","revision":revision,"choice":format!("{revision}:authorize")}),
+        json!({"op":"activate","revision":revision,"choice":format!("{revision}:authorize:5")}),
         false,
     );
-    assert_eq!(app.observe()["observation"], after);
-    let revision = after["revision"].as_u64().unwrap();
-    app.activate("standing:3", revision);
-    app.capture("syndicate-contributions");
-    app.point("reader");
-    for (pair, expected) in [
-        ("1:3", [6, 0, 5, 15]),
-        ("0:1", [5, 1, 5, 15]),
-        ("1:0", [6, 0, 5, 15]),
-        ("2:1", [6, 1, 4, 15]),
-        ("1:2", [6, 0, 5, 15]),
-        ("3:1", [6, 1, 5, 14]),
-    ] {
-        app.choose("transfer");
-        app.choose(&format!("transfer:{pair}"));
-        app.choose("amount:1");
-        app.choose("authorize");
-        assert_eq!(app.observe()["observation"]["resources"], json!(expected));
-    }
+    assert_eq!(
+        app.observe()["observation"],
+        after,
+        "no duplicated transfer"
+    );
+    // A declined request moves nothing.
     app.choose("transfer");
-    app.choose("transfer:0:1");
-    app.choose("amount:1");
+    app.choose("ask:0:1");
     app.capture("decline-choice");
     app.choose("decline");
     assert_eq!(
         app.observe()["observation"]["resources"],
-        json!([6, 1, 5, 14])
+        json!([6, 5, 5, 10])
     );
+    // 26July's own gift moves at once; more than it holds is refused in the modal.
     app.choose("transfer");
-    app.choose("transfer:1:0");
-    app.choose("authorize");
+    let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.activate("transfer:tab:directorio", revision);
+    app.activate("transfer:direction:give", revision);
+    app.type_amount("9");
+    let refused = app.observe();
+    assert_eq!(
+        modal(&refused)["refusal"],
+        "9 is more than 5: 26July has 5 Resources."
+    );
+    assert_eq!(modal(&refused)["commit"], Value::Null);
+    app.capture("give-refused");
+    app.choose("give:2:1");
     assert_eq!(
         app.observe()["observation"]["resources"],
-        json!([6, 1, 5, 14])
+        json!([6, 4, 6, 10])
     );
+    // Zero and repeated transfers.
+    app.choose("transfer");
+    app.choose("give:3:0");
+    app.choose("transfer");
+    app.choose("give:3:1");
+    assert_eq!(
+        app.observe()["observation"]["resources"],
+        json!([6, 3, 6, 11])
+    );
+    // Ending Terror withdraws a pending request; nothing moves.
+    app.choose("transfer");
+    app.choose("ask:3:4");
+    app.choose("wait");
     app.choose("end-terror");
-    assert_eq!(app.observe()["observation"]["finished"], true);
+    let ended = app.observe();
+    assert_eq!(ended["observation"]["finished"], true);
+    assert_eq!(ended["observation"]["transfer"], Value::Null);
+    assert_eq!(ended["observation"]["resources"], json!([6, 3, 6, 11]));
+    assert_eq!(modal(&ended)["shown"], false);
     app.capture("transfers-finished");
     app.quit();
 }
@@ -1665,9 +1740,8 @@ fn native_hover_status_is_transient_without_region_inspection() {
     for action in [
         "terror",
         "transfer",
-        "transfer:3:1",
-        "amount:1",
-        "authorize",
+        "ask:3:1",
+        "authorize:1",
         "terror:oriente",
     ] {
         app.choose(action);
@@ -1804,10 +1878,8 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
     assert_eq!(app.observe()["table"]["terror"], json!([]));
     app.choose("terror");
     app.choose("transfer");
-    app.choose("transfer:2:1");
-    app.choose("amount:1");
-    app.choose("amount:2");
-    app.choose("authorize");
+    app.choose("ask:2:2");
+    app.choose("authorize:2");
     app.choose("terror:santiago");
     app.choose("terror:oriente");
     let start = app.observe();
@@ -2021,10 +2093,8 @@ fn native_top_display_matches_layout_and_follows_the_economy() {
     // Every Resources change reaches the ledger at once.
     app.choose("terror");
     app.choose("transfer");
-    app.choose("transfer:2:1");
-    app.choose("amount:1");
-    app.choose("amount:2");
-    app.choose("authorize");
+    app.choose("ask:2:2");
+    app.choose("authorize:2");
     assert_eq!(ledger(&app.observe()), ["6", "2", "3", "15"]);
     app.capture("after-transfer");
     app.choose("terror:santiago");
@@ -2277,8 +2347,7 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         app.capture("transfer-directions");
 
         // Paper panel text draws 26July's emblem too.
-        app.choose("transfer:3:1");
-        app.choose("amount:1");
+        app.choose("ask:3:1");
         let authorizing = app.observe();
         checked += assert_inline_emblems(&authorizing);
         assert!(
@@ -2286,15 +2355,16 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
                 .as_array()
                 .unwrap()
                 .iter()
-                .any(
-                    |t| t["text"].as_str().unwrap().starts_with("Giver: Syndicate")
-                        && t["emblems"].as_array().unwrap().len() == 4
-                )
+                .any(|t| t["text"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("26July asked Syndicate")
+                    && t["emblems"].as_array().unwrap().len() == 4)
         );
         app.capture("transfer-authorization");
 
         // The session notice: "[S] gave 1 to [26]. Saved." keeps its full stop.
-        app.choose("authorize");
+        app.choose("authorize:1");
         let given = app.observe();
         checked += assert_inline_emblems(&given);
         assert_eq!(
@@ -2483,7 +2553,7 @@ fn native_action_choice_pass_and_back_before_the_first_effect() {
     assert!(named(&terror, "1:transfer").is_some());
     assert!(named(&terror, "1:back-to-choice").is_some());
     app.capture("terror-chosen");
-    for action in ["transfer", "transfer:3:1", "amount:1"] {
+    for action in ["transfer", "ask:3:1"] {
         app.choose(action);
     }
     let pending = app.observe();
@@ -2622,7 +2692,7 @@ fn native_previews_disabled_targets_and_end_terror() {
             .contains("Kidnap here first")
     );
     assert_eq!(std::fs::read(&app.save).unwrap(), saved);
-    for step in ["transfer", "transfer:2:1", "amount:1", "authorize"] {
+    for step in ["transfer", "ask:2:1", "authorize:1"] {
         app.choose(step);
     }
     let funded = card(&mut app, "terror:santiago", "santiago-preview");
@@ -2884,7 +2954,7 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
     app.choose("kidnap:cancel");
 
     // After a donation both targets are selectable; Terror from the map popover.
-    for step in ["transfer", "transfer:3:1", "amount:1", "authorize"] {
+    for step in ["transfer", "ask:3:1", "authorize:1"] {
         app.choose(step);
     }
     let funded = app.observe();
@@ -2938,7 +3008,7 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
     assert_eq!(app.observe()["table"]["popover"], Value::Null);
 
     // Terror from the panel after another donation.
-    for step in ["transfer", "transfer:3:1", "amount:1", "authorize"] {
+    for step in ["transfer", "ask:3:1", "authorize:1"] {
         app.choose(step);
     }
     app.choose("terror:oriente");
@@ -3306,13 +3376,7 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
     assert_eq!(terror_tab["table"]["briefing"]["option"], "terror");
 
     // Agreement after a transfer: Government gives 2 (6 → 4, 26July 0 → 2).
-    for action in [
-        "transfer",
-        "transfer:0:1",
-        "amount:1",
-        "amount:2",
-        "authorize",
-    ] {
+    for action in ["transfer", "ask:0:2", "authorize:2"] {
         app.choose(action);
     }
     let after = app.observe();

@@ -18,7 +18,9 @@
 //!   positioning itself against this stack.
 //! - Appetite: keep it working for #58's checks; no design or polish effort.
 //! - Replacement: #72/#73 (map popovers for targets and removals) and #71 (transfer
-//!   modal).
+//!   modal). #71 replaced the transfer part: the modal (`transfer.rs`) owns the
+//!   give, ask, authorize, decline, Wait and Cancel choices, and this stack keeps only
+//!   the button that opens it and 26July's withdrawals of a pending request.
 //! - Expiry: before #75's end-to-end verification.
 use super::*;
 
@@ -96,8 +98,10 @@ fn heading(view: &crate::Observation) -> String {
         )
     } else if view.kidnap_open {
         "26July · Kidnap opened".into()
+    } else if let Some(crate::Transfer::Authorizing { giver, .. }) = &view.transfer {
+        format!("Transfer request pending\n{} decides", giver.name())
     } else if view.transfer.is_some() {
-        format!("Resource transfer\n{} decides locally", view.owner.name())
+        "26July · Resource transfer".into()
     } else if view.removal.is_some() {
         "26July · Voluntary removal".into()
     } else {
@@ -122,12 +126,13 @@ fn details(view: &crate::Observation) -> String {
     if view.kidnap_open {
         return kidnap_details(view);
     }
-    let body = match &view.transfer {
-        Some(crate::Transfer::Selecting) => "Choose the giver and recipient.\n26July must be one endpoint.\nThe giver chooses the quantity and authorizes.\nA request is not a Resource transfer.".into(),
-        Some(crate::Transfer::Authorizing { giver, recipient, amount }) => format!(
-            "Giver: {} · balance {}\nRecipient: {} · balance {}\nAmount: {} Resources · whole numbers only\nAfter authorization: {} → {}; {} → {}\nZero is allowed. Decline moves nothing.",
-            giver.name(), view.resources[giver.index()], recipient.name(), view.resources[recipient.index()], amount,
-            giver.name(), view.resources[giver.index()] - amount, recipient.name(), view.resources[recipient.index()] + amount),
+    match &view.transfer {
+        Some(crate::Transfer::Selecting) => "The transfer is open: give 26July's Resources\nto a faction, or ask one for Resources.\nA request is not a Resource transfer.".into(),
+        Some(crate::Transfer::Authorizing { giver, amount, .. }) => format!(
+            "26July asked {} for {amount}. Nothing moves until\n{} authorizes; Open in the top band shows\nits decision. 26July may withdraw the request.",
+            giver.name(),
+            giver.name()
+        ),
         None => match &view.removal {
             Some(crate::Removal::Selecting) => format!("Voluntary removal (R 1.4.1): choose one own piece\nto return to Available. Point at a piece's button\nfor its preview; confirmation comes next.\n{}", if view.owed_terror.is_some() { "Santiago Terror is owed: its last Underground\nGuerrilla stays (accepted commitment policy)." } else { "No Terror is owed: any own piece may go." }),
             Some(crate::Removal::Confirming { space, kind, state }) => {
@@ -137,21 +142,16 @@ fn details(view: &crate::Observation) -> String {
             }
             None => terror_details(view),
         },
-    };
-    body + &if view.transfer.is_some() && view.owed_terror.is_some() {
-        let owed = view
-            .spaces
-            .iter()
-            .find(|space| Some(&space.id) == view.owed_terror.as_ref())
-            .unwrap();
-        format!(
-            "\nCommitment: {} Terror owed; reserve 1.\n26July available to give: {} Resources.",
-            owed.name,
-            view.resources[Faction::M26.index()].saturating_sub(1)
-        )
-    } else {
-        String::new()
     }
+}
+
+/// A choice the transfer modal shows and submits, not this stack.
+fn modal_owned(choice: &crate::Choice) -> bool {
+    let action = choice.id.split_once(':').map_or("", |(_, a)| a);
+    ["give:", "ask:", "authorize:"]
+        .iter()
+        .any(|p| action.starts_with(p))
+        || matches!(action, "back" | "decline" | "wait")
 }
 
 /// One button per offered choice, stacked below the body. A choice the game marks
@@ -160,10 +160,11 @@ fn choices(commands: &mut Commands, art: &Art, view: &crate::Observation, s: f32
     // The stack ends at the panel's foot. It tightens once it holds more than five
     // buttons, such as the two disabled Terror targets; the selected design (#69)
     // replaces this temporary stack.
-    let count = view.choices.len() as f32;
+    let shown: Vec<_> = view.choices.iter().filter(|c| !modal_owned(c)).collect();
+    let count = shown.len() as f32;
     let pitch = if count > 5. { 44. } else { 52. };
     let top = 926. - count * pitch;
-    for (i, choice) in view.choices.iter().enumerate() {
+    for (i, choice) in shown.into_iter().enumerate() {
         control(
             commands,
             art,

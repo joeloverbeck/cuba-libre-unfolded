@@ -656,6 +656,10 @@ pub(super) fn keys(
     if !(tab || enter || escape) || ui.reader || play.session.is_none() {
         return;
     }
+    // The transfer modal takes the keyboard while it is shown (`transfer::keys`).
+    if super::transfer::shown(play.game().transfer.as_ref(), &ui) {
+        return;
+    }
     let view = play.game().observe();
     if escape {
         if ui.choice.pinned.is_some() {

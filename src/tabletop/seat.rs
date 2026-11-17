@@ -32,10 +32,25 @@ pub(super) fn run(options: Options) -> Result<(), String> {
     })
 }
 struct Table;
+/// The digits the transfer modal's amount field takes, as the seat names them.
+const DIGITS: [(&str, KeyCode, &str); 10] = [
+    ("0", KeyCode::Digit0, "0"),
+    ("1", KeyCode::Digit1, "1"),
+    ("2", KeyCode::Digit2, "2"),
+    ("3", KeyCode::Digit3, "3"),
+    ("4", KeyCode::Digit4, "4"),
+    ("5", KeyCode::Digit5, "5"),
+    ("6", KeyCode::Digit6, "6"),
+    ("7", KeyCode::Digit7, "7"),
+    ("8", KeyCode::Digit8, "8"),
+    ("9", KeyCode::Digit9, "9"),
+];
 /// The keys the seat may press: Tab moves keyboard focus through the action choice,
-/// the BRIEFING ribbon and its tabs; Enter activates the focused control and can
-/// commit, so a request names that control; Escape unpins a briefing or closes the
-/// ribbon's tag. Then the shared camera's keys, none of which commits.
+/// the BRIEFING ribbon and its tabs, or the transfer modal; Enter activates the
+/// focused control and can commit, so a request names that control; Escape unpins a
+/// briefing, closes the ribbon's tag or cancels the transfer (Wait in a giver's
+/// decision); Backspace and the digits edit the transfer amount. Then the shared
+/// camera's keys, none of which commits.
 static KEYS: LazyLock<Vec<SeatKey>> = LazyLock::new(|| {
     let key = |name, code, logical, commits| SeatKey {
         name,
@@ -47,13 +62,21 @@ static KEYS: LazyLock<Vec<SeatKey>> = LazyLock::new(|| {
         key("Tab", KeyCode::Tab, Key::Tab, false),
         key("Enter", KeyCode::Enter, Key::Enter, true),
         key("Escape", KeyCode::Escape, Key::Escape, false),
+        key("Backspace", KeyCode::Backspace, Key::Backspace, false),
     ]
     .into_iter()
+    // The transfer modal's amount field takes typed digits.
+    .chain(DIGITS.iter().map(|&(name, code, typed)| SeatKey {
+        name,
+        code,
+        logical: Logical::Typed(typed),
+        commits: false,
+    }))
     .chain(unfolded_tabletop::camera::SEAT_KEYS.iter().cloned())
     .collect()
 });
 /// A UI node's rectangle in logical window pixels: [left, top, right, bottom].
-fn logical_bounds(node: &ComputedNode, at: &UiGlobalTransform) -> [f32; 4] {
+pub(super) fn logical_bounds(node: &ComputedNode, at: &UiGlobalTransform) -> [f32; 4] {
     let center = at.translation * node.inverse_scale_factor;
     let half = node.size() * node.inverse_scale_factor / 2.;
     [
@@ -240,6 +263,7 @@ impl SeatGame for Table {
             .collect::<Vec<_>>();
         highlights.sort();
         let popover = popover::observe(world);
+        let transfer = transfer::observe(world);
         let briefing = world.query::<&choice::Shown>().iter(world).next().cloned();
         let mut choice_parts = world
             .query::<(&choice::Part, &ComputedNode, &UiGlobalTransform, Option<&emblems::Plain>)>()
@@ -294,7 +318,7 @@ impl SeatGame for Table {
         let water_frame = world.get_resource::<Water>().map(|water| water.frame);
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
-            table: json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"top":top,"preview":preview,"briefing":briefing,"choice":choice::observe(ui),"choice_parts":choice_parts,"map_targets":map_targets,"highlights":highlights,"popover":popover,"top_text":top_text,"inline_text":inline_text,"top_parts":top_parts,"water_frame":water_frame,"terror":terror,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
+            table: json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"top":top,"preview":preview,"briefing":briefing,"choice":choice::observe(ui),"choice_parts":choice_parts,"map_targets":map_targets,"highlights":highlights,"popover":popover,"transfer":transfer,"top_text":top_text,"inline_text":inline_text,"top_parts":top_parts,"water_frame":water_frame,"terror":terror,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
         }
     }
     fn revision(&self, world: &mut World) -> u64 {
@@ -388,7 +412,14 @@ impl SeatGame for Table {
         &KEYS
     }
     fn focus(&self, world: &mut World) -> Focus {
-        let Some(name) = world.resource::<Interface>().choice.focus.clone() else {
+        let ui = world.resource::<Interface>();
+        let modal = transfer::shown(world.resource::<Play>().game().transfer.as_ref(), ui);
+        let focused = if modal {
+            ui.transfer.focus.clone()
+        } else {
+            ui.choice.focus.clone()
+        };
+        let Some(name) = focused else {
             return Focus::Nothing;
         };
         match controls(world).into_iter().find(|(_, c, _)| c.name == name) {

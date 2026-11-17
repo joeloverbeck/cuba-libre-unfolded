@@ -357,9 +357,15 @@ fn going_back_withdraws_a_pending_transfer_request_without_moving_resources() {
     assert!(
         view.choices
             .iter()
-            .filter(|c| ["authorize:0", "authorize:2", "authorize:15", "decline", "wait"]
-                .iter()
-                .any(|a| c.id == format!("{}:{a}", view.revision)))
+            .filter(|c| [
+                "authorize:0",
+                "authorize:2",
+                "authorize:15",
+                "decline",
+                "wait"
+            ]
+            .iter()
+            .any(|a| c.id == format!("{}:{a}", view.revision)))
             .all(|c| c.owner == Faction::Syndicate)
     );
     refused(&mut game, Faction::Syndicate, &["back-to-choice"]);
