@@ -532,7 +532,7 @@ mod tests {
         step(&mut game, "terror:oriente");
         let view = game.observe();
         assert!(get(&view, "terror", "COST").contains("26July has 1."));
-        for action in ["remove", "remove:santiago:underground", "confirm-removal"] {
+        for action in ["remove", "remove:santiago:underground:1", "done-removal"] {
             step(&mut game, action);
         }
         let view = game.observe();
