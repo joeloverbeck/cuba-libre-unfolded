@@ -310,7 +310,7 @@ pub(super) fn draw(
         .filter(|_| !ui.reader)
         .and_then(|target| match target {
             Target::Top(item) => Some(*item),
-            Target::Standing(_) | Target::Choice(_) => None,
+            Target::Standing(_) | Target::Choice(_) | Target::Sequence(_) => None,
         })
         .map(|item| {
             let mut shown = content(&play.game().observe(), item);

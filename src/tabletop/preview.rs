@@ -240,7 +240,7 @@ pub(super) fn draw(
         .filter(|_| !ui.reader)
         .and_then(|target| match target {
             Target::Choice(id) => Some(id.clone()),
-            Target::Standing(_) | Target::Top(_) => None,
+            Target::Standing(_) | Target::Top(_) | Target::Sequence(_) => None,
         });
     // A choice id carries its match revision, so its card is computed once rather
     // than observing every preview on every frame.

@@ -44,6 +44,7 @@ use unfolded_tabletop::{
 };
 mod briefing;
 mod choice;
+mod eligibility;
 mod emblems;
 mod highlights;
 mod operation;
@@ -122,6 +123,8 @@ enum Target {
     Standing(Faction),
     Top(top::Item),
     Choice(String),
+    /// An action box of the eligibility indicator, by its seat name.
+    Sequence(eligibility::Slot),
 }
 #[derive(Resource, Default)]
 struct Interface {
@@ -178,6 +181,8 @@ enum Action {
     Ribbon,
     /// A briefing tab during Terror: "terror" or "terror:kidnap".
     Tab(String),
+    /// An action box of the eligibility indicator: a hover disclosure only.
+    Sequence(eligibility::Slot),
     Unsupported(String),
     Quit,
     /// A space popover row: shows that action's preview, and decides nothing.
@@ -373,7 +378,14 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 preview::draw,
                 popover::draw,
                 popover::place,
-                (choice::draw, transfer::draw, transfer::plates).chain(),
+                // Bevy chains at most 20 systems in one tuple.
+                (
+                    choice::draw,
+                    eligibility::draw,
+                    transfer::draw,
+                    transfer::plates,
+                )
+                    .chain(),
                 animate_water,
             )
                 .chain(),
@@ -848,6 +860,7 @@ fn hover_disclosures(
             match control.action {
                 Action::Standing(f) => Some(Target::Standing(f)),
                 Action::Top(item) => Some(Target::Top(item)),
+                Action::Sequence(slot) => Some(Target::Sequence(slot)),
                 Action::Decision(..) | Action::Unsupported(_) | Action::Pin(_) if !rested => {
                     Some(Target::Choice(control.name.clone()))
                 }
@@ -891,7 +904,7 @@ fn click(
     }
     match &control.action {
         // Hover disclosures never change a decision.
-        Action::Standing(_) | Action::Top(_) => return,
+        Action::Standing(_) | Action::Top(_) | Action::Sequence(_) => return,
         // A region click opens or closes a space popover while Terror targets are
         // chosen, and does nothing otherwise; it never decides anything itself. An
         // opened popover wins over the AC-B briefing tag, which reopens from the
@@ -1461,6 +1474,7 @@ fn draw_ui(
         );
     } else {
         operation::panel(&mut commands, &art, &view, &ui, s, right);
+        eligibility::indicator(&mut commands, &art, &view, s, left);
         let o = left;
         picture(
             &mut commands,

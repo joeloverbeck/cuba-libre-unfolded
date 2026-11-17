@@ -19,6 +19,8 @@ pub const TOP_MANIFEST: &str = include_str!("../art/atlas/top.sha256");
 /// status tags, so it does not change the save-bound identity.
 pub const HIGHLIGHT_MANIFEST: &str = include_str!("../art/atlas/highlights.sha256");
 pub const CHOICE_MANIFEST: &str = include_str!("../art/atlas/choice.sha256");
+/// The selected EL-A eligibility indicator (#70): stateless presentation.
+pub const ELIGIBILITY_MANIFEST: &str = include_str!("../art/atlas/eligibility.sha256");
 /// The selected transfer modal (TM-B, #71): stateless presentation.
 pub const TRANSFER_MANIFEST: &str = include_str!("../art/atlas/transfer.sha256");
 pub const SOURCE: &str = "deacd635db5f71f4d3f092bd9cc99a9d96bb7aab;R:8152cb0056e3690fdc01c7b4ff893369ad7eff288941abc540ceee2c9d606792;P:dcaa5afd6f01c0c9ed4746c18199c1b09058823d67b627384fd3184ed4015fe8";
@@ -46,6 +48,7 @@ pub fn inspect(root: &Path, cards: &Path) -> Result<Verified> {
         .chain(TOP_MANIFEST.lines())
         .chain(HIGHLIGHT_MANIFEST.lines())
         .chain(CHOICE_MANIFEST.lines())
+        .chain(ELIGIBILITY_MANIFEST.lines())
         .chain(TRANSFER_MANIFEST.lines())
     {
         let (hash, path) = line
