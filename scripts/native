@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+# Every ignored native regression, serially: the integration tests in
+# tests/native.rs, then the library's in-process ones. Both run even when the
+# first fails, so one failure cannot hide the other. They need the private card
+# faces and a working renderer, so CI cannot run them. Extra arguments go to both
+# test binaries, e.g. a name filter or --nocapture.
+set -euo pipefail
+
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+: "${CUBA_TEST_CARDS:?set CUBA_TEST_CARDS to the selected card directory (README, Where files live)}"
+echo "revision: $(git rev-parse HEAD)"
+changes=$(git status --porcelain --untracked-files=normal)
+if [[ -z $changes ]]; then
+  echo "working tree: clean"
+else
+  echo "working tree: $(wc -l <<<"$changes") changed path(s) differ from the revision"
+fi
+failed=()
+echo "== tests/native.rs"
+cargo test --locked --features tabletop --test native -- --ignored --test-threads=1 "$@" ||
+  failed+=("tests/native.rs")
+echo "== library (in-process)"
+cargo test --locked --features tabletop --lib -- --ignored --test-threads=1 "$@" ||
+  failed+=("library")
+if ((${#failed[@]})); then
+  echo "native regressions failed in: ${failed[*]}" >&2
+  exit 1
+fi
+echo "native regressions: all passed"

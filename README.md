@@ -68,10 +68,10 @@ scripts/check
 
 It prints the checked revision and whether the working tree differs from it, then stops at the first failing check. CI runs the same command on every pull request, and `main` requires it to pass. A single focused command is only partial evidence.
 
-Core tests require no private inputs or GPU. The explicitly ignored native regression requires the selected card directory and a working renderer:
+Core tests require no private inputs or GPU. The explicitly ignored native regressions require the selected card directory and a working renderer. `scripts/native` runs all of them serially, both `tests/native.rs` and the in-process ones in the library, and passes extra arguments (a name filter, `--nocapture`) to both:
 
 ```sh
-CUBA_TEST_CARDS="/path/to/cards" cargo test --locked --features tabletop --test native -- --ignored --nocapture
+CUBA_TEST_CARDS="/path/to/cards" scripts/native
 ```
 
 It retains isolated saves, JSON observations and screenshots under `local/verification/issue-12/native-*`, `local/verification/issue-13/transfers-*`, `local/verification/issue-14/{terror,donated-terror}-*`, and `local/verification/issue-15/removal-*`. It exercises actual pointer/key controls, hover, all 13 region picks, camera capture, rendered water progression and looping, End Terror, all transfer directions, decline/wait/zero, pending giver and accepted transfer process restarts, Kidnap/owed and post-Terror process restarts, both Terror orders funded by Resource transfers with no/late Kidnap, removal mode with quantity and Done, removal/owed process restarts, protected-piece refusal, split Active/Underground removal, all-pieces-removed End Terror, stale refusal, input refusal and explicit recovery. Core checks cover all six actual shared-RNG outcomes and independent source-derived consequences. Inspect the images separately; passing assertions do not prove readability or owner acceptance. `CUBA_NATIVE_EVIDENCE` can select another evidence directory. A user-selected `CARGO_TARGET_DIR` can reuse a compatible warm build cache; it is not a runtime dependency.
