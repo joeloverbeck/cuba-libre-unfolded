@@ -1,7 +1,8 @@
-# Four jobs for every Cargo command run here, the README's checks and native runs
-# included. Unbounded, Cargo runs one per core, and parallel builds and links of the
-# Bevy test executables can exceed an agent session's memory scope (8 GB). The
-# environment overrides it (`CARGO_BUILD_JOBS`). Debug info is already off in the
-# manifest's `[profile.dev]`, which tests inherit.
+# Four jobs for every Cargo command run here, the README's checks, native runs and
+# CI included; GitHub's ubuntu-24.04 runner has 4 CPUs and 16 GB. Unbounded, Cargo
+# runs one per core, and parallel builds and links of the Bevy test executables can
+# exceed an agent session's memory scope (8 GB). The environment overrides it
+# (`CARGO_BUILD_JOBS`). Debug info is already off in the manifest's `[profile.dev]`,
+# which tests inherit.
 [build]
 jobs = 4
