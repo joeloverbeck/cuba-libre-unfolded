@@ -820,6 +820,7 @@ fn hover_disclosures(
         .update(target, eligible, time.delta(), Duration::from_millis(400));
 }
 
+#[allow(clippy::too_many_arguments)] // A Bevy observer: its parameters are the resources it reads.
 fn click(
     mut event: On<PointerClick>,
     controls: Query<&Control>,
