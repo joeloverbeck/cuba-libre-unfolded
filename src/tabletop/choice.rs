@@ -1072,6 +1072,9 @@ pub(super) fn draw(
     );
     commands.entity(plate).remove::<UiRoot>().insert((
         Tag,
+        // Opaque to the pointer: a click on the tag never reaches the map beneath it
+        // (it covers Santiago and Oriente; the owner accepted the coverage).
+        Pickable::default(),
         Part("briefing".into()),
         Shown {
             briefing,

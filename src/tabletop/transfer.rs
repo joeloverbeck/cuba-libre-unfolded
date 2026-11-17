@@ -1985,13 +1985,14 @@ fn footer(
         action,
     );
     part(commands, primary, "button:primary");
-    // The primary button is red while 26July composes or decides: 26July keeps its
-    // name there (#60, accepted in #68).
-    let label = Prose::from(&shown.label);
-    let label = if shown.commit.is_some() && decision.is_none_or(|giver| giver == Faction::M26) {
-        label.on_red()
-    } else {
-        label
+    // The primary button is red while 26July composes, and in the giver's colour in a
+    // decision. The faction whose colour it is keeps its name there, since its emblem
+    // would vanish on it: #60's rule for 26July on red (accepted in #68), applied to
+    // each giver's own colour. Its label names no other faction.
+    let label = match (shown.commit.is_some(), decision) {
+        (true, None | Some(Faction::M26)) => Prose::from(&shown.label).on_red(),
+        (true, Some(_)) => Prose::named(&shown.label),
+        (false, _) => Prose::from(&shown.label),
     };
     words(
         commands,

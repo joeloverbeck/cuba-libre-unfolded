@@ -2529,8 +2529,9 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         );
         app.capture("transfer-directions");
 
-        // Paper panel text draws 26July's emblem too; in Syndicate's decision, its
-        // green header note and primary button draw emblems.
+        // Paper panel text draws 26July's emblem too. In Syndicate's decision the green
+        // header note draws 26July's emblem, and the green primary button keeps
+        // Syndicate's name, whose green emblem would vanish on it (#60's rule).
         app.choose("ask:3:1");
         let authorizing = app.observe();
         checked += assert_inline_emblems(&authorizing);
@@ -2538,9 +2539,20 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
             emblems_in(&authorizing, "Transfer request from 26July  ·  R 1.5.1"),
             ["26July"]
         );
-        assert_eq!(
-            emblems_in(&authorizing, "Syndicate authorizes 1"),
-            ["Syndicate"]
+        assert!(
+            authorizing["table"]["inline_text"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|t| t["text"] != "Syndicate authorizes 1"),
+            "Syndicate drawn as an emblem on its own green"
+        );
+        assert!(
+            authorizing["table"]["transfer"]["parts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|p| p["part"] == "button:primary")
         );
         assert!(
             authorizing["table"]["inline_text"]
