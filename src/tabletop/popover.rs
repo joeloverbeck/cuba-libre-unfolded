@@ -1222,7 +1222,7 @@ fn commit(
             Control {
                 name: "popover:commit".into(),
                 choice: false,
-                action: Action::PopoverCommit(owner, revision, choice.into()),
+                action: Action::Submit(owner, revision, choice.into()),
             },
             Part("popover-commit".into()),
             ChildOf(parent),

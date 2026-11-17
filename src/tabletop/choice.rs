@@ -779,6 +779,10 @@ pub(super) fn keys(
             decide(&mut play, &mut ui, owner, revision, &focused);
             ui.dirty = true;
         }
+        Action::Submit(owner, revision, choice) => {
+            decide(&mut play, &mut ui, owner, revision, &choice);
+            ui.dirty = true;
+        }
         Action::Unsupported(reason) => {
             ui.notice = reason;
             ui.dirty = true;
@@ -918,7 +922,6 @@ fn chips(commands: &mut Commands, art: &Art, chips: &[String], at: Vec2, s: f32)
                 art,
                 "atlas-popover-chip.png",
                 6.,
-                false,
                 s,
             ))
             .id();

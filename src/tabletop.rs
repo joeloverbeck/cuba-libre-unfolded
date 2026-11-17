@@ -197,8 +197,10 @@ enum Action {
     Quit,
     /// A space popover row: shows that action's preview, and decides nothing.
     Row(String),
-    /// A space popover's button: submits its choice like the panel's `Decision`.
-    PopoverCommit(Faction, u64, String),
+    /// A control named apart from the choice it submits, as the panel's `Decision`
+    /// does: a space popover's button, and EX-A's commit while it opens a pending
+    /// request, whose choice TM-B's pending tab already carries (#84).
+    Submit(Faction, u64, String),
     /// A 26July piece on the map: opens its popover in removal mode, else nothing.
     Piece(String),
     /// The piece popover's stepper: one fewer or one more; decides nothing.
@@ -928,9 +930,10 @@ fn click(
     let Ok(control) = controls.get(event.entity) else {
         return;
     };
-    // A popover's button submits its choice exactly as the panel's button does.
+    // A popover's button, or a commit named apart from its choice, submits its choice
+    // exactly as the panel's button does.
     let control = &match &control.action {
-        Action::PopoverCommit(owner, revision, choice) => Control {
+        Action::Submit(owner, revision, choice) => Control {
             name: choice.clone(),
             choice: true,
             action: Action::Decision(*owner, *revision),
@@ -979,7 +982,7 @@ fn click(
             popover.close();
             return;
         }
-        Action::PopoverCommit(..) => return,
+        Action::Submit(..) => return,
         Action::Close => {
             ui.reader = false;
         }

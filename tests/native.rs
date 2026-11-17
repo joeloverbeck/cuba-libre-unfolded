@@ -2795,7 +2795,7 @@ fn native_action_choice_pass_and_back_before_the_first_effect() {
         ])
     );
     assert_eq!(ledger(&passed), ["6", "1", "5", "15"]);
-    assert!(named(&passed, "1:transfer").is_none());
+    assert!(named(&passed, "step:transfer").is_none());
     app.capture("after-pass");
     let valid = std::fs::read(&app.save).unwrap();
     app.quit();
@@ -2814,8 +2814,8 @@ fn native_action_choice_pass_and_back_before_the_first_effect() {
     app.choose("terror");
     let terror = app.observe();
     assert_eq!(terror["observation"]["executing"], "M26");
-    assert!(named(&terror, "1:transfer").is_some());
-    assert!(named(&terror, "1:back-to-choice").is_some());
+    assert!(named(&terror, "step:transfer").is_some());
+    assert!(named(&terror, "step:back-to-choice").is_some());
     app.capture("terror-chosen");
     for action in ["transfer", "ask:3:1"] {
         app.choose(action);
@@ -3533,6 +3533,11 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
     assert_eq!(opened["table"]["popover"], Value::Null);
     assert_eq!(opened["table"]["map_targets"], Value::Null);
     app.capture("kidnap-opened-from-popover");
+    // The open Kidnap step's tag is pinned over the map's east (EX-A, #84); Escape
+    // closes it, as a player would, before Santiago is clicked.
+    assert_eq!(opened["table"]["choice"]["pinned"], "kidnap");
+    app.request(json!({"op":"key","revision":2,"key":"Escape"}), true);
+    app.request(json!({"op":"settle"}), true);
     inert(&mut app, "santiago");
     app.choose("kidnap:cancel");
 
@@ -4036,10 +4041,15 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
     // The tag closes and reopens from the ribbon by key, too.
     let closed = key(&mut app, "Escape", None);
     assert_eq!(closed["table"]["briefing"], Value::Null);
-    assert_eq!(
-        key(&mut app, "Tab", None)["table"]["choice"]["focus"],
-        "briefing-ribbon"
-    );
+    // Tab passes the execution panel's steps and commit before the ribbon (#84).
+    let mut focus = Value::Null;
+    for _ in 0..12 {
+        focus = key(&mut app, "Tab", None)["table"]["choice"]["focus"].clone();
+        if focus == "briefing-ribbon" {
+            break;
+        }
+    }
+    assert_eq!(focus, "briefing-ribbon");
     let opened = key(&mut app, "Enter", Some("briefing-ribbon"));
     assert_eq!(opened["table"]["briefing"]["option"], "terror:kidnap");
     key(&mut app, "Tab", None);

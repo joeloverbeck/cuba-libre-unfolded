@@ -422,13 +422,14 @@ pub(super) fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                 return enabled(c, c.label.clone(), view);
             }
             match (listed(view, "reopen"), &view.transfer) {
+                // TM-B's pending tab already carries the choice by its id, so this
+                // commit is the component `execution-commit` and submits it by id.
                 (Some(c), Some(Transfer::Authorizing { giver, .. })) => Commit {
+                    label: format!("Open the request · {} decides", giver.name()),
+                    action: Action::Submit(c.owner, view.revision, c.id.clone()),
+                    name: "execution-commit".into(),
+                    enabled: true,
                     plate: format!("atlas-transfer-primary-{}.png", super::slug(*giver)),
-                    ..enabled(
-                        c,
-                        format!("Open the request · {} decides", giver.name()),
-                        view,
-                    )
                 },
                 _ => disabled(
                     "The Resource transfer is open",
@@ -551,21 +552,12 @@ fn words(
 /// A plate drawn behind a node's content, over the node's whole box: the node hugs
 /// its words, and the plate is nine-sliced so its corners keep their reference size
 /// (`corner` reference pixels; the exports are 3x) and its dashes their length. A
-/// pill's rounded ends span its whole height, so `ends` slices only its left and
-/// right: the ends scale with the height and the middle tiles between them.
-pub(super) fn backdrop(art: &Art, key: &str, corner: f32, ends: bool, s: f32) -> impl Bundle {
-    let border = corner * 3.;
+/// pill's corner stops just short of half its height (9 of 20 reference pixels), so
+/// its straight middle rows exist in the source and its ends stay whole.
+pub(super) fn backdrop(art: &Art, key: &str, corner: f32, s: f32) -> impl Bundle {
     (
         ImageNode::new(art.images[key].clone()).with_mode(NodeImageMode::Sliced(TextureSlicer {
-            border: if ends {
-                // Left and top, then right and bottom.
-                BorderRect {
-                    min_inset: Vec2::new(border, 0.),
-                    max_inset: Vec2::new(border, 0.),
-                }
-            } else {
-                BorderRect::all(border)
-            },
+            border: BorderRect::all(corner * 3.),
             max_corner_scale: s / 3.,
             sides_scale_mode: SliceScaleMode::Tile { stretch_value: 1. },
             center_scale_mode: SliceScaleMode::Tile { stretch_value: 1. },
@@ -628,9 +620,7 @@ fn pill(
             Pickable::IGNORE,
         ))
         .id();
-    let backdrop = commands
-        .spawn(backdrop(art, kind.plate(), 10., true, s))
-        .id();
+    let backdrop = commands.spawn(backdrop(art, kind.plate(), 9., s)).id();
     fade(commands, backdrop, Color::WHITE, dim, false);
     commands.entity(plate).add_child(backdrop);
     let label = commands
@@ -970,7 +960,8 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
         art,
         Control {
             name: commit.name,
-            choice: commit.enabled,
+            // A commit named apart from its choice (`Submit`) is a component.
+            choice: commit.enabled && matches!(commit.action, Action::Commit(..)),
             action: commit.action,
         },
         content,
@@ -1772,7 +1763,8 @@ mod tests {
         let open = commit(&view, None);
         assert_eq!(open.label, "Open the request · Syndicate decides");
         assert_eq!(open.plate, "atlas-transfer-primary-syndicate.png");
-        assert_eq!(open.name, "3:reopen");
+        assert_eq!(open.name, "execution-commit");
+        assert!(matches!(open.action, Action::Submit(_, 3, ref id) if id == "3:reopen"));
         let end = commit(&view, Some("end-terror"));
         assert_eq!(end.name, "3:end-terror");
         let b = tag_of(&game, "transfer");

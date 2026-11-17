@@ -30,6 +30,7 @@ The owner selected **EX-A, Pinned step tag** in #83's round ([selection on #58](
 | A step row (activating it pins or unpins its tag) | `step:terror:santiago`, `step:terror:oriente`, `step:kidnap`, `step:transfer`, `step:remove`, `step:end-terror`, `step:back-to-choice` |
 | The commit, enabled | the choice it commits, `<revision>:<action>` |
 | The commit, disabled | `execution-commit` (activating it shows the reason) |
+| The commit opening a pending request | `execution-commit` (TM-B's pending tab already carries the choice `<revision>:reopen`) |
 | Kidnap's Cancel | the choice `<revision>:kidnap:cancel` |
 | Drawn parts (`table.choice_parts`) | `execution-heading`, `execution-subtitle`, `section:<targets\|during\|end>`, `step:<action>-label`, `-note`, `-pill`, `-pill-label`, `step:kidnap-connector`, `execution-commit-label`, `execution-cancel`, `ended-label:<LABEL>`, `ended-value:<LABEL>`, and the tag's `briefing-*` parts with `briefing-chips:<LABEL>` and `briefing-chip:<remedy>` |
 
