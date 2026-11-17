@@ -42,6 +42,8 @@ use unfolded_tabletop::{
     label_anchor::{LabelAnchor, LabelAnchorPlugin},
     token,
 };
+mod briefing;
+mod choice;
 mod emblems;
 mod operation;
 mod preview;
@@ -79,6 +81,8 @@ struct Art {
     verified: Verified,
     images: BTreeMap<String, Handle<Image>>,
     font: Handle<Font>,
+    /// Lato Bold, for the action choice's labels (FigCraft `Choice/*` styles).
+    bold: Handle<Font>,
     scene: Handle<WorldAsset>,
     terror: Handle<WorldAsset>,
     terror_clip: Handle<AnimationClip>,
@@ -129,6 +133,8 @@ struct Interface {
     reader: bool,
     notice: String,
     dirty: bool,
+    /// The action choice's pinned option, keyboard focus and briefing ribbon.
+    choice: choice::State,
 }
 #[derive(Component)]
 struct UiRoot;
@@ -150,6 +156,15 @@ enum Action {
     Reader,
     Space(String),
     Decision(Faction, u64),
+    /// The action choice's commit for its pinned option: a decision whose preview is
+    /// the pinned briefing, so the pointer on it opens no second card.
+    Commit(Faction, u64),
+    /// An option row at the action choice: pins (or unpins) its briefing.
+    Pin(String),
+    /// The BRIEFING ribbon during Terror: opens or closes the briefing tag.
+    Ribbon,
+    /// A briefing tab during Terror: "terror" or "terror:kidnap".
+    Tab(String),
     Unsupported(String),
     Quit,
 }
@@ -236,6 +251,10 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .world_mut()
         .resource_mut::<Assets<Font>>()
         .add(Font::from_bytes(verified.files["Lato-Regular.ttf"].clone()));
+    let bold = app
+        .world_mut()
+        .resource_mut::<Assets<Font>>()
+        .add(Font::from_bytes(verified.files["Lato-Bold.ttf"].clone()));
     let server = app.world().resource::<AssetServer>();
     let scene = server.load("atlas-terrain-map.glb#Scene0");
     let terror = server.load("atlas-terror-token.glb#Scene0");
@@ -267,6 +286,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             verified,
             images,
             font,
+            bold,
             scene,
             terror,
             terror_clip: terror_clip.clone(),
@@ -310,6 +330,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 sync_pieces,
                 bind_spaces,
                 hover_disclosures,
+                choice::keys,
                 draw_ui,
                 camera_facts_and_viewport,
                 status::hover,
@@ -317,6 +338,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 victory::draw,
                 top::draw,
                 preview::draw,
+                choice::draw,
                 animate_water,
             )
                 .chain(),
@@ -770,7 +792,7 @@ fn hover_disclosures(
             match control.action {
                 Action::Standing(f) => Some(Target::Standing(f)),
                 Action::Top(item) => Some(Target::Top(item)),
-                Action::Decision(..) | Action::Unsupported(_) if !rested => {
+                Action::Decision(..) | Action::Unsupported(_) | Action::Pin(_) if !rested => {
                     Some(Target::Choice(control.name.clone()))
                 }
                 _ => None,
@@ -809,76 +831,11 @@ fn click(
         Action::Reader => {
             ui.reader = true;
         }
-        Action::Decision(owner, rev) => {
-            let previous = play.game().observe();
-            match play
-                .session
-                .as_mut()
-                .unwrap()
-                .submit(*owner, *rev, &control.name)
-            {
-                Ok(()) => {
-                    ui.notice = if control.name.ends_with(":authorize") {
-                        if let Some(crate::Transfer::Authorizing {
-                            giver,
-                            recipient,
-                            amount,
-                        }) = previous.transfer
-                        {
-                            format!(
-                                "{} gave {amount} to {}. Saved.",
-                                giver.name(),
-                                recipient.name()
-                            )
-                        } else {
-                            "Decision saved.".into()
-                        }
-                    } else if control.name.ends_with(":decline") {
-                        format!("{} declined. No resources moved.", owner.name())
-                    } else if control.name.ends_with(":wait") {
-                        format!(
-                            "Waiting for {}. Save / quit keeps this decision.",
-                            owner.name()
-                        )
-                    } else if control.name.ends_with(":kidnap") {
-                        "Kidnap opened: nothing rolled. Roll the die or cancel. Saved.".into()
-                    } else if control.name.ends_with(":kidnap:cancel") {
-                        "Kidnap cancelled: nothing rolled and nothing changed. Saved.".into()
-                    } else if control.name.ends_with(":kidnap:roll") {
-                        let view = play.game().observe();
-                        let roll = view.kidnap.as_ref().unwrap();
-                        format!(
-                            "Kidnap rolled {} · transferred {}.\nGovernment {} · 26July {}. Saved.",
-                            roll.die, roll.proceeds, view.resources[0], view.resources[1]
-                        )
-                    } else if control.name.ends_with(":confirm-removal") {
-                        "Removed 1 own piece to Available. Control and standings updated; earlier Terror and Opposition remain.".into()
-                    } else if control.name.ends_with(":cancel-removal") {
-                        "Removal cancelled. No piece removed; earlier effects remain.".into()
-                    } else if control.name.contains(":terror:") {
-                        "Terror saved: paid 1 Resource, flipped 1 Underground Guerrilla to Active, placed a Terror marker and shifted 1 level toward Active Opposition."
-                            .into()
-                    } else if control.name.ends_with(":pass") {
-                        "26July passed: +1 Resource and stays Eligible. Directorio is 1st Eligible. Saved.".into()
-                    } else if control.name.ends_with(":terror") {
-                        "Terror chosen: 26July is executing, and transfers are open. Saved.".into()
-                    } else if control.name.ends_with(":back-to-choice") {
-                        "Back at the action choice. Nothing had happened; any pending request is withdrawn. Saved.".into()
-                    } else if control.name.ends_with(":end-terror") {
-                        format!(
-                            "Terror ended: {} recorded. Saved.",
-                            if previous.kidnap.is_some() {
-                                "Operation with Special Activity"
-                            } else {
-                                "Operation Only"
-                            }
-                        )
-                    } else {
-                        "Decision saved; resources unchanged.".into()
-                    };
-                }
-                Err(e) => ui.notice = e.to_string(),
-            };
+        Action::Decision(owner, rev) | Action::Commit(owner, rev) => {
+            decide(&mut play, &mut ui, *owner, *rev, &control.name);
+        }
+        Action::Pin(_) | Action::Ribbon | Action::Tab(_) => {
+            choice::activate(&mut ui, &control.action)
         }
         Action::Unsupported(reason) => ui.notice = reason.clone(),
         Action::Quit => {
@@ -886,6 +843,77 @@ fn click(
         }
     }
     ui.dirty = true;
+}
+/// Submits a decision through the checked game seam and words its outcome. Pointer
+/// clicks and the keyboard's Enter on a focused control both come here.
+fn decide(play: &mut Play, ui: &mut Interface, owner: Faction, rev: u64, name: &str) {
+    let previous = play.game().observe();
+    match play.session.as_mut().unwrap().submit(owner, rev, name) {
+        Ok(()) => {
+            ui.notice = if name.ends_with(":authorize") {
+                if let Some(crate::Transfer::Authorizing {
+                    giver,
+                    recipient,
+                    amount,
+                }) = previous.transfer
+                {
+                    format!(
+                        "{} gave {amount} to {}. Saved.",
+                        giver.name(),
+                        recipient.name()
+                    )
+                } else {
+                    "Decision saved.".into()
+                }
+            } else if name.ends_with(":decline") {
+                format!("{} declined. No resources moved.", owner.name())
+            } else if name.ends_with(":wait") {
+                format!(
+                    "Waiting for {}. Save / quit keeps this decision.",
+                    owner.name()
+                )
+            } else if name.ends_with(":kidnap") {
+                "Kidnap opened: nothing rolled. Roll the die or cancel. Saved.".into()
+            } else if name.ends_with(":kidnap:cancel") {
+                "Kidnap cancelled: nothing rolled and nothing changed. Saved.".into()
+            } else if name.ends_with(":kidnap:roll") {
+                let view = play.game().observe();
+                let roll = view.kidnap.as_ref().unwrap();
+                format!(
+                    "Kidnap rolled {} · transferred {}.\nGovernment {} · 26July {}. Saved.",
+                    roll.die, roll.proceeds, view.resources[0], view.resources[1]
+                )
+            } else if name.ends_with(":confirm-removal") {
+                "Removed 1 own piece to Available. Control and standings updated; earlier Terror and Opposition remain.".into()
+            } else if name.ends_with(":cancel-removal") {
+                "Removal cancelled. No piece removed; earlier effects remain.".into()
+            } else if name.contains(":terror:") {
+                "Terror saved: paid 1 Resource, flipped 1 Underground Guerrilla to Active, placed a Terror marker and shifted 1 level toward Active Opposition."
+                    .into()
+            } else if name.ends_with(":pass") {
+                "26July passed: +1 Resource and stays Eligible. Directorio is 1st Eligible. Saved."
+                    .into()
+            } else if name.ends_with(":terror") {
+                "Terror chosen: 26July is executing, and transfers are open. Saved.".into()
+            } else if name.ends_with(":back-to-choice") {
+                "Back at the action choice. Nothing had happened; any pending request is withdrawn. Saved.".into()
+            } else if name.ends_with(":end-terror") {
+                format!(
+                    "Terror ended: {} recorded. Saved.",
+                    if previous.kidnap.is_some() {
+                        "Operation with Special Activity"
+                    } else {
+                        "Operation Only"
+                    }
+                )
+            } else {
+                "Decision saved; resources unchanged.".into()
+            };
+        }
+        Err(e) => ui.notice = e.to_string(),
+    };
+    // A committed decision leaves the action choice; its pin and focus go with it.
+    ui.choice.decided();
 }
 fn layout(window: &Window) -> (f32, Vec2) {
     let scale = (window.width() / WIDTH).min(window.height() / HEIGHT);
@@ -1285,7 +1313,7 @@ fn draw_ui(
             4,
         );
     } else {
-        operation::panel(&mut commands, &art, &view, s, right);
+        operation::panel(&mut commands, &art, &view, &ui, s, right);
         let o = left;
         picture(
             &mut commands,

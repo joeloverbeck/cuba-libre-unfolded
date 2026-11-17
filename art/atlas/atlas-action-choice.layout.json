@@ -1,0 +1,306 @@
+{
+  "source": "atlas-action-choice.figcraft",
+  "note": "absoluteBounds [x, y, width, height] read from FigCraft get_node in the 16:9 frame 'AC-B Briefing tag (selected in #68)' (node 147), minus the frame's page origin (6244, 0). Images are compared on all four edges; 'stretched' on left, top and right (the runtime stretches the tag plate to its content, as the top display's tags); 'text' on left and top; 'right_text' on top and right; 'centered_text' on top and horizontal centre (line height is the renderer's). 'execution' parts come from the states frame (node 917), translated from the 'AC-B panel · during Terror' panel (13080.4, 3997) and the Kidnap tag (11795.2, 3997) to the 16:9 panel (4686, 756) and tag (3400.8, 756). The 16:9 frame shows Terror pinned at the action choice.",
+  "frame": [
+    6144,
+    3456
+  ],
+  "parts": {
+    "choice-heading-emblem": [
+      4750.8,
+      821.2,
+      59.4,
+      59.4
+    ],
+    "option:pass": [
+      4750.8,
+      1013.6,
+      1220.4,
+      86.4
+    ],
+    "option:event:unshaded": [
+      4750.8,
+      1155.6,
+      1220.4,
+      86.4
+    ],
+    "option:event:shaded": [
+      4750.8,
+      1252.8,
+      1220.4,
+      86.4
+    ],
+    "option:rally": [
+      4750.8,
+      1394.8,
+      1220.4,
+      86.4
+    ],
+    "option:rally:infiltrate": [
+      4750.8,
+      1492.0,
+      1220.4,
+      86.4
+    ],
+    "option:march": [
+      4750.8,
+      1589.2,
+      1220.4,
+      86.4
+    ],
+    "option:march:infiltrate": [
+      4750.8,
+      1686.4,
+      1220.4,
+      86.4
+    ],
+    "option:attack": [
+      4750.8,
+      1783.6,
+      1220.4,
+      86.4
+    ],
+    "option:attack:ambush": [
+      4750.8,
+      1880.8,
+      1220.4,
+      86.4
+    ],
+    "option:terror": [
+      4750.8,
+      1978.0,
+      1220.4,
+      86.4
+    ],
+    "option:terror:kidnap": [
+      4750.8,
+      2075.2,
+      1220.4,
+      86.4
+    ],
+    "pill:event:unshaded": [
+      5657.0,
+      1171.8,
+      287.2,
+      54.0
+    ],
+    "pill:event:shaded": [
+      5657.0,
+      1269.0,
+      287.2,
+      54.0
+    ],
+    "pill:rally": [
+      5657.0,
+      1411.0,
+      287.2,
+      54.0
+    ],
+    "pill:rally:infiltrate": [
+      5657.0,
+      1508.2,
+      287.2,
+      54.0
+    ],
+    "pill:march": [
+      5657.0,
+      1605.4,
+      287.2,
+      54.0
+    ],
+    "pill:march:infiltrate": [
+      5657.0,
+      1702.6,
+      287.2,
+      54.0
+    ],
+    "pill:attack": [
+      5657.0,
+      1799.8,
+      287.2,
+      54.0
+    ],
+    "pill:attack:ambush": [
+      5657.0,
+      1897.0,
+      287.2,
+      54.0
+    ],
+    "pill:terror:kidnap": [
+      5416.0,
+      2091.4,
+      528.2,
+      54.0
+    ],
+    "choice-commit": [
+      4750.8,
+      2354.4,
+      1220.4,
+      140.4
+    ],
+    "briefing-pin": [
+      4556.4,
+      739.8,
+      81.0,
+      81.0
+    ],
+    "briefing-separator": [
+      3471.0,
+      897.2,
+      1134.0,
+      2.7
+    ]
+  },
+  "stretched": {
+    "briefing": [
+      3400.8,
+      756.0,
+      1263.6,
+      1188.0
+    ]
+  },
+  "text": {
+    "choice-heading": [
+      4831.8,
+      815.4,
+      1139.4,
+      71.0
+    ],
+    "choice-subtitle": [
+      4750.8,
+      897.2,
+      1220.4,
+      84.0
+    ],
+    "section:event": [
+      4750.8,
+      1110.8,
+      513.0,
+      34.0
+    ],
+    "section:operations": [
+      4750.8,
+      1350.0,
+      683.0,
+      34.0
+    ],
+    "option:pass-label": [
+      4791.3,
+      1030.8,
+      803.6,
+      52.0
+    ],
+    "option:event:unshaded-label": [
+      4788.6,
+      1174.3,
+      846.8,
+      49.0
+    ],
+    "option:rally:infiltrate-label": [
+      4842.6,
+      1510.7,
+      792.8,
+      49.0
+    ],
+    "option:terror-label": [
+      4792.65,
+      1995.2,
+      786.9,
+      52.0
+    ],
+    "pill:event:unshaded-label": [
+      5678.6,
+      1183.3,
+      244.0,
+      31.0
+    ],
+    "pill:terror:kidnap-label": [
+      5437.6,
+      2102.9,
+      485.0,
+      31.0
+    ],
+    "briefing-title": [
+      3471.0,
+      799.2,
+      994.4,
+      71.0
+    ],
+    "briefing-label:PURPOSE": [
+      3471.0,
+      926.9,
+      143.0,
+      34.0
+    ],
+    "briefing-value:PURPOSE": [
+      3471.0,
+      966.3,
+      1134.0,
+      108.0
+    ]
+  },
+  "right_text": {
+    "option:pass-value": [
+      5616.5,
+      1034.8,
+      325.0,
+      44.0
+    ],
+    "option:terror-value": [
+      5601.15,
+      1999.2,
+      339.0,
+      44.0
+    ],
+    "briefing-rule-ref": [
+      4487.0,
+      812.2,
+      118.0,
+      45.0
+    ]
+  },
+  "centered_text": {
+    "choice-commit-label": [
+      5209.0,
+      2395.6,
+      304.0,
+      58.0
+    ]
+  },
+  "execution": {
+    "parts": {
+      "briefing-ribbon": [
+        5874.0,
+        756.0,
+        97.2,
+        302.4
+      ],
+      "briefing-tab:kidnap": [
+        3471.0,
+        799.2,
+        170.4,
+        70.2
+      ],
+      "briefing-tab:terror": [
+        3657.6,
+        799.2,
+        154.4,
+        70.2
+      ],
+      "briefing-pin": [
+        4556.4,
+        739.8,
+        81.0,
+        81.0
+      ]
+    },
+    "text": {
+      "briefing-title": [
+        3471.0,
+        896.4,
+        994.4,
+        71.0
+      ]
+    }
+  }
+}

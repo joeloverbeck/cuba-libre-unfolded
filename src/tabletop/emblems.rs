@@ -37,7 +37,7 @@ impl Prose {
             red: false,
         }
     }
-    // Briefings arrive with later #58 tickets (#69 onward).
+    // The action-choice briefings name factions per text run (`segments_after`).
     #[allow(dead_code)]
     pub fn briefing(text: impl Into<String>) -> Self {
         Self {
@@ -88,12 +88,23 @@ pub(super) enum Segment {
 /// Splits `text` into words and emblems. A name becomes an emblem only as a whole
 /// word, so "Governments" or "126July" stay text. On a `red` surface 26July keeps its name.
 pub(super) fn segments(text: &str, naming: Naming, red: bool) -> Vec<Segment> {
+    segments_after(text, naming, red, &mut [false; 4])
+}
+
+/// [`segments`] for one of several texts that form a single briefing: `seen` carries
+/// the factions already mentioned in its earlier texts, so only the briefing's first
+/// mention of each keeps its name.
+pub(super) fn segments_after(
+    text: &str,
+    naming: Naming,
+    red: bool,
+    seen: &mut [bool; 4],
+) -> Vec<Segment> {
     if naming == Naming::Names {
         return vec![Segment::Words(text.into())];
     }
     let mut out = vec![];
     let mut words = String::new();
-    let mut seen = [false; 4];
     let mut rest = text;
     let mut previous: Option<char> = None;
     while let Some(c) = rest.chars().next() {
