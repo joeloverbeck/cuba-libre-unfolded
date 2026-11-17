@@ -235,7 +235,14 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
     match choice {
         Some(c) if c.supported => Commit {
             label: match c.action() {
-                "pass" => "Pass · +1 Resource".into(),
+                // The gain the authority previews: +1, or less at the 49 cap.
+                "pass" => c
+                    .preview
+                    .iter()
+                    .flat_map(|p| &p.resources)
+                    .map(|r| format!("Pass · +{}", resources(r.to.saturating_sub(r.from))))
+                    .next()
+                    .unwrap_or_else(|| "Pass".into()),
                 "terror" => "Choose Terror".into(),
                 other => listing(other).0.into(),
             },
@@ -1312,6 +1319,18 @@ mod tests {
         assert!(pass.enabled);
         assert_eq!(pass.name, "0:pass");
         assert_eq!(pass.label, "Pass · +1 Resource");
+        // The gain is the authority's preview, not a fixed "+1": at the 49 cap it is
+        // nothing (R 1.8).
+        let mut capped = view.clone();
+        let preview = capped
+            .choices
+            .iter_mut()
+            .find(|c| c.action() == "pass")
+            .and_then(|c| c.preview.as_mut())
+            .unwrap();
+        preview.resources[0].from = 49;
+        preview.resources[0].to = 49;
+        assert_eq!(commit(&capped, Some("pass")).label, "Pass · +0 Resources");
         let terror = commit(&view, Some("terror"));
         assert_eq!(
             (terror.name.as_str(), terror.label.as_str()),

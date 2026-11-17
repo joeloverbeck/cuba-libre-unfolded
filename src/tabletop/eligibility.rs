@@ -17,7 +17,7 @@
 use super::emblems::{self, Naming};
 use super::palette::{INK, QUIET};
 use super::*;
-use crate::{ActionChoice, Observation, SequenceBox};
+use crate::{ActionChoice, Observation, SequenceBox, resources};
 use bevy::text::{Justify, LetterSpacing, LineHeight};
 
 /// Node coordinates in the FigCraft 16:9 frame, `art/atlas/atlas-eligibility.figcraft`.
@@ -252,20 +252,41 @@ pub(super) fn content(view: &Observation, slot: Slot) -> Shown {
         ActionChoice::Terror => "Terror",
         _ => "an Operation",
     };
+    // An occupied box words the authority's record: the Resources the recording step
+    // moved, 26July's Eligibility for the next card, and the next faction's role and
+    // options (R 2.3.3, 2.3.4, 2.3.7).
+    let next = view.next.as_ref().map_or_else(String::new, |n| {
+        format!(
+            " {}, {}, may: {}.",
+            n.faction.name(),
+            n.role,
+            n.options.join(" · ")
+        )
+    });
     let body = match (slot, occupied) {
-        (Slot::Pass, true) => format!(
-            "26July Passed: +1 Resource, and it stays Eligible. {} becomes 1st Eligible: Pass, an Operation with or without a Special Activity, or the Event. {} is now 2nd Eligible.",
-            e.first.name(),
-            e.second.name()
-        ),
+        (Slot::Pass, true) => {
+            let gained: Vec<String> = view
+                .recorded_resources
+                .iter()
+                .map(|r| format!("+{}", resources(r.to.saturating_sub(r.from))))
+                .collect();
+            let eligibility = match e.m26_next_card {
+                Some(true) => ", and it stays Eligible",
+                Some(false) => ", and it becomes Ineligible after this card",
+                None => "",
+            };
+            format!(
+                "26July Passed: {}{eligibility}.{next} {} is now 2nd Eligible.",
+                gained.join(", "),
+                e.second.name()
+            )
+        }
         (Slot::OperationOnly, true) => format!(
-            "26July executed an Operation without a Special Activity ({operation}). An End Terror with no space resolved also records this box (accepted zero-space reading, local policy). {}, 2nd Eligible, may Pass or take a Limited Operation.",
-            e.second.name()
+            "26July executed an Operation without a Special Activity ({operation}). An End Terror with no space resolved also records this box (accepted zero-space reading, local policy).{next}"
         ),
         (Slot::OperationWithSpecialActivity, true) => format!(
-            "26July executed an Operation with a Special Activity ({operation} with {}). {}, 2nd Eligible, may Pass, take a Limited Operation, or take card 17's Event.",
+            "26July executed an Operation with a Special Activity ({operation} with {}).{next}",
             view.special_activity.as_deref().unwrap_or("a Special Activity"),
-            e.second.name()
         ),
         (Slot::Pass, false) => "A 1st or 2nd Eligible faction that Passes gets +1 Resource (Government +3) and stays Eligible. The next Eligible faction in card order takes its place, with the same options.".into(),
         (Slot::OperationOnly, false) => "Records a 1st Eligible faction's Operation without a Special Activity. The 2nd Eligible faction may then Pass or take a Limited Operation: 1 space, no Special Activity.".into(),
@@ -1054,11 +1075,18 @@ mod tests {
                 .body
                 .starts_with("26July Passed: +1 Resource, and it stays Eligible.")
         );
-        assert!(shown.body.contains("Directorio becomes 1st Eligible"));
+        assert!(shown.body.contains("Directorio, 1st Eligible, may: Pass"));
         assert!(shown.body.contains("Government is now 2nd Eligible"));
-        assert_eq!(view.next_options.len(), 3);
-        assert!(view.next_options.iter().any(|o| o == "Event"));
-        assert!(shown.body.contains("or the Event"));
+        assert_eq!(view.next.as_ref().unwrap().options.len(), 3);
+        assert!(
+            view.next
+                .as_ref()
+                .unwrap()
+                .options
+                .iter()
+                .any(|o| o == "Event")
+        );
+        assert!(shown.body.contains(" · Event."));
         for slot in [Slot::OperationOnly, Slot::OperationWithSpecialActivity] {
             assert!(!content(&view, slot).occupied);
         }
@@ -1070,13 +1098,19 @@ mod tests {
         let shown = content(&view, Slot::OperationOnly);
         assert!(shown.occupied);
         assert_eq!((shown.title, shown.rule), ("Operation Only", "R 2.3.4"));
-        assert!(
-            shown
-                .body
-                .contains("Directorio, 2nd Eligible, may Pass or take a Limited Operation.")
-        );
+        assert!(shown.body.contains(
+            "Directorio, 2nd Eligible, may: Pass (+1 if executed later) · Limited Operation."
+        ));
         assert!(shown.body.contains("local policy"));
-        assert!(!view.next_options.iter().any(|o| o == "Event"));
+        assert!(
+            !view
+                .next
+                .as_ref()
+                .unwrap()
+                .options
+                .iter()
+                .any(|o| o == "Event")
+        );
         assert!(!shown.body.contains("Event"));
 
         let mut kidnap = Game::opening();
@@ -1090,10 +1124,34 @@ mod tests {
         assert!(shown.occupied);
         assert_eq!(shown.title, "Operation + Special Activity");
         assert!(shown.body.contains("(Terror with Kidnap)"));
-        assert!(view.next_options.iter().any(|o| o == "Event"));
+        assert!(
+            view.next
+                .as_ref()
+                .unwrap()
+                .options
+                .iter()
+                .any(|o| o == "Event")
+        );
         assert!(shown.body.ends_with(
-            "Directorio, 2nd Eligible, may Pass, take a Limited Operation, or take card 17's Event."
+            "Directorio, 2nd Eligible, may: Pass (+1 if executed later) · Limited Operation · Event."
         ));
+
+        // An occupied box words the authority's record: changed there to facts the
+        // old fixed sentences ("+1 Resource", "stays Eligible", a fixed option list)
+        // would misstate, the tag follows.
+        let mut changed = pass.observe();
+        changed.recorded_resources[0].from = 49;
+        changed.recorded_resources[0].to = 49;
+        changed.eligibility.m26_next_card = Some(false);
+        changed.next.as_mut().unwrap().options = vec!["Event".into()];
+        let shown = content(&changed, Slot::Pass);
+        assert!(
+            shown.body.starts_with(
+                "26July Passed: +0 Resources, and it becomes Ineligible after this card. Directorio, 1st Eligible, may: Event."
+            ),
+            "{}",
+            shown.body
+        );
 
         let opening = Game::opening().observe();
         for slot in Slot::ALL {

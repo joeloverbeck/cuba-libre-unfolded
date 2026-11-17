@@ -8,7 +8,7 @@
 mod explore;
 use super::execution::{self, StepId};
 use super::{Action, Interface, popover, transfer};
-use crate::{ActionChoice, Choice, Faction, Game, Observation, targets};
+use crate::{ActionChoice, Choice, Faction, Game, Observation, TransferChoice, targets};
 
 /// Where `choice` is presented in `view`, or `None` when no surface offers it.
 fn surface(view: &Observation, choice: &Choice) -> Option<&'static str> {
@@ -57,17 +57,17 @@ fn surface(view: &Observation, choice: &Choice) -> Option<&'static str> {
             state.entry = n.to_owned();
             transfer::content(view, &state).commit.map(|c| c.id)
         };
-        let amount = action
-            .strip_prefix("give:")
-            .map(|rest| (transfer::Direction::Give, rest))
-            .or_else(|| {
-                action
-                    .strip_prefix("ask:")
-                    .map(|rest| (transfer::Direction::Ask, rest))
-            });
-        if let Some((direction, rest)) = amount
-            && let Some((other, n)) = rest.split_once(':')
-            && typed(other.parse().unwrap_or(usize::MAX), direction, n).as_deref()
+        let amount = match choice.transfer() {
+            Some(TransferChoice::Give { recipient, amount }) => {
+                Some((recipient, transfer::Direction::Give, amount))
+            }
+            Some(TransferChoice::Ask { giver, amount }) => {
+                Some((giver, transfer::Direction::Ask, amount))
+            }
+            _ => None,
+        };
+        if let Some((other, direction, n)) = amount
+            && typed(other.index(), direction, &n.to_string()).as_deref()
                 == Some(choice.id.as_str())
         {
             return Some("transfer modal amount");
@@ -144,6 +144,7 @@ fn every_choice_offered_to_26july_during_terror_has_a_surface() {
         "transfer modal control",
         "transfer modal amount",
         "piece popover",
+        "piece popover (refused)",
     ] {
         assert!(seen.contains(place), "{place} never presented a choice");
     }

@@ -759,7 +759,7 @@ fn native_own_removal_restart_obligation_and_all_pieces_finish() {
     app.choose("end-terror");
     assert_eq!(app.observe()["observation"]["resources"][1], 0);
     assert!(
-        app.observe()["observation"]["next_options"]
+        app.observe()["observation"]["next"]["options"]
             .as_array()
             .unwrap()
             .contains(&json!("Event"))
@@ -901,7 +901,7 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
     app.choose("end-terror");
     let finished = app.observe();
     assert_eq!(
-        finished["observation"]["next_options"],
+        finished["observation"]["next"]["options"],
         json!(["Pass (+1 if executed later)", "Limited Operation", "Event"])
     );
     assert_eq!(
@@ -1155,7 +1155,7 @@ fn native_resource_transfers_enable_both_orders_without_or_with_late_kidnap() {
         app.choose("end-terror");
         let finished = app.observe();
         assert_eq!(
-            finished["observation"]["next_options"]
+            finished["observation"]["next"]["options"]
                 .as_array()
                 .unwrap()
                 .contains(&json!("Event")),
@@ -1318,7 +1318,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     assert_eq!(finished["observation"]["resources"], json!([6, 0, 5, 15]));
     assert_eq!(finished["observation"]["owner"], "Directorio");
     assert_eq!(
-        finished["observation"]["next_options"],
+        finished["observation"]["next"]["options"],
         json!(["Pass (+1 if executed later)", "Limited Operation"])
     );
     app.capture("finished");
@@ -2787,7 +2787,7 @@ fn native_action_choice_pass_and_back_before_the_first_effect() {
     assert_eq!(passed["observation"]["eligibility"]["second"], "Government");
     assert_eq!(passed["observation"]["eligibility"]["m26_box"], "Pass");
     assert_eq!(
-        passed["observation"]["next_options"],
+        passed["observation"]["next"]["options"],
         json!([
             "Pass (+1 if executed later)",
             "Operation (with or without a Special Activity)",
@@ -5132,11 +5132,13 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
     app.quit();
 }
 
-/// #58 review fix 3: an early Kidnap owes Santiago's Terror, then a Transfer request
-/// waits on Directorio. End Terror would withdraw the request, but the authority
-/// refuses it, so the row, its tag and the commit all say not yet with the
-/// authority's reason and remedy, and pressing the commit submits nothing. Then the
-/// remedy is taken and both ended panels state the authority's record.
+/// #58 review fix 3 and final sweep: an early Kidnap owes Santiago's Terror, then a
+/// Transfer request waits on Directorio. End Terror would withdraw the request, but
+/// the authority refuses it, so the row, its tag, the commit and the request's tag all
+/// say not yet with the authority's reason and its remedy, timed "once Directorio has
+/// decided", and pressing the commit submits nothing. Then the remedy is taken, and
+/// the Terror and End Terror notices, both ended panels and the Pass notice state the
+/// authority's record.
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained captures"]
 fn native_refused_end_terror_while_a_request_waits_and_the_ended_panels() {
@@ -5193,14 +5195,15 @@ fn native_refused_end_terror_while_a_request_waits_and_the_ended_panels() {
         words(&pending, "step:end-terror-pill-label"),
         "NOT YET · SANTIAGO OWED"
     );
+    let remedy = "Resolve Santiago's Terror once Directorio has decided";
     let tag = app.tag("end-terror", "refused-end-terror-tag");
     assert!(tag.contains("Santiago Terror is owed"), "{tag}");
-    assert!(tag.contains("Resolve Santiago's Terror"), "{tag}");
+    assert!(tag.contains(remedy), "{tag}");
     let revision = pending["observation"]["revision"].as_u64().unwrap();
     let refusal = app.refuse("end-terror");
     assert!(refusal.contains("Santiago Terror is owed"), "{refusal}");
     assert!(
-        refusal.contains("In this task: Resolve Santiago's Terror."),
+        refusal.contains(&format!("In this task: {remedy}.")),
         "{refusal}"
     );
     let refused = app.observe();
@@ -5217,13 +5220,32 @@ fn native_refused_end_terror_while_a_request_waits_and_the_ended_panels() {
     app.activate("step:end-terror", revision);
     let request = app.tag("transfer", "pending-request-tag");
     assert!(!request.contains("may withdraw"), "{request}");
+    assert!(
+        request.contains(&format!("In this task: {remedy}.")),
+        "{request}"
+    );
     // The remedy: Directorio decides, then Santiago's Terror; End Terror then records
     // the Operation with its Special Activity.
     app.choose("reopen");
     app.choose("decline");
     app.choose("terror:santiago");
+    let resolved = app.observe();
+    assert_eq!(
+        resolved["table"]["notice"],
+        "Terror saved in Santiago de Cuba: paid 1 Resource, flipped 1 Underground Guerrilla to Active, placed a Terror marker and shifted Neutral → Passive Opposition."
+    );
+    app.capture("terror-notice");
     app.choose("end-terror");
     let ended = app.observe();
+    assert_eq!(
+        ended["table"]["notice"],
+        "Terror ended: Operation with Special Activity recorded. Saved."
+    );
+    let next = &ended["observation"]["next"];
+    assert_eq!(
+        (&next["faction"], &next["role"]),
+        (&json!("Directorio"), &json!("2nd Eligible"))
+    );
     assert_eq!(
         ended["observation"]["eligibility"]["m26_box"],
         "OperationWithSpecialActivity"
@@ -5255,6 +5277,10 @@ fn native_refused_end_terror_while_a_request_waits_and_the_ended_panels() {
     app.launch_size("3840x2160");
     app.choose("pass");
     let passed = app.observe();
+    assert_eq!(
+        passed["table"]["notice"],
+        "26July passed: +1 Resource and stays Eligible. Directorio is 1st Eligible. Saved."
+    );
     let change = &passed["observation"]["recorded_resources"][0];
     assert_eq!(
         words(&passed, "ended-value:RESULT").lines().next(),

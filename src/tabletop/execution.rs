@@ -25,7 +25,9 @@ use super::choice::{self, Part, fig as acb, rect, rs, rx, ry, style};
 use super::emblems::{self, Prose};
 use super::palette::{INK, PAPER, PRIMARY, QUIET};
 use super::*;
-use crate::{ActionChoice, Choice, Observation, Preview, SequenceBox, Transfer, resources};
+use crate::{
+    ActionChoice, Choice, Observation, Preview, SequenceBox, TERROR_COST, Transfer, resources,
+};
 use bevy::text::{Justify, LetterSpacing, LineHeight};
 use bevy::ui::widget::NodeImageMode;
 
@@ -325,7 +327,7 @@ pub(super) fn steps(view: &Observation) -> Vec<Step> {
             let note = |words: &str| Status::Note(words.into(), false);
             // A listed step the authority refuses: its pill says whether something in
             // this task can make it available.
-            let refused = |c: &Choice| {
+            let refused_pill = |c: &Choice| {
                 if c.remedies.is_empty() {
                     Status::Pill(Pill::Unavailable, "UNAVAILABLE".into())
                 } else {
@@ -337,7 +339,7 @@ pub(super) fn steps(view: &Observation) -> Vec<Step> {
                     (Some(roll), _) => Status::Pill(Pill::Done, format!("ROLLED {}", roll.die)),
                     _ if is_held => Status::Pill(Pill::Owed, "OPEN · NOTHING ROLLED".into()),
                     (None, Some(c)) if c.supported => note("opens its stakes"),
-                    (None, Some(c)) => refused(c),
+                    (None, Some(c)) => refused_pill(c),
                     (None, None) => Status::Pill(Pill::Unavailable, waits(mode).into()),
                 },
                 StepId::Transfer => match &view.transfer {
@@ -354,15 +356,13 @@ pub(super) fn steps(view: &Observation) -> Vec<Step> {
                         note("withdraws the request")
                     }
                     Some(c) if c.supported => match c.preview.as_ref().and_then(|p| p.records) {
-                        Some(SequenceBox::OperationWithSpecialActivity) => {
-                            note("records Operation with Special Activity")
-                        }
-                        _ => note("records Operation Only"),
+                        Some(record) => note(&format!("records {}", record.name())),
+                        None => note("ends the Operation"),
                     },
                     _ if owed.is_some() => {
                         Status::Pill(Pill::NotYet, "NOT YET · SANTIAGO OWED".into())
                     }
-                    Some(c) => refused(c),
+                    Some(c) => refused_pill(c),
                     None => Status::Pill(Pill::Unavailable, waits(mode).into()),
                 },
                 StepId::BackToChoice => match choice {
@@ -370,7 +370,7 @@ pub(super) fn steps(view: &Observation) -> Vec<Step> {
                         note("withdraws the request")
                     }
                     Some(c) if c.supported => note("until the first effect"),
-                    Some(c) => refused(c),
+                    Some(c) => refused_pill(c),
                     None if view.effected => {
                         Status::Pill(Pill::Unavailable, "NO LONGER OFFERED".into())
                     }
@@ -378,17 +378,22 @@ pub(super) fn steps(view: &Observation) -> Vec<Step> {
                 },
                 StepId::TerrorSantiago | StepId::TerrorOriente => {
                     let space = id.space().unwrap_or_default();
-                    let resolved = view.spaces.iter().any(|s| s.id == space && s.terror > 0);
+                    let resolved = view.resolved.iter().find(|r| r.space == space);
+                    let owed_pill = || {
+                        Status::Pill(
+                            Pill::Owed,
+                            format!("OWED · {}", resources(TERROR_COST).to_uppercase()),
+                        )
+                    };
                     match choice {
-                        _ if resolved => Status::Pill(Pill::Done, "DONE · PAID 1".into()),
-                        Some(c) if c.supported && owed == Some(space) => {
-                            Status::Pill(Pill::Owed, "OWED · 1 RESOURCE".into())
-                        }
-                        Some(c) if c.supported => note("pay 1 Resource"),
+                        _ if resolved.is_some() => Status::Pill(
+                            Pill::Done,
+                            format!("DONE · PAID {}", resolved.map_or(0, |r| r.paid)),
+                        ),
+                        Some(c) if c.supported && owed == Some(space) => owed_pill(),
+                        Some(c) if c.supported => note(&format!("pay {}", resources(TERROR_COST))),
                         Some(c) => blocked_target(view, space, !c.remedies.is_empty(), mode),
-                        None if owed == Some(space) => {
-                            Status::Pill(Pill::Owed, "OWED · 1 RESOURCE".into())
-                        }
+                        None if owed == Some(space) => owed_pill(),
                         None => blocked_target(view, space, true, mode),
                     }
                 }
@@ -539,8 +544,9 @@ pub(super) fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
             }
             let words = match id {
                 StepId::TerrorSantiago | StepId::TerrorOriente => format!(
-                    "Terror in {} · pay 1 Resource",
-                    space_name(view, id.space().unwrap_or_default())
+                    "Terror in {} · pay {}",
+                    space_name(view, id.space().unwrap_or_default()),
+                    resources(TERROR_COST)
                 ),
                 StepId::Kidnap => "Open Kidnap · nothing rolled yet".into(),
                 StepId::Transfer => "Open the Resource transfer".into(),
@@ -549,7 +555,8 @@ pub(super) fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                     Some(SequenceBox::OperationWithSpecialActivity) => {
                         "End Terror · Operation with Special Activity".into()
                     }
-                    _ => "End Terror · records Operation Only".into(),
+                    Some(record) => format!("End Terror · records {}", record.name()),
+                    None => "End Terror".into(),
                 },
                 StepId::BackToChoice => id.label(view),
             };
@@ -1062,36 +1069,33 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
     );
 }
 
-/// The ended panel's entries: what was recorded, Eligibility, and what Directorio
-/// may do next (shown, not executed). Every fact is the authority's: the box 26July's
-/// cylinder occupies, its Eligibility for the next card, the next Eligible faction
-/// and the Resources the recording step moved. `None` until the action is recorded.
+/// The ended panel's entries: what was recorded, Eligibility, and what the next
+/// faction may do (shown, not executed). Every fact is the authority's: the box
+/// 26July's cylinder occupies, its Eligibility for the next card, the next faction
+/// with its role and options, the Resources the recording step moved, the Terror
+/// resolved and what it paid. `None` until the action is recorded.
 pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)> {
     let e = &view.eligibility;
     let record = e.m26_box?;
     let shown = "Shown, not executed: the card and Eligibility do not advance";
-    // The next faction to act is the first Eligible one that is not 26July.
-    let (who, role) = if e.first != Faction::M26 {
-        (e.first, "1st Eligible")
-    } else {
-        (e.second, "2nd Eligible")
-    };
+    let following = view.next.as_ref();
     let next = entry(
         "NEXT · SHOWN, NOT EXECUTED",
-        format!(
-            "{}, {role}, may: {}",
-            who.name(),
-            view.next_options.join(" · ")
+        following.map_or_else(
+            || "The next faction is not recorded yet.".to_owned(),
+            |n| {
+                format!(
+                    "{}, {}, may: {}",
+                    n.faction.name(),
+                    n.role,
+                    n.options.join(" · ")
+                )
+            },
         ),
     );
-    let (rule, citation) = match record {
-        SequenceBox::Pass => ("Pass", "R 2.3.3"),
-        SequenceBox::OperationOnly => ("Operation Only", "R 2.3.4"),
-        SequenceBox::OperationWithSpecialActivity => ("Operation with Special Activity", "R 2.3.4"),
-    };
-    let subtitle = format!("{rule} recorded ({citation})\n{shown}");
+    let subtitle = format!("{} recorded ({})\n{shown}", record.name(), record.rule());
     let eligibility = match e.m26_next_card {
-        Some(true) => format!("26July stays Eligible ({citation})."),
+        Some(true) => format!("26July stays Eligible ({}).", record.rule()),
         Some(false) => "26July becomes Ineligible after this card (R 2.3.7).".to_owned(),
         None => "26July's Eligibility for the next card is not recorded yet.".to_owned(),
     };
@@ -1113,19 +1117,18 @@ pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)>
             ],
         ));
     }
-    let resolved: Vec<&str> = view
-        .spaces
-        .iter()
-        .filter(|s| s.terror > 0)
-        .map(|s| s.name.as_str())
-        .collect();
-    let mut result = vec![if resolved.is_empty() {
+    let mut result = vec![if view.resolved.is_empty() {
         "No Terror resolved: no effect, no Pass income.".to_owned()
     } else {
+        let places: Vec<&str> = view
+            .resolved
+            .iter()
+            .map(|r| space_name(view, &r.space))
+            .collect();
         format!(
             "Terror resolved: {} · paid {}",
-            resolved.join(", "),
-            resources(resolved.len() as u8)
+            places.join(", "),
+            resources(view.resolved.iter().map(|r| r.paid).sum())
         )
     }];
     if let Some(roll) = &view.kidnap {
@@ -1136,16 +1139,23 @@ pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)>
         ));
     }
     result.extend(moved);
-    let event = if record == SequenceBox::OperationWithSpecialActivity {
-        entry(
+    // Card 17's Event is open to the next faction exactly when the authority lists it
+    // among that faction's options.
+    let event = match following {
+        Some(n) if n.options.iter().any(|o| o == "Event") => entry(
             "EVENT FOR DIRECTORIO",
-            "After a Special Activity, card 17's Event is open to Directorio, either text (R 2.3.4, 5.2).",
-        )
-    } else {
-        entry(
+            format!(
+                "After a Special Activity, card 17's Event is open to {}, either text (R 2.3.4, 5.2).",
+                n.faction.name()
+            ),
+        ),
+        _ => entry(
             "NO EVENT",
-            "No Event for Directorio: it follows only an Operation with Special Activity (R 2.3.4).",
-        )
+            format!(
+                "No Event for {}: it follows only an Operation with Special Activity (R 2.3.4).",
+                following.map_or("the next faction", |n| n.faction.name())
+            ),
+        ),
     };
     Some((
         "26July · Terror ended".into(),
@@ -1331,13 +1341,7 @@ fn previewed(view: &Observation, action: &str, preview: &Preview) -> (Vec<Entry>
     if let Some(records) = preview.records {
         entries.push(entry(
             "RECORDS",
-            match records {
-                SequenceBox::Pass => "Pass (R 2.3.3)",
-                SequenceBox::OperationOnly => "Operation Only (R 2.3.4)",
-                SequenceBox::OperationWithSpecialActivity => {
-                    "Operation with Special Activity (R 2.3.4)"
-                }
-            },
+            format!("{} ({})", records.name(), records.rule()),
         ));
     }
     if let Some(next) = &preview.next {
@@ -1479,8 +1483,9 @@ pub(super) fn tag(view: &Observation, action: &str) -> Option<Briefing> {
                             "26July may withdraw the request: {one} withdraws it, and nothing has moved."
                         ),
                         (None, None) => match end.filter(|c| !c.supported) {
+                            // The authority's remedy carries its own timing.
                             Some(c) if !c.remedies.is_empty() => format!(
-                                "End Terror would withdraw it, but not yet: {} Once {g} has decided: {}.",
+                                "End Terror would withdraw it, but not yet: {} In this task: {}.",
                                 reason(&c.explanation),
                                 c.remedies.join(" · ")
                             ),
@@ -1930,60 +1935,75 @@ mod tests {
     /// waits on its giver. End Terror would withdraw the request, but the authority
     /// refuses it until Santiago is resolved, so the row, its tag and the commit all
     /// say not yet, with the authority's reason and remedy, and the commit is disabled.
+    /// The remedy cannot be taken until the giver decides, so every surface states
+    /// that timing, from the authority's remedy, for each faction that can be asked.
     #[test]
     fn a_pending_request_does_not_offer_an_end_terror_the_authority_refuses() {
-        let mut game = Game::prepared_with_seed(19);
-        game.submit(Faction::M26, 0, "0:kidnap").unwrap();
-        game.submit(Faction::M26, 1, "1:kidnap:roll").unwrap();
-        game.submit(Faction::M26, 2, "2:transfer").unwrap();
-        game.submit(Faction::M26, 3, "3:ask:2:1").unwrap();
-        for waited in [false, true] {
-            if waited {
-                game.submit(Faction::Directorio, 4, "4:wait").unwrap();
+        for giver in [Faction::Government, Faction::Directorio, Faction::Syndicate] {
+            let g = giver.name();
+            let remedy = format!("Resolve Santiago's Terror once {g} has decided");
+            let mut game = Game::prepared_with_seed(19);
+            game.submit(Faction::M26, 0, "0:kidnap").unwrap();
+            game.submit(Faction::M26, 1, "1:kidnap:roll").unwrap();
+            game.submit(Faction::M26, 2, "2:transfer").unwrap();
+            game.submit(Faction::M26, 3, &format!("3:ask:{}:1", giver.index()))
+                .unwrap();
+            for waited in [false, true] {
+                if waited {
+                    game.submit(giver, 4, "4:wait").unwrap();
+                }
+                let view = game.observe();
+                assert_eq!(mode(&view), Mode::Transfer);
+                let end = listed(&view, "end-terror").unwrap();
+                assert!(!end.supported, "the authority refuses it");
+                assert_eq!(end.remedies, std::slice::from_ref(&remedy));
+                let steps = steps(&view);
+                let row = step(&steps, "end-terror");
+                assert_eq!(
+                    row.status,
+                    Status::Pill(Pill::NotYet, "NOT YET · SANTIAGO OWED".into())
+                );
+                assert!(row.interactive && !row.bold);
+                let b = tag_of(&game, "end-terror");
+                assert_eq!(b.entries[0].label, "NOT YET");
+                assert!(
+                    words(&b).contains("Santiago Terror is owed"),
+                    "{}",
+                    words(&b)
+                );
+                assert_eq!(b.entries[1].chips, std::slice::from_ref(&remedy));
+                let commit = commit(&view, Some("end-terror"));
+                assert!(!commit.enabled);
+                assert_eq!(commit.label, "End Terror is not available yet");
+                let Action::Unsupported(reason) = commit.action else {
+                    panic!("a refused End Terror commits nothing")
+                };
+                assert!(reason.contains("Santiago Terror is owed"), "{reason}");
+                assert!(
+                    reason.contains(&format!("In this task: {remedy}.")),
+                    "{reason}"
+                );
+                // The pending request's tag does not offer End Terror as a withdrawal,
+                // and words the same remedy with the same timing.
+                let pending = words(&tag_of(&game, "transfer"));
+                assert!(!pending.contains("may withdraw"), "{pending}");
+                assert!(pending.contains("but not yet"), "{pending}");
+                assert!(
+                    pending.contains(&format!("In this task: {remedy}.")),
+                    "{pending}"
+                );
+                // Back is no longer offered after the roll, so nothing else withdraws.
+                assert!(listed(&view, "back-to-choice").is_none());
             }
-            let view = game.observe();
-            assert_eq!(mode(&view), Mode::Transfer);
-            let end = listed(&view, "end-terror").unwrap();
-            assert!(!end.supported, "the authority refuses it");
-            let steps = steps(&view);
-            let row = step(&steps, "end-terror");
-            assert_eq!(
-                row.status,
-                Status::Pill(Pill::NotYet, "NOT YET · SANTIAGO OWED".into())
-            );
-            assert!(row.interactive && !row.bold);
-            let b = tag_of(&game, "end-terror");
-            assert_eq!(b.entries[0].label, "NOT YET");
-            assert!(
-                words(&b).contains("Santiago Terror is owed"),
-                "{}",
-                words(&b)
-            );
-            assert_eq!(b.entries[1].chips, ["Resolve Santiago's Terror"]);
-            let commit = commit(&view, Some("end-terror"));
-            assert!(!commit.enabled);
-            assert_eq!(commit.label, "End Terror is not available yet");
-            let Action::Unsupported(reason) = commit.action else {
-                panic!("a refused End Terror commits nothing")
-            };
-            assert!(reason.contains("Santiago Terror is owed"), "{reason}");
-            assert!(
-                reason.contains("In this task: Resolve Santiago's Terror."),
-                "{reason}"
-            );
-            // The pending request's tag does not offer End Terror as a withdrawal.
-            let pending = words(&tag_of(&game, "transfer"));
-            assert!(!pending.contains("may withdraw"), "{pending}");
-            assert!(pending.contains("but not yet"), "{pending}");
-            // Back is no longer offered after the roll, so nothing else withdraws.
-            assert!(listed(&view, "back-to-choice").is_none());
         }
     }
 
     /// The ended panel words the authority's record, not presentation's guesses: the
-    /// recorded box, 26July's Eligibility for the next card, the next Eligible faction
-    /// and the Resources Pass moved. Each fact is changed here to one the old
-    /// derivation (from the roll, a fixed sentence and `r - 1 → r`) would misstate.
+    /// recorded box, 26July's Eligibility for the next card, the next faction with its
+    /// role and options, the Event's availability, the Terror resolved and what it
+    /// paid, and the Resources Pass moved. Each fact is changed here to one the old
+    /// derivations (from the roll or the box, a fixed sentence, `r - 1 → r`, the first
+    /// Eligible faction that is not 26July, and the map's markers) would misstate.
     #[test]
     fn the_ended_panel_reads_the_authority_s_record() {
         let mut game = Game::opening();
@@ -2018,8 +2038,14 @@ mod tests {
         let mut view = game.observe();
         assert!(view.kidnap.is_none());
         assert_eq!(view.eligibility.m26_next_card, Some(false));
+        let next = view.next.clone().unwrap();
+        assert_eq!(
+            (next.faction, next.role.as_str()),
+            (Faction::Directorio, "2nd Eligible")
+        );
+        // The box says Special Activity, but the authority lists no Event: the old
+        // derivation from the box offered it anyway.
         view.eligibility.m26_box = Some(SequenceBox::OperationWithSpecialActivity);
-        view.eligibility.second = Faction::Government;
         let (heading, subtitle, entries) = ending(&view).unwrap();
         assert_eq!(heading, "26July · Terror ended");
         assert!(
@@ -2030,6 +2056,47 @@ mod tests {
             entries[1].text,
             "26July becomes Ineligible after this card (R 2.3.7)."
         );
+        assert_eq!(entries[3].label, "NO EVENT");
+        // The next faction is the authority's, not the first Eligible one that is not
+        // 26July: changing the Eligibility record changes nothing here.
+        view.eligibility.second = Faction::Government;
+        let (_, _, entries) = ending(&view).unwrap();
+        assert!(
+            entries[2]
+                .text
+                .starts_with("Directorio, 2nd Eligible, may:"),
+            "{}",
+            entries[2].text
+        );
+        view.next = Some(crate::Next {
+            faction: Faction::Syndicate,
+            role: "1st Eligible".into(),
+            options: vec!["Pass (+1 if executed later)".into(), "Event".into()],
+        });
+        let (_, _, entries) = ending(&view).unwrap();
+        assert_eq!(
+            entries[2].text,
+            "Syndicate, 1st Eligible, may: Pass (+1 if executed later) · Event"
+        );
+        assert_eq!(entries[3].label, "EVENT FOR DIRECTORIO");
+        assert!(
+            entries[3].text.contains("open to Syndicate"),
+            "{}",
+            entries[3].text
+        );
+        // The Terror resolved and what it paid are the authority's record, not the
+        // map's markers counted at 1 Resource each.
+        assert!(view.spaces.iter().all(|s| s.terror == 0));
+        assert!(entries[0].text.starts_with("No Terror resolved"));
+        view.resolved = vec![crate::Resolved {
+            space: "santiago".into(),
+            paid: 2,
+        }];
+        let (_, _, entries) = ending(&view).unwrap();
+        assert_eq!(
+            entries[0].text.lines().next(),
+            Some("Terror resolved: Santiago de Cuba · paid 2 Resources")
+        );
         view.eligibility.m26_next_card = None;
         let (_, _, entries) = ending(&view).unwrap();
         assert!(
@@ -2037,13 +2104,59 @@ mod tests {
             "{}",
             entries[1].text
         );
-        assert!(
-            entries[2]
-                .text
-                .starts_with("Government, 2nd Eligible, may:")
-        );
-        assert_eq!(entries[3].label, "EVENT FOR DIRECTORIO");
         // Nothing recorded yet: no ended panel.
         assert!(ending(&Game::prepared().observe()).is_none());
+    }
+
+    /// A resolved target's pill states what the authority recorded it paid, and a
+    /// Terror marker alone does not make it done; an offered target's note and
+    /// commit, and the End Terror row, word the authority's cost and record.
+    #[test]
+    fn the_steps_word_the_authority_s_record_and_costs() {
+        let mut game = Game::prepared_with_seed(5);
+        game.submit(Faction::M26, 0, "0:kidnap").unwrap();
+        game.submit(Faction::M26, 1, "1:kidnap:roll").unwrap();
+        game.submit(Faction::M26, 2, "2:terror:santiago").unwrap();
+        let mut view = game.observe();
+        assert_eq!(
+            view.resolved,
+            [crate::Resolved {
+                space: "santiago".into(),
+                paid: 1
+            }]
+        );
+        let row = |view: &Observation, action: &str| {
+            steps(view)
+                .into_iter()
+                .find(|s| s.action == action)
+                .unwrap()
+                .status
+        };
+        assert_eq!(
+            row(&view, "terror:santiago"),
+            Status::Pill(Pill::Done, "DONE · PAID 1".into())
+        );
+        assert_eq!(
+            row(&view, "terror:oriente"),
+            Status::Note("pay 1 Resource".into(), false)
+        );
+        assert_eq!(
+            row(&view, "end-terror"),
+            Status::Note("records Operation with Special Activity".into(), false)
+        );
+        assert_eq!(
+            commit(&view, Some("terror:oriente")).label,
+            "Terror in Oriente · pay 1 Resource"
+        );
+        view.resolved[0].paid = 2;
+        assert_eq!(
+            row(&view, "terror:santiago"),
+            Status::Pill(Pill::Done, "DONE · PAID 2".into())
+        );
+        view.resolved.clear();
+        assert_ne!(
+            row(&view, "terror:santiago"),
+            Status::Pill(Pill::Done, "DONE · PAID 1".into())
+        );
     }
 }

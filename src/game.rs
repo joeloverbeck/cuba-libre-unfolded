@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 use unfolded_random::SeededRandom;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Faction {
     Government,
     M26,
@@ -156,6 +156,23 @@ pub enum SequenceBox {
     OperationOnly,
     OperationWithSpecialActivity,
 }
+impl SequenceBox {
+    /// The box's name, as a record states it.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Pass => "Pass",
+            Self::OperationOnly => "Operation Only",
+            Self::OperationWithSpecialActivity => "Operation with Special Activity",
+        }
+    }
+    /// The rule that records an action in this box.
+    pub fn rule(self) -> &'static str {
+        match self {
+            Self::Pass => "R 2.3.3",
+            Self::OperationOnly | Self::OperationWithSpecialActivity => "R 2.3.4",
+        }
+    }
+}
 /// Card 17's Eligibility record. Nobody turns Ineligible inside the task: R 2.3.7
 /// adjusts cylinders only after the card.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -191,6 +208,8 @@ const SANTIAGO_OWED: &str = "Santiago Terror is owed: under the accepted commitm
 pub const KIDNAP_SPACE: &str = "santiago";
 /// A faction's Resources never exceed 49 (R 1.8); excess is lost.
 const RESOURCE_CAP: u8 = 49;
+/// What 26July pays for Terror in each City or Province it selects (R 3.3.4).
+pub const TERROR_COST: u8 = 1;
 /// The prepared position's Resources, indexed like `Faction::ALL`.
 const PREPARED_RESOURCES: [u8; 4] = [6, 0, 5, 15];
 /// Card 17's order: 26July, Directorio, Government, Syndicate (rules baseline).
@@ -276,6 +295,18 @@ pub struct Kidnap {
     /// tumble from it, independently of the die. A #8 roll lacks it and reads 0.
     #[serde(default)]
     pub revision: u64,
+}
+impl Kidnap {
+    /// Government's Resources after it paid the proceeds.
+    pub fn government_after(&self) -> u8 {
+        self.government_before - self.proceeds
+    }
+    /// 26July's Resources after it received the proceeds, which stop at 49 (R 1.8).
+    pub fn m26_after(&self) -> u8 {
+        self.m26_before
+            .saturating_add(self.proceeds)
+            .min(RESOURCE_CAP)
+    }
 }
 /// A Resource transfer in progress (R 1.5.1). `Selecting` is the transfer modal open
 /// for 26July's choice of "Give to" or "Ask from"; `Authorizing` is a Transfer request
@@ -401,7 +432,9 @@ pub struct Observation {
     pub momentum: Vec<String>,
     pub finished: bool,
     pub choices: Vec<Choice>,
-    pub next_options: Vec<String>,
+    /// The next faction to act, its role and its options, once 26July's action is
+    /// recorded (R 2.3.3–2.3.4). Shown, not executed.
+    pub next: Option<Next>,
     pub operation: &'static str,
     pub special_activity: Option<String>,
     pub owed_terror: Option<String>,
@@ -422,6 +455,18 @@ pub struct Observation {
     /// the authority applied it: a Pass's +1, which stops at 49 (R 2.3.3, 1.8). Empty
     /// until the action is recorded, and after End Terror, which moves none itself.
     pub recorded_resources: Vec<ResourceChange>,
+    /// The spaces where 26July's Terror resolved in this Operation, each with what it
+    /// paid (R 3.3.4), as the authority applied it.
+    pub resolved: Vec<Resolved>,
+    /// What a Kidnap roll could take now (R 4.3.3), from current Resources, until
+    /// Kidnap is rolled or the action is recorded.
+    pub kidnap_stakes: Option<KidnapStakes>,
+}
+/// A space where 26July's Terror resolved, and the Resources it paid there.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct Resolved {
+    pub space: String,
+    pub paid: u8,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Choice {
@@ -471,6 +516,59 @@ impl Choice {
         let n = n.parse().ok()?;
         parts.next().is_none().then_some((space, group, n))
     }
+    /// For a transfer decision: its direction, the other faction and the amount.
+    pub fn transfer(&self) -> Option<TransferChoice> {
+        let action = self.action();
+        let (verb, rest) = action.split_once(':')?;
+        let other_and_amount = || {
+            let (other, n) = rest.split_once(':')?;
+            let other = *Faction::ALL.get(other.parse::<usize>().ok()?)?;
+            Some((other, n.parse().ok()?))
+        };
+        match verb {
+            "give" => other_and_amount()
+                .map(|(recipient, amount)| TransferChoice::Give { recipient, amount }),
+            "ask" => {
+                other_and_amount().map(|(giver, amount)| TransferChoice::Ask { giver, amount })
+            }
+            "authorize" => rest
+                .parse()
+                .ok()
+                .map(|amount| TransferChoice::Authorize { amount }),
+            _ => None,
+        }
+    }
+}
+/// A transfer decision, as its choice id names it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum TransferChoice {
+    /// `give:<recipient>:<amount>`: 26July's own Resources move at once.
+    Give { recipient: Faction, amount: u8 },
+    /// `ask:<giver>:<amount>`: a Transfer request; nothing moves yet.
+    Ask { giver: Faction, amount: u8 },
+    /// `authorize:<amount>`: the giver's decision on the pending request.
+    Authorize { amount: u8 },
+}
+impl TransferChoice {
+    /// The amount the decision names.
+    pub fn amount(self) -> u8 {
+        match self {
+            Self::Give { amount, .. } | Self::Ask { amount, .. } | Self::Authorize { amount } => {
+                amount
+            }
+        }
+    }
+    /// The same direction and faction with no amount: what a transfer's amounts share.
+    pub fn direction(self) -> Self {
+        match self {
+            Self::Give { recipient, .. } => Self::Give {
+                recipient,
+                amount: 0,
+            },
+            Self::Ask { giver, .. } => Self::Ask { giver, amount: 0 },
+            Self::Authorize { .. } => Self::Authorize { amount: 0 },
+        }
+    }
 }
 /// What one step would change. The rules authority computes it by applying the step
 /// to a copy of the match; reading it changes neither the match nor its randomness.
@@ -492,6 +590,9 @@ pub struct Preview {
     pub unavailable: Vec<Unavailable>,
     /// The box 26July's action would record, when the step ends it.
     pub records: Option<SequenceBox>,
+    /// Whether 26July would be Eligible for the next card, when the step ends its
+    /// action (R 2.3.3, 2.3.7).
+    pub m26_next_card: Option<bool>,
     /// Directorio's options, when the step ends 26July's action.
     pub next: Option<Next>,
     /// What a Kidnap roll could take, for opening Kidnap and for its roll. A roll's
@@ -814,7 +915,7 @@ impl Game {
                     choice
                 })
                 .collect(),
-            next_options: self.next_options(),
+            next: self.next(),
             operation: match self.action {
                 ActionChoice::Open => "1st Eligible: choose an action",
                 ActionChoice::Pass => "Passed: +1 Resource, stays Eligible",
@@ -833,6 +934,16 @@ impl Game {
             removal: self.removal.clone(),
             effected: self.effected(),
             recorded_resources: self.recorded_resources(),
+            resolved: self
+                .spaces
+                .iter()
+                .filter(|s| s.terror > 0)
+                .map(|s| Resolved {
+                    space: s.id.clone(),
+                    paid: TERROR_COST,
+                })
+                .collect(),
+            kidnap_stakes: (self.kidnap.is_none() && !self.finished).then(|| self.stakes()),
         }
     }
     /// What Pass changed in 26July's Resources. A Pass is taken only at the action
@@ -849,7 +960,23 @@ impl Game {
             to: self.resources[m26],
         }]
     }
-    /// Directorio's options once 26July's action is recorded (R 2.3.3–2.3.4).
+    /// The next faction to act once 26July's action is recorded: the first Eligible
+    /// faction other than 26July, in its role, with its options (R 2.3.3–2.3.4).
+    fn next(&self) -> Option<Next> {
+        let e = self.eligibility();
+        e.m26_box?;
+        let (faction, role) = if e.first != Faction::M26 {
+            (e.first, "1st Eligible")
+        } else {
+            (e.second, "2nd Eligible")
+        };
+        Some(Next {
+            faction,
+            role: role.into(),
+            options: self.next_options(),
+        })
+    }
+    /// The next faction's options once 26July's action is recorded (R 2.3.3–2.3.4).
     fn next_options(&self) -> Vec<String> {
         if self.action == ActionChoice::Pass {
             // Directorio, now 1st Eligible, has every 1st Eligible option.
@@ -1012,17 +1139,10 @@ impl Game {
             }
         }
         if after.finished {
-            preview.records = after.eligibility().m26_box;
-            preview.next = Some(Next {
-                faction: Faction::Directorio,
-                role: if after.action == ActionChoice::Pass {
-                    "1st Eligible"
-                } else {
-                    "2nd Eligible"
-                }
-                .into(),
-                options: after.next_options(),
-            });
+            let e = after.eligibility();
+            preview.records = e.m26_box;
+            preview.m26_next_card = e.m26_next_card;
+            preview.next = after.next();
         } else {
             // Compare the Operation menus, so removal mode's own menu does not count:
             // a removal leaves the mode open, but what it changes is what the
@@ -1093,26 +1213,31 @@ impl Game {
         }
         notes
     }
+    /// What a Kidnap roll in Santiago could take from current Resources (R 4.3.3).
+    fn stakes(&self) -> KidnapStakes {
+        let government = self.resources[Faction::Government.index()];
+        let mut proceeds: Vec<u8> = (1..=6).map(|die| die.min(government)).collect();
+        proceeds.dedup();
+        KidnapStakes {
+            space: KIDNAP_SPACE.into(),
+            target: Faction::Government,
+            government,
+            minimum: proceeds[0],
+            proceeds,
+            commits_santiago: self
+                .spaces
+                .iter()
+                .any(|s| s.id == KIDNAP_SPACE && s.terror == 0),
+        }
+    }
     /// Opening Kidnap and its roll: the target, the possible proceeds and their
     /// guaranteed minimum from current Resources, the owed Santiago Terror and card 17's
     /// Event for Directorio. Only facts certain before the roll are stated.
     fn kidnap_stakes(&self, action: &str) -> Preview {
-        let government = self.resources[Faction::Government.index()];
-        let mut proceeds: Vec<u8> = (1..=6).map(|die| die.min(government)).collect();
-        proceeds.dedup();
-        let commits_santiago = self
-            .spaces
-            .iter()
-            .any(|s| s.id == "santiago" && s.terror == 0);
+        let stakes = self.stakes();
+        let (government, commits_santiago) = (stakes.government, stakes.commits_santiago);
         let mut preview = Preview {
-            kidnap: Some(KidnapStakes {
-                space: KIDNAP_SPACE.into(),
-                target: Faction::Government,
-                government,
-                minimum: proceeds[0],
-                proceeds,
-                commits_santiago,
-            }),
+            kidnap: Some(stakes),
             ..Preview::default()
         };
         let mut notes = vec![format!(
@@ -1541,6 +1666,11 @@ impl Game {
                     let mut end = finish();
                     end.label = format!("26July withdraws · {}", end.label);
                     end.owner = Faction::M26;
+                    // Nothing else is offered until the giver decides, so a remedy
+                    // waits on that decision and says so (#58 story 53).
+                    for remedy in &mut end.remedies {
+                        *remedy = format!("{remedy} once {} has decided", giver.name());
+                    }
                     choices.push(end);
                 }
                 return choices;
@@ -1637,7 +1767,10 @@ impl Game {
                 && p.state == State::Underground
                 && p.count > 0
         });
-        let cost = format!("Cost: 1 Resource per space (26July has {m26}).");
+        let cost = format!(
+            "Cost: {} per space (26July has {m26}).",
+            resources(TERROR_COST)
+        );
         let mut remedies = vec![];
         let reason = if space.terror > 0 {
             Some(
@@ -1891,24 +2024,24 @@ impl Game {
                 let mut random = SeededRandom::new(self.random);
                 let die = (random.index(6) + 1) as u8;
                 let (government, m26) = (Faction::Government.index(), Faction::M26.index());
-                let proceeds = die.min(self.resources[government]);
-                self.kidnap = Some(Kidnap {
+                let roll = Kidnap {
                     die,
-                    proceeds,
+                    proceeds: die.min(self.resources[government]),
                     government_before: self.resources[government],
                     m26_before: self.resources[m26],
                     random_before: self.random,
                     revision: next_revision,
-                });
+                };
                 self.random = random.state();
-                self.resources[government] -= proceeds;
-                self.resources[m26] += proceeds.min(RESOURCE_CAP - self.resources[m26]);
+                self.resources[government] = roll.government_after();
+                self.resources[m26] = roll.m26_after();
+                self.kidnap = Some(roll);
             }
             None if action.starts_with("terror:") => {
                 let id = action.strip_prefix("terror:").unwrap();
                 let space = self.spaces.iter_mut().find(|s| s.id == id).unwrap();
                 Self::resolve_terror(space);
-                self.resources[Faction::M26.index()] -= 1;
+                self.resources[Faction::M26.index()] -= TERROR_COST;
                 self.effect = true;
             }
             None => self.transfer = Some(Transfer::Selecting),

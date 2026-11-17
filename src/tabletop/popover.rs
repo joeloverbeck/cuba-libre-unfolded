@@ -504,7 +504,11 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
                 if choice.action() == "kidnap" {
                     "Open Kidnap · nothing rolled yet".into()
                 } else {
-                    format!("Terror in {} · pay 1 Resource", place.name)
+                    format!(
+                        "Terror in {} · pay {}",
+                        place.name,
+                        crate::resources(crate::TERROR_COST)
+                    )
                 }
             }),
         });
@@ -565,9 +569,9 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
                 format!(
                     "Government {} → {} · 26July {} → {}. The result stays.",
                     kidnap.government_before,
-                    kidnap.government_before - kidnap.proceeds,
+                    kidnap.government_after(),
                     kidnap.m26_before,
-                    kidnap.m26_before + kidnap.proceeds
+                    kidnap.m26_after()
                 ),
             )],
             remedies: vec![],

@@ -85,7 +85,7 @@ fn removal_mode_removes_nothing_until_a_removal_and_defeats_kidnap_but_not_terro
     assert_eq!(game.observe().standings[1].score, 8);
     choose(&mut game, "end-terror");
     assert_eq!(
-        game.observe().next_options,
+        game.observe().next.unwrap().options,
         ["Pass (+1 if executed later)", "Limited Operation"]
     );
     game.validate().unwrap();
@@ -250,7 +250,13 @@ fn owed_terror_protects_only_last_santiago_underground_and_nothing_once_it_resol
     choose(&mut game, "give:2:2");
     choose(&mut game, "end-terror");
     assert_eq!(game.observe().resources, [3, 0, 7, 15]);
-    assert!(game.observe().next_options.contains(&"Event".into()));
+    assert!(
+        game.observe()
+            .next
+            .unwrap()
+            .options
+            .contains(&"Event".into())
+    );
     assert_eq!(game.random_state(), rng);
     game.validate().unwrap();
 }
@@ -415,7 +421,7 @@ fn all_own_pieces_can_return_to_supply_and_zero_space_finish_remains_legal() {
     choose(&mut game, "done-removal");
     choose(&mut game, "end-terror");
     assert_eq!(
-        game.observe().next_options,
+        game.observe().next.unwrap().options,
         ["Pass (+1 if executed later)", "Limited Operation"]
     );
     game.validate().unwrap();

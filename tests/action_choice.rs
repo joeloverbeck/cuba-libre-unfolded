@@ -161,7 +161,7 @@ fn pass_gains_one_resource_keeps_26july_eligible_and_makes_directorio_first_elig
     assert_eq!(view.executing, None);
     assert!(view.choices.is_empty());
     assert_eq!(
-        view.next_options,
+        view.next.as_ref().unwrap().options,
         [
             "Pass (+1 if executed later)",
             "Operation (with or without a Special Activity)",
@@ -238,7 +238,7 @@ fn eligibility_shows_order_and_roles_at_the_choice_during_terror_and_after_each_
     );
     assert_eq!(view.passed, [false; 4]);
     assert_eq!(
-        view.next_options,
+        view.next.as_ref().unwrap().options,
         ["Pass (+1 if executed later)", "Limited Operation"]
     );
     // Seed 5 is a diagnostic input whose actual shared roll is 3 (tests/terror.rs).
@@ -256,7 +256,7 @@ fn eligibility_shows_order_and_roles_at_the_choice_during_terror_and_after_each_
     );
     assert_eq!(view.eligibility.eligible, [true; 4]);
     assert_eq!(
-        view.next_options,
+        view.next.as_ref().unwrap().options,
         ["Pass (+1 if executed later)", "Limited Operation", "Event"]
     );
     special.validate().unwrap();

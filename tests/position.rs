@@ -151,7 +151,7 @@ fn zero_space_finish_has_no_pass_income_or_deck_advance_and_refuses_wrong_author
     assert_eq!(view.current_card, 17);
     assert_eq!(view.draw_count, 34);
     assert_eq!(
-        view.next_options,
+        view.next.as_ref().unwrap().options,
         ["Pass (+1 if executed later)", "Limited Operation"]
     );
     assert_eq!(game.random_state(), initial.random_state());

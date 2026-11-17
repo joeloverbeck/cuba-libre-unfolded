@@ -1,7 +1,7 @@
 //! The task's reachable states through the authority's own offered decisions, shared
 //! by `tests/honest_hints.rs` and the panel's discovery test
-//! (`src/tabletop/discovery.rs`). The includer brings `Choice`, `Faction` and `Game`
-//! into scope.
+//! (`src/tabletop/discovery.rs`). The includer brings `Choice`, `Faction`, `Game`
+//! and `TransferChoice` into scope.
 //!
 //! From each start, every state reachable through offered decisions is explored,
 //! with at most one Resource transfer on any path (every remedy here needs at most
@@ -12,7 +12,7 @@
 //!   Directorio): Kidnap would take nothing, so only a transfer can fund Terror or
 //!   guarantee Kidnap's commitment.
 #![allow(dead_code)]
-use super::{Choice, Faction, Game};
+use super::{Choice, Faction, Game, TransferChoice};
 use std::collections::{BTreeSet, HashMap};
 
 /// A state without its revision, which every decision advances.
@@ -46,16 +46,8 @@ pub fn choose(game: &mut Game, action: &str) {
 
 /// The transfer amounts explored: 1 and the largest offered in each direction.
 pub fn explored(choices: &[Choice]) -> Vec<&Choice> {
-    let amount = |c: &Choice| {
-        let a = c.action();
-        (a.starts_with("give:") || a.starts_with("ask:") || a.starts_with("authorize:")).then(
-            || {
-                let (direction, n) = a.rsplit_once(':').unwrap();
-                (direction.to_owned(), n.parse::<u8>().unwrap())
-            },
-        )
-    };
-    let mut largest: HashMap<String, u8> = HashMap::new();
+    let amount = |c: &Choice| c.transfer().map(|t| (t.direction(), t.amount()));
+    let mut largest: HashMap<TransferChoice, u8> = HashMap::new();
     for (direction, n) in choices.iter().filter_map(amount) {
         let top = largest.entry(direction).or_default();
         *top = (*top).max(n);
@@ -69,8 +61,10 @@ pub fn explored(choices: &[Choice]) -> Vec<&Choice> {
 
 /// Whether `choice` makes a Resource transfer: a nonzero give or authorization.
 pub fn transfers(choice: &Choice) -> bool {
-    let a = choice.action();
-    (a.starts_with("give:") || a.starts_with("authorize:")) && !a.ends_with(":0")
+    matches!(
+        choice.transfer(),
+        Some(TransferChoice::Give { amount, .. } | TransferChoice::Authorize { amount }) if amount > 0
+    )
 }
 
 pub struct Node {

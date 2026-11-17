@@ -188,7 +188,14 @@ fn committed_roll_and_terror_resume_without_reroll_or_duplicate_effect() {
             .is_err()
     );
     session.submit(Faction::M26, 4, "4:end-terror").unwrap();
-    assert!(session.observe().next_options.contains(&"Event".into()));
+    assert!(
+        session
+            .observe()
+            .next
+            .unwrap()
+            .options
+            .contains(&"Event".into())
+    );
 }
 
 #[test]

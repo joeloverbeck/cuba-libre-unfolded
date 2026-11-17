@@ -12,7 +12,7 @@
 //! choice is judged where that path's one transfer is still unused.
 #[path = "support/explore.rs"]
 mod explore;
-use cuba_libre_unfolded::{Choice, Faction, Game};
+use cuba_libre_unfolded::{Choice, Faction, Game, TransferChoice};
 use explore::{Node, action, choose, explore, reachable, starts};
 use std::collections::BTreeSet;
 
@@ -51,56 +51,50 @@ fn every_disabled_choice_s_remedies_are_exactly_what_this_task_allows() {
     }
 }
 
-/// Whether `action` is offered and supported in `game`.
-fn supported(game: &Game, wanted: &str) -> bool {
+/// Whether `wanted`, as an explored action, is supported in `game`: Kidnap's listing
+/// at the action choice (`terror:kidnap`) counts as Kidnap.
+fn action_supported(game: &Game, wanted: &str) -> bool {
     game.observe()
         .choices
         .iter()
         .any(|c| c.supported && action(c) == wanted)
 }
 
-fn offered(game: &Game, wanted: &str) -> bool {
+/// Whether a supported choice with exactly this action, as its id names it, is
+/// offered in `game`: a decision that can be submitted now.
+fn choice_offered(game: &Game, wanted: &str) -> bool {
     game.observe()
         .choices
         .iter()
         .any(|c: &Choice| c.supported && c.action() == wanted)
 }
 
-/// Closes the step open in `game` with no effect, so a remedy's first decision can
-/// be offered: the giver declines a pending request, Cancel closes the transfer or an
-/// opened Kidnap, and Done leaves removal mode. A remedy named while a step is open
-/// is performed once that step has closed.
-fn close_open_step(game: &mut Game) {
-    let view = game.observe();
-    if view.transfer.is_some() {
-        for close in ["decline", "back"] {
-            if offered(game, close) {
-                return choose(game, close);
-            }
-        }
-    } else if view.kidnap_open {
-        choose(game, "kidnap:cancel");
-    } else if view.removal.is_some() {
-        choose(game, "done-removal");
+/// A remedy and its timing: "Resolve Santiago's Terror once Directorio has decided"
+/// is the remedy "Resolve Santiago's Terror", which waits on Directorio's decision on
+/// the pending request. A remedy without timing can be started at once.
+fn timing(remedy: &str) -> (&str, Option<&str>) {
+    match remedy.rsplit_once(" once ") {
+        Some((base, rest)) => match rest.strip_suffix(" has decided") {
+            Some(giver) => (base, Some(giver)),
+            None => (remedy, None),
+        },
+        None => (remedy, None),
     }
 }
 
-/// The decisions that perform a named remedy, as alternatives: each is tried from a
-/// copy of `game`. A Resource transfer is requested from each faction that can give,
-/// for its limit, which it authorizes in full.
+/// The decisions that perform a remedy, as alternatives: each is tried from a copy of
+/// `game`. A Resource transfer is requested from each faction that can give, for its
+/// limit, which it authorizes in full.
 fn performances(game: &Game, remedy: &str) -> Vec<Vec<String>> {
     match remedy {
         "Choose Terror" => vec![vec!["terror".into()]],
         "Resolve Santiago's Terror" => vec![vec!["terror:santiago".into()]],
         "Kidnap here first" => vec![vec!["kidnap".into(), "kidnap:roll".into()]],
         "Request a Resource transfer" => {
-            let mut opened = game.clone();
-            if !offered(&opened, "transfer") {
-                close_open_step(&mut opened);
-            }
-            if !offered(&opened, "transfer") {
+            if !choice_offered(game, "transfer") {
                 return vec![];
             }
+            let mut opened = game.clone();
             choose(&mut opened, "transfer");
             [Faction::Government, Faction::Directorio, Faction::Syndicate]
                 .into_iter()
@@ -109,11 +103,9 @@ fn performances(game: &Game, remedy: &str) -> Vec<Vec<String>> {
                         .observe()
                         .choices
                         .iter()
-                        .filter_map(|c| {
-                            c.action()
-                                .strip_prefix(&format!("ask:{}:", giver.index()))?
-                                .parse::<u8>()
-                                .ok()
+                        .filter_map(|c| match c.transfer()? {
+                            TransferChoice::Ask { giver: g, amount } if g == giver => Some(amount),
+                            _ => None,
                         })
                         .max()
                         .filter(|&n| n > 0)?;
@@ -129,28 +121,79 @@ fn performances(game: &Game, remedy: &str) -> Vec<Vec<String>> {
     }
 }
 
-/// Whether performing `remedy` from `game` makes `wanted` supported.
-fn works(game: &Game, wanted: &str, remedy: &str) -> bool {
+/// Whether some performance of `remedy` makes `wanted` supported, each decision
+/// offered when it is made.
+fn performs(game: &Game, wanted: &str, remedy: &str) -> bool {
     performances(game, remedy).into_iter().any(|decisions| {
         let mut after = game.clone();
-        if !offered(&after, &decisions[0]) {
-            close_open_step(&mut after);
-        }
         for decision in &decisions {
-            if !offered(&after, decision) {
+            if !choice_offered(&after, decision) {
                 return false;
             }
             choose(&mut after, decision);
         }
-        supported(&after, wanted)
+        action_supported(&after, wanted)
     })
 }
 
-/// Story 53's depth: not only does some remedy exist, each remedy a hint names works.
-/// Performing it from the state that names it (after closing an open step with no
-/// effect) reaches a state where the refused choice is supported.
+/// Whether `remedy`, named in `game`, makes `wanted` available at the time it states.
+/// A remedy without timing must start now. One timed "once {giver} has decided" is
+/// named while a request awaits that giver: it cannot start before the decision,
+/// and works after each decision the giver may make (decline, nothing or its limit).
+fn works(game: &Game, wanted: &str, remedy: &str) -> Result<(), String> {
+    let (base, giver) = timing(remedy);
+    let Some(giver) = giver else {
+        return if performs(game, wanted, base) {
+            Ok(())
+        } else {
+            Err("does not make it available from here, now".into())
+        };
+    };
+    let view = game.observe();
+    match view.transfer {
+        Some(cuba_libre_unfolded::Transfer::Authorizing { giver: g, .. }) if g.name() == giver => {}
+        _ => {
+            return Err(format!(
+                "names {giver}'s decision, but no request awaits {giver}"
+            ));
+        }
+    }
+    if performs(game, wanted, base) {
+        return Err(format!("can start before {giver} has decided"));
+    }
+    let mut decisions = vec!["decline".to_owned()];
+    decisions.extend(
+        view.choices
+            .iter()
+            .filter_map(|c| match c.transfer()? {
+                TransferChoice::Authorize { amount } => Some(amount),
+                _ => None,
+            })
+            .filter(|&n| n == 0 || Some(n) == view.transfer_terms.first().map(|t| t.limit))
+            .map(|n| format!("authorize:{n}")),
+    );
+    for decision in decisions {
+        let mut decided = game.clone();
+        if !choice_offered(&decided, &decision) {
+            return Err(format!("{giver} cannot {decision}"));
+        }
+        choose(&mut decided, &decision);
+        if !performs(&decided, wanted, base) {
+            return Err(format!(
+                "does not make it available after {giver}'s {decision}"
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Story 53's depth: not only does some remedy exist, each remedy a hint names works
+/// when it says. Performing it from the state that names it reaches a state where the
+/// refused choice is supported: at once, or, for a remedy timed "once {giver} has
+/// decided", only after that giver's decision, whichever it is.
 #[test]
 fn every_named_remedy_makes_its_choice_available() {
+    let mut timed = BTreeSet::new();
     for (start, game) in starts() {
         let nodes = explore(game);
         let mut failed = BTreeSet::new();
@@ -159,10 +202,11 @@ fn every_named_remedy_makes_its_choice_available() {
             for (wanted, label, remedies) in &node.disabled {
                 for remedy in remedies {
                     checked += 1;
-                    if !works(&node.game, wanted, remedy) {
-                        failed.insert(format!(
-                            "{label} ({wanted}): {remedy:?} does not make it available"
-                        ));
+                    if let (_, Some(giver)) = timing(remedy) {
+                        timed.insert(giver.to_owned());
+                    }
+                    if let Err(why) = works(&node.game, wanted, remedy) {
+                        failed.insert(format!("{label} ({wanted}): {remedy:?} {why}"));
                     }
                 }
             }
@@ -174,4 +218,10 @@ fn every_named_remedy_makes_its_choice_available() {
             failed.into_iter().collect::<Vec<_>>().join("\n")
         );
     }
+    // A request can await each faction that may give, and the timed remedy was
+    // checked for each, so the timing check is not vacuous.
+    assert_eq!(
+        timed.into_iter().collect::<Vec<_>>(),
+        ["Directorio", "Government", "Syndicate"]
+    );
 }

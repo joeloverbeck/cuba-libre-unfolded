@@ -81,7 +81,7 @@ fn second_after_event(view: &Observation) -> String {
 fn pass(view: &Observation, m26: u8) -> Briefing {
     let preview: Option<&Preview> = listed(view, "pass").and_then(|c| c.preview.as_ref());
     let mut result = vec![];
-    let mut next = "Directorio becomes 1st Eligible. The task ends there (R 2.3.3).".to_owned();
+    let mut next = None;
     if let Some(preview) = preview {
         for change in &preview.resources {
             let gained = change.to.saturating_sub(change.from);
@@ -92,18 +92,25 @@ fn pass(view: &Observation, m26: u8) -> Briefing {
                 change.to
             ));
         }
-        result.push(format!("{} stays Eligible.", Faction::M26.name()));
+        match preview.m26_next_card {
+            Some(true) => result.push(format!("{} stays Eligible.", Faction::M26.name())),
+            Some(false) => result.push(format!(
+                "{} becomes Ineligible after this card.",
+                Faction::M26.name()
+            )),
+            None => {}
+        }
         if preview.standings.is_empty() && preview.control.is_empty() {
             result.push("Standings and Control unchanged.".into());
         }
-        if let Some(n) = &preview.next {
-            next = format!(
+        next = preview.next.as_ref().map(|n| {
+            format!(
                 "{} becomes {}: {}. The task ends there.",
                 n.faction.name(),
                 n.role,
                 either(&n.options)
-            );
-        }
+            )
+        });
     }
     let mut entries = vec![
         entry(
@@ -115,7 +122,7 @@ fn pass(view: &Observation, m26: u8) -> Briefing {
     if !result.is_empty() {
         entries.push(entry("RESULT", result.join(" ")));
     }
-    entries.push(entry("NEXT", next));
+    entries.extend(next.map(|next| entry("NEXT", next)));
     Briefing {
         option: "pass".into(),
         title: "Pass".into(),
@@ -160,8 +167,8 @@ fn terror(view: &Observation, m26: u8) -> Briefing {
 }
 
 /// Kidnap's possible proceeds, from the rules authority's stakes when it offers them
-/// (opening Kidnap and its roll); otherwise the same range read from Government's
-/// current Resources (R 4.3.3: a die 1–6, at most what Government has).
+/// (opening Kidnap and its roll); otherwise the authority's stakes in the observation
+/// (R 4.3.3: a die 1–6, at most what Government has).
 fn kidnap_result(view: &Observation) -> String {
     if let Some(roll) = &view.kidnap {
         return format!(
@@ -200,14 +207,15 @@ fn kidnap_result(view: &Observation) -> String {
         }
         return result;
     }
-    let government = view.resources[Faction::Government.index()];
-    let (low, high) = (government.min(1), government.min(6));
-    let range = if low == high {
-        resources(low)
-    } else {
-        format!("{low}–{}", resources(high))
-    };
-    format!("Proceeds {range} while Government has {government}; at least {low}.")
+    match &view.kidnap_stakes {
+        Some(stakes) => format!(
+            "Proceeds {} while Government has {}; at least {}.",
+            proceeds(stakes),
+            stakes.government,
+            stakes.minimum
+        ),
+        None => "Not offered now.".into(),
+    }
 }
 
 fn kidnap(view: &Observation, m26: u8) -> Briefing {
@@ -469,6 +477,35 @@ mod tests {
         assert_eq!(
             get(&view, "pass", "NEXT"),
             "Directorio becomes 1st Eligible: Pass (+1 if executed later), Operation (with or without a Special Activity) or Event. The task ends there."
+        );
+        // 26July's Eligibility and the next faction are the preview's, not fixed
+        // sentences: changed there, the briefing follows; without a preview it
+        // names no next faction.
+        let mut changed = view.clone();
+        let pass = changed
+            .choices
+            .iter_mut()
+            .find(|c| c.action() == "pass")
+            .unwrap();
+        let preview = pass.preview.as_mut().unwrap();
+        preview.m26_next_card = Some(false);
+        preview.next.as_mut().unwrap().faction = Faction::Syndicate;
+        assert!(
+            get(&changed, "pass", "RESULT").contains("26July becomes Ineligible after this card."),
+        );
+        assert!(get(&changed, "pass", "NEXT").starts_with("Syndicate becomes 1st Eligible"));
+        changed
+            .choices
+            .iter_mut()
+            .find(|c| c.action() == "pass")
+            .unwrap()
+            .preview = None;
+        assert!(
+            content(&changed, "pass")
+                .unwrap()
+                .entries
+                .iter()
+                .all(|e| e.label != "NEXT")
         );
     }
 

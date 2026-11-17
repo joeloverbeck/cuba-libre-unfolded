@@ -310,25 +310,121 @@ fn while_santiago_terror_is_owed_oriente_is_disabled_by_the_reserve() {
 /// #75: the refused End Terror names the in-task step that makes it available, so
 /// the panel never says nothing here can (#58 story 53). The commitment policy keeps
 /// Santiago's payment and Underground Guerrilla, so that step is always offered.
+/// Beside a pending request it is offered only once the giver has decided, so the
+/// remedy says so, naming each faction 26July can ask.
 #[test]
 fn while_santiago_terror_is_owed_end_terror_names_resolving_it_as_the_remedy() {
-    let mut game = Game::prepared_with_seed(19); // actual shared roll 1: 26July 0 → 1
+    for giver in [Faction::Government, Faction::Directorio, Faction::Syndicate] {
+        let mut game = Game::prepared_with_seed(19); // actual shared roll 1: 26July 0 → 1
+        choose(&mut game, "kidnap");
+        choose(&mut game, "kidnap:roll");
+        let end = choice(&game, "end-terror");
+        assert!(!end.supported);
+        assert_eq!(end.remedies, ["Resolve Santiago's Terror"]);
+        assert!(target(&game, "santiago").supported);
+        // The same refusal, offered as 26July's withdrawal beside a pending request:
+        // Santiago's Terror is not offered until the giver decides.
+        transfer_request(&mut game, giver, 1);
+        let withdraw = choice(&game, "end-terror");
+        assert!(!withdraw.supported);
+        assert_eq!(
+            withdraw.remedies,
+            [format!(
+                "Resolve Santiago's Terror once {} has decided",
+                giver.name()
+            )]
+        );
+        assert!(
+            !game
+                .observe()
+                .choices
+                .iter()
+                .any(|c| c.action() == "terror:santiago")
+        );
+        choose(&mut game, "decline");
+        choose(&mut game, "terror:santiago");
+        let end = choice(&game, "end-terror");
+        assert!(end.supported);
+        assert!(end.remedies.is_empty());
+    }
+}
+
+/// Foundation 2, "Engine authority": the observation states who acts next, in which
+/// role, with which options, once 26July's action is recorded, and the preview of the
+/// recording step states the same, with 26July's Eligibility for the next card. After
+/// a Pass Directorio is 1st Eligible and 26July stays Eligible (R 2.3.3); after End
+/// Terror Directorio is 2nd Eligible and 26July becomes Ineligible (R 2.3.4, 2.3.7).
+#[test]
+fn the_next_faction_and_its_role_come_with_its_options() {
+    let mut game = Game::opening();
+    assert_eq!(game.observe().next, None);
+    let pass = choice(&game, "pass").preview.unwrap();
+    assert_eq!(pass.m26_next_card, Some(true));
+    choose(&mut game, "pass");
+    let next = game.observe().next.unwrap();
+    assert_eq!(
+        (next.faction, next.role.as_str()),
+        (Faction::Directorio, "1st Eligible")
+    );
+    assert_eq!(
+        next.options,
+        [
+            "Pass (+1 if executed later)",
+            "Operation (with or without a Special Activity)",
+            "Event"
+        ]
+    );
+    assert_eq!(pass.next, Some(next));
+
+    let mut game = Game::prepared();
+    assert_eq!(game.observe().next, None);
+    let end = choice(&game, "end-terror").preview.unwrap();
+    assert_eq!(end.m26_next_card, Some(false));
+    choose(&mut game, "end-terror");
+    let next = game.observe().next.unwrap();
+    assert_eq!(
+        (next.faction, next.role.as_str()),
+        (Faction::Directorio, "2nd Eligible")
+    );
+    assert_eq!(end.next, Some(next));
+}
+
+/// The Terror 26July resolved and what it paid there (R 3.3.4: 1 Resource per
+/// space) are in the observation, and Kidnap's stakes are there until the roll:
+/// Government holds 6 in the prepared position, so a die takes 1–6 (R 4.3.3).
+#[test]
+fn the_observation_records_resolved_terror_and_kidnap_stakes() {
+    let mut game = funded();
+    let view = game.observe();
+    assert!(view.resolved.is_empty());
+    let stakes = view.kidnap_stakes.unwrap();
+    assert_eq!((stakes.government, stakes.minimum), (6, 1));
+    assert_eq!(stakes.proceeds, [1, 2, 3, 4, 5, 6]);
+    choose(&mut game, "terror:oriente");
+    let resolved = game.observe().resolved;
+    assert_eq!(resolved.len(), 1);
+    assert_eq!(
+        (resolved[0].space.as_str(), resolved[0].paid),
+        ("oriente", 1)
+    );
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
-    let end = choice(&game, "end-terror");
-    assert!(!end.supported);
-    assert_eq!(end.remedies, ["Resolve Santiago's Terror"]);
-    assert!(target(&game, "santiago").supported);
-    // The same refusal, offered as 26July's withdrawal beside a pending request.
-    transfer_request(&mut game, Faction::Syndicate, 1);
-    let withdraw = choice(&game, "end-terror");
-    assert!(!withdraw.supported);
-    assert_eq!(withdraw.remedies, ["Resolve Santiago's Terror"]);
-    choose(&mut game, "decline");
-    choose(&mut game, "terror:santiago");
-    let end = choice(&game, "end-terror");
-    assert!(end.supported);
-    assert!(end.remedies.is_empty());
+    assert_eq!(game.observe().kidnap_stakes, None);
+}
+
+/// Kidnap's record states Government's and 26July's Resources after the roll; the
+/// excess beyond 49 is lost (R 1.8).
+#[test]
+fn a_kidnap_record_states_both_balances_after_the_roll() {
+    let roll = cuba_libre_unfolded::Kidnap {
+        die: 5,
+        proceeds: 5,
+        government_before: 8,
+        m26_before: 46,
+        random_before: 0,
+        revision: 1,
+    };
+    assert_eq!((roll.government_after(), roll.m26_after()), (3, 49));
 }
 
 fn transfer_request(game: &mut Game, giver: Faction, amount: u8) {
@@ -358,7 +454,7 @@ fn end_terror_records_operation_only_and_directorio_may_pass_or_take_a_limited_o
     choose(&mut game, "end-terror");
     let view = game.observe();
     assert_eq!(view.eligibility.m26_box, p.records);
-    assert_eq!(view.next_options, next.options);
+    assert_eq!(view.next.as_ref().unwrap().options, next.options);
 }
 
 #[test]

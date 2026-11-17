@@ -1,7 +1,8 @@
 //! Selected Atlas presentation. Input travels through Bevy picking into the checked game seam.
 use crate::{
-    Faction, Game, Kind, State, Terrain,
+    Choice, Faction, Game, Kind, Observation, State, Terrain, Transfer, TransferChoice,
     assets::{self, Verified},
+    resources,
     save::Session,
 };
 use bevy::{
@@ -1048,89 +1049,162 @@ fn decide(play: &mut Play, ui: &mut Interface, owner: Faction, rev: u64, name: &
     let previous = play.game().observe();
     match play.session.as_mut().unwrap().submit(owner, rev, name) {
         Ok(()) => {
-            ui.notice = if let Some(n) = name.split(":authorize:").nth(1) {
-                match previous.transfer {
-                    Some(crate::Transfer::Authorizing {
-                        giver, recipient, ..
-                    }) => format!("{} gave {n} to {}. Saved.", giver.name(), recipient.name()),
-                    _ => "Decision saved.".into(),
-                }
-            } else if let Some((other, n)) = name
-                .split(":give:")
-                .nth(1)
-                .and_then(|rest| rest.split_once(':'))
-            {
-                let other = Faction::ALL[other.parse::<usize>().unwrap_or(0).min(3)];
-                format!("26July gave {n} to {}. Saved.", other.name())
-            } else if let Some((other, n)) = name
-                .split(":ask:")
-                .nth(1)
-                .and_then(|rest| rest.split_once(':'))
-            {
-                let other = Faction::ALL[other.parse::<usize>().unwrap_or(0).min(3)];
-                format!(
-                    "Transfer request saved: 26July asks {} for {n}. Nothing moves until {} decides.",
-                    other.name(),
-                    other.name()
-                )
-            } else if name.ends_with(":decline") {
-                format!("{} declined. No resources moved.", owner.name())
-            } else if name.ends_with(":wait") {
-                format!(
-                    "Waiting for {}. The request stays pending. Saved.",
-                    owner.name()
-                )
-            } else if name.ends_with(":reopen") {
-                format!("{} decides the Transfer request. Saved.", owner.name())
-            } else if name.ends_with(":back") {
-                "Transfer closed. Nothing moved. Saved.".into()
-            } else if name.ends_with(":kidnap") {
-                "Kidnap opened: nothing rolled. Roll the die or cancel. Saved.".into()
-            } else if name.ends_with(":kidnap:cancel") {
-                "Kidnap cancelled: nothing rolled and nothing changed. Saved.".into()
-            } else if name.ends_with(":kidnap:roll") {
+            let after = play.game().observe();
+            if name.ends_with(":kidnap:roll") {
                 // The result is saved; the tray shows it from this frame's clock
                 // (die::present), and the notice names it once the die lands.
-                ui.rolled = Some(play.game().observe().revision);
-                "Kidnap roll saved. The die is landing: click it or press Space to skip.".into()
-            } else if name.contains(":remove:") {
-                let n = name.rsplit(':').next().unwrap_or("1");
-                format!(
-                    "Removed {n} own piece{} to Available. Removal stays open until Done; earlier Terror, support shifts and Kidnap results remain. Saved.",
-                    if n == "1" { "" } else { "s" }
-                )
-            } else if name.ends_with(":remove") {
-                "Removal mode: click a ringed 26July piece on the map. Saved.".into()
-            } else if name.ends_with(":done-removal") {
-                "Removal mode closed; removed pieces stay in Available. Saved.".into()
-            } else if name.contains(":terror:") {
-                "Terror saved: paid 1 Resource, flipped 1 Underground Guerrilla to Active, placed a Terror marker and shifted 1 level toward Active Opposition."
-                    .into()
-            } else if name.ends_with(":pass") {
-                "26July passed: +1 Resource and stays Eligible. Directorio is 1st Eligible. Saved."
-                    .into()
-            } else if name.ends_with(":terror") {
-                "Terror chosen: 26July is executing, and transfers are open. Saved.".into()
-            } else if name.ends_with(":back-to-choice") {
-                "Back at the action choice. Nothing had happened; any pending request is withdrawn. Saved.".into()
-            } else if name.ends_with(":end-terror") {
-                format!(
-                    "Terror ended: {} recorded. Saved.",
-                    if previous.kidnap.is_some() {
-                        "Operation with Special Activity"
-                    } else {
-                        "Operation Only"
-                    }
-                )
-            } else {
-                "Decision saved; resources unchanged.".into()
-            };
+                ui.rolled = Some(after.revision);
+            }
+            ui.notice = notice(&previous, &after, owner, name);
         }
         Err(e) => ui.notice = e.to_string(),
     };
     // A committed decision leaves its step; its pin and focus go with it, and a step
     // the decision opened holds the panel with its tag pinned (EX-A, #84).
     ui.choice.decided(&play.game().observe());
+}
+/// "a, b and c".
+fn listing(parts: &[String]) -> String {
+    match parts {
+        [] => String::new(),
+        [one] => one.clone(),
+        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+    }
+}
+/// The session notice for the committed decision `name`. Every rules fact it states
+/// is the authority's (foundation 2, "Engine authority"): the decision's own id, read
+/// through `Choice`'s accessors; the preview the authority showed for it, from
+/// `previous`; or the record in `after`, the observation once it was committed.
+fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &str) -> String {
+    let choice = previous.choices.iter().find(|c| c.id == name);
+    let action = name.split_once(':').map_or(name, |(_, a)| a);
+    let place = |id: &str| {
+        after
+            .spaces
+            .iter()
+            .find(|s| s.id == id)
+            .map_or(id.to_owned(), |s| s.name.clone())
+    };
+    if let Some(transfer) = choice.and_then(Choice::transfer) {
+        return match transfer {
+            TransferChoice::Give { recipient, amount } => {
+                format!("26July gave {amount} to {}. Saved.", recipient.name())
+            }
+            TransferChoice::Ask { .. } => match after.transfer {
+                Some(Transfer::Authorizing { giver, amount, .. }) => format!(
+                    "Transfer request saved: 26July asks {} for {amount}. Nothing moves until {} decides.",
+                    giver.name(),
+                    giver.name()
+                ),
+                _ => "Transfer request saved.".into(),
+            },
+            TransferChoice::Authorize { amount } => match previous.transfer {
+                Some(Transfer::Authorizing {
+                    giver, recipient, ..
+                }) => format!(
+                    "{} gave {amount} to {}. Saved.",
+                    giver.name(),
+                    recipient.name()
+                ),
+                _ => "Decision saved.".into(),
+            },
+        };
+    }
+    if let Some((_, _, n)) = choice.and_then(Choice::removal) {
+        return format!(
+            "Removed {n} own piece{} to Available. Removal stays open until Done; earlier Terror, support shifts and Kidnap results remain. Saved.",
+            if n == 1 { "" } else { "s" }
+        );
+    }
+    if let Some(space) = action.strip_prefix("terror:") {
+        // What the authority previewed for this Terror, which committing applied.
+        let Some(preview) = choice.and_then(|c| c.preview.as_ref()) else {
+            return format!("Terror saved in {}.", place(space));
+        };
+        let mut done = vec![];
+        for r in preview.resources.iter().filter(|r| r.to < r.from) {
+            done.push(format!("paid {}", resources(r.from - r.to)));
+        }
+        let state = |state: State| match state {
+            State::Underground => "Underground",
+            State::Active => "Active",
+            _ => "",
+        };
+        for f in &preview.flips {
+            done.push(format!(
+                "flipped {} {} Guerrilla{} to {}",
+                f.count,
+                state(f.from),
+                if f.count == 1 { "" } else { "s" },
+                state(f.to)
+            ));
+        }
+        for _ in &preview.terror {
+            done.push("placed a Terror marker".into());
+        }
+        for shift in &preview.support {
+            done.push(format!("shifted {}", shift.label));
+        }
+        return format!("Terror saved in {}: {}.", place(space), listing(&done));
+    }
+    match action {
+        "decline" => format!("{} declined. No resources moved.", owner.name()),
+        "wait" => format!(
+            "Waiting for {}. The request stays pending. Saved.",
+            owner.name()
+        ),
+        "reopen" => format!("{} decides the Transfer request. Saved.", owner.name()),
+        "back" => "Transfer closed. Nothing moved. Saved.".into(),
+        "transfer" => "Resource transfer open: nothing has moved. Saved.".into(),
+        "kidnap" => "Kidnap opened: nothing rolled. Roll the die or cancel. Saved.".into(),
+        "kidnap:cancel" => "Kidnap cancelled: nothing rolled and nothing changed. Saved.".into(),
+        "kidnap:roll" => {
+            "Kidnap roll saved. The die is landing: click it or press Space to skip.".into()
+        }
+        "remove" => "Removal mode: click a ringed 26July piece on the map. Saved.".into(),
+        "done-removal" => "Removal mode closed; removed pieces stay in Available. Saved.".into(),
+        "pass" => {
+            // The record Pass committed: its Resources, 26July's Eligibility for the
+            // next card and the next faction's role.
+            let gained: Vec<String> = after
+                .recorded_resources
+                .iter()
+                .map(|r| format!("+{}", resources(r.to.saturating_sub(r.from))))
+                .collect();
+            let eligibility = match after.eligibility.m26_next_card {
+                Some(true) => " and stays Eligible",
+                Some(false) => " and becomes Ineligible after this card",
+                None => "",
+            };
+            let next = after.next.as_ref().map_or(String::new(), |n| {
+                format!(" {} is {}.", n.faction.name(), n.role)
+            });
+            format!(
+                "26July passed: {}{eligibility}.{next} Saved.",
+                listing(&gained)
+            )
+        }
+        "terror" => match after.executing {
+            Some(executing) => {
+                let open = after
+                    .choices
+                    .iter()
+                    .any(|c| c.supported && c.action() == "transfer");
+                format!(
+                    "Terror chosen: {} is executing{}. Saved.",
+                    executing.name(),
+                    if open { ", and transfers are open" } else { "" }
+                )
+            }
+            None => "Terror chosen. Saved.".into(),
+        },
+        "back-to-choice" => "Back at the action choice. Nothing had happened; any pending request is withdrawn. Saved.".into(),
+        "end-terror" => match after.eligibility.m26_box {
+            Some(record) => format!("Terror ended: {} recorded. Saved.", record.name()),
+            None => "Terror ended. Saved.".into(),
+        },
+        _ => "Decision saved.".into(),
+    }
 }
 fn layout(window: &Window) -> (f32, Vec2) {
     let scale = (window.width() / WIDTH).min(window.height() / HEIGHT);
@@ -1672,6 +1746,135 @@ fn draw_ui(
 mod tests {
     use super::*;
     use unfolded_tabletop::camera::Input;
+
+    /// The notice for `action` submitted by its owner, with `tamper` applied to the
+    /// observations before and after it: each fact the notice states must follow them.
+    fn noticed(
+        game: &mut Game,
+        action: &str,
+        tamper: impl FnOnce(&mut Observation, &mut Observation),
+    ) -> String {
+        let mut previous = game.observe();
+        let id = format!("{}:{action}", previous.revision);
+        let owner = previous.choices.iter().find(|c| c.id == id).unwrap().owner;
+        game.submit(owner, previous.revision, &id).unwrap();
+        let mut after = game.observe();
+        tamper(&mut previous, &mut after);
+        notice(&previous, &after, owner, &id)
+    }
+
+    /// Foundation 2, "Engine authority": the notices state the record the decision
+    /// committed. Pass's gain, 26July's Eligibility and the next faction's role come
+    /// from the observation after it; changed there to facts the old fixed sentence
+    /// ("+1 Resource", "Directorio is 1st Eligible") would misstate, they follow.
+    #[test]
+    fn the_pass_notice_states_the_recorded_pass() {
+        let pass = noticed(&mut Game::opening(), "pass", |_, _| {});
+        assert_eq!(
+            pass,
+            "26July passed: +1 Resource and stays Eligible. Directorio is 1st Eligible. Saved."
+        );
+        let capped = noticed(&mut Game::opening(), "pass", |_, after| {
+            after.recorded_resources[0].from = 49;
+            after.recorded_resources[0].to = 49;
+            after.eligibility.m26_next_card = Some(false);
+            let next = after.next.as_mut().unwrap();
+            next.faction = Faction::Government;
+            next.role = "2nd Eligible".into();
+        });
+        assert_eq!(
+            capped,
+            "26July passed: +0 Resources and becomes Ineligible after this card. Government is 2nd Eligible. Saved."
+        );
+    }
+
+    /// The End Terror notice names the box the authority recorded, not one guessed
+    /// from whether Kidnap was rolled.
+    #[test]
+    fn the_end_terror_notice_states_the_recorded_box() {
+        let mut game = Game::prepared();
+        let only = noticed(&mut game.clone(), "end-terror", |_, _| {});
+        assert_eq!(only, "Terror ended: Operation Only recorded. Saved.");
+        let recorded = noticed(&mut game, "end-terror", |previous, after| {
+            previous.kidnap = Some(crate::Kidnap {
+                die: 3,
+                proceeds: 3,
+                government_before: 6,
+                m26_before: 0,
+                random_before: 0,
+                revision: 0,
+            });
+            after.eligibility.m26_box = Some(crate::SequenceBox::OperationOnly);
+        });
+        assert_eq!(recorded, "Terror ended: Operation Only recorded. Saved.");
+    }
+
+    /// A Terror notice words the authority's preview of that Terror, which committing
+    /// applied: Santiago is Neutral, so it shifts to Passive Opposition (R 3.3.4).
+    /// A changed preview changes the notice, which the old fixed sentence ("paid 1
+    /// Resource … shifted 1 level") did not follow.
+    #[test]
+    fn a_terror_notice_states_the_authority_s_preview() {
+        let mut funded = Game::prepared_with_seed(5);
+        funded.submit(Faction::M26, 0, "0:transfer").unwrap();
+        funded
+            .submit(
+                Faction::M26,
+                1,
+                &format!("1:ask:{}:2", Faction::Syndicate.index()),
+            )
+            .unwrap();
+        funded
+            .submit(Faction::Syndicate, 2, "2:authorize:2")
+            .unwrap();
+        let santiago = noticed(&mut funded.clone(), "terror:santiago", |_, _| {});
+        assert_eq!(
+            santiago,
+            "Terror saved in Santiago de Cuba: paid 1 Resource, flipped 1 Underground Guerrilla to Active, placed a Terror marker and shifted Neutral → Passive Opposition."
+        );
+        let changed = noticed(&mut funded, "terror:santiago", |previous, _| {
+            let choice = previous
+                .choices
+                .iter_mut()
+                .find(|c| c.action() == "terror:santiago")
+                .unwrap();
+            let preview = choice.preview.as_mut().unwrap();
+            preview.resources[0].to = preview.resources[0].from - 2;
+            preview.flips[0].count = 2;
+            preview.support.clear();
+        });
+        assert_eq!(
+            changed,
+            "Terror saved in Santiago de Cuba: paid 2 Resources, flipped 2 Underground Guerrillas to Active and placed a Terror marker."
+        );
+    }
+
+    /// Transfer notices read the decision through its typed accessor and the request
+    /// the authority recorded.
+    #[test]
+    fn transfer_notices_name_the_decision_and_the_recorded_request() {
+        let mut game = Game::prepared();
+        game.submit(Faction::M26, 0, "0:transfer").unwrap();
+        let asked = noticed(
+            &mut game.clone(),
+            &format!("ask:{}:2", Faction::Government.index()),
+            |_, _| {},
+        );
+        assert_eq!(
+            asked,
+            "Transfer request saved: 26July asks Government for 2. Nothing moves until Government decides."
+        );
+        let mut gave = Game::prepared();
+        gave.submit(Faction::M26, 0, "0:transfer").unwrap();
+        gave.submit(
+            Faction::M26,
+            1,
+            &format!("1:ask:{}:2", Faction::Syndicate.index()),
+        )
+        .unwrap();
+        let authorized = noticed(&mut gave, "authorize:2", |_, _| {});
+        assert_eq!(authorized, "Syndicate gave 2 to 26July. Saved.");
+    }
     #[test]
     fn top_display_targets_serialize_as_the_seat_reads_them() {
         assert_eq!(

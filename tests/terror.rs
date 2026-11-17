@@ -38,7 +38,7 @@ fn oriente_terror_after_a_resource_transfer_updates_pieces_resources_standing_an
     assert_eq!((view.map_piece_count, view.available_piece_count), (29, 57));
     choose(&mut game, "end-terror");
     assert_eq!(
-        game.observe().next_options,
+        game.observe().next.unwrap().options,
         ["Pass (+1 if executed later)", "Limited Operation"]
     );
     assert_eq!(game.observe().eligible, [true; 4]);
@@ -95,7 +95,7 @@ fn all_six_rolls_fund_the_owed_terror_and_change_affordable_continuations() {
         }
         choose(&mut game, "end-terror");
         assert_eq!(
-            game.observe().next_options,
+            game.observe().next.unwrap().options,
             ["Pass (+1 if executed later)", "Limited Operation", "Event"]
         );
         game.validate().unwrap();
@@ -170,7 +170,11 @@ fn actual_resource_transfers_allow_both_target_orders_and_early_during_late_or_n
             );
             choose(&mut game, "end-terror");
             assert_eq!(
-                game.observe().next_options.contains(&"Event".into()),
+                game.observe()
+                    .next
+                    .unwrap()
+                    .options
+                    .contains(&"Event".into()),
                 timing.is_some()
             );
             assert_eq!(
@@ -216,7 +220,13 @@ fn depleted_government_needs_real_funding_before_early_zero_proceeds_kidnap() {
     assert_eq!(game.observe().resources, [0, 1, 10, 15]);
     choose(&mut game, "terror:santiago");
     choose(&mut game, "end-terror");
-    assert!(game.observe().next_options.contains(&"Event".into()));
+    assert!(
+        game.observe()
+            .next
+            .unwrap()
+            .options
+            .contains(&"Event".into())
+    );
     game.validate().unwrap();
 }
 
