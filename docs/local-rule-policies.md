@@ -1,6 +1,6 @@
 # Local rule policies
 
-A **local policy** is an interpretation this project adopts where the rules are silent, or do not define how software should handle a case (see [GLOSSARY.md](../GLOSSARY.md)). None of them is a publisher ruling. The app labels each one as local policy where it explains a choice or refusal (foundation 2, `AUTH-3`).
+This record lists each [local policy](../GLOSSARY.md) the app applies. The app labels each one as local policy where it explains a choice or refusal (foundation 2, `AUTH-3`).
 
 Each entry gives the rule or case it interprets, the policy, and where it was decided. Add a policy here when a change adopts one; README and the [play guide](playing.md) link here rather than restating them.
 
@@ -23,11 +23,13 @@ The owner's [acceptance of the rules baseline and tactical scenario](https://git
 
 **Rules:** R 3.1 and 3.3.4 set no minimum number of Terror spaces, whereas R 4.1 requires at least one space for a Special Activity.
 
-**Policy:** End Terror with no resolved space and no Kidnap is an Operation Only. It earns no Pass income and lets Directorio only Pass or take a Limited Operation. Its preview warns of this, and that 26July, like after any Operation, is Ineligible after the card.
+**Policy:** End Terror with no resolved space and no Kidnap is an Operation Only, and earns no Pass income.
+
+**Rules consequences, not policy:** as after any Operation Only, Directorio may only Pass or take a Limited Operation, and 26July is Ineligible after the card. The preview warns of all of this.
 
 ## Specified in a ticket, without a separate owner ruling
 
-These three were specified in [#61](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/61), part of #58, and merged in PR #76. #61's labelling criterion names the first two; the withdrawal is specified in its body. The app labels all three "local policy, #58". No owner ruling on them as rules interpretations is recorded.
+These three were specified in [#61](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/61), part of #58, and merged in PR #76. #61's labelling criterion names the first two; the withdrawal is specified in its body. The app labels all three as local policy. No owner ruling on them as rules interpretations is recorded.
 
 ### Going back from Terror
 

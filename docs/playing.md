@@ -78,4 +78,4 @@ The card reader and the transfer modal take camera input while open.
 
 ## Saving and quitting
 
-Reading, previews, camera moves and cancelling have no effect on the match. Reading cards never undoes an effect or rerolls. **Save / quit** exits, and relaunching with the same `--save` resumes that record, including an open Kidnap, a landed die, removal mode and a pending request. README covers recovering a damaged save.
+Reading, previews, camera moves and cancelling have no effect on the match. Reading cards never undoes an effect or rerolls. **Save / quit** exits, and relaunching with the same `--save` resumes that record, including an open Kidnap, a landed die and a pending request. README covers recovering a damaged save.

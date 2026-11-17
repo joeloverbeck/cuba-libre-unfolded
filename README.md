@@ -28,7 +28,7 @@ Missing or changed art or cards refuse before a save is created or replaced.
 
 ## Playing this build
 
-A new save opens on 26July's decision as 1st Eligible on card 17. Choose Pass or Terror in the panel on the right; hovering an option explains it before you commit. Right-drag or the arrow keys orbit the map, the wheel zooms, WASD pans and Home restores the framing. **Save / quit** exits, and relaunching the same command resumes.
+Choose Pass or Terror in the panel on the right; hovering an option explains it before you commit. Right-drag or the arrow keys orbit the map, the wheel zooms, WASD pans and Home restores the framing. **Save / quit** exits, and relaunching the same command resumes.
 
 [docs/playing.md](docs/playing.md) covers the rest: reading the table, Terror, Kidnap, transfers, removal and every key.
 

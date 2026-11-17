@@ -6,7 +6,7 @@ How the app writes, admits and recovers a save. [README, "Saves and recovery"](.
 
 - **Format.** Saves use the shared save record of `unfolded-record-replacement`, which owns the envelope, its checksum, replacement and recovery. `src/save.rs` adapts it: the identity, the game's validity check, the 256 KiB size limit and the wording of refusals.
 - **Identity.** A save binds format 1, the accepted source (`assets::SOURCE`) and the selected art identity: `art/atlas/runtime.sha256` with the two card hashes (`assets::identity`). The other presentation manifests are checked at launch but are not part of this identity ([`art/atlas/README.md`, "Launch admission"](../../art/atlas/README.md#launch-admission)).
-- **Replacement.** A write takes a sidecar lock and syncs its staged files before replacing the record and keeping the prior one as `.previous`. It does not promise directory fsync, atomic multi-file replacement or power-loss recovery.
+- **Replacement.** A write takes a sidecar lock and syncs its staged files before replacing the record and keeping the prior valid record as `.previous`. It does not promise directory fsync, atomic multi-file replacement or power-loss recovery.
 - **Timing.** Every decision is saved before the changed state is published in memory.
 - **Randomness.** A fresh save seeds the shared RNG once from the OS's entropy. Restart preserves its exact consumed state and the actual results, so a restart never rerolls. Kidnap's roll is never applied to a copy: its preview (`Preview.kidnap`) shows only the stakes.
 
