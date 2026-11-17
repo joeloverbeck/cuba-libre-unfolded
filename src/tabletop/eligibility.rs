@@ -711,7 +711,8 @@ pub(super) fn draw(
     ui: Res<Interface>,
     art: Res<Art>,
     window: Single<&Window, With<PrimaryWindow>>,
-    roots: Query<Entity, With<Tag>>,
+    // The tag's lines carry `Tag` too; despawning the roots takes them with it (#86).
+    roots: Query<Entity, (With<Tag>, Without<ChildOf>)>,
     mut previous: Local<Option<Drawing>>,
 ) {
     let Some(game) = play.session.as_ref().map(Session::game) else {
