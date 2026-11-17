@@ -2437,9 +2437,10 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         assert_eq!(emblems_in(&status, contribution), ["26July"]);
         app.capture("status-tag");
 
-        // The transfer modal (TM-B, #71) names factions in full, as its selected layout
-        // does; the panel text beneath it still draws 26July's emblem. Observations
-        // keep every name.
+        // The transfer modal (TM-B, #71): its running text and buttons name factions by
+        // emblem ("Ask [D] for Resources", story 60), while its headings, labels and
+        // account names keep them, and so does 26July on the red primary button. The
+        // panel text beneath it draws 26July's emblem too. Observations keep every name.
         app.choose("transfer");
         let directions = app.observe();
         checked += assert_inline_emblems(&directions);
@@ -2450,6 +2451,52 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
             ),
             ["26July"]
         );
+        assert_eq!(
+            emblems_in(&directions, "Open while 26July executes Terror  ·  R 1.5.1"),
+            ["26July"]
+        );
+        let revision = directions["observation"]["revision"].as_u64().unwrap();
+        app.activate("transfer:tab:syndicate", revision);
+        app.activate("transfer:direction:ask", revision);
+        app.activate("transfer:quick:1", revision);
+        let asking = app.observe();
+        checked += assert_inline_emblems(&asking);
+        for (words, drawn) in [
+            ("Send request: 1 from Syndicate", vec!["Syndicate"]),
+            (
+                "Syndicate would give;\nSyndicate decides the amount",
+                vec!["Syndicate", "Syndicate"],
+            ),
+            (
+                "Nothing moves until Syndicate authorizes.",
+                vec!["Syndicate"],
+            ),
+        ] {
+            assert_eq!(emblems_in(&asking, words), drawn, "{words}");
+        }
+        assert!(
+            asking["table"]["inline_text"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(
+                    |t| t["text"].as_str().unwrap().contains("Syndicate's balance")
+                        && t["emblems"].as_array().unwrap().len() == 1
+                ),
+            "the binding limit names Syndicate by emblem"
+        );
+        // Account names and headings keep the names.
+        for label in ["26July", "Syndicate", "COUNTERPART"] {
+            assert!(
+                asking["table"]["inline_text"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .all(|t| t["text"] != label),
+                "label {label} drawn as an emblem"
+            );
+        }
+        app.capture("transfer-ask-syndicate");
         assert!(
             directions["observation"]["choices"]
                 .as_array()
@@ -2467,10 +2514,19 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         );
         app.capture("transfer-directions");
 
-        // Paper panel text draws 26July's emblem too.
+        // Paper panel text draws 26July's emblem too; in Syndicate's decision, its
+        // green header note and primary button draw emblems.
         app.choose("ask:3:1");
         let authorizing = app.observe();
         checked += assert_inline_emblems(&authorizing);
+        assert_eq!(
+            emblems_in(&authorizing, "Transfer request from 26July  ·  R 1.5.1"),
+            ["26July"]
+        );
+        assert_eq!(
+            emblems_in(&authorizing, "Syndicate authorizes 1"),
+            ["Syndicate"]
+        );
         assert!(
             authorizing["table"]["inline_text"]
                 .as_array()
@@ -3057,11 +3113,12 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
                 if die == 1 { "" } else { "s" }
             )
         );
-        // The landed top face keeps #67's legibility floor: 70 px at 1920x1080, which is
-        // 140 px here (the layout scale is twice that of 1920x1080).
+        // The landed top face keeps #67's legibility floor, "about 70 px" at 1920x1080,
+        // made explicit as 69.5 px (`die::FACE_FLOOR`); that is 139 px here (the layout
+        // scale is twice that of 1920x1080).
         let face_px = shown["top_face"].as_f64().unwrap();
         eprintln!("face {die}: landed top face {face_px:.1} px at 3840x2160");
-        assert!(face_px >= 140., "landed face {face_px} px at 3840x2160");
+        assert!(face_px >= 139., "landed face {face_px} px at 3840x2160");
         let part = |name: &str| -> [f64; 4] {
             rect_of(
                 &landed["table"]["choice_parts"]
@@ -3345,28 +3402,37 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
     assert_eq!(target_state(&zero, "santiago"), "selectable");
     assert_eq!(target_state(&zero, "oriente"), "blocked");
     app.capture("terror-zero-resources");
-    // Hovering the blocked space says what is missing and what would unblock it.
+    // Hovering the blocked space shows its status tag and opens no popover (#58: a
+    // click opens it).
     let hover = app.point("space:oriente");
-    assert_eq!(hover["table"]["popover"]["space"], "oriente", "{hover}");
-    assert_eq!(hover["table"]["popover"]["pinned"], false);
-    let terror = popover_row(&hover, "Terror");
+    assert_eq!(hover["table"]["popover"], Value::Null, "{hover}");
+    assert_eq!(hover["table"]["status"]["space"], "oriente");
+    app.capture("oriente-blocked-hover-zero-resources");
+    // Clicking it says what is missing and what would unblock it.
+    let saved = std::fs::read(&app.save).unwrap();
+    app.activate("space:oriente", 1);
+    let blocked = app.observe();
+    assert_eq!(blocked["table"]["popover"]["space"], "oriente", "{blocked}");
+    assert_eq!(blocked["table"]["popover"]["pinned"], true);
+    let terror = popover_row(&blocked, "Terror");
     assert_eq!(terror["mark"], "not-yet");
     assert_eq!(terror["remedies"], json!(["Request a Resource transfer"]));
     assert_eq!(
         terror["lines"][0][1],
         "Cost: 1 Resource per space (26July has 0). R 3.3.4"
     );
-    assert_popover_agrees(&hover);
-    assert_popover_placed(&hover);
-    // The region's own status tag keeps working beside it.
-    assert_eq!(hover["table"]["status"]["space"], "oriente");
-    app.capture("oriente-blocked-hover-zero-resources");
+    assert_popover_agrees(&blocked);
+    assert_popover_placed(&blocked);
+    assert_eq!(blocked["observation"]["revision"], 1);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    app.capture("oriente-blocked-popover-zero-resources");
+    app.activate("space:oriente", 1);
+    assert_eq!(app.observe()["table"]["popover"], Value::Null);
     let away = app.point("standing:0");
     assert_eq!(away["table"]["popover"], Value::Null);
 
-    // Clicking Santiago keeps its popover open: Kidnap chosen, its stakes previewed
+    // Clicking Santiago opens its popover: Kidnap chosen, its stakes previewed
     // before the only acting button; Terror not yet, with both remedies.
-    let saved = std::fs::read(&app.save).unwrap();
     app.activate("space:santiago", 1);
     let santiago = app.observe();
     assert_eq!(santiago["observation"]["revision"], 1);
@@ -3440,12 +3506,16 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
     assert_eq!(target_state(&after, "oriente"), "blocked");
     assert_eq!(target_state(&after, "santiago"), "selectable");
     app.capture("after-santiago-terror");
-    let hover = app.point("space:oriente");
-    assert_eq!(hover["table"]["popover"]["space"], "oriente");
-    assert_popover_agrees(&hover);
-    app.capture("oriente-blocked-hover-after-donation");
-    // A resolved Terror stays in Santiago's popover as history.
     let revision = after["observation"]["revision"].as_u64().unwrap();
+    let hover = app.point("space:oriente");
+    assert_eq!(hover["table"]["popover"], Value::Null);
+    app.activate("space:oriente", revision);
+    let blocked = app.observe();
+    assert_eq!(blocked["table"]["popover"]["space"], "oriente");
+    assert_popover_agrees(&blocked);
+    app.capture("oriente-blocked-hover-after-donation");
+    app.activate("space:oriente", revision);
+    // A resolved Terror stays in Santiago's popover as history.
     app.activate("space:santiago", revision);
     let history = app.observe();
     assert_eq!(popover_row(&history, "Terror")["mark"], "done");

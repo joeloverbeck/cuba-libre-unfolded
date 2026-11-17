@@ -60,7 +60,7 @@ Every number is the authority's preview of the removal choice for the stepper's 
 
 ## The space popover
 
-Hovering a selectable or blocked space shows its popover after the region tag's dwell; clicking the space keeps it open, and clicking it again, or a not-involved space, closes it. Any decision closes it. The popover lists every action the authority offers in that space:
+Clicking a selectable or blocked space opens its popover (#58: "clicking a selectable or blocked space opens one popover"); hovering a space shows only its status tag. Clicking the space again, or a not-involved space, closes it. Any decision closes it. Until #58's final review a hover also opened the popover, unpinned. The popover lists every action the authority offers in that space:
 - **Selectable** rows first. The chosen row (the first by default) is shaded `desk` and shows its preview above the only button that acts; choosing another row only changes the preview.
 - **Not yet** rows: the reason and the remedies as chips.
 - **Unavailable** rows: the reason, and that nothing in this task can change it.

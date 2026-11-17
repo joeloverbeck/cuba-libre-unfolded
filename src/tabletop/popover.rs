@@ -1,6 +1,7 @@
 //! The space popover of the selected HF-A Survey ink design (#68), during Terror
-//! execution (#72). Hovering a selectable or blocked space shows it; clicking the
-//! space keeps it open. It lists every action the rules authority offers there, each
+//! execution (#72). Clicking a selectable or blocked space opens it (#58: "clicking a
+//! selectable or blocked space opens one popover"); hovering a space shows only its
+//! status tag. It lists every action the rules authority offers there, each
 //! with its state, and the chosen row's preview above the only button that acts, so a
 //! step's consequences are visible before the committing click. Blocked rows state
 //! what is missing and the in-task remedies the authority names.
@@ -1604,8 +1605,8 @@ pub(super) struct Anchors<'w, 's> {
     pieces: Query<'w, 's, (&'static OwnPiece, &'static GlobalTransform)>,
 }
 
-/// Opens, replaces or closes the popover from the targeting state, the pinned space
-/// and the region the pointer rests on.
+/// Opens, replaces or closes the popover from the targeting state, the pinned space,
+/// and in removal mode the piece the pointer rests on.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn draw(
     mut commands: Commands,
@@ -1654,19 +1655,8 @@ pub(super) fn draw(
     }
     let (s, _) = layout(&window);
     let pinned = popover.pinned.as_ref().map(|(space, _)| space.clone());
-    let space = if ui.reader {
-        None
-    } else {
-        pinned
-            .clone()
-            // A click that closed it keeps it closed until the pointer moves.
-            .or_else(|| {
-                ui.status
-                    .visible()
-                    .filter(|space| ui.rested.is_none() && offered(space))
-                    .cloned()
-            })
-    };
+    // A space's popover opens on a click only; hover keeps the status tag.
+    let space = if ui.reader { None } else { pinned.clone() };
     let shown = if targeting.removal.is_some() {
         let kept = popover.piece.as_ref().map(|(key, _)| key.clone());
         let key = if ui.reader {

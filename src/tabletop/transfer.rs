@@ -618,16 +618,26 @@ fn follow(
             }
             Live::GiverAfter => {
                 if let Some(mut text) = text {
-                    text.0 = terms.balance.saturating_sub(amount).to_string();
+                    text.0 = balances(terms, amount).0.to_string();
                 }
             }
             Live::RecipientAfter => {
                 if let Some(mut text) = text {
-                    text.0 = terms.held.saturating_add(amount).to_string();
+                    text.0 = balances(terms, amount).1.to_string();
                 }
             }
         }
     }
+}
+
+/// The giver's and the recipient's balances after `amount` moves: the typed amount's
+/// effect, which a refused amount takes below 0 or past the cap, as the design shows
+/// it in red.
+fn balances(terms: &TransferTerms, amount: u8) -> (i16, i16) {
+    (
+        i16::from(terms.balance) - i16::from(amount),
+        i16::from(terms.held) + i16::from(amount),
+    )
 }
 
 /// The amount's x along the track, in reference pixels: the track spans the giver's
@@ -712,33 +722,42 @@ fn child(commands: &mut Commands, parent: Entity, node: Node) -> Entity {
         .id()
 }
 
-/// A child text of `parent`.
+/// A child text of `parent`, in the modal. Running text and buttons name factions by #60's inline
+/// emblems (story 60, "Ask [D] for Resources"); headings and labels pass
+/// [`Prose::named`] and keep the names, and on a red surface ([`Prose::on_red`])
+/// 26July keeps its name. The seat reads every name (`emblems::Plain`).
 #[allow(clippy::too_many_arguments)]
 fn words(
     commands: &mut Commands,
     art: &Art,
     parent: Entity,
-    text: impl Into<String>,
+    text: impl Into<Prose>,
     size: f32,
     bold: bool,
     color: Color,
     spacing: f32,
     s: f32,
 ) -> Entity {
-    let text: String = text.into();
+    let prose: Prose = text.into();
+    let font = TextFont {
+        font: if bold {
+            art.bold.clone()
+        } else {
+            art.font.clone()
+        }
+        .into(),
+        font_size: (size * s).into(),
+        ..default()
+    };
+    let segments = emblems::segments(&prose.text, prose.naming, prose.red);
+    let (first, rest) = match segments.split_first() {
+        Some((emblems::Segment::Words(words), rest)) => (words.clone(), rest),
+        _ => (String::new(), &segments[..]),
+    };
     let mut entity = commands.spawn((
-        Text::new(text.clone()),
-        emblems::Plain(text),
-        TextFont {
-            font: if bold {
-                art.bold.clone()
-            } else {
-                art.font.clone()
-            }
-            .into(),
-            font_size: (size * s).into(),
-            ..default()
-        },
+        Text::new(first),
+        emblems::Plain(prose.text),
+        font.clone(),
         TextColor(color),
         Pickable::IGNORE,
         ChildOf(parent),
@@ -746,7 +765,17 @@ fn words(
     if spacing > 0. {
         entity.insert(LetterSpacing::Px(spacing * s));
     }
-    entity.id()
+    let root = entity.id();
+    emblems::spawn_rest(
+        commands,
+        art,
+        root,
+        rest,
+        &font,
+        TextColor(color),
+        size * s * emblems::HEIGHT,
+    );
+    root
 }
 
 fn part(commands: &mut Commands, entity: Entity, name: &str) {
@@ -830,7 +859,7 @@ fn account(
     faction: Faction,
     role: &str,
     now: u8,
-    after: Option<(u8, Live, bool)>,
+    after: Option<(i16, Live, bool)>,
     key: &str,
     s: f32,
 ) -> Entity {
@@ -863,7 +892,7 @@ fn account(
         commands,
         art,
         card,
-        faction.name(),
+        Prose::named(faction.name()),
         fig::NAME,
         true,
         INK,
@@ -1022,7 +1051,7 @@ fn modal(
         commands,
         art,
         header,
-        title,
+        Prose::named(title),
         fig::TITLE,
         true,
         PAPER,
@@ -1030,6 +1059,13 @@ fn modal(
         s,
     );
     part(commands, t, "title");
+    let note = Prose::from(note);
+    // On 26July's red header band, 26July keeps its name (#60).
+    let note = if tone == slug(Faction::M26) {
+        note.on_red()
+    } else {
+        note
+    };
     words(commands, art, header, note, fig::SMALL, false, PAPER, 0., s);
     // The reserved state: a request another faction started, which 26July answers.
     if let Some(Transfer::Authorizing {
@@ -1086,20 +1122,13 @@ fn modal(
         },
     );
     let terms = shown.terms.as_ref();
-    let after = |faction: Faction| -> Option<(u8, Live, bool)> {
+    let after = |faction: Faction| -> Option<(i16, Live, bool)> {
         let terms = terms?;
+        let (giver, recipient) = balances(terms, shown.amount);
         if faction == terms.giver {
-            Some((
-                terms.balance.saturating_sub(shown.amount),
-                Live::GiverAfter,
-                refused,
-            ))
+            Some((giver, Live::GiverAfter, refused))
         } else {
-            Some((
-                terms.held.saturating_add(shown.amount),
-                Live::RecipientAfter,
-                refused,
-            ))
+            Some((recipient, Live::RecipientAfter, refused))
         }
     };
     let m26_role = match (shown.giver, shown.recipient) {
@@ -1147,7 +1176,7 @@ fn modal(
         commands,
         art,
         direction,
-        label,
+        Prose::named(label),
         fig::CAPS,
         true,
         QUIET,
@@ -1304,7 +1333,7 @@ fn modal(
         commands,
         art,
         counterpart,
-        heading,
+        Prose::named(heading),
         fig::CAPS,
         true,
         QUIET,
@@ -1499,7 +1528,7 @@ fn amount(
         commands,
         art,
         entry,
-        label,
+        Prose::named(label),
         fig::CAPS,
         true,
         QUIET,
@@ -1956,11 +1985,19 @@ fn footer(
         action,
     );
     part(commands, primary, "button:primary");
+    // The primary button is red while 26July composes or decides: 26July keeps its
+    // name there (#60, accepted in #68).
+    let label = Prose::from(&shown.label);
+    let label = if shown.commit.is_some() && decision.is_none_or(|giver| giver == Faction::M26) {
+        label.on_red()
+    } else {
+        label
+    };
     words(
         commands,
         art,
         primary,
-        &shown.label,
+        label,
         fig::BUTTON,
         true,
         PAPER,
@@ -2188,6 +2225,28 @@ mod tests {
         assert_eq!(shown.commit.unwrap().owner, Faction::Syndicate);
         state.sync(view.revision, None);
         assert_eq!(state.entry, "");
+    }
+
+    /// The accounts show the typed amount's effect, refused or not: a giver asked for
+    /// more than it holds goes below 0 rather than stopping there (#58 review).
+    #[test]
+    fn the_accounts_show_a_refused_amount_s_effect() {
+        let view = opened().observe();
+        let terms = |giver: Faction, recipient: Faction| {
+            view.transfer_terms
+                .iter()
+                .find(|t| t.giver == giver && t.recipient == recipient)
+                .unwrap()
+                .clone()
+        };
+        // Prepared position: 26July holds 0, Syndicate 15 (#8's scenario).
+        let give = terms(Faction::M26, Faction::Syndicate);
+        assert!(give.refusal(2).is_some());
+        assert_eq!(balances(&give, 2), (-2, 17));
+        let ask = terms(Faction::Syndicate, Faction::M26);
+        assert_eq!(balances(&ask, 5), (10, 5));
+        assert!(ask.refusal(20).is_some());
+        assert_eq!(balances(&ask, 20), (-5, 20));
     }
 
     /// TM-B's limits strip, worked from the prepared position and the Kidnap position.

@@ -362,6 +362,12 @@ pub fn viewport_size() -> [f32; 2] {
     [VIEWPORT[2], VIEWPORT[3]]
 }
 
+/// #67's legibility floor for the landed top face at 1920×1080, in pixels: the square
+/// root of the projected area of its 16 mm square. The study states it as "about
+/// 70 px"; 69.5 px is that approximation made explicit (orchestrator judgement at the
+/// #58 review), so Tumble A with the half turn, at 69.8 px, meets it.
+pub const FACE_FLOOR: f32 = 69.5;
+
 fn spawn_stage(commands: &mut Commands, art: &DieArt, revision: u64, face: u8, window: &Window) {
     let tumble = tumble(revision);
     let (eye, fov, aspect) = tray_camera();

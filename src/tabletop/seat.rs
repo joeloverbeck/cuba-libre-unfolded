@@ -630,11 +630,12 @@ mod tests {
             assert_eq!(die["landed"], true, "{by}: {die}");
             assert_eq!(die["seek"], die["duration"], "{by}: skipped to the end");
             assert_eq!(die["face"], landed["observation"]["kidnap"]["die"]);
-            // #67's legibility floor at this very size: the landed face is 70 px or more.
+            // #67's legibility floor at this very size (`die::FACE_FLOOR`, the study's
+            // "about 70 px" made explicit as 69.5 px).
             let face_px = die["top_face"].as_f64().unwrap();
             eprintln!("{by}: landed top face {face_px:.1} px at 1920x1080");
             assert!(
-                face_px >= 70.,
+                face_px >= f64::from(die::FACE_FLOOR),
                 "{by}: landed face {face_px} px at 1920x1080"
             );
             assert_eq!(landed["table"]["settled"], true, "{landed}");
