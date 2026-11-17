@@ -1592,6 +1592,17 @@ pub(super) fn hover_piece(
     }
 }
 
+/// What anchors a popover: the regions' meshes and controls for a space, and the
+/// 26July tokens for a piece.
+#[derive(bevy::ecs::system::SystemParam)]
+pub(super) struct Anchors<'w, 's> {
+    meshes: Query<'w, 's, (Entity, &'static Mesh3d, &'static GlobalTransform)>,
+    mesh_assets: Res<'w, Assets<Mesh>>,
+    controls: Query<'w, 's, &'static Control>,
+    parents: Query<'w, 's, &'static ChildOf>,
+    pieces: Query<'w, 's, (&'static OwnPiece, &'static GlobalTransform)>,
+}
+
 /// Opens, replaces or closes the popover from the targeting state, the pinned space
 /// and the region the pointer rests on.
 #[allow(clippy::too_many_arguments)]
@@ -1606,13 +1617,7 @@ pub(super) fn draw(
     mut context: ResMut<bevy::text::FontCx>,
     window: Single<&Window, With<PrimaryWindow>>,
     camera: Single<(&Camera, &GlobalTransform), With<Camera3d>>,
-    (meshes, mesh_assets, controls, parents, pieces): (
-        Query<(Entity, &Mesh3d, &GlobalTransform)>,
-        Res<Assets<Mesh>>,
-        Query<&Control>,
-        Query<&ChildOf>,
-        Query<(&OwnPiece, &GlobalTransform)>,
-    ),
+    anchors: Anchors,
     roots: Query<Entity, With<Root>>,
     mut previous: Local<Option<(Card, bool, f32)>>,
 ) {
@@ -1702,7 +1707,8 @@ pub(super) fn draw(
             },
             ..,
         )) => {
-            let Some(at) = pieces
+            let Some(at) = anchors
+                .pieces
                 .iter()
                 .find(|(p, _)| &p.key == key)
                 .map(|(_, at)| at.translation())
@@ -1716,10 +1722,10 @@ pub(super) fn draw(
             let Some(ends) = region_ends(
                 &card.space,
                 *camera,
-                &meshes,
-                &mesh_assets,
-                &controls,
-                &parents,
+                &anchors.meshes,
+                &anchors.mesh_assets,
+                &anchors.controls,
+                &anchors.parents,
             ) else {
                 return;
             };
