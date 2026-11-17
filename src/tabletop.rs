@@ -9,7 +9,7 @@ use bevy::{
     app::AnimationSystems,
     asset::RenderAssetUsages,
     camera::Viewport,
-    core_pipeline::tonemapping::Tonemapping,
+    core_pipeline::tonemapping::{DebandDither, Tonemapping},
     image::{
         CompressedImageFormats, ImageAddressMode, ImageSampler, ImageSamplerDescriptor, ImageType,
     },
@@ -462,7 +462,9 @@ fn setup(
         // Renders the seat's image under the UI camera; nothing without one.
         unfolded_tabletop::capture::OnSurface,
         // Preserve the authored unlit sea color against the UI's matching rim.
+        // Debanding needs tonemapping, so it is off too (#86).
         Tonemapping::None,
+        DebandDither::Disabled,
         Camera {
             viewport: Some(Viewport {
                 physical_position: UVec2::new(40, 176),
