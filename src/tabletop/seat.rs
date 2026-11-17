@@ -7,8 +7,8 @@ use unfolded_tabletop::{
     capture,
     label_anchor::Anchor,
     seat::{
-        self as shared, Focus, Game as SeatGame, Hit, Logical, Name as TargetName, Observed,
-        SeatKey,
+        self as shared, Focus, Game as SeatGame, Hit, Interrupt, Logical, Name as TargetName,
+        Observed, SeatKey,
         start::{self, Start},
     },
 };
@@ -46,10 +46,10 @@ const DIGITS: [(&str, KeyCode, &str); 10] = [
     ("9", KeyCode::Digit9, "9"),
 ];
 /// The keys the seat may press: Tab moves keyboard focus through the action choice,
-/// the BRIEFING ribbon and its tabs, or the transfer modal; Enter activates the
-/// focused control and can commit, so a request names that control (it closes a
-/// landed Kidnap die with Continue; the seat cannot skip the die in the air, since the
-/// die is unsettled until it lands, #74); Escape unpins a
+/// the BRIEFING ribbon and its tabs, or the transfer modal; Enter and Space activate
+/// the focused control and can commit, so a request names that control (they skip
+/// the Kidnap die in the air as `kidnap-die`, and close the landed die with Continue,
+/// #74, #87); Escape unpins a
 /// briefing, closes the ribbon's tag or cancels the transfer (Wait in a giver's
 /// decision); Backspace and the digits edit the transfer amount. Then the shared
 /// camera's keys, none of which commits.
@@ -63,6 +63,7 @@ static KEYS: LazyLock<Vec<SeatKey>> = LazyLock::new(|| {
     [
         key("Tab", KeyCode::Tab, Key::Tab, false),
         key("Enter", KeyCode::Enter, Key::Enter, true),
+        key("Space", KeyCode::Space, Key::Space, true),
         key("Escape", KeyCode::Escape, Key::Escape, false),
         key("Backspace", KeyCode::Backspace, Key::Backspace, false),
     ]
@@ -438,9 +439,20 @@ impl SeatGame for Table {
     fn keys(&self) -> &[SeatKey] {
         &KEYS
     }
+    /// The Kidnap die's skip, a click on its tray, Enter or Space, reaches the table
+    /// while the die is in the air and holds it unsettled. It only ends the tumble: the roll was
+    /// saved before the die moved (#74, #87).
+    fn interrupts(&self, world: &mut World, input: Interrupt<'_>) -> bool {
+        let skips = match input {
+            Interrupt::Activate(TargetName::Component(name)) => name == die::TRAY,
+            Interrupt::Activate(TargetName::Choice(_)) => false,
+            Interrupt::Key(key) => matches!(key, "Enter" | "Space"),
+        };
+        skips && die::focus(world) == Some(die::TRAY)
+    }
     fn focus(&self, world: &mut World) -> Focus {
-        // A presented Kidnap die holds the keyboard: Enter reaches Continue once it has
-        // landed, and nothing before (#74).
+        // A presented Kidnap die holds the keyboard: Enter reaches the tray's skip while
+        // the die is in the air, and Continue once it has landed (#74, #87).
         if die::shown(world) {
             return die::focus(world).map_or(Focus::Nothing, |label| Focus::Control {
                 choice: None,
@@ -470,27 +482,22 @@ impl SeatGame for Table {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bevy::{
-        camera::RenderTarget,
-        input::{ButtonState, keyboard::KeyboardInput},
-        picking::pointer::{Location, PointerAction, PointerButton, PointerInput},
-    };
     use serde_json::Value;
 
-    /// The seat answers no input while the die is unsettled, so it cannot press skip
-    /// (#74). This sits the same seat in-process on the real windowless app and, while
-    /// the die is in the air, sends the real Bevy input a player would: Space, or a
-    /// press and release on the tray. Either lands the die at once, on the committed
-    /// face, and the save is unchanged.
+    /// The Kidnap die's skip through the seat's own requests (#87). While the die is in
+    /// the air, Enter or Space naming the tray's skip, or an activation of the tray,
+    /// lands it at once on the committed face, and the save is unchanged. Tab is still
+    /// refused as busy, and Enter naming Continue is refused, since Enter reaches the
+    /// skip then.
     #[test]
     #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
-    fn native_skip_lands_the_die_from_space_or_a_click_on_the_tray() {
+    fn native_seat_skips_the_die_by_enter_space_or_a_click_on_the_tray() {
         let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
             .expect("Set CUBA_TEST_CARDS")
             .into();
         let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
             .map(PathBuf::from)
-            .unwrap_or_else(|| "local/verification/issue-74".into());
+            .unwrap_or_else(|| "local/verification/issue-87".into());
         std::fs::create_dir_all(&evidence).unwrap();
         let root = tempfile::Builder::new()
             .prefix("skip-")
@@ -500,7 +507,7 @@ mod tests {
             .canonicalize()
             .unwrap();
         eprintln!("Kidnap die skip evidence: {}", root.display());
-        for by in ["space", "click"] {
+        for by in ["enter", "space", "click"] {
             let size = UVec2::new(1920, 1080);
             let save = root.join(format!("{by}.json"));
             let mut app = build(
@@ -557,82 +564,46 @@ mod tests {
             let die = &air["table"]["die"];
             assert_eq!(die["landed"], false, "{die}");
             assert!(die["seek"].as_f64().unwrap() < die["landing"].as_f64().unwrap());
-            // The seat itself refuses keys while the die is in the air.
-            let refused = ask(
+            // Anything but the skip is still refused while the die is in the air,
+            // and Enter reaches the skip then, not Continue.
+            let tab = ask(&mut app, json!({"op":"key","revision":3,"key":"Tab"}));
+            assert_eq!(tab["status"], "refused", "{tab}");
+            assert!(
+                tab["error"]
+                    .as_str()
+                    .unwrap()
+                    .starts_with("The table is busy ("),
+                "{tab}"
+            );
+            let continued = ask(
                 &mut app,
                 json!({"op":"key","revision":3,"key":"Enter","focused":"kidnap-die:continue"}),
             );
-            assert_eq!(refused["status"], "refused", "{refused}");
+            assert_eq!(continued["status"], "refused", "{continued}");
+            assert_eq!(
+                continued["error"],
+                "Enter names \"kidnap-die:continue\", but focus is on \"kidnap-die\", which has no choice identity. Nothing was pressed."
+            );
             ask(
                 &mut app,
                 json!({"op":"capture","path":root.join(format!("{by}-air.png"))}),
             );
-            let world = app.world_mut();
-            let window = world
-                .query_filtered::<Entity, With<PrimaryWindow>>()
-                .single(world)
-                .unwrap();
-            // What a player's input sends: a key, or the pointer at the tray's centre.
-            enum Send {
-                Key(ButtonState),
-                Pointer(PointerAction),
-            }
-            let v = die["viewport"].as_array().unwrap();
-            let at = Vec2::new(
-                ((v[0].as_f64().unwrap() + v[2].as_f64().unwrap()) / 2.) as f32,
-                ((v[1].as_f64().unwrap() + v[3].as_f64().unwrap()) / 2.) as f32,
-            );
-            let camera = world
-                .query_filtered::<Entity, With<Camera2d>>()
-                .single(world)
-                .unwrap();
-            let target = world
-                .get::<RenderTarget>(camera)
-                .and_then(|target| target.normalize(Some(window)))
-                .unwrap();
-            let sends = if by == "space" {
-                vec![
-                    Send::Key(ButtonState::Pressed),
-                    Send::Key(ButtonState::Released),
-                ]
+            let (skip, status) = if by == "enter" || by == "space" {
+                let key = if by == "enter" { "Enter" } else { "Space" };
+                (
+                    json!({"op":"key","revision":3,"key":key,"focused":"kidnap-die"}),
+                    "pressed",
+                )
             } else {
-                world
-                    .get_mut::<Window>(window)
-                    .unwrap()
-                    .set_cursor_position(Some(at));
-                vec![
-                    Send::Pointer(PointerAction::Move { delta: Vec2::ZERO }),
-                    Send::Pointer(PointerAction::Press(PointerButton::Primary)),
-                    Send::Pointer(PointerAction::Release(PointerButton::Primary)),
-                ]
+                (
+                    json!({"op":"activate","revision":3,"component":"kidnap-die"}),
+                    "activated",
+                )
             };
-            for send in sends {
-                let world = app.world_mut();
-                match send {
-                    Send::Key(state) => {
-                        world.write_message(KeyboardInput {
-                            key_code: KeyCode::Space,
-                            logical_key: bevy::input::keyboard::Key::Space,
-                            state,
-                            text: None,
-                            repeat: false,
-                            window,
-                        });
-                    }
-                    Send::Pointer(action) => {
-                        world.write_message(PointerInput::new(
-                            PointerId::Mouse,
-                            Location {
-                                target: target.clone(),
-                                position: at,
-                            },
-                            action,
-                        ));
-                    }
-                }
-                // One step: frozen time would leave the die where it was.
-                ask(&mut app, json!({"op":"settle","steps":1}));
-            }
+            let skipped = ask(&mut app, skip);
+            assert_eq!(skipped["status"], status, "{by}: {skipped}");
+            assert_eq!(skipped["revision"], 3, "{by}: a skip acts on no decision");
+            ask(&mut app, json!({"op":"settle"}));
             let landed = ask(&mut app, json!({"op":"observe"}));
             let die = &landed["table"]["die"];
             assert_eq!(die["landed"], true, "{by}: {die}");
