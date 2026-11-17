@@ -1,6 +1,22 @@
 //! The Operation panel on the right: who decides now, what the current step means and
 //! the choices the game offers. The game owns every fact; this module only words and
 //! places them. The panel is rebuilt with the rest of the UI (`draw_ui`).
+//!
+//! Temporary bootstrap (WORK-2; foundation 4 "Authoring boundary"). The panel frame
+//! is the authored `atlas-panel.png`, but the action and operation button stack
+//! inside it (the adaptive 44/52 px pitch, the opening stack at `480. + i * 40.`
+//! and its 36 px indent for accompanying Special Activities) is an interim layout
+//! invented in code, not an authored FigCraft design.
+//! - Owner: #58.
+//! - Purpose: let the development seat exercise previews and action choices before
+//!   #68 selects designs.
+//! - Allowed consumers: agent verification of #58 only.
+//! - Prohibited dependents: #16's owner review, any release, and any other UI
+//!   positioning itself against this stack.
+//! - Appetite: keep it working for #58's checks; no design or polish effort.
+//! - Replacement: the selected designs in #69 (action choice and briefings) and
+//!   #72/#73 (map popovers for targets and removals).
+//! - Expiry: before #75's end-to-end verification.
 use super::*;
 
 /// Draws the panel inside the authored operation frame. `offset` is the right-anchored
@@ -73,7 +89,7 @@ fn heading(view: &crate::Observation) -> String {
     } else if view.transfer.is_some() {
         format!("Resource transfer\n{} decides locally", view.owner.name())
     } else if view.removal.is_some() {
-        "26July · voluntary own removal".into()
+        "26July · Voluntary removal".into()
     } else {
         format!("{} · {}", view.owner.name(), view.operation)
     }
@@ -97,7 +113,7 @@ fn details(view: &crate::Observation) -> String {
         return kidnap_details(view);
     }
     let body = match &view.transfer {
-        Some(crate::Transfer::Selecting) => "Choose the giver and recipient.\n26July must be one endpoint.\nThe giver chooses the quantity and authorizes.\nA request is not a donation.".into(),
+        Some(crate::Transfer::Selecting) => "Choose the giver and recipient.\n26July must be one endpoint.\nThe giver chooses the quantity and authorizes.\nA request is not a Resource transfer.".into(),
         Some(crate::Transfer::Authorizing { giver, recipient, amount }) => format!(
             "Giver: {} · balance {}\nRecipient: {} · balance {}\nAmount: {} Resources · whole numbers only\nAfter authorization: {} → {}; {} → {}\nZero is allowed. Decline moves nothing.",
             giver.name(), view.resources[giver.index()], recipient.name(), view.resources[recipient.index()], amount,
@@ -358,6 +374,23 @@ mod tests {
         assert!(!details.contains("Police"), "{details}");
         assert!(!details.contains("Activate 1"), "{details}");
         assert!(!details.contains("Full Terror"), "{details}");
+    }
+
+    /// GLOSSARY.md: "Voluntary removal" and "Resource transfer", never their
+    /// _Avoid_ terms "donation" or "voluntary own removal".
+    #[test]
+    fn transfer_and_removal_steps_use_the_glossary_terms() {
+        let mut game = Game::prepared();
+        game.submit(Faction::M26, 0, "0:transfer").unwrap();
+        let transfer = details(&game.observe());
+        assert!(
+            transfer.contains("A request is not a Resource transfer."),
+            "{transfer}"
+        );
+        assert!(!transfer.to_lowercase().contains("donat"), "{transfer}");
+        let mut game = Game::prepared();
+        game.submit(Faction::M26, 0, "0:remove").unwrap();
+        assert_eq!(heading(&game.observe()), "26July · Voluntary removal");
     }
 
     #[test]

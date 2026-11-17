@@ -130,7 +130,7 @@ pub struct Standing {
     pub contributions: Vec<String>,
 }
 /// 26July's decision as 1st Eligible on card 17 (R 2.3.2–2.3.4).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ActionChoice {
     /// The action choice is open: Pass and Terror are playable; the Event, Rally,
     /// March and Attack are listed but not in this task.
@@ -140,8 +140,13 @@ pub enum ActionChoice {
     Pass,
     /// Terror is chosen: 26July executes it until End Terror. A #8 save began here, at
     /// revision 0, and has no `action` field; it resumes in this state.
-    #[default]
     Terror,
+}
+/// The #8-save admission: a #8 record has no `action` field because #8 began with
+/// Terror chosen, so it resumes with Terror chosen. This is only the serde default of
+/// `Game::action`; a new task opens at `ActionChoice::Open`.
+fn eight_save_entry() -> ActionChoice {
+    ActionChoice::Terror
 }
 /// The Sequence of Play box a faction's cylinder occupies once its action is recorded
 /// (R 2.3, record steps; R 2.3.4).
@@ -169,6 +174,14 @@ pub struct Eligibility {
 /// after an Operation with Special Activity (R 2.3.4, 5.2).
 pub const CARD_17_SHADED: &str =
     "All 26July Guerrillas Active. 26July Ineligible through next card.";
+/// What Terror does in each space it resolves after paying, worded once (R 3.3.4).
+const TERROR_EFFECTS: &str = "flip 1 Underground Guerrilla there to Active, place a Terror marker and shift 1 level toward Active Opposition";
+/// Why End Terror is refused while a rolled Kidnap still owes Santiago's Terror.
+const SANTIAGO_OWED: &str = "Santiago Terror is owed: under the accepted commitment policy, its payment and Activation come before End Terror.";
+/// A faction's Resources never exceed 49 (R 1.8); excess is lost.
+const RESOURCE_CAP: u8 = 49;
+/// The prepared position's Resources, indexed like `Faction::ALL`.
+const PREPARED_RESOURCES: [u8; 4] = [6, 0, 5, 15];
 /// Card 17's order: 26July, Directorio, Government, Syndicate (rules baseline).
 pub const CARD_17_ORDER: [Faction; 4] = [
     Faction::M26,
@@ -193,7 +206,7 @@ pub struct Game {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) removal: Option<Removal>,
     /// A #8 save lacks this field and resumes with Terror chosen.
-    #[serde(default)]
+    #[serde(default = "eight_save_entry")]
     pub(crate) action: ActionChoice,
     /// Set by the first real effect: an authorized nonzero transfer, a resolved
     /// Terror, a Kidnap roll or a removal. Going back to the action choice is local
@@ -573,7 +586,7 @@ impl Game {
         draw_deck.push(52);
         Self {
             revision: 0,
-            resources: [6, 0, 5, 15],
+            resources: PREPARED_RESOURCES,
             spaces,
             finished: false,
             random: 17,
@@ -623,7 +636,7 @@ impl Game {
             played_cards,
             draw_count: self.draw_deck.len(),
             eligible: [true; 4],
-            passed: [false, self.action == ActionChoice::Pass, false, false],
+            passed: Faction::ALL.map(|f| f == Faction::M26 && self.action == ActionChoice::Pass),
             aid: 15,
             alliance: UsAlliance::Firm,
             cash_available: CASH_MARKERS,
@@ -888,7 +901,7 @@ impl Game {
                 notes.push("Nothing has happened yet: Back to the action choice is still offered instead (local policy, #58).".into());
             }
         } else if action.starts_with("terror:") {
-            notes.push("R 3.3.4: pay 1 Resource, flip 1 Underground Guerrilla there to Active, place a Terror marker and shift 1 level toward Active Opposition.".into());
+            notes.push(format!("R 3.3.4: pay 1 Resource, {TERROR_EFFECTS}."));
         } else {
             notes.push("R 1.4.1: the piece returns to Available. Earlier Terror markers, support shifts and Kidnap results stay.".into());
         }
@@ -933,7 +946,7 @@ impl Game {
             preview.unavailable.push(Unavailable {
                 choice: "end-terror".into(),
                 label: "End Terror".into(),
-                reason: "Santiago Terror is owed: under the accepted commitment policy, its payment and Activation come before End Terror.".into(),
+                reason: SANTIAGO_OWED.into(),
             });
         }
         notes.push(format!("End Terror then records Operation with Special Activity: Directorio may execute card 17's Event, either text (R 2.3.4, 5.2). Shaded: \"{CARD_17_SHADED}\""));
@@ -1076,7 +1089,7 @@ impl Game {
                         "Controlled population plus Bases".into(),
                     ),
                     Faction::Syndicate => {
-                        let resources = self.resources[3] as i16;
+                        let resources = self.resources[Faction::Syndicate.index()] as i16;
                         contributions.push(format!("Resources: {resources}"));
                         (
                             "Open Casinos >7 AND Resources >30".into(),
@@ -1147,7 +1160,7 @@ impl Game {
         vec![
             self.offer(
                 "pass",
-                format!("Pass · +1 Resource ({resources} → {})", resources.saturating_add(1).min(49)),
+                format!("Pass · +1 Resource ({resources} → {})", resources.saturating_add(1).min(RESOURCE_CAP)),
                 true,
                 "R 2.3.3: 26July gains 1 Resource and stays Eligible; Directorio becomes 1st Eligible. The task ends without executing Directorio.",
             ),
@@ -1159,7 +1172,7 @@ impl Game {
             absent(
                 "event:shaded",
                 "Event (shaded)",
-                "R 2.3.4, 5.2. Card 17, Mexico blocks training by Cuban expat: All 26July Guerrillas Active. 26July Ineligible through next card.",
+                &format!("R 2.3.4, 5.2. Card 17, Mexico blocks training by Cuban expat: {CARD_17_SHADED}"),
             ),
             absent("rally", "Rally", "R 3.3.1: Rally places or flips 26July Guerrillas or a Base."),
             under(
@@ -1180,7 +1193,7 @@ impl Game {
                 "terror",
                 "Terror · Operation",
                 true,
-                "R 3.3.4: in each selected space pay 1 Resource, flip 1 Underground Guerrilla there to Active, place Terror and shift 1 level toward Active Opposition. While 26July executes Terror, Resource transfers are open (R 1.5.1; offering them from this choice is local policy). Going back to this choice is allowed until the first effect (local policy).",
+                format!("R 3.3.4: in each selected space pay 1 Resource, {TERROR_EFFECTS}. While 26July executes Terror, Resource transfers are open (R 1.5.1; offering them from this choice is local policy). Going back to this choice is allowed until the first effect (local policy)."),
             ),
             under(
                 self.offer(
@@ -1246,7 +1259,7 @@ impl Game {
                 "End Terror",
                 !self.owes_santiago(),
                 if self.owes_santiago() {
-                    "Santiago Terror is owed: under the accepted commitment policy, its payment and Activation come before End Terror."
+                    SANTIAGO_OWED
                 } else if self.kidnap.is_some() {
                     "Ends 26July's Terror and records Operation with Special Activity (R 2.3.4)."
                 } else {
@@ -1287,7 +1300,7 @@ impl Game {
             }) => {
                 let limit = self.resources[giver.index()]
                     .saturating_sub(u8::from(self.owes_santiago() && giver == Faction::M26))
-                    .min(49u8.saturating_sub(self.resources[recipient.index()]));
+                    .min(RESOURCE_CAP.saturating_sub(self.resources[recipient.index()]));
                 let mut choices = vec![];
                 if amount > 0 {
                     choices.push(choice(
@@ -1369,12 +1382,13 @@ impl Game {
         let police = count(Kind::Police, Faction::Government, None);
         let feasible = santiago.terror > 0
             || (count(Kind::Guerrilla, Faction::M26, Some(State::Underground)) > 0
-                && (self.resources[1] > 0 || self.resources[0] > 0));
+                && (self.resources[Faction::M26.index()] > 0
+                    || self.resources[Faction::Government.index()] > 0));
         self.offer(
             "kidnap",
             "Kidnap · Santiago · Government",
             guerrillas > police && feasible,
-            format!("{guerrillas} Guerrillas (Active + Underground) vs {police} Police; must outnumber. Die 1–6: proceeds {}–{} from Government. {}", self.resources[0].min(1), self.resources[0].min(6), if feasible {"Santiago Terror was resolved or is guaranteed feasible on every roll; an early roll commits its payment and Underground Guerrilla."} else {"Santiago needs an Underground Guerrilla and guaranteed payment without a promised Resource transfer or favorable roll."}),
+            format!("{guerrillas} Guerrillas (Active + Underground) vs {police} Police; must outnumber. Die 1–6: proceeds {}–{} from Government. {}", self.resources[Faction::Government.index()].min(1), self.resources[Faction::Government.index()].min(6), if feasible {"Santiago Terror was resolved or is guaranteed feasible on every roll; an early roll commits its payment and Underground Guerrilla."} else {"Santiago needs an Underground Guerrilla and guaranteed payment without a promised Resource transfer or favorable roll."}),
         )
     }
     /// A Terror target, listed even when 26July cannot act on it now: its reason and
@@ -1413,7 +1427,10 @@ impl Game {
         };
         if reason.is_some() && space.terror == 0 && underground {
             // Kidnap funds Santiago only when it would take at least 1 Resource.
-            if id == "santiago" && kidnap.is_some_and(|k| k.supported) && self.resources[0] > 0 {
+            if id == "santiago"
+                && kidnap.is_some_and(|k| k.supported)
+                && self.resources[Faction::Government.index()] > 0
+            {
                 remedies.push("Kidnap here first".to_owned());
             }
             if self.executing().is_some()
@@ -1430,7 +1447,11 @@ impl Game {
             reason.is_none(),
             match reason {
                 Some(reason) => format!("R 3.3.4. {reason}"),
-                None => format!("R 3.3.4. {cost} Flip 1 Underground Guerrilla there to Active, place a Terror marker and shift 1 level toward Active Opposition ({} → {}).", support_level(space.support), support_level((space.support - 1).max(-2))),
+                None => format!(
+                    "R 3.3.4. {cost} Then {TERROR_EFFECTS} ({} → {}).",
+                    support_level(space.support),
+                    support_level((space.support - 1).max(-2))
+                ),
             },
         );
         choice.remedies = remedies;
@@ -1521,7 +1542,7 @@ impl Game {
             "pass" => {
                 self.resources[Faction::M26.index()] = self.resources[Faction::M26.index()]
                     .saturating_add(1)
-                    .min(49);
+                    .min(RESOURCE_CAP);
                 self.action = ActionChoice::Pass;
                 self.finished = true;
             }
@@ -1585,23 +1606,24 @@ impl Game {
                 self.effect = true;
                 let mut random = SeededRandom::new(self.random);
                 let die = (random.index(6) + 1) as u8;
-                let proceeds = die.min(self.resources[0]);
+                let (government, m26) = (Faction::Government.index(), Faction::M26.index());
+                let proceeds = die.min(self.resources[government]);
                 self.kidnap = Some(Kidnap {
                     die,
                     proceeds,
-                    government_before: self.resources[0],
-                    m26_before: self.resources[1],
+                    government_before: self.resources[government],
+                    m26_before: self.resources[m26],
                     random_before: self.random,
                 });
                 self.random = random.state();
-                self.resources[0] -= proceeds;
-                self.resources[1] += proceeds.min(49 - self.resources[1]);
+                self.resources[government] -= proceeds;
+                self.resources[m26] += proceeds.min(RESOURCE_CAP - self.resources[m26]);
             }
             None if action.starts_with("terror:") => {
                 let id = action.strip_prefix("terror:").unwrap();
                 let space = self.spaces.iter_mut().find(|s| s.id == id).unwrap();
                 Self::resolve_terror(space);
-                self.resources[1] -= 1;
+                self.resources[Faction::M26.index()] -= 1;
                 self.effect = true;
             }
             None => self.transfer = Some(Transfer::Selecting),
@@ -1622,7 +1644,9 @@ impl Game {
                 amount,
             }) => {
                 if action == "authorize" {
-                    if self.owes_santiago() && giver == Faction::M26 && amount >= self.resources[1]
+                    if self.owes_santiago()
+                        && giver == Faction::M26
+                        && amount >= self.resources[Faction::M26.index()]
                     {
                         return Err("Santiago Terror is owed: retain 1 Resource under the accepted commitment policy.".into());
                     }
@@ -1716,14 +1740,18 @@ impl Game {
             && !self.kidnap_open
             && self.transfer.is_none()
             && self.removal.is_none();
+        let mut passed = PREPARED_RESOURCES;
+        passed[Faction::M26.index()] += 1;
         let consistent = match self.action {
-            ActionChoice::Open => untouched && !self.finished && self.resources == [6, 0, 5, 15],
-            ActionChoice::Pass => untouched && self.finished && self.resources == [6, 1, 5, 15],
+            ActionChoice::Open => {
+                untouched && !self.finished && self.resources == PREPARED_RESOURCES
+            }
+            ActionChoice::Pass => untouched && self.finished && self.resources == passed,
             ActionChoice::Terror => true,
         };
         expected.action = self.action;
         if !consistent
-            || self.resources.iter().any(|&n| n > 49)
+            || self.resources.iter().any(|&n| n > RESOURCE_CAP)
             || self.resources.iter().map(|&n| n as u16).sum::<u16>()
                 != 26 - paid + u16::from(self.action == ActionChoice::Pass)
             || self.revision
@@ -1759,7 +1787,7 @@ impl Game {
                 || kidnap.proceeds != die.min(kidnap.government_before)
                 || (self.owes_santiago()
                     && (self.finished
-                        || self.resources[1] == 0
+                        || self.resources[Faction::M26.index()] == 0
                         || !self.spaces.iter().any(|s| {
                             s.id == "santiago"
                                 && s.pieces.iter().any(|p| {
@@ -1787,8 +1815,11 @@ impl Game {
             && (giver == recipient
                 || (giver != Faction::M26 && recipient != Faction::M26)
                 || amount > self.resources[giver.index()]
-                || (self.owes_santiago() && giver == Faction::M26 && amount >= self.resources[1])
-                || u16::from(self.resources[recipient.index()]) + u16::from(amount) > 49)
+                || (self.owes_santiago()
+                    && giver == Faction::M26
+                    && amount >= self.resources[Faction::M26.index()])
+                || u16::from(self.resources[recipient.index()]) + u16::from(amount)
+                    > u16::from(RESOURCE_CAP))
         {
             return Err("Unsupported pending giver authorization.".into());
         }

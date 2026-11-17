@@ -1,8 +1,21 @@
 //! A choice's preview, shown while the pointer rests on its button: the consequences
 //! the rules authority computed for an irreversible step, or why a disabled choice
 //! cannot be taken now and what in this task would allow it. This module only words
-//! and places the game's facts. It is a temporary card beside the Operation panel;
-//! the selected popover design (#69) replaces its placement.
+//! and places the game's facts. It is a temporary card beside the Operation panel.
+//!
+//! Temporary bootstrap (WORK-2; foundation 4 "Authoring boundary"). The card's
+//! geometry (`card::X` 880, `Y` 287, `WIDTH` 488 and its offsets) is an interim
+//! layout invented in code, not an authored FigCraft design.
+//! - Owner: #58.
+//! - Purpose: let the development seat exercise previews and action choices before
+//!   #68 selects designs.
+//! - Allowed consumers: agent verification of #58 only.
+//! - Prohibited dependents: #16's owner review, any release, and any other UI
+//!   positioning itself against this card.
+//! - Appetite: keep it working for #58's checks; no design or polish effort.
+//! - Replacement: the selected designs in #69 (action choice and briefings) and
+//!   #72/#73 (map popovers for targets and removals).
+//! - Expiry: before #75's end-to-end verification.
 use super::*;
 use crate::{Choice, KidnapStakes, Observation, Preview, SequenceBox};
 
@@ -20,8 +33,7 @@ mod card {
     /// so each authored line is one drawn line.
     pub const CHARS: usize = 56;
 }
-const INK: Color = Color::srgb_u8(32, 50, 56);
-const QUIET: Color = Color::srgb_u8(83, 106, 109);
+use super::top::{INK, QUIET};
 
 #[derive(Component)]
 pub(super) struct Tag;

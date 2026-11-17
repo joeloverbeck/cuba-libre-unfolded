@@ -43,8 +43,8 @@ const TRACK: [f32; 4] = [150., 18., 260., 64.];
 const LEDGER: [f32; 4] = [1688., 20., 192., 190.];
 /// The FigCraft `Atlas` variables: `ink` for values and titles, `ink-secondary`
 /// (QUIET) for secondary values and notes.
-const INK: Color = Color::srgb_u8(32, 50, 56);
-const QUIET: Color = Color::srgb_u8(83, 106, 109);
+pub(super) const INK: Color = Color::srgb_u8(32, 50, 56);
+pub(super) const QUIET: Color = Color::srgb_u8(83, 106, 109);
 
 /// Hover-tag geometry from the FigCraft `hover tag` frame, in reference pixels.
 mod tag {

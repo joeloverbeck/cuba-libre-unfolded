@@ -107,6 +107,8 @@ fn the_task_opens_on_the_first_eligible_decision_with_every_26july_option_listed
     }
     // Kidnap is part of this task, chosen during Terror rather than refused as absent.
     assert!(!label("0:terror:kidnap").contains("not in this task"));
+    // R 3.3.4, in GLOSSARY.md's term for the marker ("Terror marker", not "Terror").
+    assert!(label("0:terror").contains("place a Terror marker"));
 }
 
 #[test]
