@@ -148,7 +148,9 @@ pub(super) fn image(faction: Faction) -> String {
 }
 
 /// Adds the words and emblems after the first segment as children of the text
-/// `root`. Each emblem is `height` logical pixels tall.
+/// `root`. Each emblem is `height` logical pixels tall. Like their root text, the
+/// spans and emblems take no pick: a click on them reaches the control beneath, and
+/// is never taken for a click on the map (which closes the AC-B briefing tag).
 pub(super) fn spawn_rest(
     commands: &mut Commands,
     art: &Art,
@@ -165,6 +167,7 @@ pub(super) fn spawn_rest(
                     TextSpan::new(words.clone()),
                     font.clone(),
                     ink,
+                    Pickable::IGNORE,
                     ChildOf(root),
                 ));
             }
@@ -176,6 +179,7 @@ pub(super) fn spawn_rest(
                         ..default()
                     },
                     Emblem(*faction),
+                    Pickable::IGNORE,
                     ChildOf(root),
                 ));
             }
