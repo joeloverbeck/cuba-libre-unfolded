@@ -130,6 +130,8 @@ impl Native {
             "{popover}"
         );
         self.activate("popover:commit", revision);
+        // The pointer rests on the map where the card was; let its hover dwell end.
+        self.request(json!({"op":"settle"}), true);
         assert_eq!(
             self.observe()["observation"]["revision"].as_u64().unwrap(),
             revision + 1
@@ -3347,11 +3349,19 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
     app.capture("after-terror");
     // After removing a Santiago Guerrilla, Kidnap is no longer possible there: 1
     // Guerrilla does not outnumber 1 Police (R 4.3.3).
-    for action in ["remove", "remove:santiago:underground", "confirm-removal"] {
-        app.choose(action);
-    }
+    // #73: removal is on the map; the open tag covers Santiago, so Escape closes it
+    // first, and the ribbon reopens it afterwards.
+    app.choose("remove");
+    let rev = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.request(json!({"op":"key","revision":rev,"key":"Escape"}), true);
+    app.request(json!({"op":"settle"}), true);
+    app.remove("santiago:underground", 1);
+    app.choose("done-removal");
     let after = app.observe();
     let rev = after["observation"]["revision"].as_u64().unwrap();
+    if after["table"]["choice"]["ribbon"] != true {
+        app.activate("briefing-ribbon", rev);
+    }
     app.activate("briefing-tab:kidnap", rev);
     let view = app.observe();
     let words = briefing(&view);
@@ -3611,7 +3621,7 @@ fn native_removal_mode_marks_pieces_and_removes_through_the_piece_popover() {
     assert_popover_placed(&santiago);
     assert!(assert_inline_emblems(&santiago) > 0);
     assert!(
-        emblems_in(&santiago, "Control: unchanged (Government). Then unavailable: Kidnap · Santiago · Government, Back to the action choice.")
+        emblems_in(&santiago, "Control: unchanged (Government). Then unavailable: Kidnap, going back to the action choice.")
             .contains(&"Government".to_owned())
     );
     app.capture("santiago-popover");
@@ -3669,6 +3679,7 @@ fn native_removal_mode_marks_pieces_and_removes_through_the_piece_popover() {
     assert!(text.contains("26July 7 → 6 (margin -8 → -9)"), "{text}");
     app.capture("base-popover");
     app.activate("popover:commit", revision);
+    app.request(json!({"op":"settle"}), true);
     let after = app.observe();
     assert_eq!(after["observation"]["standings"][1]["score"], 6);
     // Sierra Maestra now holds no 26July piece, so it dims.
@@ -3682,6 +3693,7 @@ fn native_removal_mode_marks_pieces_and_removes_through_the_piece_popover() {
     app.capture("after-base-removal");
 
     // Done leaves the mode: the markers go and Terror targeting returns.
+    app.request(json!({"op":"settle"}), true);
     app.choose("done-removal");
     let done = app.observe();
     assert_eq!(done["observation"]["removal"], Value::Null);
@@ -3727,6 +3739,7 @@ fn native_removal_mode_marks_pieces_and_removes_through_the_piece_popover() {
     assert!(!controls.contains(&"popover:quantity:plus"), "{controls:?}");
     app.capture("owed-stack-at-most-one");
     app.activate("popover:commit", revision);
+    app.request(json!({"op":"settle"}), true);
     let last = app.observe();
     assert_removal_map_agrees(&last);
     let marker = last["table"]["markers"]

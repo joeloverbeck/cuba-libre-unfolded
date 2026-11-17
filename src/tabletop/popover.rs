@@ -583,17 +583,21 @@ fn removal_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
         ),
     };
     let offered = if preview.unavailable.is_empty() {
-        "Every Terror and Kidnap now offered stays offered.".to_owned()
+        "Terror and Kidnap: unchanged.".to_owned()
     } else {
-        format!(
-            "Then unavailable: {}.",
-            preview
-                .unavailable
-                .iter()
-                .map(|u| u.label.as_str())
-                .collect::<Vec<_>>()
-                .join(", ")
-        )
+        // Named as a player reads them, not by their panel labels.
+        let lost: Vec<String> = preview
+            .unavailable
+            .iter()
+            .map(|u| match u.choice.as_str() {
+                "kidnap" => "Kidnap".to_owned(),
+                "back-to-choice" => "going back to the action choice".to_owned(),
+                choice => choice
+                    .strip_prefix("terror:")
+                    .map_or_else(|| u.label.clone(), |at| format!("Terror in {}", name(at))),
+            })
+            .collect();
+        format!("Then unavailable: {}.", lost.join(", "))
     };
     lines.push((Tone::Strong, format!("{control} {offered}")));
     if preview.standings.is_empty() {
@@ -2057,7 +2061,7 @@ mod tests {
         for fact in [
             "1 Underground Guerrilla returns to Available.",
             "Control: unchanged (Government).",
-            "Then unavailable: Kidnap · Santiago · Government, Back to the action choice.",
+            "Then unavailable: Kidnap, going back to the action choice.",
             "Standings: unchanged.",
             "R 1.4.1",
         ] {
