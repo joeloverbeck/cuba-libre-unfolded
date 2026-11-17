@@ -19,7 +19,6 @@ jobs:
     timeout-minutes: 45
     env:
       CARGO_TERM_COLOR: always
-      CARGO_BUILD_JOBS: 2
       CARGO_PROFILE_DEV_DEBUG: 0
       CARGO_PROFILE_TEST_DEBUG: 0
     steps:
@@ -35,7 +34,10 @@ jobs:
       - name: Cache Rust dependencies
         uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
         with:
-          key: ${{ hashFiles('.github/workflows/check.yml', 'scripts/check', '.cargo/config.toml') }}
+          # No custom key: the action already keys on Cargo.lock, Cargo.toml,
+          # .cargo/config.toml, the toolchain and CARGO_* settings. Hashing
+          # scripts/check or this file as well discarded the whole dependency
+          # cache on every edit to them, forcing a cold Bevy build (about 20 min).
           cache-bin: false
       - name: Formatting, Clippy and tests
         run: scripts/check
