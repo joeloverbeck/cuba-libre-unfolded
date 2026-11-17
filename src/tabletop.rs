@@ -372,8 +372,8 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 preview::draw,
                 popover::draw,
                 popover::place,
-                choice::draw,
-                eligibility::draw,
+                // Bevy chains at most 20 systems in one tuple.
+                (choice::draw, eligibility::draw).chain(),
                 animate_water,
             )
                 .chain(),
