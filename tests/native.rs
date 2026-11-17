@@ -1506,12 +1506,18 @@ fn native_transfer_modal_gives_asks_and_waits_for_the_giver() {
     assert_eq!(modal(&deciding)["entry"], "2", "prefilled with the request");
     assert_eq!(modal(&deciding)["label"], "Syndicate authorizes 2");
     app.capture("giver-decision");
-    // Wait: the modal closes, the request stays pending, nothing is written.
+    // Wait: the modal closes and the request stays pending. That it was set aside is
+    // saved (#75), so a restart shows the request exactly as it was left.
     let pending = deciding["observation"].clone();
     let saved = std::fs::read(&app.save).unwrap();
     app.choose("wait");
     let waiting = app.observe();
-    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    assert_ne!(std::fs::read(&app.save).unwrap(), saved);
+    assert_eq!(
+        waiting["observation"]["transfer"]["Authorizing"]["waited"],
+        true
+    );
+    assert_eq!(waiting["observation"]["resources"], pending["resources"]);
     assert_eq!(modal(&waiting)["shown"], false);
     assert_eq!(modal(&waiting)["pending"], true);
     app.capture("after-wait");
@@ -1519,12 +1525,23 @@ fn native_transfer_modal_gives_asks_and_waits_for_the_giver() {
     app.quit();
     app.launch();
     let restarted = app.observe();
-    assert_eq!(restarted["observation"], pending);
-    assert_eq!(modal(&restarted)["shown"], true);
-    assert_eq!(modal(&restarted)["entry"], "2");
+    assert_eq!(restarted["observation"], waiting["observation"]);
+    assert_eq!(modal(&restarted)["shown"], false);
+    assert_eq!(modal(&restarted)["pending"], true);
+    app.capture("pending-restarted");
+    // Open in the top band shows the giver's decision again, prefilled as asked.
+    app.choose("reopen");
+    let reopened = app.observe();
+    assert_eq!(modal(&reopened)["shown"], true);
+    assert_eq!(modal(&reopened)["pending"], false);
+    assert_eq!(modal(&reopened)["entry"], "2");
+    assert_eq!(
+        reopened["observation"]["transfer"]["Authorizing"]["amount"],
+        2
+    );
     app.capture("giver-restarted");
     // The giver authorizes more than was asked.
-    let revision = pending["revision"].as_u64().unwrap();
+    let revision = reopened["observation"]["revision"].as_u64().unwrap();
     app.choose("authorize:5");
     let after = app.observe()["observation"].clone();
     assert_eq!(after["resources"], json!([6, 5, 5, 10]));
@@ -2765,17 +2782,26 @@ fn native_action_choice_pass_and_back_before_the_first_effect() {
     assert_eq!(pending["observation"]["owner"], "Syndicate");
     // The giver's decision covers the panel; after Wait, 26July's withdrawals show.
     app.choose("wait");
+    let waited = app.observe();
     app.capture("pending-request-with-withdrawal");
     app.quit();
     app.launch();
-    assert_eq!(app.observe()["observation"], pending["observation"]);
-    app.choose("wait");
+    // The request comes back as it was left, set aside (#75).
+    let restarted = app.observe();
+    assert_eq!(restarted["observation"], waited["observation"]);
+    assert_eq!(restarted["table"]["transfer"]["state"]["shown"], false);
+    assert_eq!(restarted["table"]["transfer"]["state"]["pending"], true);
+    assert_eq!(
+        restarted["observation"]["resources"],
+        pending["observation"]["resources"]
+    );
     app.choose("back-to-choice");
     let back = app.observe();
     assert_eq!(back["observation"]["action"], "Open");
     assert_eq!(back["observation"]["transfer"], Value::Null);
     assert_eq!(back["observation"]["resources"], json!([6, 0, 5, 15]));
-    assert_eq!(back["observation"]["revision"], 4);
+    // Terror, transfer, ask, Wait and back: five decisions from revision 0.
+    assert_eq!(back["observation"]["revision"], 5);
     assert_eq!(ledger(&back), ["6", "0", "5", "15"]);
     assert!(
         back["table"]["notice"]
@@ -4059,9 +4085,11 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
         .clone();
     assert_eq!(kidnap["supported"], false);
     let reason = kidnap["explanation"].as_str().unwrap();
-    assert!(reason.starts_with("1 Guerrillas (Active + Underground) vs 1 Police; must outnumber."));
+    assert!(reason.starts_with("1 Underground Guerrilla vs 1 Police; must outnumber."));
     assert!(
-        words.contains("RESULT: Unavailable now. 1 Guerrillas (Active + Underground) vs 1 Police; must outnumber."),
+        words.contains(
+            "RESULT: Unavailable now. 1 Underground Guerrilla vs 1 Police; must outnumber."
+        ),
         "{words}"
     );
     assert!(!words.contains("Santiago"), "{words}");
@@ -4167,6 +4195,14 @@ fn native_space_popover_closes_the_briefing_tag() {
     app.activate("space:santiago", rev);
     assert_eq!(app.observe()["table"]["popover"]["space"], "santiago");
     app.capture("clash-map-click-closed-tag");
+    // Escape closes an open space popover as it closes the tag (#75), deciding nothing.
+    app.request(json!({"op":"key","revision":rev,"key":"Escape"}), true);
+    app.request(json!({"op":"settle"}), true);
+    let escaped = app.observe();
+    assert_eq!(escaped["table"]["popover"], Value::Null);
+    assert_eq!(escaped["observation"], popover["observation"]);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    app.capture("clash-escape-closed-popover");
     app.quit();
 }
 
@@ -4331,6 +4367,18 @@ fn native_removal_mode_marks_pieces_and_removes_through_the_piece_popover() {
     let cancelled = app.observe();
     assert_eq!(cancelled["table"]["popover"], Value::Null);
     assert_eq!(cancelled["observation"], mode["observation"]);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    // Escape closes a piece popover as Cancel does (#75), deciding nothing.
+    app.activate(
+        &format!("piece:{}", piece("santiago:underground")),
+        revision,
+    );
+    assert_eq!(app.observe()["table"]["popover"]["pinned"], true);
+    app.request(json!({"op":"key","revision":revision,"key":"Escape"}), true);
+    app.request(json!({"op":"settle"}), true);
+    let escaped = app.observe();
+    assert_eq!(escaped["table"]["popover"], Value::Null);
+    assert_eq!(escaped["observation"], mode["observation"]);
     assert_eq!(std::fs::read(&app.save).unwrap(), saved);
 
     // Removing a Santiago Guerrilla: Kidnap becomes unavailable, the mode stays open.

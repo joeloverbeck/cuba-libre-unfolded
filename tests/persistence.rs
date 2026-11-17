@@ -1,4 +1,4 @@
-use cuba_libre_unfolded::{ActionChoice, Faction, Game, save::Session};
+use cuba_libre_unfolded::{ActionChoice, Faction, Game, Transfer, save::Session};
 use unfolded_record_replacement::{previous_path, save};
 
 /// Reseal an edited record, so its checksum is intact and only what was edited
@@ -412,31 +412,38 @@ fn pending_giver_choice_and_accepted_transfer_resume_without_duplicate_or_failed
     let mut resumed = Session::open(&path, None).unwrap();
     assert_eq!(resumed.observe(), pending);
     assert_eq!(resumed.observe().owner, Faction::Syndicate);
-    let waiting = std::fs::read(&path).unwrap();
+    // Wait is saved (#75): a restart finds the request set aside, exactly once.
     resumed.submit(Faction::Syndicate, 3, "3:wait").unwrap();
-    assert_eq!(std::fs::read(&path).unwrap(), waiting);
+    let waited = resumed.observe();
+    assert!(matches!(
+        waited.transfer,
+        Some(Transfer::Authorizing { waited: true, .. })
+    ));
+    drop(resumed);
+    let mut resumed = Session::open(&path, None).unwrap();
+    assert_eq!(resumed.observe(), waited);
     let mut stale_writer = Session::open(&path, None).unwrap();
     resumed
-        .submit(Faction::Syndicate, 3, "3:authorize:1")
+        .submit(Faction::Syndicate, 4, "4:authorize:1")
         .unwrap();
     let accepted = std::fs::read(&path).unwrap();
     assert!(
         stale_writer
-            .submit(Faction::Syndicate, 3, "3:authorize:1")
+            .submit(Faction::Syndicate, 4, "4:authorize:1")
             .is_err()
     );
-    assert_eq!(stale_writer.observe(), pending);
+    assert_eq!(stale_writer.observe(), waited);
     drop(resumed);
     let mut resumed = Session::open(&path, None).unwrap();
     assert_eq!(resumed.observe().resources, [6, 1, 5, 14]);
     assert!(
         resumed
-            .submit(Faction::Syndicate, 3, "3:authorize:1")
+            .submit(Faction::Syndicate, 4, "4:authorize:1")
             .is_err()
     );
     assert_eq!(std::fs::read(&path).unwrap(), accepted);
     let recovered = Session::open(&dir.path().join("recovered.json"), Some(&path)).unwrap();
-    assert_eq!(recovered.observe(), pending);
+    assert_eq!(recovered.observe(), waited);
 }
 
 /// Submits the offered choice as the faction that owns it.

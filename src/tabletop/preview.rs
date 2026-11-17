@@ -346,6 +346,22 @@ mod tests {
         );
     }
 
+    /// #75: while Santiago's Terror is owed, End Terror's card names resolving it,
+    /// the authority's remedy, and never says nothing in this task can help.
+    #[test]
+    fn the_owed_end_terror_card_names_resolving_santiago() {
+        let mut game = Game::prepared_with_seed(19);
+        game.submit(Faction::M26, 0, "0:kidnap").unwrap();
+        game.submit(Faction::M26, 1, "1:kidnap:roll").unwrap();
+        let lines = card(&game, "end-terror").lines.join(" ");
+        assert!(lines.contains("Santiago Terror is owed"), "{lines}");
+        assert!(
+            lines.contains("In this task: Resolve Santiago's Terror."),
+            "{lines}"
+        );
+        assert!(!lines.contains("Nothing in this task"), "{lines}");
+    }
+
     #[test]
     fn the_zero_space_end_terror_card_warns_and_names_directorio() {
         let lines = card(&Game::prepared(), "end-terror").lines.join(" ");

@@ -307,9 +307,9 @@ fn going_back_is_allowed_before_the_first_effect_and_restores_the_choice() {
     choose(&mut game, "authorize:0");
     choose(&mut game, "transfer");
     choose(&mut game, "ask:3:0");
-    let waiting = game.clone();
     choose(&mut game, "wait");
-    assert_eq!(game, waiting);
+    assert!(offered(&game, "back-to-choice"), "a Wait is no effect");
+    choose(&mut game, "reopen");
     choose(&mut game, "decline");
     choose(&mut game, "remove");
     choose(&mut game, "done-removal");

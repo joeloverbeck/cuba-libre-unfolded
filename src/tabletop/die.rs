@@ -447,11 +447,17 @@ fn spawn_stage(commands: &mut Commands, art: &DieArt, revision: u64, face: u8, w
         });
 }
 
-/// The words that report a landed roll, in the session notice.
+/// The words that report a landed roll, in the session notice. Kidnap proceeds are a
+/// movement the rules require, not a Resource transfer (glossary), so the notice says
+/// Government pays them; running text draws both names as emblems.
 fn landed_notice(view: &crate::Observation, kidnap: &crate::Kidnap) -> String {
     format!(
-        "Kidnap rolled {} · transferred {}.\nGovernment {} · 26July {}. Saved.",
-        kidnap.die, kidnap.proceeds, view.resources[0], view.resources[1]
+        "Kidnap rolled {} · Government pays {} Resource{} to 26July.\nGovernment {} · 26July {}. Saved.",
+        kidnap.die,
+        kidnap.proceeds,
+        if kidnap.proceeds == 1 { "" } else { "s" },
+        view.resources[Faction::Government.index()],
+        view.resources[Faction::M26.index()]
     )
 }
 
@@ -805,4 +811,26 @@ pub(super) fn focus(world: &mut World) -> Option<&'static str> {
     let reader = world.resource::<Interface>().reader;
     let shown = world.query::<&Stage>().iter(world).next().is_some();
     (shown && landed && !reader).then_some(CONTINUE)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Game;
+
+    /// #75: #8's seed 3 rolls 4, so Government pays 4 of its 6 (R 4.3.3): Government
+    /// 6 → 2, 26July 0 → 4. The words never call the proceeds a transfer.
+    #[test]
+    fn the_landed_notice_says_government_pays_the_proceeds() {
+        let mut game = Game::prepared_with_seed(3);
+        game.submit(Faction::M26, 0, "0:kidnap").unwrap();
+        game.submit(Faction::M26, 1, "1:kidnap:roll").unwrap();
+        let view = game.observe();
+        let notice = landed_notice(&view, view.kidnap.as_ref().unwrap());
+        assert_eq!(
+            notice,
+            "Kidnap rolled 4 · Government pays 4 Resources to 26July.\nGovernment 2 · 26July 4. Saved."
+        );
+        assert!(!notice.to_lowercase().contains("transfer"), "{notice}");
+    }
 }

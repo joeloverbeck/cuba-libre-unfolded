@@ -81,7 +81,8 @@ fn ask_hands_the_amount_to_the_giver_who_may_choose_another() {
         Some(Transfer::Authorizing {
             giver: S,
             recipient: M26,
-            amount: 2
+            amount: 2,
+            waited: false,
         })
     );
     // Syndicate may authorize anything from 0 to its balance of 15.
@@ -136,20 +137,84 @@ fn decline_returns_to_26july_with_nothing_moved_and_no_effect() {
     game.validate().unwrap();
 }
 
-/// Wait keeps the request exactly: the same state and revision, and the same record.
+/// Wait keeps the request exactly and records that its decision was set aside, so a
+/// restart shows it as it was left (#75); Open brings the decision back. Neither moves
+/// anything or is an effect.
 #[test]
-fn wait_keeps_the_pending_request_unchanged_and_saveable() {
+fn wait_sets_the_request_aside_and_open_brings_it_back_both_saved() {
     let mut game = Game::prepared();
     choose(&mut game, "transfer");
     choose(&mut game, "ask:2:3");
-    let pending = game.clone();
+    let pending = game.observe();
     choose(&mut game, "wait");
-    assert_eq!(game, pending);
+    let waiting = game.observe();
+    assert_eq!(
+        waiting.revision,
+        pending.revision + 1,
+        "a new decision state"
+    );
+    assert_eq!(
+        waiting.transfer,
+        Some(Transfer::Authorizing {
+            giver: D,
+            recipient: M26,
+            amount: 3,
+            waited: true,
+        })
+    );
+    assert_eq!(waiting.owner, D);
+    assert_eq!(waiting.resources, pending.resources);
+    // Set aside: Open replaces Wait; the giver may still decide, and 26July may still
+    // withdraw its request.
+    let offered = actions(&game);
+    assert!(offered.contains(&"reopen".to_owned()), "{offered:?}");
+    assert!(!offered.contains(&"wait".to_owned()), "{offered:?}");
+    for kept in ["authorize:3", "decline", "back-to-choice", "end-terror"] {
+        assert!(offered.contains(&kept.to_owned()), "{kept}: {offered:?}");
+    }
+    refused(&mut game, M26, "reopen");
+    // The record keeps it, once.
     let record = serde_json::to_vec(&game).unwrap();
     let restored: Game = serde_json::from_slice(&record).unwrap();
     restored.validate().unwrap();
-    assert_eq!(restored.observe(), pending.observe());
-    assert_eq!(restored.observe().owner, D);
+    assert_eq!(restored.observe(), waiting);
+    // Open: the decision is shown again, the request unchanged.
+    choose(&mut game, "reopen");
+    let reopened = game.observe();
+    assert_eq!(
+        reopened.transfer,
+        Some(Transfer::Authorizing {
+            giver: D,
+            recipient: M26,
+            amount: 3,
+            waited: false,
+        })
+    );
+    assert!(actions(&game).contains(&"wait".to_owned()));
+    let restored: Game = serde_json::from_slice(&serde_json::to_vec(&game).unwrap()).unwrap();
+    assert_eq!(restored.observe(), reopened);
+    choose(&mut game, "authorize:3");
+    assert_eq!(game.observe().resources, [6, 3, 2, 15]);
+    game.validate().unwrap();
+}
+
+/// A request saved before #75 has no Waited mark: it is admitted unchanged as the
+/// giver deciding, as it resumed before, and a request not set aside is written in
+/// that same form.
+#[test]
+fn a_request_saved_before_75_is_admitted_as_the_giver_deciding() {
+    let mut game = Game::prepared();
+    choose(&mut game, "transfer");
+    choose(&mut game, "ask:3:2");
+    let record = serde_json::to_value(&game).unwrap();
+    assert_eq!(
+        record["transfer"],
+        serde_json::json!({"Authorizing":{"giver":"Syndicate","recipient":"M26","amount":2}})
+    );
+    let admitted: Game = serde_json::from_value(record).unwrap();
+    admitted.validate().unwrap();
+    assert_eq!(admitted, game);
+    assert!(actions(&admitted).contains(&"wait".to_owned()));
 }
 
 #[test]

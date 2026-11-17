@@ -282,6 +282,12 @@ pub enum Transfer {
         giver: Faction,
         recipient: Faction,
         amount: u8,
+        /// Wait set the giver's decision aside (#75): the request stays pending, its
+        /// tab in the top band reopens the decision, and a restart shows it so. Saves
+        /// written before #75 lack it and read false, the giver deciding, as they
+        /// resumed before.
+        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        waited: bool,
     },
 }
 /// Which limit sets a transfer's maximum.
@@ -1323,12 +1329,16 @@ impl Game {
                 format!("R 3.3.4: in each selected space pay 1 Resource, {TERROR_EFFECTS}. While 26July executes Terror, Resource transfers are open (R 1.5.1; offering them from this choice is local policy). Going back to this choice is allowed until the first effect (local policy)."),
             ),
             under(
-                self.offer(
-                    "terror:kidnap",
-                    "Kidnap · with Terror · offered once chosen",
-                    false,
-                    "R 4.1, 4.3.3: Kidnap accompanies Terror in a space selected for that Terror, here Santiago. Choose Terror; Kidnap is then offered.",
-                ),
+                {
+                    let mut kidnap = self.offer(
+                        "terror:kidnap",
+                        "Kidnap · with Terror · offered once chosen",
+                        false,
+                        "R 4.1, 4.3.3: Kidnap accompanies Terror in a space selected for that Terror, here Santiago. Choose Terror; Kidnap is then offered.",
+                    );
+                    kidnap.remedies.push("Choose Terror".to_owned());
+                    kidnap
+                },
                 "terror",
             ),
         ]
@@ -1366,7 +1376,7 @@ impl Game {
             return choices;
         }
         let finish = || {
-            self.offer(
+            let mut end = self.offer(
                 "end-terror",
                 "End Terror",
                 !self.owes_santiago(),
@@ -1377,7 +1387,13 @@ impl Game {
                 } else {
                     "Ends 26July's Terror and records Operation Only (R 2.3.4)."
                 },
-            )
+            );
+            // The commitment policy guarantees the owed Terror's payment and its
+            // Underground Guerrilla, so resolving it is always possible here.
+            if self.owes_santiago() {
+                end.remedies.push("Resolve Santiago's Terror".to_owned());
+            }
+            end
         };
         let back = |label: &str| {
             let mut back = self.offer(
@@ -1426,7 +1442,7 @@ impl Game {
                 ));
                 return choices;
             }
-            Some(Transfer::Authorizing { giver, .. }) => {
+            Some(Transfer::Authorizing { giver, waited, .. }) => {
                 let limit = self.transfer_terms()[0].limit;
                 let mut choices: Vec<_> = (0..=limit)
                     .map(|n| {
@@ -1444,12 +1460,23 @@ impl Game {
                     true,
                     "Nothing moves, and 26July decides again.",
                 ));
-                choices.push(self.offer(
-                    "wait",
-                    "Wait · keep this decision",
-                    true,
-                    "The request stays pending, also across save and quit.",
-                ));
+                // Wait sets the decision aside and Open brings it back; each is
+                // saved, so a restart shows the request as it was left (#75).
+                choices.push(if waited {
+                    self.offer(
+                        "reopen",
+                        format!("Open · {} decides", giver.name()),
+                        true,
+                        "Shows the giver's decision again; the request is unchanged.",
+                    )
+                } else {
+                    self.offer(
+                        "wait",
+                        "Wait · keep this decision",
+                        true,
+                        "The request stays pending, also across save and quit.",
+                    )
+                });
                 // Local policy (#58): 26July's request does not hold 26July's own
                 // Operation hostage; ending it or going back withdraws the request.
                 if giver != Faction::M26 {
@@ -1506,17 +1533,42 @@ impl Game {
                 .sum()
         };
         let guerrillas = count(Kind::Guerrilla, Faction::M26, None);
+        let active = count(Kind::Guerrilla, Faction::M26, Some(State::Active));
+        let underground = count(Kind::Guerrilla, Faction::M26, Some(State::Underground));
         let police = count(Kind::Police, Faction::Government, None);
-        let feasible = santiago.terror > 0
-            || (count(Kind::Guerrilla, Faction::M26, Some(State::Underground)) > 0
-                && (self.resources[Faction::M26.index()] > 0
-                    || self.resources[Faction::Government.index()] > 0));
-        self.offer(
+        let funded = self.resources[Faction::M26.index()] > 0
+            || self.resources[Faction::Government.index()] > 0;
+        let feasible = santiago.terror > 0 || (underground > 0 && funded);
+        // Both states count toward outnumbering (R 4.3.3); the words give each count.
+        let noun = |n: u8| if n == 1 { "Guerrilla" } else { "Guerrillas" };
+        let counted = match (active, underground) {
+            (0, 0) => "0 Guerrillas".to_owned(),
+            (a, 0) => format!("{a} Active {}", noun(a)),
+            (0, u) => format!("{u} Underground {}", noun(u)),
+            (a, u) => format!("{guerrillas} Guerrillas ({a} Active, {u} Underground)"),
+        };
+        let mut kidnap = self.offer(
             "kidnap",
             "Kidnap · Santiago · Government",
             guerrillas > police && feasible,
-            format!("{guerrillas} Guerrillas (Active + Underground) vs {police} Police; must outnumber. Die 1–6: proceeds {}–{} from Government. {}", self.resources[Faction::Government.index()].min(1), self.resources[Faction::Government.index()].min(6), if feasible {"Santiago Terror was resolved or is guaranteed feasible on every roll; an early roll commits its payment and Underground Guerrilla."} else {"Santiago needs an Underground Guerrilla and guaranteed payment without a promised Resource transfer or favorable roll."}),
-        )
+            format!("{counted} vs {police} Police; must outnumber. Die 1–6: proceeds {}–{} from Government. {}", self.resources[Faction::Government.index()].min(1), self.resources[Faction::Government.index()].min(6), if feasible {"Santiago Terror was resolved or is guaranteed feasible on every roll; an early roll commits its payment and Underground Guerrilla."} else {"Santiago needs an Underground Guerrilla and guaranteed payment without a promised Resource transfer or favorable roll."}),
+        );
+        // Only payment can still change: nothing in this task places a Guerrilla,
+        // removes Police or makes an Active Guerrilla Underground again. With
+        // Government at 0, Kidnap takes nothing, so only a transfer to 26July funds it.
+        if guerrillas > police
+            && !feasible
+            && underground > 0
+            && self.executing().is_some()
+            && [Faction::Directorio, Faction::Syndicate]
+                .iter()
+                .any(|f| self.resources[f.index()] > 0)
+        {
+            kidnap
+                .remedies
+                .push("Request a Resource transfer".to_owned());
+        }
+        kidnap
     }
     /// A Terror target, listed even when 26July cannot act on it now: its reason and
     /// the remedies possible in this task (R 3.1, 3.3.4).
@@ -1706,10 +1758,14 @@ impl Game {
             .checked_add(1)
             .ok_or("Match revision exhausted.")?;
         let action = choice.split_once(':').ok_or("Unknown choice.")?.1;
-        if action == "wait" {
-            return Ok(());
-        }
         match action {
+            // The giver's decision set aside, or shown again: the request itself, and
+            // whether going back is allowed, are unchanged (#75).
+            "wait" | "reopen" => {
+                if let Some(Transfer::Authorizing { waited, .. }) = &mut self.transfer {
+                    *waited = action == "wait";
+                }
+            }
             // R 2.3.3. Only offered at the action choice.
             "pass" => {
                 self.resources[Faction::M26.index()] = self.resources[Faction::M26.index()]
@@ -1815,6 +1871,7 @@ impl Game {
                         giver: other,
                         recipient: Faction::M26,
                         amount,
+                        waited: false,
                     });
                 }
             }
@@ -2050,6 +2107,7 @@ impl Game {
             giver,
             recipient,
             amount,
+            ..
         }) = self.transfer
             && (giver == recipient
                 || (giver != Faction::M26 && recipient != Faction::M26)

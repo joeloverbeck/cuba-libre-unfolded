@@ -660,7 +660,8 @@ fn tab_name(option: &str) -> String {
 
 /// Keyboard reach: Tab and Shift+Tab move focus through the options, the commit, the
 /// ribbon and its tabs; Enter or Space activates the focused one as a click would;
-/// Escape unpins the briefing or closes the ribbon's tag.
+/// Escape unpins the briefing or closes the ribbon's tag, and closes an open space or
+/// piece popover.
 pub(super) fn keys(
     keys: Res<ButtonInput<KeyCode>>,
     mut play: ResMut<Play>,
@@ -677,13 +678,16 @@ pub(super) fn keys(
     // The transfer modal takes the keyboard while it is shown (`transfer::keys`), and so
     // does a presented Kidnap die: Space or Enter skips it, then continues (#74).
     let game = play.game();
-    if super::transfer::shown(game.transfer.as_ref(), &ui)
+    if super::transfer::shown(game.transfer.as_ref())
         || super::die::presented(game.revision, game.kidnap.as_ref(), &roll).is_some()
     {
         return;
     }
     let view = play.game().observe();
     if escape {
+        // An open space or piece popover closes as the tag does (#75); nothing is
+        // decided.
+        popover.close_all();
         if ui.choice.pinned.is_some() {
             ui.choice.pinned = None;
         } else {

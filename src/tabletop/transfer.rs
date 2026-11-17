@@ -14,8 +14,9 @@
 //! The game owns every fact: which transfers exist, their limits and why an amount is
 //! refused ([`crate::TransferTerms`]). The counterpart, direction and typed amount are
 //! presentation state, not saved; the modal submits only offered choices, through the
-//! same checked seam as every other control. Opening the transfer (`Transfer::Selecting`)
-//! and a pending request are saved, so a restart reopens the modal where it was.
+//! same checked seam as every other control. Opening the transfer (`Transfer::Selecting`),
+//! a pending request and whether Wait set it aside are saved, so a restart shows the
+//! modal, or the pending tab, as it was left (#75).
 //!
 //! Input beneath the modal: the scrim is a pickable node above the map and panels, so
 //! no map region, piece or panel control is hit through it, and `camera_facts` blocks
@@ -130,8 +131,6 @@ pub(super) enum Input {
     Quick(Option<u8>),
     /// The amount field: it takes the keyboard's digits.
     Field,
-    /// The pending tab's Open: shows the giver's decision again after Wait.
-    Open,
 }
 
 /// The modal's presentation state, kept in `Interface`. Nothing here is saved.
@@ -143,8 +142,8 @@ pub(super) struct State {
     pub entry: String,
     /// The revision whose transfer this state describes.
     opened: Option<u64>,
-    /// Wait closed the giver's decision; the request stays pending.
-    pub hidden: bool,
+    /// The transfer it describes, as if never set aside by Wait.
+    request: Option<Transfer>,
     /// The modal control with keyboard focus, by its seat name.
     pub focus: Option<String>,
 }
@@ -157,7 +156,8 @@ impl State {
         self.entry = amount.to_string();
     }
     /// Follows the match: a newly opened transfer starts empty, and a new request
-    /// prefills the giver's amount with the amount asked.
+    /// prefills the giver's amount with the amount asked. Wait and Open change only
+    /// whether the same request's decision is shown, so the amount typed stays.
     fn sync(&mut self, revision: u64, transfer: Option<&Transfer>) {
         let Some(transfer) = transfer else {
             *self = Self::default();
@@ -166,26 +166,42 @@ impl State {
         if self.opened == Some(revision) {
             return;
         }
+        let request = match transfer {
+            Transfer::Authorizing {
+                giver,
+                recipient,
+                amount,
+                ..
+            } => Transfer::Authorizing {
+                giver: *giver,
+                recipient: *recipient,
+                amount: *amount,
+                waited: false,
+            },
+            Transfer::Selecting => Transfer::Selecting,
+        };
+        if request != Transfer::Selecting && self.request.as_ref() == Some(&request) {
+            self.opened = Some(revision);
+            self.focus = None;
+            return;
+        }
         *self = Self {
             opened: Some(revision),
+            request: Some(request),
             ..Self::default()
         };
         if let Transfer::Authorizing { amount, .. } = transfer {
             self.set(*amount);
         }
     }
-    /// Wait: the giver's decision closes and the request stays pending.
-    pub fn hide(&mut self) {
-        self.hidden = true;
-        self.focus = None;
-    }
 }
 
-/// Whether the modal is shown: a transfer is open and not set aside by Wait.
-pub(super) fn shown(transfer: Option<&Transfer>, ui: &Interface) -> bool {
+/// Whether the modal is shown: a transfer is open and not set aside by Wait. Whether
+/// it was set aside is saved (#75), so a restart shows the request as it was left.
+pub(super) fn shown(transfer: Option<&Transfer>) -> bool {
     match transfer {
         Some(Transfer::Selecting) => true,
-        Some(Transfer::Authorizing { .. }) => !ui.transfer.hidden,
+        Some(Transfer::Authorizing { waited, .. }) => !waited,
         None => false,
     }
 }
@@ -348,7 +364,6 @@ pub(super) fn input(ui: &mut Interface, view: &Observation, input: Input) {
             }
         }
         Input::Field => state.focus = Some("transfer:field".into()),
-        Input::Open => state.hidden = false,
     }
     ui.dirty = true;
 }
@@ -432,7 +447,7 @@ pub(super) fn keys(
     }
     let view = play.game().observe();
     ui.transfer.sync(view.revision, view.transfer.as_ref());
-    if !shown(view.transfer.as_ref(), &ui) {
+    if !shown(view.transfer.as_ref()) {
         return;
     }
     const DIGITS: [(KeyCode, KeyCode, char); 10] = [
@@ -566,11 +581,10 @@ pub(super) fn draw(
         game.revision,
         game.transfer.clone(),
         format!(
-            "{:?}{:?}{}{}{:?}{}",
+            "{:?}{:?}{}{:?}{}",
             ui.transfer.counterpart,
             ui.transfer.direction,
             ui.transfer.entry,
-            ui.transfer.hidden,
             ui.transfer.focus,
             ui.reader
         ),
@@ -591,7 +605,7 @@ pub(super) fn draw(
     let (_, left) = layout(&window);
     let extra = window.width() - WIDTH * s;
     let centered = left + Vec2::new(extra / 2., 0.);
-    if !shown(view.transfer.as_ref(), &ui) {
+    if !shown(view.transfer.as_ref()) {
         pending(&mut commands, &art, &view, s, centered);
         return;
     }
@@ -2008,12 +2022,13 @@ fn footer(
 }
 
 /// After Wait: a tab in the top band, right of the standings, names the pending
-/// request; Open shows the giver's decision again.
+/// request; Open, the authority's `reopen` choice, shows the giver's decision again.
 fn pending(commands: &mut Commands, art: &Art, view: &Observation, s: f32, centered: Vec2) {
     let Some(Transfer::Authorizing {
         giver,
         recipient,
         amount,
+        ..
     }) = view.transfer
     else {
         return;
@@ -2128,9 +2143,9 @@ fn pending(commands: &mut Commands, art: &Art, view: &Observation, s: f32, cente
             align_items: AlignItems::Center,
             ..default()
         },
-        "transfer:open",
-        false,
-        Action::Transfer(Input::Open),
+        &format!("{}:reopen", view.revision),
+        true,
+        Action::Decision(giver, view.revision),
     );
     part(commands, open, "pending-open");
     words(commands, art, open, "Open", fig::SMALL, false, PAPER, 0., s);
@@ -2140,7 +2155,7 @@ fn pending(commands: &mut Commands, art: &Art, view: &Observation, s: f32, cente
 pub(super) fn observe(world: &mut World) -> serde_json::Value {
     let view = world.resource::<Play>().game().observe();
     let ui = world.resource::<Interface>();
-    let shown_now = shown(view.transfer.as_ref(), ui);
+    let shown_now = shown(view.transfer.as_ref());
     let content = content(&view, &ui.transfer);
     let state = serde_json::json!({
         "shown": shown_now,

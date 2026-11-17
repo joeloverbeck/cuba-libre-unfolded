@@ -2054,7 +2054,7 @@ mod tests {
         );
         let lines = text(kidnap);
         for fact in [
-            "2 Guerrillas (Active + Underground) vs 1 Police; must outnumber.",
+            "2 Underground Guerrillas vs 1 Police; must outnumber.",
             "The roll takes 1–6 Resources from Government (has 6); at least 1. R 4.3.3",
             "Opening rolls nothing",
             "accepted commitment policy",

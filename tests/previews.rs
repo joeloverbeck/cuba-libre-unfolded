@@ -307,6 +307,35 @@ fn while_santiago_terror_is_owed_oriente_is_disabled_by_the_reserve() {
     assert_eq!(end.preview, None);
 }
 
+/// #75: the refused End Terror names the in-task step that makes it available, so
+/// the panel never says nothing here can (#58 story 53). The commitment policy keeps
+/// Santiago's payment and Underground Guerrilla, so that step is always offered.
+#[test]
+fn while_santiago_terror_is_owed_end_terror_names_resolving_it_as_the_remedy() {
+    let mut game = Game::prepared_with_seed(19); // actual shared roll 1: 26July 0 → 1
+    choose(&mut game, "kidnap");
+    choose(&mut game, "kidnap:roll");
+    let end = choice(&game, "end-terror");
+    assert!(!end.supported);
+    assert_eq!(end.remedies, ["Resolve Santiago's Terror"]);
+    assert!(target(&game, "santiago").supported);
+    // The same refusal, offered as 26July's withdrawal beside a pending request.
+    transfer_request(&mut game, Faction::Syndicate, 1);
+    let withdraw = choice(&game, "end-terror");
+    assert!(!withdraw.supported);
+    assert_eq!(withdraw.remedies, ["Resolve Santiago's Terror"]);
+    choose(&mut game, "decline");
+    choose(&mut game, "terror:santiago");
+    let end = choice(&game, "end-terror");
+    assert!(end.supported);
+    assert!(end.remedies.is_empty());
+}
+
+fn transfer_request(game: &mut Game, giver: Faction, amount: u8) {
+    choose(game, "transfer");
+    choose(game, &format!("ask:{}:{amount}", giver.index()));
+}
+
 #[test]
 fn end_terror_records_operation_only_and_directorio_may_pass_or_take_a_limited_operation() {
     let mut game = funded();
