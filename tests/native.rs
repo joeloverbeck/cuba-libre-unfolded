@@ -2033,8 +2033,8 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
         position(&start, "piece:oriente Terror"),
     ];
     app.capture("loop-start");
-    // Each key press steps the seat's manual clock twice (2 × 16,666,667 ns), so
-    // 54 presses are half the 3.6 s authored loop and 108 are one whole loop.
+    // Each key press steps the seat's manual clock twice (2 × 16,666,667 ns), so 108
+    // presses are one whole 3.6 s authored loop.
     let press = |app: &mut Native, times: usize| {
         for _ in 0..times {
             let pressed = app.request(json!({"op":"key","revision":revision,"key":"Home"}), true);
@@ -2044,11 +2044,7 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
             );
         }
     };
-    press(&mut app, 27);
-    app.capture("loop-quarter");
-    press(&mut app, 27);
-    app.capture("loop-half");
-    press(&mut app, 54);
+    press(&mut app, 108);
     app.capture("loop-whole");
     let whole = seeks(&app.observe());
     for (a, b) in initial.iter().zip(&whole) {
@@ -2058,25 +2054,6 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
         );
     }
     for at in bells {
-        // A swing is symmetric, so a bell caught mid-swing looks the same half a
-        // loop later; a quarter loop later it is at an end. Either pair shows the
-        // swing, whatever the bell's phase.
-        let swing = [
-            token_changes(
-                &app.root.join("loop-start.png"),
-                &app.root.join("loop-half.png"),
-                at,
-            ),
-            token_changes(
-                &app.root.join("loop-start.png"),
-                &app.root.join("loop-quarter.png"),
-                at,
-            ),
-        ];
-        assert!(
-            swing.iter().any(|n| *n > 20),
-            "the bell visibly swings: {swing:?} changed pixels"
-        );
         let seam = token_changes(
             &app.root.join("loop-start.png"),
             &app.root.join("loop-whole.png"),
@@ -2084,6 +2061,44 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
         );
         assert_eq!(seam, 0, "one whole loop renders the bell identically");
     }
+    // The swing, independent of the run's phase: the bell swings four times per loop
+    // (art/atlas/TERROR.md), a 0.9 s swing. Each bell in turn is driven through the
+    // manual clock to the fixed seek times 0, 0.225, 0.45 and 0.675 s, a quarter swing
+    // apart (to within half a press, 1/60 s). Whatever the clip's own phase, two of
+    // those four poses lie at least √2 times the amplitude (34–50°) apart.
+    let mut reached = vec![];
+    for (index, (at, name)) in bells.into_iter().zip(["santiago", "oriente"]).enumerate() {
+        // `seeks` lists Oriente then Santiago; `bells` lists Santiago then Oriente.
+        let bell = 1 - index;
+        let mut shots = vec![];
+        for target in [0., 0.225, 0.45, 0.675] {
+            let now = seeks(&app.observe())[bell];
+            let presses = ((target - now).rem_euclid(3.6) * 30.).round() as usize % 108;
+            press(&mut app, presses);
+            let seek = seeks(&app.observe())[bell];
+            let off = (seek - target).rem_euclid(3.6);
+            assert!(
+                off.min(3.6 - off) <= 1. / 60. + 1e-3,
+                "{name} bell driven to {target} s, at {seek} s"
+            );
+            let shot = format!("swing-{name}-{target}");
+            app.capture(&shot);
+            reached.push(format!("{name} {target} s: seek {seek:.4} s"));
+            shots.push(app.root.join(format!("{shot}.png")));
+        }
+        let mut swing = vec![];
+        for a in 0..shots.len() {
+            for b in a + 1..shots.len() {
+                swing.push(token_changes(&shots[a], &shots[b], at));
+            }
+        }
+        assert!(
+            swing.iter().any(|n| *n > 20),
+            "the {name} bell visibly swings: {swing:?} changed pixels"
+        );
+        reached.push(format!("{name} changed pixels by pair: {swing:?}"));
+    }
+    std::fs::write(app.root.join("swing-seeks.txt"), reached.join("\n")).unwrap();
     for (space, name) in [
         ("santiago", "piece:santiago Terror"),
         ("oriente", "piece:oriente Terror"),

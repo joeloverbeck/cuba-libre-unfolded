@@ -31,7 +31,7 @@ Blender 5.2.3 LTS built the token mechanically through its Python API, operated 
 - **In the app:** `native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space` checks four things:
   - Santiago's and Oriente's bells play out of step.
   - Development-seat captures exactly one loop apart, 108 `Home` presses or 216 manual-clock steps, are pixel-identical inside both token crops.
-  - Half a loop visibly changes them.
+  - Each bell, driven through the manual clock to the fixed seek times 0, 0.225, 0.45 and 0.675 s (a quarter of its 0.9 s swing apart, to within 1/60 s), visibly changes between two of those poses, whatever the run's phase. Half or a quarter of a loop is a whole number of swings, so comparing those (as the check did until #58's final review) could see a bell crossing the centre twice and flake.
   - Hovering either bell or its count discloses its space.
 - **Not established:** physical-display readability and the owner's acceptance of the integrated look. At the default framing on a 1920-wide window, a bell is about 20–25 pixels tall and the swing is subtle; it becomes legible at the owner's display scale or when zoomed in.
 
