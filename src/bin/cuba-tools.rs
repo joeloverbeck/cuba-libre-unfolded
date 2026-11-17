@@ -1,5 +1,5 @@
 use anyhow::{Result, bail};
-use cuba_libre_unfolded::seat_brief::Briefly;
+use cuba_libre_unfolded::seat_brief::BriefWriter;
 use std::{
     io::Write,
     path::Path,
@@ -22,7 +22,7 @@ fn run() -> Result<bool> {
     let deadline = Instant::now() + Duration::from_secs(180);
     let stdout = std::io::stdout().lock();
     let mut output: Box<dyn Write> = if brief {
-        Box::new(Briefly::new(stdout))
+        Box::new(BriefWriter::new(stdout))
     } else {
         Box::new(stdout)
     };

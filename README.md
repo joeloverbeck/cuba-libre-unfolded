@@ -85,12 +85,7 @@ cargo run --locked --bin cuba-tools -- seat --brief /tmp/cuba-check.sock '{"op":
 cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"quit"}'
 ```
 
-[`docs/agents/seat.md`](docs/agents/seat.md) is the seat reference:
-- launch, connection and session behaviour, and seat sizes;
-- requests and brief replies (`--brief`);
-- keys, components and choices, one table row per id;
-- what the table reports;
-- the native regression catalogue, one bullet per test with its evidence directory.
+[`docs/agents/seat.md`](docs/agents/seat.md) is the seat reference: requests, brief replies, every component and choice id, and the native regression catalogue.
 
 ## Where files live
 

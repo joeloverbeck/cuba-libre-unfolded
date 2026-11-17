@@ -34,6 +34,7 @@ fn a_settle_still_in_progress_says_it_is_unsettled() {
 
 #[test]
 fn a_reply_without_an_observation_keeps_what_its_envelope_has() {
+    // The shared protocol's refused start line (`unfolded_seat_protocol::refusal`).
     let refused_start = r#"{"ok":false,"mode":"seat","status":"refused","error":"no cards"}"#;
     assert_eq!(
         brief(refused_start),
@@ -134,7 +135,7 @@ fn the_brief_flag_keeps_a_failure_s_exit_status_and_messages() {
 fn a_brief_writer_passes_on_a_line_that_is_not_utf8_byte_for_byte() {
     use std::io::Write;
     let mut written = Vec::new();
-    let mut writer = cuba_libre_unfolded::seat_brief::Briefly::new(&mut written);
+    let mut writer = cuba_libre_unfolded::seat_brief::BriefWriter::new(&mut written);
     writer.write_all(b"\xff not text\n").unwrap();
     writer
         .write_all(br#"{"status":"bye","revision":2}"#)
@@ -144,5 +145,39 @@ fn a_brief_writer_passes_on_a_line_that_is_not_utf8_byte_for_byte() {
     assert_eq!(
         written,
         b"\xff not text\n{\"status\":\"bye\",\"revision\":2}\n"
+    );
+}
+
+#[test]
+fn a_choice_keeps_no_null_field() {
+    let odd = r#"{"status":"observed","revision":1,"settled":true,"error":null,"observation":{"choices":[{"id":"1:pass","label":null,"supported":false,"explanation":null}]}}"#;
+    assert_eq!(
+        brief(odd),
+        r#"{"status":"observed","revision":1,"settled":true,"choices":[{"id":"1:pass","supported":false}]}"#
+    );
+}
+
+#[test]
+fn the_brief_flag_reads_requests_from_standard_input_too() {
+    use std::io::Write;
+    let (_directory, socket) = fake_seat(&[OBSERVED, OBSERVED]);
+    let mut child = std::process::Command::new(env!("CARGO_BIN_EXE_cuba-tools"))
+        .args(["seat", "--brief"])
+        .arg(&socket)
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(b"{\"op\":\"observe\"}\n\n{\"op\":\"settle\"}\n")
+        .unwrap();
+    let output = child.wait_with_output().unwrap();
+    assert!(output.status.success(), "{output:?}");
+    assert_eq!(
+        String::from_utf8(output.stdout).unwrap(),
+        format!("{}\n{}\n", brief(OBSERVED), brief(OBSERVED))
     );
 }

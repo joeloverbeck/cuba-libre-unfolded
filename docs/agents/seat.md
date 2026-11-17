@@ -35,6 +35,7 @@ cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"quit"}'
 - A refusal stops the later mutations on its connection (they are `skipped`): reconnect and observe before deciding again.
 - `{"op":"advance","steps":216}` steps the table's clock 216 steps of 1/60 s with no input, settled or not.
 - Key requests look like `{"op":"key","revision":0,"key":"Home"}`. See [Keys](#keys).
+- `point`, `scroll` and `drag` rest the pointer on, turn the wheel over, or drag across a named component or choice, at a revision; `capture` writes a screenshot to a path.
 
 ### Brief replies
 
@@ -107,9 +108,11 @@ Name these in a request's `"choice"`. Each starts with the revision it was offer
 |---|---|
 | `<revision>:pass`, `<revision>:terror` | 26July's action choice. |
 | `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap`, `<revision>:transfer`, `<revision>:remove` | Execution steps during Terror. |
+| `<revision>:back-to-choice` | Goes back to the action choice, until the first effect. |
 | `<revision>:kidnap:roll`, `<revision>:kidnap:cancel` | Kidnap's Roll and Cancel. |
 | `<revision>:give:<faction>:<amount>` | 26July gives Resources; moves at once. |
 | `<revision>:ask:<faction>:<amount>` | 26July asks a faction for Resources, which it decides. |
+| `<revision>:back` | Closes an open transfer without moving anything. |
 | `<revision>:authorize:<amount>`, `<revision>:decline`, `<revision>:wait` | The asked faction's decision. Wait sets the request aside. |
 | `<revision>:reopen` | Shows a waiting decision again. |
 

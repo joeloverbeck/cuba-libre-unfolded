@@ -40,7 +40,6 @@ pub fn brief(line: &str) -> String {
     let Some(status) = reply.get("status") else {
         return line.to_owned();
     };
-    let present = |key| reply.get(key).filter(|value: &&Value| !value.is_null());
     let choices = reply
         .get("observation")
         .and_then(|observation| observation.get("choices"))
@@ -49,13 +48,12 @@ pub fn brief(line: &str) -> String {
             choices
                 .iter()
                 .map(|choice| {
-                    let supported = choice.get("supported");
+                    let supported = present(choice, "supported");
                     Choice {
-                        id: choice.get("id"),
-                        label: choice.get("label"),
+                        id: present(choice, "id"),
+                        label: present(choice, "label"),
                         supported,
-                        explanation: choice
-                            .get("explanation")
+                        explanation: present(choice, "explanation")
                             .filter(|_| supported != Some(&Value::Bool(true))),
                     }
                 })
@@ -63,23 +61,28 @@ pub fn brief(line: &str) -> String {
         });
     serde_json::to_string(&Brief {
         status,
-        revision: present("revision"),
-        settled: present("settled"),
-        error: present("error"),
+        revision: present(&reply, "revision"),
+        settled: present(&reply, "settled"),
+        error: present(&reply, "error"),
         choices,
     })
     .expect("a brief of parsed JSON serialises")
 }
 
+/// The field `key` of `object`, unless it is missing or null.
+fn present<'a>(object: &'a Value, key: &str) -> Option<&'a Value> {
+    object.get(key).filter(|value| !value.is_null())
+}
+
 /// A writer that passes each line written to it on in [`brief`]. The seat client writes
 /// one reply and then flushes, so a flush also ends a reply that came without a line
 /// ending.
-pub struct Briefly<W: std::io::Write> {
+pub struct BriefWriter<W: std::io::Write> {
     output: W,
     pending: Vec<u8>,
 }
 
-impl<W: std::io::Write> Briefly<W> {
+impl<W: std::io::Write> BriefWriter<W> {
     pub fn new(output: W) -> Self {
         Self {
             output,
@@ -101,7 +104,7 @@ impl<W: std::io::Write> Briefly<W> {
     }
 }
 
-impl<W: std::io::Write> std::io::Write for Briefly<W> {
+impl<W: std::io::Write> std::io::Write for BriefWriter<W> {
     fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
         self.pending.extend_from_slice(bytes);
         while let Some(end) = self.pending.iter().position(|&byte| byte == b'\n') {
