@@ -35,7 +35,10 @@ cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"quit"}'
 - A refusal stops the later mutations on its connection (they are `skipped`): reconnect and observe before deciding again.
 - `{"op":"advance","steps":216}` steps the table's clock 216 steps of 1/60 s with no input, settled or not.
 - Key requests look like `{"op":"key","revision":0,"key":"Home"}`. See [Keys](#keys).
-- `point`, `scroll` and `drag` rest the pointer on, turn the wheel over, or drag across a named component or choice, at a revision; `capture` writes a screenshot to a path.
+- `point` rests the pointer on a named component or choice, at a revision.
+- `scroll` turns the wheel over it by `y` lines (and optional `x`), e.g. `{"op":"scroll","revision":0,"component":"space:havana","y":-2}`.
+- `drag` presses `button` (`left`, `right` or `middle`) on it, moves the pointer by `x` and `y` logical pixels, and releases, e.g. `{"op":"drag","revision":0,"component":"space:havana","button":"right","x":120,"y":30}`.
+- `capture` writes a screenshot to `path`.
 
 ### Brief replies
 
@@ -106,10 +109,13 @@ Name these in a request's `"choice"`. Each starts with the revision it was offer
 
 | Choice | Meaning |
 |---|---|
-| `<revision>:pass`, `<revision>:terror` | 26July's action choice. |
+| `<revision>:pass`, `<revision>:terror` | 26July's supported action choices. |
+| `<revision>:event:unshaded`, `<revision>:event:shaded`, `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so the option set is complete; unsupported, with the reason in `explanation`. |
 | `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap`, `<revision>:transfer`, `<revision>:remove` | Execution steps during Terror. |
-| `<revision>:back-to-choice` | Goes back to the action choice, until the first effect. |
+| `<revision>:back-to-choice` | Goes back to the action choice, until the first effect: from the Operation menu, or while a Transfer request awaits another faction, which withdraws it. Not offered in removal mode or while Kidnap is open. |
 | `<revision>:kidnap:roll`, `<revision>:kidnap:cancel` | Kidnap's Roll and Cancel. |
+| `<revision>:remove:<space>:<group>:<n>` | In removal mode, removes `n` pieces of a stack. |
+| `<revision>:done-removal` | Leaves removal mode; removed pieces stay in Available. |
 | `<revision>:give:<faction>:<amount>` | 26July gives Resources; moves at once. |
 | `<revision>:ask:<faction>:<amount>` | 26July asks a faction for Resources, which it decides. |
 | `<revision>:back` | Closes an open transfer without moving anything. |

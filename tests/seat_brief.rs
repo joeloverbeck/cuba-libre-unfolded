@@ -150,9 +150,9 @@ fn a_brief_writer_passes_on_a_line_that_is_not_utf8_byte_for_byte() {
 
 #[test]
 fn a_choice_keeps_no_null_field() {
-    let odd = r#"{"status":"observed","revision":1,"settled":true,"error":null,"observation":{"choices":[{"id":"1:pass","label":null,"supported":false,"explanation":null}]}}"#;
+    let null_fields = r#"{"status":"observed","revision":1,"settled":true,"error":null,"observation":{"choices":[{"id":"1:pass","label":null,"supported":false,"explanation":null}]}}"#;
     assert_eq!(
-        brief(odd),
+        brief(null_fields),
         r#"{"status":"observed","revision":1,"settled":true,"choices":[{"id":"1:pass","supported":false}]}"#
     );
 }
