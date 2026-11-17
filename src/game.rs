@@ -178,6 +178,9 @@ pub const CARD_17_SHADED: &str =
 const TERROR_EFFECTS: &str = "flip 1 Underground Guerrilla there to Active, place a Terror marker and shift 1 level toward Active Opposition";
 /// Why End Terror is refused while a rolled Kidnap still owes Santiago's Terror.
 const SANTIAGO_OWED: &str = "Santiago Terror is owed: under the accepted commitment policy, its payment and Activation come before End Terror.";
+/// The space where this task offers Kidnap (R 4.3.3): a City with Government
+/// Resources at stake.
+pub const KIDNAP_SPACE: &str = "santiago";
 /// A faction's Resources never exceed 49 (R 1.8); excess is lost.
 const RESOURCE_CAP: u8 = 49;
 /// The prepared position's Resources, indexed like `Faction::ALL`.
@@ -313,6 +316,22 @@ pub struct Choice {
     /// The consequences of an irreversible step, computed by applying it to a copy of
     /// the match: Pass, each Terror target, End Terror and each Voluntary removal.
     pub preview: Option<Preview>,
+}
+impl Choice {
+    /// The map space this choice acts on, so the map can offer it there: a Terror
+    /// target, or opening Kidnap in its space. Other choices act on no space.
+    pub fn space(&self) -> Option<&str> {
+        // A Special Activity listed under its Operation at the action choice is
+        // not an action on the map.
+        if self.accompanies.is_some() {
+            return None;
+        }
+        let action = self.id.split_once(':').map_or(self.id.as_str(), |(_, a)| a);
+        match action {
+            "kidnap" => Some(KIDNAP_SPACE),
+            _ => action.strip_prefix("terror:"),
+        }
+    }
 }
 /// What one step would change. The rules authority computes it by applying the step
 /// to a copy of the match; reading it changes neither the match nor its randomness.
@@ -927,7 +946,7 @@ impl Game {
             .any(|s| s.id == "santiago" && s.terror == 0);
         let mut preview = Preview {
             kidnap: Some(KidnapStakes {
-                space: "santiago".into(),
+                space: KIDNAP_SPACE.into(),
                 target: Faction::Government,
                 government,
                 minimum: proceeds[0],
@@ -1371,7 +1390,7 @@ impl Game {
     /// Police and Santiago's Terror is resolved or guaranteed on every roll. The roll
     /// is offered on the same terms.
     fn kidnap_offer(&self) -> Choice {
-        let santiago = self.spaces.iter().find(|s| s.id == "santiago").unwrap();
+        let santiago = self.spaces.iter().find(|s| s.id == KIDNAP_SPACE).unwrap();
         let count = |kind, faction, state: Option<State>| -> u8 {
             santiago
                 .pieces

@@ -1860,7 +1860,9 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
             );
         }
     };
-    press(&mut app, 54);
+    press(&mut app, 27);
+    app.capture("loop-quarter");
+    press(&mut app, 27);
     app.capture("loop-half");
     press(&mut app, 54);
     app.capture("loop-whole");
@@ -1872,12 +1874,25 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
         );
     }
     for at in bells {
-        let half = token_changes(
-            &app.root.join("loop-start.png"),
-            &app.root.join("loop-half.png"),
-            at,
+        // A swing is symmetric, so a bell caught mid-swing looks the same half a
+        // loop later; a quarter loop later it is at an end. Either pair shows the
+        // swing, whatever the bell's phase.
+        let swing = [
+            token_changes(
+                &app.root.join("loop-start.png"),
+                &app.root.join("loop-half.png"),
+                at,
+            ),
+            token_changes(
+                &app.root.join("loop-start.png"),
+                &app.root.join("loop-quarter.png"),
+                at,
+            ),
+        ];
+        assert!(
+            swing.iter().any(|n| *n > 20),
+            "the bell visibly swings: {swing:?} changed pixels"
         );
-        assert!(half > 20, "the bell visibly swings: {half} changed pixels");
         let seam = token_changes(
             &app.root.join("loop-start.png"),
             &app.root.join("loop-whole.png"),
@@ -2886,4 +2901,402 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
         assert_eq!(app.observe()["observation"]["owed_terror"], Value::Null);
         app.quit();
     }
+}
+
+/// One space's targeting state, as the table reports it.
+fn target_state(view: &Value, space: &str) -> String {
+    view["table"]["map_targets"]
+        .as_array()
+        .unwrap_or_else(|| panic!("not targeting: {}", view["table"]["map_targets"]))
+        .iter()
+        .find(|t| t["space"] == space)
+        .unwrap()["state"]
+        .as_str()
+        .unwrap()
+        .to_owned()
+}
+
+/// The map states agree with the observation: a space is selectable when one of its
+/// actions is supported, blocked when none is but one names a remedy, else not
+/// involved; and the visible highlights are exactly the selected graphics for those
+/// states, a veil applying only when all of its spaces are not involved.
+fn assert_map_agrees(view: &Value) {
+    let choices = view["observation"]["choices"].as_array().unwrap();
+    let revision = view["observation"]["revision"].as_u64().unwrap();
+    let mut expected_files = vec![];
+    for space in ["santiago", "oriente"] {
+        let mut here = vec![format!("{revision}:terror:{space}")];
+        if space == "santiago" {
+            here.push(format!("{revision}:kidnap"));
+        }
+        let here: Vec<&Value> = choices
+            .iter()
+            .filter(|c| here.iter().any(|id| c["id"] == id.as_str()))
+            .collect();
+        let state = if here.iter().any(|c| c["supported"] == true) {
+            "selectable"
+        } else if here
+            .iter()
+            .any(|c| !c["remedies"].as_array().unwrap().is_empty())
+        {
+            "blocked"
+        } else {
+            "not-involved"
+        };
+        assert_eq!(target_state(view, space), state, "{space}: {view}");
+        if state != "not-involved" {
+            expected_files.push(format!("atlas-highlight-{state}-{space}.png"));
+        }
+    }
+    for target in view["table"]["map_targets"].as_array().unwrap() {
+        let space = target["space"].as_str().unwrap();
+        if space != "santiago" && space != "oriente" {
+            assert_eq!(target["state"], "not-involved", "{space}");
+        }
+    }
+    expected_files.extend(
+        [
+            "atlas-highlight-veil-cities.png",
+            "atlas-highlight-veil-ecs.png",
+            "atlas-highlight-veil-provinces.png",
+            "atlas-highlight-veil-sierra-maestra.png",
+        ]
+        .map(String::from),
+    );
+    expected_files.sort();
+    let shown: Vec<String> = view["table"]["highlights"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|f| f.as_str().unwrap().to_owned())
+        .collect();
+    assert_eq!(shown, expected_files);
+}
+
+/// Every popover row agrees with its choice: the same supported state, reason and
+/// remedies the observation gives.
+fn assert_popover_agrees(view: &Value) {
+    let popover = &view["table"]["popover"];
+    let choices = view["observation"]["choices"].as_array().unwrap();
+    for row in popover["card"]["rows"].as_array().unwrap() {
+        let Some(id) = row["choice"].as_str() else {
+            continue;
+        };
+        let choice = choices.iter().find(|c| c["id"] == id).unwrap();
+        assert_eq!(
+            row["mark"] == "selectable",
+            choice["supported"] == true,
+            "{row}"
+        );
+        assert_eq!(row["remedies"], choice["remedies"], "{row}");
+        if choice["supported"] == false {
+            let reason = row["lines"][0][1].as_str().unwrap();
+            let explanation = choice["explanation"].as_str().unwrap();
+            // A leading rule reference moves to the end, as the layout's reason line has it.
+            let expected = match explanation.split_once(". ") {
+                Some((rule, rest)) if rule.starts_with("R ") => format!("{rest} {rule}"),
+                _ => explanation.to_owned(),
+            };
+            assert_eq!(reason, expected, "{row}");
+        }
+    }
+}
+
+fn popover_row<'a>(view: &'a Value, head: &str) -> &'a Value {
+    view["table"]["popover"]["card"]["rows"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["head"] == head)
+        .unwrap_or_else(|| panic!("no {head} row: {}", view["table"]["popover"]))
+}
+
+/// The card is the layout's 340 px wide (at this 1:1 reference scale), beside its
+/// anchor rather than over it, inside the window and clear of the Operation panel.
+fn assert_popover_placed(view: &Value) {
+    let popover = &view["table"]["popover"];
+    let [left, top, right, bottom] = rect_of(&popover["bounds"]);
+    let anchor = popover["anchor"].as_array().unwrap();
+    let ax = anchor[0].as_f64().unwrap();
+    assert!((right - left - 340.).abs() <= 2., "{popover}");
+    assert!(left >= ax + 38. || right <= ax - 38., "{popover}");
+    let map = rect_of(&view["table"]["map_viewport"]);
+    assert!(top >= map[1] && bottom <= map[3], "{popover}");
+    assert!(right <= 1380., "{popover}");
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained map-targeting captures"]
+fn native_map_targets_and_space_popovers_follow_the_rules() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-72"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("targets-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("targets.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Map targeting evidence: {}", app.root.display());
+    // A region click outside a targeting state changes nothing at all.
+    let inert = |app: &mut Native, space: &str| {
+        let before = app.observe();
+        let saved = std::fs::read(&app.save).unwrap();
+        let revision = before["observation"]["revision"].as_u64().unwrap();
+        app.activate(&format!("space:{space}"), revision);
+        let after = app.observe();
+        assert_eq!(after["observation"], before["observation"]);
+        assert_eq!(after["table"]["popover"], Value::Null);
+        assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    };
+    app.launch();
+    let open = app.observe();
+    assert_eq!(open["table"]["map_targets"], Value::Null);
+    assert_eq!(open["table"]["highlights"], json!([]));
+    inert(&mut app, "santiago");
+    app.capture("action-choice-click-does-nothing");
+
+    // Terror at 0 Resources: Santiago offers Kidnap, Oriente waits for a transfer.
+    app.choose("terror");
+    let zero = app.observe();
+    assert_map_agrees(&zero);
+    assert_eq!(target_state(&zero, "santiago"), "selectable");
+    assert_eq!(target_state(&zero, "oriente"), "blocked");
+    app.capture("terror-zero-resources");
+    // Hovering the blocked space says what is missing and what would unblock it.
+    let hover = app.point("space:oriente");
+    assert_eq!(hover["table"]["popover"]["space"], "oriente", "{hover}");
+    assert_eq!(hover["table"]["popover"]["pinned"], false);
+    let terror = popover_row(&hover, "Terror");
+    assert_eq!(terror["mark"], "not-yet");
+    assert_eq!(terror["remedies"], json!(["Request a Resource transfer"]));
+    assert_eq!(
+        terror["lines"][0][1],
+        "Cost: 1 Resource per space (26July has 0). R 3.3.4"
+    );
+    assert_popover_agrees(&hover);
+    assert_popover_placed(&hover);
+    // The region's own status tag keeps working beside it.
+    assert_eq!(hover["table"]["status"]["space"], "oriente");
+    app.capture("oriente-blocked-hover-zero-resources");
+    let away = app.point("standing:0");
+    assert_eq!(away["table"]["popover"], Value::Null);
+
+    // Clicking Santiago keeps its popover open: Kidnap chosen, its stakes previewed
+    // before the only acting button; Terror not yet, with both remedies.
+    let saved = std::fs::read(&app.save).unwrap();
+    app.activate("space:santiago", 1);
+    let santiago = app.observe();
+    assert_eq!(santiago["observation"]["revision"], 1);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    assert_eq!(santiago["table"]["popover"]["pinned"], true);
+    let kidnap = popover_row(&santiago, "Kidnap · from Government");
+    assert_eq!(kidnap["chosen"], true);
+    assert_eq!(kidnap["button"], "Open Kidnap · nothing rolled yet");
+    let stakes = kidnap["lines"].to_string();
+    assert!(
+        stakes.contains("The roll takes 1–6 Resources from Government (has 6); at least 1."),
+        "{stakes}"
+    );
+    assert_eq!(
+        popover_row(&santiago, "Terror")["remedies"],
+        json!(["Kidnap here first", "Request a Resource transfer"])
+    );
+    assert_popover_agrees(&santiago);
+    assert_popover_placed(&santiago);
+    app.capture("santiago-popover-zero-resources");
+    // Opening Kidnap from the popover: it rolls nothing and pauses map targeting.
+    app.activate("popover:commit", 1);
+    let opened = app.observe();
+    assert_eq!(opened["observation"]["revision"], 2);
+    assert_eq!(opened["observation"]["kidnap_open"], true);
+    assert_eq!(opened["observation"]["kidnap"], Value::Null);
+    assert_eq!(opened["table"]["popover"], Value::Null);
+    assert_eq!(opened["table"]["map_targets"], Value::Null);
+    app.capture("kidnap-opened-from-popover");
+    inert(&mut app, "santiago");
+    app.choose("kidnap:cancel");
+
+    // After a donation both targets are selectable; Terror from the map popover.
+    for step in ["transfer", "transfer:3:1", "amount:1", "authorize"] {
+        app.choose(step);
+    }
+    let funded = app.observe();
+    assert_map_agrees(&funded);
+    assert_eq!(target_state(&funded, "oriente"), "selectable");
+    app.capture("donated-both-selectable");
+    let revision = funded["observation"]["revision"].as_u64().unwrap();
+    app.activate("space:santiago", revision);
+    let terror = app.observe();
+    let row = popover_row(&terror, "Terror");
+    assert_eq!(row["chosen"], true);
+    let preview = row["lines"].to_string();
+    for fact in [
+        "Pay 1 Resource: 26July 1 → 0.",
+        "Flip 1 Underground Guerrilla there to Active.",
+        "Place a Terror marker; Neutral → Passive Opposition: 26July 7 → 8 (margin -8 → -7).",
+    ] {
+        assert!(preview.contains(fact), "{fact}: {preview}");
+    }
+    app.capture("santiago-terror-preview");
+    // Choosing the other row only changes the preview.
+    app.activate("popover:row:kidnap", revision);
+    let switched = app.observe();
+    assert_eq!(switched["observation"]["revision"], revision);
+    assert_eq!(
+        popover_row(&switched, "Kidnap · from Government")["chosen"],
+        true
+    );
+    app.activate("popover:row:terror:santiago", revision);
+    app.activate("popover:commit", revision);
+    let after = app.observe();
+    assert_eq!(after["observation"]["standings"][1]["score"], 8);
+    assert_eq!(after["observation"]["resources"][1], 0);
+    assert_eq!(after["table"]["popover"], Value::Null);
+    // Oriente is blocked again; Santiago still offers Kidnap.
+    assert_map_agrees(&after);
+    assert_eq!(target_state(&after, "oriente"), "blocked");
+    assert_eq!(target_state(&after, "santiago"), "selectable");
+    app.capture("after-santiago-terror");
+    let hover = app.point("space:oriente");
+    assert_eq!(hover["table"]["popover"]["space"], "oriente");
+    assert_popover_agrees(&hover);
+    app.capture("oriente-blocked-hover-after-donation");
+    // A resolved Terror stays in Santiago's popover as history.
+    let revision = after["observation"]["revision"].as_u64().unwrap();
+    app.activate("space:santiago", revision);
+    let history = app.observe();
+    assert_eq!(popover_row(&history, "Terror")["mark"], "done");
+    app.capture("santiago-terror-done");
+    app.activate("space:santiago", revision);
+    assert_eq!(app.observe()["table"]["popover"], Value::Null);
+
+    // Terror from the panel after another donation.
+    for step in ["transfer", "transfer:3:1", "amount:1", "authorize"] {
+        app.choose(step);
+    }
+    app.choose("terror:oriente");
+    let panel = app.observe();
+    assert_eq!(panel["observation"]["standings"][1]["score"], 10);
+    assert_map_agrees(&panel);
+    assert_eq!(target_state(&panel, "oriente"), "not-involved");
+    app.capture("after-oriente-terror-from-panel");
+
+    // Removal mode pauses targeting; a removal can leave a space with no remedy.
+    app.choose("remove");
+    inert(&mut app, "santiago");
+    app.choose("remove:santiago:active");
+    app.choose("confirm-removal");
+    let removed = app.observe();
+    // 1 Guerrilla does not exceed 1 Police: Kidnap is gone, Terror there resolved.
+    assert_map_agrees(&removed);
+    assert_eq!(target_state(&removed, "santiago"), "not-involved");
+    inert(&mut app, "santiago");
+    app.capture("after-removal");
+
+    app.choose("end-terror");
+    assert_eq!(app.observe()["table"]["map_targets"], Value::Null);
+    inert(&mut app, "oriente");
+    app.capture("ended");
+    app.quit();
+
+    // A changed highlight refuses at launch, before any save is touched.
+    let changed_art = tempfile::tempdir().unwrap();
+    for line in cuba_libre_unfolded::assets::MANIFEST
+        .lines()
+        .chain(cuba_libre_unfolded::assets::STATUS_MANIFEST.lines())
+        .chain(cuba_libre_unfolded::assets::VICTORY_MANIFEST.lines())
+        .chain(cuba_libre_unfolded::assets::LAYOUT_MANIFEST.lines())
+        .chain(cuba_libre_unfolded::assets::TERRAIN_MANIFEST.lines())
+        .chain(cuba_libre_unfolded::assets::TERROR_MANIFEST.lines())
+        .chain(cuba_libre_unfolded::assets::TOP_MANIFEST.lines())
+        .chain(cuba_libre_unfolded::assets::HIGHLIGHT_MANIFEST.lines())
+    {
+        let (_, path) = line.split_once("  ").unwrap();
+        let destination = changed_art
+            .path()
+            .join(path.strip_prefix("art/atlas/").unwrap());
+        std::fs::create_dir_all(destination.parent().unwrap()).unwrap();
+        std::fs::copy(path, destination).unwrap();
+    }
+    let highlight = changed_art
+        .path()
+        .join("atlas-highlight-blocked-oriente.png");
+    let mut bytes = std::fs::read(&highlight).unwrap();
+    bytes[100] ^= 1;
+    std::fs::write(&highlight, bytes).unwrap();
+    let saved = std::fs::read(&app.save).unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_cuba-libre"))
+        .args([
+            "--cards",
+            app.cards.to_str().unwrap(),
+            "--art",
+            changed_art.path().to_str().unwrap(),
+            "--save",
+            app.save.to_str().unwrap(),
+            "--agent-seat",
+        ])
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("atlas-highlight-blocked-oriente.png"),
+        "{stderr}"
+    );
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    std::fs::write(app.root.join("changed-highlight.stderr"), output.stderr).unwrap();
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; compare with art/proposals/issue-66/hf-a-survey-ink-16x9.jpg"]
+fn native_map_targets_at_the_owner_s_aspect() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-72"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("targets-16x9-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("targets.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Map targeting 16:9 evidence: {}", app.root.display());
+    app.launch_size("3840x2160");
+    app.choose("terror");
+    let view = app.observe();
+    assert_map_agrees(&view);
+    app.capture("terror-zero-3840x2160");
+    app.activate("space:santiago", 1);
+    let view = app.observe();
+    assert_eq!(view["table"]["popover"]["pinned"], true);
+    // The card keeps the layout's proportions at this scale: 340 reference pixels.
+    let [left, _, right, _] = rect_of(&view["table"]["popover"]["bounds"]);
+    let scale = (3840f64 / 1920.).min(2160. / 1280.);
+    assert!(
+        (right - left - 340. * scale).abs() <= 2.,
+        "{}",
+        view["table"]["popover"]
+    );
+    app.capture("santiago-popover-3840x2160");
+    app.quit();
 }

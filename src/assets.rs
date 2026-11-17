@@ -15,11 +15,14 @@ pub const LAYOUT_MANIFEST: &str = include_str!("../art/atlas/layout.sha256");
 pub const TERRAIN_MANIFEST: &str = include_str!("../art/atlas/terrain.sha256");
 pub const TERROR_MANIFEST: &str = include_str!("../art/atlas/terror.sha256");
 pub const TOP_MANIFEST: &str = include_str!("../art/atlas/top.sha256");
+/// The selected map highlight family (HF-A, #72): stateless presentation, like the
+/// status tags, so it does not change the save-bound identity.
+pub const HIGHLIGHT_MANIFEST: &str = include_str!("../art/atlas/highlights.sha256");
 /// The Kidnap die, its tray and its record (#74). Like the Terror bell, presentation
 /// art that does not change what a save records.
 pub const KIDNAP_MANIFEST: &str = include_str!("../art/atlas/kidnap.sha256");
 /// Every manifest admitted at launch, in the order `inspect` reads them.
-pub const MANIFESTS: [&str; 8] = [
+pub const MANIFESTS: [&str; 9] = [
     MANIFEST,
     STATUS_MANIFEST,
     VICTORY_MANIFEST,
@@ -27,6 +30,7 @@ pub const MANIFESTS: [&str; 8] = [
     TERRAIN_MANIFEST,
     TERROR_MANIFEST,
     TOP_MANIFEST,
+    HIGHLIGHT_MANIFEST,
     KIDNAP_MANIFEST,
 ];
 pub const SOURCE: &str = "deacd635db5f71f4d3f092bd9cc99a9d96bb7aab;R:8152cb0056e3690fdc01c7b4ff893369ad7eff288941abc540ceee2c9d606792;P:dcaa5afd6f01c0c9ed4746c18199c1b09058823d67b627384fd3184ed4015fe8";
