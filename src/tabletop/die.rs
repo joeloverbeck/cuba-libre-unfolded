@@ -367,6 +367,10 @@ fn spawn_stage(commands: &mut Commands, art: &DieArt, revision: u64, face: u8, w
                 DirectionalLight {
                     illuminance: 3000.,
                     shadow_maps_enabled: true,
+                    // The defaults are sized for a map in metres-to-decimetres; at a
+                    // 16 mm die they would bias the whole shadow away.
+                    shadow_depth_bias: 0.0006,
+                    shadow_normal_bias: 0.6,
                     ..default()
                 },
                 CascadeShadowConfigBuilder {
@@ -400,8 +404,10 @@ fn spawn_stage(commands: &mut Commands, art: &DieArt, revision: u64, face: u8, w
                     far: 5.,
                     ..default()
                 }),
+                // #67's preview world: a warm desk fill (#eee9dc).
                 AmbientLight {
-                    brightness: 300.,
+                    color: Color::srgb_u8(0xee, 0xe9, 0xdc),
+                    brightness: 400.,
                     ..default()
                 },
                 layer,

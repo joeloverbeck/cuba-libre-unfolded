@@ -2746,10 +2746,11 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
             true,
         );
         // The result is committed and saved before the die moves.
-        let saved: Value = serde_json::from_slice(&std::fs::read(&app.save).unwrap()).unwrap();
+        let committed = std::fs::read(&app.save).unwrap();
+        let saved: Value = serde_json::from_slice(&committed).unwrap();
         assert_eq!(saved["payload"]["kidnap"]["die"], die);
         assert_eq!(saved["payload"]["kidnap"]["revision"], revision + 1);
-        let first = app.request(json!({"op":"settle","steps":4}), true);
+        let first = app.request(json!({"op":"settle","steps":16}), true);
         assert_eq!(first["status"], "unsettled", "{first}");
         let first = app.observe();
         let shown = &first["table"]["die"];
@@ -2855,6 +2856,16 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
                 .contains(&format!("Kidnap rolled {die}"))
         );
         app.capture(&format!("face-{die}-landed"));
+        // No presentation timing is saved: the record is the one the commit wrote.
+        assert_eq!(std::fs::read(&app.save).unwrap(), committed);
+        if die == 2 {
+            // The tray never takes a region pick: the seat's pick of Santiago, beside
+            // which the panel shows the die, reaches the region and changes nothing.
+            let revision = landed["observation"]["revision"].as_u64().unwrap();
+            app.activate("space:santiago", revision);
+            assert_eq!(app.observe()["observation"], landed["observation"]);
+            assert_eq!(app.observe()["table"]["die"]["landed"], true);
+        }
         // Continue returns the panel to Terror: by Enter on the focused control once,
         // otherwise by its button.
         let revision = landed["observation"]["revision"].as_u64().unwrap();
@@ -2870,6 +2881,7 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
         let continued = app.observe();
         assert!(continued["table"]["die"].is_null(), "{continued}");
         assert_eq!(continued["observation"], landed["observation"]);
+        assert_eq!(std::fs::read(&app.save).unwrap(), committed);
         app.choose("terror:santiago");
         assert_eq!(app.observe()["observation"]["owed_terror"], Value::Null);
         app.quit();
