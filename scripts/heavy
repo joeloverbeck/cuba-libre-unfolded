@@ -1,0 +1,27 @@
+#!/usr/bin/env bash
+# Runs one heavy command (a cargo build or test, scripts/check, scripts/native) alone:
+# under the shared heavy lock, in a fresh memory scope, and with a worktree's private
+# Cargo target (docs/agents/parallel-work.md). Run it from the checkout the command is
+# for: `scripts/heavy cargo test --locked --test seat_brief`.
+set -euo pipefail
+
+if (($# == 0)); then
+  echo "usage: scripts/heavy COMMAND [ARG ...]" >&2
+  exit 2
+fi
+checkout=$(git rev-parse --show-toplevel)
+main=$(dirname -- "$(git rev-parse --path-format=absolute --git-common-dir)")
+# The main checkout keeps Cargo's default target. A worktree builds into
+# local/target-<branch>, with a branch's slashes as dashes; a set CARGO_TARGET_DIR wins.
+if [[ $checkout != "$main" && -z ${CARGO_TARGET_DIR:-} ]]; then
+  branch=$(git branch --show-current)
+  if [[ -z $branch ]]; then
+    echo "scripts/heavy: a detached worktree has no branch to name its target; set CARGO_TARGET_DIR" >&2
+    exit 2
+  fi
+  export CARGO_TARGET_DIR="$main/local/target-${branch//\//-}"
+fi
+mkdir -p -- "$main/local"
+cd -- "$checkout"
+exec flock "$main/local/heavy.lock" systemd-run --user --scope --collect -q \
+  -p MemoryHigh=6G -p MemoryMax=7G -p MemorySwapMax=1G -- "$@"
