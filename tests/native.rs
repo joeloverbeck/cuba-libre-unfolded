@@ -3160,6 +3160,7 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
         }
         let continued = app.observe();
         assert!(continued["table"]["die"].is_null(), "{continued}");
+        app.capture(&format!("face-{die}-continued"));
         assert_eq!(continued["observation"], landed["observation"]);
         assert_eq!(std::fs::read(&app.save).unwrap(), committed);
         app.choose("terror:santiago");
