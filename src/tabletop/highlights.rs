@@ -1,13 +1,16 @@
 //! The selected map highlight family, HF-A Survey ink (#68), applied to the map while
-//! 26July executes Terror (#72). Every graphic is an unchanged VectorCraft export of
-//! `art/proposals/issue-66/map-highlights.vectorcraft`; `art/atlas/highlights.json`
-//! places each on the region tops it covers and names the state it shows. Runtime only
-//! decides which admitted graphics are visible, from the rules authority's choices
+//! 26July executes Terror (#72) and in removal mode (#73). Every graphic is an
+//! unchanged VectorCraft export of `art/proposals/issue-66/map-highlights.vectorcraft`;
+//! `art/atlas/highlights.json` places each on the region tops it covers and names the
+//! state it shows, and places the piece markers under the pieces. Runtime only decides
+//! which admitted graphics are visible, from the rules authority's choices
 //! (`crate::targets`): it draws nothing of its own.
 use super::*;
 use crate::{
     Observation,
-    targets::{SpaceState, SpaceTarget, space_targets},
+    targets::{
+        PieceState, RemovalTargets, SpaceState, SpaceTarget, removal_targets, space_targets,
+    },
 };
 
 /// The observation's targeting states, refreshed when the match revision changes, so
@@ -17,6 +20,8 @@ pub(super) struct Targeting {
     key: Option<(bool, u64)>,
     pub view: Option<Observation>,
     pub targets: Option<Vec<SpaceTarget>>,
+    /// Removal mode's piece states and dimmed spaces (#73).
+    pub removal: Option<RemovalTargets>,
 }
 
 impl Targeting {
@@ -26,6 +31,26 @@ impl Targeting {
             .iter()
             .find(|t| t.space == space)
             .map(|t| t.state)
+    }
+    /// The space state whose graphic the map shows: a targeting state, or in removal
+    /// mode "not involved" for a space holding no 26July piece.
+    pub fn shown(&self, space: &str) -> Option<SpaceState> {
+        self.state(space).or_else(|| {
+            self.removal
+                .as_ref()?
+                .dimmed
+                .iter()
+                .any(|s| s == space)
+                .then_some(SpaceState::NotInvolved)
+        })
+    }
+    /// A 26July group in removal mode, by its `space:group` key.
+    pub fn piece(&self, key: &str) -> Option<&crate::targets::PieceTarget> {
+        self.removal
+            .as_ref()?
+            .pieces
+            .iter()
+            .find(|p| format!("{}:{}", p.space, p.group) == key)
     }
 }
 
@@ -41,6 +66,11 @@ pub(super) fn refresh(play: Res<Play>, mut targeting: ResMut<Targeting>) {
         .is_some()
         .then(|| space_targets(&view))
         .flatten();
+    targeting.removal = play
+        .session
+        .is_some()
+        .then(|| removal_targets(&view))
+        .flatten();
     targeting.view = Some(view);
     targeting.key = Some(key);
 }
@@ -48,6 +78,33 @@ pub(super) fn refresh(play: Res<Play>, mut targeting: ResMut<Targeting>) {
 #[derive(serde::Deserialize)]
 struct Manifest {
     graphics: Vec<Graphic>,
+    pieces: Vec<PieceMarker>,
+}
+
+/// A removal-mode marker, drawn under each 26July group in its state.
+#[derive(serde::Deserialize)]
+struct PieceMarker {
+    file: String,
+    mark: PieceState,
+    /// Atlas units across.
+    size: f32,
+    /// World units above the region top.
+    lift: f32,
+}
+
+/// The admitted marker materials and their placement.
+#[derive(Resource)]
+pub(super) struct Markers {
+    mesh: Handle<Mesh>,
+    lift: f32,
+    materials: Vec<(PieceState, String, Handle<StandardMaterial>)>,
+}
+
+/// A marker placed under a 26July group in removal mode.
+#[derive(Component, Clone, Debug, PartialEq, Eq, serde::Serialize)]
+pub(super) struct Marker {
+    pub piece: String,
+    pub file: String,
 }
 
 #[derive(serde::Deserialize)]
@@ -104,6 +161,89 @@ pub(super) fn setup(
             },
         ));
     }
+    let size = manifest.pieces.first().map_or(64., |p| p.size);
+    commands.insert_resource(Markers {
+        mesh: meshes.add(Plane3d::default().mesh().size(size / 100., size / 100.)),
+        lift: manifest.pieces.first().map_or(0.003, |p| p.lift),
+        materials: manifest
+            .pieces
+            .iter()
+            .map(|marker| {
+                (
+                    marker.mark,
+                    marker.file.clone(),
+                    materials.add(StandardMaterial {
+                        base_color_texture: Some(art.images[&marker.file].clone()),
+                        alpha_mode: AlphaMode::Blend,
+                        unlit: true,
+                        depth_bias: -10.,
+                        ..default()
+                    }),
+                )
+            })
+            .collect(),
+    });
+}
+
+/// Places a marker under each 26July group in removal mode: the red survey station
+/// where a piece may be removed, the ink ring and lock where the owed Terror protects
+/// it. Markers follow the pieces and sit under them, so pieces and counts stay on top.
+pub(super) fn markers(
+    mut commands: Commands,
+    targeting: Res<Targeting>,
+    ui: Res<Interface>,
+    art: Option<Res<Markers>>,
+    pieces: Query<(&OwnPiece, &Transform)>,
+    placed: Query<Entity, With<Marker>>,
+    mut previous: Local<Vec<(Marker, [i32; 3])>>,
+) {
+    let Some(art) = art else {
+        return;
+    };
+    let mut wanted = vec![];
+    if let Some(removal) = targeting.removal.as_ref().filter(|_| !ui.reader) {
+        for target in &removal.pieces {
+            let key = format!("{}:{}", target.space, target.group);
+            let Some((piece, at)) = pieces.iter().find(|(p, _)| p.key == key) else {
+                continue;
+            };
+            let Some((_, file, _)) = art.materials.iter().find(|(m, ..)| *m == target.mark) else {
+                continue;
+            };
+            let at = Vec3::new(at.translation.x, piece.base + art.lift, at.translation.z);
+            wanted.push((
+                Marker {
+                    piece: key,
+                    file: file.clone(),
+                },
+                (at * 1000.).round().as_ivec3().to_array(),
+            ));
+        }
+    }
+    if *previous == wanted {
+        return;
+    }
+    for entity in &placed {
+        commands.entity(entity).despawn();
+    }
+    for (marker, at) in &wanted {
+        let material = art
+            .materials
+            .iter()
+            .find(|(_, file, _)| *file == marker.file)
+            .map(|(.., m)| m.clone())
+            .unwrap();
+        commands.spawn((
+            Name::new(format!("marker {} {}", marker.piece, marker.file)),
+            Mesh3d(art.mesh.clone()),
+            MeshMaterial3d(material),
+            Transform::from_translation(IVec3::from_array(*at).as_vec3() / 1000.),
+            Pickable::IGNORE,
+            bevy::light::NotShadowCaster,
+            marker.clone(),
+        ));
+    }
+    *previous = wanted;
 }
 
 pub(super) fn show(
@@ -116,7 +256,7 @@ pub(super) fn show(
             && decal
                 .spaces
                 .iter()
-                .all(|space| targeting.state(space) == Some(decal.state));
+                .all(|space| targeting.shown(space) == Some(decal.state));
         visibility.set_if_neq(if shown {
             Visibility::Inherited
         } else {

@@ -138,6 +138,14 @@ struct UiRoot;
 struct StandingText(Faction);
 #[derive(Component)]
 struct PieceVisual;
+/// A 26July group's token: removal mode marks it, and a click on it opens its piece
+/// popover (#73). `key` is `space:group` as removal ids name it; `base` is the region
+/// top it stands on.
+#[derive(Component)]
+struct OwnPiece {
+    key: String,
+    base: f32,
+}
 #[derive(Component, Clone)]
 struct Control {
     name: String,
@@ -158,6 +166,12 @@ enum Action {
     Row(String),
     /// A space popover's button: submits its choice like the panel's `Decision`.
     Commit(Faction, u64, String),
+    /// A 26July piece on the map: opens its popover in removal mode, else nothing.
+    Piece(String),
+    /// The piece popover's stepper: one fewer or one more; decides nothing.
+    Quantity(i8),
+    /// The piece popover's Cancel: closes it; decides nothing.
+    Dismiss,
 }
 #[derive(Resource, Clone)]
 struct RenderReady {
@@ -318,6 +332,8 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 highlights::refresh,
                 highlights::show,
                 sync_pieces,
+                highlights::markers,
+                popover::hover_piece,
                 bind_spaces,
                 hover_disclosures,
                 draw_ui,
@@ -534,6 +550,27 @@ fn sync_pieces(
                 .entity(token)
                 .insert((PieceVisual, status::SpaceTarget(space.id.clone())))
                 .remove::<Pickable>();
+            if piece.faction == Faction::M26 {
+                let key = format!(
+                    "{}:{}",
+                    space.id,
+                    crate::removal_group(piece.kind, piece.state)
+                );
+                commands
+                    .entity(token)
+                    .insert((
+                        OwnPiece {
+                            key: key.clone(),
+                            base: top,
+                        },
+                        Control {
+                            name: format!("own-piece:{key}"),
+                            choice: false,
+                            action: Action::Piece(key),
+                        },
+                    ))
+                    .observe(click);
+            }
             let mark = match piece.state {
                 State::Active => Some("atlas-active-star.png"),
                 State::Closed => Some("atlas-closed-slash.png"),
@@ -836,6 +873,18 @@ fn click(
             popover.choose_row(action);
             return;
         }
+        Action::Piece(key) => {
+            popover.click_piece(key, &targeting);
+            return;
+        }
+        Action::Quantity(step) => {
+            popover.step(*step, &targeting);
+            return;
+        }
+        Action::Dismiss => {
+            popover.close();
+            return;
+        }
         Action::Commit(..) => return,
         Action::Close => {
             ui.reader = false;
@@ -885,10 +934,16 @@ fn click(
                             "Kidnap rolled {} · transferred {}.\nGovernment {} · 26July {}. Saved.",
                             roll.die, roll.proceeds, view.resources[0], view.resources[1]
                         )
-                    } else if control.name.ends_with(":confirm-removal") {
-                        "Removed 1 own piece to Available. Control and standings updated; earlier Terror and Opposition remain.".into()
-                    } else if control.name.ends_with(":cancel-removal") {
-                        "Removal cancelled. No piece removed; earlier effects remain.".into()
+                    } else if control.name.contains(":remove:") {
+                        let n = control.name.rsplit(':').next().unwrap_or("1");
+                        format!(
+                            "Removed {n} own piece{} to Available. Removal stays open until Done; earlier Terror, support shifts and Kidnap results remain. Saved.",
+                            if n == "1" { "" } else { "s" }
+                        )
+                    } else if control.name.ends_with(":remove") {
+                        "Removal mode: click a ringed 26July piece on the map. Saved.".into()
+                    } else if control.name.ends_with(":done-removal") {
+                        "Removal mode closed; removed pieces stay in Available. Saved.".into()
                     } else if control.name.contains(":terror:") {
                         "Terror saved: paid 1 Resource, flipped 1 Underground Guerrilla to Active, placed a Terror marker and shifted 1 level toward Active Opposition."
                             .into()
