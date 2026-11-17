@@ -106,6 +106,17 @@ impl Native {
             true,
         );
     }
+    /// Step the seat's clock `steps` steps of 16,666,667 ns with no input. The reply
+    /// takes every step asked for and leaves the table settled.
+    fn advance(&mut self, steps: u32) -> Value {
+        let advanced = self.request(json!({"op":"advance","steps":steps}), true);
+        assert_eq!(advanced["steps"], steps, "{advanced}");
+        assert_eq!(
+            advanced["table"]["settled"], true,
+            "advancing never holds the table: {advanced}"
+        );
+        advanced
+    }
     fn quit(&mut self) {
         self.request(json!({"op":"quit"}), true);
     }
@@ -928,11 +939,10 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         water_frames.push(settled["table"]["water_frame"].as_u64().unwrap());
         app.capture(&format!("hover-{index}"));
     }
-    // Press/release steps advance the same clock as desktop playback. Home is
-    // idempotent here; cross a full loop without inventing a time-control API.
+    // The seat's steps advance the same clock as desktop playback. The loop is
+    // 24 frames at 6 a second, 240 steps; sample it every 2 steps for 250.
     for _ in 0..125 {
-        let stepped = app.request(json!({"op":"key","revision":0,"key":"Home"}), true);
-        assert_eq!(stepped["table"]["settled"], true);
+        let stepped = app.advance(2);
         water_frames.push(stepped["table"]["water_frame"].as_u64().unwrap());
     }
     assert!(water_frames.iter().all(|frame| *frame < 24));
@@ -1605,7 +1615,6 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
     app.choose("terror:oriente");
     let start = app.observe();
     assert_eq!(start["table"]["settled"], true);
-    let revision = start["observation"]["revision"].as_u64().unwrap();
     let seeks = |view: &Value| {
         let bells = view["table"]["terror"].as_array().unwrap();
         assert_eq!(
@@ -1641,20 +1650,16 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
         position(&start, "piece:oriente Terror"),
     ];
     app.capture("loop-start");
-    // Each key press steps the seat's manual clock twice (2 × 16,666,667 ns), so
-    // 54 presses are half the 3.6 s authored loop and 108 are one whole loop.
-    let press = |app: &mut Native, times: usize| {
-        for _ in 0..times {
-            let pressed = app.request(json!({"op":"key","revision":revision,"key":"Home"}), true);
-            assert_eq!(
-                pressed["table"]["settled"], true,
-                "the loop never holds the table"
-            );
+    // The authored loop is 3.6 s: 216 steps of 16,666,667 ns, 108 to its half.
+    // Advance 2 steps at a time, so each request shows the loop never holds the table.
+    let half_a_loop = |app: &mut Native| {
+        for _ in 0..54 {
+            app.advance(2);
         }
     };
-    press(&mut app, 54);
+    half_a_loop(&mut app);
     app.capture("loop-half");
-    press(&mut app, 54);
+    half_a_loop(&mut app);
     app.capture("loop-whole");
     let whole = seeks(&app.observe());
     for (a, b) in initial.iter().zip(&whole) {
