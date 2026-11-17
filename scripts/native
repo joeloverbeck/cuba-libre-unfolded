@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Every ignored native regression, serially: the integration tests in
+# tests/native.rs and the in-process ones in the library (src/tabletop/seat.rs).
+# They need the private card faces and a working renderer, so CI cannot run them.
+# Extra arguments go to both test binaries, e.g. a name filter or --nocapture.
+set -euo pipefail
+
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+: "${CUBA_TEST_CARDS:?set CUBA_TEST_CARDS to the selected card directory (README, Where files live)}"
+echo "revision: $(git rev-parse HEAD)"
+echo "== tests/native.rs"
+cargo test --locked --features tabletop --test native -- --ignored --test-threads=1 "$@"
+echo "== library (in-process)"
+cargo test --locked --features tabletop --lib -- --ignored --test-threads=1 "$@"
