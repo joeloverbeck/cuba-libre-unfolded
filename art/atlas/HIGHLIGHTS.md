@@ -66,7 +66,7 @@ Clicking a selectable or blocked space opens its popover (#58: "clicking a selec
 - **Unavailable** rows: the reason, and that nothing in this task can change it.
 - **Done** rows: a resolved Terror there, and the rolled Kidnap with its result.
 
-The layout is [`../proposals/issue-66/highlight-popover-layouts.figcraft`](../proposals/issue-66/highlight-popover-layouts.figcraft), page "Popover masters (1920x1280 reference units)", frames A-P1, A-P3 and A-P4 (FigCraft CLI 0.18.1). `src/tabletop/popover.rs` implements its values in reference pixels:
+The layout is [`atlas-popover.figcraft`](atlas-popover.figcraft), page "Popover masters (1920x1280 reference units)", frames A-P1, A-P3 and A-P4 (FigCraft CLI 0.18.1). `src/tabletop/popover.rs` implements its values in reference pixels:
 - **Card:** 340 wide, `paper` fill, 1 px `ink` stroke, radius 2, drop shadow `ink` at 20% (0, 3, blur 10), 10 bottom padding; a 3 px `action/primary` top rule.
 - **Header:** padding 9/14/8/14, gap 2. Title `Popover/Bold 15` in `ink`; subtitle Regular 11 in `ink-secondary`.
 - **Rows:** separated by 1 px `rule` dividers. Padding 8/14/8/14 and gap 5; the chosen row 8/14/10/14 and gap 6.
@@ -80,3 +80,12 @@ The layout is [`../proposals/issue-66/highlight-popover-layouts.figcraft`](../pr
 **Row marks.** The four 10 px state marks are the layout's own nodes, exported from FigCraft at 8x (`atlas-popover-mark-{selectable,not-yet,unavailable,done}.png`, nodes 4901, 4984, 4998 and 4950), so the "not yet" ring is dashed as designed. #72 drew it solid until #73 exported them.
 
 **Emblems.** Since #73 the popover's running text, row heads, chips and footer name factions by #60's inline emblems (story 60); titles, which introduce their subject, keep the names, and on the red Remove or commit button 26July keeps its name (#60's rule, accepted in #68). The seat still reads every name.
+
+## Production source and plates (#58 review)
+
+- **Source:** [`atlas-popover.figcraft`](atlas-popover.figcraft) is the #66 proposal's source with HF-B and HF-C removed: the HF-A 16:9 frame, the HF-A states sheet and the popover masters A-P1 to A-P7 (FigCraft CLI 0.18.1). It keeps the `Atlas` colour variables and the `Popover/*` text styles. A-P1's parts are named as the runtime names them (`popover-rule`, `popover-header`, `popover-divider`, `popover-row-chosen`, `popover-commit`, `popover-row`, `popover-footer`). The file still carries the proposal's unreferenced embedded images (the unselected HF-B and HF-C captures, which show no card face); FigCraft has no command that drops them.
+- **Plates:** the frame "Production plates" on the masters page draws the popover's chrome at reference size in the `Atlas` variables, exported at 3x as `atlas-popover-{card,primary,cancel,chip,row-chosen,rule-primary,rule-ink,divider,stepper,stepper-value}.png`. The card plate carries the drop shadow, so its export reaches 15, 12, 15 and 18 reference pixels past the card's box (left, top, right, bottom). The runtime draws each plate behind its node, nine-sliced with its corners at reference size (the rules, the divider and the chosen row are stretched); it draws no fill, stroke or shadow of its own.
+- **Layout record:** [`atlas-popover.layout.json`](atlas-popover.layout.json) records A-P1's parts relative to the card and each plate's size, outset and slice. It was read from the saved document and the exports by an editor-side script kept with the review evidence (`local/verification/review-fix-2/scripts/popover-record.py`). The native regression `native_space_popover_matches_layout` compares the running popover with it at 3840×2160 (the reference ×1.6875) within 4 px, as the transfer modal's check does; parts that hold wrapped text are compared on the edges the text does not move. The deltas are 0.2–2.2 px.
+- **Admission:** [`popover.sha256`](popover.sha256) admits the ten plates at launch. A missing or changed plate refuses launch. Like the highlights, they are presentation and do not change the save-bound identity.
+- **Placement margin:** the card keeps 8 reference pixels inside the map and clear of the Operation panel. That is the runtime's own placement rule (#72), not a FigCraft value: the 16:9 frame places its one card by hand.
+

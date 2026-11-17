@@ -3615,6 +3615,91 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
     std::fs::write(app.root.join("changed-highlight.stderr"), output.stderr).unwrap();
 }
 
+/// The space popover against its layout record (`art/atlas/atlas-popover.layout.json`,
+/// the HF-A master A-P1): Santiago at revision 1, Kidnap chosen and Terror not yet, at
+/// 3840x2160 (the reference x 1.6875), within the 4 px of the transfer modal's check.
+/// Parts that hold wrapped text are compared on the edges the text does not move,
+/// because Bevy's Lato metrics differ from FigCraft's: the card and the chosen row on
+/// left, top and right; the button on left, right and height; the second divider on
+/// left, right and height; the other row and the footer on left and right.
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_space_popover_matches_layout() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/review-fix-2"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("popover-layout-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("task.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Popover layout evidence: {}", app.root.display());
+    app.launch_size("3840x2160");
+    app.choose("terror");
+    app.activate("space:santiago", 1);
+    let view = app.observe();
+    app.capture("santiago-popover-3840");
+    let popover = &view["table"]["popover"];
+    assert_eq!(popover["pinned"], true, "{popover}");
+    let record: Value =
+        serde_json::from_str(include_str!("../art/atlas/atlas-popover.layout.json")).unwrap();
+    let s = (3840f64 / 1920.).min(2160. / 1280.);
+    let parts = popover["parts"].as_array().unwrap();
+    let drawn = |name: &str| {
+        let found: Vec<_> = parts.iter().filter(|p| p["part"] == name).collect();
+        assert_eq!(found.len(), 1, "one {name}: {parts:?}");
+        rect_of(&found[0]["bounds"])
+    };
+    let card = drawn("popover-card");
+    let mut report = vec![];
+    for (name, bounds) in record["parts"].as_object().unwrap() {
+        let b: Vec<f64> = bounds
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_f64().unwrap() * s)
+            .collect();
+        let want = [
+            card[0] + b[0],
+            card[1] + b[1],
+            card[0] + b[0] + b[2],
+            card[1] + b[1] + b[3],
+        ];
+        let got = drawn(name);
+        let edges: &[usize] = match name.as_str() {
+            "popover-card" | "popover-row-chosen" => &[0, 1, 2],
+            "popover-row" | "popover-footer" => &[0, 2],
+            "popover-commit" | "popover-divider:1" => &[0, 2],
+            _ => &[0, 1, 2, 3],
+        };
+        let mut worst = edges
+            .iter()
+            .map(|&i| (got[i] - want[i]).abs())
+            .fold(0., f64::max);
+        if matches!(name.as_str(), "popover-commit" | "popover-divider:1") {
+            worst = worst.max(((got[3] - got[1]) - (want[3] - want[1])).abs());
+        }
+        report.push((worst, format!("{name}: {worst:.1} px {got:?} vs {want:?}")));
+    }
+    let text: Vec<_> = report.iter().map(|(_, line)| line.clone()).collect();
+    std::fs::write(app.root.join("layout-deltas.txt"), text.join("\n")).unwrap();
+    for (worst, line) in &report {
+        assert!(*worst <= 4., "{line}");
+    }
+    app.quit();
+}
+
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; compare with art/proposals/issue-66/hf-a-survey-ink-16x9.jpg"]
 fn native_map_targets_at_the_owner_s_aspect() {

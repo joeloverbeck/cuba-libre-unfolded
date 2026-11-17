@@ -11,7 +11,5 @@ pub(super) const QUIET: Color = Color::srgb_u8(83, 106, 109);
 pub(super) const PAPER: Color = Color::srgb_u8(248, 244, 232);
 /// `action/primary`.
 pub(super) const PRIMARY: Color = Color::srgb_u8(160, 53, 49);
-/// `desk`.
-pub(super) const DESK: Color = Color::srgb_u8(238, 233, 220);
 /// `rule`.
 pub(super) const RULE: Color = Color::srgb_u8(211, 219, 215);

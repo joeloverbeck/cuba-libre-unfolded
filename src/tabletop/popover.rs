@@ -12,20 +12,25 @@
 //! and acts only through Remove; Cancel closes it. The protected Guerrilla shows its
 //! reason on hover, and a click on it opens nothing.
 //!
-//! Layout: `art/proposals/issue-66/highlight-popover-layouts.figcraft`, page "Popover
-//! masters (1920x1280 reference units)", frames A-P1, A-P3 to A-P7. Its frames' sizes,
-//! padding, gaps, fills, strokes, corner radii, `Atlas` colour variables and `Popover/*`
-//! text styles are implemented here in reference pixels (foundation 4, "Layout
-//! authority": the first consumer implements against the layout). The anchor dot and
-//! leader are the accepted Atlas status components. Wording is presentation; every
-//! fact and number is the authority's own preview, reason or remedy.
-use super::palette::{DESK, INK, PAPER, PRIMARY, QUIET, RULE};
+//! Layout: `art/atlas/atlas-popover.figcraft`, the HF-A frames of the #66 proposal,
+//! page "Popover masters (1920x1280 reference units)", frames A-P1, A-P3 to A-P7. Its
+//! frames' sizes, padding, gaps and `Popover/*` text styles are implemented here in
+//! reference pixels (foundation 4, "Layout authority": the first consumer implements
+//! against the layout), and `atlas-popover.layout.json` records A-P1's parts for the
+//! native comparison. The chrome is drawn from the source's production plates (card
+//! with its shadow, rules, divider, chosen row, buttons, chips and stepper), exported
+//! at 3x and admitted by `popover.sha256`; no fill, stroke or shadow is drawn in code
+//! (foundation 4, "Authoring boundary"). The anchor dot and leader are the accepted
+//! Atlas status components. Wording is presentation; every fact and number is the
+//! authority's own preview, reason or remedy.
+use super::palette::{INK, PAPER, PRIMARY, QUIET, RULE};
 use super::*;
 use crate::{
     Choice, KIDNAP_SPACE, Observation,
     targets::{PieceState, PieceTarget, SpaceState},
 };
-use bevy::ui::{BoxShadow, FlexWrap};
+use bevy::ui::FlexWrap;
+use bevy::ui::widget::NodeImageMode;
 use emblems::Naming;
 use highlights::Targeting;
 
@@ -38,8 +43,81 @@ mod frame {
     /// 16:9 frame's "leader (anchored to Santiago)" and "anchor dot" at its 3.2 scale.
     pub const LEADER: f32 = 39.;
     pub const DOT: f32 = 8.;
-    /// Keeps the card this far inside the map and clear of the Operation panel.
+    /// Keeps the card this far inside the map and clear of the Operation panel. Not a
+    /// FigCraft value: the layout places its one 16:9 card by hand (about 3 reference
+    /// pixels from the panel there), so this is the runtime's placement margin for
+    /// every space and size, an implementation judgement of #72.
     pub const MARGIN: f32 = 8.;
+}
+
+/// The production plates of `art/atlas/atlas-popover.figcraft` (frame "Production
+/// plates"), drawn at reference size in the `Atlas` variables and exported at 3x. The
+/// numbers are `atlas-popover.layout.json`'s `plates` (a unit test holds them equal).
+mod plate {
+    /// The card: `paper`, a 1 px `ink` stroke, radius 2 and its drop shadow (`ink` at
+    /// 20%, 0/3, blur 10). The export reaches past the card's box by this much (left,
+    /// top, right, bottom), and it is nine-sliced 40 px in, clear of the shadow's corners.
+    pub const CARD: (&str, Option<f32>, [f32; 4]) =
+        ("atlas-popover-card.png", Some(40.), [15., 12., 15., 18.]);
+    /// The committing button: `action/primary`, radius 2.
+    pub const PRIMARY: (&str, Option<f32>, [f32; 4]) =
+        ("atlas-popover-primary.png", Some(6.), [0.; 4]);
+    /// Cancel: a 1 px `ink-secondary` outline, radius 2.
+    pub const CANCEL: (&str, Option<f32>, [f32; 4]) =
+        ("atlas-popover-cancel.png", Some(6.), [0.; 4]);
+    /// A remedy chip: a 1 px `action/primary` outline, radius 2.
+    pub const CHIP: (&str, Option<f32>, [f32; 4]) = ("atlas-popover-chip.png", Some(6.), [0.; 4]);
+    /// The chosen row's `desk` shading, stretched.
+    pub const ROW_CHOSEN: (&str, Option<f32>, [f32; 4]) =
+        ("atlas-popover-row-chosen.png", None, [0.; 4]);
+    /// The stepper: `paper`, a 1 px `ink` stroke, radius 2; its value cell a 1 px `rule` box.
+    pub const STEPPER: (&str, Option<f32>, [f32; 4]) =
+        ("atlas-popover-stepper.png", Some(6.), [0.; 4]);
+    pub const STEPPER_VALUE: (&str, Option<f32>, [f32; 4]) =
+        ("atlas-popover-stepper-value.png", Some(3.), [0.; 4]);
+    /// The 3 px top rules (`action/primary`, or `ink` on A-P6's tag) and the 1 px
+    /// `rule` divider, stretched.
+    pub const RULE_PRIMARY: &str = "atlas-popover-rule-primary.png";
+    pub const RULE_INK: &str = "atlas-popover-rule-ink.png";
+    pub const DIVIDER: &str = "atlas-popover-divider.png";
+}
+
+/// A named part of the drawn popover, for the seat and the layout comparison.
+#[derive(Component, Clone)]
+pub(super) struct Part(pub String);
+
+/// Draws a plate as the first child of `parent`, over its whole box (and past it by
+/// the plate's outset) and beneath its content. A sliced plate keeps its corners at
+/// reference size: the exports are 3x, so the corner scale is `s / 3`.
+fn plate(
+    commands: &mut Commands,
+    art: &Art,
+    parent: Entity,
+    (file, slice, outset): (&str, Option<f32>, [f32; 4]),
+    s: f32,
+) {
+    let image = ImageNode::new(art.images[file].clone());
+    let image = match slice {
+        Some(slice) => image.with_mode(NodeImageMode::Sliced(TextureSlicer {
+            border: BorderRect::all(slice * 3.),
+            max_corner_scale: s / 3.,
+            ..default()
+        })),
+        None => image.with_mode(NodeImageMode::Stretch),
+    };
+    commands.spawn((
+        image,
+        Node {
+            position_type: PositionType::Absolute,
+            left: px(-outset[0] * s),
+            top: px(-outset[1] * s),
+            right: px(-outset[2] * s),
+            bottom: px(-outset[3] * s),
+            ..default()
+        },
+        Pickable::IGNORE,
+        ChildOf(parent),
+    ));
 }
 
 /// The Bold Lato face the `Popover/Bold *` styles use; admitted with the regular face.
@@ -874,14 +952,16 @@ fn words(
     root
 }
 
-fn rule(commands: &mut Commands, parent: Entity, height: f32, color: Color) {
+/// A rule or divider: its plate, stretched across the card.
+fn rule(commands: &mut Commands, art: &Art, parent: Entity, height: f32, file: &str, part: String) {
     commands.spawn((
+        ImageNode::new(art.images[file].clone()).with_mode(NodeImageMode::Stretch),
         Node {
             height: px(height),
             flex_shrink: 0.,
             ..default()
         },
-        BackgroundColor(color),
+        Part(part),
         Pickable::IGNORE,
         ChildOf(parent),
     ));
@@ -981,28 +1061,28 @@ fn spawn(
                 top: px(0.),
                 width: px(width * s),
                 flex_direction: FlexDirection::Column,
-                padding: UiRect::bottom(px(10. * s)),
-                border: UiRect::all(px(s)),
-                border_radius: BorderRadius::all(px(2. * s)),
+                // The plate draws the 1 px stroke inside this padding; then 10 below.
+                padding: UiRect::new(px(s), px(s), px(s), px(11. * s)),
                 ..default()
             },
-            BackgroundColor(PAPER),
-            BorderColor::all(INK),
-            BoxShadow::new(INK.with_alpha(0.2), px(0.), px(3. * s), px(0.), px(10. * s)),
+            Part("popover-card".into()),
             // Opaque to the pointer, so a click on the card never reaches the map.
             ChildOf(root),
         ))
         .id();
+    plate(commands, art, body, plate::CARD, s);
     // A-P6's tag carries an ink rule: it informs, and nothing on it acts.
     rule(
         commands,
+        art,
         body,
         3. * s,
         if card.kind == CardKind::Protected {
-            INK
+            plate::RULE_INK
         } else {
-            PRIMARY
+            plate::RULE_PRIMARY
         },
+        "popover-rule".into(),
     );
     let header = commands
         .spawn((
@@ -1012,6 +1092,7 @@ fn spawn(
                 padding: UiRect::new(px(14. * s), px(14. * s), px(9. * s), px(8. * s)),
                 ..default()
             },
+            Part("popover-header".into()),
             Pickable::IGNORE,
             ChildOf(body),
         ))
@@ -1051,6 +1132,7 @@ fn spawn(
                 padding: UiRect::new(px(14. * s), px(14. * s), px(6. * s), px(0.)),
                 ..default()
             },
+            Part("popover-footer".into()),
             Pickable::IGNORE,
             ChildOf(body),
         ))
@@ -1130,19 +1212,19 @@ fn commit(
                 justify_content: JustifyContent::Center,
                 flex_grow: if grow { 1. } else { 0. },
                 padding: UiRect::new(px(12. * s), px(12. * s), px(7. * s), px(7. * s)),
-                border_radius: BorderRadius::all(px(2. * s)),
                 ..default()
             },
-            BackgroundColor(PRIMARY),
             Control {
                 name: "popover:commit".into(),
                 choice: false,
                 action: Action::PopoverCommit(owner, revision, choice.into()),
             },
+            Part("popover-commit".into()),
             ChildOf(parent),
         ))
         .observe(click)
         .id();
+    plate(commands, ink.art, button, plate::PRIMARY, s);
     words(
         commands,
         ink,
@@ -1167,8 +1249,15 @@ fn space_rows(
     s: f32,
 ) {
     let regular = ink.art.font.clone();
-    for row in &card.rows {
-        rule(commands, body, s, RULE);
+    for (i, row) in card.rows.iter().enumerate() {
+        rule(
+            commands,
+            ink.art,
+            body,
+            s,
+            plate::DIVIDER,
+            format!("popover-divider:{i}"),
+        );
         let node = commands
             .spawn((
                 Node {
@@ -1182,10 +1271,17 @@ fn space_rows(
                     ),
                     ..default()
                 },
-                BackgroundColor(if row.chosen { DESK } else { Color::NONE }),
+                Part(if row.chosen {
+                    "popover-row-chosen".into()
+                } else {
+                    "popover-row".into()
+                }),
                 ChildOf(body),
             ))
             .id();
+        if row.chosen {
+            plate(commands, ink.art, node, plate::ROW_CHOSEN, s);
+        }
         let action = row
             .choice
             .as_ref()
@@ -1306,16 +1402,15 @@ fn space_rows(
                 let chip = commands
                     .spawn((
                         Node {
-                            padding: UiRect::new(px(7. * s), px(7. * s), px(3. * s), px(3. * s)),
-                            border: UiRect::all(px(s)),
-                            border_radius: BorderRadius::all(px(2. * s)),
+                            // 3/7, inside the plate's 1 px outline.
+                            padding: UiRect::new(px(8. * s), px(8. * s), px(4. * s), px(4. * s)),
                             ..default()
                         },
-                        BorderColor::all(PRIMARY),
                         Pickable::IGNORE,
                         ChildOf(remedies),
                     ))
                     .id();
+                plate(commands, ink.art, chip, plate::CHIP, s);
                 words(
                     commands,
                     ink,
@@ -1358,7 +1453,14 @@ fn piece_body(
     s: f32,
 ) {
     let regular = ink.art.font.clone();
-    rule(commands, body, s, RULE);
+    rule(
+        commands,
+        ink.art,
+        body,
+        s,
+        plate::DIVIDER,
+        "popover-divider:0".into(),
+    );
     let node = commands
         .spawn((
             Node {
@@ -1403,16 +1505,15 @@ fn piece_body(
                 Node {
                     flex_direction: FlexDirection::Row,
                     align_items: AlignItems::Center,
-                    border: UiRect::all(px(s)),
-                    border_radius: BorderRadius::all(px(2. * s)),
+                    // Inside the plate's 1 px stroke.
+                    padding: UiRect::all(px(s)),
                     ..default()
                 },
-                BackgroundColor(PAPER),
-                BorderColor::all(INK),
                 Pickable::IGNORE,
                 ChildOf(head),
             ))
             .id();
+        plate(commands, ink.art, frame, plate::STEPPER, s);
         for (glyph, width, step) in [("−", 24., Some(-1)), ("", 30., None), ("+", 24., Some(1))] {
             let enabled = match step {
                 Some(-1) => stepper.value > 1,
@@ -1426,17 +1527,19 @@ fn piece_body(
                         height: px(24. * s),
                         justify_content: JustifyContent::Center,
                         align_items: AlignItems::Center,
-                        border: if step.is_none() {
+                        padding: if step.is_none() {
                             UiRect::all(px(s))
                         } else {
                             UiRect::ZERO
                         },
                         ..default()
                     },
-                    BorderColor::all(RULE),
                     ChildOf(frame),
                 ))
                 .id();
+            if step.is_none() {
+                plate(commands, ink.art, cell, plate::STEPPER_VALUE, s);
+            }
             match step {
                 Some(step) if enabled => {
                     commands
@@ -1531,12 +1634,10 @@ fn piece_body(
         let cancel = commands
             .spawn((
                 Node {
-                    padding: UiRect::new(px(12. * s), px(12. * s), px(7. * s), px(7. * s)),
-                    border: UiRect::all(px(s)),
-                    border_radius: BorderRadius::all(px(2. * s)),
+                    // 7/12, inside the plate's 1 px outline.
+                    padding: UiRect::new(px(13. * s), px(13. * s), px(8. * s), px(8. * s)),
                     ..default()
                 },
-                BorderColor::all(QUIET),
                 Control {
                     name: "popover:cancel".into(),
                     choice: false,
@@ -1546,6 +1647,7 @@ fn piece_body(
             ))
             .observe(click)
             .id();
+        plate(commands, ink.art, cancel, plate::CANCEL, s);
         words(
             commands,
             ink,
@@ -1830,7 +1932,19 @@ pub(super) fn observe(world: &mut World) -> Option<serde_json::Value> {
         (Val::Px(x), Val::Px(y)) => Some([x, y]),
         _ => None,
     };
+    // The named parts, for the comparison with `atlas-popover.layout.json`.
+    let mut parts: Vec<(String, [f32; 4])> = world
+        .query::<(&Part, &ComputedNode, &UiGlobalTransform)>()
+        .iter(world)
+        .map(|(part, node, at)| (part.0.clone(), bounds(node, at)))
+        .collect();
+    parts.sort_by(|a, b| a.0.cmp(&b.0).then(a.1[1].total_cmp(&b.1[1])));
+    let parts: Vec<_> = parts
+        .into_iter()
+        .map(|(part, bounds)| serde_json::json!({"part": part, "bounds": bounds}))
+        .collect();
     Some(serde_json::json!({
+        "parts": parts,
         "space": shown.card.space,
         "piece": shown.card.piece,
         "kind": shown.card.kind,
@@ -1861,6 +1975,42 @@ pub(super) fn unsettled(world: &mut World) -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The plates' slices and outsets are the layout record's, read from the FigCraft
+    /// source and its exports.
+    #[test]
+    fn the_plates_are_the_layout_record_s() {
+        let record: serde_json::Value =
+            serde_json::from_str(include_str!("../../art/atlas/atlas-popover.layout.json"))
+                .unwrap();
+        let sliced = [
+            plate::CARD,
+            plate::PRIMARY,
+            plate::CANCEL,
+            plate::CHIP,
+            plate::ROW_CHOSEN,
+            plate::STEPPER,
+            plate::STEPPER_VALUE,
+        ];
+        let stretched = [plate::RULE_PRIMARY, plate::RULE_INK, plate::DIVIDER]
+            .map(|file| (file, None, [0.; 4]));
+        for (file, slice, outset) in sliced.into_iter().chain(stretched) {
+            let recorded = &record["plates"][file.trim_end_matches(".png")];
+            assert_eq!(
+                recorded["slice"].as_f64().map(|v| v as f32),
+                slice,
+                "{file}"
+            );
+            let recorded: Vec<f32> = recorded["outset"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_f64().unwrap() as f32)
+                .collect();
+            assert_eq!(recorded, outset, "{file}");
+        }
+        assert_eq!(record["size"][0].as_f64(), Some(f64::from(frame::WIDTH)));
+    }
 
     fn choose(game: &mut Game, action: &str) {
         let view = game.observe();
