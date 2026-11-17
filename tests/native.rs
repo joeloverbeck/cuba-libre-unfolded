@@ -226,6 +226,17 @@ impl Native {
             true,
         );
     }
+    /// Step the seat's clock `steps` steps of 16,666,667 ns with no input. The reply
+    /// takes every step asked for and leaves the table settled.
+    fn advance(&mut self, steps: u32) -> Value {
+        let advanced = self.request(json!({"op":"advance","steps":steps}), true);
+        assert_eq!(advanced["steps"], steps, "{advanced}");
+        assert_eq!(
+            advanced["table"]["settled"], true,
+            "advancing never holds the table: {advanced}"
+        );
+        advanced
+    }
     fn quit(&mut self) {
         self.request(json!({"op":"quit"}), true);
     }
@@ -1222,11 +1233,10 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         water_frames.push(settled["table"]["water_frame"].as_u64().unwrap());
         app.capture(&format!("hover-{index}"));
     }
-    // Press/release steps advance the same clock as desktop playback. Home is
-    // idempotent here; cross a full loop without inventing a time-control API.
+    // The seat's steps advance the same clock as desktop playback. The loop is
+    // 24 frames at 6 a second, 240 steps; sample it every 2 steps for 250.
     for _ in 0..125 {
-        let stepped = app.request(json!({"op":"key","revision":0,"key":"Home"}), true);
-        assert_eq!(stepped["table"]["settled"], true);
+        let stepped = app.advance(2);
         water_frames.push(stepped["table"]["water_frame"].as_u64().unwrap());
     }
     assert!(water_frames.iter().all(|frame| *frame < 24));
@@ -2061,7 +2071,6 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
     app.choose("terror:oriente");
     let start = app.observe();
     assert_eq!(start["table"]["settled"], true);
-    let revision = start["observation"]["revision"].as_u64().unwrap();
     let seeks = |view: &Value| {
         let bells = view["table"]["terror"].as_array().unwrap();
         assert_eq!(
@@ -2097,18 +2106,18 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
         position(&start, "piece:oriente Terror"),
     ];
     app.capture("loop-start");
-    // Each key press steps the seat's manual clock twice (2 × 16,666,667 ns), so 108
-    // presses are one whole 3.6 s authored loop.
-    let press = |app: &mut Native, times: usize| {
-        for _ in 0..times {
-            let pressed = app.request(json!({"op":"key","revision":revision,"key":"Home"}), true);
-            assert_eq!(
-                pressed["table"]["settled"], true,
-                "the loop never holds the table"
-            );
+    // The authored loop is 3.6 s: 216 steps of 16,666,667 ns. Advance 2 steps at a
+    // time (and an odd step alone), so each request shows the loop never holds the
+    // table.
+    let step = |app: &mut Native, steps: usize| {
+        for _ in 0..steps / 2 {
+            app.advance(2);
+        }
+        if steps % 2 == 1 {
+            app.advance(1);
         }
     };
-    press(&mut app, 108);
+    step(&mut app, 216);
     app.capture("loop-whole");
     let whole = seeks(&app.observe());
     for (a, b) in initial.iter().zip(&whole) {
@@ -2127,9 +2136,9 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
     }
     // The swing, independent of the run's phase: the bell swings four times per loop
     // (art/atlas/TERROR.md), a 0.9 s swing. Each bell in turn is driven through the
-    // manual clock to the fixed seek times 0, 0.225, 0.45 and 0.675 s, a quarter swing
-    // apart (to within half a press, 1/60 s). Whatever the clip's own phase, two of
-    // those four poses lie at least √2 times the amplitude (34–50°) apart.
+    // manual clock, with `advance`, to the fixed seek times 0, 0.225, 0.45 and 0.675 s,
+    // a quarter swing apart (to within half a step, 1/120 s). Whatever the clip's own
+    // phase, two of those four poses lie at least √2 times the amplitude (34–50°) apart.
     let mut reached = vec![];
     for (index, (at, name)) in bells.into_iter().zip(["santiago", "oriente"]).enumerate() {
         // `seeks` lists Oriente then Santiago; `bells` lists Santiago then Oriente.
@@ -2137,12 +2146,12 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
         let mut shots = vec![];
         for target in [0., 0.225, 0.45, 0.675] {
             let now = seeks(&app.observe())[bell];
-            let presses = ((target - now).rem_euclid(3.6) * 30.).round() as usize % 108;
-            press(&mut app, presses);
+            let steps = ((target - now).rem_euclid(3.6) * 60.).round() as usize % 216;
+            step(&mut app, steps);
             let seek = seeks(&app.observe())[bell];
             let off = (seek - target).rem_euclid(3.6);
             assert!(
-                off.min(3.6 - off) <= 1. / 60. + 1e-3,
+                off.min(3.6 - off) <= 1. / 120. + 1e-3,
                 "{name} bell driven to {target} s, at {seek} s"
             );
             let shot = format!("swing-{name}-{target}");
@@ -5296,5 +5305,77 @@ fn native_refused_end_terror_while_a_request_waits_and_the_ended_panels() {
             .starts_with("Directorio, 1st Eligible, may:")
     );
     app.capture("ended-pass");
+    app.quit();
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; opens no desktop window"]
+fn native_right_drag_orbits_and_the_wheel_zooms_the_table_camera() {
+    let cards = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS to the accepted card directory")
+        .into();
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-79"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("native-")
+        .tempdir_in(&evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards,
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("task.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Native evidence: {}", app.root.display());
+    app.launch();
+    let camera = |view: &Value, field: &str| view["table"]["camera"][field].as_f64().unwrap();
+    // Resting on a space starts its status dwell, during which the table takes no input:
+    // point and settle first, as a player's pointer would come to rest.
+    let home = app.point("space:las-villas");
+
+    // The seat presses the right button on the map, moves the pointer by (120, 30)
+    // logical pixels while it is held and releases it: the camera's own scene drag.
+    let dragged = app.request(
+        json!({"op":"drag","revision":0,"component":"space:las-villas","button":"right","x":120,"y":30}),
+        true,
+    );
+    assert_eq!(dragged["status"], "dragged", "{dragged}");
+    let orbited = app.request(json!({"op":"settle"}), true);
+    // 120 * 0.006 radians of yaw and 30 * 0.004 of pitch.
+    assert!(
+        (camera(&orbited, "yaw") - (camera(&home, "yaw") - 0.72)).abs() < 0.0001,
+        "{orbited}"
+    );
+    assert!(
+        (camera(&orbited, "pitch") - (camera(&home, "pitch") + 0.12)).abs() < 0.0001,
+        "{orbited}"
+    );
+    assert_eq!(camera(&orbited, "distance"), camera(&home, "distance"));
+    app.capture("orbited");
+
+    // Two wheel lines in: 0.95 squared of the distance.
+    app.point("space:las-villas");
+    let scrolled = app.request(
+        json!({"op":"scroll","revision":0,"component":"space:las-villas","y":2}),
+        true,
+    );
+    assert_eq!(scrolled["status"], "scrolled", "{scrolled}");
+    let zoomed = app.request(json!({"op":"settle"}), true);
+    assert!(
+        (camera(&zoomed, "distance") - camera(&home, "distance") * 0.9025).abs() < 0.001,
+        "{zoomed}"
+    );
+    assert_eq!(camera(&zoomed, "yaw"), camera(&orbited, "yaw"));
+    app.capture("zoomed");
+
+    app.request(json!({"op":"key","key":"Home","revision":0}), true);
+    assert_eq!(app.observe()["table"]["camera"], home["table"]["camera"]);
     app.quit();
 }

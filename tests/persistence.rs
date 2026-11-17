@@ -367,7 +367,7 @@ fn corrupt_incompatible_and_semantically_wrong_records_preserve_recovery() {
         let refusal = Session::open(&path, None).err().unwrap().to_string();
         let expected = match index {
             0 => "Malformed save",
-            1 => "This file exceeds",
+            1 => "Save exceeds its size limit",
             2..=4 | 6 => "Incompatible save format",
             5 => "Save checksum mismatch",
             8 => "Malformed save",

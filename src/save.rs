@@ -5,8 +5,8 @@
 //! regular-file check and recovery into an unused path. This file keeps what
 //! identifies a compatible save (format, accepted source, selected art), the
 //! game's validity check, the size limit and the wording of Cuba Libre's
-//! refusals. Busy, too large and file-system failures keep the shared module's
-//! words.
+//! refusals, a save over its size limit included. Busy and file-system failures
+//! keep the shared module's words.
 use crate::{Faction, Game, Observation, assets};
 use anyhow::{Result, anyhow};
 use std::path::{Path, PathBuf};
@@ -60,6 +60,7 @@ fn words(error: save::Error, action: Action) -> anyhow::Error {
             anyhow::Error::msg(detail).context("Malformed save; original file preserved")
         }
         save::Error::Checksum => anyhow!("Save checksum mismatch; original file preserved"),
+        save::Error::TooLarge => anyhow!("Save exceeds its size limit; original file preserved"),
         save::Error::Unreproducible(detail) | save::Error::Invalid(detail) => {
             match detail.strip_prefix(VALIDITY) {
                 Some(detail) => anyhow!(detail.to_owned()),
