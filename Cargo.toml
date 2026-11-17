@@ -14,12 +14,12 @@ tabletop = ["dep:bevy", "unfolded-tabletop/seat"]
 # Shared packages, all at one revision of one repository, the same as the `wgpu-hal`
 # patch below. The game, its saves and `cuba-tools` take only the packages that cannot
 # depend on Bevy; `unfolded-tabletop` comes with `tabletop`.
-unfolded-assets = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "4f539656fd86529f3e642e843411252b7ce2c2f4" }
-unfolded-hover = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "4f539656fd86529f3e642e843411252b7ce2c2f4" }
-unfolded-random = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "4f539656fd86529f3e642e843411252b7ce2c2f4" }
-unfolded-record-replacement = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "4f539656fd86529f3e642e843411252b7ce2c2f4" }
-unfolded-seat-client = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "4f539656fd86529f3e642e843411252b7ce2c2f4" }
-unfolded-tabletop = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "4f539656fd86529f3e642e843411252b7ce2c2f4", optional = true }
+unfolded-assets = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "426683f489170fe54fe29b2c459d55f5e23f3cf1" }
+unfolded-hover = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "426683f489170fe54fe29b2c459d55f5e23f3cf1" }
+unfolded-random = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "426683f489170fe54fe29b2c459d55f5e23f3cf1" }
+unfolded-record-replacement = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "426683f489170fe54fe29b2c459d55f5e23f3cf1" }
+unfolded-seat-client = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "426683f489170fe54fe29b2c459d55f5e23f3cf1" }
+unfolded-tabletop = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "426683f489170fe54fe29b2c459d55f5e23f3cf1", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
@@ -46,4 +46,4 @@ debug = 0
 opt-level = 3
 
 [patch.crates-io]
-wgpu-hal = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "4f539656fd86529f3e642e843411252b7ce2c2f4" }
+wgpu-hal = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "426683f489170fe54fe29b2c459d55f5e23f3cf1" }
