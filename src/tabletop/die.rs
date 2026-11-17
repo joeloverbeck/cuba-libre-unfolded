@@ -424,6 +424,7 @@ fn spawn_stage(commands: &mut Commands, art: &DieArt, revision: u64, face: u8, w
                 // Renders the seat's image after the UI camera, over the panel.
                 unfolded_tabletop::capture::OnSurface,
                 Tonemapping::None,
+                DebandDither::Disabled,
                 Camera {
                     order: 2,
                     clear_color: ClearColorConfig::None,
