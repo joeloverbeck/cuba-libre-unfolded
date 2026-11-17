@@ -3305,25 +3305,6 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
     let terror_tab = key(&mut app, "Enter", Some("briefing-tab:terror"));
     assert_eq!(terror_tab["table"]["briefing"]["option"], "terror");
 
-    // The owner's clash rule (#58): opening a space popover closes the open briefing
-    // tag, and the tag reopens from the ribbon. Neither changes the match.
-    let rev = terror_tab["observation"]["revision"].as_u64().unwrap();
-    let saved = std::fs::read(&app.save).unwrap();
-    app.activate("space:santiago", rev);
-    let popover = app.observe();
-    assert_eq!(popover["table"]["popover"]["pinned"], true);
-    assert_eq!(popover["table"]["popover"]["card"]["space"], "santiago");
-    assert_eq!(popover["table"]["briefing"], Value::Null);
-    assert_eq!(popover["table"]["choice"]["ribbon"], false);
-    app.capture("clash-popover-closes-tag");
-    app.activate("space:santiago", rev);
-    assert_eq!(app.observe()["table"]["popover"], Value::Null);
-    app.activate("briefing-ribbon", rev);
-    let reopened = app.observe();
-    assert_eq!(reopened["table"]["briefing"]["option"], "terror");
-    assert_eq!(reopened["observation"]["revision"], rev);
-    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
-
     // Agreement after a transfer: Government gives 2 (6 → 4, 26July 0 → 2).
     for action in [
         "transfer",
@@ -3383,5 +3364,71 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
     );
     assert!(!words.contains("Santiago"), "{words}");
     app.capture("after-removal-kidnap");
+    app.quit();
+}
+
+/// The owner's clash rule (#58, carried to #69 and #72): while a space popover is
+/// open it wins over the AC-B briefing tag; opening the popover closes the tag, which
+/// reopens from the BRIEFING ribbon (checked in the AC-B test above). Neither changes
+/// the match. At 3840×2160 the open tag covers Santiago, so the popover is opened on
+/// Oriente (blocked at 0 Resources). The test ends with Oriente's popover kept open:
+/// at this size it never reports itself placed, so the seat refuses later input (a
+/// #72 defect reported by the merge of #69).
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained clash captures"]
+fn native_space_popover_closes_the_briefing_tag() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-69"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("clash-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS")
+            .expect("Set CUBA_TEST_CARDS")
+            .into(),
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("clash.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Clash rule evidence: {}", app.root.display());
+    app.launch_size("3840x2160");
+    app.choose("terror");
+    let rev = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.activate("briefing-ribbon", rev);
+    let tag = app.observe();
+    assert_eq!(tag["table"]["briefing"]["option"], "terror");
+    assert_eq!(tag["table"]["choice"]["ribbon"], true);
+    app.capture("clash-tag-open");
+    // A click through the open tag reaches nothing on the map.
+    let covered = app.request(
+        json!({"op":"activate","revision":rev,"component":"space:santiago"}),
+        false,
+    );
+    assert!(
+        covered["error"]
+            .as_str()
+            .unwrap()
+            .contains("not component space:santiago"),
+        "{}",
+        covered["error"]
+    );
+    let saved = std::fs::read(&app.save).unwrap();
+    app.activate("space:oriente", rev);
+    let popover = app.observe();
+    assert_eq!(popover["table"]["popover"]["pinned"], true);
+    assert_eq!(popover["table"]["popover"]["space"], "oriente");
+    assert_eq!(popover["table"]["briefing"], Value::Null);
+    assert_eq!(popover["table"]["choice"]["ribbon"], false);
+    assert_eq!(popover["observation"]["revision"], rev);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    app.capture("clash-popover-closes-tag");
     app.quit();
 }
