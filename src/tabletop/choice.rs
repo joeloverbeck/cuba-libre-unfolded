@@ -18,7 +18,7 @@ use super::briefing::{self, Briefing};
 use super::emblems::{self, Naming};
 use super::palette::{INK, PAPER, QUIET};
 use super::*;
-use crate::{ActionChoice, Observation};
+use crate::{ActionChoice, Observation, resources};
 use bevy::text::{Justify, LetterSpacing, LineHeight};
 
 /// Node coordinates in the FigCraft 16:9 frame, `art/atlas/atlas-action-choice.figcraft`.
@@ -195,10 +195,6 @@ fn listing(action: &str) -> (&'static str, Option<&'static str>) {
         ),
         _ => ("", None),
     }
-}
-
-fn resources(n: u8) -> String {
-    format!("{n} Resource{}", if n == 1 { "" } else { "s" })
 }
 
 /// Restyles a drawn text: Lato Bold, letter spacing, line height or alignment.

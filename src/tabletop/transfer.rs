@@ -166,20 +166,7 @@ impl State {
         if self.opened == Some(revision) {
             return;
         }
-        let request = match transfer {
-            Transfer::Authorizing {
-                giver,
-                recipient,
-                amount,
-                ..
-            } => Transfer::Authorizing {
-                giver: *giver,
-                recipient: *recipient,
-                amount: *amount,
-                waited: false,
-            },
-            Transfer::Selecting => Transfer::Selecting,
-        };
+        let request = transfer.without_wait();
         if request != Transfer::Selecting && self.request.as_ref() == Some(&request) {
             self.opened = Some(revision);
             self.focus = None;
@@ -374,7 +361,7 @@ fn tab_name(faction: Faction) -> String {
 }
 
 /// The modal's controls in Tab order, by their seat names.
-fn focusable(view: &Observation, ui: &Interface) -> Vec<String> {
+pub(super) fn focusable(view: &Observation, ui: &Interface) -> Vec<String> {
     let shown = content(view, &ui.transfer);
     let mut names = vec![];
     if matches!(view.transfer, Some(Transfer::Selecting)) {

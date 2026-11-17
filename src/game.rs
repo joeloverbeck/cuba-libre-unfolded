@@ -169,6 +169,14 @@ pub struct Eligibility {
     pub second: Faction,
     /// The box 26July's cylinder occupies, once its action is recorded.
     pub m26_box: Option<SequenceBox>,
+    /// Whether 26July is Eligible for the next card, once its action is recorded:
+    /// a Pass leaves it Eligible (R 2.3.3); an Operation makes it Ineligible when
+    /// cylinders are adjusted after the card (R 2.3.7).
+    pub m26_next_card: Option<bool>,
+}
+/// A count of Resources in words: "1 Resource", "3 Resources".
+pub fn resources(n: u8) -> String {
+    format!("{n} Resource{}", if n == 1 { "" } else { "s" })
 }
 /// Card 17's shaded text, from the admitted card face, which Directorio may execute
 /// after an Operation with Special Activity (R 2.3.4, 5.2).
@@ -290,6 +298,25 @@ pub enum Transfer {
         waited: bool,
     },
 }
+impl Transfer {
+    /// The same transfer, as if Wait had never set its decision aside.
+    pub fn without_wait(&self) -> Self {
+        match self {
+            Transfer::Authorizing {
+                giver,
+                recipient,
+                amount,
+                ..
+            } => Transfer::Authorizing {
+                giver: *giver,
+                recipient: *recipient,
+                amount: *amount,
+                waited: false,
+            },
+            Transfer::Selecting => Transfer::Selecting,
+        }
+    }
+}
 /// Which limit sets a transfer's maximum.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum Bound {
@@ -327,9 +354,8 @@ impl TransferTerms {
         if amount <= self.limit {
             return None;
         }
-        let units = |n: u8| format!("{n} Resource{}", if n == 1 { "" } else { "s" });
         let why = match self.bound {
-            Bound::Balance => format!("{} has {}", self.giver.name(), units(self.balance)),
+            Bound::Balance => format!("{} has {}", self.giver.name(), resources(self.balance)),
             Bound::Cap => format!(
                 "{} holds {} of at most {RESOURCE_CAP} Resources",
                 self.recipient.name(),
@@ -338,7 +364,7 @@ impl TransferTerms {
             Bound::Reserve => format!(
                 "the owed Santiago Terror needs {} of 26July's {}",
                 self.reserved,
-                units(self.balance)
+                resources(self.balance)
             ),
         };
         Some(format!("{amount} is more than {}: {why}.", self.limit))
@@ -392,6 +418,10 @@ pub struct Observation {
     /// Terror, a Kidnap roll or a removal. Until then 26July may go back to its action
     /// choice (local policy, #58), so a step that waits says whether it still can.
     pub effected: bool,
+    /// What the step that recorded 26July's action itself changed in Resources, as
+    /// the authority applied it: a Pass's +1, which stops at 49 (R 2.3.3, 1.8). Empty
+    /// until the action is recorded, and after End Terror, which moves none itself.
+    pub recorded_resources: Vec<ResourceChange>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Choice {
@@ -802,7 +832,22 @@ impl Game {
             kidnap_open: self.kidnap_open,
             removal: self.removal.clone(),
             effected: self.effected(),
+            recorded_resources: self.recorded_resources(),
         }
+    }
+    /// What Pass changed in 26July's Resources. A Pass is taken only at the action
+    /// choice before any effect, so from the prepared Resources; a loaded save is held
+    /// to exactly that (`validate`).
+    fn recorded_resources(&self) -> Vec<ResourceChange> {
+        if self.action != ActionChoice::Pass {
+            return vec![];
+        }
+        let m26 = Faction::M26.index();
+        vec![ResourceChange {
+            faction: Faction::M26,
+            from: PREPARED_RESOURCES[m26],
+            to: self.resources[m26],
+        }]
     }
     /// Directorio's options once 26July's action is recorded (R 2.3.3–2.3.4).
     fn next_options(&self) -> Vec<String> {
@@ -1123,6 +1168,11 @@ impl Game {
                     Some(SequenceBox::OperationWithSpecialActivity)
                 }
                 ActionChoice::Terror if self.finished => Some(SequenceBox::OperationOnly),
+                _ => None,
+            },
+            m26_next_card: match self.action {
+                ActionChoice::Pass => Some(true),
+                ActionChoice::Terror if self.finished => Some(false),
                 _ => None,
             },
         }

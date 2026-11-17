@@ -8,7 +8,7 @@
 //! no province and compute no space's result, which the map popover previews (#72).
 //! Pass keeps its exact numbers, from the rules authority's preview, since it involves
 //! no space. Current Resources come from the observation; the wording only places them.
-use crate::{CARD_17_SHADED, Choice, Faction, KidnapStakes, Observation, Preview};
+use crate::{CARD_17_SHADED, Choice, Faction, KidnapStakes, Observation, Preview, resources};
 
 /// Value lines are broken by hand at this many characters, which the 420 px column
 /// holds at 15 px with margin (Lato averages about 6.5 px a character there), so each
@@ -44,10 +44,6 @@ pub(super) fn entry(label: &'static str, text: impl Into<String>) -> Entry {
         text: text.into(),
         chips: vec![],
     }
-}
-
-fn resources(n: u8) -> String {
-    format!("{n} Resource{}", if n == 1 { "" } else { "s" })
 }
 
 /// The choice listed now whose id ends with `:{action}`.

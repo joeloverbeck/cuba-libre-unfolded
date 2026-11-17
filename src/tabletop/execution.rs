@@ -25,7 +25,7 @@ use super::choice::{self, Part, fig as acb, rect, rs, rx, ry, style};
 use super::emblems::{self, Prose};
 use super::palette::{INK, PAPER, PRIMARY, QUIET};
 use super::*;
-use crate::{ActionChoice, Choice, Observation, Preview, SequenceBox, Transfer};
+use crate::{ActionChoice, Choice, Observation, Preview, SequenceBox, Transfer, resources};
 use bevy::text::{Justify, LetterSpacing, LineHeight};
 use bevy::ui::widget::NodeImageMode;
 
@@ -46,15 +46,16 @@ pub(super) mod fig {
         ),
         ("section:end", "END THE OPERATION · R 2.3.4", 1589.2),
     ];
-    /// Each step's row top, in the panel's fixed order, with its section.
-    pub const ROWS: [(&str, f32, usize); 7] = [
-        ("terror:santiago", 1058.4, 0),
-        ("terror:oriente", 1155.6, 0),
-        ("kidnap", 1252.8, 0),
-        ("transfer", 1394.8, 1),
-        ("remove", 1492., 1),
-        ("end-terror", 1634., 2),
-        ("back-to-choice", 1731.2, 2),
+    /// Each step's row top and section, in the panel's fixed order
+    /// ([`StepId::ALL`](super::StepId::ALL)).
+    pub const ROWS: [(f32, usize); 7] = [
+        (1058.4, 0),
+        (1155.6, 0),
+        (1252.8, 0),
+        (1394.8, 1),
+        (1492., 1),
+        (1634., 2),
+        (1731.2, 2),
     ];
     /// A step offered now: bold label, left and top inside its row.
     pub const LABEL: [f32; 2] = [40.5, 17.2];
@@ -89,6 +90,85 @@ pub(super) mod fig {
     pub const CHARS: usize = 62;
 }
 
+/// The panel's steps during Terror, in its fixed order: one table for each step's
+/// action, row, name and rule.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum StepId {
+    TerrorSantiago,
+    TerrorOriente,
+    Kidnap,
+    Transfer,
+    Remove,
+    EndTerror,
+    BackToChoice,
+}
+impl StepId {
+    pub const ALL: [Self; 7] = [
+        Self::TerrorSantiago,
+        Self::TerrorOriente,
+        Self::Kidnap,
+        Self::Transfer,
+        Self::Remove,
+        Self::EndTerror,
+        Self::BackToChoice,
+    ];
+    /// The step for the authority's action, such as `terror:santiago`.
+    pub fn of(action: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|s| s.action() == action)
+    }
+    /// The authority's action the step lists.
+    pub fn action(self) -> &'static str {
+        match self {
+            Self::TerrorSantiago => "terror:santiago",
+            Self::TerrorOriente => "terror:oriente",
+            Self::Kidnap => "kidnap",
+            Self::Transfer => "transfer",
+            Self::Remove => "remove",
+            Self::EndTerror => "end-terror",
+            Self::BackToChoice => "back-to-choice",
+        }
+    }
+    /// A Terror target's space id.
+    pub fn space(self) -> Option<&'static str> {
+        match self {
+            Self::TerrorSantiago => Some("santiago"),
+            Self::TerrorOriente => Some("oriente"),
+            _ => None,
+        }
+    }
+    /// The row's top and section in the frame.
+    pub fn row(self) -> (f32, usize) {
+        fig::ROWS[self as usize]
+    }
+    /// The rule the step's tag cites.
+    fn citation(self) -> &'static str {
+        match self {
+            Self::TerrorSantiago | Self::TerrorOriente => "R 3.3.4",
+            Self::Kidnap => "R 4.3.3",
+            Self::Transfer => "R 1.5.1",
+            Self::Remove => "R 1.4.1",
+            Self::EndTerror => "R 2.3.4",
+            Self::BackToChoice => "local policy",
+        }
+    }
+    /// The step's name as its row lists it.
+    fn label(self, view: &Observation) -> String {
+        match self {
+            Self::Kidnap => "Kidnap · Santiago · Special Activity".into(),
+            Self::Transfer => "Resource transfer".into(),
+            Self::Remove => "Remove own pieces".into(),
+            Self::EndTerror => "End Terror".into(),
+            Self::BackToChoice => "Back to the action choice".into(),
+            Self::TerrorSantiago | Self::TerrorOriente => {
+                format!(
+                    "Terror · {}",
+                    space_name(view, self.space().unwrap_or_default())
+                )
+            }
+        }
+    }
+}
+
 /// What the panel is doing during Terror: listing the steps, or holding one open.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Mode {
@@ -120,9 +200,9 @@ pub(super) fn held(view: &Observation) -> Option<&'static str> {
     }
     match mode(view) {
         Mode::Steps => None,
-        Mode::Kidnap => Some("kidnap"),
-        Mode::Removal => Some("remove"),
-        Mode::Transfer => Some("transfer"),
+        Mode::Kidnap => Some(StepId::Kidnap.action()),
+        Mode::Removal => Some(StepId::Remove.action()),
+        Mode::Transfer => Some(StepId::Transfer.action()),
     }
 }
 
@@ -166,6 +246,7 @@ pub(super) enum Status {
 /// One row of the panel.
 #[derive(Clone, Debug)]
 pub(super) struct Step {
+    pub id: StepId,
     pub action: &'static str,
     pub label: String,
     pub status: Status,
@@ -189,26 +270,6 @@ fn space_name<'a>(view: &'a Observation, id: &'a str) -> &'a str {
         .iter()
         .find(|s| s.id == id)
         .map_or(id, |s| s.name.as_str())
-}
-
-fn resources(n: u8) -> String {
-    format!("{n} Resource{}", if n == 1 { "" } else { "s" })
-}
-
-/// A step's name as its row lists it.
-pub(super) fn label(view: &Observation, action: &str) -> String {
-    match action {
-        "kidnap" => "Kidnap · Santiago · Special Activity".into(),
-        "transfer" => "Resource transfer".into(),
-        "remove" => "Remove own pieces".into(),
-        "end-terror" => "End Terror".into(),
-        "back-to-choice" => "Back to the action choice".into(),
-        _ => action
-            .strip_prefix("terror:")
-            .map_or_else(String::new, |id| {
-                format!("Terror · {}", space_name(view, id))
-            }),
-    }
 }
 
 /// What a step that is not offered now waits for, by mode.
@@ -255,84 +316,95 @@ pub(super) fn steps(view: &Observation) -> Vec<Step> {
     let mode = mode(view);
     let open = held(view);
     let owed = view.owed_terror.as_deref();
-    fig::ROWS
-        .iter()
-        .map(|&(action, _, _)| {
+    StepId::ALL
+        .into_iter()
+        .map(|id| {
+            let action = id.action();
             let choice = listed(view, action);
             let is_held = open == Some(action);
             let note = |words: &str| Status::Note(words.into(), false);
-            let status = match action {
-                "kidnap" => match (&view.kidnap, choice) {
+            // A listed step the authority refuses: its pill says whether something in
+            // this task can make it available.
+            let refused = |c: &Choice| {
+                if c.remedies.is_empty() {
+                    Status::Pill(Pill::Unavailable, "UNAVAILABLE".into())
+                } else {
+                    Status::Pill(Pill::NotYet, "NOT YET".into())
+                }
+            };
+            let status = match id {
+                StepId::Kidnap => match (&view.kidnap, choice) {
                     (Some(roll), _) => Status::Pill(Pill::Done, format!("ROLLED {}", roll.die)),
                     _ if is_held => Status::Pill(Pill::Owed, "OPEN · NOTHING ROLLED".into()),
                     (None, Some(c)) if c.supported => note("opens its stakes"),
-                    (None, Some(c)) if !c.remedies.is_empty() => {
-                        Status::Pill(Pill::NotYet, "NOT YET".into())
-                    }
-                    (None, Some(_)) => Status::Pill(Pill::Unavailable, "UNAVAILABLE".into()),
+                    (None, Some(c)) => refused(c),
                     (None, None) => Status::Pill(Pill::Unavailable, waits(mode).into()),
                 },
-                "transfer" => match &view.transfer {
+                StepId::Transfer => match &view.transfer {
                     Some(Transfer::Authorizing { giver, .. }) => {
                         Status::Note(format!("pending · {} decides", giver.name()), true)
                     }
                     Some(Transfer::Selecting) => Status::Note("open".into(), true),
                     None => note("opens the transfer"),
                 },
-                "remove" if is_held => Status::Note("removal mode · on".into(), true),
-                "remove" => note("removal mode on the map"),
-                "end-terror" => match choice {
-                    Some(_) if mode == Mode::Transfer => note("withdraws the request"),
-                    Some(c) if c.supported => note(if view.kidnap.is_some() {
-                        "records Operation with Special Activity"
-                    } else {
-                        "records Operation Only"
-                    }),
+                StepId::Remove if is_held => Status::Note("removal mode · on".into(), true),
+                StepId::Remove => note("removal mode on the map"),
+                StepId::EndTerror => match choice {
+                    Some(c) if c.supported && mode == Mode::Transfer => {
+                        note("withdraws the request")
+                    }
+                    Some(c) if c.supported => match c.preview.as_ref().and_then(|p| p.records) {
+                        Some(SequenceBox::OperationWithSpecialActivity) => {
+                            note("records Operation with Special Activity")
+                        }
+                        _ => note("records Operation Only"),
+                    },
                     _ if owed.is_some() => {
                         Status::Pill(Pill::NotYet, "NOT YET · SANTIAGO OWED".into())
                     }
-                    Some(c) if !c.remedies.is_empty() => {
-                        Status::Pill(Pill::NotYet, "NOT YET".into())
-                    }
-                    _ => Status::Pill(Pill::Unavailable, waits(mode).into()),
+                    Some(c) => refused(c),
+                    None => Status::Pill(Pill::Unavailable, waits(mode).into()),
                 },
-                "back-to-choice" => match choice {
-                    Some(_) if mode == Mode::Transfer => note("withdraws the request"),
-                    Some(_) => note("until the first effect"),
+                StepId::BackToChoice => match choice {
+                    Some(c) if c.supported && mode == Mode::Transfer => {
+                        note("withdraws the request")
+                    }
+                    Some(c) if c.supported => note("until the first effect"),
+                    Some(c) => refused(c),
                     None if view.effected => {
                         Status::Pill(Pill::Unavailable, "NO LONGER OFFERED".into())
                     }
                     None => Status::Pill(Pill::Unavailable, waits(mode).into()),
                 },
-                _ => {
-                    let id = action.trim_start_matches("terror:");
-                    let resolved = view.spaces.iter().any(|s| s.id == id && s.terror > 0);
+                StepId::TerrorSantiago | StepId::TerrorOriente => {
+                    let space = id.space().unwrap_or_default();
+                    let resolved = view.spaces.iter().any(|s| s.id == space && s.terror > 0);
                     match choice {
                         _ if resolved => Status::Pill(Pill::Done, "DONE · PAID 1".into()),
-                        Some(c) if c.supported && owed == Some(id) => {
+                        Some(c) if c.supported && owed == Some(space) => {
                             Status::Pill(Pill::Owed, "OWED · 1 RESOURCE".into())
                         }
                         Some(c) if c.supported => note("pay 1 Resource"),
-                        Some(c) => blocked_target(view, id, !c.remedies.is_empty(), mode),
-                        None if owed == Some(id) => {
+                        Some(c) => blocked_target(view, space, !c.remedies.is_empty(), mode),
+                        None if owed == Some(space) => {
                             Status::Pill(Pill::Owed, "OWED · 1 RESOURCE".into())
                         }
-                        None => blocked_target(view, id, true, mode),
+                        None => blocked_target(view, space, true, mode),
                     }
                 }
             };
             // Resource transfer and removal are offered whenever no step is open, so
             // their plates stay while they wait.
-            let always = matches!(action, "transfer" | "remove");
+            let always = matches!(id, StepId::Transfer | StepId::Remove);
             let bold = choice.is_some_and(|c| c.supported) || is_held || always;
             let interactive = choice.is_some() || is_held;
-            let target = action.starts_with("terror:");
             let dim = mode != Mode::Steps
                 && !interactive
-                && !(mode == Mode::Kidnap && (target || action == "kidnap"));
+                && !(mode == Mode::Kidnap && (id.space().is_some() || id == StepId::Kidnap));
             Step {
+                id,
                 action,
-                label: label(view, action),
+                label: id.label(view),
                 status,
                 bold,
                 interactive,
@@ -345,10 +417,7 @@ pub(super) fn steps(view: &Observation) -> Vec<Step> {
 
 /// A step row's rectangle in frame units, for the tag's active outline.
 pub(super) fn row(action: &str) -> Option<[f32; 4]> {
-    fig::ROWS
-        .iter()
-        .find(|(a, ..)| *a == action)
-        .map(|&(_, top, _)| [acb::ROW_X, top, acb::ROW_W, acb::ROW_H])
+    StepId::of(action).map(|id| [acb::ROW_X, id.row().0, acb::ROW_W, acb::ROW_H])
 }
 
 /// The commit at the panel's foot during Terror: what it reads and does.
@@ -393,6 +462,20 @@ fn disabled(label: impl Into<String>, reason: impl Into<String>) -> Commit {
     }
 }
 
+/// The disabled commit for a pinned step the authority refuses: its name, and the
+/// authority's reason and in-task remedies.
+fn refused(view: &Observation, id: StepId, choice: &Choice) -> Commit {
+    let what = match id {
+        StepId::TerrorSantiago | StepId::TerrorOriente => format!(
+            "Terror in {}",
+            space_name(view, id.space().unwrap_or_default())
+        ),
+        StepId::Kidnap => "Kidnap".into(),
+        _ => id.label(view),
+    };
+    disabled(format!("{what} is not available yet"), refusal(choice))
+}
+
 /// The commit for the open step, or for the pinned step when none is open.
 pub(super) fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
     let mode = mode(view);
@@ -415,11 +498,18 @@ pub(super) fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
         Mode::Kidnap => fixed("kidnap:roll").unwrap_or_else(none),
         Mode::Removal => fixed("done-removal").unwrap_or_else(none),
         Mode::Transfer => {
-            if let Some(c) = pinned
-                .filter(|p| matches!(*p, "end-terror" | "back-to-choice"))
-                .and_then(|p| listed(view, p))
+            // Withdrawing the request ends or leaves the Operation: only End Terror
+            // and Back are steps while it is pending.
+            if let Some((id, c)) = pinned
+                .and_then(StepId::of)
+                .filter(|id| matches!(id, StepId::EndTerror | StepId::BackToChoice))
+                .and_then(|id| Some((id, listed(view, id.action())?)))
             {
-                return enabled(c, c.label.clone(), view);
+                return if c.supported {
+                    enabled(c, c.label.clone(), view)
+                } else {
+                    refused(view, id, c)
+                };
             }
             match (listed(view, "reopen"), &view.transfer) {
                 // TM-B's pending tab already carries the choice by its id, so this
@@ -438,31 +528,30 @@ pub(super) fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
             }
         }
         Mode::Steps => {
-            let Some(c) = pinned.and_then(|p| listed(view, p)) else {
+            let Some((id, c)) = pinned
+                .and_then(StepId::of)
+                .and_then(|id| Some((id, listed(view, id.action())?)))
+            else {
                 return none();
             };
-            let action = c.action();
-            let space = action
-                .strip_prefix("terror:")
-                .map(|id| space_name(view, id).to_owned());
             if !c.supported {
-                let what = match (&space, action) {
-                    (Some(place), _) => format!("Terror in {place}"),
-                    (None, "kidnap") => "Kidnap".into(),
-                    _ => label(view, action),
-                };
-                return disabled(format!("{what} is not available yet"), refusal(c));
+                return refused(view, id, c);
             }
-            let words = match (&space, action) {
-                (Some(place), _) => format!("Terror in {place} · pay 1 Resource"),
-                (None, "kidnap") => "Open Kidnap · nothing rolled yet".into(),
-                (None, "transfer") => "Open the Resource transfer".into(),
-                (None, "remove") => "Remove own pieces · removal mode".into(),
-                (None, "end-terror") if view.kidnap.is_some() => {
-                    "End Terror · Operation with Special Activity".into()
-                }
-                (None, "end-terror") => "End Terror · records Operation Only".into(),
-                _ => label(view, action),
+            let words = match id {
+                StepId::TerrorSantiago | StepId::TerrorOriente => format!(
+                    "Terror in {} · pay 1 Resource",
+                    space_name(view, id.space().unwrap_or_default())
+                ),
+                StepId::Kidnap => "Open Kidnap · nothing rolled yet".into(),
+                StepId::Transfer => "Open the Resource transfer".into(),
+                StepId::Remove => "Remove own pieces · removal mode".into(),
+                StepId::EndTerror => match c.preview.as_ref().and_then(|p| p.records) {
+                    Some(SequenceBox::OperationWithSpecialActivity) => {
+                        "End Terror · Operation with Special Activity".into()
+                    }
+                    _ => "End Terror · records Operation Only".into(),
+                },
+                StepId::BackToChoice => id.label(view),
             };
             enabled(c, words, view)
         }
@@ -753,9 +842,8 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
     for (i, (name, caps, top)) in fig::SECTIONS.iter().enumerate() {
         let dim = steps
             .iter()
-            .zip(fig::ROWS)
-            .filter(|(_, (_, _, section))| *section == i)
-            .all(|(step, _)| step.dim);
+            .filter(|step| step.id.row().1 == i)
+            .all(|step| step.dim);
         let label = words(
             commands,
             art,
@@ -771,7 +859,8 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
         fade(commands, label, QUIET, dim, true);
         commands.entity(label).insert(Part((*name).into()));
     }
-    for (step, (_, top, _)) in steps.iter().zip(fig::ROWS) {
+    for step in &steps {
+        let top = step.id.row().0;
         let name = format!("step:{}", step.action);
         let area = rect(acb::ROW_X, top, acb::ROW_W, acb::ROW_H);
         // The open step is outlined; an offered step has the paper plate; the others
@@ -811,7 +900,7 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
                 })
                 .observe(super::click);
         }
-        let kidnap = step.action == "kidnap";
+        let kidnap = step.id == StepId::Kidnap;
         let (lx, ly, size) = match (kidnap, step.bold) {
             (true, b) => (
                 fig::SA_LABEL_X[usize::from(b)],
@@ -974,38 +1063,56 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
 }
 
 /// The ended panel's entries: what was recorded, Eligibility, and what Directorio
-/// may do next (shown, not executed).
-pub(super) fn ending(view: &Observation) -> (String, String, Vec<Entry>) {
+/// may do next (shown, not executed). Every fact is the authority's: the box 26July's
+/// cylinder occupies, its Eligibility for the next card, the next Eligible faction
+/// and the Resources the recording step moved. `None` until the action is recorded.
+pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)> {
+    let e = &view.eligibility;
+    let record = e.m26_box?;
     let shown = "Shown, not executed: the card and Eligibility do not advance";
-    let next = |role: &str| {
-        entry(
-            "NEXT · SHOWN, NOT EXECUTED",
-            format!("Directorio, {role}, may: {}", view.next_options.join(" · ")),
-        )
-    };
-    if view.action == ActionChoice::Pass {
-        let r = view.resources[Faction::M26.index()];
-        return (
-            "26July · passed".into(),
-            format!("Pass recorded (R 2.3.3)\n{shown}"),
-            vec![
-                entry(
-                    "RESULT",
-                    format!(
-                        "26July Resources: {} → {r}\nNo Operation: no piece, Terror or support changed.",
-                        r.saturating_sub(1)
-                    ),
-                ),
-                entry("ELIGIBILITY", "26July stays Eligible (R 2.3.3)."),
-                next("1st Eligible"),
-            ],
-        );
-    }
-    let record = if view.kidnap.is_some() {
-        "Operation with Special Activity"
+    // The next faction to act is the first Eligible one that is not 26July.
+    let (who, role) = if e.first != Faction::M26 {
+        (e.first, "1st Eligible")
     } else {
-        "Operation Only"
+        (e.second, "2nd Eligible")
     };
+    let next = entry(
+        "NEXT · SHOWN, NOT EXECUTED",
+        format!(
+            "{}, {role}, may: {}",
+            who.name(),
+            view.next_options.join(" · ")
+        ),
+    );
+    let (rule, citation) = match record {
+        SequenceBox::Pass => ("Pass", "R 2.3.3"),
+        SequenceBox::OperationOnly => ("Operation Only", "R 2.3.4"),
+        SequenceBox::OperationWithSpecialActivity => ("Operation with Special Activity", "R 2.3.4"),
+    };
+    let subtitle = format!("{rule} recorded ({citation})\n{shown}");
+    let eligibility = match e.m26_next_card {
+        Some(true) => format!("26July stays Eligible ({citation})."),
+        Some(false) => "26July becomes Ineligible after this card (R 2.3.7).".to_owned(),
+        None => "26July's Eligibility for the next card is not recorded yet.".to_owned(),
+    };
+    let moved = view
+        .recorded_resources
+        .iter()
+        .map(|r| format!("{} Resources: {} → {}", r.faction.name(), r.from, r.to));
+    if record == SequenceBox::Pass {
+        let result: Vec<String> = moved
+            .chain(["No Operation: no piece, Terror or support changed.".to_owned()])
+            .collect();
+        return Some((
+            "26July · passed".into(),
+            subtitle,
+            vec![
+                entry("RESULT", result.join("\n")),
+                entry("ELIGIBILITY", eligibility),
+                next,
+            ],
+        ));
+    }
     let resolved: Vec<&str> = view
         .spaces
         .iter()
@@ -1028,7 +1135,8 @@ pub(super) fn ending(view: &Observation) -> (String, String, Vec<Entry>) {
             resources(roll.proceeds)
         ));
     }
-    let event = if view.kidnap.is_some() {
+    result.extend(moved);
+    let event = if record == SequenceBox::OperationWithSpecialActivity {
         entry(
             "EVENT FOR DIRECTORIO",
             "After a Special Activity, card 17's Event is open to Directorio, either text (R 2.3.4, 5.2).",
@@ -1039,24 +1147,23 @@ pub(super) fn ending(view: &Observation) -> (String, String, Vec<Entry>) {
             "No Event for Directorio: it follows only an Operation with Special Activity (R 2.3.4).",
         )
     };
-    (
+    Some((
         "26July · Terror ended".into(),
-        format!("{record} recorded (R 2.3.4)\n{shown}"),
+        subtitle,
         vec![
             entry("RESULT", result.join("\n")),
-            entry(
-                "ELIGIBILITY",
-                "26July becomes Ineligible after this card (R 2.3.7).",
-            ),
-            next("2nd Eligible"),
+            entry("ELIGIBILITY", eligibility),
+            next,
             event,
         ],
-    )
+    ))
 }
 
 /// The ended panel: the header, then each entry's caps label and value lines.
 fn ended(commands: &mut Commands, art: &Art, view: &Observation, s: f32, o: Vec2) {
-    let (heading, subtitle, entries) = ending(view);
+    let Some((heading, subtitle, entries)) = ending(view) else {
+        return;
+    };
     header(commands, art, &heading, &subtitle, s, o);
     let mut y = fig::ENDED_TOP;
     for e in entries {
@@ -1098,18 +1205,6 @@ fn ended(commands: &mut Commands, art: &Art, view: &Observation, s: f32, o: Vec2
             Part(format!("ended-value:{}", e.label)),
         ));
         y += acb::ENTRY_VALUE_TOP + acb::VALUE_LINE * lines.len() as f32 + acb::GAP;
-    }
-}
-
-/// The rule a step's tag cites.
-fn rule(action: &str) -> &'static str {
-    match action {
-        "kidnap" => "R 4.3.3",
-        "transfer" => "R 1.5.1",
-        "remove" => "R 1.4.1",
-        "end-terror" => "R 2.3.4",
-        "back-to-choice" => "local policy",
-        _ => "R 3.3.4",
     }
 }
 
@@ -1311,13 +1406,14 @@ pub(super) fn tag(view: &Observation, action: &str) -> Option<Briefing> {
     if view.finished || view.action != ActionChoice::Terror {
         return None;
     }
+    let id = StepId::of(action)?;
     let mode = mode(view);
     let held = held(view) == Some(action);
-    let title = label(view, action);
+    let title = id.label(view);
     let briefing = |title: String, entries: Vec<Entry>, rules: String| Briefing {
         option: action.into(),
         title,
-        rule: rule(action),
+        rule: id.citation(),
         entries,
         rules,
     };
@@ -1367,10 +1463,33 @@ pub(super) fn tag(view: &Observation, action: &str) -> Option<Briefing> {
                     ..
                 }) => {
                     let g = giver.name();
-                    let withdraw = if listed(view, "back-to-choice").is_some() {
-                        "26July may withdraw the request: Back to the action choice or End Terror withdraws it, and nothing has moved."
-                    } else {
-                        "26July may withdraw the request: End Terror withdraws it, and nothing has moved."
+                    // Only a step the authority supports withdraws the request.
+                    let offered = |id: StepId| {
+                        listed(view, id.action())
+                            .filter(|c| c.supported)
+                            .map(|_| id.label(view))
+                    };
+                    let end = listed(view, StepId::EndTerror.action());
+                    let withdraw = match (offered(StepId::BackToChoice), offered(StepId::EndTerror))
+                    {
+                        (Some(back), Some(end)) => format!(
+                            "26July may withdraw the request: {back} or {end} withdraws it, and nothing has moved."
+                        ),
+                        (Some(one), None) | (None, Some(one)) => format!(
+                            "26July may withdraw the request: {one} withdraws it, and nothing has moved."
+                        ),
+                        (None, None) => match end.filter(|c| !c.supported) {
+                            Some(c) if !c.remedies.is_empty() => format!(
+                                "End Terror would withdraw it, but not yet: {} Once {g} has decided: {}.",
+                                reason(&c.explanation),
+                                c.remedies.join(" · ")
+                            ),
+                            Some(c) => format!(
+                                "End Terror would withdraw it, but not now: {}",
+                                reason(&c.explanation)
+                            ),
+                            None => "26July cannot withdraw the request now.".into(),
+                        },
                     };
                     briefing(
                         "Transfer request pending".into(),
@@ -1498,13 +1617,13 @@ mod tests {
     #[test]
     fn rows_follow_the_authored_pitch() {
         for pair in fig::ROWS.windows(2) {
-            let ((_, a, sa), (_, b, sb)) = (pair[0], pair[1]);
+            let ((a, sa), (b, sb)) = (pair[0], pair[1]);
             if sa == sb {
                 assert!((b - a - 97.2).abs() < 0.01, "{a} {b}");
             }
         }
-        const { assert!(fig::ROWS[0].1 > acb::SUBTITLE[1]) };
-        const { assert!(fig::ROWS[6].1 + acb::ROW_H < fig::CANCEL[1]) };
+        const { assert!(fig::ROWS[0].0 > acb::SUBTITLE[1]) };
+        const { assert!(fig::ROWS[6].0 + acb::ROW_H < fig::CANCEL[1]) };
         const { assert!(fig::CANCEL[1] + fig::CANCEL[3] < acb::COMMIT[1]) };
     }
 
@@ -1517,7 +1636,7 @@ mod tests {
         let steps = steps(&view);
         assert_eq!(
             steps.iter().map(|s| s.action).collect::<Vec<_>>(),
-            fig::ROWS.map(|r| r.0)
+            StepId::ALL.map(StepId::action)
         );
         for target in ["terror:santiago", "terror:oriente"] {
             assert_eq!(
@@ -1782,7 +1901,7 @@ mod tests {
     fn the_ended_panel_states_the_record_and_directorio_next() {
         let mut game = Game::opening();
         game.submit(Faction::M26, 0, "0:pass").unwrap();
-        let (heading, _, entries) = ending(&game.observe());
+        let (heading, _, entries) = ending(&game.observe()).unwrap();
         assert_eq!(heading, "26July · passed");
         assert_eq!(
             entries[0].text.lines().next(),
@@ -1795,7 +1914,7 @@ mod tests {
         );
         let mut game = Game::prepared();
         game.submit(Faction::M26, 0, "0:end-terror").unwrap();
-        let (heading, subtitle, entries) = ending(&game.observe());
+        let (heading, subtitle, entries) = ending(&game.observe()).unwrap();
         assert_eq!(heading, "26July · Terror ended");
         assert!(subtitle.starts_with("Operation Only recorded (R 2.3.4)"));
         assert!(entries[0].text.starts_with("No Terror resolved"));
@@ -1805,5 +1924,126 @@ mod tests {
                 assert!(line.chars().count() <= fig::CHARS, "{line}");
             }
         }
+    }
+
+    /// Review of #84: an early Kidnap owes Santiago's Terror, and a request then
+    /// waits on its giver. End Terror would withdraw the request, but the authority
+    /// refuses it until Santiago is resolved, so the row, its tag and the commit all
+    /// say not yet, with the authority's reason and remedy, and the commit is disabled.
+    #[test]
+    fn a_pending_request_does_not_offer_an_end_terror_the_authority_refuses() {
+        let mut game = Game::prepared_with_seed(19);
+        game.submit(Faction::M26, 0, "0:kidnap").unwrap();
+        game.submit(Faction::M26, 1, "1:kidnap:roll").unwrap();
+        game.submit(Faction::M26, 2, "2:transfer").unwrap();
+        game.submit(Faction::M26, 3, "3:ask:2:1").unwrap();
+        for waited in [false, true] {
+            if waited {
+                game.submit(Faction::Directorio, 4, "4:wait").unwrap();
+            }
+            let view = game.observe();
+            assert_eq!(mode(&view), Mode::Transfer);
+            let end = listed(&view, "end-terror").unwrap();
+            assert!(!end.supported, "the authority refuses it");
+            let steps = steps(&view);
+            let row = step(&steps, "end-terror");
+            assert_eq!(
+                row.status,
+                Status::Pill(Pill::NotYet, "NOT YET · SANTIAGO OWED".into())
+            );
+            assert!(row.interactive && !row.bold);
+            let b = tag_of(&game, "end-terror");
+            assert_eq!(b.entries[0].label, "NOT YET");
+            assert!(
+                words(&b).contains("Santiago Terror is owed"),
+                "{}",
+                words(&b)
+            );
+            assert_eq!(b.entries[1].chips, ["Resolve Santiago's Terror"]);
+            let commit = commit(&view, Some("end-terror"));
+            assert!(!commit.enabled);
+            assert_eq!(commit.label, "End Terror is not available yet");
+            let Action::Unsupported(reason) = commit.action else {
+                panic!("a refused End Terror commits nothing")
+            };
+            assert!(reason.contains("Santiago Terror is owed"), "{reason}");
+            assert!(
+                reason.contains("In this task: Resolve Santiago's Terror."),
+                "{reason}"
+            );
+            // The pending request's tag does not offer End Terror as a withdrawal.
+            let pending = words(&tag_of(&game, "transfer"));
+            assert!(!pending.contains("may withdraw"), "{pending}");
+            assert!(pending.contains("but not yet"), "{pending}");
+            // Back is no longer offered after the roll, so nothing else withdraws.
+            assert!(listed(&view, "back-to-choice").is_none());
+        }
+    }
+
+    /// The ended panel words the authority's record, not presentation's guesses: the
+    /// recorded box, 26July's Eligibility for the next card, the next Eligible faction
+    /// and the Resources Pass moved. Each fact is changed here to one the old
+    /// derivation (from the roll, a fixed sentence and `r - 1 → r`) would misstate.
+    #[test]
+    fn the_ended_panel_reads_the_authority_s_record() {
+        let mut game = Game::opening();
+        game.submit(Faction::M26, 0, "0:pass").unwrap();
+        let mut view = game.observe();
+        assert_eq!(
+            view.recorded_resources,
+            [crate::ResourceChange {
+                faction: Faction::M26,
+                from: 0,
+                to: 1
+            }]
+        );
+        // At the 49 cap, Pass gains nothing (R 1.8): 49 → 49, not 48 → 49.
+        view.resources[Faction::M26.index()] = 49;
+        view.recorded_resources[0].from = 49;
+        view.recorded_resources[0].to = 49;
+        let (_, _, entries) = ending(&view).unwrap();
+        assert_eq!(
+            entries[0].text.lines().next(),
+            Some("26July Resources: 49 → 49")
+        );
+        assert_eq!(entries[1].text, "26July stays Eligible (R 2.3.3).");
+        assert!(
+            entries[2]
+                .text
+                .starts_with("Directorio, 1st Eligible, may:")
+        );
+
+        let mut game = Game::prepared();
+        game.submit(Faction::M26, 0, "0:end-terror").unwrap();
+        let mut view = game.observe();
+        assert!(view.kidnap.is_none());
+        assert_eq!(view.eligibility.m26_next_card, Some(false));
+        view.eligibility.m26_box = Some(SequenceBox::OperationWithSpecialActivity);
+        view.eligibility.second = Faction::Government;
+        let (heading, subtitle, entries) = ending(&view).unwrap();
+        assert_eq!(heading, "26July · Terror ended");
+        assert!(
+            subtitle.starts_with("Operation with Special Activity recorded (R 2.3.4)"),
+            "{subtitle}"
+        );
+        assert_eq!(
+            entries[1].text,
+            "26July becomes Ineligible after this card (R 2.3.7)."
+        );
+        view.eligibility.m26_next_card = None;
+        let (_, _, entries) = ending(&view).unwrap();
+        assert!(
+            !entries[1].text.contains("Ineligible"),
+            "{}",
+            entries[1].text
+        );
+        assert!(
+            entries[2]
+                .text
+                .starts_with("Government, 2nd Eligible, may:")
+        );
+        assert_eq!(entries[3].label, "EVENT FOR DIRECTORIO");
+        // Nothing recorded yet: no ended panel.
+        assert!(ending(&Game::prepared().observe()).is_none());
     }
 }

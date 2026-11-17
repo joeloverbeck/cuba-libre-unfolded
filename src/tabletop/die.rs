@@ -452,10 +452,9 @@ fn spawn_stage(commands: &mut Commands, art: &DieArt, revision: u64, face: u8, w
 /// Government pays them; running text draws both names as emblems.
 fn landed_notice(view: &crate::Observation, kidnap: &crate::Kidnap) -> String {
     format!(
-        "Kidnap rolled {} · Government pays {} Resource{} to 26July.\nGovernment {} · 26July {}. Saved.",
+        "Kidnap rolled {} · Government pays {} to 26July.\nGovernment {} · 26July {}. Saved.",
         kidnap.die,
-        kidnap.proceeds,
-        if kidnap.proceeds == 1 { "" } else { "s" },
+        crate::resources(kidnap.proceeds),
         view.resources[Faction::Government.index()],
         view.resources[Faction::M26.index()]
     )
@@ -648,9 +647,8 @@ pub(super) fn panel(
         commands,
         art,
         format!(
-            "Kidnap: Government → 26July, {} Resource{}",
-            kidnap.proceeds,
-            if kidnap.proceeds == 1 { "" } else { "s" }
+            "Kidnap: Government → 26July, {}",
+            crate::resources(kidnap.proceeds)
         ),
         &art.font,
         QUIET,

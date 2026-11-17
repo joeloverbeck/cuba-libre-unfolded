@@ -48,6 +48,10 @@ mod frame {
     /// pixels from the panel there), so this is the runtime's placement margin for
     /// every space and size, an implementation judgement of #72.
     pub const MARGIN: f32 = 8.;
+    /// A row's preview lines, `Popover/Regular 12.5` (bold for the outcome), and its
+    /// rule notes, Regular 11 (`art/atlas/HIGHLIGHTS.md`, A-P1 rows).
+    pub const LINE_SIZE: f32 = 12.5;
+    pub const NOTE_SIZE: f32 = 11.;
 }
 
 /// The production plates of `art/atlas/atlas-popover.figcraft` (frame "Production
@@ -1175,10 +1179,10 @@ fn lines(
     let regular = ink.art.font.clone();
     for (tone, line) in lines {
         let (font, size, color) = match tone {
-            Tone::Plain => (&regular, 12.5, if done { QUIET } else { INK }),
-            Tone::Strong => (bold, 12.5, INK),
-            Tone::Quiet => (&regular, 11., QUIET),
-            Tone::Secondary => (&regular, 12.5, QUIET),
+            Tone::Plain => (&regular, frame::LINE_SIZE, if done { QUIET } else { INK }),
+            Tone::Strong => (bold, frame::LINE_SIZE, INK),
+            Tone::Quiet => (&regular, frame::NOTE_SIZE, QUIET),
+            Tone::Secondary => (&regular, frame::LINE_SIZE, QUIET),
         };
         words(
             commands,

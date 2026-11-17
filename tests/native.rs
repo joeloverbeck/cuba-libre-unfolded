@@ -5131,3 +5131,144 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
     app.capture("opening-1920x1280");
     app.quit();
 }
+
+/// #58 review fix 3: an early Kidnap owes Santiago's Terror, then a Transfer request
+/// waits on Directorio. End Terror would withdraw the request, but the authority
+/// refuses it, so the row, its tag and the commit all say not yet with the
+/// authority's reason and remedy, and pressing the commit submits nothing. Then the
+/// remedy is taken and both ended panels state the authority's record.
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained captures"]
+fn native_refused_end_terror_while_a_request_waits_and_the_ended_panels() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/review-fix-3"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("refused-end-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS")
+            .expect("Set CUBA_TEST_CARDS")
+            .into(),
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("refused-end.json"),
+        root: root.clone(),
+        step: 0,
+    };
+    eprintln!("Review fix 3 evidence: {}", app.root.display());
+    let words = |view: &Value, name: &str| -> String {
+        view["table"]["choice_parts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["part"] == name)
+            .and_then(|p| p["text"].as_str())
+            .unwrap_or_default()
+            .to_owned()
+    };
+    app.launch_size("3840x2160");
+    app.choose("terror");
+    app.choose("kidnap");
+    app.roll();
+    app.choose("transfer");
+    app.choose("ask:2:1");
+    app.choose("wait");
+    let pending = app.observe();
+    assert_eq!(pending["observation"]["owed_terror"], "santiago");
+    let end = pending["observation"]["choices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"].as_str().unwrap().ends_with(":end-terror"))
+        .unwrap()
+        .clone();
+    assert_eq!(end["supported"], false, "{end}");
+    assert_eq!(
+        words(&pending, "step:end-terror-pill-label"),
+        "NOT YET · SANTIAGO OWED"
+    );
+    let tag = app.tag("end-terror", "refused-end-terror-tag");
+    assert!(tag.contains("Santiago Terror is owed"), "{tag}");
+    assert!(tag.contains("Resolve Santiago's Terror"), "{tag}");
+    let revision = pending["observation"]["revision"].as_u64().unwrap();
+    let refusal = app.refuse("end-terror");
+    assert!(refusal.contains("Santiago Terror is owed"), "{refusal}");
+    assert!(
+        refusal.contains("In this task: Resolve Santiago's Terror."),
+        "{refusal}"
+    );
+    let refused = app.observe();
+    assert_eq!(
+        refused["observation"]["revision"], revision,
+        "nothing submitted"
+    );
+    assert!(refused["observation"]["transfer"].is_object());
+    assert_eq!(
+        words(&refused, "execution-commit-label"),
+        "End Terror is not available yet"
+    );
+    app.capture("refused-end-terror-pinned");
+    app.activate("step:end-terror", revision);
+    let request = app.tag("transfer", "pending-request-tag");
+    assert!(!request.contains("may withdraw"), "{request}");
+    // The remedy: Directorio decides, then Santiago's Terror; End Terror then records
+    // the Operation with its Special Activity.
+    app.choose("reopen");
+    app.choose("decline");
+    app.choose("terror:santiago");
+    app.choose("end-terror");
+    let ended = app.observe();
+    assert_eq!(
+        ended["observation"]["eligibility"]["m26_box"],
+        "OperationWithSpecialActivity"
+    );
+    assert_eq!(ended["observation"]["eligibility"]["m26_next_card"], false);
+    assert_eq!(
+        words(&ended, "execution-subtitle").lines().next(),
+        Some("Operation with Special Activity recorded (R 2.3.4)")
+    );
+    assert_eq!(
+        words(&ended, "ended-value:ELIGIBILITY"),
+        "26July becomes Ineligible after this card (R 2.3.7)."
+    );
+    assert!(
+        words(&ended, "ended-value:NEXT · SHOWN, NOT EXECUTED")
+            .starts_with("Directorio, 2nd Eligible, may:")
+    );
+    app.capture("ended-special-activity");
+    app.quit();
+
+    // A Pass: the authority's recorded Resources and Eligibility.
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
+        socket: socket_dir.path().join("seat-pass.sock"),
+        save: root.join("pass.json"),
+        root,
+        step: 100,
+    };
+    app.launch_size("3840x2160");
+    app.choose("pass");
+    let passed = app.observe();
+    let change = &passed["observation"]["recorded_resources"][0];
+    assert_eq!(
+        words(&passed, "ended-value:RESULT").lines().next(),
+        Some(format!("26July Resources: {} → {}", change["from"], change["to"]).as_str())
+    );
+    assert_eq!(passed["observation"]["eligibility"]["m26_next_card"], true);
+    assert_eq!(
+        words(&passed, "ended-value:ELIGIBILITY"),
+        "26July stays Eligible (R 2.3.3)."
+    );
+    assert!(
+        words(&passed, "ended-value:NEXT · SHOWN, NOT EXECUTED")
+            .starts_with("Directorio, 1st Eligible, may:")
+    );
+    app.capture("ended-pass");
+    app.quit();
+}
