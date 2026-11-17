@@ -66,6 +66,8 @@ const DETAIL: [f32; 3] = [1407.407, 835.185, 20.741];
 const CONTINUE_LABEL: &str = "Continue Terror";
 /// The Continue control's stable seat name.
 const CONTINUE: &str = "kidnap-die:continue";
+/// The tray's stable seat name: a click on it skips the tumble.
+pub(super) const TRAY: &str = "kidnap-die";
 /// The tray camera of #67's placement C: 80° above the floor, Blender's 50 mm lens on a
 /// 36 mm sensor across the viewport's width, distance fitted so the inner floor fills
 /// 2–98% of the frame.
@@ -622,7 +624,7 @@ pub(super) fn panel(
                 },
                 GlobalZIndex(4),
                 Control {
-                    name: "kidnap-die".into(),
+                    name: TRAY.into(),
                     choice: false,
                     action: Action::SkipDie,
                 },
@@ -804,12 +806,13 @@ fn top_face(world: &mut World) -> Option<f32> {
     Some(area.sqrt())
 }
 
-/// What Enter reaches at the seat: Continue, by its control id, once the die has landed.
+/// What Enter reaches at the seat, by its control id: the tray's skip while the die is
+/// in the air, and Continue once it has landed. Nothing while the reader is open.
 pub(super) fn focus(world: &mut World) -> Option<&'static str> {
     let landed = world.resource::<Roll>().landed;
     let reader = world.resource::<Interface>().reader;
     let shown = world.query::<&Stage>().iter(world).next().is_some();
-    (shown && landed && !reader).then_some(CONTINUE)
+    (shown && !reader).then_some(if landed { CONTINUE } else { TRAY })
 }
 
 #[cfg(test)]
