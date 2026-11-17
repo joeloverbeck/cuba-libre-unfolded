@@ -841,6 +841,10 @@ fn click(
                             owner.name()
                         )
                     } else if control.name.ends_with(":kidnap") {
+                        "Kidnap opened: nothing rolled. Roll the die or cancel. Saved.".into()
+                    } else if control.name.ends_with(":kidnap:cancel") {
+                        "Kidnap cancelled: nothing rolled and nothing changed. Saved.".into()
+                    } else if control.name.ends_with(":kidnap:roll") {
                         let view = play.game().observe();
                         let roll = view.kidnap.as_ref().unwrap();
                         format!(

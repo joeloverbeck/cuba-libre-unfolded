@@ -201,6 +201,10 @@ pub struct Game {
     /// such a save's state.
     #[serde(default)]
     pub(crate) effect: bool,
+    /// Kidnap opened and not yet rolled or cancelled (#63). Opening consumes no
+    /// randomness; only the roll does.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) kidnap_open: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -270,6 +274,8 @@ pub struct Observation {
     pub owed_terror: Option<String>,
     pub transfer: Option<Transfer>,
     pub kidnap: Option<Kidnap>,
+    /// Kidnap is opened: its stakes are shown and it awaits the roll or a cancel.
+    pub kidnap_open: bool,
     pub removal: Option<Removal>,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -313,8 +319,27 @@ pub struct Preview {
     pub records: Option<SequenceBox>,
     /// Directorio's options, when the step ends 26July's action.
     pub next: Option<Next>,
+    /// What a Kidnap roll could take, for opening Kidnap and for its roll. A roll's
+    /// result is never previewed.
+    pub kidnap: Option<KidnapStakes>,
     /// Facts with rule references, such as the zero-space warning.
     pub notes: Vec<String>,
+}
+/// What a Kidnap roll could take (R 4.3.3), from current Resources only.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct KidnapStakes {
+    /// The Kidnap space, Santiago in this task.
+    pub space: String,
+    /// The targeted faction: Government, in a City or EC.
+    pub target: Faction,
+    /// The target's current Resources.
+    pub government: u8,
+    /// Every possible proceeds amount, ascending: `min(die, government)` for die 1–6.
+    pub proceeds: Vec<u8>,
+    /// The guaranteed minimum, a roll of 1.
+    pub minimum: u8,
+    /// Whether rolling now owes Santiago Terror (the accepted commitment policy).
+    pub commits_santiago: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct ResourceChange {
@@ -558,6 +583,7 @@ impl Game {
             removal: None,
             action: ActionChoice::Terror,
             effect: false,
+            kidnap_open: false,
             available: vec![
                 group(Government, Troops, 3),
                 group(Government, Police, 8),
@@ -627,6 +653,7 @@ impl Game {
             owed_terror: self.owes_santiago().then(|| "santiago".into()),
             transfer: self.transfer.clone(),
             kidnap: self.kidnap.clone(),
+            kidnap_open: self.kidnap_open,
             removal: self.removal.clone(),
         }
     }
@@ -664,13 +691,15 @@ impl Game {
         self.submit(owner, self.revision, &id)
     }
     /// The consequences of an irreversible choice, from a copy of the match. Kidnap's
-    /// roll is never previewed here, so no future die result can show.
+    /// roll is never applied to a copy, so no future die result can show: opening it
+    /// and its roll preview the stakes from current Resources instead.
     fn preview(&self, choice: &Choice) -> Option<Preview> {
         if !choice.supported {
             return None;
         }
         let action = choice.id.split_once(':')?.1;
         let steps = match action {
+            "kidnap" | "kidnap:roll" => return Some(self.kidnap_stakes(action)),
             "pass" | "end-terror" | "confirm-removal" => vec![action],
             _ if action.starts_with("terror:") => vec![action],
             // A removal candidate previews the removal its confirmation would make.
@@ -868,6 +897,57 @@ impl Game {
         }
         notes
     }
+    /// Opening Kidnap and its roll: the target, the possible proceeds and their
+    /// guaranteed minimum from current Resources, the owed Santiago Terror and card 17's
+    /// Event for Directorio. Only facts certain before the roll are stated.
+    fn kidnap_stakes(&self, action: &str) -> Preview {
+        let government = self.resources[Faction::Government.index()];
+        let mut proceeds: Vec<u8> = (1..=6).map(|die| die.min(government)).collect();
+        proceeds.dedup();
+        let commits_santiago = self
+            .spaces
+            .iter()
+            .any(|s| s.id == "santiago" && s.terror == 0);
+        let mut preview = Preview {
+            kidnap: Some(KidnapStakes {
+                space: "santiago".into(),
+                target: Faction::Government,
+                government,
+                minimum: proceeds[0],
+                proceeds,
+                commits_santiago,
+            }),
+            ..Preview::default()
+        };
+        let mut notes = vec![format!(
+            "R 4.3.3: roll a die and take that many Resources from Government, which has {government}; once it runs out, no more is taken."
+        )];
+        if action == "kidnap" {
+            notes.push(
+                "Opening rolls nothing: Cancel leaves the match and its randomness unchanged."
+                    .into(),
+            );
+        }
+        if commits_santiago {
+            notes.push("Rolling before Santiago's Terror owes it, under the accepted commitment policy (local, not a publisher ruling): 1 Resource and Santiago's last Underground Guerrilla stay reserved, and End Terror is refused until it resolves.".into());
+            preview.unavailable.push(Unavailable {
+                choice: "end-terror".into(),
+                label: "End Terror".into(),
+                reason: "Santiago Terror is owed: under the accepted commitment policy, its payment and Activation come before End Terror.".into(),
+            });
+        }
+        notes.push(format!("End Terror then records Operation with Special Activity: Directorio may execute card 17's Event, either text (R 2.3.4, 5.2). Shaded: \"{CARD_17_SHADED}\""));
+        if !self.effected() {
+            notes.push("The roll is the first effect: going back to the action choice ends (local policy, #58).".into());
+            preview.unavailable.push(Unavailable {
+                choice: "back-to-choice".into(),
+                label: "Back to the action choice".into(),
+                reason: "No longer offered.".into(),
+            });
+        }
+        preview.notes = notes;
+        preview
+    }
     fn executing(&self) -> Option<Faction> {
         (self.action == ActionChoice::Terror && !self.finished).then_some(Faction::M26)
     }
@@ -912,6 +992,7 @@ impl Game {
     fn may_go_back(&self) -> bool {
         self.executing().is_some()
             && self.removal.is_none()
+            && !self.kidnap_open
             && !self.effected()
             && match self.transfer {
                 None => true,
@@ -1119,6 +1200,20 @@ impl Game {
         if self.action == ActionChoice::Open {
             return self.opening_choices();
         }
+        if self.kidnap_open {
+            let mut roll = self.kidnap_offer();
+            roll.id = format!("{}:kidnap:roll", self.revision);
+            roll.label = "Roll the Kidnap die · commits the result".into();
+            return vec![
+                roll,
+                self.offer(
+                    "kidnap:cancel",
+                    "Cancel Kidnap · nothing rolled",
+                    true,
+                    "Closes Kidnap without rolling: the match and its randomness stay unchanged, and it is no effect (local policy, #58).",
+                ),
+            ];
+        }
         if let Some(removal) = &self.removal {
             let mut choices = match removal {
                 Removal::Selecting => self.removal_choices(),
@@ -1245,30 +1340,7 @@ impl Game {
                 "Choose one 26July Guerrilla or Base, then confirm or cancel. Only an already owed Terror restricts removal.",
             ),
         ];
-        let kidnap = self.kidnap.is_none().then(|| {
-            let santiago = self.spaces.iter().find(|s| s.id == "santiago").unwrap();
-            let count = |kind, faction, state: Option<State>| -> u8 {
-                santiago
-                    .pieces
-                    .iter()
-                    .filter(|p| {
-                        p.kind == kind && p.faction == faction && state.is_none_or(|s| p.state == s)
-                    })
-                    .map(|p| p.count)
-                    .sum()
-            };
-            let guerrillas = count(Kind::Guerrilla, Faction::M26, None);
-            let police = count(Kind::Police, Faction::Government, None);
-            let feasible = santiago.terror > 0
-                || (count(Kind::Guerrilla, Faction::M26, Some(State::Underground)) > 0
-                    && (self.resources[1] > 0 || self.resources[0] > 0));
-            self.offer(
-                "kidnap",
-                "Kidnap · Santiago · Government",
-                guerrillas > police && feasible,
-                format!("{guerrillas} Guerrillas (Active + Underground) vs {police} Police; must outnumber. Die 1–6: proceeds {}–{} from Government. {}", self.resources[0].min(1), self.resources[0].min(6), if feasible {"Santiago Terror was resolved or is guaranteed feasible on every roll; an early roll commits its payment and Underground Guerrilla."} else {"Santiago needs an Underground Guerrilla and guaranteed payment without a promised Resource transfer or favorable roll."}),
-            )
-        });
+        let kidnap = self.kidnap.is_none().then(|| self.kidnap_offer());
         for id in ["santiago", "oriente"] {
             choices.push(self.terror_target(id, kidnap.as_ref()));
         }
@@ -1277,6 +1349,33 @@ impl Game {
             choices.push(back("Back to the action choice"));
         }
         choices
+    }
+    /// Opening Kidnap in Santiago (R 4.1, 4.3.3): offered while it outnumbers the
+    /// Police and Santiago's Terror is resolved or guaranteed on every roll. The roll
+    /// is offered on the same terms.
+    fn kidnap_offer(&self) -> Choice {
+        let santiago = self.spaces.iter().find(|s| s.id == "santiago").unwrap();
+        let count = |kind, faction, state: Option<State>| -> u8 {
+            santiago
+                .pieces
+                .iter()
+                .filter(|p| {
+                    p.kind == kind && p.faction == faction && state.is_none_or(|s| p.state == s)
+                })
+                .map(|p| p.count)
+                .sum()
+        };
+        let guerrillas = count(Kind::Guerrilla, Faction::M26, None);
+        let police = count(Kind::Police, Faction::Government, None);
+        let feasible = santiago.terror > 0
+            || (count(Kind::Guerrilla, Faction::M26, Some(State::Underground)) > 0
+                && (self.resources[1] > 0 || self.resources[0] > 0));
+        self.offer(
+            "kidnap",
+            "Kidnap · Santiago · Government",
+            guerrillas > police && feasible,
+            format!("{guerrillas} Guerrillas (Active + Underground) vs {police} Police; must outnumber. Die 1–6: proceeds {}–{} from Government. {}", self.resources[0].min(1), self.resources[0].min(6), if feasible {"Santiago Terror was resolved or is guaranteed feasible on every roll; an early roll commits its payment and Underground Guerrilla."} else {"Santiago needs an Underground Guerrilla and guaranteed payment without a promised Resource transfer or favorable roll."}),
+        )
     }
     /// A Terror target, listed even when 26July cannot act on it now: its reason and
     /// the remedies possible in this task (R 3.1, 3.3.4).
@@ -1479,7 +1578,10 @@ impl Game {
         }
         match self.transfer.clone() {
             None if action == "remove" => self.removal = Some(Removal::Selecting),
-            None if action == "kidnap" => {
+            None if action == "kidnap" => self.kidnap_open = true,
+            None if action == "kidnap:cancel" => self.kidnap_open = false,
+            None if action == "kidnap:roll" => {
+                self.kidnap_open = false;
                 self.effect = true;
                 let mut random = SeededRandom::new(self.random);
                 let die = (random.index(6) + 1) as u8;
@@ -1611,6 +1713,7 @@ impl Game {
             && paid == 0
             && removed == 0
             && self.kidnap.is_none()
+            && !self.kidnap_open
             && self.transfer.is_none()
             && self.removal.is_none();
         let consistent = match self.action {
@@ -1632,6 +1735,16 @@ impl Game {
             || (self.revision == 0 && *self != expected)
             || (self.finished && (self.transfer.is_some() || self.removal.is_some()))
             || (self.transfer.is_some() && self.removal.is_some())
+            // An opened Kidnap is a modal step of Terror execution, still unrolled
+            // and on the terms that offered it.
+            || (self.kidnap_open
+                && (self.action != ActionChoice::Terror
+                    || self.finished
+                    || self.kidnap.is_some()
+                    || self.transfer.is_some()
+                    || self.removal.is_some()
+                    || self.revision == 0
+                    || !self.kidnap_offer().supported))
         {
             return Err("Unsupported transfer balances or decision state.".into());
         }
@@ -1686,6 +1799,7 @@ impl Game {
         expected.kidnap = self.kidnap.clone();
         expected.removal = self.removal.clone();
         expected.effect = self.effect;
+        expected.kidnap_open = self.kidnap_open;
         if *self != expected {
             return Err(
                 "State is not a supported prepared transfer/Terror/Kidnap/removal position.".into(),

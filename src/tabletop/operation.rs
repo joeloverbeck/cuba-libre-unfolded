@@ -68,6 +68,8 @@ fn heading(view: &crate::Observation) -> String {
                 "Operation Only"
             }
         )
+    } else if view.kidnap_open {
+        "26July · Kidnap opened".into()
     } else if view.transfer.is_some() {
         format!("Resource transfer\n{} decides locally", view.owner.name())
     } else if view.removal.is_some() {
@@ -90,6 +92,9 @@ fn details(view: &crate::Observation) -> String {
             );
         }
         crate::ActionChoice::Terror => {}
+    }
+    if view.kidnap_open {
+        return kidnap_details(view);
     }
     let body = match &view.transfer {
         Some(crate::Transfer::Selecting) => "Choose the giver and recipient.\n26July must be one endpoint.\nThe giver chooses the quantity and authorizes.\nA request is not a donation.".into(),
@@ -234,6 +239,53 @@ fn opening_choices(commands: &mut Commands, art: &Art, view: &crate::Observation
     }
 }
 
+/// An opened Kidnap's stakes, from the roll's preview: the target, the possible
+/// proceeds and their guaranteed minimum, the owed Terror and card 17's Event. The
+/// pointer on Roll shows the full preview.
+fn kidnap_details(view: &crate::Observation) -> String {
+    let Some(stakes) = view
+        .choices
+        .iter()
+        .find(|c| c.id.ends_with(":kidnap:roll"))
+        .and_then(|c| c.preview.as_ref())
+        .and_then(|p| p.kidnap.as_ref())
+    else {
+        return "Kidnap is open; its roll is unavailable now.".into();
+    };
+    let mut sentences = vec![
+        "Kidnap (Special Activity, R 4.1, 4.3.3). Nothing is rolled yet.".to_owned(),
+        format!(
+            "Target: {} in {}, which has {}.",
+            stakes.target.name(),
+            view.spaces
+                .iter()
+                .find(|s| s.id == stakes.space)
+                .map_or(stakes.space.as_str(), |s| s.name.as_str()),
+            units(stakes.government)
+        ),
+        format!(
+            "A die 1–6 takes {} · guaranteed minimum {}.",
+            super::preview::proceeds(stakes),
+            units(stakes.minimum)
+        ),
+    ];
+    if stakes.commits_santiago {
+        sentences.push("Rolling owes Santiago Terror (accepted commitment policy): keep 1 Resource and its last Underground Guerrilla; End Terror waits for it.".into());
+    }
+    sentences.push(format!(
+        "After End Terror, Directorio may execute card 17's Event (R 2.3.4, 5.2), shaded: \"{}\"",
+        crate::CARD_17_SHADED
+    ));
+    sentences.push(
+        "The roll is saved before it is shown. Cancel rolls nothing and changes nothing.".into(),
+    );
+    sentences
+        .iter()
+        .flat_map(|s| super::preview::wrap(s, 48))
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// The Terror and Kidnap terms with units and rule references, or the resolved record
 /// once Terror has ended. The map shows the pieces; each button's preview shows what
 /// it changes.
@@ -274,7 +326,7 @@ fn terror_details(view: &crate::Observation) -> String {
         ));
     } else if !view.finished {
         lines.push(format!(
-            "Kidnap (Special Activity, R 4.1, 4.3.3): with\nTerror in Santiago, a die 1–6 takes {}–{}\nResources from Government.",
+            "Kidnap (Special Activity, R 4.1, 4.3.3): with\nTerror in Santiago, a die 1–6 takes {}–{}\nResources from Government. Open it to see\nthe stakes; nothing rolls until Roll.",
             view.resources[0].min(1),
             view.resources[0].min(6)
         ));
@@ -306,5 +358,31 @@ mod tests {
         assert!(!details.contains("Police"), "{details}");
         assert!(!details.contains("Activate 1"), "{details}");
         assert!(!details.contains("Full Terror"), "{details}");
+    }
+
+    #[test]
+    fn an_opened_kidnap_states_its_stakes_from_the_rules_authority() {
+        let mut game = Game::prepared();
+        game.submit(Faction::M26, 0, "0:kidnap").unwrap();
+        let view = game.observe();
+        assert_eq!(heading(&view), "26July · Kidnap opened");
+        let details = details(&view);
+        let words = details.replace('\n', " ");
+        for fact in [
+            "Target: Government in Santiago de Cuba,",
+            "which has 6 Resources",
+            "takes 1–6 Resources",
+            "guaranteed minimum 1 Resource",
+            "accepted commitment policy",
+            "R 2.3.4, 5.2",
+            "Cancel rolls nothing",
+            "Nothing is rolled yet.",
+        ] {
+            assert!(words.contains(fact), "{fact}: {details}");
+        }
+        assert!(
+            details.lines().all(|l| l.chars().count() <= 48),
+            "{details}"
+        );
     }
 }

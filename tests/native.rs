@@ -580,6 +580,7 @@ fn native_own_removal_confirmation_restart_obligation_and_all_pieces_finish() {
     app.choose("terror");
     for action in [
         "kidnap",
+        "kidnap:roll",
         "remove",
         "remove:santiago:underground",
         "confirm-removal",
@@ -715,6 +716,7 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
     app.choose("terror");
     app.capture("before-roll");
     app.choose("kidnap");
+    app.choose("kidnap:roll");
     let rolled = app.observe();
     assert_eq!(rolled["observation"]["owed_terror"], "santiago");
     assert!(
@@ -758,18 +760,18 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
             .iter()
             .all(|s| s["visible"] == true)
     );
-    app.activate("space:santiago", 3);
+    app.activate("space:santiago", 4);
     app.capture("santiago-after-terror");
     std::fs::copy(&app.save, app.root.join("terror-valid.json")).unwrap();
     app.quit();
     app.launch();
     assert_eq!(app.observe()["observation"], after["observation"]);
     app.request(
-        json!({"op":"activate","revision":2,"choice":"2:terror:santiago"}),
+        json!({"op":"activate","revision":3,"choice":"3:terror:santiago"}),
         false,
     );
     assert_eq!(app.observe()["observation"], after["observation"]);
-    app.activate("standing:1", 3);
+    app.activate("standing:1", 4);
     app.capture("santiago-standing");
     // Real Syndicate donation restores Oriente even if the real roll was 1.
     app.choose("transfer");
@@ -792,6 +794,187 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
         json!([true, true, true, true])
     );
     app.capture("kidnap-finished");
+    app.quit();
+}
+
+/// #63: Kidnap opened, cancelled, opened again, restarted while open, then rolled,
+/// through the panel's real buttons. Opening and cancelling leave the saved match and
+/// its randomness unchanged; the roll commits once and survives restart.
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_kidnap_opens_cancels_and_rolls_through_the_panel() {
+    let cards = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS")
+        .into();
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "local/verification/issue-63".into());
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("kidnap-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards,
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("task.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Kidnap native evidence: {}", app.root.display());
+    let saved = |app: &Native| -> Value {
+        serde_json::from_slice(&std::fs::read(&app.save).unwrap()).unwrap()
+    };
+    // Rests the pointer on a playable choice's button and returns its card.
+    let card = |app: &mut Native, action: &str, capture: &str| -> String {
+        let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
+        let id = format!("{revision}:{action}");
+        app.request(json!({"op":"point","revision":revision,"choice":id}), true);
+        app.request(json!({"op":"settle"}), true);
+        let view = app.observe();
+        assert_eq!(view["table"]["preview"]["choice"], id, "{view}");
+        app.capture(capture);
+        view["table"]["preview"]["lines"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|l| l.as_str().unwrap().to_owned())
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    let panel = |view: &Value, needle: &str| -> bool {
+        view["table"]["inline_text"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|t| {
+                t["text"]
+                    .as_str()
+                    .unwrap()
+                    .replace('\n', " ")
+                    .contains(needle)
+            })
+    };
+    let ids = |view: &Value| -> Vec<String> {
+        view["observation"]["choices"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| {
+                c["id"]
+                    .as_str()
+                    .unwrap()
+                    .split_once(':')
+                    .unwrap()
+                    .1
+                    .to_owned()
+            })
+            .collect()
+    };
+    app.launch();
+    app.choose("terror");
+    let before = app.observe();
+    let random = saved(&app)["payload"]["random"].clone();
+    let stakes = card(&mut app, "kidnap", "kidnap-open-preview");
+    for fact in [
+        "Target: Government in Santiago de Cuba (R 4.3.3), which has 6",
+        "Possible proceeds: 1–6 Resources · guaranteed minimum 1",
+        "accepted commitment policy",
+        "card 17's Event",
+        "Opening rolls nothing",
+    ] {
+        assert!(stakes.contains(fact), "{fact}: {stakes}");
+    }
+
+    // Open.
+    app.choose("kidnap");
+    let opened = app.observe();
+    assert_eq!(opened["observation"]["kidnap_open"], true);
+    assert_eq!(opened["observation"]["kidnap"], Value::Null);
+    assert_eq!(opened["observation"]["resources"], json!([6, 0, 5, 15]));
+    assert_eq!(ids(&opened), ["kidnap:roll", "kidnap:cancel"]);
+    assert!(
+        opened["table"]["notice"]
+            .as_str()
+            .unwrap()
+            .contains("nothing rolled")
+    );
+    assert!(panel(&opened, "guaranteed minimum 1"), "{opened}");
+    assert_eq!(saved(&app)["payload"]["random"], random);
+    app.capture("kidnap-opened");
+    let roll = card(&mut app, "kidnap:roll", "kidnap-roll-preview");
+    assert!(roll.contains("guaranteed minimum 1"), "{roll}");
+    assert!(roll.contains("Becomes unavailable: End Terror"), "{roll}");
+
+    // Cancel: nothing rolled, nothing changed, and going back is still offered.
+    app.choose("kidnap:cancel");
+    let cancelled = app.observe();
+    assert_eq!(cancelled["observation"]["kidnap_open"], false);
+    assert_eq!(
+        cancelled["observation"]["resources"],
+        before["observation"]["resources"]
+    );
+    assert_eq!(
+        cancelled["observation"]["spaces"],
+        before["observation"]["spaces"]
+    );
+    assert!(ids(&cancelled).contains(&"back-to-choice".to_owned()));
+    assert_eq!(saved(&app)["payload"]["random"], random);
+    assert!(
+        cancelled["table"]["notice"]
+            .as_str()
+            .unwrap()
+            .contains("cancelled")
+    );
+    app.capture("kidnap-cancelled");
+
+    // Open again and restart while open.
+    app.choose("kidnap");
+    let reopened = app.observe();
+    let open_bytes = std::fs::read(&app.save).unwrap();
+    app.quit();
+    app.launch();
+    assert_eq!(app.observe()["observation"], reopened["observation"]);
+    assert_eq!(std::fs::read(&app.save).unwrap(), open_bytes);
+    app.capture("kidnap-open-after-restart");
+
+    // Roll through its button.
+    let revision = reopened["observation"]["revision"].as_u64().unwrap();
+    app.choose("kidnap:roll");
+    let rolled = app.observe();
+    let die = rolled["observation"]["kidnap"]["die"].as_u64().unwrap();
+    assert!((1..=6).contains(&die));
+    assert_eq!(rolled["observation"]["kidnap"]["proceeds"], die);
+    assert_eq!(
+        rolled["observation"]["resources"],
+        json!([6 - die, die, 5, 15])
+    );
+    assert_eq!(rolled["observation"]["owed_terror"], "santiago");
+    assert_ne!(saved(&app)["payload"]["random"], random);
+    assert!(!ids(&rolled).contains(&"back-to-choice".to_owned()));
+    assert!(
+        rolled["table"]["notice"]
+            .as_str()
+            .unwrap()
+            .contains(&format!("Kidnap rolled {die}"))
+    );
+    assert!(panel(&rolled, &format!("Kidnap rolled {die}")), "{rolled}");
+    app.capture("kidnap-rolled");
+    let rolled_bytes = std::fs::read(&app.save).unwrap();
+    app.quit();
+    app.launch();
+    assert_eq!(app.observe()["observation"], rolled["observation"]);
+    app.request(
+        json!({"op":"activate","revision":revision,"choice":format!("{revision}:kidnap:roll")}),
+        false,
+    );
+    assert_eq!(app.observe()["observation"], rolled["observation"]);
+    assert_eq!(std::fs::read(&app.save).unwrap(), rolled_bytes);
+    app.capture("kidnap-rolled-after-restart");
     app.quit();
 }
 
@@ -850,6 +1033,7 @@ fn native_donations_enable_both_orders_without_or_with_late_kidnap() {
         app.capture("both-before-kidnap-or-finish");
         if kidnap {
             app.choose("kidnap");
+            app.choose("kidnap:roll");
             let roll = app.observe();
             let die = roll["observation"]["kidnap"]["die"].as_u64().unwrap();
             assert!((1..=6).contains(&die));
@@ -1823,6 +2007,7 @@ fn native_top_display_matches_layout_and_follows_the_economy() {
     assert_eq!(ledger(&app.observe()), ["6", "0", "3", "15"]);
     app.capture("after-terror");
     app.choose("kidnap");
+    app.choose("kidnap:roll");
     let roll = app.observe();
     let resources: Vec<String> = roll["observation"]["resources"]
         .as_array()
@@ -2099,6 +2284,7 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
 
         // Kidnap's record and notice.
         app.choose("kidnap");
+        app.choose("kidnap:roll");
         let kidnap = app.observe();
         checked += assert_inline_emblems(&kidnap);
         assert!(
@@ -2423,6 +2609,7 @@ fn native_previews_disabled_targets_and_end_terror() {
     assert!(only.contains("Records: Operation Only"), "{only}");
     assert!(!only.contains("No Terror resolved"), "{only}");
     app.choose("kidnap");
+    app.choose("kidnap:roll");
     let special = card(&mut app, "end-terror", "end-terror-after-kidnap");
     assert!(
         special.contains("Records: Operation with Special Activity"),

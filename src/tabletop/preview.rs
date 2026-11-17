@@ -4,7 +4,7 @@
 //! and places the game's facts. It is a temporary card beside the Operation panel;
 //! the selected popover design (#69) replaces its placement.
 use super::*;
-use crate::{Choice, Observation, Preview, SequenceBox};
+use crate::{Choice, KidnapStakes, Observation, Preview, SequenceBox};
 
 /// Card geometry in reference pixels, right-anchored beside the Operation panel.
 mod card {
@@ -62,9 +62,33 @@ fn record(record: SequenceBox) -> &'static str {
     }
 }
 
+/// A Kidnap roll's possible proceeds as a range of Resources, such as "1–6 Resources"
+/// or "0 Resources" once Government has none.
+pub(super) fn proceeds(stakes: &KidnapStakes) -> String {
+    match (stakes.proceeds.first(), stakes.proceeds.last()) {
+        (Some(low), Some(high)) if low != high => format!("{low}–{high} Resources"),
+        (Some(1), _) => "1 Resource".into(),
+        (Some(n), _) => format!("{n} Resources"),
+        _ => "nothing".into(),
+    }
+}
+
 /// The preview's facts as sentences, in the order a player checks them.
 fn consequences(view: &Observation, preview: &Preview) -> Vec<String> {
     let mut lines = vec![];
+    if let Some(stakes) = &preview.kidnap {
+        lines.push(format!(
+            "Target: {} in {} (R 4.3.3), which has {}",
+            stakes.target.name(),
+            space_name(view, &stakes.space),
+            stakes.government
+        ));
+        lines.push(format!(
+            "Possible proceeds: {} · guaranteed minimum {}",
+            proceeds(stakes),
+            stakes.minimum
+        ));
+    }
     for r in &preview.resources {
         lines.push(format!(
             "{} Resources: {} → {}",
@@ -163,7 +187,7 @@ fn content(view: &Observation, choice: &Choice) -> Shown {
 }
 
 /// Breaks a sentence into lines of at most `width` characters at spaces.
-fn wrap(sentence: &str, width: usize) -> Vec<String> {
+pub(super) fn wrap(sentence: &str, width: usize) -> Vec<String> {
     let mut lines = vec![];
     let mut line = String::new();
     for word in sentence.split_whitespace() {
@@ -314,6 +338,26 @@ mod tests {
         ] {
             assert!(lines.contains(fact), "{fact}: {lines}");
         }
+    }
+
+    #[test]
+    fn the_kidnap_card_shows_the_stakes_and_no_result() {
+        let mut game = Game::prepared();
+        let open = card(&game, "kidnap").lines.join(" ");
+        game.submit(Faction::M26, 0, "0:kidnap").unwrap();
+        let roll = card(&game, "kidnap:roll").lines.join(" ");
+        for lines in [&open, &roll] {
+            for fact in [
+                "Target: Government in Santiago de Cuba (R 4.3.3), which has 6",
+                "Possible proceeds: 1–6 Resources · guaranteed minimum 1",
+                "accepted commitment policy",
+                "Becomes unavailable: End Terror",
+            ] {
+                assert!(lines.contains(fact), "{fact}: {lines}");
+            }
+            assert!(!lines.contains("No Resources"), "{lines}");
+        }
+        assert!(open.contains("Opening rolls nothing"), "{open}");
     }
 
     #[test]

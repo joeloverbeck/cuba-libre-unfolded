@@ -241,6 +241,7 @@ fn eligibility_shows_order_and_roles_at_the_choice_during_terror_and_after_each_
     let mut special = Game::opening_with_seed(5);
     choose(&mut special, "terror");
     choose(&mut special, "kidnap");
+    choose(&mut special, "kidnap:roll");
     choose(&mut special, "terror:santiago");
     choose(&mut special, "end-terror");
     let view = special.observe();
@@ -433,6 +434,7 @@ fn going_back_is_refused_after_each_kind_of_effect() {
     // A Kidnap roll.
     let mut game = terror();
     choose(&mut game, "kidnap");
+    choose(&mut game, "kidnap:roll");
     back_refused(&mut game);
     // A removal.
     let mut game = terror();
@@ -473,7 +475,7 @@ fn a_record_without_the_new_fields_resumes_with_terror_chosen() {
     back.validate().unwrap();
     // A #8 record after an effect resumes without going back.
     for steps in [
-        &["kidnap"][..],
+        &["kidnap", "kidnap:roll"][..],
         &["remove", "remove:oriente:underground", "confirm-removal"],
         &["transfer", "transfer:3:1", "amount:1", "authorize"],
     ] {

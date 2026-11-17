@@ -16,6 +16,7 @@ fn pending_removal_and_owed_piece_survive_restart_without_duplicates() {
     for action in [
         "terror",
         "kidnap",
+        "kidnap:roll",
         "remove",
         "remove:santiago:underground",
         "confirm-removal",
@@ -57,6 +58,7 @@ fn removal_admission_refuses_foreign_changes_wrong_supply_and_impossible_obligat
     for action in [
         "terror",
         "kidnap",
+        "kidnap:roll",
         "remove",
         "remove:santiago:underground",
         "confirm-removal",
@@ -109,6 +111,7 @@ fn committed_roll_and_terror_resume_without_reroll_or_duplicate_effect() {
     act(&mut session, "terror");
     let initial_rng = session.game().random_state();
     session.submit(Faction::M26, 1, "1:kidnap").unwrap();
+    session.submit(Faction::M26, 2, "2:kidnap:roll").unwrap();
     let rolled = session.observe();
     let consumed = session.game().random_state();
     assert_ne!(consumed, initial_rng);
@@ -121,12 +124,17 @@ fn committed_roll_and_terror_resume_without_reroll_or_duplicate_effect() {
     assert_eq!(session.observe(), rolled);
     assert_eq!(session.game().random_state(), consumed);
     let bytes = std::fs::read(&path).unwrap();
-    for (rev, action) in [(1, "1:kidnap"), (2, "2:kidnap"), (2, "2:end-terror")] {
+    for (rev, action) in [
+        (1, "1:kidnap"),
+        (2, "2:kidnap:roll"),
+        (3, "3:kidnap"),
+        (3, "3:end-terror"),
+    ] {
         assert!(session.submit(Faction::M26, rev, action).is_err());
         assert_eq!(std::fs::read(&path).unwrap(), bytes);
     }
     session
-        .submit(Faction::M26, 2, "2:terror:santiago")
+        .submit(Faction::M26, 3, "3:terror:santiago")
         .unwrap();
     let terror = session.observe();
     drop(session);
@@ -140,7 +148,7 @@ fn committed_roll_and_terror_resume_without_reroll_or_duplicate_effect() {
             .submit(Faction::M26, 3, "3:terror:santiago")
             .is_err()
     );
-    session.submit(Faction::M26, 3, "3:end-terror").unwrap();
+    session.submit(Faction::M26, 4, "4:end-terror").unwrap();
     assert!(session.observe().next_options.contains(&"Event".into()));
 }
 
@@ -167,9 +175,10 @@ fn admission_refuses_forged_roll_effects_and_impossible_revision_without_replaci
     let mut session = Session::open(&path, None).unwrap();
     act(&mut session, "terror");
     session.submit(Faction::M26, 1, "1:kidnap").unwrap();
+    session.submit(Faction::M26, 2, "2:kidnap:roll").unwrap();
     let rolled: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
     session
-        .submit(Faction::M26, 2, "2:terror:santiago")
+        .submit(Faction::M26, 3, "3:terror:santiago")
         .unwrap();
     let resolved: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
@@ -215,11 +224,12 @@ fn failed_record_replacement_does_not_consume_the_roll_or_publish_its_effect() {
     let path = dir.path().join("roll.json");
     let mut session = Session::open(&path, None).unwrap();
     act(&mut session, "terror");
+    act(&mut session, "kidnap");
     std::fs::remove_file(previous_path(&path)).unwrap();
     let before = session.game().clone();
     let bytes = std::fs::read(&path).unwrap();
     std::fs::create_dir(previous_path(&path)).unwrap();
-    assert!(session.submit(Faction::M26, 1, "1:kidnap").is_err());
+    assert!(session.submit(Faction::M26, 2, "2:kidnap:roll").is_err());
     assert_eq!(session.game(), &before);
     assert_eq!(std::fs::read(&path).unwrap(), bytes);
 }
@@ -489,6 +499,7 @@ fn a_record_from_8_resumes_with_terror_chosen_and_is_not_rewritten_until_a_decis
     // After a Kidnap roll: resumed, but no going back.
     let mut rolled = Game::prepared_with_seed(5);
     rolled.submit(Faction::M26, 0, "0:kidnap").unwrap();
+    rolled.submit(Faction::M26, 1, "1:kidnap:roll").unwrap();
     let after_effect = legacy_record(&path, &rolled);
     std::fs::write(&path, &after_effect).unwrap();
     let mut session = Session::open(&path, None).unwrap();
