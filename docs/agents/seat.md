@@ -58,7 +58,7 @@ Every full reply carries the whole rules observation and the whole table: many k
 
 | Key | Effect |
 |---|---|
-| Camera keys | Orbit, zoom, pan and Home framing, as README "Build and launch" lists them. |
+| Camera keys | Orbit, zoom, pan and Home framing, as [the play guide's "Camera and keys"](../playing.md#camera-and-keys) lists them. |
 | `Tab` | Moves keyboard focus through the action choice's options (`option:pass` … `option:terror:kidnap`) and its commit. During Terror it also moves through `briefing-ribbon`, `briefing-tab:kidnap`, `briefing-tab:terror` and the execution panel's steps. |
 | `Escape` | Unpins or closes the briefing; cancels an open transfer (Wait in a giver's decision); closes an open space popover, piece popover or briefing tag. |
 | `Backspace`, `0`–`9` | Edit the transfer amount. |

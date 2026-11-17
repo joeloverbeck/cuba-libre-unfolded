@@ -42,6 +42,43 @@ if [[ $documented != "$defined" ]]; then
   exit 1
 fi
 echo "native catalogue: $(wc -l <<<"$defined") tests, all listed once"
+# Agents read Markdown by section, and the Read tool truncates a line past 2,000
+# characters (#91, #95, #97). Prose lines stay at or under 1,000 characters. Fenced
+# code and table rows are skipped; docs/principles/ is the adopted constitution,
+# kept verbatim. Untracked files are included so a new document is checked before
+# it is committed. C.UTF-8 makes ${#line} count characters, not bytes.
+long_lines() {
+  local LC_ALL=C.UTF-8 file line number fenced found=0 files
+  # A failed listing must not pass as "no files": wait reports the
+  # process substitution's status.
+  mapfile -d '' -t files < <(git ls-files -z --cached --others --exclude-standard -- \
+    README.md 'docs/*.md' 'art/*.md' ':(exclude)docs/principles/')
+  wait "$!" || { echo "Markdown line length: git ls-files failed" >&2; return 1; }
+  if ((${#files[@]} == 0)); then
+    echo "Markdown line length: found no Markdown files to check" >&2
+    return 1
+  fi
+  for file in "${files[@]}"; do
+    [[ -f $file ]] || continue
+    number=0
+    fenced=0
+    while IFS= read -r line || [[ -n $line ]]; do
+      number=$((number + 1))
+      if [[ $line =~ ^[[:space:]]*(\`\`\`|~~~) ]]; then
+        fenced=$((1 - fenced))
+      elif ((!fenced)) && ! [[ $line =~ ^[[:space:]]*\| ]] && ((${#line} > 1000)); then
+        echo "$file:$number: ${#line} characters" >&2
+        found=1
+      fi
+    done <"$file"
+  done
+  return "$found"
+}
+if ! long_lines; then
+  echo "Markdown line length: split each line above into shorter paragraphs or a list" >&2
+  exit 1
+fi
+echo "Markdown line length: no prose line over 1,000 characters in README, docs/ or art/"
 # Builds are bounded by `.cargo/config.toml`, which every Cargo command here reads.
 cargo fmt --all --check
 cargo clippy --locked --all-targets -- -D warnings
