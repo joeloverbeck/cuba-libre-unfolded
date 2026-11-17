@@ -56,9 +56,10 @@ fn available(game: &Game, kind: Kind) -> u8 {
 }
 
 // R 1.4.1 and accepted deacd635 removal witness: no obligation yet, so
-// losing strict outnumbering does not forbid removal or a later actual donation.
+// losing strict outnumbering does not forbid removal or a later actual Resource transfer.
 #[test]
-fn removal_mode_removes_nothing_until_a_removal_and_defeats_kidnap_but_not_donated_terror() {
+fn removal_mode_removes_nothing_until_a_removal_and_defeats_kidnap_but_not_terror_after_a_resource_transfer()
+ {
     let mut game = Game::prepared();
     let initial = game.observe();
     choose(&mut game, "remove");

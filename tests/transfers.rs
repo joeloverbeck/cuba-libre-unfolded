@@ -109,7 +109,8 @@ fn ask_hands_the_amount_to_the_giver_who_may_choose_another() {
     let view = game.observe();
     assert_eq!(view.resources, [6, 5, 5, 10]);
     assert_eq!((view.owner, view.transfer.clone()), (M26, None));
-    // Syndicate's margin counts its Resources (R 7.2): 10 − 15 is −5 better than −15.
+    // Syndicate's victory margin counts its Resources (R 7.3: Resources − 30), so
+    // giving 5 moves that term from 15 − 30 = −15 to 10 − 30 = −20, which is worse.
     assert!(
         view.standings[3]
             .contributions

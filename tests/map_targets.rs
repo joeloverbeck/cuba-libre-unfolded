@@ -93,7 +93,7 @@ fn at_0_resources_santiago_offers_kidnap_and_oriente_waits_for_a_transfer() {
 }
 
 #[test]
-fn a_donation_makes_both_targets_selectable() {
+fn a_resource_transfer_makes_both_targets_selectable() {
     let mut game = Game::prepared();
     give(&mut game, Faction::Syndicate, 2);
     assert_eq!(state(&game, "santiago").0, SpaceState::Selectable);
