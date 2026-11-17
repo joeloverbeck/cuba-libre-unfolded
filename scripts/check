@@ -28,8 +28,14 @@ fi
 echo "conflict markers: none"
 # docs/agents/seat.md catalogues every native regression, one bullet per test (#91). A
 # `fn native_*` is a native regression by name; rename a helper rather than list it.
-documented=$(grep -oE '^- `native_[a-z0-9_]+`' docs/agents/seat.md | sed 's/^- `//; s/`$//' | sort)
-defined=$(grep -rhoE 'fn native_[a-z0-9_]+' src tests | sed 's/^fn //' | sort -u)
+# grep exits 1 on no match, which pipefail would turn into a silent failure here; an
+# empty side fails below with its own message instead.
+documented=$({ grep -oE '^- `native_[a-z0-9_]+`' docs/agents/seat.md || [[ $? == 1 ]]; } | sed 's/^- `//; s/`$//' | sort)
+defined=$({ grep -rhoE 'fn native_[a-z0-9_]+' src tests || [[ $? == 1 ]]; } | sed 's/^fn //' | sort -u)
+if [[ -z $documented || -z $defined ]]; then
+  echo "native catalogue: found no native tests in docs/agents/seat.md or in src/ and tests/" >&2
+  exit 1
+fi
 if [[ $documented != "$defined" ]]; then
   echo "native catalogue: docs/agents/seat.md differs from the native tests (< documented, > defined):" >&2
   diff <(echo "$documented") <(echo "$defined") >&2 || true

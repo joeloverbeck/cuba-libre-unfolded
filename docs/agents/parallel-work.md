@@ -17,7 +17,7 @@ The main checkout stays on `main`. Commit, switch branches and edit tracked file
   scripts/heavy scripts/check
   ```
 
-  It takes `<main checkout>/local/heavy.lock`, opens a `systemd-run` scope (MemoryHigh 6G, MemoryMax 7G, swap 1G) and sets the worktree's private target. Run one command per call: waiting on the lock is expected, and the lock is released before editing or thinking.
+  It takes `<main checkout>/local/heavy.lock`, opens a `systemd-run` memory scope with the limits it names, and sets the worktree's private target. Run one command per call: waiting on the lock is expected, and the lock is released before editing or thinking.
 - **Native suite.** `CUBA_TEST_CARDS=… scripts/heavy scripts/native`.
 
 ## Art editors and Blender
