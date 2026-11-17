@@ -67,6 +67,13 @@ Fresh sibling inspection: Arkham `8301466b5bbc20b99411901cfcd6db2b29865431` (`sr
 
 The only accepted imported original images are local `card-17.png` SHA-256 `141f592b5dee5a8c7a6d26651410b0ee1171a7dcf2c2b5331a63b48407cec9ab` and `card-18.png` SHA-256 `50df7058e660bb4dc620096823945eeb095fe4123e0aead68fec6244ab097c4e`. They remain outside Git. #12 must document the application-owned input location, hash-check both before gameplay, report absent/mismatched inputs clearly and keep input-independent rule tests available. No installer, art upload or redistribution is authorized here. The prior local reader probes preserved full edges, original proportions and original black corner pixels; native rendering and readability must still be inspected.
 
+## Launch admission
+
+The app checks every manifest that `src/assets.rs` lists in `MANIFESTS` before it creates or replaces a save, so a missing or altered asset refuses at launch.
+
+- **Save identity:** only `runtime.sha256`, with the two card hashes above, is part of what a save records ([docs/agents/saves.md](../../docs/agents/saves.md)).
+- **Presentation manifests:** the others, one per selected design (`status`, `victory`, `layout`, `terrain`, `terror`, `top`, `highlights`, `choice`, `eligibility`, `transfer`, `kidnap`, `popover`, `execution`), are presentation only. Adding one does not change what a save records, and does not weaken source, checksum or state admission.
+
 ## Evidence limits and native check
 
 VectorCraft0.24.1 exported and reopened the selected native/UI/reader files without missing links or import warnings; the reopened UI/reader images were visually inspected. The editor checkout inspected earlier was `9ddbf25bef7711c3404549d95b730f7dec3210e7`, not verified build provenance for the installed binary. Static exports and geometry inspection do not establish the native consumer.

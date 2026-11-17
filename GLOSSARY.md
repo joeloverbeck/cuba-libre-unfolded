@@ -104,6 +104,10 @@ _Avoid_: Terror (when meaning the marker rather than the Operation), Sabotage ma
 A marker on an economic center that blocks the Government's earnings from it. Placed by Terror in an economic center or during Government Earnings; at most one may occupy an economic center, and all are removed at Reset. It shares a single supply of 20 with Terror markers.
 _Avoid_: Terror marker
 
+**Local policy**:
+An interpretation this project adopts where the rules are silent, or do not define how software should handle a case. It is not a publisher ruling.
+_Avoid_: House rule, official ruling
+
 **Layout**:
 The arrangement of interface areas on a screen or written document: which areas exist, where they sit, their sizes, grouping and spacing, and how they adapt to the display.
 _Avoid_: Graphic, mockup (when referring to the selected arrangement rather than a proposal)
