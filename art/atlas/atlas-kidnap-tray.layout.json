@@ -1,0 +1,14 @@
+{
+  "source": "../proposals/issue-67/kidnap-tray-placements.figcraft",
+  "frame": [6144, 3456],
+  "selected": "C - tray in the action panel (node 37), selected in #68",
+  "note": "Bounds [x, y, width, height] relative to frame C, read from the saved document's node transforms (FigCraft 0.18.1; the editor itself was reserved for another ticket). The viewport is compared on all four edges; runtime text, whose width is its content's, on left and top.",
+  "parts": {
+    "kidnap-tray viewport": [4689.0, 960.0, 1344.0, 1024.0]
+  },
+  "text": {
+    "panel title": [4760.0, 830.0, 811.0, 86.0],
+    "kidnap-result title": [4760.0, 2040.0, 420.0, 86.0],
+    "kidnap-result detail": [4760.0, 2135.0, 1076.0, 67.0]
+  }
+}

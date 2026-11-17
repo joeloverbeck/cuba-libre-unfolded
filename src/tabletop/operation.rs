@@ -6,7 +6,8 @@
 //! is the authored `atlas-panel.png`, but the action and operation button stack
 //! inside it (the adaptive 44/52 px pitch, the opening stack at `480. + i * 40.`
 //! and its 36 px indent for accompanying Special Activities) is an interim layout
-//! invented in code, not an authored FigCraft design.
+//! invented in code, not an authored FigCraft design. The Kidnap die's Continue button
+//! (`die.rs`, #74) takes this stack's foot while the die is shown, and is part of it.
 //! - Owner: #58.
 //! - Purpose: let the development seat exercise previews and action choices before
 //!   #68 selects designs.

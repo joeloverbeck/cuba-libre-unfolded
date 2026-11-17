@@ -42,6 +42,7 @@ use unfolded_tabletop::{
     label_anchor::{LabelAnchor, LabelAnchorPlugin},
     token,
 };
+pub mod die;
 mod emblems;
 mod operation;
 mod preview;
@@ -79,6 +80,7 @@ struct Art {
     verified: Verified,
     images: BTreeMap<String, Handle<Image>>,
     font: Handle<Font>,
+    bold: Handle<Font>,
     scene: Handle<WorldAsset>,
     terror: Handle<WorldAsset>,
     terror_clip: Handle<AnimationClip>,
@@ -151,6 +153,10 @@ enum Action {
     Space(String),
     Decision(Faction, u64),
     Unsupported(String),
+    /// Lands the Kidnap die at once.
+    SkipDie,
+    /// Closes the landed Kidnap die and returns the panel to Terror.
+    ContinueDie,
     Quit,
 }
 #[derive(Resource, Clone)]
@@ -236,6 +242,11 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .world_mut()
         .resource_mut::<Assets<Font>>()
         .add(Font::from_bytes(verified.files["Lato-Regular.ttf"].clone()));
+    let bold = app
+        .world_mut()
+        .resource_mut::<Assets<Font>>()
+        .add(Font::from_bytes(verified.files["Lato-Bold.ttf"].clone()));
+    let die_art = die::DieArt::load(&mut app, &verified.files["kidnap-die.json"])?;
     let server = app.world().resource::<AssetServer>();
     let scene = server.load("atlas-terrain-map.glb#Scene0");
     let terror = server.load("atlas-terror-token.glb#Scene0");
@@ -267,11 +278,14 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             verified,
             images,
             font,
+            bold,
             scene,
             terror,
             terror_clip: terror_clip.clone(),
             labels: labels.labels,
         })
+        .insert_resource(die_art)
+        .init_resource::<die::Roll>()
         .insert_resource(TerrorLoop {
             clip: terror_clip,
             graph,
@@ -310,6 +324,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 sync_pieces,
                 bind_spaces,
                 hover_disclosures,
+                die::present,
                 draw_ui,
                 camera_facts_and_viewport,
                 status::hover,
@@ -323,7 +338,10 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         )
         .add_systems(
             PostUpdate,
-            (animate_terror.before(AnimationSystems), emblems::ink),
+            (
+                (animate_terror, die::animate).before(AnimationSystems),
+                emblems::ink,
+            ),
         );
     Ok(app)
 }
@@ -676,33 +694,41 @@ fn admit(
     mut context: ResMut<bevy::text::FontCx>,
     ready: Res<RenderReady>,
     mut ui: ResMut<Interface>,
+    die: Res<die::DieArt>,
 ) {
     if play.error.is_some() || play.session.is_some() {
         return;
     }
-    let report = unfolded_tabletop::loading::required_assets(
-        &server,
-        &[
-            art.scene.id().untyped(),
-            art.terror.id().untyped(),
-            art.terror_clip.id().untyped(),
-        ],
-        |id| {
-            if id == art.terror_clip.id().untyped() {
-                clips.get(&art.terror_clip).is_some()
-            } else {
-                scenes.contains(id.typed::<WorldAsset>())
-            }
-        },
-    );
+    let clip_ids: Vec<bevy::asset::UntypedAssetId> = std::iter::once(&art.terror_clip)
+        .chain(&die.clips)
+        .map(|clip| clip.id().untyped())
+        .collect();
+    let required: Vec<bevy::asset::UntypedAssetId> = [
+        art.scene.id().untyped(),
+        art.terror.id().untyped(),
+        die.die.id().untyped(),
+        die.tray.id().untyped(),
+    ]
+    .into_iter()
+    .chain(clip_ids.iter().copied())
+    .collect();
+    let report = unfolded_tabletop::loading::required_assets(&server, &required, |id| {
+        if clip_ids.contains(&id) {
+            clips.contains(id.typed::<AnimationClip>())
+        } else {
+            scenes.contains(id.typed::<WorldAsset>())
+        }
+    });
     if !report.failures.is_empty() {
         play.error = Some(report.failures.join("; "));
         ui.dirty = true;
         return;
     }
-    let font_ready = fonts
-        .get(&art.font)
-        .is_some_and(|font| unfolded_tabletop::loading::font_registered(font, &mut context));
+    let font_ready = [&art.font, &art.bold].into_iter().all(|font| {
+        fonts
+            .get(font)
+            .is_some_and(|font| unfolded_tabletop::loading::font_registered(font, &mut context))
+    });
     if !report.loaded
         || !font_ready
         || !ready.ready.load(Ordering::Acquire)
@@ -788,6 +814,8 @@ fn click(
     mut play: ResMut<Play>,
     mut ui: ResMut<Interface>,
     mut exit: MessageWriter<AppExit>,
+    mut roll: ResMut<die::Roll>,
+    time: Res<Time>,
 ) {
     event.propagate(false);
     if event.button != bevy::picking::pointer::PointerButton::Primary || play.session.is_none() {
@@ -845,12 +873,11 @@ fn click(
                     } else if control.name.ends_with(":kidnap:cancel") {
                         "Kidnap cancelled: nothing rolled and nothing changed. Saved.".into()
                     } else if control.name.ends_with(":kidnap:roll") {
-                        let view = play.game().observe();
-                        let roll = view.kidnap.as_ref().unwrap();
-                        format!(
-                            "Kidnap rolled {} · transferred {}.\nGovernment {} · 26July {}. Saved.",
-                            roll.die, roll.proceeds, view.resources[0], view.resources[1]
-                        )
+                        // The result is saved; the tray shows it, and the notice names
+                        // it once the die lands (die::present).
+                        roll.commit(play.game().observe().revision, time.elapsed_secs_f64());
+                        "Kidnap roll saved. The die is landing: click it or press Space to skip."
+                            .into()
                     } else if control.name.ends_with(":confirm-removal") {
                         "Removed 1 own piece to Available. Control and standings updated; earlier Terror and Opposition remain.".into()
                     } else if control.name.ends_with(":cancel-removal") {
@@ -881,6 +908,9 @@ fn click(
             };
         }
         Action::Unsupported(reason) => ui.notice = reason.clone(),
+        // Presentation only: the roll was saved before the die moved.
+        Action::SkipDie => roll.skip(),
+        Action::ContinueDie => roll.close(play.game().observe().revision),
         Action::Quit => {
             exit.write(AppExit::Success);
         }
@@ -916,11 +946,17 @@ fn map_viewport(window: &Window) -> Viewport {
         ..default()
     }
 }
-/// What the table says to the shared camera: the reader and an unopened session
-/// block it, and only the map shows the scene.
-fn camera_facts(window: &Window, play: &Play, ui: &Interface) -> TableFacts {
+/// What the table says to the shared camera: the reader, an unopened session and a
+/// presented Kidnap die block it, and only the map shows the scene. The die's camera
+/// is a second `Camera3d`, which the shared count anchors do not follow, so the map
+/// holds still under its counts while the die is shown.
+fn camera_facts(window: &Window, play: &Play, ui: &Interface, roll: &die::Roll) -> TableFacts {
+    let die = play.session.as_ref().is_some_and(|session| {
+        let game = session.game();
+        die::presented(game.revision, game.kidnap.as_ref(), roll).is_some()
+    });
     TableFacts {
-        blocks_camera: ui.reader || play.session.is_none(),
+        blocks_camera: ui.reader || play.session.is_none() || die,
         scene: Scene::Within(map_rect(window)),
         ..default()
     }
@@ -929,10 +965,11 @@ fn camera_facts_and_viewport(
     window: Single<&Window, With<PrimaryWindow>>,
     play: Res<Play>,
     ui: Res<Interface>,
+    roll: Res<die::Roll>,
     mut table: ResMut<TableFacts>,
     mut cameras: Query<&mut Camera, With<TableCamera>>,
 ) {
-    *table = camera_facts(&window, &play, &ui);
+    *table = camera_facts(&window, &play, &ui, &roll);
     for mut camera in &mut cameras {
         camera.viewport = Some(map_viewport(&window));
     }
@@ -950,13 +987,40 @@ fn text(
     offset: Vec2,
     z: i32,
 ) -> Entity {
+    styled(
+        commands,
+        art,
+        content,
+        &art.font,
+        Color::srgb(0.12, 0.14, 0.12),
+        [x, y, w, size],
+        scale,
+        offset,
+        z,
+    )
+}
+/// Text in a chosen face and colour: `place` is the authored left, top, width and type
+/// size. Inline emblems keep the same height and baseline as in `text`.
+#[allow(clippy::too_many_arguments)]
+fn styled(
+    commands: &mut Commands,
+    art: &Art,
+    content: impl Into<Prose>,
+    face: &Handle<Font>,
+    color: Color,
+    place: [f32; 4],
+    scale: f32,
+    offset: Vec2,
+    z: i32,
+) -> Entity {
+    let [x, y, w, size] = place;
     let content: Prose = content.into();
     let font = TextFont {
-        font: art.font.clone().into(),
+        font: face.clone().into(),
         font_size: (size * scale).into(),
         ..default()
     };
-    let ink = TextColor(Color::srgb(0.12, 0.14, 0.12));
+    let ink = TextColor(color);
     let segments = emblems::segments(&content.text, content.naming, content.red);
     let (first, rest) = match segments.split_first() {
         Some((emblems::Segment::Words(words), rest)) => (words.clone(), rest),
@@ -1081,6 +1145,7 @@ fn draw_ui(
     roots: Query<Entity, With<UiRoot>>,
     window: Single<&Window, With<PrimaryWindow>>,
     mut previous_size: Local<Vec2>,
+    roll: Res<die::Roll>,
 ) {
     let size = Vec2::new(window.width(), window.height());
     if !ui.dirty && *previous_size == size {
@@ -1161,7 +1226,14 @@ fn draw_ui(
             picture(&mut commands, &art, key, rect, s, offset, layer);
         }
         victory::header(&mut commands, &art, &view, s, centered);
-        top::header(&mut commands, &art, &view, s, left, right);
+        top::header(
+            &mut commands,
+            &art,
+            &die::ledger(&view, &roll),
+            s,
+            left,
+            right,
+        );
     }
     if ui.reader {
         picture(
@@ -1285,7 +1357,11 @@ fn draw_ui(
             4,
         );
     } else {
-        operation::panel(&mut commands, &art, &view, s, right);
+        if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
+            die::panel(&mut commands, &art, kidnap, roll.landed(), s, right);
+        } else {
+            operation::panel(&mut commands, &art, &view, s, right);
+        }
         let o = left;
         picture(
             &mut commands,
@@ -1441,7 +1517,7 @@ mod tests {
             &window,
             &keys,
             1.,
-            camera_facts(&window, &play, &ui),
+            camera_facts(&window, &play, &ui, &die::Roll::default()),
         );
         assert!(orbit.pose().distance < 10.);
         let inside = orbit.pose();
@@ -1451,7 +1527,7 @@ mod tests {
             &window,
             &keys,
             1.,
-            camera_facts(&window, &play, &ui),
+            camera_facts(&window, &play, &ui, &die::Roll::default()),
         );
         assert_eq!(orbit.pose(), inside);
         // Maximizing a 3:2 design onto wider screens must put the extra
@@ -1480,7 +1556,7 @@ mod tests {
             &window,
             &keys,
             0.,
-            camera_facts(&window, &play, &ui),
+            camera_facts(&window, &play, &ui, &die::Roll::default()),
         );
         assert_eq!(orbit.pose(), inside);
     }

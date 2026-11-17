@@ -80,7 +80,7 @@ pub(super) fn draw(
     ui: Res<Interface>,
     art: Res<Art>,
     window: Single<&Window, With<PrimaryWindow>>,
-    camera: Single<(&Camera, &GlobalTransform), With<Camera3d>>,
+    camera: Single<(&Camera, &GlobalTransform), With<TableCamera>>,
     meshes: Query<(Entity, &Mesh3d, &Aabb, &GlobalTransform)>,
     mesh_assets: Res<Assets<Mesh>>,
     targets: Query<&SpaceTarget>,

@@ -6,10 +6,24 @@ use unfolded_tabletop::{
     capture,
     label_anchor::Anchor,
     seat::{
-        self as shared, Game as SeatGame, Hit, Name as TargetName, Observed, SeatKey,
+        self as shared, Focus, Game as SeatGame, Hit, Logical, Name as TargetName, Observed,
+        SeatKey,
         start::{self, Start},
     },
 };
+/// The shared camera keys, then Enter: Space or Enter skips the Kidnap die while it is
+/// in the air (the seat cannot press then, since the die is unsettled), and Enter closes
+/// the landed die with Continue, so its request names that control as focused.
+static KEYS: std::sync::LazyLock<Vec<SeatKey>> = std::sync::LazyLock::new(|| {
+    let mut keys = unfolded_tabletop::camera::SEAT_KEYS.to_vec();
+    keys.push(SeatKey {
+        name: "Enter",
+        code: KeyCode::Enter,
+        logical: Logical::Named(bevy::input::keyboard::Key::Enter),
+        commits: true,
+    });
+    keys
+});
 /// Cuba Libre's seat start: its marker, the shared limits and its words for an
 /// admission that ran out of time. The order of the steps and the refusals are shared.
 const START: Start = Start::new("CUBA_LIBRE_AGENT_SEAT_DETACHED", |_, limit| {
@@ -96,7 +110,7 @@ fn controls(world: &mut World) -> Vec<(Entity, Control, Vec2)> {
         let [x, y, w, h] = label.bounds;
         let position = map_at(x + w / 2., y + h / 2., 0.30);
         if let Ok((camera, at)) = world
-            .query_filtered::<(&Camera, &GlobalTransform), With<Camera3d>>()
+            .query_filtered::<(&Camera, &GlobalTransform), With<TableCamera>>()
             .single(world)
             && let Ok(point) = camera.world_to_viewport(at, position)
         {
@@ -117,7 +131,7 @@ fn controls(world: &mut World) -> Vec<(Entity, Control, Vec2)> {
                 target.on_screen.then_some(target.position)
             } else if let Some(at) = world.get::<GlobalTransform>(entity).copied() {
                 world
-                    .query_filtered::<(&Camera, &GlobalTransform), With<Camera3d>>()
+                    .query_filtered::<(&Camera, &GlobalTransform), With<TableCamera>>()
                     .single(world)
                     .ok()
                     .and_then(|(camera, camera_at)| {
@@ -194,7 +208,7 @@ impl SeatGame for Table {
             .collect();
         let standings:Vec<_>=standing_rows.into_iter().map(|(entity,faction,text)|json!({"faction":faction,"text":text,"visible":shared::ui_target(world,entity,size).is_some_and(|t|t.on_screen)})).collect();
         let map_viewport = world
-            .query_filtered::<&Camera, With<Camera3d>>()
+            .query_filtered::<&Camera, With<TableCamera>>()
             .single(world)
             .ok()
             .and_then(Camera::logical_viewport_rect)
@@ -244,13 +258,14 @@ impl SeatGame for Table {
             .into_iter()
             .map(|(space, seek)| json!({"space":space,"seek":seek}))
             .collect::<Vec<_>>();
+        let die = die::observe(world);
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
         let pose = world.resource::<Orbit>().pose();
         let water_frame = world.get_resource::<Water>().map(|water| water.frame);
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
-            table: json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"top":top,"preview":preview,"top_text":top_text,"inline_text":inline_text,"top_parts":top_parts,"water_frame":water_frame,"terror":terror,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
+            table: json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"top":top,"preview":preview,"top_text":top_text,"inline_text":inline_text,"top_parts":top_parts,"water_frame":water_frame,"terror":terror,"die":die,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
         }
     }
     fn revision(&self, world: &mut World) -> u64 {
@@ -327,6 +342,7 @@ impl SeatGame for Table {
         if playing < tokens {
             pending.push("Terror token spawn".into());
         }
+        pending.extend(die::unsettled(world));
         pending
     }
     fn admission(&self, world: &World) -> shared::Admission {
@@ -340,6 +356,177 @@ impl SeatGame for Table {
         }
     }
     fn keys(&self) -> &[SeatKey] {
-        &unfolded_tabletop::camera::SEAT_KEYS
+        &KEYS
+    }
+    fn focus(&self, world: &mut World) -> Focus {
+        die::focus(world).map_or(Focus::Nothing, |label| Focus::Control {
+            choice: None,
+            label: label.into(),
+        })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bevy::{
+        camera::RenderTarget,
+        input::{ButtonState, keyboard::KeyboardInput},
+        picking::pointer::{Location, PointerAction, PointerButton, PointerInput},
+    };
+    use serde_json::Value;
+
+    /// The seat answers no input while the die is unsettled, so it cannot press skip
+    /// (#74). This sits the same seat in-process on the real windowless app and, while
+    /// the die is in the air, sends the real Bevy input a player would: Space, or a
+    /// press and release on the tray. Either lands the die at once, on the committed
+    /// face, and the save is unchanged.
+    #[test]
+    #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+    fn native_skip_lands_the_die_from_space_or_a_click_on_the_tray() {
+        let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
+            .expect("Set CUBA_TEST_CARDS")
+            .into();
+        let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| "local/verification/issue-74".into());
+        std::fs::create_dir_all(&evidence).unwrap();
+        let root = tempfile::Builder::new()
+            .prefix("skip-")
+            .tempdir_in(evidence)
+            .unwrap()
+            .keep()
+            .canonicalize()
+            .unwrap();
+        eprintln!("Kidnap die skip evidence: {}", root.display());
+        for by in ["space", "click"] {
+            let size = UVec2::new(1920, 1080);
+            let save = root.join(format!("{by}.json"));
+            let mut app = build(
+                Options {
+                    art: "art/atlas".into(),
+                    cards: cards.clone(),
+                    save: save.clone(),
+                    recover: None,
+                    socket: None,
+                    agent: true,
+                    seat_size: size,
+                },
+                true,
+            )
+            .unwrap();
+            app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::ZERO));
+            capture::install::<Camera2d>(&mut app, size);
+            let mut seat = shared::Seat::open(Table, &mut app).unwrap();
+            seat.admit(&mut app, Duration::from_secs(180)).unwrap();
+            let mut ask = |app: &mut App, request: Value| -> Value {
+                let (response, _) = seat.respond(app, &request.to_string());
+                response
+            };
+            for (revision, choice) in [(0, "0:terror"), (1, "1:kidnap"), (2, "2:kidnap:roll")] {
+                let done = ask(
+                    &mut app,
+                    json!({"op":"activate","revision":revision,"choice":choice}),
+                );
+                assert_eq!(done["status"], "activated", "{done}");
+                if revision < 2 {
+                    ask(&mut app, json!({"op":"settle"}));
+                }
+            }
+            let bytes = std::fs::read(&save).unwrap();
+            let air = ask(&mut app, json!({"op":"settle","steps":3}));
+            assert_eq!(air["status"], "unsettled", "{air}");
+            let air = ask(&mut app, json!({"op":"observe"}));
+            let die = &air["table"]["die"];
+            assert_eq!(die["landed"], false, "{die}");
+            assert!(die["seek"].as_f64().unwrap() < die["landing"].as_f64().unwrap());
+            // The seat itself refuses keys while the die is in the air.
+            let refused = ask(
+                &mut app,
+                json!({"op":"key","revision":3,"key":"Enter","focused":"Continue Terror"}),
+            );
+            assert_eq!(refused["status"], "refused", "{refused}");
+            ask(
+                &mut app,
+                json!({"op":"capture","path":root.join(format!("{by}-air.png"))}),
+            );
+            let world = app.world_mut();
+            let window = world
+                .query_filtered::<Entity, With<PrimaryWindow>>()
+                .single(world)
+                .unwrap();
+            // What a player's input sends: a key, or the pointer at the tray's centre.
+            enum Send {
+                Key(ButtonState),
+                Pointer(PointerAction),
+            }
+            let v = die["viewport"].as_array().unwrap();
+            let at = Vec2::new(
+                ((v[0].as_f64().unwrap() + v[2].as_f64().unwrap()) / 2.) as f32,
+                ((v[1].as_f64().unwrap() + v[3].as_f64().unwrap()) / 2.) as f32,
+            );
+            let camera = world
+                .query_filtered::<Entity, With<Camera2d>>()
+                .single(world)
+                .unwrap();
+            let target = world
+                .get::<RenderTarget>(camera)
+                .and_then(|target| target.normalize(Some(window)))
+                .unwrap();
+            let sends = if by == "space" {
+                vec![
+                    Send::Key(ButtonState::Pressed),
+                    Send::Key(ButtonState::Released),
+                ]
+            } else {
+                world
+                    .get_mut::<Window>(window)
+                    .unwrap()
+                    .set_cursor_position(Some(at));
+                vec![
+                    Send::Pointer(PointerAction::Move { delta: Vec2::ZERO }),
+                    Send::Pointer(PointerAction::Press(PointerButton::Primary)),
+                    Send::Pointer(PointerAction::Release(PointerButton::Primary)),
+                ]
+            };
+            for send in sends {
+                let world = app.world_mut();
+                match send {
+                    Send::Key(state) => {
+                        world.write_message(KeyboardInput {
+                            key_code: KeyCode::Space,
+                            logical_key: bevy::input::keyboard::Key::Space,
+                            state,
+                            text: None,
+                            repeat: false,
+                            window,
+                        });
+                    }
+                    Send::Pointer(action) => {
+                        world.write_message(PointerInput::new(
+                            PointerId::Mouse,
+                            Location {
+                                target: target.clone(),
+                                position: at,
+                            },
+                            action,
+                        ));
+                    }
+                }
+                // One step: frozen time would leave the die where it was.
+                ask(&mut app, json!({"op":"settle","steps":1}));
+            }
+            let landed = ask(&mut app, json!({"op":"observe"}));
+            let die = &landed["table"]["die"];
+            assert_eq!(die["landed"], true, "{by}: {die}");
+            assert_eq!(die["seek"], die["duration"], "{by}: skipped to the end");
+            assert_eq!(die["face"], landed["observation"]["kidnap"]["die"]);
+            assert_eq!(landed["table"]["settled"], true, "{landed}");
+            assert_eq!(std::fs::read(&save).unwrap(), bytes, "skip saves nothing");
+            ask(
+                &mut app,
+                json!({"op":"capture","path":root.join(format!("{by}-skipped.png"))}),
+            );
+        }
     }
 }
