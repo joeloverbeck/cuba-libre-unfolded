@@ -91,9 +91,19 @@ impl Native {
         );
         self.request(json!({"op":"settle"}), true);
     }
+    /// Submits `action` through its control. At the action choice (#69) an option is
+    /// committed by pinning its row and then pressing the commit, as a player does.
     fn choose(&mut self, action: &str) {
-        let view = self.observe();
-        let revision = view["observation"]["revision"].as_u64().unwrap();
+        let mut view = self.observe();
+        let mut revision = view["observation"]["revision"].as_u64().unwrap();
+        if view["observation"]["action"] == "Open" && matches!(action, "pass" | "terror") {
+            if view["table"]["choice"]["pinned"] != action {
+                self.activate(&format!("option:{action}"), revision);
+            }
+            view = self.observe();
+            assert_eq!(view["table"]["choice"]["pinned"], action, "pinned");
+            revision = view["observation"]["revision"].as_u64().unwrap();
+        }
         self.request(
             json!({"op":"activate","revision":revision,"choice":format!("{revision}:{action}")}),
             true,
@@ -2141,32 +2151,27 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         app.launch_size(size);
         let mut checked = 0;
 
-        // The action choice (#61): card 17's order and 26July's Resources by emblem,
-        // and an unsupported option's explanation in the session notice.
+        // The action choice (#69): a briefing names each faction in full at its first
+        // mention, then by emblem, and an unsupported option's explanation shows in
+        // the session notice.
+        app.activate("option:rally", 0);
         let open = app.observe();
         checked += assert_inline_emblems(&open);
-        let order = open["table"]["inline_text"]
+        let briefed: Vec<String> = open["table"]["inline_text"]
             .as_array()
             .unwrap()
             .iter()
-            .find(|t| t["text"].as_str().unwrap().starts_with("Order: "))
-            .expect("the order line");
-        let mut drawn: Vec<_> = order["emblems"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|e| e["faction"].as_str().unwrap())
+            .flat_map(|t| t["emblems"].as_array().unwrap().clone())
+            .map(|e| e["faction"].as_str().unwrap().to_owned())
             .collect();
-        assert_eq!(
-            drawn.len(),
-            5,
-            "four in order, then 26July's Resources: {order}"
-        );
-        drawn.sort_unstable();
-        drawn.dedup();
-        assert_eq!(drawn.len(), 4);
+        for faction in ["26July", "Directorio"] {
+            assert!(
+                briefed.contains(&faction.to_owned()),
+                "{faction}: {briefed:?}"
+            );
+        }
         app.capture("action-choice");
-        app.activate("0:rally", 0);
+        app.activate("choice-commit", 0);
         let refused = app.observe();
         checked += assert_inline_emblems(&refused);
         let notice = refused["table"]["notice"].as_str().unwrap().to_owned();
@@ -2191,6 +2196,7 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         };
         assert!(session(&refused, &notice).contains(&"26July".to_owned()));
         app.capture("rally-explanation");
+        app.activate("option:rally", 0);
         app.choose("terror");
 
         // Panel text and a red primary button.
@@ -2413,15 +2419,20 @@ fn native_action_choice_pass_and_back_before_the_first_effect() {
     assert_eq!(open["observation"]["executing"], Value::Null);
     let choices = open["observation"]["choices"].as_array().unwrap();
     assert_eq!(choices.len(), 11);
-    // Every listed option is a real control; only Pass and Terror are playable.
+    // Every listed option is a real row (#69); only the commit submits, and only for a
+    // pinned playable option.
     for choice in choices {
         let id = choice["id"].as_str().unwrap();
-        let control = named(&open, id).unwrap_or_else(|| panic!("{id} not drawn"));
-        assert_eq!(control["choice"], choice["supported"], "{id}");
+        let row = format!("option:{}", id.split_once(':').unwrap().1);
+        let control = named(&open, &row).unwrap_or_else(|| panic!("{row} not drawn"));
+        assert_eq!(control["choice"], false, "{row}");
     }
+    assert!(named(&open, "choice-commit").is_some());
     app.capture("action-choice");
     let saved = std::fs::read(&app.save).unwrap();
-    app.activate("0:rally", 0);
+    app.activate("option:rally", 0);
+    assert_eq!(app.observe()["table"]["choice"]["pinned"], "rally");
+    app.activate("choice-commit", 0);
     let refused = app.observe();
     assert!(
         refused["table"]["notice"]
@@ -2432,6 +2443,7 @@ fn native_action_choice_pass_and_back_before_the_first_effect() {
     assert_eq!(refused["observation"], open["observation"]);
     assert_eq!(std::fs::read(&app.save).unwrap(), saved);
     app.capture("rally-not-in-this-task");
+    app.activate("option:rally", 0);
     app.choose("pass");
     let passed = app.observe();
     assert_eq!(passed["observation"]["action"], "Pass");
@@ -2560,9 +2572,13 @@ fn native_previews_disabled_targets_and_end_terror() {
         lines.join(" ")
     };
     app.launch();
-    let pass = card(&mut app, "pass", "pass-preview");
-    assert!(pass.contains("26July Resources: 0 → 1"), "{pass}");
-    assert!(pass.contains("Directorio, 1st Eligible"), "{pass}");
+    // At the action choice Pass's preview is its pinned briefing (#69).
+    app.activate("option:pass", 0);
+    let pass = app.observe()["table"]["briefing"].to_string();
+    assert!(pass.contains("+1 Resource (0 → 1)"), "{pass}");
+    assert!(pass.contains("Directorio becomes 1st Eligible"), "{pass}");
+    app.capture("pass-preview");
+    app.activate("option:pass", 0);
     app.choose("terror");
     app.capture("panel-before-terror");
     let before = app.observe();
@@ -3038,5 +3054,334 @@ fn native_map_targets_at_the_owner_s_aspect() {
         view["table"]["popover"]
     );
     app.capture("santiago-popover-3840x2160");
+    app.quit();
+}
+
+/// #69: the selected AC-B action choice. Native placement matches the FigCraft layout
+/// record within 2 px at 3840×2160 (16:9, like the owner's 6144×3456 frame, ×0.625).
+/// Every option, its briefing, the pin, the commit, the BRIEFING ribbon and its tabs
+/// are reached by point, activate and key. Briefing values agree with the observation
+/// before and after a transfer, a Terror and a removal, and no briefing recommends a
+/// move.
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained action-choice captures"]
+fn native_action_choice_matches_layout_and_briefs_every_option() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-69"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("ac-b-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS")
+            .expect("Set CUBA_TEST_CARDS")
+            .into(),
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("ac-b.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("AC-B evidence: {}", app.root.display());
+    let layout: Value =
+        serde_json::from_str(include_str!("../art/atlas/atlas-action-choice.layout.json")).unwrap();
+    let ratio = 3840. / layout["frame"][0].as_f64().unwrap();
+    let part = |view: &Value, name: &str| -> [f64; 4] {
+        let found = view["table"]["choice_parts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["part"] == name)
+            .unwrap_or_else(|| panic!("no native part {name}"))
+            .clone();
+        rect_of(&found["bounds"])
+    };
+    // Each group's edges: left, top, right, bottom, or the horizontal centre (4).
+    let compare = |view: &Value, group: &Value, edges: &[usize]| {
+        for (name, r) in group.as_object().unwrap() {
+            let r: Vec<f64> = r
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_f64().unwrap() * ratio)
+                .collect();
+            let expected = [r[0], r[1], r[0] + r[2], r[1] + r[3], r[0] + r[2] / 2.];
+            let n = part(view, name);
+            let native = [n[0], n[1], n[2], n[3], (n[0] + n[2]) / 2.];
+            for &edge in edges {
+                assert!(
+                    (native[edge] - expected[edge]).abs() <= 2.,
+                    "{name} edge {edge}: native {n:?} differs from layout {expected:?} by more than 2 px"
+                );
+            }
+        }
+    };
+    let briefing = |view: &Value| -> String {
+        let shown = &view["table"]["briefing"];
+        assert!(shown.is_object(), "no briefing shown: {}", view["table"]);
+        shown["entries"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|e| {
+                format!(
+                    "{}: {}",
+                    e["label"].as_str().unwrap(),
+                    e["text"].as_str().unwrap()
+                )
+            })
+            .collect::<Vec<_>>()
+            .join(" | ")
+    };
+    let no_advice = |words: &str| {
+        let lower = words.to_lowercase();
+        for advice in [
+            "should",
+            "recommend",
+            "best",
+            "better",
+            "consider",
+            "suggest",
+            "you ",
+        ] {
+            assert!(!lower.contains(advice), "{advice}: {words}");
+        }
+    };
+    let key = |app: &mut Native, key: &str, focused: Option<&str>| -> Value {
+        let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
+        let mut request = json!({"op":"key","revision":revision,"key":key});
+        if let Some(focused) = focused {
+            request["focused"] = json!(focused);
+        }
+        app.request(request, true);
+        app.request(json!({"op":"settle"}), true);
+        app.observe()
+    };
+    app.launch_size("3840x2160");
+    let open = app.observe();
+    assert_eq!(open["observation"]["action"], "Open");
+    assert_eq!(open["table"]["briefing"], Value::Null);
+    let commit = |view: &Value| -> Value {
+        view["table"]["choice_parts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["part"] == "choice-commit-label")
+            .unwrap()["text"]
+            .clone()
+    };
+    assert_eq!(commit(&open), "Click an option to choose it");
+
+    // Hover: every listed option opens its briefing, unpinned, without changing the
+    // match; none recommends a move.
+    let options: Vec<String> = open["observation"]["choices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| {
+            c["id"]
+                .as_str()
+                .unwrap()
+                .split_once(':')
+                .unwrap()
+                .1
+                .to_owned()
+        })
+        .collect();
+    assert_eq!(options.len(), 11);
+    for option in &options {
+        let view = app.point(&format!("option:{option}"));
+        let view = if view["table"]["briefing"].is_object() {
+            view
+        } else {
+            app.observe()
+        };
+        assert_eq!(
+            view["table"]["briefing"]["option"],
+            option.as_str(),
+            "{option}"
+        );
+        assert_eq!(view["table"]["briefing"]["pinned"], false);
+        let words = briefing(&view);
+        assert!(words.contains("26July has 0"), "{option}: {words}");
+        no_advice(&words);
+        assert_eq!(view["observation"], open["observation"]);
+        if option == "pass" || option == "rally" {
+            app.capture(&format!("hover-{}", option.replace(':', "-")));
+        }
+    }
+    // Pass keeps its exact numbers (R 2.3.3).
+    app.activate("option:pass", 0);
+    let pass = app.observe();
+    assert_eq!(pass["table"]["choice"]["pinned"], "pass");
+    assert!(briefing(&pass).contains("RESULT: +1 Resource (0 → 1). 26July stays Eligible."));
+    assert_eq!(commit(&pass), "Pass · +1 Resource");
+    app.capture("pass-pinned");
+
+    // Terror pinned is the layout's 16:9 frame.
+    app.activate("option:terror", 0);
+    let pinned = app.observe();
+    assert_eq!(pinned["table"]["briefing"]["option"], "terror");
+    assert_eq!(pinned["table"]["briefing"]["pinned"], true);
+    assert_eq!(commit(&pinned), "Choose Terror");
+    compare(&pinned, &layout["parts"], &[0, 1, 2, 3]);
+    compare(&pinned, &layout["stretched"], &[0, 1, 2]);
+    compare(&pinned, &layout["text"], &[0, 1]);
+    compare(&pinned, &layout["right_text"], &[1, 2]);
+    compare(&pinned, &layout["centered_text"], &[1, 4]);
+    let terror = briefing(&pinned);
+    for fact in [
+        "COST: 1 Resource per City or Province · 26July has 0.",
+        "NEXT: Directorio, 2nd Eligible: Pass or a Limited Operation; after Kidnap, also card 17's Event",
+    ] {
+        assert!(terror.contains(fact), "{fact}: {terror}");
+    }
+    app.capture("terror-pinned");
+
+    // Keyboard: Tab focuses Pass and shows its briefing; Enter pins it; Escape unpins.
+    let focused = key(&mut app, "Tab", None);
+    assert_eq!(focused["table"]["choice"]["focus"], "option:pass");
+    assert_eq!(focused["table"]["briefing"]["option"], "pass");
+    let pinned_pass = key(&mut app, "Enter", Some("option:pass"));
+    assert_eq!(pinned_pass["table"]["choice"]["pinned"], "pass");
+    app.capture("keyboard-pass-pinned");
+    let unpinned = key(&mut app, "Escape", None);
+    assert_eq!(unpinned["table"]["choice"]["pinned"], Value::Null);
+    // Tab on to Terror, pin it, then to the commit, which Enter presses.
+    for _ in 0..9 {
+        key(&mut app, "Tab", None);
+    }
+    let on_terror = key(&mut app, "Enter", Some("option:terror"));
+    assert_eq!(on_terror["table"]["choice"]["pinned"], "terror");
+    key(&mut app, "Tab", None);
+    let on_commit = key(&mut app, "Tab", None);
+    assert_eq!(on_commit["table"]["choice"]["focus"], "0:terror");
+    let chosen = key(&mut app, "Enter", Some("0:terror"));
+    assert_eq!(chosen["observation"]["action"], "Terror");
+    assert_eq!(chosen["observation"]["executing"], "M26");
+    assert_eq!(chosen["table"]["briefing"], Value::Null);
+
+    // During Terror: the ribbon reopens the briefings, with Kidnap and Terror tabs.
+    let ribbon = part(&chosen, "briefing-ribbon");
+    let expected = &layout["execution"]["parts"]["briefing-ribbon"];
+    assert!((ribbon[0] - expected[0].as_f64().unwrap() * ratio).abs() <= 2.);
+    app.activate("briefing-ribbon", 1);
+    let reopened = app.observe();
+    assert_eq!(reopened["table"]["briefing"]["option"], "terror");
+    assert_eq!(
+        reopened["table"]["briefing"]["tabs"],
+        json!(["terror:kidnap", "terror"])
+    );
+    compare(&reopened, &layout["execution"]["parts"], &[0, 1, 2, 3]);
+    compare(&reopened, &layout["execution"]["text"], &[0, 1]);
+    app.capture("ribbon-terror");
+    app.activate("briefing-tab:kidnap", 1);
+    let kidnap = app.observe();
+    assert_eq!(kidnap["table"]["briefing"]["option"], "terror:kidnap");
+    let words = briefing(&kidnap);
+    assert!(
+        words.contains("RESULT: Proceeds 1–6 Resources while Government has 6; at least 1."),
+        "{words}"
+    );
+    no_advice(&words);
+    app.capture("ribbon-kidnap");
+    // The tag closes and reopens from the ribbon by key, too.
+    let closed = key(&mut app, "Escape", None);
+    assert_eq!(closed["table"]["briefing"], Value::Null);
+    assert_eq!(
+        key(&mut app, "Tab", None)["table"]["choice"]["focus"],
+        "briefing-ribbon"
+    );
+    let opened = key(&mut app, "Enter", Some("briefing-ribbon"));
+    assert_eq!(opened["table"]["briefing"]["option"], "terror:kidnap");
+    key(&mut app, "Tab", None);
+    let on_tab = key(&mut app, "Tab", None);
+    assert_eq!(on_tab["table"]["choice"]["focus"], "briefing-tab:terror");
+    let terror_tab = key(&mut app, "Enter", Some("briefing-tab:terror"));
+    assert_eq!(terror_tab["table"]["briefing"]["option"], "terror");
+
+    // The owner's clash rule (#58): opening a space popover closes the open briefing
+    // tag, and the tag reopens from the ribbon. Neither changes the match.
+    let rev = terror_tab["observation"]["revision"].as_u64().unwrap();
+    let saved = std::fs::read(&app.save).unwrap();
+    app.activate("space:santiago", rev);
+    let popover = app.observe();
+    assert_eq!(popover["table"]["popover"]["pinned"], true);
+    assert_eq!(popover["table"]["popover"]["card"]["space"], "santiago");
+    assert_eq!(popover["table"]["briefing"], Value::Null);
+    assert_eq!(popover["table"]["choice"]["ribbon"], false);
+    app.capture("clash-popover-closes-tag");
+    app.activate("space:santiago", rev);
+    assert_eq!(app.observe()["table"]["popover"], Value::Null);
+    app.activate("briefing-ribbon", rev);
+    let reopened = app.observe();
+    assert_eq!(reopened["table"]["briefing"]["option"], "terror");
+    assert_eq!(reopened["observation"]["revision"], rev);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+
+    // Agreement after a transfer: Government gives 2 (6 → 4, 26July 0 → 2).
+    for action in [
+        "transfer",
+        "transfer:0:1",
+        "amount:1",
+        "amount:2",
+        "authorize",
+    ] {
+        app.choose(action);
+    }
+    let after = app.observe();
+    assert_eq!(after["observation"]["resources"], json!([4, 2, 5, 15]));
+    assert!(
+        briefing(&after).contains("26July has 2."),
+        "{}",
+        briefing(&after)
+    );
+    let rev = after["observation"]["revision"].as_u64().unwrap();
+    app.activate("briefing-tab:kidnap", rev);
+    let words = briefing(&app.observe());
+    assert!(words.contains("while Government has 4;"), "{words}");
+    app.capture("after-transfer-kidnap");
+    // After a Terror: 26July paid 1 (2 → 1).
+    app.choose("terror:oriente");
+    let after = app.observe();
+    assert_eq!(after["observation"]["resources"][1], 1);
+    app.activate(
+        "briefing-tab:terror",
+        after["observation"]["revision"].as_u64().unwrap(),
+    );
+    let words = briefing(&app.observe());
+    assert!(words.contains("26July has 1."), "{words}");
+    app.capture("after-terror");
+    // After removing a Santiago Guerrilla, Kidnap is no longer possible there: 1
+    // Guerrilla does not outnumber 1 Police (R 4.3.3).
+    for action in ["remove", "remove:santiago:underground", "confirm-removal"] {
+        app.choose(action);
+    }
+    let after = app.observe();
+    let rev = after["observation"]["revision"].as_u64().unwrap();
+    app.activate("briefing-tab:kidnap", rev);
+    let view = app.observe();
+    let words = briefing(&view);
+    let kidnap = view["observation"]["choices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"].as_str().unwrap().ends_with(":kidnap"))
+        .unwrap()
+        .clone();
+    assert_eq!(kidnap["supported"], false);
+    let reason = kidnap["explanation"].as_str().unwrap();
+    assert!(reason.starts_with("1 Guerrillas (Active + Underground) vs 1 Police; must outnumber."));
+    assert!(
+        words.contains("RESULT: Unavailable now. 1 Guerrillas (Active + Underground) vs 1 Police; must outnumber."),
+        "{words}"
+    );
+    assert!(!words.contains("Santiago"), "{words}");
+    app.capture("after-removal-kidnap");
     app.quit();
 }

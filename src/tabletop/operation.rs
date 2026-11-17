@@ -1,21 +1,24 @@
 //! The Operation panel on the right: who decides now, what the current step means and
 //! the choices the game offers. The game owns every fact; this module only words and
-//! places them. The panel is rebuilt with the rest of the UI (`draw_ui`).
+//! places them. The panel is rebuilt with the rest of the UI (`draw_ui`). At the
+//! action choice the panel is the selected AC-B design (`choice.rs`, #69); during
+//! Terror the BRIEFING ribbon reopens the Terror and Kidnap briefings.
 //!
 //! Temporary bootstrap (WORK-2; foundation 4 "Authoring boundary"). The panel frame
-//! is the authored `atlas-panel.png`, but the action and operation button stack
-//! inside it (the adaptive 44/52 px pitch, the opening stack at `480. + i * 40.`
-//! and its 36 px indent for accompanying Special Activities) is an interim layout
-//! invented in code, not an authored FigCraft design.
+//! is the authored `atlas-panel.png`, but the execution button stack inside it (the
+//! adaptive 44/52 px pitch) is an interim layout invented in code, not an authored
+//! FigCraft design. #69 replaced the action choice's part of this bootstrap with the
+//! selected AC-B layout.
 //! - Owner: #58.
-//! - Purpose: let the development seat exercise previews and action choices before
-//!   #68 selects designs.
+//! - Purpose: let the development seat exercise Terror execution until the map
+//!   popovers (#72's space popover now targets Terror and opening Kidnap; #73 adds
+//!   removals) and the transfer modal (#71) replace the stack.
 //! - Allowed consumers: agent verification of #58 only.
 //! - Prohibited dependents: #16's owner review, any release, and any other UI
 //!   positioning itself against this stack.
 //! - Appetite: keep it working for #58's checks; no design or polish effort.
-//! - Replacement: the selected designs in #69 (action choice and briefings) and
-//!   #72/#73 (map popovers for targets and removals).
+//! - Replacement: #72/#73 (map popovers for targets and removals) and #71 (transfer
+//!   modal).
 //! - Expiry: before #75's end-to-end verification.
 use super::*;
 
@@ -25,6 +28,7 @@ pub(super) fn panel(
     commands: &mut Commands,
     art: &Art,
     view: &crate::Observation,
+    ui: &Interface,
     scale: f32,
     offset: Vec2,
 ) {
@@ -40,6 +44,12 @@ pub(super) fn panel(
         o,
         2,
     );
+    if view.action == crate::ActionChoice::Open && !view.finished {
+        return super::choice::panel(commands, art, view, ui, s, o);
+    }
+    if view.executing.is_some() {
+        super::choice::ribbon(commands, art, s, o);
+    }
     text(
         commands,
         art,
@@ -99,7 +109,7 @@ fn heading(view: &crate::Observation) -> String {
 /// Terror and Kidnap terms; a transfer under an owed Terror adds its reserve.
 fn details(view: &crate::Observation) -> String {
     match view.action {
-        crate::ActionChoice::Open => return opening_details(view),
+        crate::ActionChoice::Open => return String::new(),
         crate::ActionChoice::Pass => {
             let r = view.resources[Faction::M26.index()];
             return format!(
@@ -147,9 +157,6 @@ fn details(view: &crate::Observation) -> String {
 /// One button per offered choice, stacked below the body. A choice the game marks
 /// unsupported still appears, and activating it shows its explanation.
 fn choices(commands: &mut Commands, art: &Art, view: &crate::Observation, s: f32, o: Vec2) {
-    if view.action == crate::ActionChoice::Open {
-        return opening_choices(commands, art, view, s, o);
-    }
     // The stack ends at the panel's foot. It tightens once it holds more than five
     // buttons, such as the two disabled Terror targets; the selected design (#69)
     // replaces this temporary stack.
@@ -215,44 +222,6 @@ fn next(view: &crate::Observation) -> String {
             "Operation Only: no Event for Directorio\n(R 2.3.4)."
         }
     )
-}
-
-/// The action choice's body: card 17's order, 26July's Resources and what this task
-/// supports.
-fn opening_details(view: &crate::Observation) -> String {
-    let order = view.eligibility.order.map(Faction::name).join(", ");
-    format!(
-        "Order: {order}\n26July has {} Resources · all four Eligible\nPlayable here: Pass and Terror",
-        view.resources[Faction::M26.index()]
-    )
-}
-
-/// Every listed option in one compact stack; a Special Activity sits indented under
-/// the Operation it accompanies.
-fn opening_choices(commands: &mut Commands, art: &Art, view: &crate::Observation, s: f32, o: Vec2) {
-    for (i, choice) in view.choices.iter().enumerate() {
-        let indent = if choice.accompanies.is_some() {
-            36.
-        } else {
-            0.
-        };
-        control(
-            commands,
-            art,
-            &choice.id,
-            &choice.label,
-            if choice.supported {
-                Action::Decision(choice.owner, view.revision)
-            } else {
-                Action::Unsupported(refusal(choice))
-            },
-            [1404. + indent, 480. + i as f32 * 40., 452. - indent, 36.],
-            s,
-            o,
-            choice.supported,
-            3,
-        );
-    }
 }
 
 /// An opened Kidnap's stakes, from the roll's preview: the target, the possible
