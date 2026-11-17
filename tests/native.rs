@@ -116,6 +116,8 @@ impl Native {
     /// removal ids name it.
     fn remove(&mut self, group: &str, n: u8) {
         let revision = self.observe()["observation"]["revision"].as_u64().unwrap();
+        // As a player would: rest on the piece, then click it.
+        self.point(&format!("piece:{}", piece(group)));
         self.activate(&format!("piece:{}", piece(group)), revision);
         for _ in 1..n {
             self.activate("popover:quantity:plus", revision);
@@ -3435,6 +3437,41 @@ fn native_space_popover_closes_the_briefing_tag() {
     assert_eq!(popover["observation"]["revision"], rev);
     assert_eq!(std::fs::read(&app.save).unwrap(), saved);
     app.capture("clash-popover-closes-tag");
+    // Clicking Oriente again closes its popover (#73 made it settle at this size).
+    app.activate("space:oriente", rev);
+    assert_eq!(app.observe()["table"]["popover"], Value::Null);
+    app.activate("space:oriente", rev);
+    assert_eq!(app.observe()["table"]["popover"]["space"], "oriente");
+
+    // Orchestrator implementation judgement (#58 carry-forward): whichever opened
+    // last wins, and the tag closes by Escape or a click on the map outside it.
+    // Opening the tag from the ribbon closes the open popover.
+    app.activate("briefing-ribbon", rev);
+    let reopened = app.observe();
+    assert_eq!(reopened["table"]["choice"]["ribbon"], true);
+    assert_eq!(reopened["table"]["popover"], Value::Null);
+    app.capture("clash-tag-closes-popover");
+    // Escape closes the tag; the targets under it are clickable again.
+    app.request(json!({"op":"key","revision":rev,"key":"Escape"}), true);
+    app.request(json!({"op":"settle"}), true);
+    let escaped = app.observe();
+    assert_eq!(escaped["table"]["choice"]["ribbon"], false);
+    assert_eq!(escaped["table"]["briefing"], Value::Null);
+    app.activate("space:santiago", rev);
+    assert_eq!(app.observe()["table"]["popover"]["space"], "santiago");
+    // A click on the map outside the tag closes it too, and changes nothing else.
+    app.activate("briefing-ribbon", rev);
+    assert_eq!(app.observe()["table"]["popover"], Value::Null);
+    app.activate("space:camaguey-city", rev);
+    let outside = app.observe();
+    assert_eq!(outside["table"]["choice"]["ribbon"], false);
+    assert_eq!(outside["table"]["briefing"], Value::Null);
+    assert_eq!(outside["table"]["popover"], Value::Null);
+    assert_eq!(outside["observation"], popover["observation"]);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    app.activate("space:santiago", rev);
+    assert_eq!(app.observe()["table"]["popover"]["space"], "santiago");
+    app.capture("clash-map-click-closed-tag");
     app.quit();
 }
 
@@ -3619,6 +3656,7 @@ fn native_removal_mode_marks_pieces_and_removes_through_the_piece_popover() {
 
     // Removing the Base: 26July 7 → 6, Sierra Maestra uncontrolled.
     let revision = resumed["observation"]["revision"].as_u64().unwrap();
+    app.point(&format!("piece:{}", piece("sierra-maestra:base")));
     app.activate(&format!("piece:{}", piece("sierra-maestra:base")), revision);
     let base = app.observe();
     assert_eq!(base["table"]["popover"]["card"]["title"], "26July Base");

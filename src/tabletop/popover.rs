@@ -138,6 +138,13 @@ impl Popover {
     pub fn close(&mut self) {
         self.piece = None;
     }
+    /// Closes any kept-open popover: the AC-B briefing tag opened after it wins
+    /// (orchestrator implementation judgement, #58 carry-forward).
+    pub fn close_all(&mut self) {
+        self.pinned = None;
+        self.selected = None;
+        self.piece = None;
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
@@ -1794,9 +1801,15 @@ pub(super) fn place(
         if changed {
             *anchor = wanted;
         }
+        // UI layout snaps the card to whole physical pixels, so its measured height
+        // can alternate by a pixel as its top moves by half of one (#72's Oriente card
+        // at 3840×2160 never settled). Moving it only for a change beyond a pixel lets
+        // it rest.
+        let off =
+            |value: Val, wanted: f32| !matches!(value, Val::Px(at) if (at - wanted).abs() <= 1.);
         for (entity, left, top) in [(root.card, card_left, top), (root.leader, leader_left, -s)] {
             if let Ok((mut node, _)) = nodes.get_mut(entity)
-                && (node.left != px(left) || node.top != px(top))
+                && (off(node.left, left) || off(node.top, top))
             {
                 node.left = px(left);
                 node.top = px(top);

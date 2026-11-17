@@ -345,6 +345,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .init_resource::<highlights::Targeting>()
         .init_resource::<popover::Popover>()
         .add_systems(Startup, (setup, highlights::setup, popover::setup))
+        .add_observer(map_click_closes_tag)
         .add_systems(
             Update,
             (
@@ -922,13 +923,38 @@ fn click(
             decide(&mut play, &mut ui, *owner, *rev, &control.name);
         }
         Action::Pin(_) | Action::Ribbon | Action::Tab(_) => {
-            choice::activate(&mut ui, &control.action)
+            choice::activate(&mut ui, &control.action);
+            // Whichever opened last wins: the tag opened from the ribbon closes an open
+            // popover (orchestrator implementation judgement, #58 carry-forward).
+            if ui.choice.ribbon && matches!(control.action, Action::Ribbon) {
+                popover.close_all();
+            }
         }
         Action::Unsupported(reason) => ui.notice = reason.clone(),
         Action::Quit => {
             exit.write(AppExit::Success);
         }
     }
+    ui.dirty = true;
+}
+/// A primary click on the map, outside any interface node, closes the open AC-B
+/// briefing tag, so the Santiago and Oriente targets it covers become clickable
+/// (orchestrator implementation judgement, recorded in #58's carry-forward; the owner
+/// accepted the coverage). A click on the tag itself is an interface node and keeps it.
+fn map_click_closes_tag(
+    event: On<PointerClick>,
+    nodes: Query<(), With<Node>>,
+    play: Res<Play>,
+    mut ui: ResMut<Interface>,
+) {
+    if event.button != bevy::picking::pointer::PointerButton::Primary
+        || play.session.is_none()
+        || !ui.choice.ribbon
+        || nodes.contains(event.entity)
+    {
+        return;
+    }
+    ui.choice.close();
     ui.dirty = true;
 }
 /// Submits a decision through the checked game seam and words its outcome. Pointer
