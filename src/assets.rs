@@ -15,6 +15,9 @@ pub const LAYOUT_MANIFEST: &str = include_str!("../art/atlas/layout.sha256");
 pub const TERRAIN_MANIFEST: &str = include_str!("../art/atlas/terrain.sha256");
 pub const TERROR_MANIFEST: &str = include_str!("../art/atlas/terror.sha256");
 pub const TOP_MANIFEST: &str = include_str!("../art/atlas/top.sha256");
+/// The selected map highlight family (HF-A, #72): stateless presentation, like the
+/// status tags, so it does not change the save-bound identity.
+pub const HIGHLIGHT_MANIFEST: &str = include_str!("../art/atlas/highlights.sha256");
 pub const SOURCE: &str = "deacd635db5f71f4d3f092bd9cc99a9d96bb7aab;R:8152cb0056e3690fdc01c7b4ff893369ad7eff288941abc540ceee2c9d606792;P:dcaa5afd6f01c0c9ed4746c18199c1b09058823d67b627384fd3184ed4015fe8";
 const CARD_17: &str = "141f592b5dee5a8c7a6d26651410b0ee1171a7dcf2c2b5331a63b48407cec9ab";
 const CARD_18: &str = "50df7058e660bb4dc620096823945eeb095fe4123e0aead68fec6244ab097c4e";
@@ -38,6 +41,7 @@ pub fn inspect(root: &Path, cards: &Path) -> Result<Verified> {
         .chain(TERRAIN_MANIFEST.lines())
         .chain(TERROR_MANIFEST.lines())
         .chain(TOP_MANIFEST.lines())
+        .chain(HIGHLIGHT_MANIFEST.lines())
     {
         let (hash, path) = line
             .split_once("  ")

@@ -43,7 +43,9 @@ use unfolded_tabletop::{
     token,
 };
 mod emblems;
+mod highlights;
 mod operation;
+mod popover;
 mod preview;
 pub mod seat;
 mod status;
@@ -152,6 +154,10 @@ enum Action {
     Decision(Faction, u64),
     Unsupported(String),
     Quit,
+    /// A space popover row: shows that action's preview, and decides nothing.
+    Row(String),
+    /// A space popover's button: submits its choice like the panel's `Decision`.
+    Commit(Faction, u64, String),
 }
 #[derive(Resource, Clone)]
 struct RenderReady {
@@ -302,11 +308,15 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 .after(camera_facts_and_viewport)
                 .before(status::hover),
         )
-        .add_systems(Startup, setup)
+        .init_resource::<highlights::Targeting>()
+        .init_resource::<popover::Popover>()
+        .add_systems(Startup, (setup, highlights::setup, popover::setup))
         .add_systems(
             Update,
             (
                 admit,
+                highlights::refresh,
+                highlights::show,
                 sync_pieces,
                 bind_spaces,
                 hover_disclosures,
@@ -317,6 +327,8 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 victory::draw,
                 top::draw,
                 preview::draw,
+                popover::draw,
+                popover::place,
                 animate_water,
             )
                 .chain(),
@@ -788,6 +800,8 @@ fn click(
     mut play: ResMut<Play>,
     mut ui: ResMut<Interface>,
     mut exit: MessageWriter<AppExit>,
+    targeting: Res<highlights::Targeting>,
+    mut popover: ResMut<popover::Popover>,
 ) {
     event.propagate(false);
     if event.button != bevy::picking::pointer::PointerButton::Primary || play.session.is_none() {
@@ -796,13 +810,33 @@ fn click(
     let Ok(control) = controls.get(event.entity) else {
         return;
     };
+    // A popover's button submits its choice exactly as the panel's button does.
+    let control = &match &control.action {
+        Action::Commit(owner, revision, choice) => Control {
+            name: choice.clone(),
+            choice: true,
+            action: Action::Decision(*owner, *revision),
+        },
+        _ => control.clone(),
+    };
     ui.clicked = true;
     if ui.reader && !matches!(control.action, Action::Close | Action::Quit) {
         return;
     }
     match &control.action {
-        // Hover disclosures and development-seat map picks never change a decision.
-        Action::Standing(_) | Action::Top(_) | Action::Space(_) => return,
+        // Hover disclosures never change a decision.
+        Action::Standing(_) | Action::Top(_) => return,
+        // A region click opens or closes a space popover while Terror targets are
+        // chosen, and does nothing otherwise; it never decides anything itself.
+        Action::Space(space) => {
+            popover.click_space(space, &targeting);
+            return;
+        }
+        Action::Row(action) => {
+            popover.choose_row(action);
+            return;
+        }
+        Action::Commit(..) => return,
         Action::Close => {
             ui.reader = false;
         }

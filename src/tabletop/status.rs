@@ -85,6 +85,8 @@ pub(super) fn draw(
     mesh_assets: Res<Assets<Mesh>>,
     targets: Query<&SpaceTarget>,
     labels: Query<(&SpaceTarget, &ComputedNode, &UiGlobalTransform)>,
+    // An open space popover (#72): the tag stays visible beside it.
+    cards: Query<(&ComputedNode, &UiGlobalTransform), With<super::popover::CardNode>>,
     controls: Query<&Control>,
     parents: Query<&ChildOf>,
     roots: Query<Entity, With<Tag>>,
@@ -178,6 +180,12 @@ pub(super) fn draw(
                 }
                 occupied.push(r);
             }
+        }
+        for (node, at) in &cards {
+            occupied.push(Rect::from_center_size(
+                at.translation * node.inverse_scale_factor,
+                node.size() * node.inverse_scale_factor,
+            ));
         }
         for (_, node, at) in &labels {
             let center = at.translation * node.inverse_scale_factor;
