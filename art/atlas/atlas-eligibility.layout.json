@@ -1,6 +1,6 @@
 {
   "source": "atlas-eligibility.figcraft",
-  "note": "PROVISIONAL: read from the #64 proposal's EL-A frames until the production source exists.",
+  "note": "absoluteBounds [x, y, width, height] read from the FigCraft document's nodes, which are named as the runtime names its parts, relative to the 16:9 frame 'EL-A 16:9 (6144x3456, reference x2.7)' (node 45). 'states' are the four panels: operation-special-activity is the 16:9 frame's own panel (node 1531); open, pass and operation-only come from the states frame (nodes 1683, 1727, 1771), translated to the 16:9 panel at (162, 480). 'images' are compared on all four edges, 'text' on left and top, 'centered_text' on top and horizontal centre. eligibility-box-occupied is the occupied box (the heavier ink stroke). 'tag' is the Operation + Special Activity box's hover tag in the 16:9 frame; the runtime places the other boxes' tags at the same offset from their box. 'stretched' is compared on left, top and right, 'right_text' on top and right, 'note' on left only. 'crop' is the area retained for inspection.",
   "frame": [
     6144.0,
     3456.0
