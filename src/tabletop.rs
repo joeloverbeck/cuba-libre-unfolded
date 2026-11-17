@@ -339,7 +339,6 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .insert_resource(ClearColor(Color::srgb_u8(216, 231, 227)))
         .add_plugins((
             MeshPickingPlugin,
-            bevy::ui_widgets::SliderPlugin,
             LabelAnchorPlugin,
             TableCameraPlugin::<()>::default(),
         ))
@@ -374,7 +373,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 preview::draw,
                 popover::draw,
                 popover::place,
-                (choice::draw, transfer::draw).chain(),
+                (choice::draw, transfer::draw, transfer::plates).chain(),
                 animate_water,
             )
                 .chain(),

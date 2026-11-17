@@ -103,7 +103,8 @@ pub(super) mod fig {
     pub const BUTTON: f32 = 15.;
     /// The pending tab in the top band, right of the standings (centred reference).
     pub const PENDING: [f32; 4] = [1200., 41., 361., 44.];
-    pub const PENDING_PAD: [f32; 2] = [9., 13.];
+    /// Top and bottom, left, right.
+    pub const PENDING_PAD: [f32; 3] = [9., 13., 9.];
     pub const PENDING_GAP: f32 = 10.;
     pub const PENDING_EMBLEM: f32 = 26.;
     pub const PENDING_BAND: [f32; 2] = [64., 24.];
@@ -545,7 +546,8 @@ pub(super) enum Live {
 type Drawn = (u64, Option<Transfer>, String, [u32; 2], bool);
 
 /// Draws the modal, or the pending tab after Wait, when what they show changes. A
-/// slider drag in progress only moves its live parts; the modal redraws when it ends.
+/// slider press or drag in progress only moves its live parts; the modal redraws on
+/// release.
 #[allow(clippy::too_many_arguments)]
 pub(super) fn draw(
     mut commands: Commands,
@@ -554,7 +556,7 @@ pub(super) fn draw(
     art: Res<Art>,
     window: Single<&Window, With<PrimaryWindow>>,
     roots: Query<Entity, With<Modal>>,
-    dragging: Query<&SliderDragState>,
+    held: Query<(&SliderDragState, Has<bevy::ui::Pressed>), With<Slider>>,
     mut live: Query<(&Live, &mut Node, Option<&mut Text>)>,
     mut previous: Local<Option<Drawn>>,
 ) {
@@ -563,7 +565,8 @@ pub(super) fn draw(
     };
     ui.transfer.sync(game.revision, game.transfer.as_ref());
     let s = layout(&window).0;
-    if dragging.iter().any(|d| d.dragging) {
+    // A press or drag on the slider keeps its entity until release.
+    if held.iter().any(|(d, pressed)| d.dragging || pressed) {
         let view = game.observe();
         let shown = content(&view, &ui.transfer);
         if let Some(terms) = &shown.terms {
@@ -654,10 +657,16 @@ fn image(art: &Art, key: &str) -> Handle<Image> {
     art.images[key].clone()
 }
 
-/// A FigCraft plate over a node that may hug its content: nine-sliced, so its corners
-/// and strokes keep the authored size while its sides and middle stretch. `border` is
-/// the corner in reference pixels; the exports are at 3×.
-fn plate(art: &Art, key: &str) -> ImageNode {
+/// A FigCraft plate behind a node that may hug its content. Bevy draws a node's own
+/// image inside its padding, so [`plates`] draws the plate as the node's first child,
+/// filling its whole box.
+#[derive(Component)]
+pub(super) struct Plate(ImageNode);
+
+/// A plate, nine-sliced so its corners and strokes keep the authored size while its
+/// sides and middle stretch. `border` is the corner in reference pixels; the exports
+/// are at 3×.
+fn plate(art: &Art, key: &str) -> Plate {
     let border = if key.contains("-toggle") {
         19.
     } else if key.contains("-segment-on") {
@@ -669,10 +678,34 @@ fn plate(art: &Art, key: &str) -> ImageNode {
     } else {
         6.
     };
-    ImageNode::new(image(art, key)).with_mode(NodeImageMode::Sliced(TextureSlicer {
-        border: BorderRect::all(border * 3.),
-        ..default()
-    }))
+    Plate(
+        ImageNode::new(image(art, key)).with_mode(NodeImageMode::Sliced(TextureSlicer {
+            border: BorderRect::all(border * 3.),
+            ..default()
+        })),
+    )
+}
+
+/// Draws each new plate as the first child of its node, over the node's whole box and
+/// beneath its content.
+pub(super) fn plates(mut commands: Commands, added: Query<(Entity, &Plate), Added<Plate>>) {
+    for (entity, Plate(image)) in &added {
+        let child = commands
+            .spawn((
+                image.clone(),
+                Node {
+                    position_type: PositionType::Absolute,
+                    left: px(0.),
+                    top: px(0.),
+                    width: percent(100.),
+                    height: percent(100.),
+                    ..default()
+                },
+                Pickable::IGNORE,
+            ))
+            .id();
+        commands.entity(entity).insert_children(0, &[child]);
+    }
 }
 
 fn pad(p: [f32; 4], s: f32) -> UiRect {
@@ -753,7 +786,8 @@ fn scrim(commands: &mut Commands, art: &Art, window: &Window, s: f32, left: Vec2
         let entity = commands
             .spawn((
                 Modal,
-                ImageNode::new(image(art, "atlas-transfer-scrim.png")),
+                ImageNode::new(image(art, "atlas-transfer-scrim.png"))
+                    .with_mode(NodeImageMode::Stretch),
                 Node {
                     position_type: PositionType::Absolute,
                     left: px(x),
@@ -783,19 +817,20 @@ fn button(
     choice: bool,
     action: Action,
 ) -> Entity {
-    commands
-        .spawn((
-            plate(art, key),
-            node,
-            Control {
-                name: name.into(),
-                choice,
-                action,
-            },
-            ChildOf(parent),
-        ))
-        .observe(super::click)
-        .id()
+    let mut entity = commands.spawn((
+        node,
+        Control {
+            name: name.into(),
+            choice,
+            action,
+        },
+        ChildOf(parent),
+    ));
+    // An unselected toggle segment has no plate of its own.
+    if !key.is_empty() {
+        entity.insert(plate(art, key));
+    }
+    entity.observe(super::click).id()
 }
 
 /// An account card: emblem, name, role and "now → after" balance.
@@ -1158,7 +1193,7 @@ fn modal(
                 if on {
                     "atlas-transfer-segment-on.png"
                 } else {
-                    "atlas-transfer-segment.png"
+                    ""
                 },
                 Node {
                     padding: UiRect::axes(px(fig::SEGMENT_PAD[1] * s), px(fig::SEGMENT_PAD[0] * s)),
@@ -1421,7 +1456,7 @@ fn modal(
     }
     amount(commands, art, view, state, &shown, tone, deciding, root, s);
     commands.spawn((
-        ImageNode::new(image(art, "atlas-transfer-rule.png")),
+        ImageNode::new(image(art, "atlas-transfer-rule.png")).with_mode(NodeImageMode::Stretch),
         Node {
             height: px(s),
             ..default()
@@ -1975,7 +2010,12 @@ fn pending(commands: &mut Commands, art: &Art, view: &Observation, s: f32, cente
                 height: px(h * s),
                 align_items: AlignItems::Center,
                 column_gap: px(fig::PENDING_GAP * s),
-                padding: UiRect::axes(px(fig::PENDING_PAD[1] * s), px(fig::PENDING_PAD[0] * s)),
+                padding: UiRect {
+                    left: px(fig::PENDING_PAD[1] * s),
+                    right: px(fig::PENDING_PAD[2] * s),
+                    top: px(fig::PENDING_PAD[0] * s),
+                    bottom: px(fig::PENDING_PAD[0] * s),
+                },
                 ..default()
             },
             GlobalZIndex(31),

@@ -1576,6 +1576,98 @@ fn native_transfer_modal_gives_asks_and_waits_for_the_giver() {
     app.quit();
 }
 
+/// #71: the TM-B modal at the owner's 16:9 aspect against its FigCraft layout record,
+/// in the 16:9 frame's state (26July asks Syndicate for 2). 3840x2160 is the frame
+/// (6144x3456) x 0.625. Plates are compared on all four edges; parts that hug text
+/// (buttons, quick values, the toggle) on their top and bottom only, since Bevy's text
+/// metrics differ from FigCraft's. The amount field is right-aligned beside the quick
+/// values, so its left edge follows their text: its top, bottom and width are compared.
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained capture"]
+fn native_transfer_modal_matches_layout() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-71"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("transfer-layout-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("task.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Transfer layout evidence: {}", app.root.display());
+    app.launch_size("3840x2160");
+    app.choose("terror");
+    app.choose("transfer");
+    let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.activate("transfer:tab:syndicate", revision);
+    app.activate("transfer:direction:ask", revision);
+    app.type_amount("2");
+    let view = app.observe();
+    app.capture("ask-syndicate-3840");
+    let record: Value =
+        serde_json::from_str(include_str!("../art/atlas/atlas-transfer.layout.json")).unwrap();
+    let k = 3840. / 6144.;
+    let parts = view["table"]["transfer"]["parts"].as_array().unwrap();
+    let hugging = [
+        "direction-toggle",
+        "transfer:quick:1",
+        "transfer:quick:2",
+        "transfer:quick:max",
+        "button:back",
+        "button:primary",
+    ];
+    let mut report = vec![];
+    for (name, bounds) in record["parts"].as_object().unwrap() {
+        let b: Vec<f64> = bounds
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_f64().unwrap() * k)
+            .collect();
+        let want = [b[0], b[1], b[0] + b[2], b[1] + b[3]];
+        let got = rect_of(
+            &parts
+                .iter()
+                .find(|p| p["part"] == name.as_str())
+                .unwrap_or_else(|| panic!("{name} not drawn"))["bounds"],
+        );
+        let edges: &[usize] = if hugging.contains(&name.as_str()) {
+            &[1, 3]
+        } else {
+            &[0, 1, 2, 3]
+        };
+        let edges: &[usize] = if name == "number-field" {
+            &[1, 3]
+        } else {
+            edges
+        };
+        let mut worst = edges
+            .iter()
+            .map(|&i| (got[i] - want[i]).abs())
+            .fold(0., f64::max);
+        if name == "number-field" {
+            worst = worst.max(((got[2] - got[0]) - (want[2] - want[0])).abs());
+        }
+        report.push((worst, format!("{name}: {worst:.1} px {got:?} vs {want:?}")));
+    }
+    let text: Vec<_> = report.iter().map(|(_, line)| line.clone()).collect();
+    std::fs::write(app.root.join("layout-deltas.txt"), text.join("\n")).unwrap();
+    for (worst, line) in &report {
+        assert!(*worst <= 4., "{line}");
+    }
+    app.quit();
+}
+
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
 fn native_hover_status_is_transient_without_region_inspection() {
