@@ -388,6 +388,10 @@ pub struct Observation {
     /// Kidnap is opened: its stakes are shown and it awaits the roll or a cancel.
     pub kidnap_open: bool,
     pub removal: Option<Removal>,
+    /// Whether the first effect has happened: an authorized transfer, a resolved
+    /// Terror, a Kidnap roll or a removal. Until then 26July may go back to its action
+    /// choice (local policy, #58), so a step that waits says whether it still can.
+    pub effected: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Choice {
@@ -797,6 +801,7 @@ impl Game {
             kidnap: self.kidnap.clone(),
             kidnap_open: self.kidnap_open,
             removal: self.removal.clone(),
+            effected: self.effected(),
         }
     }
     /// Directorio's options once 26July's action is recorded (R 2.3.3–2.3.4).

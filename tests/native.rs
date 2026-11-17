@@ -104,6 +104,19 @@ impl Native {
             assert_eq!(view["table"]["choice"]["pinned"], action, "pinned");
             revision = view["observation"]["revision"].as_u64().unwrap();
         }
+        // During Terror a step is committed by pinning its row and then pressing the
+        // commit at the panel's foot (EX-A, #84). Opening a pending request's decision
+        // is the commit's default, so a pinned withdrawal is unpinned first.
+        let terror =
+            view["observation"]["action"] == "Terror" && view["observation"]["finished"] == false;
+        let pinned = view["table"]["choice"]["pinned"].clone();
+        if terror && is_step(action) && pinned != action {
+            self.activate(&format!("step:{action}"), revision);
+            let view = self.observe();
+            assert_eq!(view["table"]["choice"]["pinned"], action, "pinned");
+        } else if terror && action == "reopen" && pinned.is_string() && pinned != "transfer" {
+            self.activate(&format!("step:{}", pinned.as_str().unwrap()), revision);
+        }
         // A transfer's amount and, while composing, its counterpart and direction are
         // set in the modal before its button submits them (#71).
         let parts: Vec<&str> = action.split(':').collect();
@@ -126,6 +139,30 @@ impl Native {
             true,
         );
         self.request(json!({"op":"settle"}), true);
+    }
+    /// Rests the pointer on a step's row during Terror and returns the tag it opens
+    /// (EX-A, #84): its title, each entry with its remedy chips, and its rules line.
+    fn tag(&mut self, step: &str, capture: &str) -> String {
+        self.point(&format!("step:{step}"));
+        let view = self.observe();
+        let shown = &view["table"]["briefing"];
+        assert_eq!(shown["option"], step, "{}", view["table"]);
+        self.capture(capture);
+        tag_text(shown)
+    }
+    /// Pins a step that cannot be taken now and presses the disabled commit; returns
+    /// the refusal it reports. Nothing is submitted.
+    fn refuse(&mut self, step: &str) -> String {
+        let view = self.observe();
+        let revision = view["observation"]["revision"].as_u64().unwrap();
+        if view["table"]["choice"]["pinned"] != step {
+            self.activate(&format!("step:{step}"), revision);
+        }
+        self.activate("execution-commit", revision);
+        self.observe()["table"]["notice"]
+            .as_str()
+            .unwrap()
+            .to_owned()
     }
     /// Types an amount into the transfer modal's field: clears it, then the digits.
     fn type_amount(&mut self, digits: &str) {
@@ -192,6 +229,37 @@ impl Native {
     fn quit(&mut self) {
         self.request(json!({"op":"quit"}), true);
     }
+}
+/// A step of the EX-A execution panel, which commits only after its row is pinned.
+fn is_step(action: &str) -> bool {
+    action.starts_with("terror:")
+        || matches!(
+            action,
+            "kidnap" | "transfer" | "remove" | "end-terror" | "back-to-choice"
+        )
+}
+/// A shown tag's words: title, entries (with their chips) and rules line.
+fn tag_text(shown: &Value) -> String {
+    let mut words = vec![shown["title"].as_str().unwrap_or_default().to_owned()];
+    for entry in shown["entries"].as_array().into_iter().flatten() {
+        let chips = entry["chips"]
+            .as_array()
+            .map(|c| {
+                c.iter()
+                    .map(|c| c.as_str().unwrap())
+                    .collect::<Vec<_>>()
+                    .join(" · ")
+            })
+            .unwrap_or_default();
+        words.push(format!(
+            "{}: {}{}",
+            entry["label"].as_str().unwrap(),
+            entry["text"].as_str().unwrap().replace('\n', " "),
+            chips
+        ));
+    }
+    words.push(shown["rules"].as_str().unwrap_or_default().to_owned());
+    words.join(" | ")
 }
 /// The seat's name for a 26July group's piece: `santiago:underground` is the piece
 /// `santiago M26 Guerrilla Underground`.
@@ -791,13 +859,8 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
         false,
     );
     assert_eq!(app.observe()["observation"], rolled["observation"]);
-    app.activate(&format!("{rev}:end-terror"), rev);
-    assert!(
-        app.observe()["table"]["notice"]
-            .as_str()
-            .unwrap()
-            .contains("owed")
-    );
+    let refusal = app.refuse("end-terror");
+    assert!(refusal.contains("owed"), "{refusal}");
     assert_eq!(std::fs::read(&app.save).unwrap(), saved_roll);
     app.activate("reader", rev);
     app.activate("close", rev);
@@ -881,35 +944,11 @@ fn native_kidnap_opens_cancels_and_rolls_through_the_panel() {
     let saved = |app: &Native| -> Value {
         serde_json::from_slice(&std::fs::read(&app.save).unwrap()).unwrap()
     };
-    // Rests the pointer on a playable choice's button and returns its card.
-    let card = |app: &mut Native, action: &str, capture: &str| -> String {
-        let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
-        let id = format!("{revision}:{action}");
-        app.request(json!({"op":"point","revision":revision,"choice":id}), true);
-        app.request(json!({"op":"settle"}), true);
-        let view = app.observe();
-        assert_eq!(view["table"]["preview"]["choice"], id, "{view}");
-        app.capture(capture);
-        view["table"]["preview"]["lines"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|l| l.as_str().unwrap().to_owned())
-            .collect::<Vec<_>>()
-            .join(" ")
-    };
+    // Rests the pointer on a step's row and returns its tag (EX-A, #84).
+    let card = |app: &mut Native, step: &str, capture: &str| -> String { app.tag(step, capture) };
+    // The pinned tag's words, as the seat reports them.
     let panel = |view: &Value, needle: &str| -> bool {
-        view["table"]["inline_text"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|t| {
-                t["text"]
-                    .as_str()
-                    .unwrap()
-                    .replace('\n', " ")
-                    .contains(needle)
-            })
+        tag_text(&view["table"]["briefing"]).contains(needle)
     };
     let ids = |view: &Value| -> Vec<String> {
         view["observation"]["choices"]
@@ -933,8 +972,8 @@ fn native_kidnap_opens_cancels_and_rolls_through_the_panel() {
     let random = saved(&app)["payload"]["random"].clone();
     let stakes = card(&mut app, "kidnap", "kidnap-open-preview");
     for fact in [
-        "Target: Government in Santiago de Cuba (R 4.3.3), which has 6",
-        "Possible proceeds: 1–6 Resources · guaranteed minimum 1",
+        "TARGET: Government in Santiago de Cuba, which has 6 Resources",
+        "POSSIBLE PROCEEDS: 1–6 Resources · guaranteed minimum 1",
         "accepted commitment policy",
         "card 17's Event",
         "Opening rolls nothing",
@@ -958,9 +997,14 @@ fn native_kidnap_opens_cancels_and_rolls_through_the_panel() {
     assert!(panel(&opened, "guaranteed minimum 1"), "{opened}");
     assert_eq!(saved(&app)["payload"]["random"], random);
     app.capture("kidnap-opened");
-    let roll = card(&mut app, "kidnap:roll", "kidnap-roll-preview");
+    // Opened, the Kidnap step holds the roll's stakes.
+    assert_eq!(opened["table"]["choice"]["pinned"], "kidnap");
+    let roll = card(&mut app, "kidnap", "kidnap-roll-preview");
     assert!(roll.contains("guaranteed minimum 1"), "{roll}");
-    assert!(roll.contains("Becomes unavailable: End Terror"), "{roll}");
+    assert!(
+        roll.contains("End Terror is refused until it resolves"),
+        "{roll}"
+    );
 
     // Cancel: nothing rolled, nothing changed, and going back is still offered.
     app.choose("kidnap:cancel");
@@ -1014,7 +1058,13 @@ fn native_kidnap_opens_cancels_and_rolls_through_the_panel() {
             .unwrap()
             .contains(&format!("Kidnap rolled {die}"))
     );
-    assert!(panel(&rolled, &format!("Kidnap rolled {die}")), "{rolled}");
+    let pill = rolled["table"]["choice_parts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|p| p["part"] == "step:kidnap-pill-label")
+        .map(|p| p["text"].clone());
+    assert_eq!(pill, Some(json!(format!("ROLLED {die}"))), "{rolled}");
     app.capture("kidnap-rolled");
     let rolled_bytes = std::fs::read(&app.save).unwrap();
     app.quit();
@@ -1262,11 +1312,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     app.choose("terror");
     // The record before Finish, which `.previous` keeps for recovery.
     let chosen = app.observe();
-    app.request(
-        json!({"op":"activate","revision":1,"choice":"1:end-terror"}),
-        true,
-    );
-    app.request(json!({"op":"settle"}), true);
+    app.choose("end-terror");
     let finished = app.observe();
     assert_eq!(finished["observation"]["revision"], 2);
     assert_eq!(finished["observation"]["resources"], json!([6, 0, 5, 15]));
@@ -2418,10 +2464,21 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         // Panel text and a red primary button.
         let initial = app.observe();
         checked += assert_inline_emblems(&initial);
+        // A step's tag is a preview: Kidnap's names Government by emblem after its
+        // first mention, as a briefing does (EX-A, #84).
+        let revision = initial["observation"]["revision"].as_u64().unwrap();
+        app.activate("step:kidnap", revision);
+        let tagged = app.observe();
+        checked += assert_inline_emblems(&tagged);
         assert_eq!(
-            emblems_in(&initial, "Kidnap · Santiago · Government"),
+            emblems_in(
+                &tagged,
+                "Government in Santiago de Cuba, which has 6 Resources"
+            ),
             ["Government"]
         );
+        app.capture("kidnap-tag");
+        app.activate("step:kidnap", revision);
         // The panel heading introduces the deciding faction, so it keeps its name.
         assert!(
             initial["table"]["inline_text"]
@@ -2472,18 +2529,11 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
 
         // The transfer modal (TM-B, #71): its running text and buttons name factions by
         // emblem ("Ask [D] for Resources", story 60), while its headings, labels and
-        // account names keep them, and so does 26July on the red primary button. The
-        // panel text beneath it draws 26July's emblem too. Observations keep every name.
+        // account names keep them, and so does 26July on the red primary button.
+        // Observations keep every name.
         app.choose("transfer");
         let directions = app.observe();
         checked += assert_inline_emblems(&directions);
-        assert_eq!(
-            emblems_in(
-                &directions,
-                "The transfer is open: give 26July's Resources\nto a faction, or ask one for Resources.\nA request is not a Resource transfer."
-            ),
-            ["26July"]
-        );
         assert_eq!(
             emblems_in(&directions, "Open while 26July executes Terror  ·  R 1.5.1"),
             ["26July"]
@@ -2547,7 +2597,7 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         );
         app.capture("transfer-directions");
 
-        // Paper panel text draws 26July's emblem too. In Syndicate's decision the green
+        // The panel beneath names the giver by emblem. In Syndicate's decision the green
         // header note draws 26July's emblem, and the green primary button keeps
         // Syndicate's name, whose green emblem would vanish on it (#60's rule).
         app.choose("ask:3:1");
@@ -2572,16 +2622,10 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
                 .iter()
                 .any(|p| p["part"] == "button:primary")
         );
-        assert!(
-            authorizing["table"]["inline_text"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|t| t["text"]
-                    .as_str()
-                    .unwrap()
-                    .starts_with("26July asked Syndicate")
-                    && t["emblems"].as_array().unwrap().len() == 4)
+        // The panel's transfer step beneath the modal names the giver by emblem.
+        assert_eq!(
+            emblems_in(&authorizing, "pending · Syndicate decides"),
+            ["Syndicate"]
         );
         app.capture("transfer-authorization");
 
@@ -2605,10 +2649,8 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
                 .as_array()
                 .unwrap()
                 .iter()
-                .any(|t| t["text"]
-                    .as_str()
-                    .unwrap()
-                    .contains("(Government → 26July)"))
+                .any(|t| t["text"].as_str().unwrap().contains("Government pays")
+                    && t["emblems"].as_array().unwrap().len() >= 2)
         );
         app.capture("kidnap");
 
@@ -2649,7 +2691,7 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
                 .any(|t| t["text"]
                     .as_str()
                     .unwrap()
-                    .starts_with("Directorio is now 1st Eligible"))
+                    .starts_with("Directorio, 1st Eligible, may:"))
         );
         app.capture("after-pass");
         assert!(checked >= 20, "checked {checked} emblems");
@@ -2849,32 +2891,8 @@ fn native_previews_disabled_targets_and_end_terror() {
         step: 0,
     };
     eprintln!("Preview evidence: {}", app.root.display());
-    // Rests the pointer on a choice's button and returns the card it opens.
-    let card = |app: &mut Native, action: &str, capture: &str| -> String {
-        let view = app.observe();
-        let revision = view["observation"]["revision"].as_u64().unwrap();
-        let id = format!("{revision}:{action}");
-        // A disabled choice's button is a plain component; a playable one is a choice.
-        let playable = view["observation"]["choices"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|c| c["id"] == id && c["supported"] == true);
-        let key = if playable { "choice" } else { "component" };
-        app.request(json!({"op":"point","revision":revision,(key):id}), true);
-        app.request(json!({"op":"settle"}), true);
-        let view = app.observe();
-        let shown = &view["table"]["preview"];
-        assert_eq!(shown["choice"], format!("{revision}:{action}"), "{view}");
-        app.capture(capture);
-        let lines: Vec<_> = shown["lines"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|l| l.as_str().unwrap().to_owned())
-            .collect();
-        lines.join(" ")
-    };
+    // Rests the pointer on a step's row and returns the tag it opens (EX-A, #84).
+    let card = |app: &mut Native, step: &str, capture: &str| -> String { app.tag(step, capture) };
     app.launch();
     // At the action choice Pass's preview is its pinned briefing (#69).
     app.activate("option:pass", 0);
@@ -2890,9 +2908,14 @@ fn native_previews_disabled_targets_and_end_terror() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|c| c["id"].as_str().unwrap().to_owned())
+        .map(|c| {
+            format!(
+                "step:{}",
+                c["id"].as_str().unwrap().split_once(':').unwrap().1
+            )
+        })
         .collect();
-    // Every listed choice, the disabled targets included, is a real control.
+    // Every listed step, the disabled targets included, is a real control.
     for name in &names {
         assert!(
             before["table"]["controls"]
@@ -2905,7 +2928,7 @@ fn native_previews_disabled_targets_and_end_terror() {
     }
     let santiago = card(&mut app, "terror:santiago", "santiago-disabled");
     assert!(
-        santiago.contains("In this task: Kidnap here first · Request a Resource transfer"),
+        santiago.contains("IN THIS TASK: Kidnap here first · Request a Resource transfer"),
         "{santiago}"
     );
     let zero = card(&mut app, "end-terror", "end-terror-zero-space");
@@ -2917,14 +2940,8 @@ fn native_previews_disabled_targets_and_end_terror() {
         assert!(zero.contains(fact), "{fact}: {zero}");
     }
     let saved = std::fs::read(&app.save).unwrap();
-    let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
-    app.activate(&format!("{revision}:terror:santiago"), revision);
-    assert!(
-        app.observe()["table"]["notice"]
-            .as_str()
-            .unwrap()
-            .contains("Kidnap here first")
-    );
+    let refusal = app.refuse("terror:santiago");
+    assert!(refusal.contains("Kidnap here first"), "{refusal}");
     assert_eq!(std::fs::read(&app.save).unwrap(), saved);
     for step in ["transfer", "ask:2:1", "authorize:1"] {
         app.choose(step);
@@ -2941,13 +2958,13 @@ fn native_previews_disabled_targets_and_end_terror() {
     let after = app.observe();
     assert_eq!(after["observation"]["standings"][1]["score"], 8);
     let only = card(&mut app, "end-terror", "end-terror-after-terror");
-    assert!(only.contains("Records: Operation Only"), "{only}");
+    assert!(only.contains("RECORDS: Operation Only"), "{only}");
     assert!(!only.contains("No Terror resolved"), "{only}");
     app.choose("kidnap");
     app.roll();
     let special = card(&mut app, "end-terror", "end-terror-after-kidnap");
     assert!(
-        special.contains("Records: Operation with Special Activity"),
+        special.contains("RECORDS: Operation with Special Activity"),
         "{special}"
     );
     assert!(
@@ -4032,9 +4049,13 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
     assert_eq!(terror_tab["table"]["briefing"]["option"], "terror");
 
     // Agreement after a transfer: Government gives 2 (6 → 4, 26July 0 → 2).
+    // Pinning a step takes the tag's place from the ribbon's (EX-A, #84), so the
+    // ribbon reopens it afterwards.
     for action in ["transfer", "ask:0:2", "authorize:2"] {
         app.choose(action);
     }
+    let rev = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.activate("briefing-ribbon", rev);
     let after = app.observe();
     assert_eq!(after["observation"]["resources"], json!([4, 2, 5, 15]));
     assert!(
@@ -4051,6 +4072,12 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
     app.choose("terror:oriente");
     let after = app.observe();
     assert_eq!(after["observation"]["resources"][1], 1);
+    if after["table"]["choice"]["ribbon"] != true {
+        app.activate(
+            "briefing-ribbon",
+            after["observation"]["revision"].as_u64().unwrap(),
+        );
+    }
     app.activate(
         "briefing-tab:terror",
         after["observation"]["revision"].as_u64().unwrap(),
@@ -4094,6 +4121,288 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
     );
     assert!(!words.contains("Santiago"), "{words}");
     app.capture("after-removal-kidnap");
+    app.quit();
+}
+/// #84: the EX-A execution panel against its FigCraft layout record at 3840×2160,
+/// within the 2 px the other layout comparisons use, and every step's tag before its
+/// committing click: Terror targets from the panel, Kidnap opened (Roll and Cancel),
+/// End Terror's previews, the clash rule with a space popover, Escape and an outside
+/// click, the keyboard, and the ended panel.
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained execution-panel captures"]
+fn native_execution_panel_matches_layout_and_previews_every_step() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-84"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("ex-a-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS")
+            .expect("Set CUBA_TEST_CARDS")
+            .into(),
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("ex-a.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("EX-A evidence: {}", app.root.display());
+    let layout: Value =
+        serde_json::from_str(include_str!("../art/atlas/atlas-execution.layout.json")).unwrap();
+    let ratio = 3840. / layout["frame"][0].as_f64().unwrap();
+    let parts =
+        |view: &Value| -> Vec<Value> { view["table"]["choice_parts"].as_array().unwrap().clone() };
+    let part = |view: &Value, name: &str| -> Value {
+        parts(view)
+            .into_iter()
+            .find(|p| p["part"] == name)
+            .unwrap_or_else(|| panic!("no native part {name}: {}", view["table"]["choice_parts"]))
+    };
+    // Each group's edges: left, top, right, bottom, or the horizontal centre (4).
+    let compare = |view: &Value, group: &Value, edges: &[usize]| {
+        for (name, r) in group.as_object().unwrap() {
+            let r: Vec<f64> = r
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|v| v.as_f64().unwrap() * ratio)
+                .collect();
+            let expected = [r[0], r[1], r[0] + r[2], r[1] + r[3], r[0] + r[2] / 2.];
+            let n = rect_of(&part(view, name)["bounds"]);
+            let native = [n[0], n[1], n[2], n[3], (n[0] + n[2]) / 2.];
+            for &edge in edges {
+                assert!(
+                    (native[edge] - expected[edge]).abs() <= 2.,
+                    "{name} edge {edge}: native {n:?} differs from layout {expected:?} by more than 2 px"
+                );
+            }
+        }
+    };
+    let words = |view: &Value, name: &str| -> String {
+        part(view, name)["text"]
+            .as_str()
+            .unwrap_or_default()
+            .to_owned()
+    };
+    let key = |app: &mut Native, key: &str, focused: Option<&str>| -> Value {
+        let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
+        let mut request = json!({"op":"key","revision":revision,"key":key});
+        if let Some(focused) = focused {
+            request["focused"] = json!(focused);
+        }
+        app.request(request, true);
+        app.request(json!({"op":"settle"}), true);
+        app.observe()
+    };
+    let rev = |view: &Value| view["observation"]["revision"].as_u64().unwrap();
+    app.launch_size("3840x2160");
+    app.choose("terror");
+
+    // Terror chosen at 0 Resources (EX-A state 1): every step is listed and named for
+    // the seat; both targets are blocked with remedies; nothing is pinned.
+    let chosen = app.observe();
+    for step in [
+        "terror:santiago",
+        "terror:oriente",
+        "kidnap",
+        "transfer",
+        "remove",
+        "end-terror",
+        "back-to-choice",
+    ] {
+        assert!(
+            chosen["table"]["controls"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|c| c["name"] == format!("step:{step}")),
+            "step:{step}"
+        );
+    }
+    assert_eq!(
+        words(&chosen, "step:terror:santiago-pill-label"),
+        "NOT YET · 26JULY HAS 0"
+    );
+    assert_eq!(
+        words(&chosen, "execution-commit-label"),
+        "Click a step to choose it"
+    );
+    assert_eq!(chosen["table"]["briefing"], Value::Null);
+    app.capture("terror-chosen");
+    let blocked = app.tag("terror:oriente", "oriente-blocked-tag");
+    assert!(
+        blocked.contains("NOT YET: Cost: 1 Resource per space (26July has 0)."),
+        "{blocked}"
+    );
+    assert!(
+        blocked.contains("IN THIS TASK: Request a Resource transfer"),
+        "{blocked}"
+    );
+
+    // Funded by a Syndicate transfer, Oriente's Terror from the panel: its tag shows
+    // the authority's preview before the commit (Oriente Pop 2, Passive → Active
+    // Opposition: standing 7 → 9, margin −8 → −6).
+    for action in ["transfer", "ask:3:1", "authorize:1"] {
+        app.choose(action);
+    }
+    let oriente = app.tag("terror:oriente", "oriente-preview");
+    for fact in [
+        "COST: 26July Resources: 1 → 0",
+        "Oriente: Passive Opposition → Active Opposition",
+        "26July victory standing 7 → 9 (margin -8 → -6)",
+    ] {
+        assert!(oriente.contains(fact), "{fact}: {oriente}");
+    }
+    app.choose("terror:oriente");
+    let paid = app.observe();
+    assert_eq!(paid["observation"]["resources"], json!([6, 0, 5, 14]));
+    assert_eq!(
+        words(&paid, "step:terror:oriente-pill-label"),
+        "DONE · PAID 1"
+    );
+
+    // Kidnap opened (EX-A state 3): its stakes stay pinned on the held step; Cancel
+    // and Roll take the foot; the steps that wait are dimmed.
+    app.choose("kidnap");
+    let opened = app.observe();
+    assert_eq!(opened["table"]["choice"]["pinned"], "kidnap");
+    assert_eq!(opened["table"]["briefing"]["option"], "kidnap");
+    assert_eq!(
+        words(&opened, "step:kidnap-pill-label"),
+        "OPEN · NOTHING ROLLED"
+    );
+    compare(&opened, &layout["kidnap"]["images"], &[0, 1, 2, 3]);
+    compare(&opened, &layout["kidnap"]["text"], &[0, 1]);
+    compare(&opened, &layout["kidnap"]["right"], &[1, 2, 3]);
+    compare(&opened, &layout["kidnap"]["centered_text"], &[1, 4]);
+    app.capture("kidnap-opened");
+    // Escape closes the tag; its row reopens it.
+    let closed = key(&mut app, "Escape", None);
+    assert_eq!(closed["table"]["briefing"], Value::Null);
+    app.activate("step:kidnap", rev(&closed));
+    assert_eq!(app.observe()["table"]["briefing"]["option"], "kidnap");
+    app.roll();
+
+    // Santiago owed and pinned: the layout's 16:9 frame (revision 14 of #75's run).
+    let rolled = app.observe();
+    let die = rolled["observation"]["kidnap"]["die"].as_u64().unwrap();
+    assert_eq!(
+        words(&rolled, "step:kidnap-pill-label"),
+        format!("ROLLED {die}")
+    );
+    assert_eq!(
+        words(&rolled, "step:back-to-choice-pill-label"),
+        "NO LONGER OFFERED"
+    );
+    assert_eq!(
+        words(&rolled, "step:end-terror-pill-label"),
+        "NOT YET · SANTIAGO OWED"
+    );
+    let refusal = app.refuse("end-terror");
+    assert!(refusal.contains("Resolve Santiago's Terror"), "{refusal}");
+    app.activate("step:terror:santiago", rev(&rolled));
+    let pinned = app.observe();
+    assert_eq!(pinned["table"]["briefing"]["option"], "terror:santiago");
+    assert_eq!(pinned["table"]["briefing"]["pinned"], true);
+    assert_eq!(
+        words(&pinned, "execution-commit-label"),
+        "Terror in Santiago de Cuba · pay 1 Resource"
+    );
+    assert_eq!(
+        words(&pinned, "step:terror:santiago-pill-label"),
+        "OWED · 1 RESOURCE"
+    );
+    let santiago = tag_text(&pinned["table"]["briefing"]);
+    let cost = format!("COST: 26July Resources: {die} → {}", die - 1);
+    for fact in [
+        cost.as_str(),
+        "Santiago de Cuba: Neutral → Passive Opposition",
+        "26July victory standing 9 → 10 (margin -6 → -5)",
+        "OWED: Santiago Terror owed",
+    ] {
+        assert!(santiago.contains(fact), "{fact}: {santiago}");
+    }
+    compare(&pinned, &layout["parts"], &[0, 1, 2, 3]);
+    compare(&pinned, &layout["pills"], &[1, 2, 3]);
+    compare(&pinned, &layout["stretched"], &[0, 1, 2]);
+    compare(&pinned, &layout["text"], &[0, 1]);
+    compare(&pinned, &layout["right_text"], &[1, 2]);
+    compare(&pinned, &layout["centered_text"], &[1, 4]);
+    app.capture("santiago-pinned-16x9");
+
+    // The clash rule: a space popover wins over the step's tag, and the tag reopens
+    // from its row, which closes the popover.
+    app.activate("space:santiago", rev(&pinned));
+    let popover = app.observe();
+    assert_eq!(
+        popover["table"]["popover"]["space"], "santiago",
+        "{}",
+        popover["table"]
+    );
+    assert_eq!(popover["table"]["briefing"], Value::Null);
+    assert_eq!(popover["table"]["choice"]["pinned"], Value::Null);
+    app.capture("popover-wins");
+    app.activate("step:terror:santiago", rev(&pinned));
+    let reopened = app.observe();
+    assert_eq!(reopened["table"]["popover"], Value::Null);
+    assert_eq!(reopened["table"]["briefing"]["option"], "terror:santiago");
+    // A click on the map outside the tag closes it.
+    app.activate("space:havana", rev(&pinned));
+    let outside = app.observe();
+    assert_eq!(outside["table"]["briefing"], Value::Null);
+    assert_eq!(outside["observation"], pinned["observation"]);
+
+    // The keyboard: Tab focuses the first step and shows its tag; Enter pins it; Tab
+    // reaches the commit, which Enter presses.
+    let focused = key(&mut app, "Tab", None);
+    assert_eq!(focused["table"]["choice"]["focus"], "step:terror:santiago");
+    assert_eq!(focused["table"]["briefing"]["option"], "terror:santiago");
+    let pinned_key = key(&mut app, "Enter", Some("step:terror:santiago"));
+    assert_eq!(pinned_key["table"]["choice"]["pinned"], "terror:santiago");
+    let commit = format!("{}:terror:santiago", rev(&pinned_key));
+    let mut view = pinned_key;
+    for _ in 0..10 {
+        if view["table"]["choice"]["focus"] == commit.as_str() {
+            break;
+        }
+        view = key(&mut app, "Tab", None);
+    }
+    assert_eq!(view["table"]["choice"]["focus"], commit.as_str());
+    let paid = key(&mut app, "Enter", Some(&commit));
+    assert_eq!(paid["observation"]["owed_terror"], Value::Null);
+    assert_eq!(paid["observation"]["resources"][1], die - 1);
+    assert_eq!(
+        words(&paid, "step:terror:santiago-pill-label"),
+        "DONE · PAID 1"
+    );
+
+    // End Terror after Kidnap (EX-A state 7), then the ended panel.
+    let end = app.tag("end-terror", "end-terror-after-kidnap");
+    for fact in [
+        "RECORDS: Operation with Special Activity (R 2.3.4)",
+        "EVENT FOR DIRECTORIO",
+        "Ineligible after this card",
+    ] {
+        assert!(end.contains(fact), "{fact}: {end}");
+    }
+    app.choose("end-terror");
+    let ended = app.observe();
+    assert_eq!(ended["observation"]["finished"], true);
+    assert_eq!(words(&ended, "execution-heading"), "26July · Terror ended");
+    compare(&ended, &layout["ended"]["images"], &[0, 1, 2, 3]);
+    compare(&ended, &layout["ended"]["text"], &[0, 1]);
+    assert!(
+        words(&ended, "ended-value:RESULT").contains(&format!("Kidnap rolled {die}")),
+        "{}",
+        words(&ended, "ended-value:RESULT")
+    );
+    app.capture("ended");
     app.quit();
 }
 

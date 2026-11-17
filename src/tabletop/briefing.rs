@@ -8,7 +8,7 @@
 //! no province and compute no space's result, which the map popover previews (#72).
 //! Pass keeps its exact numbers, from the rules authority's preview, since it involves
 //! no space. Current Resources come from the observation; the wording only places them.
-use crate::{CARD_17_SHADED, Choice, Faction, Observation, Preview};
+use crate::{CARD_17_SHADED, Choice, Faction, KidnapStakes, Observation, Preview};
 
 /// Value lines are broken by hand at this many characters, which the 420 px column
 /// holds at 15 px with margin (Lato averages about 6.5 px a character there), so each
@@ -17,11 +17,14 @@ pub(super) const CHARS: usize = 58;
 /// The same for the 12.5 px rules line.
 pub(super) const RULES_CHARS: usize = 70;
 
-/// One labelled entry: PURPOSE, COST, STEPS, RESULT, STATUS or NEXT.
+/// One labelled entry: PURPOSE, COST, STEPS, RESULT, STATUS or NEXT, or a step's
+/// preview entry (#84). `chips` are in-task remedies, drawn as HF-A remedy chips.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub(super) struct Entry {
     pub label: &'static str,
     pub text: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub chips: Vec<String>,
 }
 
 /// A briefing's content. `option` is the choice id without its revision, such as
@@ -35,10 +38,11 @@ pub(super) struct Briefing {
     pub rules: String,
 }
 
-fn entry(label: &'static str, text: impl Into<String>) -> Entry {
+pub(super) fn entry(label: &'static str, text: impl Into<String>) -> Entry {
     Entry {
         label,
         text: text.into(),
+        chips: vec![],
     }
 }
 
@@ -177,7 +181,7 @@ fn kidnap_result(view: &Observation) -> String {
     if let Some(stakes) = stakes {
         return format!(
             "Proceeds {} while Government has {}; at least {}.",
-            super::preview::proceeds(stakes),
+            proceeds(stakes),
             stakes.government,
             stakes.minimum
         );
@@ -353,9 +357,42 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
     })
 }
 
-/// Breaks a sentence into lines of at most `width` characters at spaces.
+/// Breaks a text into lines of at most `width` characters at spaces. A newline in
+/// the text always starts a new line.
 pub(super) fn lines(text: &str, width: usize) -> Vec<String> {
-    super::preview::wrap(text, width)
+    text.split('\n')
+        .flat_map(|part| wrap(part, width))
+        .collect()
+}
+
+/// Breaks a sentence into lines of at most `width` characters at spaces.
+pub(super) fn wrap(sentence: &str, width: usize) -> Vec<String> {
+    let mut lines = vec![];
+    let mut line = String::new();
+    for word in sentence.split_whitespace() {
+        if !line.is_empty() && line.chars().count() + 1 + word.chars().count() > width {
+            lines.push(std::mem::take(&mut line));
+        }
+        if !line.is_empty() {
+            line.push(' ');
+        }
+        line.push_str(word);
+    }
+    if !line.is_empty() {
+        lines.push(line);
+    }
+    lines
+}
+
+/// A Kidnap roll's possible proceeds as a range of Resources, such as "1–6 Resources"
+/// or "0 Resources" once Government has none.
+pub(super) fn proceeds(stakes: &KidnapStakes) -> String {
+    match (stakes.proceeds.first(), stakes.proceeds.last()) {
+        (Some(low), Some(high)) if low != high => format!("{low}–{high} Resources"),
+        (Some(1), _) => "1 Resource".into(),
+        (Some(n), _) => format!("{n} Resources"),
+        _ => "nothing".into(),
+    }
 }
 
 #[cfg(test)]

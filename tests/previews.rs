@@ -497,3 +497,26 @@ fn committing_a_previewed_step_produces_the_previewed_resources_and_standings() 
         }
     }
 }
+
+/// #84: the observation says whether the first effect has happened, so a step that
+/// waits on an open Kidnap can say whether going back is still possible afterwards.
+/// Opening Kidnap or the transfer, or asking, is no effect; an authorized transfer is
+/// (local policy, #58).
+#[test]
+fn the_observation_reports_the_first_effect() {
+    let mut game = Game::prepared();
+    assert!(!game.observe().effected);
+    choose(&mut game, "kidnap");
+    assert!(!game.observe().effected, "opening Kidnap rolls nothing");
+    choose(&mut game, "kidnap:cancel");
+    choose(&mut game, "transfer");
+    choose(&mut game, &format!("ask:{}:1", Faction::Directorio.index()));
+    assert!(!game.observe().effected, "a request moves nothing");
+    choose(&mut game, "authorize:1");
+    assert!(
+        game.observe().effected,
+        "an authorized transfer is an effect"
+    );
+    choose(&mut game, "terror:santiago");
+    assert!(game.observe().effected);
+}

@@ -22,7 +22,8 @@ use crate::{ActionChoice, Observation};
 use bevy::text::{Justify, LetterSpacing, LineHeight};
 
 /// Node coordinates in the FigCraft 16:9 frame, `art/atlas/atlas-action-choice.figcraft`.
-mod fig {
+/// EX-A's execution panel (`execution.rs`) shares the panel place, rows and tag.
+pub(super) mod fig {
     /// Frame units per reference pixel.
     pub const SCALE: f32 = 2.7;
     /// The operation panel's top-left; the reference panel sits at 1380, 280.
@@ -106,23 +107,24 @@ mod fig {
 }
 
 /// A frame x or y in reference pixels, on the panel's right-anchored reference.
-fn rx(x: f32) -> f32 {
+pub(super) fn rx(x: f32) -> f32 {
     1380. + (x - fig::PANEL[0]) / fig::SCALE
 }
-fn ry(y: f32) -> f32 {
+pub(super) fn ry(y: f32) -> f32 {
     280. + (y - fig::PANEL[1]) / fig::SCALE
 }
-fn rs(v: f32) -> f32 {
+pub(super) fn rs(v: f32) -> f32 {
     v / fig::SCALE
 }
-fn rect(x: f32, y: f32, w: f32, h: f32) -> [f32; 4] {
+pub(super) fn rect(x: f32, y: f32, w: f32, h: f32) -> [f32; 4] {
     [rx(x), ry(y), rs(w), rs(h)]
 }
 
 /// The action choice's presentation state, kept in `Interface`.
 #[derive(Default)]
 pub(super) struct State {
-    /// The pinned option, such as "pass": its briefing stays open and the commit reads it.
+    /// The pinned option, such as "pass", or during Terror the pinned step, such as
+    /// "terror:santiago" (#84): its tag stays open and the commit reads it.
     pub pinned: Option<String>,
     /// The control that has keyboard focus, by its seat name.
     pub focus: Option<String>,
@@ -132,18 +134,26 @@ pub(super) struct State {
     pub tab: Option<String>,
 }
 impl State {
-    /// A decision committed: the action choice's pin and focus no longer apply.
-    pub fn decided(&mut self) {
-        self.pinned = None;
+    /// A decision committed: the pin and focus no longer apply. A step that the
+    /// decision opened (Kidnap or the transfer) holds the panel, and its tag opens
+    /// pinned (EX-A). Removal mode's tag stays closed until its row is hovered or
+    /// pinned: the pieces it removes are on the map's east, which the tag covers.
+    pub fn decided(&mut self, view: &Observation) {
+        self.pinned = super::execution::held(view)
+            .filter(|step| *step != "remove")
+            .map(str::to_owned);
         self.focus = None;
     }
     fn tab(&self) -> &str {
         self.tab.as_deref().unwrap_or("terror")
     }
-    /// Closes the ribbon's tag. A space popover opened on the map wins over the tag
-    /// (owner's clash rule, #58); the tag reopens from the ribbon.
+    /// Closes the ribbon's tag and, during Terror, the pinned step's tag. A space
+    /// popover opened on the map wins over either tag (owner's clash rule, #58,
+    /// extended to step tags in #83's selection); the tag reopens from the ribbon or
+    /// from its step's row. Only called during Terror.
     pub fn close(&mut self) {
         self.ribbon = false;
+        self.pinned = None;
     }
 }
 
@@ -192,7 +202,7 @@ fn resources(n: u8) -> String {
 }
 
 /// Restyles a drawn text: Lato Bold, letter spacing, line height or alignment.
-fn style(
+pub(super) fn style(
     commands: &mut Commands,
     entity: Entity,
     art: &Art,
@@ -539,29 +549,48 @@ pub(super) fn primary(
     s: f32,
     o: Vec2,
 ) {
-    let [x, y, w, h] = fig::COMMIT;
-    let plate = picture(
+    primary_with(
         commands,
         art,
+        control,
+        Prose::named(label),
+        enabled,
         if enabled {
             "atlas-choice-commit.png"
         } else {
             "atlas-choice-commit-disabled.png"
         },
-        rect(x, y, w, h),
+        part_name,
         s,
         o,
-        3,
     );
+}
+
+/// The primary action with its plate and words given: EX-A's commit uses AC-B's
+/// plates, or TM-B's giver-coloured primary for a pending request (#84).
+#[allow(clippy::too_many_arguments)]
+pub(super) fn primary_with(
+    commands: &mut Commands,
+    art: &Art,
+    control: Control,
+    label: Prose,
+    enabled: bool,
+    plate: &str,
+    part_name: &str,
+    s: f32,
+    o: Vec2,
+) {
+    let [x, y, w, h] = fig::COMMIT;
+    let node = picture(commands, art, plate, rect(x, y, w, h), s, o, 3);
     commands
-        .entity(plate)
+        .entity(node)
         .remove::<Pickable>()
         .insert((control, Part(part_name.into())))
         .observe(super::click);
     let words = text(
         commands,
         art,
-        Prose::named(label),
+        label,
         rx(x),
         ry(y + fig::COMMIT_TOP),
         rs(w),
@@ -623,6 +652,8 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
             } else {
                 Some(option.clone())
             };
+            // A step pinned during Terror takes the tag's place from the ribbon's tag.
+            ui.choice.ribbon = false;
         }
         Action::Ribbon => ui.choice.ribbon = !ui.choice.ribbon,
         Action::Tab(option) => ui.choice.tab = Some(option.clone()),
@@ -631,24 +662,35 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
     ui.dirty = true;
 }
 
-/// The controls Tab moves through, in order, by their seat names.
-fn focusable(view: &Observation, ui: &Interface) -> Vec<String> {
+/// The controls Tab moves through, in order, by their seat names, each with what
+/// Enter does to it.
+fn focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> {
     if view.finished {
         return vec![];
     }
     match view.action {
-        ActionChoice::Open => view
-            .choices
-            .iter()
-            .map(|c| format!("option:{}", c.action()))
-            .chain([commit(view, ui.choice.pinned.as_deref()).name])
-            .collect(),
+        ActionChoice::Open => {
+            let commit = commit(view, ui.choice.pinned.as_deref());
+            view.choices
+                .iter()
+                .map(|c| {
+                    (
+                        format!("option:{}", c.action()),
+                        Action::Pin(c.action().into()),
+                    )
+                })
+                .chain([(commit.name, commit.action)])
+                .collect()
+        }
         ActionChoice::Terror if view.executing.is_some() => {
-            let mut names = vec!["briefing-ribbon".to_owned()];
+            let mut controls = super::execution::focusable(view, ui.choice.pinned.as_deref());
+            controls.push(("briefing-ribbon".to_owned(), Action::Ribbon));
             if ui.choice.ribbon {
-                names.extend(fig::TABS.map(|(option, ..)| tab_name(option)));
+                controls.extend(
+                    fig::TABS.map(|(option, ..)| (tab_name(option), Action::Tab(option.into()))),
+                );
             }
-            names
+            controls
         }
         _ => vec![],
     }
@@ -704,7 +746,7 @@ pub(super) fn keys(
         .choice
         .focus
         .as_ref()
-        .and_then(|f| order.iter().position(|n| n == f));
+        .and_then(|f| order.iter().position(|(n, _)| n == f));
     if tab {
         let back = keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
         let n = order.len();
@@ -714,63 +756,71 @@ pub(super) fn keys(
             (Some(i), false) => (i + 1) % n,
             (Some(i), true) => (i + n - 1) % n,
         };
-        ui.choice.focus = Some(order[next].clone());
+        ui.choice.focus = Some(order[next].0.clone());
         ui.dirty = true;
         return;
     }
-    let Some(focused) = at.map(|i| order[i].clone()) else {
+    let Some((focused, action)) = at.map(|i| order[i].clone()) else {
         return;
     };
-    if let Some(option) = focused.strip_prefix("option:") {
-        activate(&mut ui, &Action::Pin(option.into()));
-    } else if focused == "briefing-ribbon" {
-        activate(&mut ui, &Action::Ribbon);
-        // Whichever opened last wins (orchestrator implementation judgement, #58).
-        if ui.choice.ribbon {
-            popover.close_all();
-        }
-    } else if let Some((option, ..)) = fig::TABS
-        .iter()
-        .find(|(option, ..)| tab_name(option) == focused)
-    {
-        activate(&mut ui, &Action::Tab((*option).into()));
-    } else {
-        match commit(&view, ui.choice.pinned.as_deref()).action {
-            Action::Commit(owner, revision) => {
-                decide(&mut play, &mut ui, owner, revision, &focused);
+    match action {
+        Action::Pin(_) | Action::Ribbon | Action::Tab(_) => {
+            activate(&mut ui, &action);
+            // Whichever opened last wins (orchestrator implementation judgement, #58):
+            // the ribbon's tag, or a step's tag pinned from its row (#84).
+            let step = matches!(action, Action::Pin(_)) && view.action == ActionChoice::Terror;
+            if (ui.choice.ribbon && matches!(action, Action::Ribbon))
+                || (step && ui.choice.pinned.is_some())
+            {
+                popover.close_all();
             }
-            Action::Unsupported(reason) => ui.notice = reason,
-            _ => {}
         }
-        ui.dirty = true;
+        Action::Commit(owner, revision) | Action::Decision(owner, revision) => {
+            decide(&mut play, &mut ui, owner, revision, &focused);
+            ui.dirty = true;
+        }
+        Action::Unsupported(reason) => {
+            ui.notice = reason;
+            ui.dirty = true;
+        }
+        _ => {}
     }
 }
 
 /// What the tag shows now: at the action choice, the hovered option, else the
-/// focused one, else the pinned one; during Terror, the ribbon's open tab.
-fn wanted(game: &Game, ui: &Interface) -> Option<(String, bool, bool)> {
+/// focused one, else the pinned one; during Terror, the ribbon's open tab, else the
+/// hovered, focused or pinned step (#84). A space or piece popover wins over a step's
+/// tag (the owner's clash rule, extended to step tags), and the transfer modal hides
+/// it. Returns the option or step, whether it is pinned, and whether it is the
+/// ribbon's tag.
+fn wanted(game: &Game, ui: &Interface, popover: bool) -> Option<(String, bool, bool)> {
     if ui.reader || game.finished {
         return None;
     }
-    match game.action {
-        ActionChoice::Open => {
-            let hovered = match ui.hover.visible() {
-                Some(Target::Choice(name)) => name.strip_prefix("option:").map(str::to_owned),
-                _ => None,
-            };
-            let focused = ui
-                .choice
-                .focus
-                .as_deref()
-                .and_then(|f| f.strip_prefix("option:"))
-                .map(str::to_owned);
-            let option = hovered.or(focused).or_else(|| ui.choice.pinned.clone())?;
-            let pinned = ui.choice.pinned.as_ref() == Some(&option);
-            Some((option, pinned, false))
+    let (prefix, ribbon) = match game.action {
+        ActionChoice::Open => ("option:", false),
+        ActionChoice::Terror if ui.choice.ribbon => {
+            return Some((ui.choice.tab().to_owned(), true, true));
         }
-        ActionChoice::Terror if ui.choice.ribbon => Some((ui.choice.tab().to_owned(), true, true)),
-        _ => None,
+        ActionChoice::Terror => ("step:", true),
+        ActionChoice::Pass => return None,
+    };
+    if ribbon && (popover || super::transfer::shown(game.transfer.as_ref())) {
+        return None;
     }
+    let hovered = match ui.hover.visible() {
+        Some(Target::Choice(name)) => name.strip_prefix(prefix).map(str::to_owned),
+        _ => None,
+    };
+    let focused = ui
+        .choice
+        .focus
+        .as_deref()
+        .and_then(|f| f.strip_prefix(prefix))
+        .map(str::to_owned);
+    let option = hovered.or(focused).or_else(|| ui.choice.pinned.clone())?;
+    let pinned = ui.choice.pinned.as_ref() == Some(&option);
+    Some((option, pinned, false))
 }
 
 /// A text run of one briefing: faction names become emblems after the briefing's
@@ -831,6 +881,68 @@ fn run(
 /// open tab and the window size.
 type Drawn = (u64, Option<(String, bool, bool)>, String, [u32; 2]);
 
+/// A row of remedy chips in the tag, HF-A's chip plate hugging each remedy.
+fn chips(commands: &mut Commands, art: &Art, chips: &[String], at: Vec2, s: f32) -> Entity {
+    use super::execution::fig as ex;
+    let row = commands
+        .spawn((
+            Tag,
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(at.x),
+                top: px(at.y),
+                flex_direction: FlexDirection::Row,
+                column_gap: px(rs(ex::CHIP_GAP) * s),
+                ..default()
+            },
+            GlobalZIndex(6),
+            Pickable::IGNORE,
+        ))
+        .id();
+    for chip in chips {
+        let plate = commands
+            .spawn((
+                Node {
+                    height: px(rs(ex::CHIP_H) * s),
+                    padding: UiRect::horizontal(px(rs(ex::CHIP_PAD) * s)),
+                    align_items: AlignItems::Center,
+                    flex_shrink: 0.,
+                    ..default()
+                },
+                Part(format!("briefing-chip:{chip}")),
+                Pickable::IGNORE,
+            ))
+            .id();
+        let backdrop = commands
+            .spawn(super::execution::backdrop(
+                art,
+                "atlas-popover-chip.png",
+                6.,
+                false,
+                s,
+            ))
+            .id();
+        commands.entity(plate).add_child(backdrop);
+        let words = commands
+            .spawn((
+                Tag,
+                Text::new(chip.clone()),
+                emblems::Plain(chip.clone()),
+                TextFont {
+                    font: art.font.clone().into(),
+                    font_size: (rs(ex::CHIP_SIZE) * s).into(),
+                    ..default()
+                },
+                TextColor(INK),
+                Pickable::IGNORE,
+            ))
+            .id();
+        commands.entity(plate).add_child(words);
+        commands.entity(row).add_child(plate);
+    }
+    row
+}
+
 /// Draws the briefing tag and the active row's outline when what they show changes.
 #[allow(clippy::too_many_arguments)] // The shared hover, layout and drawn entities.
 pub(super) fn draw(
@@ -839,13 +951,14 @@ pub(super) fn draw(
     ui: Res<Interface>,
     art: Res<Art>,
     window: Single<&Window, With<PrimaryWindow>>,
-    roots: Query<Entity, With<Tag>>,
+    roots: Query<Entity, (With<Tag>, Without<ChildOf>)>,
+    popover: Res<super::popover::Popover>,
     mut previous: Local<Option<Drawn>>,
 ) {
     let Some(game) = play.session.as_ref().map(Session::game) else {
         return;
     };
-    let wanted = wanted(game, &ui);
+    let wanted = wanted(game, &ui, popover.open());
     let key = (
         game.revision,
         wanted.clone(),
@@ -867,19 +980,35 @@ pub(super) fn draw(
         return;
     };
     let view = game.observe();
-    let Some(briefing) = briefing::content(&view, &option) else {
+    let content = if tabs || view.action == ActionChoice::Open {
+        briefing::content(&view, &option)
+    } else {
+        super::execution::tag(&view, &option)
+    };
+    let Some(briefing) = content else {
         return;
     };
     let (s, left) = layout(&window);
     let o = left + Vec2::new(window.width() - WIDTH * s, 0.);
     let at = |x: f32, y: f32| o + Vec2::new(rx(x), ry(y)) * s;
-    // The active row's outline at the action choice.
-    if !tabs && let Some(i) = view.choices.iter().position(|c| c.action() == option) {
+    // The active row's outline: an option at the action choice, or a step during
+    // Terror (the step a mode holds open is outlined by the panel itself).
+    let row = if view.action == ActionChoice::Open {
+        view.choices
+            .iter()
+            .position(|c| c.action() == option)
+            .map(|i| [fig::ROW_X, fig::ROWS[i], fig::ROW_W, fig::ROW_H])
+    } else if super::execution::held(&view) == Some(option.as_str()) {
+        None
+    } else {
+        super::execution::row(&option)
+    };
+    if !tabs && let Some([x, y, w, h]) = row {
         let plate = picture(
             &mut commands,
             &art,
             "atlas-choice-row-active.png",
-            rect(fig::ROW_X, fig::ROWS[i], fig::ROW_W, fig::ROW_H),
+            rect(x, y, w, h),
             s,
             o,
             4,
@@ -1032,38 +1161,51 @@ pub(super) fn draw(
             fig::CAPS_SPACING,
         );
         spawned.push((label, format!("briefing-label:{}", entry.label)));
-        let lines = briefing::lines(&entry.text, briefing::CHARS);
-        let p = at(left_x, y + fig::ENTRY_VALUE_TOP);
-        let value = run(
-            &mut commands,
-            &art,
-            &lines.join("\n"),
-            &mut seen,
-            [p.x, p.y, rs(width) * s],
-            rs(fig::VALUE_TEXT_SIZE) * s,
-            rs(fig::VALUE_LINE) * s,
-            6,
-        );
-        spawned.push((value, format!("briefing-value:{}", entry.label)));
-        y += fig::ENTRY_VALUE_TOP + fig::VALUE_LINE * lines.len() as f32 + fig::GAP;
+        y += fig::ENTRY_VALUE_TOP;
+        if !entry.text.is_empty() {
+            let lines = briefing::lines(&entry.text, briefing::CHARS);
+            let p = at(left_x, y);
+            let value = run(
+                &mut commands,
+                &art,
+                &lines.join("\n"),
+                &mut seen,
+                [p.x, p.y, rs(width) * s],
+                rs(fig::VALUE_TEXT_SIZE) * s,
+                rs(fig::VALUE_LINE) * s,
+                6,
+            );
+            spawned.push((value, format!("briefing-value:{}", entry.label)));
+            y += fig::VALUE_LINE * lines.len() as f32;
+        }
+        if !entry.chips.is_empty() {
+            let row = chips(&mut commands, &art, &entry.chips, at(left_x, y), s);
+            spawned.push((row, format!("briefing-chips:{}", entry.label)));
+            y += super::execution::fig::CHIP_H;
+        }
+        y += fig::GAP;
     }
-    let lines = briefing::lines(&briefing.rules, briefing::RULES_CHARS);
-    let rules = words(
-        &mut commands,
-        &lines.join("\n"),
-        left_x,
-        y,
-        width,
-        fig::RULES_SIZE,
-        QUIET,
-        false,
-        0.,
-    );
-    commands
-        .entity(rules)
-        .insert(LineHeight::Px(rs(fig::RULES_LINE) * s));
-    spawned.push((rules, "briefing-rules".into()));
-    y += fig::RULES_LINE * lines.len() as f32 + fig::PAD[2];
+    if briefing.rules.is_empty() {
+        y += fig::PAD[2] - fig::GAP;
+    } else {
+        let lines = briefing::lines(&briefing.rules, briefing::RULES_CHARS);
+        let rules = words(
+            &mut commands,
+            &lines.join("\n"),
+            left_x,
+            y,
+            width,
+            fig::RULES_SIZE,
+            QUIET,
+            false,
+            0.,
+        );
+        commands
+            .entity(rules)
+            .insert(LineHeight::Px(rs(fig::RULES_LINE) * s));
+        spawned.push((rules, "briefing-rules".into()));
+        y += fig::RULES_LINE * lines.len() as f32 + fig::PAD[2];
+    }
     let height = y - fig::PANEL[1];
     let plate = picture(
         &mut commands,
@@ -1191,24 +1333,44 @@ mod tests {
 
     #[test]
     fn tab_order_covers_every_option_then_the_commit() {
+        let names = |view: &Observation, ui: &Interface| -> Vec<String> {
+            focusable(view, ui).into_iter().map(|(n, _)| n).collect()
+        };
         let view = Game::opening().observe();
         let ui = Interface::default();
-        let order = focusable(&view, &ui);
+        let order = names(&view, &ui);
         assert_eq!(order.len(), 12);
         assert_eq!(order[0], "option:pass");
         assert_eq!(order[11], "choice-commit");
+        // During Terror (#84): every listed step, the commit, then the ribbon.
         let mut game = Game::opening();
         game.submit(Faction::M26, 0, "0:terror").unwrap();
         let mut ui = Interface::default();
-        assert_eq!(focusable(&game.observe(), &ui), ["briefing-ribbon"]);
-        ui.choice.ribbon = true;
         assert_eq!(
-            focusable(&game.observe(), &ui),
+            names(&game.observe(), &ui),
+            [
+                "step:terror:santiago",
+                "step:terror:oriente",
+                "step:kidnap",
+                "step:transfer",
+                "step:remove",
+                "step:end-terror",
+                "step:back-to-choice",
+                "execution-commit",
+                "briefing-ribbon"
+            ]
+        );
+        ui.choice.ribbon = true;
+        let order = names(&game.observe(), &ui);
+        assert_eq!(
+            order[order.len() - 3..],
             [
                 "briefing-ribbon",
                 "briefing-tab:kidnap",
                 "briefing-tab:terror"
             ]
         );
+        ui.choice.pinned = Some("end-terror".into());
+        assert!(names(&game.observe(), &ui).contains(&"1:end-terror".to_owned()));
     }
 }

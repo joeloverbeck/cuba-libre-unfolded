@@ -28,8 +28,10 @@ pub const TRANSFER_MANIFEST: &str = include_str!("../art/atlas/transfer.sha256")
 pub const KIDNAP_MANIFEST: &str = include_str!("../art/atlas/kidnap.sha256");
 /// The selected HF-A popover's production plates (#58 review): stateless presentation.
 pub const POPOVER_MANIFEST: &str = include_str!("../art/atlas/popover.sha256");
+/// The selected EX-A execution panel's pills (#84): stateless presentation.
+pub const EXECUTION_MANIFEST: &str = include_str!("../art/atlas/execution.sha256");
 /// Every manifest admitted at launch, in the order `inspect` reads them.
-pub const MANIFESTS: [&str; 13] = [
+pub const MANIFESTS: [&str; 14] = [
     MANIFEST,
     STATUS_MANIFEST,
     VICTORY_MANIFEST,
@@ -43,6 +45,7 @@ pub const MANIFESTS: [&str; 13] = [
     TRANSFER_MANIFEST,
     KIDNAP_MANIFEST,
     POPOVER_MANIFEST,
+    EXECUTION_MANIFEST,
 ];
 pub const SOURCE: &str = "deacd635db5f71f4d3f092bd9cc99a9d96bb7aab;R:8152cb0056e3690fdc01c7b4ff893369ad7eff288941abc540ceee2c9d606792;P:dcaa5afd6f01c0c9ed4746c18199c1b09058823d67b627384fd3184ed4015fe8";
 const CARD_17: &str = "141f592b5dee5a8c7a6d26651410b0ee1171a7dcf2c2b5331a63b48407cec9ab";

@@ -209,6 +209,11 @@ impl Popover {
     pub fn close(&mut self) {
         self.piece = None;
     }
+    /// Whether a space or piece popover is open: it wins over a step's tag (the
+    /// owner's clash rule, extended to EX-A's step tags in #83's selection).
+    pub fn open(&self) -> bool {
+        self.pinned.is_some() || self.piece.is_some()
+    }
     /// Closes any kept-open popover: the AC-B briefing tag opened after it wins
     /// (orchestrator implementation judgement, #58 carry-forward).
     pub fn close_all(&mut self) {
@@ -344,7 +349,7 @@ fn preview_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
             Tone::Strong,
             format!(
                 "The roll takes {} from {} (has {}); at least {}. R 4.3.3",
-                preview::proceeds(stakes),
+                super::briefing::proceeds(stakes),
                 stakes.target.name(),
                 stakes.government,
                 stakes.minimum

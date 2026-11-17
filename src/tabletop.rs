@@ -47,11 +47,10 @@ mod choice;
 pub mod die;
 mod eligibility;
 mod emblems;
+mod execution;
 mod highlights;
-mod operation;
 mod palette;
 mod popover;
-mod preview;
 pub mod seat;
 mod status;
 mod top;
@@ -178,8 +177,9 @@ enum Action {
     Reader,
     Space(String),
     Decision(Faction, u64),
-    /// The action choice's commit for its pinned option: a decision whose preview is
-    /// the pinned briefing, so the pointer on it opens no second card.
+    /// A commit at the panel's foot: the action choice's for its pinned option, or EX-A's
+    /// for its pinned or open step, and Kidnap's Cancel (#84). Its preview is the
+    /// pinned tag, so the pointer on it opens nothing.
     Commit(Faction, u64),
     /// An option row at the action choice: pins (or unpins) its briefing.
     Pin(String),
@@ -402,7 +402,6 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 status::draw,
                 victory::draw,
                 top::draw,
-                preview::draw,
                 popover::draw,
                 popover::place,
                 // Bevy chains at most 20 systems in one tuple.
@@ -965,6 +964,11 @@ fn click(
         }
         Action::Piece(key) => {
             popover.click_piece(key, &targeting);
+            // A piece popover wins over a step's tag, as a space popover does.
+            if popover.open() {
+                ui.choice.close();
+                ui.dirty = true;
+            }
             return;
         }
         Action::Quantity(step) => {
@@ -987,9 +991,14 @@ fn click(
         }
         Action::Pin(_) | Action::Ribbon | Action::Tab(_) => {
             choice::activate(&mut ui, &control.action);
-            // Whichever opened last wins: the tag opened from the ribbon closes an open
-            // popover (orchestrator implementation judgement, #58 carry-forward).
-            if ui.choice.ribbon && matches!(control.action, Action::Ribbon) {
+            // Whichever opened last wins: the tag opened from the ribbon, or a step's
+            // tag pinned from its row during Terror (#84), closes an open popover
+            // (orchestrator implementation judgement, #58 carry-forward).
+            let step = matches!(control.action, Action::Pin(_))
+                && play.game().action == crate::ActionChoice::Terror;
+            if (ui.choice.ribbon && matches!(control.action, Action::Ribbon))
+                || (step && ui.choice.pinned.is_some())
+            {
                 popover.close_all();
             }
         }
@@ -1005,9 +1014,10 @@ fn click(
     ui.dirty = true;
 }
 /// A primary click on the map, outside any interface node, closes the open AC-B
-/// briefing tag, so the Santiago and Oriente targets it covers become clickable
-/// (orchestrator implementation judgement, recorded in #58's carry-forward; the owner
-/// accepted the coverage). A click on the tag itself is an interface node and keeps it.
+/// briefing tag, or during Terror the pinned EX-A step tag (#84), so the Santiago and
+/// Oriente targets it covers become clickable (orchestrator implementation judgement,
+/// recorded in #58's carry-forward; the owner accepted the coverage). A click on the
+/// tag itself is an interface node and keeps it.
 fn map_click_closes_tag(
     event: On<PointerClick>,
     nodes: Query<(), With<Node>>,
@@ -1016,9 +1026,12 @@ fn map_click_closes_tag(
 ) {
     if event.button != bevy::picking::pointer::PointerButton::Primary
         || play.session.is_none()
-        || !ui.choice.ribbon
         || nodes.contains(event.entity)
     {
+        return;
+    }
+    let step = play.game().action == crate::ActionChoice::Terror && ui.choice.pinned.is_some();
+    if !(ui.choice.ribbon || step) {
         return;
     }
     ui.choice.close();
@@ -1110,8 +1123,9 @@ fn decide(play: &mut Play, ui: &mut Interface, owner: Faction, rev: u64, name: &
         }
         Err(e) => ui.notice = e.to_string(),
     };
-    // A committed decision leaves the action choice; its pin and focus go with it.
-    ui.choice.decided();
+    // A committed decision leaves its step; its pin and focus go with it, and a step
+    // the decision opened holds the panel with its tag pinned (EX-A, #84).
+    ui.choice.decided(&play.game().observe());
 }
 fn layout(window: &Window) -> (f32, Vec2) {
     let scale = (window.width() / WIDTH).min(window.height() / HEIGHT);
@@ -1559,7 +1573,7 @@ fn draw_ui(
         if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
             die::panel(&mut commands, &art, kidnap, roll.landed(), s, right);
         } else {
-            operation::panel(&mut commands, &art, &view, &ui, s, right);
+            execution::panel(&mut commands, &art, &view, &ui, s, right);
         }
         eligibility::indicator(&mut commands, &art, &view, s, left);
         let o = left;
