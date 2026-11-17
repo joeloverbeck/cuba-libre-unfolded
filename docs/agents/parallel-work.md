@@ -8,17 +8,17 @@ The main checkout stays on `main`. Commit, switch branches and edit tracked file
 
 ## Builds
 
-- **Private target.** Each worktree builds into its own `CARGO_TARGET_DIR=<main checkout>/local/target-<branch>`. In a shared target the last build's `cuba-libre` and test binaries replace another worktree's, so a native run can execute another branch's code. Before trusting a native result, confirm that its test list includes a test only your branch has.
+- **Private target.** Each worktree builds into its own `CARGO_TARGET_DIR=<main checkout>/local/target-<branch>`, with the branch's slashes as dashes; `scripts/heavy` sets it. In a shared target the last build's `cuba-libre` and test binaries replace another worktree's, so a native run can execute another branch's code. Before trusting a native result, confirm that its test list includes a test only your branch has.
 - **Disk.** Each target costs about 4 GB; during #58 about 18 of them filled the disk. A merger or review-fix agent reuses the target of the ticket it continues once that ticket's agent has finished. Delete throwaway probe targets when done, and a ticket's target once its work is merged.
-- **Heavy lock.** Every cargo build, `scripts/check`, test run and native suite runs alone, in a fresh memory scope:
+- **Heavy lock.** Every cargo build, `scripts/check`, test run and native suite runs alone, in a fresh memory scope, through `scripts/heavy` from the checkout it is for:
 
   ```sh
-  flock <main checkout>/local/heavy.lock systemd-run --user --scope --collect -q \
-    -p MemoryHigh=6G -p MemoryMax=7G -p MemorySwapMax=1G -- <command>
+  scripts/heavy cargo test --locked --test seat_brief
+  scripts/heavy scripts/check
   ```
 
-  Take the lock for one command at a time. Waiting on it is expected. Release it before editing or thinking.
-- **Native suite.** Run `scripts/native` under the heavy lock.
+  It takes `<main checkout>/local/heavy.lock`, opens a `systemd-run` scope (MemoryHigh 6G, MemoryMax 7G, swap 1G) and sets the worktree's private target. Run one command per call: waiting on the lock is expected, and the lock is released before editing or thinking.
+- **Native suite.** `CUBA_TEST_CARDS=… scripts/heavy scripts/native`.
 
 ## Art editors and Blender
 
