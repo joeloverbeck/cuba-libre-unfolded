@@ -1837,3 +1837,75 @@ fn rect_of(value: &Value) -> [f64; 4] {
         .collect();
     [v[0], v[1], v[2], v[3]]
 }
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; opens no desktop window"]
+fn native_right_drag_orbits_and_the_wheel_zooms_the_table_camera() {
+    let cards = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS to the accepted card directory")
+        .into();
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-79"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("native-")
+        .tempdir_in(&evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards,
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("task.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Native evidence: {}", app.root.display());
+    app.launch();
+    let camera = |view: &Value, field: &str| view["table"]["camera"][field].as_f64().unwrap();
+    // Resting on a space starts its status dwell, during which the table takes no input:
+    // point and settle first, as a player's pointer would come to rest.
+    let home = app.point("space:las-villas");
+
+    // The seat presses the right button on the map, moves the pointer by (120, 30)
+    // logical pixels while it is held and releases it: the camera's own scene drag.
+    let dragged = app.request(
+        json!({"op":"drag","revision":0,"component":"space:las-villas","button":"right","x":120,"y":30}),
+        true,
+    );
+    assert_eq!(dragged["status"], "dragged", "{dragged}");
+    let orbited = app.request(json!({"op":"settle"}), true);
+    // 120 * 0.006 radians of yaw and 30 * 0.004 of pitch.
+    assert!(
+        (camera(&orbited, "yaw") - (camera(&home, "yaw") - 0.72)).abs() < 0.0001,
+        "{orbited}"
+    );
+    assert!(
+        (camera(&orbited, "pitch") - (camera(&home, "pitch") + 0.12)).abs() < 0.0001,
+        "{orbited}"
+    );
+    assert_eq!(camera(&orbited, "distance"), camera(&home, "distance"));
+    app.capture("orbited");
+
+    // Two wheel lines in: 0.95 squared of the distance.
+    app.point("space:las-villas");
+    let scrolled = app.request(
+        json!({"op":"scroll","revision":0,"component":"space:las-villas","y":2}),
+        true,
+    );
+    assert_eq!(scrolled["status"], "scrolled", "{scrolled}");
+    let zoomed = app.request(json!({"op":"settle"}), true);
+    assert!(
+        (camera(&zoomed, "distance") - camera(&home, "distance") * 0.9025).abs() < 0.001,
+        "{zoomed}"
+    );
+    assert_eq!(camera(&zoomed, "yaw"), camera(&orbited, "yaw"));
+    app.capture("zoomed");
+
+    app.request(json!({"op":"key","key":"Home","revision":0}), true);
+    assert_eq!(app.observe()["table"]["camera"], home["table"]["camera"]);
+    app.quit();
+}
