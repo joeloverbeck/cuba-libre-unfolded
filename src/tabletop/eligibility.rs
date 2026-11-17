@@ -750,8 +750,6 @@ pub(super) fn draw(
         .spawn((
             Tag,
             Part("eligibility-tag".into()),
-            ImageNode::new(art.images["atlas-top-tag.png"].clone())
-                .with_mode(bevy::ui::widget::NodeImageMode::Stretch),
             Node {
                 position_type: PositionType::Absolute,
                 left: px(tag_at.x),
@@ -772,6 +770,23 @@ pub(super) fn draw(
             shown.clone(),
         ))
         .id();
+    // The plate fills the whole tag behind its padded content: an image on the padded
+    // node itself would be drawn inside the padding.
+    commands.spawn((
+        Tag,
+        ImageNode::new(art.images["atlas-top-tag.png"].clone())
+            .with_mode(bevy::ui::widget::NodeImageMode::Stretch),
+        Node {
+            position_type: PositionType::Absolute,
+            left: px(0.),
+            top: px(0.),
+            width: percent(100.),
+            height: percent(100.),
+            ..default()
+        },
+        Pickable::IGNORE,
+        ChildOf(tag),
+    ));
     let words = |commands: &mut Commands,
                  parent: Entity,
                  prose: Prose,

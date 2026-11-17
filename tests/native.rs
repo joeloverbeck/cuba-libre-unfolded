@@ -4061,4 +4061,15 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
         "panel-operation-special-activity",
     );
     app.quit();
+
+    // At 3:2, the seat's default, the camera frames Cuba wider and the track covers
+    // Pinar del Río's pieces (foundation 4 requires only the 16:9 frame; #70 records
+    // this as an open limit). The capture is retained for that record.
+    let (mut app, _socket) = session("three-two");
+    app.launch();
+    let view = app.observe();
+    agree(&view);
+    assert_eq!(view["table"]["viewport"], json!([1920., 1280.]));
+    app.capture("opening-1920x1280");
+    app.quit();
 }
