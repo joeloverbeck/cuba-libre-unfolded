@@ -129,7 +129,9 @@ fn unsupported_options_and_execution_choices_are_refused_without_effect() {
             "terror:kidnap",
             // Execution choices exist only once Terror is chosen.
             "transfer",
-            "transfer:0:1",
+            "give:0:0",
+            "ask:3:1",
+            "authorize:0",
             "remove",
             "end-terror",
             "kidnap",
@@ -272,7 +274,7 @@ fn transfers_are_offered_only_while_26july_executes_terror() {
     assert!(offered(&game, "transfer"));
     choose(&mut game, "transfer");
     assert_eq!(game.observe().executing, Some(Faction::M26));
-    choose(&mut game, "transfer:3:1");
+    choose(&mut game, "ask:3:0");
     let view = game.observe();
     assert_eq!(view.owner, Faction::Syndicate);
     assert_eq!(view.executing, Some(Faction::M26));
@@ -298,13 +300,13 @@ fn going_back_is_allowed_before_the_first_effect_and_restores_the_choice() {
     choose(&mut game, "transfer");
     choose(&mut game, "back");
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:0:1");
+    choose(&mut game, "ask:0:0");
     choose(&mut game, "decline");
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:2:1");
-    choose(&mut game, "authorize");
+    choose(&mut game, "ask:2:0");
+    choose(&mut game, "authorize:0");
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:3:1");
+    choose(&mut game, "ask:3:0");
     let waiting = game.clone();
     choose(&mut game, "wait");
     assert_eq!(game, waiting);
@@ -342,9 +344,7 @@ fn going_back_withdraws_a_pending_transfer_request_without_moving_resources() {
     let mut game = Game::opening();
     choose(&mut game, "terror");
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:3:1");
-    choose(&mut game, "amount:1");
-    choose(&mut game, "amount:2");
+    choose(&mut game, "ask:3:2");
     let view = game.observe();
     assert_eq!(view.owner, Faction::Syndicate);
     let back = view
@@ -357,7 +357,7 @@ fn going_back_withdraws_a_pending_transfer_request_without_moving_resources() {
     assert!(
         view.choices
             .iter()
-            .filter(|c| ["authorize", "decline", "wait", "amount:1", "amount:3"]
+            .filter(|c| ["authorize:0", "authorize:2", "authorize:15", "decline", "wait"]
                 .iter()
                 .any(|a| c.id == format!("{}:{a}", view.revision)))
             .all(|c| c.owner == Faction::Syndicate)
@@ -366,7 +366,7 @@ fn going_back_withdraws_a_pending_transfer_request_without_moving_resources() {
     refused(
         &mut game,
         Faction::M26,
-        &["authorize", "amount:1", "decline"],
+        &["authorize:2", "authorize:0", "decline"],
     );
     choose(&mut game, "back-to-choice");
     let view = game.observe();
@@ -382,8 +382,7 @@ fn ending_the_operation_closes_transfers_and_withdraws_a_pending_request() {
     let mut game = Game::opening();
     choose(&mut game, "terror");
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:0:1");
-    choose(&mut game, "amount:1");
+    choose(&mut game, "ask:0:1");
     let finish = game
         .observe()
         .choices
@@ -415,22 +414,18 @@ fn going_back_is_refused_after_each_kind_of_effect() {
     // An authorized transfer, even one later returned in full.
     let mut game = terror();
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:0:1");
-    choose(&mut game, "amount:1");
-    choose(&mut game, "authorize");
+    choose(&mut game, "ask:0:1");
+    choose(&mut game, "authorize:1");
     back_refused(&mut game);
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:1:0");
-    choose(&mut game, "amount:1");
-    choose(&mut game, "authorize");
+    choose(&mut game, "give:0:1");
     assert_eq!(game.observe().resources, INITIAL);
     back_refused(&mut game);
     // A resolved Terror (its payment needs Resources, so it follows a transfer here)
     // keeps going back refused once the transfer is returned.
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:2:1");
-    choose(&mut game, "amount:1");
-    choose(&mut game, "authorize");
+    choose(&mut game, "ask:2:1");
+    choose(&mut game, "authorize:1");
     choose(&mut game, "terror:oriente");
     back_refused(&mut game);
     // A Kidnap roll.
@@ -446,7 +441,7 @@ fn going_back_is_refused_after_each_kind_of_effect() {
     back_refused(&mut game);
     // While a request is pending after an effect, the requester cannot go back either.
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:3:1");
+    choose(&mut game, "ask:3:0");
     assert!(
         !game
             .observe()
@@ -479,7 +474,7 @@ fn a_record_without_the_new_fields_resumes_with_terror_chosen() {
     for steps in [
         &["kidnap", "kidnap:roll"][..],
         &["remove", "remove:oriente:underground", "confirm-removal"],
-        &["transfer", "transfer:3:1", "amount:1", "authorize"],
+        &["transfer", "ask:3:1", "authorize:1"],
     ] {
         let mut played = Game::prepared_with_seed(5);
         for step in steps {

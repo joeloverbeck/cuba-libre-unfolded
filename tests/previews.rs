@@ -27,14 +27,12 @@ fn choose(game: &mut Game, action: &str) {
 
 fn transfer(game: &mut Game, giver: Faction, recipient: Faction, amount: u8) {
     choose(game, "transfer");
-    choose(
-        game,
-        &format!("transfer:{}:{}", giver.index(), recipient.index()),
-    );
-    for n in 1..=amount {
-        choose(game, &format!("amount:{n}"));
+    if giver == Faction::M26 {
+        choose(game, &format!("give:{}:{amount}", recipient.index()));
+    } else {
+        choose(game, &format!("ask:{}:{amount}", giver.index()));
+        choose(game, &format!("authorize:{amount}"));
     }
-    choose(game, "authorize");
 }
 
 fn remove(game: &mut Game, target: &str) {

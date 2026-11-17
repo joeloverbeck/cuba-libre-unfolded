@@ -27,11 +27,8 @@ fn choose(game: &mut Game, action: &str) {
 
 fn give(game: &mut Game, giver: Faction, amount: u8) {
     choose(game, "transfer");
-    choose(game, &format!("transfer:{}:1", giver.index()));
-    for n in 1..=amount {
-        choose(game, &format!("amount:{n}"));
-    }
-    choose(game, "authorize");
+    choose(game, &format!("ask:{}:{amount}", giver.index()));
+    choose(game, &format!("authorize:{amount}"));
 }
 
 /// The state of each named space, and that every other space is not involved.
@@ -158,7 +155,7 @@ fn targeting_pauses_while_kidnap_is_open_a_transfer_is_under_way_or_removal_is_o
     assert!(space_targets(&game.observe()).is_some());
     choose(&mut game, "transfer");
     assert_eq!(space_targets(&game.observe()), None);
-    choose(&mut game, "transfer:3:1");
+    choose(&mut game, "ask:3:0");
     assert_eq!(space_targets(&game.observe()), None);
     choose(&mut game, "decline");
     choose(&mut game, "remove");

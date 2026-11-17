@@ -362,8 +362,7 @@ fn pending_giver_choice_and_accepted_transfer_resume_without_duplicate_or_failed
     for (owner, rev, action) in [
         (Faction::M26, 0, "terror"),
         (Faction::M26, 1, "transfer"),
-        (Faction::M26, 2, "transfer:3:1"),
-        (Faction::Syndicate, 3, "amount:1"),
+        (Faction::M26, 2, "ask:3:1"),
     ] {
         session
             .submit(owner, rev, &format!("{rev}:{action}"))
@@ -375,16 +374,16 @@ fn pending_giver_choice_and_accepted_transfer_resume_without_duplicate_or_failed
     assert_eq!(resumed.observe(), pending);
     assert_eq!(resumed.observe().owner, Faction::Syndicate);
     let waiting = std::fs::read(&path).unwrap();
-    resumed.submit(Faction::Syndicate, 4, "4:wait").unwrap();
+    resumed.submit(Faction::Syndicate, 3, "3:wait").unwrap();
     assert_eq!(std::fs::read(&path).unwrap(), waiting);
     let mut stale_writer = Session::open(&path, None).unwrap();
     resumed
-        .submit(Faction::Syndicate, 4, "4:authorize")
+        .submit(Faction::Syndicate, 3, "3:authorize:1")
         .unwrap();
     let accepted = std::fs::read(&path).unwrap();
     assert!(
         stale_writer
-            .submit(Faction::Syndicate, 4, "4:authorize")
+            .submit(Faction::Syndicate, 3, "3:authorize:1")
             .is_err()
     );
     assert_eq!(stale_writer.observe(), pending);
@@ -393,7 +392,7 @@ fn pending_giver_choice_and_accepted_transfer_resume_without_duplicate_or_failed
     assert_eq!(resumed.observe().resources, [6, 1, 5, 14]);
     assert!(
         resumed
-            .submit(Faction::Syndicate, 4, "4:authorize")
+            .submit(Faction::Syndicate, 3, "3:authorize:1")
             .is_err()
     );
     assert_eq!(std::fs::read(&path).unwrap(), accepted);
@@ -438,8 +437,7 @@ fn action_choice_pending_request_and_pass_survive_restart_exactly_once() {
     for action in [
         "terror",
         "transfer",
-        "transfer:3:1",
-        "amount:1",
+        "ask:3:1",
         "back-to-choice",
         "terror",
         "back-to-choice",
@@ -464,7 +462,7 @@ fn action_choice_pending_request_and_pass_survive_restart_exactly_once() {
     let view = session.observe();
     assert_eq!(view.action, ActionChoice::Pass);
     assert_eq!(view.resources, [6, 1, 5, 15]);
-    assert_eq!(view.revision, 8);
+    assert_eq!(view.revision, 7);
 }
 
 /// The payload a #8 build wrote: the same game record without the two new fields,

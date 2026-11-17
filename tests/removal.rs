@@ -50,9 +50,8 @@ fn removal_requires_confirmation_and_defeats_kidnap_but_not_donated_terror() {
     );
     assert_eq!(game.random_state(), 17);
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:2:1");
-    choose(&mut game, "amount:1");
-    choose(&mut game, "authorize");
+    choose(&mut game, "ask:2:1");
+    choose(&mut game, "authorize:1");
     choose(&mut game, "terror:santiago");
     assert_eq!(game.observe().resources, [6, 0, 4, 15]);
     assert_eq!(game.observe().standings[1].score, 8);
@@ -135,10 +134,7 @@ fn owed_terror_protects_only_last_santiago_underground_and_effects_survive_remov
     assert_eq!(v.standings[1].score, 7);
     assert_eq!(v.resources, [3, 2, 5, 15]);
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:1:2");
-    choose(&mut game, "amount:1");
-    choose(&mut game, "amount:2");
-    choose(&mut game, "authorize");
+    choose(&mut game, "give:2:2");
     choose(&mut game, "end-terror");
     assert_eq!(game.observe().resources, [3, 0, 7, 15]);
     assert!(game.observe().next_options.contains(&"Event".into()));

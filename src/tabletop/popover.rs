@@ -1157,7 +1157,7 @@ mod tests {
     #[test]
     fn a_funded_santiago_terror_previews_its_cost_flip_shift_and_standing() {
         let mut game = Game::prepared();
-        for step in ["transfer", "transfer:3:1", "amount:1", "authorize"] {
+        for step in ["transfer", "ask:3:1", "authorize:1"] {
             choose(&mut game, step);
         }
         // Both are selectable: Terror is listed first in the authority's order.

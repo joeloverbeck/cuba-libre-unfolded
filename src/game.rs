@@ -243,6 +243,11 @@ pub struct Kidnap {
     pub m26_before: u8,
     pub random_before: u64,
 }
+/// A Resource transfer in progress (R 1.5.1). `Selecting` is the transfer modal open
+/// for 26July's choice of "Give to" or "Ask from"; `Authorizing` is a Transfer request
+/// awaiting its giver, whose `amount` is the amount asked, which prefills the giver's
+/// decision. A request whose giver is 26July is the reserved state: a request another
+/// faction started, which nothing in this task creates.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Transfer {
@@ -252,6 +257,60 @@ pub enum Transfer {
         recipient: Faction,
         amount: u8,
     },
+}
+/// Which limit sets a transfer's maximum.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum Bound {
+    /// The giver's balance.
+    Balance,
+    /// The recipient's 49 cap (R 1.8).
+    Cap,
+    /// The Resource 26July keeps for an owed Santiago Terror (accepted commitment
+    /// policy, local).
+    Reserve,
+}
+/// The terms of one transfer direction now: what the giver holds, what the recipient
+/// can still receive, what is held back and the largest amount that may move.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct TransferTerms {
+    pub giver: Faction,
+    pub recipient: Faction,
+    /// The giver's Resources.
+    pub balance: u8,
+    /// The recipient's Resources.
+    pub held: u8,
+    /// What the recipient can receive before it holds 49 (R 1.8).
+    pub room: u8,
+    /// Kept by 26July for an owed Santiago Terror when it gives: 0 or 1.
+    pub reserved: u8,
+    /// The largest amount that may move: the least of the three limits.
+    pub limit: u8,
+    /// The limit that binds.
+    pub bound: Bound,
+}
+impl TransferTerms {
+    /// Why `amount` cannot move, or `None` when it can. The rules authority refuses
+    /// with the same words.
+    pub fn refusal(&self, amount: u8) -> Option<String> {
+        if amount <= self.limit {
+            return None;
+        }
+        let units = |n: u8| format!("{n} Resource{}", if n == 1 { "" } else { "s" });
+        let why = match self.bound {
+            Bound::Balance => format!("{} has {}", self.giver.name(), units(self.balance)),
+            Bound::Cap => format!(
+                "{} holds {} of at most {RESOURCE_CAP} Resources",
+                self.recipient.name(),
+                self.held
+            ),
+            Bound::Reserve => format!(
+                "the owed Santiago Terror needs {} of 26July's {}",
+                self.reserved,
+                units(self.balance)
+            ),
+        };
+        Some(format!("{amount} is more than {}: {why}.", self.limit))
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Observation {
@@ -289,6 +348,10 @@ pub struct Observation {
     pub special_activity: Option<String>,
     pub owed_terror: Option<String>,
     pub transfer: Option<Transfer>,
+    /// The terms of each transfer 26July may make now: all six directions while the
+    /// transfer modal is open, the pending request's while it awaits its giver, and
+    /// none otherwise.
+    pub transfer_terms: Vec<TransferTerms>,
     pub kidnap: Option<Kidnap>,
     /// Kidnap is opened: its stakes are shown and it awaits the roll or a cancel.
     pub kidnap_open: bool,
@@ -684,6 +747,7 @@ impl Game {
             special_activity: self.kidnap.as_ref().map(|_| "Kidnap".into()),
             owed_terror: self.owes_santiago().then(|| "santiago".into()),
             transfer: self.transfer.clone(),
+            transfer_terms: self.transfer_terms(),
             kidnap: self.kidnap.clone(),
             kidnap_open: self.kidnap_open,
             removal: self.removal.clone(),
@@ -1264,14 +1328,6 @@ impl Game {
             ));
             return choices;
         }
-        let choice = |id: String, label: String| {
-            self.offer(
-                &id,
-                label,
-                true,
-                "Only the giver selects the amount and authorizes; no resources move before authorization.",
-            )
-        };
         let finish = || {
             self.offer(
                 "end-terror",
@@ -1297,51 +1353,66 @@ impl Game {
             back
         };
         match self.transfer {
+            // The transfer modal: "Give to" moves 26July's own Resources at once;
+            // "Ask from" creates a Transfer request that moves nothing (R 1.5.1).
             Some(Transfer::Selecting) => {
-                let mut choices: Vec<_> =
-                    [Faction::Government, Faction::Directorio, Faction::Syndicate]
-                        .into_iter()
-                        .flat_map(|other| [(other, Faction::M26), (Faction::M26, other)])
-                        .map(|(giver, recipient)| {
-                            choice(
-                                format!("transfer:{}:{}", giver.index(), recipient.index()),
-                                format!("{} → {}", giver.name(), recipient.name()),
+                let mut choices = vec![];
+                for terms in self.transfer_terms() {
+                    let (verb, other) = if terms.giver == Faction::M26 {
+                        ("give", terms.recipient)
+                    } else {
+                        ("ask", terms.giver)
+                    };
+                    for n in 0..=terms.limit {
+                        choices.push(if verb == "give" {
+                            self.offer(
+                                &format!("give:{}:{n}", other.index()),
+                                format!("Give {n} to {}", other.name()),
+                                true,
+                                "26July's own gift moves at once (R 1.5.1).",
                             )
-                        })
-                        .collect();
-                choices.push(choice("back".into(), "Return to Operation".into()));
+                        } else {
+                            self.offer(
+                                &format!("ask:{}:{n}", other.index()),
+                                format!("Ask {} for {n}", other.name()),
+                                true,
+                                &format!("A Transfer request: nothing moves until {} decides the actual amount (R 1.5.1).", other.name()),
+                            )
+                        });
+                    }
+                }
+                choices.push(self.offer(
+                    "back",
+                    "Cancel · nothing moves",
+                    true,
+                    "Closes the transfer without moving anything.",
+                ));
                 return choices;
             }
-            Some(Transfer::Authorizing {
-                giver,
-                recipient,
-                amount,
-            }) => {
-                let limit = self.resources[giver.index()]
-                    .saturating_sub(u8::from(self.owes_santiago() && giver == Faction::M26))
-                    .min(RESOURCE_CAP.saturating_sub(self.resources[recipient.index()]));
-                let mut choices = vec![];
-                if amount > 0 {
-                    choices.push(choice(
-                        format!("amount:{}", amount - 1),
-                        format!("Amount −1 (choose {})", amount - 1),
-                    ));
-                }
-                if amount < limit {
-                    choices.push(choice(
-                        format!("amount:{}", amount + 1),
-                        format!("Amount +1 (choose {})", amount + 1),
-                    ));
-                }
-                choices.push(choice(
-                    "authorize".into(),
-                    format!("{} authorizes {amount}", giver.name()),
-                ));
-                choices.push(choice(
-                    "decline".into(),
+            Some(Transfer::Authorizing { giver, .. }) => {
+                let limit = self.transfer_terms()[0].limit;
+                let mut choices: Vec<_> = (0..=limit)
+                    .map(|n| {
+                        self.offer(
+                            &format!("authorize:{n}"),
+                            format!("{} authorizes {n}", giver.name()),
+                            true,
+                            "Only the giver decides the actual amount, from 0 to its limit; it moves on authorization.",
+                        )
+                    })
+                    .collect();
+                choices.push(self.offer(
+                    "decline",
                     format!("{} declines", giver.name()),
+                    true,
+                    "Nothing moves, and 26July decides again.",
                 ));
-                choices.push(choice("wait".into(), "Wait · keep this decision".into()));
+                choices.push(self.offer(
+                    "wait",
+                    "Wait · keep this decision",
+                    true,
+                    "The request stays pending, also across save and quit.",
+                ));
                 // Local policy (#58): 26July's request does not hold 26July's own
                 // Operation hostage; ending it or going back withdraws the request.
                 if giver != Faction::M26 {
@@ -1363,7 +1434,7 @@ impl Game {
                 "transfer",
                 "Resource transfer",
                 true,
-                "Choose a direction, then hand the decision to its giver.",
+                "Opens the transfer: give 26July's Resources to a faction, or ask one for Resources, which it decides (R 1.5.1).",
             ),
             self.offer(
                 "remove",
@@ -1541,7 +1612,13 @@ impl Game {
             .choices()
             .into_iter()
             .find(|c| c.id == choice)
-            .ok_or("Stale or unknown choice identity.")?;
+            .ok_or_else(|| {
+                // An amount beyond a transfer's limit is refused with its reason.
+                choice
+                    .split_once(':')
+                    .and_then(|(_, action)| self.transfer_refusal(action))
+                    .unwrap_or_else(|| "Stale or unknown choice identity.".into())
+            })?;
         if owner != offered.owner {
             return Err("Only the current decision owner may submit.".into());
         }
@@ -1648,43 +1725,102 @@ impl Game {
             None => self.transfer = Some(Transfer::Selecting),
             Some(_) if action == "back" || action == "decline" => self.transfer = None,
             Some(Transfer::Selecting) => {
-                let endpoints: Vec<_> = action.split(':').collect();
-                let giver = Faction::ALL[endpoints[1].parse::<usize>().unwrap()];
-                let recipient = Faction::ALL[endpoints[2].parse::<usize>().unwrap()];
-                self.transfer = Some(Transfer::Authorizing {
-                    giver,
-                    recipient,
-                    amount: 0,
-                });
-            }
-            Some(Transfer::Authorizing {
-                giver,
-                recipient,
-                amount,
-            }) => {
-                if action == "authorize" {
-                    if self.owes_santiago()
-                        && giver == Faction::M26
-                        && amount >= self.resources[Faction::M26.index()]
-                    {
-                        return Err("Santiago Terror is owed: retain 1 Resource under the accepted commitment policy.".into());
-                    }
-                    self.resources[giver.index()] -= amount;
-                    self.resources[recipient.index()] += amount;
+                let (verb, rest) = action.split_once(':').unwrap();
+                let (other, amount) = rest.split_once(':').unwrap();
+                let other = Faction::ALL[other.parse::<usize>().unwrap()];
+                let amount: u8 = amount.parse().unwrap();
+                if verb == "give" {
+                    self.move_resources(Faction::M26, other, amount);
                     self.transfer = None;
-                    // Zero is a deliberate non-transfer, not an effect.
-                    self.effect |= amount > 0;
                 } else {
                     self.transfer = Some(Transfer::Authorizing {
-                        giver,
-                        recipient,
-                        amount: action.strip_prefix("amount:").unwrap().parse().unwrap(),
+                        giver: other,
+                        recipient: Faction::M26,
+                        amount,
                     });
                 }
+            }
+            Some(Transfer::Authorizing {
+                giver, recipient, ..
+            }) => {
+                let amount = action.strip_prefix("authorize:").unwrap().parse().unwrap();
+                self.move_resources(giver, recipient, amount);
+                self.transfer = None;
             }
         }
         self.revision = next_revision;
         Ok(())
+    }
+    /// An authorized Resource transfer, within the limits that offered it.
+    fn move_resources(&mut self, giver: Faction, recipient: Faction, amount: u8) {
+        self.resources[giver.index()] -= amount;
+        self.resources[recipient.index()] += amount;
+        // Zero is a deliberate non-transfer, not an effect.
+        self.effect |= amount > 0;
+    }
+    /// The terms of the transfers 26July may make now (R 1.5.1, 1.8 and the accepted
+    /// commitment policy's reserve).
+    fn transfer_terms(&self) -> Vec<TransferTerms> {
+        let pairs = match self.transfer {
+            Some(Transfer::Selecting) => [Faction::Government, Faction::Directorio, Faction::Syndicate]
+                .into_iter()
+                .flat_map(|other| [(other, Faction::M26), (Faction::M26, other)])
+                .collect(),
+            Some(Transfer::Authorizing { giver, recipient, .. }) => vec![(giver, recipient)],
+            None => vec![],
+        };
+        pairs
+            .into_iter()
+            .map(|(giver, recipient)| {
+                let balance = self.resources[giver.index()];
+                let held = self.resources[recipient.index()];
+                let room = RESOURCE_CAP.saturating_sub(held);
+                let reserved = u8::from(giver == Faction::M26 && self.owes_santiago());
+                let spendable = balance.saturating_sub(reserved);
+                let bound = if spendable > room {
+                    Bound::Cap
+                } else if reserved > 0 && balance > 0 {
+                    Bound::Reserve
+                } else {
+                    Bound::Balance
+                };
+                TransferTerms {
+                    giver,
+                    recipient,
+                    balance,
+                    held,
+                    room,
+                    reserved,
+                    limit: spendable.min(room),
+                    bound,
+                }
+            })
+            .collect()
+    }
+    /// Why an amount beyond its limit is refused, in the terms' own words: a gift or
+    /// request the modal offers, or the pending request's authorization.
+    fn transfer_refusal(&self, action: &str) -> Option<String> {
+        let terms = self.transfer_terms();
+        let parts: Vec<_> = action.split(':').collect();
+        let (direction, amount) = match parts[..] {
+            ["authorize", n] => (terms.first()?, n),
+            [verb @ ("give" | "ask"), other, n] => {
+                let other = *Faction::ALL.get(other.parse::<usize>().ok()?)?;
+                let (giver, recipient) = if verb == "give" {
+                    (Faction::M26, other)
+                } else {
+                    (other, Faction::M26)
+                };
+                (
+                    terms
+                        .iter()
+                        .find(|t| t.giver == giver && t.recipient == recipient)?,
+                    n,
+                )
+            }
+            _ => return None,
+        };
+        direction.refusal(amount.parse().ok()?)
     }
     fn resolve_terror(space: &mut Space) {
         let underground = space

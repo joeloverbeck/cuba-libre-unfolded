@@ -12,11 +12,8 @@ fn choose(game: &mut Game, action: &str) {
 
 fn donate(game: &mut Game, giver: usize, amount: u8) {
     choose(game, "transfer");
-    choose(game, &format!("transfer:{giver}:1"));
-    for n in 1..=amount {
-        choose(game, &format!("amount:{n}"));
-    }
-    choose(game, "authorize");
+    choose(game, &format!("ask:{giver}:{amount}"));
+    choose(game, &format!("authorize:{amount}"));
 }
 
 // Accepted deacd635 handoff witness: DR donates 1, Oriente Terror, no Kidnap.
@@ -109,16 +106,14 @@ fn owed_santiago_limits_spending_only_until_its_terror_is_resolved() {
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:1:2");
-    choose(&mut game, "amount:1");
     let before = game.clone();
     let v = game.observe();
     assert!(
-        game.submit(v.owner, v.revision, &format!("{}:amount:2", v.revision))
+        game.submit(v.owner, v.revision, &format!("{}:give:2:2", v.revision))
             .is_err()
     );
     assert_eq!(game, before);
-    choose(&mut game, "authorize");
+    choose(&mut game, "give:2:1");
     assert_eq!(game.observe().resources, [4, 1, 6, 15]);
     let v = game.observe();
     assert!(
@@ -129,9 +124,7 @@ fn owed_santiago_limits_spending_only_until_its_terror_is_resolved() {
     choose(&mut game, "terror:santiago");
     donate(&mut game, 3, 1);
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:1:2");
-    choose(&mut game, "amount:1");
-    choose(&mut game, "authorize");
+    choose(&mut game, "give:2:1");
     choose(&mut game, "end-terror");
     assert_eq!(game.observe().resources, [4, 0, 7, 14]);
     game.validate().unwrap();
@@ -205,11 +198,7 @@ fn depleted_government_needs_real_funding_before_early_zero_proceeds_kidnap() {
     let mut game = Game::prepared_with_seed(5);
     donate(&mut game, 0, 6);
     choose(&mut game, "transfer");
-    choose(&mut game, "transfer:1:2");
-    for n in 1..=6 {
-        choose(&mut game, &format!("amount:{n}"));
-    }
-    choose(&mut game, "authorize");
+    choose(&mut game, "give:2:6");
     let before = game.clone();
     let v = game.observe();
     assert!(

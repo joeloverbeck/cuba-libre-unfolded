@@ -513,13 +513,7 @@ mod tests {
             "Proceeds 1–6 Resources while Government has 6; at least 1."
         );
         step(&mut game, "terror");
-        for action in [
-            "transfer",
-            "transfer:0:1",
-            "amount:1",
-            "amount:2",
-            "authorize",
-        ] {
+        for action in ["transfer", "ask:0:2", "authorize:2"] {
             step(&mut game, action);
         }
         let view = game.observe();
