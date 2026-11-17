@@ -88,7 +88,7 @@ In #66, two concurrent jobs, a 6144×3456 composite and a crop, took 6 GB and fr
 - Export with `frame_end = L` so the wrap key is included.
 - Use `export_animation_mode='SCENE'` with `export_anim_scene_split_object=False` for one clip.
 
-`tests/terror_token.rs` checks the shipped bell's seam, duration and entity names; give each new loop a test of the same properties.
+`tests/integration/terror_token.rs` checks the shipped bell's seam, duration and entity names; give each new loop a test of the same properties.
 
 ## Animated mesh checks
 

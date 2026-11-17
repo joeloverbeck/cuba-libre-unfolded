@@ -16,9 +16,9 @@ use cuba_libre_unfolded::tabletop::die::{self, Record, Tumble};
 use serde_json::Value;
 use std::collections::BTreeSet;
 
-const DIE: &[u8] = include_bytes!("../art/atlas/atlas-kidnap-die.glb");
-const TRAY: &[u8] = include_bytes!("../art/atlas/atlas-kidnap-tray.glb");
-const RECORD: &str = include_str!("../art/atlas/kidnap-die.json");
+const DIE: &[u8] = include_bytes!("../../art/atlas/atlas-kidnap-die.glb");
+const TRAY: &[u8] = include_bytes!("../../art/atlas/atlas-kidnap-tray.glb");
+const RECORD: &str = include_str!("../../art/atlas/kidnap-die.json");
 /// glTF accessor component type for 32-bit floats.
 const GLTF_FLOAT: u64 = 5126;
 /// Half the die's 16 mm edge, in metres: the resting height of its centre.

@@ -3001,7 +3001,7 @@ fn changes_within(first: &Path, second: &Path, rect: [f64; 4]) -> usize {
 }
 
 /// #74: the Kidnap die lands on the committed face (ADR 0001). For each of the six
-/// faces, from #8's seeds whose rolls are known (`tests/kidnap.rs`), the tray in the
+/// faces, from #8's seeds whose rolls are known (`tests/integration/kidnap.rs`), the tray in the
 /// operation panel matches FigCraft frame C, the die advances with the manual clock and
 /// stays unsettled until it lands, the ledger keeps the balances before the roll until
 /// then, and the landed die shows the committed face with the result. A restart during
