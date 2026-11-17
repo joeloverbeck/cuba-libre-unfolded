@@ -197,6 +197,75 @@ fn after_santiago_terror_the_roll_commits_nothing_further() {
     assert!(!notes.join(" ").contains("accepted commitment policy"));
 }
 
+/// #75: the outnumbering terms give Santiago's 26July Guerrillas by state, as they
+/// stand: #8's position has 2 Underground; a removal leaves 1; Santiago's Terror flips
+/// 1 to Active (R 3.3.4). Police are 1 throughout.
+#[test]
+fn the_outnumbering_terms_count_guerrillas_by_their_state() {
+    let kidnap = |game: &Game| {
+        game.observe()
+            .choices
+            .into_iter()
+            .find(|c| c.id.ends_with(":kidnap"))
+            .unwrap()
+            .explanation
+    };
+    let game = Game::prepared();
+    assert!(
+        kidnap(&game).starts_with("2 Underground Guerrillas vs 1 Police; must outnumber."),
+        "{}",
+        kidnap(&game)
+    );
+    let mut removed = Game::prepared();
+    choose(&mut removed, "remove");
+    choose(&mut removed, "remove:santiago:underground:1");
+    choose(&mut removed, "done-removal");
+    assert!(
+        kidnap(&removed).starts_with("1 Underground Guerrilla vs 1 Police; must outnumber."),
+        "{}",
+        kidnap(&removed)
+    );
+    let mut resolved = Game::prepared();
+    transfer(&mut resolved, Faction::Government, Faction::M26, 1);
+    choose(&mut resolved, "terror:santiago");
+    assert!(
+        kidnap(&resolved)
+            .starts_with("2 Guerrillas (1 Active, 1 Underground) vs 1 Police; must outnumber."),
+        "{}",
+        kidnap(&resolved)
+    );
+}
+
+/// #75: with Government and 26July both at 0, a Resource transfer to 26July is the
+/// one in-task step that guarantees Santiago's payment, so it is Kidnap's remedy. With
+/// a Guerrilla removed, nothing here restores outnumbering, so there is none.
+#[test]
+fn kidnap_s_only_remedy_is_a_transfer_that_funds_its_commitment() {
+    let mut game = Game::prepared_with_seed(5);
+    transfer(&mut game, Faction::Government, Faction::M26, 6);
+    transfer(&mut game, Faction::M26, Faction::Directorio, 6);
+    let remedies = |game: &Game| {
+        let v = game.observe();
+        let k = v
+            .choices
+            .into_iter()
+            .find(|c| c.id.ends_with(":kidnap"))
+            .unwrap();
+        (k.supported, k.remedies)
+    };
+    assert_eq!(
+        remedies(&game),
+        (false, vec!["Request a Resource transfer".to_owned()])
+    );
+    transfer(&mut game, Faction::Directorio, Faction::M26, 1);
+    assert_eq!(remedies(&game), (true, vec![]));
+    let mut removed = Game::prepared();
+    choose(&mut removed, "remove");
+    choose(&mut removed, "remove:santiago:underground:1");
+    choose(&mut removed, "done-removal");
+    assert_eq!(remedies(&removed), (false, vec![]));
+}
+
 #[test]
 fn the_feasibility_and_outnumbering_refusals_are_unchanged_and_open_nothing() {
     // Government and 26July both at 0: an early roll could not pay Santiago.

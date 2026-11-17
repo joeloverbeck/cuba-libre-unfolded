@@ -951,7 +951,7 @@ fn click(
         // BRIEFING ribbon (owner's clash rule, #58).
         Action::Space(space) => {
             // The transfer modal's scrim takes the map's input beneath it.
-            if transfer::shown(play.game().transfer.as_ref(), &ui) {
+            if transfer::shown(play.game().transfer.as_ref()) {
                 return;
             }
             if popover.click_space(space, &targeting) {
@@ -1058,11 +1058,12 @@ fn decide(play: &mut Play, ui: &mut Interface, owner: Faction, rev: u64, name: &
             } else if name.ends_with(":decline") {
                 format!("{} declined. No resources moved.", owner.name())
             } else if name.ends_with(":wait") {
-                ui.transfer.hide();
                 format!(
-                    "Waiting for {}. The request stays pending; Save / quit keeps it.",
+                    "Waiting for {}. The request stays pending. Saved.",
                     owner.name()
                 )
+            } else if name.ends_with(":reopen") {
+                format!("{} decides the Transfer request. Saved.", owner.name())
             } else if name.ends_with(":back") {
                 "Transfer closed. Nothing moved. Saved.".into()
             } else if name.ends_with(":kidnap") {
@@ -1149,7 +1150,7 @@ fn camera_facts(window: &Window, play: &Play, ui: &Interface, roll: &die::Roll) 
     let (modal, die) = play.session.as_ref().map_or((false, false), |session| {
         let game = session.game();
         (
-            transfer::shown(game.transfer.as_ref(), ui),
+            transfer::shown(game.transfer.as_ref()),
             die::presented(game.revision, game.kidnap.as_ref(), roll).is_some(),
         )
     });

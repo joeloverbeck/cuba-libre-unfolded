@@ -531,7 +531,7 @@ mod tests {
         let result = get(&view, "terror:kidnap", "RESULT");
         assert_eq!(
             result,
-            "Unavailable now. 1 Guerrillas (Active + Underground) vs 1 Police; must outnumber."
+            "Unavailable now. 1 Underground Guerrilla vs 1 Police; must outnumber."
         );
         let kidnap = view
             .choices
@@ -542,7 +542,7 @@ mod tests {
         assert!(
             kidnap
                 .explanation
-                .starts_with("1 Guerrillas (Active + Underground) vs 1 Police;")
+                .starts_with("1 Underground Guerrilla vs 1 Police;")
         );
     }
 

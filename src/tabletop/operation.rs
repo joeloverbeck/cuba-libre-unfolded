@@ -165,7 +165,7 @@ fn modal_owned(choice: &crate::Choice) -> bool {
     ["give:", "ask:", "authorize:"]
         .iter()
         .any(|p| action.starts_with(p))
-        || matches!(action, "back" | "decline" | "wait")
+        || matches!(action, "back" | "decline" | "wait" | "reopen")
 }
 
 /// One button per offered choice, stacked below the body. A choice the game marks

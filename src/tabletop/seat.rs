@@ -449,7 +449,7 @@ impl SeatGame for Table {
             });
         }
         let ui = world.resource::<Interface>();
-        let modal = transfer::shown(world.resource::<Play>().game().transfer.as_ref(), ui);
+        let modal = transfer::shown(world.resource::<Play>().game().transfer.as_ref());
         let focused = if modal {
             ui.transfer.focus.clone()
         } else {
