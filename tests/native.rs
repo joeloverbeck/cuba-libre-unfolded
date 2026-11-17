@@ -1149,11 +1149,12 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         "authored loop must wrap: {water_frames:?}"
     );
     // Check rendered sea pixels too, not just the selected frame index. This
-    // rectangle stays left of the island at home and excludes UI details.
+    // rectangle is open sea south-west of the island at home, below the eligibility
+    // indicator (#70), and excludes UI details.
     let first = image::open(app.root.join("initial.png")).unwrap().to_rgb8();
     let later = image::open(app.root.join("hover-0.png")).unwrap().to_rgb8();
-    let changed = (70..180)
-        .flat_map(|x| (420..700).map(move |y| (x, y)))
+    let changed = (70..600)
+        .flat_map(|x| (580..850).map(move |y| (x, y)))
         .filter(|&(x, y)| first.get_pixel(x, y) != later.get_pixel(x, y))
         .count();
     assert!(
