@@ -92,6 +92,7 @@ This is a proposal; the owner decides in #68.
 - **Exports inspected:** every 16:9 frame, close-up, states sheet and graphic was opened and looked at. Text fits its boxes, and every state carries the values above.
 - **No production change:** the only files added are under `art/proposals/issue-65/`.
 - **No borrowed art:** nothing from the Pictures collection. The context crops in the base frame are #64's crops of this project's own seat capture.
+- **Card faces blanked:** the card-information panel's two card slots are empty, because the private card faces stay out of Git; see #51.
 - **Animated-mesh checks:** n/a; nothing here moves.
 
 ## Honest limits

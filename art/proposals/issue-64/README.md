@@ -128,6 +128,7 @@ These are proposals; the owner decides in #68.
 - **Exports inspected:** every 16:9 frame, close-up and states sheet was rendered and looked at; text fits its boxes at the stated sizes.
 - **No production change:** the only files added are under `art/proposals/issue-64/`. No application code, save, manifest or hash file changes.
 - **No borrowed art:** nothing from the Pictures collection. The context crops come from this project's own seat capture.
+- **Card faces blanked:** the card-information panel's two card slots are empty, because the private card faces stay out of Git; see #51.
 - **Animated-mesh checks:** n/a; nothing here moves.
 
 ## Honest limits
