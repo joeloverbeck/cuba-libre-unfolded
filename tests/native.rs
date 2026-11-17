@@ -176,6 +176,13 @@ impl Native {
             revision + 1
         );
     }
+    /// Rolls the opened Kidnap, lets the die land, and closes it with Continue so the
+    /// panel offers the Terror choices again (#74).
+    fn roll(&mut self) {
+        self.choose("kidnap:roll");
+        let revision = self.observe()["observation"]["revision"].as_u64().unwrap();
+        self.activate("kidnap-die:continue", revision);
+    }
     fn capture(&mut self, name: &str) {
         self.request(
             json!({"op":"capture","path":self.root.join(format!("{name}.png"))}),
@@ -650,9 +657,9 @@ fn native_own_removal_restart_obligation_and_all_pieces_finish() {
     app.save = app.root.join("owed.json");
     app.launch();
     app.choose("terror");
-    for action in ["kidnap", "kidnap:roll", "remove"] {
-        app.choose(action);
-    }
+    app.choose("kidnap");
+    app.roll();
+    app.choose("remove");
     app.remove("santiago:underground", 1);
     // The last Santiago Underground Guerrilla is protected: a click on it opens
     // nothing and changes nothing.
@@ -758,7 +765,7 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
     app.choose("terror");
     app.capture("before-roll");
     app.choose("kidnap");
-    app.choose("kidnap:roll");
+    app.roll();
     let rolled = app.observe();
     assert_eq!(rolled["observation"]["owed_terror"], "santiago");
     assert!(
@@ -774,12 +781,16 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
     app.launch();
     assert_eq!(app.observe()["observation"], rolled["observation"]);
     assert_eq!(std::fs::read(&app.save).unwrap(), saved_roll);
+    // The restart shows the landed die again (#74); Continue saves nothing.
+    let rev = rolled["observation"]["revision"].as_u64().unwrap();
+    assert_eq!(app.observe()["table"]["die"]["landed"], true);
+    app.activate("kidnap-die:continue", rev);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved_roll);
     app.request(
         json!({"op":"activate","revision":1,"choice":"1:kidnap"}),
         false,
     );
     assert_eq!(app.observe()["observation"], rolled["observation"]);
-    let rev = rolled["observation"]["revision"].as_u64().unwrap();
     app.activate(&format!("{rev}:end-terror"), rev);
     assert!(
         app.observe()["table"]["notice"]
@@ -985,7 +996,7 @@ fn native_kidnap_opens_cancels_and_rolls_through_the_panel() {
 
     // Roll through its button.
     let revision = reopened["observation"]["revision"].as_u64().unwrap();
-    app.choose("kidnap:roll");
+    app.roll();
     let rolled = app.observe();
     let die = rolled["observation"]["kidnap"]["die"].as_u64().unwrap();
     assert!((1..=6).contains(&die));
@@ -1072,7 +1083,7 @@ fn native_donations_enable_both_orders_without_or_with_late_kidnap() {
         app.capture("both-before-kidnap-or-finish");
         if kidnap {
             app.choose("kidnap");
-            app.choose("kidnap:roll");
+            app.roll();
             let roll = app.observe();
             let die = roll["observation"]["kidnap"]["die"].as_u64().unwrap();
             assert!((1..=6).contains(&die));
@@ -2201,7 +2212,7 @@ fn native_top_display_matches_layout_and_follows_the_economy() {
     assert_eq!(ledger(&app.observe()), ["6", "0", "3", "15"]);
     app.capture("after-terror");
     app.choose("kidnap");
-    app.choose("kidnap:roll");
+    app.roll();
     let roll = app.observe();
     let resources: Vec<String> = roll["observation"]["resources"]
         .as_array()
@@ -2482,7 +2493,7 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
 
         // Kidnap's record and notice.
         app.choose("kidnap");
-        app.choose("kidnap:roll");
+        app.roll();
         let kidnap = app.observe();
         checked += assert_inline_emblems(&kidnap);
         assert!(
@@ -2820,7 +2831,7 @@ fn native_previews_disabled_targets_and_end_terror() {
     assert!(only.contains("Records: Operation Only"), "{only}");
     assert!(!only.contains("No Terror resolved"), "{only}");
     app.choose("kidnap");
-    app.choose("kidnap:roll");
+    app.roll();
     let special = card(&mut app, "end-terror", "end-terror-after-kidnap");
     assert!(
         special.contains("Records: Operation with Special Activity"),
@@ -2837,6 +2848,324 @@ fn native_previews_disabled_targets_and_end_terror() {
         "OperationWithSpecialActivity"
     );
     app.quit();
+}
+
+/// Pixels that differ between two captures inside `rect` ([left, top, right, bottom]).
+fn changes_within(first: &Path, second: &Path, rect: [f64; 4]) -> usize {
+    let a = image::open(first).unwrap().to_rgb8();
+    let b = image::open(second).unwrap().to_rgb8();
+    assert_eq!(a.dimensions(), b.dimensions());
+    (rect[0] as u32..rect[2] as u32)
+        .flat_map(|x| (rect[1] as u32..rect[3] as u32).map(move |y| (x, y)))
+        .filter(|&(x, y)| a.get_pixel(x, y) != b.get_pixel(x, y))
+        .count()
+}
+
+/// #74: the Kidnap die lands on the committed face (ADR 0001). For each of the six
+/// faces, from #8's seeds whose rolls are known (`tests/kidnap.rs`), the tray in the
+/// operation panel matches FigCraft frame C, the die advances with the manual clock and
+/// stays unsettled until it lands, the ledger keeps the balances before the roll until
+/// then, and the landed die shows the committed face with the result. A restart during
+/// the tumble shows the landed die and replays nothing.
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
+    use cuba_libre_unfolded::save::Session;
+    let cards = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS")
+        .into();
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "local/verification/issue-74".into());
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("die-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket_dir = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards,
+        socket: socket_dir.path().join("seat.sock"),
+        save: root.join("task.json"),
+        root,
+        step: 0,
+    };
+    eprintln!("Kidnap die native evidence: {}", app.root.display());
+    // 16:9, like the owner's 6144x3456 display that the AC-B die-presented frame lays
+    // out (frame C's tray composed into the AC-B panel).
+    let size = "3840x2160";
+    let layout: Value =
+        serde_json::from_str(include_str!("../art/atlas/atlas-kidnap-tray.layout.json")).unwrap();
+    let ratio = 3840. / layout["frame"][0].as_f64().unwrap();
+    let scaled = |rect: &Value| -> [f64; 4] {
+        let r: Vec<f64> = rect
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_f64().unwrap() * ratio)
+            .collect();
+        [r[0], r[1], r[0] + r[2], r[1] + r[3]]
+    };
+    let ledger = |view: &Value| -> Vec<String> {
+        (0..4)
+            .map(|row| {
+                view["table"]["top_parts"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|p| p["part"] == format!("ledger-row-{row}-value"))
+                    .unwrap()["text"]
+                    .as_str()
+                    .unwrap()
+                    .to_owned()
+            })
+            .collect()
+    };
+    let pending = |view: &Value| -> Vec<String> {
+        view["table"]["pending"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|p| p.as_str().unwrap().to_owned())
+            .collect()
+    };
+    let rate = 0.5;
+    let step = 1. / 60.;
+    for (seed, die) in [(19u64, 1u64), (0, 2), (5, 3), (3, 4), (2, 5), (1, 6)] {
+        // A new save with this seed: created by the library as the app would, then
+        // resealed with the known random state.
+        app.save = app.root.join(format!("face-{die}.json"));
+        drop(Session::open(&app.save, None).unwrap());
+        let mut record: Value = serde_json::from_slice(&std::fs::read(&app.save).unwrap()).unwrap();
+        record["payload"]["random"] = seed.into();
+        let identity = serde_json::from_value(record["identity"].clone()).unwrap();
+        std::fs::write(
+            &app.save,
+            unfolded_record_replacement::save::seal(&identity, &record["payload"]),
+        )
+        .unwrap();
+        app.launch_size(size);
+        app.choose("terror");
+        app.choose("kidnap");
+        let opened = app.observe();
+        assert_eq!(ledger(&opened), ["6", "0", "5", "15"]);
+        let revision = opened["observation"]["revision"].as_u64().unwrap();
+        app.request(
+            json!({"op":"activate","revision":revision,"choice":format!("{revision}:kidnap:roll")}),
+            true,
+        );
+        // The result is committed and saved before the die moves.
+        let committed = std::fs::read(&app.save).unwrap();
+        let saved: Value = serde_json::from_slice(&committed).unwrap();
+        assert_eq!(saved["payload"]["kidnap"]["die"], die);
+        assert_eq!(saved["payload"]["kidnap"]["revision"], revision + 1);
+        let first = app.request(json!({"op":"settle","steps":16}), true);
+        assert_eq!(first["status"], "unsettled", "{first}");
+        let first = app.observe();
+        let shown = &first["table"]["die"];
+        assert_eq!(shown["face"], die);
+        assert_eq!(shown["revision"], revision + 1);
+        assert_eq!(shown["landed"], false, "{shown}");
+        assert!(pending(&first).contains(&"Kidnap die landing".to_owned()));
+        assert_eq!(first["table"]["settled"], false);
+        assert_eq!(first["observation"]["kidnap"]["die"], die);
+        // In the air, the ledger keeps the balances before the roll; the standings stay.
+        assert_eq!(ledger(&first), ["6", "0", "5", "15"]);
+        assert!(
+            first["table"]["standings"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|s| s["visible"] == true)
+        );
+        // While the die is presented nothing on the map is targeted or marked, no
+        // popover is open and the transfer modal is closed (#72, #73, #71).
+        assert!(first["table"]["map_targets"].is_null(), "{first}");
+        assert!(first["table"]["removal"].is_null(), "{first}");
+        assert!(first["table"]["popover"].is_null(), "{first}");
+        assert_eq!(first["table"]["transfer"]["state"]["shown"], false);
+        let tray = rect_of(&shown["viewport"]);
+        if die == 1 {
+            // The tray matches the die-presented frame on all four edges, within 2 px.
+            let expected = scaled(&layout["parts"]["kidnap-tray viewport"]);
+            for (n, e) in tray.iter().zip(expected) {
+                assert!(
+                    (n - e).abs() <= 2.,
+                    "tray {tray:?} differs from layout {expected:?}"
+                );
+            }
+        }
+        app.capture(&format!("face-{die}-air-a"));
+        // The manual clock moves the die: six steps advance the clip by 6/60 × 0.5 s.
+        app.request(json!({"op":"settle","steps":6}), true);
+        let second = app.observe();
+        let advanced =
+            second["table"]["die"]["seek"].as_f64().unwrap() - shown["seek"].as_f64().unwrap();
+        assert!((advanced - 6. * step * rate).abs() < 1e-4, "{advanced}");
+        app.capture(&format!("face-{die}-air-b"));
+        let moved = changes_within(
+            &app.root.join(format!("face-{die}-air-a.png")),
+            &app.root.join(format!("face-{die}-air-b.png")),
+            tray,
+        );
+        assert!(moved > 200, "the tumble moved {moved} pixels in the tray");
+        if die == 3 {
+            // Restart during the tumble: the landed die, never a replay or a reroll.
+            let bytes = std::fs::read(&app.save).unwrap();
+            app.quit();
+            app.launch_size(size);
+            let restarted = app.observe();
+            assert_eq!(restarted["table"]["die"]["landed"], true, "{restarted}");
+            assert_eq!(
+                restarted["table"]["die"]["seek"],
+                restarted["table"]["die"]["duration"]
+            );
+            assert_eq!(restarted["observation"]["kidnap"]["die"], die);
+            assert_eq!(std::fs::read(&app.save).unwrap(), bytes);
+            app.capture(&format!("face-{die}-restarted"));
+        }
+        app.request(json!({"op":"settle"}), true);
+        let landed = app.observe();
+        assert_eq!(landed["table"]["settled"], true, "{landed}");
+        let shown = &landed["table"]["die"];
+        assert_eq!(shown["landed"], true);
+        assert_eq!(shown["face"], die);
+        assert!(shown["seek"].as_f64().unwrap() >= shown["landing"].as_f64().unwrap());
+        // On landing: the result names the faction, and the ledger shows the transfer.
+        let after = [6 - die, die, 5, 15].map(|v| v.to_string());
+        assert_eq!(ledger(&landed), after);
+        assert_eq!(
+            landed["observation"]["resources"],
+            json!([6 - die, die, 5, 15])
+        );
+        let texts = shown["text"].as_array().unwrap();
+        let text = |part: &str| texts.iter().find(|t| t["part"] == part).unwrap().clone();
+        assert_eq!(
+            text("kidnap-result title")["text"],
+            format!("26July rolls {die}")
+        );
+        assert_eq!(
+            text("kidnap-result detail")["text"],
+            format!(
+                "Kidnap: Government → 26July, {die} Resource{}",
+                if die == 1 { "" } else { "s" }
+            )
+        );
+        // The landed top face keeps #67's legibility floor: 70 px at 1920x1080, which is
+        // 140 px here (the layout scale is twice that of 1920x1080).
+        let face_px = shown["top_face"].as_f64().unwrap();
+        eprintln!("face {die}: landed top face {face_px:.1} px at 3840x2160");
+        assert!(face_px >= 140., "landed face {face_px} px at 3840x2160");
+        let part = |name: &str| -> [f64; 4] {
+            rect_of(
+                &landed["table"]["choice_parts"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|p| p["part"] == name)
+                    .unwrap_or_else(|| panic!("no part {name}"))["bounds"],
+            )
+        };
+        let apart =
+            |a: [f64; 4], b: [f64; 4]| a[2] <= b[0] || b[2] <= a[0] || a[3] <= b[1] || b[3] <= a[1];
+        let ribbon = part("briefing-ribbon");
+        let next = part("kidnap-die:continue");
+        assert!(
+            apart(ribbon, tray),
+            "ribbon {ribbon:?} overlaps tray {tray:?}"
+        );
+        assert!(
+            apart(next, tray),
+            "Continue {next:?} overlaps tray {tray:?}"
+        );
+        for t in shown["text"].as_array().unwrap() {
+            let bounds = rect_of(&t["bounds"]);
+            assert!(apart(bounds, ribbon), "{t} overlaps the ribbon");
+            if t["part"] != "panel title" {
+                assert!(
+                    bounds[1] >= tray[3] - 0.5 && bounds[3] <= next[1] + 0.5,
+                    "{t}"
+                );
+            }
+        }
+        if die == 1 {
+            // Continue and the ribbon match the frame on all four edges, within 2 px.
+            for (name, native) in [("kidnap-die:continue", next), ("briefing-ribbon", ribbon)] {
+                let expected = scaled(&layout["parts"][name]);
+                for (n, e) in native.iter().zip(expected) {
+                    assert!(
+                        (n - e).abs() <= 2.,
+                        "{name}: native {native:?} differs from layout {expected:?}"
+                    );
+                }
+            }
+            // Text on left and top, within 2 px.
+            for (part, rect) in layout["text"].as_object().unwrap() {
+                let expected = scaled(rect);
+                let native = rect_of(&text(part)["bounds"]);
+                for (n, e) in native.iter().zip(expected).take(2) {
+                    assert!(
+                        (n - e).abs() <= 2.,
+                        "{part}: native {native:?} differs from layout {expected:?}"
+                    );
+                }
+            }
+        }
+        assert!(
+            landed["table"]["notice"]
+                .as_str()
+                .unwrap()
+                .contains(&format!("Kidnap rolled {die}"))
+        );
+        app.capture(&format!("face-{die}-landed"));
+        // No presentation timing is saved: the record is the one the commit wrote.
+        assert_eq!(std::fs::read(&app.save).unwrap(), committed);
+        if die == 2 {
+            // The tray never takes a region pick: the seat's pick of Santiago, beside
+            // which the panel shows the die, reaches the region and changes nothing.
+            let revision = landed["observation"]["revision"].as_u64().unwrap();
+            app.activate("space:santiago", revision);
+            let picked = app.observe();
+            assert_eq!(picked["observation"], landed["observation"]);
+            assert_eq!(picked["table"]["die"]["landed"], true);
+            assert!(picked["table"]["popover"].is_null(), "{picked}");
+        }
+        if die == 4 {
+            // The BRIEFING ribbon still opens the briefing tag beside the panel, and
+            // closes it again; the die stays presented and nothing is decided.
+            let revision = landed["observation"]["revision"].as_u64().unwrap();
+            app.activate("briefing-ribbon", revision);
+            let tag = app.observe();
+            assert_eq!(tag["table"]["choice"]["ribbon"], true, "{tag}");
+            assert_eq!(tag["table"]["die"]["landed"], true);
+            assert_eq!(tag["observation"], landed["observation"]);
+            app.capture(&format!("face-{die}-briefing"));
+            app.activate("briefing-ribbon", revision);
+            assert_eq!(app.observe()["table"]["choice"]["ribbon"], false);
+        }
+        // Continue returns the panel to Terror: by Enter on the focused control once,
+        // otherwise by its button.
+        let revision = landed["observation"]["revision"].as_u64().unwrap();
+        if die == 1 {
+            app.request(
+                json!({"op":"key","revision":revision,"key":"Enter","focused":"Continue Terror"}),
+                true,
+            );
+            app.request(json!({"op":"settle"}), true);
+        } else {
+            app.activate("kidnap-die:continue", revision);
+        }
+        let continued = app.observe();
+        assert!(continued["table"]["die"].is_null(), "{continued}");
+        assert_eq!(continued["observation"], landed["observation"]);
+        assert_eq!(std::fs::read(&app.save).unwrap(), committed);
+        app.choose("terror:santiago");
+        assert_eq!(app.observe()["observation"]["owed_terror"], Value::Null);
+        app.quit();
+    }
 }
 
 /// One space's targeting state, as the table reports it.
@@ -3883,9 +4212,11 @@ fn native_removal_mode_marks_pieces_and_removes_through_the_piece_popover() {
     // two may go; the last shows its reason on hover, and a click opens nothing.
     app.save = app.root.join("protected.json");
     app.launch();
-    for action in ["terror", "kidnap", "kidnap:roll", "remove"] {
+    for action in ["terror", "kidnap"] {
         app.choose(action);
     }
+    app.roll();
+    app.choose("remove");
     let owed = app.observe();
     let revision = owed["observation"]["revision"].as_u64().unwrap();
     app.activate(
@@ -4210,7 +4541,12 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
         "terror:santiago",
         "end-terror",
     ] {
-        app.choose(action);
+        // The roll's die is presented, then closed with Continue (#74).
+        if action == "kidnap:roll" {
+            app.roll();
+        } else {
+            app.choose(action);
+        }
         agree(&app.observe());
     }
     let special = app.observe();

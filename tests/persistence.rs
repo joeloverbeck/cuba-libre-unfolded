@@ -515,6 +515,10 @@ fn legacy_record(path: &std::path::Path, game: &Game) -> Vec<u8> {
     let mut payload = serde_json::to_value(game).unwrap();
     let fields = payload.as_object_mut().unwrap();
     assert!(fields.remove("action").is_some() && fields.remove("effect").is_some());
+    // #8's roll did not record the revision it created (#74 added it).
+    if let Some(kidnap) = fields.get_mut("kidnap").and_then(|k| k.as_object_mut()) {
+        assert!(kidnap.remove("revision").is_some());
+    }
     save::seal(&serde_json::from_value(identity).unwrap(), &payload)
 }
 

@@ -514,11 +514,41 @@ pub(super) fn panel(
         }
     }
     let commit = commit(view, ui.choice.pinned.as_deref());
+    primary(
+        commands,
+        art,
+        Control {
+            name: commit.name,
+            choice: commit.enabled,
+            action: commit.action,
+        },
+        &commit.label,
+        commit.enabled,
+        "choice-commit",
+        s,
+        o,
+    );
+}
+
+/// The full-width primary action at the panel's foot (FigCraft `choice-commit`): the
+/// action choice's commit, and Continue Terror on the presented Kidnap die (#74, the
+/// die-presented frame). Its parts are `part_name` and `part_name-label`.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn primary(
+    commands: &mut Commands,
+    art: &Art,
+    control: Control,
+    label: &str,
+    enabled: bool,
+    part_name: &str,
+    s: f32,
+    o: Vec2,
+) {
     let [x, y, w, h] = fig::COMMIT;
     let plate = picture(
         commands,
         art,
-        if commit.enabled {
+        if enabled {
             "atlas-choice-commit.png"
         } else {
             "atlas-choice-commit-disabled.png"
@@ -531,19 +561,12 @@ pub(super) fn panel(
     commands
         .entity(plate)
         .remove::<Pickable>()
-        .insert((
-            Control {
-                name: commit.name,
-                choice: commit.enabled,
-                action: commit.action,
-            },
-            Part("choice-commit".into()),
-        ))
+        .insert((control, Part(part_name.into())))
         .observe(super::click);
     let words = text(
         commands,
         art,
-        Prose::named(commit.label),
+        Prose::named(label),
         rx(x),
         ry(y + fig::COMMIT_TOP),
         rs(w),
@@ -553,7 +576,7 @@ pub(super) fn panel(
         5,
     );
     commands.entity(words).insert((
-        TextColor(if commit.enabled {
+        TextColor(if enabled {
             Color::srgb_u8(248, 244, 232)
         } else {
             QUIET
@@ -569,7 +592,9 @@ pub(super) fn panel(
         0.,
         None,
     );
-    part(commands, words, "choice-commit-label");
+    commands
+        .entity(words)
+        .insert(Part(format!("{part_name}-label")));
 }
 
 /// The BRIEFING ribbon hanging from the panel's top edge while 26July executes Terror.
@@ -650,6 +675,7 @@ pub(super) fn keys(
     mut play: ResMut<Play>,
     mut ui: ResMut<Interface>,
     mut popover: ResMut<super::popover::Popover>,
+    roll: Res<super::die::Roll>,
 ) {
     let tab = keys.just_pressed(KeyCode::Tab);
     let enter = keys.any_just_pressed([KeyCode::Enter, KeyCode::NumpadEnter, KeyCode::Space]);
@@ -657,8 +683,12 @@ pub(super) fn keys(
     if !(tab || enter || escape) || ui.reader || play.session.is_none() {
         return;
     }
-    // The transfer modal takes the keyboard while it is shown (`transfer::keys`).
-    if super::transfer::shown(play.game().transfer.as_ref(), &ui) {
+    // The transfer modal takes the keyboard while it is shown (`transfer::keys`), and so
+    // does a presented Kidnap die: Space or Enter skips it, then continues (#74).
+    let game = play.game();
+    if super::transfer::shown(game.transfer.as_ref(), &ui)
+        || super::die::presented(game.revision, game.kidnap.as_ref(), &roll).is_some()
+    {
         return;
     }
     let view = play.game().observe();

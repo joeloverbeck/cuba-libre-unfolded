@@ -1,0 +1,17 @@
+{
+  "note": "The shipped Kidnap die (atlas-kidnap-die.glb), read from its keys and mesh; tests/kidnap_die.rs checks every value against the GLB. Times are seconds of clip time; landing is the first key of the identical-key rest tail. landed_face is the face up when Die body is unrotated. end_rotation is Die tumble's last rotation (x, y, z, w). Directions are in the die's glTF frame (+Y up).",
+  "clips": [
+    {"name": "Tumble A", "duration": 1.0666667, "landing": 0.31666666, "landed_face": 1, "end_rotation": [3.151452e-5, 0.9984498, -0.00056535745, 0.055656537]},
+    {"name": "Tumble B", "duration": 1.1333333, "landing": 0.38333333, "landed_face": 6, "end_rotation": [0.6519593, -4.3393225e-16, -0.758254, 7.2059936e-16]},
+    {"name": "Tumble C", "duration": 1.1, "landing": 0.35, "landed_face": 2, "end_rotation": [-0.66349286, -0.24449427, -0.24449435, 0.6634925]},
+    {"name": "Tumble D", "duration": 1.1333333, "landing": 0.38333333, "landed_face": 3, "end_rotation": [0.6243718, 0.6243718, 0.33190337, 0.33190337]}
+  ],
+  "faces": [
+    {"face": 1, "normal": [0, 1, 0], "up": [0, 0, -1]},
+    {"face": 2, "normal": [0, 0, 1], "up": [0, 1, 0]},
+    {"face": 3, "normal": [1, 0, 0], "up": [0, 1, 0]},
+    {"face": 4, "normal": [-1, 0, 0], "up": [0, 1, 0]},
+    {"face": 5, "normal": [0, 0, -1], "up": [0, 1, 0]},
+    {"face": 6, "normal": [0, -1, 0], "up": [0, 0, 1]}
+  ]
+}

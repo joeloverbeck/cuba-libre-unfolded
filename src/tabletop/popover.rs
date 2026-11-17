@@ -1629,7 +1629,7 @@ pub(super) fn draw(
     fonts: Res<Assets<Font>>,
     mut context: ResMut<bevy::text::FontCx>,
     window: Single<&Window, With<PrimaryWindow>>,
-    camera: Single<(&Camera, &GlobalTransform), With<Camera3d>>,
+    camera: Single<(&Camera, &GlobalTransform), With<TableCamera>>,
     anchors: Anchors,
     roots: Query<Entity, With<Root>>,
     mut previous: Local<Option<(Card, bool, f32)>>,
@@ -1761,7 +1761,7 @@ pub(super) fn draw(
 #[allow(clippy::type_complexity)]
 pub(super) fn place(
     window: Single<&Window, With<PrimaryWindow>>,
-    camera: Single<(&Camera, &GlobalTransform), With<Camera3d>>,
+    camera: Single<(&Camera, &GlobalTransform), With<TableCamera>>,
     mut roots: Query<(&mut Root, &mut LabelAnchor)>,
     mut nodes: Query<(&mut Node, &ComputedNode)>,
 ) {

@@ -367,3 +367,44 @@ fn admission_refuses_an_impossible_opened_kidnap() {
         assert_eq!(std::fs::read(&path).unwrap(), bytes);
     }
 }
+
+/// #74: the die presentation chooses its tumble from the revision the roll created,
+/// so the roll saves it. Opening and cancelling advance the revision like any decision;
+/// the roll's own revision is the one after the submitted `kidnap:roll`.
+#[test]
+fn the_roll_saves_the_revision_it_created_and_a_restart_keeps_it() {
+    let mut game = Game::prepared_with_seed(5);
+    choose(&mut game, "kidnap"); // revision 0 -> 1
+    choose(&mut game, "kidnap:cancel"); // 1 -> 2
+    choose(&mut game, "kidnap"); // 2 -> 3
+    choose(&mut game, "kidnap:roll"); // 3 -> 4
+    let view = game.observe();
+    assert_eq!(view.revision, 4);
+    assert_eq!(view.kidnap.as_ref().unwrap().revision, 4);
+    choose(&mut game, "terror:santiago");
+    assert_eq!(game.observe().kidnap.as_ref().unwrap().revision, 4);
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("task.json");
+    let mut session = Session::open(&path, None).unwrap();
+    for (revision, action) in [(0, "0:terror"), (1, "1:kidnap"), (2, "2:kidnap:roll")] {
+        session.submit(Faction::M26, revision, action).unwrap();
+    }
+    let rolled = session.observe();
+    assert_eq!(rolled.kidnap.as_ref().unwrap().revision, 3);
+    drop(session);
+    assert_eq!(Session::open(&path, None).unwrap().observe(), rolled);
+}
+
+/// A saved roll cannot claim a revision the match has not reached.
+#[test]
+fn a_roll_from_a_later_revision_is_invalid() {
+    let mut game = Game::prepared_with_seed(5);
+    choose(&mut game, "kidnap");
+    choose(&mut game, "kidnap:roll");
+    game.validate().unwrap();
+    let mut forged = serde_json::to_value(&game).unwrap();
+    forged["kidnap"]["revision"] = 3.into();
+    let forged: Game = serde_json::from_value(forged).unwrap();
+    assert!(forged.validate().is_err());
+}

@@ -17,7 +17,7 @@ use crate::{
 /// the highlights, the popover and the seat read one computation.
 #[derive(Resource, Default)]
 pub(super) struct Targeting {
-    key: Option<(bool, u64)>,
+    key: Option<(bool, u64, bool)>,
     pub view: Option<Observation>,
     pub targets: Option<Vec<SpaceTarget>>,
     /// Removal mode's piece states and dimmed spaces (#73).
@@ -54,21 +54,21 @@ impl Targeting {
     }
 }
 
-pub(super) fn refresh(play: Res<Play>, mut targeting: ResMut<Targeting>) {
+/// While the panel presents a Kidnap roll (#74) nothing is targeted and removal mode is
+/// suspended: the choices wait for Continue, so the map neither highlights, marks
+/// pieces nor opens a popover.
+pub(super) fn refresh(play: Res<Play>, roll: Res<die::Roll>, mut targeting: ResMut<Targeting>) {
     let game = play.game();
-    let key = (play.session.is_some(), game.revision);
+    let die = die::presented(game.revision, game.kidnap.as_ref(), &roll).is_some();
+    let key = (play.session.is_some(), game.revision, die);
     if targeting.key == Some(key) {
         return;
     }
     let view = game.observe();
-    targeting.targets = play
-        .session
-        .is_some()
+    targeting.targets = (play.session.is_some() && !die)
         .then(|| space_targets(&view))
         .flatten();
-    targeting.removal = play
-        .session
-        .is_some()
+    targeting.removal = (play.session.is_some() && !die)
         .then(|| removal_targets(&view))
         .flatten();
     targeting.view = Some(view);

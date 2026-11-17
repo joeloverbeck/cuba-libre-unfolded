@@ -26,6 +26,7 @@ It names no province and computes no space's result. The map popover previews th
   - **16:9 frame (6144×3456, reference ×2.7):** the action choice with Terror pinned. Its parts are named as the runtime names them. Its export is `atlas-action-choice-layout.png`.
   - **States:** Pass hovered, Rally pinned, and during Terror with the ribbon and tabs. Its export is `atlas-action-choice-states.png`, at half size.
   - **Production plates:** the exported plates, with their text removed.
+  - **Kidnap die presented (16:9, added at #74's merge):** tray C composed into the AC-B panel while the die is shown. Its export is `atlas-action-choice-die.png`; `KIDNAP.md` describes it and `atlas-kidnap-tray.layout.json` records it.
 - **Changes from the proposal:**
   - **Pin:** the tag frames no longer clip their content, so the pushpin is drawn whole above the tag's top edge.
   - **Example text:** the Terror and Kidnap briefings follow the owner's refinement. The Terror tag has no RESULT entry, and the example text names no province.
@@ -50,5 +51,5 @@ Accepted components are reused: the 26July tag plate (`atlas-victory-tag-26july.
 
 - **Italic:** the rules line is italic in the layout. The runtime draws it in Lato Regular because no italic face is admitted.
 - **Focus mark:** keyboard focus on an option shows its outline and briefing. Focus on the commit, ribbon or a tab has no visible mark of its own, so the seat reports focus.
-- **Execution panel:** during Terror, only the ribbon and its tag are AC-B. The panel's execution content is still the interim stack that #71–#73 replace.
+- **Execution panel:** during Terror, only the ribbon and its tag are AC-B. The panel's execution content is still the interim stack that #71–#73 replace, except while the Kidnap die is presented, when the die-presented frame holds it.
 - **Display:** legibility at the owner's 6144×3456 is shown by the full-size FigCraft export, not by the owner's display (#16).

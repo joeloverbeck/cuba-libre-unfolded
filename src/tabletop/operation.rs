@@ -8,7 +8,9 @@
 //! is the authored `atlas-panel.png`, but the execution button stack inside it (the
 //! adaptive 44/52 px pitch) is an interim layout invented in code, not an authored
 //! FigCraft design. #69 replaced the action choice's part of this bootstrap with the
-//! selected AC-B layout.
+//! selected AC-B layout. While the Kidnap die is presented (`die.rs`, #74) the stack
+//! is not drawn: the AC-B panel's die-presented frame holds the tray, its result and
+//! Continue Terror.
 //! - Owner: #58.
 //! - Purpose: let the development seat exercise Terror execution until the map
 //!   popovers (#72's space popover now targets Terror and opening Kidnap; #73 adds

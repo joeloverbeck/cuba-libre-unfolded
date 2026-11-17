@@ -264,6 +264,10 @@ pub struct Kidnap {
     pub government_before: u8,
     pub m26_before: u8,
     pub random_before: u64,
+    /// The match revision this roll created (#74). The die presentation chooses its
+    /// tumble from it, independently of the die. A #8 roll lacks it and reads 0.
+    #[serde(default)]
+    pub revision: u64,
 }
 /// A Resource transfer in progress (R 1.5.1). `Selecting` is the transfer modal open
 /// for 26July's choice of "Give to" or "Ask from"; `Authorizing` is a Transfer request
@@ -1778,6 +1782,7 @@ impl Game {
                     government_before: self.resources[government],
                     m26_before: self.resources[m26],
                     random_before: self.random,
+                    revision: next_revision,
                 });
                 self.random = random.state();
                 self.resources[government] -= proceeds;
@@ -2008,6 +2013,7 @@ impl Game {
             let mut rng = SeededRandom::new(kidnap.random_before);
             let die = (rng.index(6) + 1) as u8;
             if kidnap.die != die
+                || kidnap.revision > self.revision
                 || self.random != rng.state()
                 || kidnap.government_before > 26
                 || kidnap.m26_before > 26
