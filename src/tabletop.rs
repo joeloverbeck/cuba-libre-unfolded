@@ -284,6 +284,9 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             }),
             ..default()
         }));
+        // The seat's surface is a logical primary window, whose size this would
+        // log, so only the windowed table adds it.
+        app.add_plugins(unfolded_tabletop::window_size::WindowSizeLogPlugin);
     }
     let mut images = BTreeMap::new();
     for (key, bytes) in &verified.files {
