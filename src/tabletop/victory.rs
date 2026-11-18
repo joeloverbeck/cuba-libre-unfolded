@@ -29,10 +29,10 @@ fn signed(value: i16) -> String {
 fn color(faction: Faction) -> Color {
     // The selected faction identity palette never signals winning/losing.
     match faction {
-        Faction::Government => Color::srgb_u8(49, 111, 156),
-        Faction::M26 => Color::srgb_u8(167, 46, 43),
-        Faction::Directorio => Color::srgb_u8(159, 119, 15),
-        Faction::Syndicate => Color::srgb_u8(65, 117, 87),
+        Faction::Government => palette::GOVERNMENT,
+        Faction::M26 => palette::M26,
+        Faction::Directorio => palette::DIRECTORIO,
+        Faction::Syndicate => palette::SYNDICATE,
     }
 }
 
@@ -319,6 +319,9 @@ pub(super) fn draw(
             .remove::<UiRoot>()
             .insert((Tag, TextColor(ink)));
     };
+    // The VectorCraft-authored tag's own text colours, which foundation 4 keeps until a
+    // layout decision reopens it (#53). They are not declared as `Atlas` variables: the
+    // ink differs from `ink`, and `quiet` only happens to equal `ink-secondary`.
     let ink = Color::srgb_u8(30, 50, 57);
     let quiet = Color::srgb_u8(83, 106, 109);
     // The title introduces the faction, so it keeps its name.
