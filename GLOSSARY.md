@@ -115,3 +115,11 @@ _Avoid_: Graphic, mockup (when referring to the selected arrangement rather than
 **Graphic**:
 A single drawn visual element, such as an icon, marker, region outline, frame or ornament, that a layout places.
 _Avoid_: Layout, asset (when referring only to drawn elements)
+
+**Reference units**:
+The 1920×1280 space in which interface sizes and positions are authored. Every on-screen size is a reference size scaled with the window, never with the desktop's scale factor.
+_Avoid_: Logical pixels, design pixels
+
+**Owner's display**:
+The physical monitor on which the owner plays and judges layouts. Its own pixels and real size are the scale at which legibility is judged.
+_Avoid_: Virtual screen, scaled desktop size, the size `xrandr` reports under Xwayland

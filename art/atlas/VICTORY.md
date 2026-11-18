@@ -35,7 +35,7 @@ An ideal 18 px raster, approximated by an area resample, leaves the letters as i
 |---|---:|---:|---|
 | Default 1920×1280 | 15–17 px | about 5 px | No. Factions are told apart by shape and colour. |
 | 4096×2160 | 25–29 px | about 9 px | Yes |
-| Owner's 6144×3456 | about 1.6× the 4096×2160 size | larger again | Judged in #16 |
+| Owner's display, 3840×2160 | 25–29 px: the 4096×2160 scale, as both are 2160 tall | about 9 px | Yes; the owner's judgement was #16's |
 
 **26July on red surfaces:** the 26July star is the same red as the primary button, so 26July keeps its name on those buttons. This is a reversible local choice that #68's round puts to the owner.
 

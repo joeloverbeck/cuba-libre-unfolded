@@ -28,7 +28,7 @@ Blender is Z-up: a Bevy point (x, y, z) sits at Blender (x, −z, y).
 
 1. Append or link the token's collection.
 2. Parent its root to an anchor.
-3. Render **Home** at 1300 × 684, the app's 1× scale. Use a render border with "crop to border" for a region, or render at 3× for the owner's 6144-wide display.
+3. Render **Home** at 1300 × 684, the app's 1× scale. Use a render border with "crop to border" for a region, or render at 1.69× (2194 × 1154) for the scale of the owner's 3840×2160 display.
 4. Render **Closeup** for detail.
 
 The scene's frames 0–89 at 25 fps fit a 3.6 s loop of 90 frames. Render frames 0 to L−1, and export through frame L (see `docs/agents/art-tools.md`).

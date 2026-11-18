@@ -230,6 +230,11 @@ struct Water {
 }
 const WIDTH: f32 = 1920.;
 const HEIGHT: f32 = 1280.;
+/// The piece and Terror counts' type size in reference pixels. Like every interface
+/// size it follows the window, not the desktop's scale factor (ADR 0002). When the game
+/// fills the owner's 3840×2160 display it is about 26 pixels, the size the earlier fixed
+/// 21 logical pixels had there through Xwayland's scale factor 2 (#50).
+const COUNT_SIZE: f32 = 15.5;
 /// The Operation panel's authored frame (`atlas-panel.png`) in reference pixels:
 /// x, y, width, height.
 const PANEL: [f32; 4] = [1380., 287., 500., 653.];
@@ -393,7 +398,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 admit,
                 highlights::refresh,
                 highlights::show,
-                sync_pieces,
+                (sync_pieces, scale_counts).chain(),
                 highlights::markers,
                 popover::hover_piece,
                 bind_spaces,
@@ -674,11 +679,7 @@ fn sync_pieces(
                     Vec3::new(0., height + 0.06, 0.),
                 ),
                 status::SpaceTarget(space.id.clone()),
-                TextFont {
-                    font: art.font.clone().into(),
-                    font_size: 21.0.into(),
-                    ..default()
-                },
+                count_font(&art),
                 TextColor(Color::srgb(0.08, 0.08, 0.06)),
                 GlobalZIndex(-1),
             ));
@@ -707,11 +708,7 @@ fn sync_pieces(
             commands.spawn((
                 count(space.terror.to_string(), token, Vec3::new(0., 0.33, 0.)),
                 status::SpaceTarget(space.id.clone()),
-                TextFont {
-                    font: art.font.clone().into(),
-                    font_size: 21.0.into(),
-                    ..default()
-                },
+                count_font(&art),
                 TextColor(Color::srgb(0.08, 0.08, 0.06)),
                 GlobalZIndex(-1),
             ));
@@ -721,6 +718,30 @@ fn sync_pieces(
 /// A count of pieces or Terror, kept over its token.
 #[derive(Component)]
 struct Count;
+
+/// A count's face. Its size is set in reference pixels; `scale_counts` scales it to the
+/// window before the interface is laid out.
+fn count_font(art: &Art) -> TextFont {
+    TextFont {
+        font: art.font.clone().into(),
+        font_size: COUNT_SIZE.into(),
+        ..default()
+    }
+}
+
+/// Keeps every count at `COUNT_SIZE` reference pixels at the window's layout scale:
+/// counts spawned this frame, and all of them after a resize.
+fn scale_counts(
+    window: Single<&Window, With<PrimaryWindow>>,
+    mut counts: Query<&mut TextFont, With<Count>>,
+) {
+    let size = FontSize::Px(COUNT_SIZE * layout(&window).0);
+    for mut font in &mut counts {
+        if font.font_size != size {
+            font.font_size = size;
+        }
+    }
+}
 
 /// A count over its token. It stays pickable, so hovering it hovers its space, and it
 /// is part of the scene, so the wheel and a drag over it still move the camera.
