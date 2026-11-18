@@ -320,7 +320,8 @@ pub(super) fn draw(
             .insert((Tag, TextColor(ink)));
     };
     // The VectorCraft-authored tag's own text colours, which foundation 4 keeps until a
-    // layout decision reopens it; they are not `Atlas` variables (#53).
+    // layout decision reopens it (#53). They are not declared as `Atlas` variables: the
+    // ink differs from `ink`, and `quiet` only happens to equal `ink-secondary`.
     let ink = Color::srgb_u8(30, 50, 57);
     let quiet = Color::srgb_u8(83, 106, 109);
     // The title introduces the faction, so it keeps its name.

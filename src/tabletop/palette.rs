@@ -79,13 +79,13 @@ mod tests {
 
     /// The `Atlas` colour variables of one export, by name, in its default mode, as
     /// 8-bit sRGB.
-    fn atlas(export: &str) -> BTreeMap<String, [u8; 3]> {
-        let export: Value = serde_json::from_str(export).unwrap();
+    fn atlas_colours(json: &str) -> BTreeMap<String, [u8; 3]> {
+        let export: Value = serde_json::from_str(json).unwrap();
         let meta = &export["meta"];
         let collections = meta["variableCollections"].as_object().unwrap();
-        let mut atlas = collections.values().filter(|c| c["name"] == "Atlas");
-        let collection = atlas.next().expect("an `Atlas` collection");
-        assert!(atlas.next().is_none(), "one `Atlas` collection");
+        let mut named = collections.values().filter(|c| c["name"] == "Atlas");
+        let collection = named.next().expect("an `Atlas` collection");
+        assert!(named.next().is_none(), "one `Atlas` collection");
         let (id, mode) = (
             &collection["id"],
             collection["defaultModeId"].as_str().unwrap(),
@@ -114,7 +114,7 @@ mod tests {
     fn mismatches(variables: &[(&str, [u8; 3])], exports: &[(&str, &str)]) -> Vec<String> {
         let layouts: Vec<_> = exports
             .iter()
-            .map(|(source, export)| (source, atlas(export)))
+            .map(|(source, json)| (source, atlas_colours(json)))
             .collect();
         let mut found = Vec::new();
         for &(variable, runtime) in variables {
@@ -194,12 +194,18 @@ mod tests {
     /// others, and the check names that layout.
     #[test]
     fn a_layout_that_disagrees_fails() {
-        let (source, export) = EXPORTS[0];
-        let changed = export.replacen("0.125490203499794", "0.11764705926179886", 1);
-        assert_ne!(
-            changed, export,
-            "the export still holds `ink`'s red channel"
-        );
+        let (source, json) = EXPORTS[0];
+        let mut export: Value = serde_json::from_str(json).unwrap();
+        let ink = export["meta"]["variables"]
+            .as_object_mut()
+            .unwrap()
+            .values_mut()
+            .find(|variable| variable["name"] == "ink")
+            .unwrap();
+        for value in ink["valuesByMode"].as_object_mut().unwrap().values_mut() {
+            value["r"] = (30. / 255.).into();
+        }
+        let changed = export.to_string();
         let mut exports = EXPORTS.to_vec();
         exports[0] = (source, &changed);
         assert_eq!(
