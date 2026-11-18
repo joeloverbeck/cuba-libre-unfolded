@@ -1,6 +1,6 @@
 # Terror token alternatives
 
-> **Note (2026-11-18, #50):** "the owner's display" here means the 6144×3456 authoring frame. The owner's display is 3840×2160 ([foundation 4](../../../docs/foundation/04-art-and-assets.md)), so sizes given for it here are 1.6 times what it shows.
+> **Note (2026-11-18, #50):** this record takes the owner's display to be 6144×3456. It is 3840×2160 ([foundation 4](../../../docs/foundation/04-art-and-assets.md)), so pixel sizes given here at 6144×3456 or "owner scale" are 1.6 times what it shows.
 
 These are decision-only studies for [#41](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/41). None of them is adopted for production. Each is a dedicated 3D Terror marker modelled and animated in Blender, with a seamless 3.6 s loop.
 

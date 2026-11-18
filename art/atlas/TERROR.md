@@ -33,7 +33,7 @@ Blender 5.2.3 LTS built the token mechanically through its Python API, operated 
   - Development-seat captures exactly one loop apart, 216 manual-clock steps, asked for with `advance`, are pixel-identical inside both token crops.
   - Each bell, driven through the manual clock with `advance` to the fixed seek times 0, 0.225, 0.45 and 0.675 s (a quarter of its 0.9 s swing apart, to within 1/120 s), visibly changes between two of those poses, whatever the run's phase. Half or a quarter of a loop is a whole number of swings, so comparing those (as the check did until #58's final review) could see a bell crossing the centre twice and flake.
   - Hovering either bell or its count discloses its space.
-- **Not established:** physical-display readability and the owner's acceptance of the integrated look. At the default framing on a 1920-wide window, a bell is about 20–25 pixels tall and the swing is subtle. When the game fills the owner's display it is about 34–42 pixels tall, and larger when zoomed in.
+- **Not established:** physical-display readability and the owner's acceptance of the integrated look. At the default framing on a 1920-wide window, a bell is about 20–25 pixels tall and the swing is subtle. When the game fills the owner's display, the map is drawn at 1.69 times the scale of a 1920×1280 window, and zooming in enlarges it further; the bell's size there has not been measured.
 
 ## Runtime
 

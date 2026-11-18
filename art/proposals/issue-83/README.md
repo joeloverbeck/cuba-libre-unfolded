@@ -1,6 +1,6 @@
 # Execution panel during Terror: three alternatives
 
-> **Note (2026-11-18, #50):** "the owner's display" here means the 6144×3456 authoring frame. The owner's display is 3840×2160 ([foundation 4](../../../docs/foundation/04-art-and-assets.md)), so sizes given for it here are 1.6 times what it shows.
+> **Note (2026-11-18, #50):** this record takes the owner's display to be 6144×3456. It is 3840×2160 ([foundation 4](../../../docs/foundation/04-art-and-assets.md)), so pixel sizes given here at 6144×3456 or "owner scale" are 1.6 times what it shows.
 
 These are decision-only studies for [#83](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/83), part of spec [#58](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/58). The owner chooses one, or rejects all three, in a round of at most 10 minutes; #84 builds the selection. Nothing here is adopted, and nothing in production changes: no runtime code, save, admission manifest or hash file reads these files.
 

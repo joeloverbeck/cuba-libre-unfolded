@@ -89,6 +89,13 @@ pub(super) fn logical_bounds(node: &ComputedNode, at: &UiGlobalTransform) -> [f3
         center.y + half.y,
     ]
 }
+/// A text's type size in logical window pixels, when it is set in pixels.
+pub(super) fn type_size(font: &TextFont) -> Option<f32> {
+    match font.font_size {
+        FontSize::Px(px) => Some(px),
+        _ => None,
+    }
+}
 fn named(control: &Control) -> TargetName {
     if control.choice {
         TargetName::Choice(control.name.clone())
@@ -331,7 +338,7 @@ impl SeatGame for Table {
                 (
                     entity,
                     text.0.clone(),
-                    emblems::type_size(font),
+                    type_size(font),
                     logical_bounds(node, at),
                 )
             })

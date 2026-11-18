@@ -118,8 +118,8 @@ _Avoid_: Layout, asset (when referring only to drawn elements)
 
 **Reference pixels**:
 The units of the 1920×1280 space in which interface sizes and positions are authored.
-_Avoid_: Reference units, logical pixels, design pixels
+_Avoid_: Reference units, design pixels
 
 **Owner's display**:
 The physical monitor on which the owner plays and judges layouts, measured in its own pixels and real size.
-_Avoid_: Virtual screen, scaled desktop size
+_Avoid_: Owner scale

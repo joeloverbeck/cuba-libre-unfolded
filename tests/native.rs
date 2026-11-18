@@ -332,7 +332,7 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
         );
         let scale = height as f64 / 1280.;
         // #50: the counts follow the window like the rest of the interface.
-        let size = assert_counts_follow_the_window(&before, scale) / scale;
+        let size = assert_counts_follow_the_window(&before, None, scale) / scale;
         let first = *count_size.get_or_insert(size);
         assert!(
             (size - first).abs() < 0.01,
@@ -2332,19 +2332,27 @@ fn native_top_display_matches_layout_and_follows_the_economy() {
     app.quit();
 }
 
-/// #50: every piece and Terror count has one type size, and its drawn line is Bevy's
-/// default 1.2 times that size tall, within 1 px. Returns the type size. `scale` is
-/// the surface's layout scale, only for the failure message.
-fn assert_counts_follow_the_window(view: &Value, scale: f64) -> f64 {
+/// #50: every piece and Terror count has one type size, within 1 px of `expected`
+/// when given. Each count's drawn line is Bevy's default 1.2 times the expected size,
+/// or else the reported one, tall within 1 px. Returns the reported type size. `scale`
+/// is the surface's layout scale, only for the failure message.
+fn assert_counts_follow_the_window(view: &Value, expected: Option<f64>, scale: f64) -> f64 {
     let counts = view["table"]["counts"].as_array().unwrap();
     assert!(!counts.is_empty(), "no counts at scale {scale}");
     let size = counts[0]["font_size"].as_f64().unwrap();
+    if let Some(expected) = expected {
+        assert!(
+            (size - expected).abs() <= 1.,
+            "count type size {size} against {expected}"
+        );
+    }
+    let line = 1.2 * expected.unwrap_or(size);
     for count in counts {
         let own = count["font_size"].as_f64().unwrap();
         assert!((own - size).abs() < 0.01, "{count} at scale {scale}");
         let [_, top, _, bottom] = rect_of(&count["bounds"]);
         assert!(
-            (bottom - top - 1.2 * size).abs() <= 1.,
+            (bottom - top - line).abs() <= 1.,
             "{count} at scale {scale}"
         );
     }
@@ -3827,16 +3835,13 @@ fn native_map_targets_at_the_owner_s_aspect() {
     let view = app.observe();
     assert_map_agrees(&view);
     // #50: on the owner's display the counts keep the size the fixed 21 logical pixels
-    // gave them there through Xwayland's scale factor 2 and GNOME's 0.625 shrink: that
-    // type size, and a drawn line 1.2 times it (Bevy's default line height), each
-    // within 1 px.
-    let before = 21. * 2. * 0.625;
-    let size = assert_counts_follow_the_window(&view, (3840f64 / 1920.).min(2160. / 1280.));
-    assert!((size - before).abs() <= 1., "count type size {size}");
-    for count in view["table"]["counts"].as_array().unwrap() {
-        let [_, top, _, bottom] = rect_of(&count["bounds"]);
-        assert!((bottom - top - 1.2 * before).abs() <= 1., "{count}");
-    }
+    // gave them there through Xwayland's scale factor 2 and GNOME's 0.625 shrink.
+    let owner_size_before = 21. * 2. * 0.625;
+    assert_counts_follow_the_window(
+        &view,
+        Some(owner_size_before),
+        (3840f64 / 1920.).min(2160. / 1280.),
+    );
     app.capture("terror-zero-3840x2160");
     app.activate("space:santiago", 1);
     let view = app.observe();

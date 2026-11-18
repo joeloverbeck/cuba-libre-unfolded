@@ -52,4 +52,4 @@ Accepted components are reused: the 26July tag plate (`atlas-victory-tag-26july.
 - **Italic:** the rules line is italic in the layout. The runtime draws it in Lato Regular because no italic face is admitted.
 - **Focus mark:** keyboard focus on an option shows its outline and briefing. Focus on the commit, ribbon or a tab has no visible mark of its own, so the seat reports focus.
 - **Execution panel:** during Terror the panel is the selected EX-A design (#84, `EXECUTION.md`), which reuses AC-B's rows, pills, tag, pin and commit. The die-presented frame holds the panel while the Kidnap die is shown.
-- **Display:** legibility is judged at the owner's display, as [the seat reference](../../docs/agents/seat.md#the-owners-display) describes (#16).
+- **Display:** legibility is judged at the owner's display, as [the seat reference](../../docs/agents/seat.md#the-owners-display) describes.

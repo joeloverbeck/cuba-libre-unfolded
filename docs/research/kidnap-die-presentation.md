@@ -1,6 +1,6 @@
 # Kidnap die presentation
 
-> **Note (2026-11-18, #50):** "the owner's display" here means the 6144×3456 authoring frame. The owner's display is 3840×2160 ([foundation 4](../foundation/04-art-and-assets.md)), so sizes given for it here are 1.6 times what it shows.
+> **Note (2026-11-18, #50):** this record takes the owner's display to be 6144×3456. It is 3840×2160 ([foundation 4](../foundation/04-art-and-assets.md)), so pixel sizes given here at 6144×3456 or "owner scale" are 1.6 times what it shows.
 
 Bounded research on 2026-11-16 against Cuba Libre commit `5c84f2526289fdcc0333ec44c7927d26fa182ea4`. This file is reference evidence for a future implementation specification and design round. It is not an accepted specification, not a design selection and not a claim that anything was built or rendered. No executable, Blender file, asset or native capture was produced.
 

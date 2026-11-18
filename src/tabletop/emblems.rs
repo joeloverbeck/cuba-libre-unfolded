@@ -203,15 +203,6 @@ pub(super) fn ink(
     }
 }
 
-/// A text's type size in logical pixels, when it is set in pixels, as the development
-/// seat reports it.
-pub(super) fn type_size(font: &TextFont) -> Option<f32> {
-    match font.font_size {
-        FontSize::Px(px) => Some(px),
-        _ => None,
-    }
-}
-
 /// Every drawn text containing an emblem, for the development seat. Each entry has
 /// the text's words with every faction named, its font size and bounds, and for each
 /// emblem its faction, bounds, the baseline of its line (the commonest bottom of
@@ -286,7 +277,7 @@ pub(super) fn observe(world: &mut World) -> Vec<serde_json::Value> {
             .collect();
         texts.push((
             plain.0.clone(),
-            type_size(font),
+            super::seat::type_size(font),
             [
                 origin.x,
                 origin.y,
