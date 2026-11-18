@@ -1,5 +1,7 @@
 # Top display studies
 
+> **Note (2026-11-18, #50):** "the owner's display" here means the 6144×3456 authoring frame. The owner's display is 3840×2160 ([foundation 4](../../../docs/foundation/04-art-and-assets.md)), so sizes given for it here are 1.6 times what it shows.
+
 These are decision-only alternatives for [#46](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/46), within #8. They are the owner's one selection round for this issue:
 - one graphic each for Cash, Aid, the US Alliance and Resources;
 - one layout for placing them.

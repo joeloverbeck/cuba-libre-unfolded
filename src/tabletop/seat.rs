@@ -328,11 +328,12 @@ impl SeatGame for Table {
             .query_filtered::<(Entity, &Text, &TextFont, &ComputedNode, &UiGlobalTransform), With<Count>>()
             .iter(world)
             .map(|(entity, text, font, node, at)| {
-                let size = match font.font_size {
-                    FontSize::Px(px) => Some(px),
-                    _ => None,
-                };
-                (entity, text.0.clone(), size, logical_bounds(node, at))
+                (
+                    entity,
+                    text.0.clone(),
+                    emblems::type_size(font),
+                    logical_bounds(node, at),
+                )
             })
             .collect();
         let mut counts: Vec<_> = count_rows

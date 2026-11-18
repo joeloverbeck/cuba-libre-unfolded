@@ -1,5 +1,7 @@
 # Action choice and eligibility indicator alternatives
 
+> **Note (2026-11-18, #50):** "the owner's display" here means the 6144×3456 authoring frame. The owner's display is 3840×2160 ([foundation 4](../../../docs/foundation/04-art-and-assets.md)), so sizes given for it here are 1.6 times what it shows.
+
 These are decision-only studies for [#64](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/64), part of spec [#58](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/58). The owner chooses among them in #58's combined design round (#68). Nothing here is adopted, and nothing changes in production: no runtime code, save, admission manifest or hash file reads these files.
 
 **Authority and constraints.**

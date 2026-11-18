@@ -19,7 +19,7 @@ The selected `.figcraft` layout under `art/` owns its layout's structure, placem
 
 The 3D board is a viewport area inside a layout. The layout decides its placement, size and overlays (counts, tags, emblems); its 3D content belongs to the mesh route below and the native camera. FigCraft prototypes may support a proposal or review. They never define rules or the interaction contract, which belong to the accepted rules baseline and the native application.
 
-Each new layout supplies a 16:9 frame for the owner's display (3840×2160, about 700×390 mm), and its legibility is judged in that display's own pixels at its real size. Other aspect ratios are not required of new layouts. The existing 3:2/16:9/21:9 native regression protects the layouts accepted before this division.
+Each new layout supplies a 16:9 frame for the owner's display (3840×2160, about 700×390 mm; corrected from 6144×3456 in #50), and its legibility is judged in that display's own pixels at its real size. Other aspect ratios are not required of new layouts. The existing 3:2/16:9/21:9 native regression protects the layouts accepted before this division.
 
 Layouts accepted before this division, Atlas desk and its #16 refinements, stay VectorCraft-authored until a new layout decision reopens them. Their palette and typography are the starting values for new interface work.
 

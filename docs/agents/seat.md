@@ -30,13 +30,13 @@ cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"quit"}'
 
 ## The owner's display
 
-The owner's display is a 3840×2160 panel, about 700×390 mm, so one pixel is 0.18 mm. GNOME runs it at 125% scaling.
+[Foundation 4](../foundation/04-art-and-assets.md) records the owner's display, which is 3840×2160. One pixel is 0.18 mm, and GNOME runs it at 125% scaling.
 
 - **`xrandr` reports 6144×3456, which is not the display.**
   - The game enables only Bevy's `x11` backend, so on the owner's Wayland desktop it runs through Xwayland.
   - With GNOME's `xwayland-native-scaling`, Xwayland gives X11 clients a screen twice the 3072×1728 logical desktop, and `Xft.dpi: 192`. The game therefore sees a scale factor of 2 and draws an image up to 6144×3456, which GNOME shrinks by 0.625 to the panel.
   - `xrandr` prints that virtual screen as `6144x3456 … 700mm x 390mm`.
-- **The game draws about 2.5 times the pixels the panel shows.** Whether a native Wayland window should replace this is [arkham-unfolded#190](https://github.com/joeloverbeck/arkham-unfolded/issues/190)'s question. That issue also carries the owner's report of a motion blur while panning in Arkham.
+- **The game draws up to about 2.6 times the pixels the panel shows.** Whether a native Wayland window should replace this is [arkham-unfolded#190](https://github.com/joeloverbeck/arkham-unfolded/issues/190)'s question. That issue also carries the owner's report of a motion blur while panning in Arkham.
 - **A 3840×2160 capture is the owner's display at real size.** Every interface size follows the window, not the desktop's scale factor ([ADR 0002](../adr/0002-sizes-follow-the-window-not-the-desktop-scale.md)). The seat, at scale factor 1, therefore draws what the panel shows when the game fills it.
 - **Judging legibility:**
   - Inspect a native 3840×2160 capture at 1:1, and report the smallest text's height in pixels and in millimetres. `table.counts` and the drawn-text fields give type sizes and bounds.

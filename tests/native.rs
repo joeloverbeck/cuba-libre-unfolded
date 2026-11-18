@@ -1675,10 +1675,11 @@ fn native_transfer_modal_gives_asks_and_waits_for_the_giver() {
 
 /// #71: the TM-B modal at the owner's 16:9 aspect against its FigCraft layout record,
 /// in the 16:9 frame's state (26July asks Syndicate for 2). 3840x2160, the owner's
-/// display, is the frame (6144x3456) x 0.625. Plates are compared on all four edges; parts that hug text
-/// (buttons, quick values, the toggle) on their top and bottom only, since Bevy's text
-/// metrics differ from FigCraft's. The amount field is right-aligned beside the quick
-/// values, so its left edge follows their text: its top, bottom and width are compared.
+/// display, is the frame (6144x3456) x 0.625. Plates are compared on all four edges;
+/// parts that hug text (buttons, quick values, the toggle) on their top and bottom
+/// only, since Bevy's text metrics differ from FigCraft's. The amount field is
+/// right-aligned beside the quick values, so its left edge follows their text: its
+/// top, bottom and width are compared.
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained capture"]
 fn native_transfer_modal_matches_layout() {
@@ -3826,12 +3827,16 @@ fn native_map_targets_at_the_owner_s_aspect() {
     let view = app.observe();
     assert_map_agrees(&view);
     // #50: on the owner's display the counts keep the size the fixed 21 logical pixels
-    // gave them there through Xwayland's scale factor 2 and GNOME's 0.625 shrink.
+    // gave them there through Xwayland's scale factor 2 and GNOME's 0.625 shrink: that
+    // type size, and a drawn line 1.2 times it (Bevy's default line height), each
+    // within 1 px.
+    let before = 21. * 2. * 0.625;
     let size = assert_counts_follow_the_window(&view, (3840f64 / 1920.).min(2160. / 1280.));
-    assert!(
-        (size - 21. * 2. * 0.625).abs() <= 1.,
-        "count type size {size}"
-    );
+    assert!((size - before).abs() <= 1., "count type size {size}");
+    for count in view["table"]["counts"].as_array().unwrap() {
+        let [_, top, _, bottom] = rect_of(&count["bounds"]);
+        assert!((bottom - top - 1.2 * before).abs() <= 1., "{count}");
+    }
     app.capture("terror-zero-3840x2160");
     app.activate("space:santiago", 1);
     let view = app.observe();

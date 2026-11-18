@@ -1,5 +1,7 @@
 # Terror token alternatives
 
+> **Note (2026-11-18, #50):** "the owner's display" here means the 6144×3456 authoring frame. The owner's display is 3840×2160 ([foundation 4](../../../docs/foundation/04-art-and-assets.md)), so sizes given for it here are 1.6 times what it shows.
+
 These are decision-only studies for [#41](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/41). None of them is adopted for production. Each is a dedicated 3D Terror marker modelled and animated in Blender, with a seamless 3.6 s loop.
 
 **Rules basis.** Terror markers stack in a City or Province (R 3.3.4), and the Government's Reprisal places the same marker. So each design shows a climate of fear in a space, not a bomb and not any faction's emblem.
