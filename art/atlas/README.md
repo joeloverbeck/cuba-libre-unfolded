@@ -77,7 +77,7 @@ The `Atlas` colour variables of the selected FigCraft layouts own the interface 
 
 Older VectorCraft-authored components keep their own colours until a layout decision reopens them (foundation 4), so they are not declared there. The victory tag's text colours are an example (`victory.rs`). Piece colours are a separate palette, listed under "Counted solid pieces and shared camera"; two of them equal faction variables, but they do not stand for them.
 
-Some declared variables carry colours that VectorCraft art also paints: `map` is the sea of `atlas-ui.png`, which the viewport's clear colour continues, and the faction variables are the faction identity colours of `atlas-ui` and `atlas-reader`. Changing one of them in FigCraft therefore also reopens those VectorCraft sources.
+Some declared variables carry colours that VectorCraft art also paints: `map` is the sea of `atlas-ui.png`, which the viewport's clear colour continues, and `faction/government` and `faction/syndicate` are also the Government and Syndicate colours of `atlas-ui` and `atlas-reader` (their 26July and Directorio colours differ from the variables). Changing one of these in FigCraft therefore also reopens those VectorCraft sources.
 
 **Refreshing after a layout changes.** For each changed `.figcraft`, open it in FigCraft. Then run `variable.export` with `{"collections": ["Atlas"], "format": "json", "path": "<main checkout>/art/atlas/atlas-<layout>.variables.json"}` and move the file into your worktree ([art-tools.md, "File boundaries"](../../docs/agents/art-tools.md#file-boundaries)). Rewrite the hashes from the checkout root:
 
