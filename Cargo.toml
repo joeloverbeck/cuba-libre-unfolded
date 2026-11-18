@@ -8,14 +8,15 @@ publish = false
 
 [features]
 default = []
-tabletop = ["dep:bevy", "unfolded-tabletop/seat"]
+tabletop = ["dep:bevy", "dep:unfolded-hover", "unfolded-tabletop/seat"]
 
 [dependencies]
 # Shared packages, all at one revision of one repository, the same as the `wgpu-hal`
 # patch below. The game, its saves and `cuba-tools` take only the packages that cannot
-# depend on Bevy; `unfolded-tabletop` comes with `tabletop`.
+# depend on Bevy; `unfolded-hover`, which only the table uses, and `unfolded-tabletop`
+# come with `tabletop`.
 unfolded-assets = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "1335c5bd172b4fbf46b1fdd04886979689363a5e" }
-unfolded-hover = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "1335c5bd172b4fbf46b1fdd04886979689363a5e" }
+unfolded-hover = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "1335c5bd172b4fbf46b1fdd04886979689363a5e", optional = true }
 unfolded-random = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "1335c5bd172b4fbf46b1fdd04886979689363a5e" }
 unfolded-record-replacement = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "1335c5bd172b4fbf46b1fdd04886979689363a5e" }
 unfolded-seat-client = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "1335c5bd172b4fbf46b1fdd04886979689363a5e" }
