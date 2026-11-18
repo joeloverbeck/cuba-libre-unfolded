@@ -42,4 +42,4 @@ Accepted components are reused: the faction emblems, the top-display tag plate (
 - **Tag text:** the layout's tag text is example content. The runtime's wording follows the observation. It adds "Government is now 2nd Eligible" to the Pass tag, and labels the zero-space reading as local policy in the Operation Only tag. Inline emblems follow #60's first-mention rule, so the body can wrap one line longer than the layout.
 - **Other aspects:** foundation 4 requires only the 16:9 frame. At 3:2 (1920×1280), the camera frames Cuba wider. The track then covers Pinar del Río's pieces, and its boxes take their hover. #70 records this as an open limit with a capture; it does not invent a 3:2 layout.
 - **Keyboard:** the boxes are reached by pointer through the seat (point and activate). Tab does not reach them, as it does not reach the top display's hover targets.
-- **Display:** legibility at the owner's 6144×3456 is shown by the full-size FigCraft export, not by the owner's display (#16).
+- **Display:** legibility is judged at the owner's display, as [the seat reference](../../docs/agents/seat.md#the-owners-display) describes.

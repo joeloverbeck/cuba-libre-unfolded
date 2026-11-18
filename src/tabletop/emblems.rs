@@ -277,10 +277,7 @@ pub(super) fn observe(world: &mut World) -> Vec<serde_json::Value> {
             .collect();
         texts.push((
             plain.0.clone(),
-            match font.font_size {
-                FontSize::Px(px) => Some(px),
-                _ => None,
-            },
+            super::seat::type_size(font),
             [
                 origin.x,
                 origin.y,

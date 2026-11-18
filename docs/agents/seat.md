@@ -26,7 +26,22 @@ cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"quit"}'
 - **Connections.** Each `cuba-tools seat` invocation is its own connection, and closing it does not end the session.
 - **Session end.** The session ends at `quit`, at the table's own exit, or after 30 minutes without a request; then the socket is removed.
 - **Second launch.** A launch on a socket where a seat still answers is refused and leaves that seat untouched: send it `quit` or choose another path.
-- **Size.** Add `--seat-size 1920x1080` or `--seat-size 2520x1080` to exercise wider surfaces through the same renderer. The default is 1920×1280, and sizes run from 640×480 to 4096×2160 (#50 tracks reaching the owner's 6144×3456).
+- **Size.** Add `--seat-size 1920x1080` or `--seat-size 2520x1080` to exercise wider surfaces through the same renderer. The default is 1920×1280, and sizes run from 640×480 to 4096×2160. `--seat-size 3840x2160` is [the owner's display](#the-owners-display).
+
+## The owner's display
+
+[Foundation 4](../foundation/04-art-and-assets.md) records the owner's display, which is 3840×2160. One pixel is 0.18 mm, and GNOME runs it at 125% scaling.
+
+- **`xrandr` reports 6144×3456, which is not the display.**
+  - The game enables only Bevy's `x11` backend, so on the owner's Wayland desktop it runs through Xwayland.
+  - With GNOME's `xwayland-native-scaling`, Xwayland gives X11 clients a screen twice the 3072×1728 logical desktop, and `Xft.dpi: 192`. The game therefore sees a scale factor of 2 and draws an image up to 6144×3456, which GNOME shrinks by 0.625 to the panel.
+  - `xrandr` prints that virtual screen as `6144x3456 … 700mm x 390mm`.
+- **The game draws up to about 2.6 times the pixels the panel shows.** Whether a native Wayland window should replace this is [arkham-unfolded#190](https://github.com/joeloverbeck/arkham-unfolded/issues/190)'s question. That issue also carries the owner's report of a motion blur while panning in Arkham.
+- **A 3840×2160 capture is the owner's display at real size.** Every interface size follows the window, not the desktop's scale factor ([ADR 0002](../adr/0002-sizes-follow-the-window-not-the-desktop-scale.md)). The seat, at scale factor 1, therefore draws what the panel shows when the game fills it.
+- **Judging legibility:**
+  - Inspect a native 3840×2160 capture at 1:1, and report the smallest text's height in pixels and in millimetres. `table.counts` and the drawn-text fields give type sizes and bounds.
+  - Judge a FigCraft export at ×0.625 of its 6144×3456 frame. At 100%, a full-size export shows everything at least 1.6 times larger than the game does.
+  - The owner's playtest on the display remains the final legibility judgement.
 
 ## Requests and replies
 
@@ -149,6 +164,7 @@ The full reply's `table` describes what is drawn. Drawn parts are reported by na
 | `table.removal`, `table.markers` | Removal mode and its piece markers. |
 | `table.transfer.state` | The transfer modal: shown, pending, counterpart, direction, entry, limit, refusal, commit. |
 | `table.inline_text` | Inline emblem geometry. |
+| `table.counts` | Each piece and Terror count: its `name` (as its control is named), `text`, `font_size` and logical `bounds`. |
 
 Drawn-part names:
 
@@ -186,7 +202,7 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
 - `native_own_removal_restart_obligation_and_all_pieces_finish`: evidence in `local/verification/issue-15/removal-*`.
 - `native_hover_status_is_transient_without_region_inspection`: all ten city/province tags, three EC exclusions, piece/count hover, reader suppression, camera navigation, complete home framing, and Terror/removal updates. Evidence: `local/verification/issue-16/hover-status-*`.
 - `native_victory_emblems_disclose_live_margins_without_inspection`: emblem and margin targets, one tag, reader/leave dismissal, actual transfer/Terror/removal updates, and rendered text bounds, including the largest reachable contribution list. Evidence: `local/verification/issue-16/victory-*`.
-- `native_responsive_layout_uses_width_and_preserves_picks`: 3:2, 16:9 and 21:9 native surfaces (agent-chosen regression coverage, not owner display policy; see the art foundation), all region picks, piece/count hover, centered emblems, panel anchors, the reader and unchanged save bytes. Evidence: `local/verification/issue-16/layout-*`.
+- `native_responsive_layout_uses_width_and_preserves_picks`: 3:2, 16:9 and 21:9 native surfaces (agent-chosen regression coverage, not owner display policy; see the art foundation), all region picks, piece/count hover, counts that scale with the window (#50), centered emblems, panel anchors, the reader and unchanged save bytes. Evidence: `local/verification/issue-16/layout-*`.
 - `native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space`: resolves both Terrors and checks three things.
   - Captures exactly one loop apart (216 manual-clock steps, asked for with `advance`) are pixel-identical around each bell.
   - Each bell, advanced to the fixed seek times 0, 0.225, 0.45 and 0.675 s, visibly changes between two of those poses whatever the run's phase.
@@ -216,7 +232,7 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
   - It hovers blocked Oriente, which shows only its status tag, and clicks it open at 0 Resources and after a Resource transfer.
   - It opens Kidnap and Terror from Santiago's popover and Oriente's Terror from the panel.
   - After each transfer, Terror and removal, the map states, the visible highlights and the popover rows agree with the observation's choices, reasons and remedies. It also refuses a changed highlight at launch.
-- `native_map_targets_at_the_owner_s_aspect`: captures the same states at 3840×2160 for comparison with the selected 16:9 frame. Evidence: `local/verification/issue-72/targets-16x9-*`.
+- `native_map_targets_at_the_owner_s_aspect`: captures the same states at 3840×2160, the owner's display, for comparison with the selected 16:9 frame, and checks that the counts keep their size on that display (#50). Evidence: `local/verification/issue-72/targets-16x9-*`.
 - `native_space_popover_matches_layout`: compares Santiago's popover with its [layout record](../../art/atlas/HIGHLIGHTS.md) at 3840×2160, within 4 px, from `table.popover.parts`. Evidence: `local/verification/review-fix-2/popover-layout-*`.
 - `native_removal_mode_marks_pieces_and_removes_through_the_piece_popover`: enters removal mode and checks each piece's marker and the dimmed spaces against the authority's choices. Evidence: `local/verification/issue-73/removal-mode-*` (one capture at 3840×2160).
   - It hovers Santiago's stack, which opens nothing, then clicks it open, steps its quantity to 2 and back, and cancels.

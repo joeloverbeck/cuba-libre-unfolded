@@ -1,5 +1,7 @@
 # Execution panel during Terror: three alternatives
 
+> **Note (2026-11-18, #50):** this record takes the owner's display to be 6144×3456. It is 3840×2160 ([foundation 4](../../../docs/foundation/04-art-and-assets.md)), so pixel sizes given here at 6144×3456 or "owner scale" are 1.6 times what it shows.
+
 These are decision-only studies for [#83](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/83), part of spec [#58](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/58). The owner chooses one, or rejects all three, in a round of at most 10 minutes; #84 builds the selection. Nothing here is adopted, and nothing in production changes: no runtime code, save, admission manifest or hash file reads these files.
 
 **Why.** #75's end-to-end run found that during Terror execution the panel is still the interim button stack (`src/tabletop/operation.rs`) with the interim hover preview card (`src/tabletop/preview.rs`). Both are `WORK-2` bootstraps whose records expired before #75, and no selected design covers them: #64's AC-B left the execution panel as a placeholder. This round replaces both.

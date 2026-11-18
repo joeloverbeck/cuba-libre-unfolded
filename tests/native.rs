@@ -301,6 +301,7 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
         .map(PathBuf::from)
         .unwrap_or_else(|| "local/verification/issue-16".into());
     std::fs::create_dir_all(&evidence).unwrap();
+    let mut count_size = None;
     for (width, height) in [(1920, 1280), (1920, 1080), (2520, 1080)] {
         let root = tempfile::Builder::new()
             .prefix(&format!("layout-{width}x{height}-"))
@@ -330,6 +331,13 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
             json!([width as f64, height as f64])
         );
         let scale = height as f64 / 1280.;
+        // #50: the counts follow the window like the rest of the interface.
+        let size = assert_counts_follow_the_window(&before, None, scale) / scale;
+        let first = *count_size.get_or_insert(size);
+        assert!(
+            (size - first).abs() < 0.01,
+            "count size {size} per reference pixel at {width}x{height}, {first} at first"
+        );
         let viewport = before["table"]["map_viewport"].as_array().unwrap();
         assert!((viewport[0].as_f64().unwrap() - 40. * scale).abs() <= 1.);
         assert!((viewport[2].as_f64().unwrap() - (width as f64 - 580. * scale)).abs() <= 1.);
@@ -1666,11 +1674,12 @@ fn native_transfer_modal_gives_asks_and_waits_for_the_giver() {
 }
 
 /// #71: the TM-B modal at the owner's 16:9 aspect against its FigCraft layout record,
-/// in the 16:9 frame's state (26July asks Syndicate for 2). 3840x2160 is the frame
-/// (6144x3456) x 0.625. Plates are compared on all four edges; parts that hug text
-/// (buttons, quick values, the toggle) on their top and bottom only, since Bevy's text
-/// metrics differ from FigCraft's. The amount field is right-aligned beside the quick
-/// values, so its left edge follows their text: its top, bottom and width are compared.
+/// in the 16:9 frame's state (26July asks Syndicate for 2). 3840x2160, the owner's
+/// display, is the frame (6144x3456) x 0.625. Plates are compared on all four edges;
+/// parts that hug text (buttons, quick values, the toggle) on their top and bottom
+/// only, since Bevy's text metrics differ from FigCraft's. The amount field is
+/// right-aligned beside the quick values, so its left edge follows their text: its
+/// top, bottom and width are compared.
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained capture"]
 fn native_transfer_modal_matches_layout() {
@@ -2210,7 +2219,7 @@ fn native_top_display_matches_layout_and_follows_the_economy() {
         step: 0,
     };
     eprintln!("Top display native evidence: {}", app.root.display());
-    // 3840x2160 is 16:9 like the owner's 6144x3456 display that the layout frames.
+    // 3840x2160 is the owner's display; the layout's 6144x3456 frame is it x 1.6.
     app.launch_size("3840x2160");
     let rest = app.observe();
     let layout: Value =
@@ -2321,6 +2330,33 @@ fn native_top_display_matches_layout_and_follows_the_economy() {
     assert!(reader["table"]["top_parts"].as_array().unwrap().is_empty());
     app.capture("reader-without-title");
     app.quit();
+}
+
+/// #50: every piece and Terror count has one type size, within 1 px of `expected`
+/// when given. Each count's drawn line is Bevy's default 1.2 times the expected size,
+/// or else the reported one, tall within 1 px. Returns the reported type size. `scale`
+/// is the surface's layout scale, only for the failure message.
+fn assert_counts_follow_the_window(view: &Value, expected: Option<f64>, scale: f64) -> f64 {
+    let counts = view["table"]["counts"].as_array().unwrap();
+    assert!(!counts.is_empty(), "no counts at scale {scale}");
+    let size = counts[0]["font_size"].as_f64().unwrap();
+    if let Some(expected) = expected {
+        assert!(
+            (size - expected).abs() <= 1.,
+            "count type size {size} against {expected}"
+        );
+    }
+    let line = 1.2 * expected.unwrap_or(size);
+    for count in counts {
+        let own = count["font_size"].as_f64().unwrap();
+        assert!((own - size).abs() < 0.01, "{count} at scale {scale}");
+        let [_, top, _, bottom] = rect_of(&count["bounds"]);
+        assert!(
+            (bottom - top - line).abs() <= 1.,
+            "{count} at scale {scale}"
+        );
+    }
+    size
 }
 
 fn rect_of(value: &Value) -> [f64; 4] {
@@ -3033,8 +3069,8 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
         step: 0,
     };
     eprintln!("Kidnap die native evidence: {}", app.root.display());
-    // 16:9, like the owner's 6144x3456 display that the AC-B die-presented frame lays
-    // out (frame C's tray composed into the AC-B panel).
+    // The owner's 3840x2160 display; the AC-B die-presented frame lays it out at
+    // 6144x3456 (frame C's tray composed into the AC-B panel).
     let size = "3840x2160";
     let layout: Value =
         serde_json::from_str(include_str!("../art/atlas/atlas-kidnap-tray.layout.json")).unwrap();
@@ -3798,6 +3834,14 @@ fn native_map_targets_at_the_owner_s_aspect() {
     app.choose("terror");
     let view = app.observe();
     assert_map_agrees(&view);
+    // #50: on the owner's display the counts keep the size the fixed 21 logical pixels
+    // gave them there through Xwayland's scale factor 2 and GNOME's 0.625 shrink.
+    let owner_size_before = 21. * 2. * 0.625;
+    assert_counts_follow_the_window(
+        &view,
+        Some(owner_size_before),
+        (3840f64 / 1920.).min(2160. / 1280.),
+    );
     app.capture("terror-zero-3840x2160");
     app.activate("space:santiago", 1);
     let view = app.observe();
@@ -3815,7 +3859,7 @@ fn native_map_targets_at_the_owner_s_aspect() {
 }
 
 /// #69: the selected AC-B action choice. Native placement matches the FigCraft layout
-/// record within 2 px at 3840×2160 (16:9, like the owner's 6144×3456 frame, ×0.625).
+/// record within 2 px at 3840×2160 (the owner's display: the 6144×3456 frame ×0.625).
 /// Every option, its briefing, the pin, the commit, the BRIEFING ribbon and its tabs
 /// are reached by point, activate and key. Briefing values agree with the observation
 /// before and after a transfer, a Terror and a removal, and no briefing recommends a

@@ -37,4 +37,4 @@ Accepted components are reused: the faction emblems (`atlas-victory-icon-*.png`)
 - **Text widths:** Bevy's Lato advances are narrower than FigCraft's, so hugging buttons are a few pixels narrower and the field sits slightly right.
 - **The pending tab's place** is the proposal's ("top band, right of the standings"); it was not tested against every top-display hover tag.
 - **Seat reach:** the seat types digits through its own keys (the shared seat sends no text, so Bevy's text-input widget cannot take typed input from it) and reaches the slider by a click on its track. Dragging the thumb from the seat needs the shared seat's `drag`, which arrived after Cuba's `unfolded-tabletop` pin.
-- **Display:** legibility at the owner's 6144×3456 is shown by the full-size FigCraft export, not on the owner's display (#16).
+- **Display:** legibility is judged at the owner's display, as [the seat reference](../../docs/agents/seat.md#the-owners-display) describes.

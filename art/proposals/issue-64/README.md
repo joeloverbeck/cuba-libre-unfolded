@@ -1,5 +1,7 @@
 # Action choice and eligibility indicator alternatives
 
+> **Note (2026-11-18, #50):** this record takes the owner's display to be 6144×3456. It is 3840×2160 ([foundation 4](../../../docs/foundation/04-art-and-assets.md)), so pixel sizes given here at 6144×3456 or "owner scale" are 1.6 times what it shows.
+
 These are decision-only studies for [#64](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/64), part of spec [#58](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/58). The owner chooses among them in #58's combined design round (#68). Nothing here is adopted, and nothing changes in production: no runtime code, save, admission manifest or hash file reads these files.
 
 **Authority and constraints.**

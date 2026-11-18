@@ -21,7 +21,7 @@ The selection studies remain in [`../proposals/issue-46/`](../proposals/issue-46
 ## Files
 
 - **Graphics source:** `atlas-top-display.vectorcraft`, authored through the VectorCraft MCP.
-  - Artboards are drawn at 6× the 1920×1280 reference and exported at 0.5, which is 3× the reference, for the owner's 6144×3456 display (2.7×).
+  - Artboards are drawn at 6× the 1920×1280 reference and exported at 0.5, which is 3× the reference. That covers both the 6144×3456 authoring frame (2.7×) and the owner's 3840×2160 display (1.69×).
   - The exception is `tag`, which is drawn at 1× and exported at 2×, like the victory tags.
   - The heraldic eagle master sits off-artboard; the three track markers are copies of it.
 - **Layout source:** `atlas-top-display.figcraft`. It defines the `Atlas` colour variables and the `HUD/*` text styles, and has two frames:
@@ -54,7 +54,7 @@ The ledger rows reuse `atlas-victory-icon-*.png` at 1704,76+31n, 27×27. Values 
   - a fanned tail and gold talons.
 
   Reference: the displayed eagles found by the Commons media search for "american eagle displayed heraldry svg".
-- **Track labels.** 12 px at the reference with −30/1000 em tracking, as the proposal required; about 32 px on the owner's display.
+- **Track labels.** 12 px at the reference with −30/1000 em tracking, as the proposal required; about 20 px on the owner's display.
 
 ## Provenance and limits
 
@@ -63,5 +63,5 @@ The ledger rows reuse `atlas-victory-icon-*.png` at 1704,76+31n, 27×27. Values 
   - FigCraft CLI 0.18.1, rebuilt from `storytold/figcraft@559c952d`, as [art-tools.md](../../docs/agents/art-tools.md) records.
 - **Reader frame:** "CUBA LIBRE" was removed from `atlas-victory-reader.vectorcraft` and the reader re-exported. When the reader is open, the top display is hidden, as it was before.
 - **Title export:** `atlas-layout-title.png` is retired from `layout.sha256`.
-- **Native placement evidence:** 3840×2160 is the development seat's largest 16:9 surface. Legibility at the owner's 6144×3456 is shown by the full-size FigCraft export, and remains the owner's judgement.
+- **Native placement evidence:** at 3840×2160, the owner's display. The owner accepted the top display's legibility on that display in #46; [the seat reference](../../docs/agents/seat.md#the-owners-display) says how to judge it from a capture.
 - **What this establishes:** component and placement evidence, plus the native regression `native_top_display_matches_layout_and_follows_the_economy`. It is not owner play acceptance.

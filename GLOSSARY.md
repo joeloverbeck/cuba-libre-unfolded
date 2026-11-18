@@ -115,3 +115,11 @@ _Avoid_: Graphic, mockup (when referring to the selected arrangement rather than
 **Graphic**:
 A single drawn visual element, such as an icon, marker, region outline, frame or ornament, that a layout places.
 _Avoid_: Layout, asset (when referring only to drawn elements)
+
+**Reference pixels**:
+The units of the 1920×1280 space in which interface sizes and positions are authored.
+_Avoid_: Reference units, design pixels
+
+**Owner's display**:
+The physical monitor on which the owner plays and judges layouts, measured in its own pixels and real size.
+_Avoid_: Owner's screen, owner's monitor

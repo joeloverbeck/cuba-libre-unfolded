@@ -72,4 +72,4 @@ The runtime nine-slices the pills, chips and Cancel. A pill's rounded ends scale
 - **Italic:** the rules line is drawn in Lato Regular, because no italic face is admitted (as in AC-B).
 - **Dimming** is runtime opacity (40 %), as the layout sets it on the waiting rows.
 - **Pill words** are short wordings of observed facts, such as "26JULY HAS 0". The rules authority's full reason is in the tag.
-- **Display:** legibility at the owner's 6144×3456 is shown by the full-size FigCraft export, not on the owner's display (#16).
+- **Display:** legibility is judged at the owner's display, as [the seat reference](../../docs/agents/seat.md#the-owners-display) describes.
