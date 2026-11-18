@@ -52,8 +52,10 @@ fn floats(gltf: &Value, bin: &[u8], accessor: &Value, width: usize) -> Vec<f32> 
     let length = index(&accessor["count"]) * width * 4;
     bin.get(start..start + length)
         .expect("accessor outside the BIN chunk")
-        .chunks_exact(4)
-        .map(|bytes| f32::from_le_bytes(bytes.try_into().unwrap()))
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .map(|bytes| f32::from_le_bytes(*bytes))
         .collect()
 }
 
