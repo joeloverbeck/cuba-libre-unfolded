@@ -45,8 +45,10 @@ echo "native catalogue: $(wc -l <<<"$defined") tests, all listed once"
 # Interface sizes follow the window, never the desktop's scale factor (ADR 0002, #50). A
 # type size or length written as a bare number is fixed in logical pixels; write it in
 # reference pixels and multiply it by the layout scale. Zero and scaled expressions pass.
-# `Px(` covers Val::Px, FontSize::Px, LineHeight::Px and LetterSpacing::Px. The check
-# catches one bare number in these forms; review judges the rest, such as UiRect::px.
+# The check catches a size written as one bare number in `font_size: ….into()` or
+# `font_size = ….into()`, `from_font_size(…)`, `with_font_size(…)`, `px(…)` and the
+# `Px(…)` variants (Val, FontSize, LineHeight, LetterSpacing). Review judges other forms,
+# such as UiRect::px(…) with several numbers or FontSize::from(…).
 literal='-?[0-9._]*[1-9][0-9._]*(f32)?'
 rc=0
 git grep -n -E "font_size *[:=] *$literal\.into\(\)|(from|with)_font_size\($literal\)|\b(px|Px)\($literal\)" -- src || rc=$?
@@ -57,7 +59,7 @@ elif ((rc > 1)); then
   echo "fixed-size search failed: git grep exited $rc" >&2
   exit 1
 fi
-echo "fixed sizes: no bare-number font_size, font-size constructor, px or Px in src/"
+echo "fixed sizes: none of the checked bare-number forms in src/"
 # Agents read Markdown by section, and the Read tool truncates a line past 2,000
 # characters (#91, #95, #97). Prose lines stay at or under 1,000 characters. Fenced
 # code and table rows are skipped; docs/principles/ is the adopted constitution,
