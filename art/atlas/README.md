@@ -73,13 +73,13 @@ The `Atlas` colour variables of the selected FigCraft layouts own the interface 
 
 - **Exports:** `atlas-<layout>.variables.json` is FigCraft's `variable.export` of the layout's `Atlas` collection, in the local variables JSON format that `variable.import` reads. No one edits it by hand. FigCraft CLI 0.18.1 (`storytold/figcraft@44d61a5a`) wrote the current exports in #53.
 - **Source hashes:** `palette-sources.sha256` records each `.figcraft` file's SHA-256 at the time of its export. It is a test record, not a launch manifest.
-- **Check:** the `palette` module of the tabletop declares each runtime colour together with the variable it stands for. Its unit tests fail when a colour differs from that variable in any layout that defines it, when no layout defines the variable, or when a `.figcraft` file no longer has its recorded hash.
+- **Check:** the `palette` module of the tabletop declares each runtime colour together with the variable it stands for. Its unit tests fail when a colour differs from that variable in any layout that defines it, when no layout defines the variable, or when a `.figcraft` file no longer has its recorded hash. `scripts/check` refuses a colour literal anywhere else in `src/` unless its line says `// own colour: <reason>`.
 
 Older VectorCraft-authored components keep their own colours until a layout decision reopens them (foundation 4), so they are not declared there. The victory tag's text colours are an example (`victory.rs`). Piece colours are a separate palette, listed under "Counted solid pieces and shared camera"; two of them equal faction variables, but they do not stand for them.
 
 Some declared variables carry colours that VectorCraft art also paints: `map` is the sea of `atlas-ui.png`, which the viewport's clear colour continues, and `faction/government` and `faction/syndicate` are also the Government and Syndicate colours of `atlas-ui` and `atlas-reader` (their 26July and Directorio colours differ from the variables). Changing one of these in FigCraft therefore also reopens those VectorCraft sources.
 
-**Refreshing after a layout changes.** For each changed `.figcraft`, open it in FigCraft. Then run `variable.export` with `{"collections": ["Atlas"], "format": "json", "path": "<main checkout>/art/atlas/atlas-<layout>.variables.json"}` and move the file into your worktree ([art-tools.md, "File boundaries"](../../docs/agents/art-tools.md#file-boundaries)). Rewrite the hashes from the checkout root:
+**Refreshing after a layout changes.** For each changed `.figcraft`, open it with FigCraft's `file.open` ([art-tools.md, "FigCraft pitfalls"](../../docs/agents/art-tools.md#figcraft-pitfalls)). Then run `variable.export` with `{"collections": ["Atlas"], "format": "json", "path": "<main checkout>/art/atlas/atlas-<layout>.variables.json"}` and move the file into your worktree ([art-tools.md, "File boundaries"](../../docs/agents/art-tools.md#file-boundaries)). Rewrite the hashes from the checkout root:
 
 ```sh
 sources=$(awk '{print $2}' art/atlas/palette-sources.sha256)

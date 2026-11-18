@@ -60,6 +60,22 @@ elif ((rc > 1)); then
   exit 1
 fi
 echo "fixed sizes: none of the checked bare-number forms in src/"
+# Interface colours come from `src/tabletop/palette.rs`, whose tests check each one against
+# the FigCraft `Atlas` variables (#53). #46 copied a near-miss ink from older code, which
+# matches no variable, so only keeping literals out of other files catches it. A colour
+# that is not an Atlas variable stays where it is used, with `// own colour: <reason>` on
+# the literal's line (foundation 4 keeps the older VectorCraft components' colours).
+colour='\b(Color|Srgba|LinearRgba)::(srgb|srgba|srgb_u8|srgba_u8|hex|rgb|rgba|rgb_u8|rgba_u8|new|linear_rgb|linear_rgba)\('
+rc=0
+git grep -n -E -e "$colour" --and --not -e '// own colour: ' -- src ':(exclude)src/tabletop/palette.rs' || rc=$?
+if ((rc == 0)); then
+  echo "colour literals: declare the lines above in palette.rs, or mark each // own colour: <reason>" >&2
+  exit 1
+elif ((rc > 1)); then
+  echo "colour-literal search failed: git grep exited $rc" >&2
+  exit 1
+fi
+echo "colour literals: none outside palette.rs without a reason"
 # Agents read Markdown by section, and the Read tool truncates a line past 2,000
 # characters (#91, #95, #97). Prose lines stay at or under 1,000 characters. Fenced
 # code and table rows are skipped; docs/principles/ is the adopted constitution,

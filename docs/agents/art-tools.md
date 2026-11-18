@@ -4,6 +4,10 @@ Start Claude Code or Codex from this repository's root. `.mcp.json` registers fo
 
 FigCraft authors **layouts** and VectorCraft authors **graphics**; [the art foundation](../foundation/04-art-and-assets.md) owns that division and the layout authority. Hover tags and tooltips are layouts too: author their geometry in FigCraft and implement the runtime against it, as [the top display](../../art/atlas/TOP.md) does.
 
+## FigCraft pitfalls
+
+- **Opening without the tree:** to export or run commands on a document you don't need to inspect, open it with `run_command` `file.open` `{path}`, which returns a short summary (name, pages, layers, images). The `open_file` tool returns the whole current page's layer tree and every style; in #53 that was hundreds of lines per layout. Pass the path as `document` to later `run_command` calls.
+
 ## VectorCraft pitfalls
 
 - **Masters:**
