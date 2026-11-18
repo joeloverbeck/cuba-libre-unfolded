@@ -40,19 +40,24 @@ fn family(choice: &Choice) -> String {
     action.into()
 }
 
+/// The families offered in `game`'s current state.
+fn families(game: &Game) -> BTreeSet<String> {
+    game.observe().choices.iter().map(family).collect()
+}
+
 /// Every family offered in every explored state.
 fn offered() -> BTreeSet<String> {
-    let mut families = BTreeSet::new();
+    let mut offered = BTreeSet::new();
     for (_, start) in explore::starts() {
         for node in explore::explore(start) {
-            families.extend(node.game.observe().choices.iter().map(family));
+            offered.extend(families(&node.game));
         }
     }
-    families
+    offered
 }
 
 /// The ids in the first cell of each row of the Choices table, without their
-/// `<revision>:` prefix.
+/// `<revision>:` prefix. An id listed twice fails, as a set would hide it.
 fn documented() -> BTreeSet<String> {
     let path = concat!(env!("CARGO_MANIFEST_DIR"), "/docs/agents/seat.md");
     let doc = std::fs::read_to_string(path).unwrap_or_else(|e| panic!("{path}: {e}"));
@@ -68,7 +73,10 @@ fn documented() -> BTreeSet<String> {
             let family = id
                 .strip_prefix("<revision>:")
                 .unwrap_or_else(|| panic!("Choices table id `{id}` lacks `<revision>:`"));
-            families.insert(family.to_owned());
+            assert!(
+                families.insert(family.to_owned()),
+                "Choices table lists `{id}` twice"
+            );
         }
     }
     assert!(
@@ -91,23 +99,24 @@ fn the_seat_reference_lists_every_offered_choice_family() {
     );
 }
 
-/// The reduction keeps the families an agent must tell apart, and gives each
-/// parameterised id its placeholders by the authority's own reading.
+/// The reduction keeps `terror:kidnap` apart from `terror:<space>`, and places
+/// Terror, transfer and authorization placeholders by the authority's own reading.
+/// Removal ids are left to the table check, which reaches removal mode.
 #[test]
 fn choice_ids_reduce_to_their_table_families() {
     let mut game = Game::opening_with_seed(19);
-    let opening: BTreeSet<_> = game.observe().choices.iter().map(family).collect();
+    let opening = families(&game);
     assert!(opening.contains("terror:kidnap"), "{opening:?}");
     assert!(!opening.contains("terror:<space>"), "{opening:?}");
     explore::choose(&mut game, "terror");
-    let terror: BTreeSet<_> = game.observe().choices.iter().map(family).collect();
+    let terror = families(&game);
     assert!(terror.contains("terror:<space>"), "{terror:?}");
     assert!(terror.contains("kidnap"), "{terror:?}");
     explore::choose(&mut game, "transfer");
-    let transfer: BTreeSet<_> = game.observe().choices.iter().map(family).collect();
+    let transfer = families(&game);
     assert!(transfer.contains("give:<faction>:<amount>"), "{transfer:?}");
     assert!(transfer.contains("ask:<faction>:<amount>"), "{transfer:?}");
     explore::choose(&mut game, &format!("ask:{}:1", Faction::Syndicate.index()));
-    let deciding: BTreeSet<_> = game.observe().choices.iter().map(family).collect();
+    let deciding = families(&game);
     assert!(deciding.contains("authorize:<amount>"), "{deciding:?}");
 }
