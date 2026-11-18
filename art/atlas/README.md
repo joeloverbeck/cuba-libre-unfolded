@@ -69,7 +69,7 @@ The only accepted imported original images are local `card-17.png` SHA-256 `141f
 
 ## Interface palette
 
-The `Atlas` colour variables of the selected FigCraft layouts own the interface palette ([foundation 4](../../docs/foundation/04-art-and-assets.md), "Layout authority"). Each selected layout, the `.figcraft` files `palette-sources.sha256` lists, keeps its own copy of the collection, so each has an export:
+The `Atlas` colour variables of the selected FigCraft layouts own the interface palette ([foundation 4](../../docs/foundation/04-art-and-assets.md), "Layout authority"). `palette-sources.sha256` lists the selected layouts' `.figcraft` files. Each layout keeps its own copy of the collection, so each has an export:
 
 - **Exports:** `atlas-<layout>.variables.json` is FigCraft's `variable.export` of the layout's `Atlas` collection, in the local variables JSON format that `variable.import` reads. No one edits it by hand. FigCraft CLI 0.18.1 (`storytold/figcraft@44d61a5a`) wrote the current exports in #53.
 - **Source hashes:** `palette-sources.sha256` records each `.figcraft` file's SHA-256 at the time of its export. It is a test record, not a launch manifest.
@@ -77,13 +77,13 @@ The `Atlas` colour variables of the selected FigCraft layouts own the interface 
 
 Older VectorCraft-authored components keep their own colours until a layout decision reopens them (foundation 4), so they are not declared there. The victory tag's text colours are an example (`victory.rs`). Piece colours are a separate palette, listed under "Counted solid pieces and shared camera"; two of them equal faction variables, but they do not stand for them.
 
-Some declared variables carry colours that VectorCraft art also paints: `map` is the sea of `atlas-ui.png`, which the viewport's clear colour continues, and the faction variables are the victory display's faction identity colours. Changing one of them in FigCraft therefore also reopens that VectorCraft art.
+Some declared variables carry colours that VectorCraft art also paints: `map` is the sea of `atlas-ui.png`, which the viewport's clear colour continues, and the faction variables are the faction identity colours of `atlas-ui` and `atlas-reader`. Changing one of them in FigCraft therefore also reopens those VectorCraft sources.
 
 **Refreshing after a layout changes.** For each changed `.figcraft`, open it in FigCraft. Then run `variable.export` with `{"collections": ["Atlas"], "format": "json", "path": "<main checkout>/art/atlas/atlas-<layout>.variables.json"}` and move the file into your worktree ([art-tools.md, "File boundaries"](../../docs/agents/art-tools.md#file-boundaries)). Rewrite the hashes from the checkout root:
 
 ```sh
-sha256sum $(awk '{print $2}' art/atlas/palette-sources.sha256) > local/palette-sources.sha256
-mv local/palette-sources.sha256 art/atlas/palette-sources.sha256
+sources=$(awk '{print $2}' art/atlas/palette-sources.sha256)
+sha256sum $sources > art/atlas/palette-sources.sha256
 ```
 
 The hashes only prove which source an export was taken from, so always re-export before rewriting them. A newly selected layout gets a line in `palette-sources.sha256` and an entry in the `palette` tests' export list; the tests check that the two agree. A colour the runtime newly takes from a variable joins the module's declarations.
