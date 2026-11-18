@@ -24,7 +24,7 @@ The selection studies remain in [`../proposals/issue-46/`](../proposals/issue-46
   - Artboards are drawn at 6× the 1920×1280 reference and exported at 0.5, which is 3× the reference. That covers both the 6144×3456 authoring frame (2.7×) and the owner's 3840×2160 display (1.69×).
   - The exception is `tag`, which is drawn at 1× and exported at 2×, like the victory tags.
   - The heraldic eagle master sits off-artboard; the three track markers are copies of it.
-- **Layout source:** `atlas-top-display.figcraft`. It defines the `Atlas` colour variables and the `HUD/*` text styles, and has two frames:
+- **Layout source:** `atlas-top-display.figcraft`. It defines the `Atlas` colour variables (checked against the runtime as [README.md, "Interface palette"](README.md#interface-palette) describes) and the `HUD/*` text styles, and has two frames:
   - **16:9 frame (6144×3456):** the existing areas are locked context rectangles; the new parts are placed exports, each named as the runtime names it. Its full-size export is `atlas-top-display-layout.png`.
   - **`hover tag` frame:** the tag geometry the runtime implements: width 468, title, rule, rows from 76 in steps of 28, a value column at 230, notes after a 12 px gap at 23 px per line, and the placement rule. Its export is `atlas-top-display-tag.png`.
 - **Layout record:** `atlas-top-display.layout.json` records each part's FigCraft `absoluteBounds`. The native regression compares the running app with it: images on all four edges, text on left, top and right.

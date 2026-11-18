@@ -67,6 +67,24 @@ Fresh sibling inspection: Arkham `8301466b5bbc20b99411901cfcd6db2b29865431` (`sr
 
 The only accepted imported original images are local `card-17.png` SHA-256 `141f592b5dee5a8c7a6d26651410b0ee1171a7dcf2c2b5331a63b48407cec9ab` and `card-18.png` SHA-256 `50df7058e660bb4dc620096823945eeb095fe4123e0aead68fec6244ab097c4e`. They remain outside Git. #12 must document the application-owned input location, hash-check both before gameplay, report absent/mismatched inputs clearly and keep input-independent rule tests available. No installer, art upload or redistribution is authorized here. The prior local reader probes preserved full edges, original proportions and original black corner pixels; native rendering and readability must still be inspected.
 
+## Interface palette
+
+The `Atlas` colour variables of the selected FigCraft layouts own the interface palette ([foundation 4](../../docs/foundation/04-art-and-assets.md), "Layout authority"). Each of the six layouts (`atlas-action-choice`, `atlas-eligibility`, `atlas-execution`, `atlas-popover`, `atlas-top-display`, `atlas-transfer`) keeps its own copy of the collection, so each has an export:
+
+- **Exports:** `atlas-<layout>.variables.json` is FigCraft's `variable.export` of the layout's `Atlas` collection, in the local variables JSON format that `variable.import` reads. No one edits it by hand. FigCraft CLI 0.18.1 (`storytold/figcraft@44d61a5a`) wrote the current exports in #53.
+- **Source hashes:** `palette-sources.sha256` records each `.figcraft` file's SHA-256 at the time of its export. It is a test record, not a launch manifest.
+- **Check:** the `palette` module of the tabletop declares each runtime colour together with the variable it stands for. Its unit tests fail when a colour differs from that variable in any layout that defines it, when no layout defines the variable, or when a `.figcraft` file no longer has its recorded hash.
+
+Older VectorCraft-authored components keep their own colours until a layout decision reopens them (foundation 4), so they are not declared there. The victory tag's ink `#1e3239` is one of them. Piece colours are a separate palette, listed under "Counted solid pieces and shared camera".
+
+**Refreshing after a layout changes.** For each changed `.figcraft`, open it in FigCraft. Then run `variable.export` with `{"collections": ["Atlas"], "format": "json", "path": "<main checkout>/art/atlas/atlas-<layout>.variables.json"}` and move the file into your worktree ([art-tools.md, "File boundaries"](../../docs/agents/art-tools.md#file-boundaries)). Rewrite the hashes from the checkout root:
+
+```sh
+sha256sum art/atlas/atlas-{action-choice,eligibility,execution,popover,top-display,transfer}.figcraft > art/atlas/palette-sources.sha256
+```
+
+A newly selected layout joins the export list in the `palette` tests and in that command. A colour the runtime newly takes from a variable joins the module's declarations.
+
 ## Launch admission
 
 Before it creates or replaces a save, the app checks every manifest that `src/assets.rs` lists in `MANIFESTS`, decodes the PNGs, registers the fonts and admits the real scene and render path. A missing or altered asset refuses at launch.

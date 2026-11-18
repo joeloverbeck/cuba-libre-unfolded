@@ -376,7 +376,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         // art/stage/preview-stage.blend mirrors this home framing; update it too.
         .insert_resource(Orbit::new(Framing::new(Vec3::new(0.35, 0., 0.35), 9.6)))
         // Atlas SVG map rim fill; the viewport continues the authored sea.
-        .insert_resource(ClearColor(Color::srgb_u8(216, 231, 227)))
+        .insert_resource(ClearColor(palette::MAP))
         .add_plugins((
             MeshPickingPlugin,
             LabelAnchorPlugin,

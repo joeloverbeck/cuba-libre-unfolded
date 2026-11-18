@@ -24,7 +24,7 @@
 //!   content area below the BRIEFING ribbon, and Continue takes AC-B's primary action.
 //!
 //! [ADR 0001]: ../../../docs/adr/0001-baked-die-tumbles-land-on-the-committed-face.md
-use super::palette::{INK, QUIET};
+use super::palette::{DESK, INK, QUIET};
 use super::*;
 use bevy::{camera::visibility::RenderLayers, light::CascadeShadowConfigBuilder};
 use serde_json::{Value, json};
@@ -438,9 +438,9 @@ fn spawn_stage(commands: &mut Commands, art: &DieArt, revision: u64, face: u8, w
                     far: 5.,
                     ..default()
                 }),
-                // #67's preview world: a warm desk fill (#eee9dc).
+                // #67's preview world: a warm desk fill.
                 AmbientLight {
-                    color: Color::srgb_u8(0xee, 0xe9, 0xdc),
+                    color: DESK,
                     brightness: 400.,
                     ..default()
                 },
