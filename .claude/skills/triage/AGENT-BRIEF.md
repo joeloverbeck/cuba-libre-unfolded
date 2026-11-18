@@ -32,6 +32,8 @@ The agent needs to know when it's done. Every agent brief must have concrete, te
 - **Good:** "Running `gh issue list --label needs-triage` returns issues that have been through initial classification"
 - **Bad:** "Triage should work correctly"
 
+A criterion that nothing of a kind remains across the repository ("no doc calls X Y") names the files it covers and any it excludes. Dated records, such as finished design rounds and research notes, are history: a correction annotates them rather than rewriting them.
+
 ### Explicit scope boundaries
 
 State what is out of scope. This prevents the agent from gold-plating or making assumptions about adjacent features.
