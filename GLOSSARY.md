@@ -122,4 +122,4 @@ _Avoid_: Reference units, design pixels
 
 **Owner's display**:
 The physical monitor on which the owner plays and judges layouts, measured in its own pixels and real size.
-_Avoid_: Owner scale
+_Avoid_: Owner's screen, owner's monitor
