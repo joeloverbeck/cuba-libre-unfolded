@@ -596,14 +596,14 @@ fn sync_pieces(
             let color = match piece.faction {
                 Faction::Government => {
                     if piece.kind == Kind::Police {
-                        Color::srgb_u8(143, 185, 210)
+                        Color::srgb_u8(143, 185, 210) // own colour: piece palette (art/atlas/README.md)
                     } else {
-                        Color::srgb_u8(49, 111, 156)
+                        Color::srgb_u8(49, 111, 156) // own colour: piece palette (art/atlas/README.md)
                     }
                 }
-                Faction::M26 => Color::srgb_u8(180, 60, 54),
-                Faction::Directorio => Color::srgb_u8(228, 189, 70),
-                Faction::Syndicate => Color::srgb_u8(65, 117, 87),
+                Faction::M26 => Color::srgb_u8(180, 60, 54), // own colour: piece palette (art/atlas/README.md)
+                Faction::Directorio => Color::srgb_u8(228, 189, 70), // own colour: piece palette (art/atlas/README.md)
+                Faction::Syndicate => Color::srgb_u8(65, 117, 87), // own colour: piece palette (art/atlas/README.md)
             };
             let height = match piece.kind {
                 Kind::Guerrilla => 0.12,
@@ -680,7 +680,7 @@ fn sync_pieces(
                 ),
                 status::SpaceTarget(space.id.clone()),
                 count_font(&art),
-                TextColor(Color::srgb(0.08, 0.08, 0.06)),
+                TextColor(Color::srgb(0.08, 0.08, 0.06)), // own colour: Atlas desk map counts (foundation 4)
                 GlobalZIndex(-1),
             ));
         }
@@ -709,7 +709,7 @@ fn sync_pieces(
                 count(space.terror.to_string(), token, Vec3::new(0., 0.33, 0.)),
                 status::SpaceTarget(space.id.clone()),
                 count_font(&art),
-                TextColor(Color::srgb(0.08, 0.08, 0.06)),
+                TextColor(Color::srgb(0.08, 0.08, 0.06)), // own colour: Atlas desk map counts (foundation 4)
                 GlobalZIndex(-1),
             ));
         }
@@ -1307,7 +1307,7 @@ fn text(
         art,
         content,
         &art.font,
-        Color::srgb(0.12, 0.14, 0.12),
+        Color::srgb(0.12, 0.14, 0.12), // own colour: Atlas desk text (foundation 4)
         [x, y, w, size],
         scale,
         offset,
@@ -1449,7 +1449,7 @@ fn control(
     );
     commands
         .entity(words)
-        .insert(TextColor(Color::srgb(0.98, 0.97, 0.92)));
+        .insert(TextColor(Color::srgb(0.98, 0.97, 0.92))); // own colour: Atlas desk button label (foundation 4)
 }
 #[allow(clippy::too_many_arguments)]
 fn draw_ui(

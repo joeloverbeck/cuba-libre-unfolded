@@ -6,6 +6,8 @@ Several agents can share this machine at once: implementers in their own worktre
 
 The main checkout stays on `main`. Commit, switch branches and edit tracked files only in a worktree under `local/worktrees/<branch>`.
 
+After the merge, work from the main checkout: pull `main`, then `git worktree remove local/worktrees/<branch>`, `git branch -d <branch>`, and its target goes as "Disk" below says. A shell still inside the removed worktree loses its working directory and refuses the next command.
+
 ## Builds
 
 - **Private target.** Each worktree builds into its own `CARGO_TARGET_DIR=<main checkout>/local/target-<branch>`, with the branch's slashes as dashes; `scripts/heavy` sets it. In a shared target the last build's `cuba-libre` and test binaries replace another worktree's, so a native run can execute another branch's code. Before trusting a native result, confirm that its test list includes a test only your branch has.
