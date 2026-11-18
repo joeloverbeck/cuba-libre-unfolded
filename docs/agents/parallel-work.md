@@ -6,7 +6,7 @@ Several agents can share this machine at once: implementers in their own worktre
 
 The main checkout stays on `main`. Commit, switch branches and edit tracked files only in a worktree under `local/worktrees/<branch>`.
 
-After the merge, work from the main checkout: pull `main`, then `git worktree remove local/worktrees/<branch>`, `git branch -d <branch>`, and delete `local/target-<branch>` ("Disk" below). A shell still inside the removed worktree loses its working directory and refuses the next command.
+After the merge, work from the main checkout: pull `main`, then `git worktree remove local/worktrees/<branch>`, `git branch -d <branch>`, and its target goes as "Disk" below says. A shell still inside the removed worktree loses its working directory and refuses the next command.
 
 ## Builds
 

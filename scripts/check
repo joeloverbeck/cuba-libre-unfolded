@@ -64,8 +64,12 @@ echo "fixed sizes: none of the checked bare-number forms in src/"
 # the FigCraft `Atlas` variables (#53). #46 copied a near-miss ink from older code, which
 # matches no variable, so only keeping literals out of other files catches it. A colour
 # that is not an Atlas variable stays where it is used, with `// own colour: <reason>` on
-# the literal's line (foundation 4 keeps the older VectorCraft components' colours).
-colour='\b(Color|Srgba|LinearRgba)::(srgb|srgba|srgb_u8|srgba_u8|hex|rgb|rgba|rgb_u8|rgba_u8|new|linear_rgb|linear_rgba)\('
+# the literal's line (foundation 4 keeps the older VectorCraft components' colours). The
+# check catches bevy_color's RGB constructors: `Color::srgb`, `srgba`, `srgb_u8`,
+# `srgba_u8`, `srgb_u32`, `srgba_u32`, `srgb_from_array`, `linear_rgb` and `linear_rgba`;
+# `Srgba::new`, `rgb`, `rgb_u8`, `rgba_u8` and `hex`; `LinearRgba::new` and `rgb`. Review
+# judges other forms, such as hsl/oklch constructors, struct literals and named constants.
+colour='\b(Color::(srgba?(_u8|_u32|_from_array)?|linear_rgba?)|Srgba::(new|rgb|rgb_u8|rgba_u8|hex)|LinearRgba::(new|rgb))\('
 rc=0
 git grep -n -E -e "$colour" --and --not -e '// own colour: ' -- src ':(exclude)src/tabletop/palette.rs' || rc=$?
 if ((rc == 0)); then

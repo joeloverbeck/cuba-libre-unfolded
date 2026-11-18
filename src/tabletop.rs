@@ -601,9 +601,9 @@ fn sync_pieces(
                         Color::srgb_u8(49, 111, 156) // own colour: piece palette (art/atlas/README.md)
                     }
                 }
-                Faction::M26 => Color::srgb_u8(180, 60, 54), // own colour: piece palette
-                Faction::Directorio => Color::srgb_u8(228, 189, 70), // own colour: piece palette
-                Faction::Syndicate => Color::srgb_u8(65, 117, 87), // own colour: piece palette
+                Faction::M26 => Color::srgb_u8(180, 60, 54), // own colour: piece palette (art/atlas/README.md)
+                Faction::Directorio => Color::srgb_u8(228, 189, 70), // own colour: piece palette (art/atlas/README.md)
+                Faction::Syndicate => Color::srgb_u8(65, 117, 87), // own colour: piece palette (art/atlas/README.md)
             };
             let height = match piece.kind {
                 Kind::Guerrilla => 0.12,
