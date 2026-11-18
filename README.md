@@ -7,7 +7,7 @@ An Ubuntu Rust desktop implementation of **Cuba Libre**, the COIN game by Jeff G
 ## Build and launch
 
 **Requirements:**
-- Rust 1.97.1, pinned in `rust-toolchain.toml`.
+- Rust 1.100.0, pinned in `rust-toolchain.toml`.
 - For the `tabletop` feature (the desktop app): Bevy 0.20.0, an X11 desktop, a Vulkan-capable graphics driver, the ordinary C/C++ build tools and the X11 development libraries Bevy uses.
 - Network access for the first build's Cargo dependencies. Sibling working trees are not needed: `Cargo.toml` and `Cargo.lock` pin the shared dependency and the root renderer patch.
 
