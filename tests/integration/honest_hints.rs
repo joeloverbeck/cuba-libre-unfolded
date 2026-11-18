@@ -10,10 +10,8 @@
 //! The oracle is reachability through the authority's own offered decisions, not the
 //! remedies' wording; the states explored are `support/explore.rs`'s. A disabled
 //! choice is judged where that path's one transfer is still unused.
-#[path = "../support/explore.rs"]
-mod explore;
+use crate::explore::{Node, action, choose, explore, reachable, starts};
 use cuba_libre_unfolded::{Choice, Faction, Game, TransferChoice};
-use explore::{Node, action, choose, explore, reachable, starts};
 use std::collections::BTreeSet;
 
 /// Every dishonest hint among the explored states, by label.
