@@ -5,6 +5,13 @@
 //!
 //! Run one module with a name filter, e.g.
 //! `cargo test --locked --test integration seat_brief::`.
+
+/// The task's reachable states, which `honest_hints` and `seat_reference` share. It
+/// is loaded once here: Clippy refuses one file loaded as two modules of a binary.
+#[path = "../support/explore.rs"]
+mod explore;
+use cuba_libre_unfolded::{Choice, Faction, Game, TransferChoice};
+
 mod action_choice;
 mod eligibility;
 mod highlights;
@@ -18,6 +25,7 @@ mod position;
 mod previews;
 mod removal;
 mod seat_brief;
+mod seat_reference;
 mod terror;
 mod terror_token;
 mod transfers;

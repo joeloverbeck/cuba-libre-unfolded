@@ -1,6 +1,6 @@
 //! The task's reachable states through the authority's own offered decisions, shared
-//! by `tests/integration/honest_hints.rs` and the panel's discovery test
-//! (`src/tabletop/discovery.rs`). The includer brings `Choice`, `Faction`, `Game`
+//! by the integration tests (`honest_hints`, `seat_reference`) and the panel's
+//! discovery test (`src/tabletop/discovery.rs`). The includer brings `Choice`, `Faction`, `Game`
 //! and `TransferChoice` into scope.
 //!
 //! From each start, every state reachable through offered decisions is explored,
