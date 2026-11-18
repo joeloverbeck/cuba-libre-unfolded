@@ -11,7 +11,7 @@
 
 **Order**:
 {A one or two sentence description of the term}
-_Avoid_: Purchase, transaction
+_Avoid_: Purchase
 
 **Invoice**:
 A request for payment sent to a customer after delivery.
@@ -19,7 +19,7 @@ _Avoid_: Bill, payment request
 
 **Customer**:
 A person or organization that places orders.
-_Avoid_: Client, buyer, account
+_Avoid_: Client, buyer
 ```
 
 ## Rules
