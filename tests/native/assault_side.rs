@@ -34,7 +34,7 @@ fn native_assault_resumes_giver_and_government_side_decisions() {
         fs::write(&app.save, bytes).unwrap();
         fs::copy(previous_path(source), previous_path(&app.save)).unwrap();
     } else {
-        super::assault::fund_santiago(&app.save);
+        super::assault::fund_santiago(&app.save, 1);
     }
     let initial = Session::open(&app.save, None).unwrap().observe();
     let m26 = initial.resources[1];
@@ -56,11 +56,13 @@ fn native_assault_resumes_giver_and_government_side_decisions() {
         "the transfer must name Government's current Operation"
     );
     app.capture("government-transfer-compose");
-    app.choose("give:3:1");
+    app.choose("give:3:2");
     assert_eq!(
         app.observe()["observation"]["resources"],
-        json!([1, m26, directorio, 16])
+        json!([0, m26, directorio, 17])
     );
+    let after_give = app.observe()["observation"].clone();
+    let (gave, before_giving) = records(&app);
     choose_row(&mut app, "transfer");
     app.choose("ask:1:1");
     let authorized_before = app.observe()["observation"].clone();
@@ -68,22 +70,22 @@ fn native_assault_resumes_giver_and_government_side_decisions() {
     assert_eq!(authorized_before["executing"], "Government");
     assert_eq!(
         authorized_before["resources"],
-        json!([1, m26, directorio, 16])
+        json!([0, m26, directorio, 17])
     );
     app.choose("wait");
     let waiting = app.observe()["observation"].clone();
     assert_eq!(waiting["transfer"]["Authorizing"]["waited"], true);
-    restart_pending(&mut app, &waiting, Faction::Government, "authorize:2");
+    restart_pending(&mut app, &waiting, Faction::Government, "authorize:3");
     app.choose("reopen");
     assert_eq!(app.observe()["table"]["transfer"]["state"]["shown"], true);
     app.capture("26july-authorizes-government-request");
     let giver = app.observe()["observation"].clone();
-    app.choose("authorize:2");
+    app.choose("authorize:3");
     let receipt = app.observe()["observation"].clone();
     assert_eq!(receipt["owner"], "Government");
-    assert_eq!(receipt["resources"], json!([3, m26 - 2, directorio, 16]));
+    assert_eq!(receipt["resources"], json!([3, m26 - 3, directorio, 17]));
     assert_eq!(receipt["transfer"], Value::Null);
-    refuse_repeat(&mut app, &giver, &receipt, "authorize:2");
+    refuse_repeat(&mut app, &giver, &receipt, "authorize:3");
 
     choose_row(&mut app, "remove");
     let removal = app.observe()["observation"].clone();
@@ -121,20 +123,8 @@ fn native_assault_resumes_giver_and_government_side_decisions() {
     refuse_repeat(&mut app, &removal, &committed, action);
 
     choose_row(&mut app, "done-removal");
-    if app.observe()["observation"]["choices"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .any(|choice| {
-            choice["id"]
-                .as_str()
-                .unwrap()
-                .ends_with(":assault:areas:cities")
-        })
-    {
-        choose_row(&mut app, "assault:areas:cities");
-        choose_row(&mut app, "assault:space:santiago");
-    }
+    choose_row(&mut app, "assault:areas:cities");
+    choose_row(&mut app, "assault:space:santiago");
     let payment = "assault:santiago:26july";
     pin(&mut app, payment);
     let contents = tag_text(&app.observe()["table"]["briefing"]);
@@ -143,7 +133,7 @@ fn native_assault_resumes_giver_and_government_side_decisions() {
     app.capture("santiago-recalculated-payment");
     app.choose(payment);
     let paid = app.observe()["observation"].clone();
-    assert_eq!(paid["resources"], json!([1, m26 - 2, directorio, 16]));
+    assert_eq!(paid["resources"], json!([1, m26 - 3, directorio, 17]));
     assert_eq!(
         paid["available_piece_count"],
         committed["available_piece_count"].as_u64().unwrap() + 1
@@ -158,6 +148,24 @@ fn native_assault_resumes_giver_and_government_side_decisions() {
     assert_eq!(handoff["resources"], paid["resources"]);
     pin(&mut app, "syndicate:limited-operation");
     app.capture("syndicate-second-decision");
+    app.quit();
+
+    // Resume a copy taken after Government gave away all its Resources.
+    app.save = app.root.join("zero-space.json");
+    fs::write(&app.save, gave).unwrap();
+    fs::write(previous_path(&app.save), before_giving).unwrap();
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["observation"], after_give);
+    choose_row(&mut app, "end-assault");
+    let zero_space = app.observe()["observation"].clone();
+    assert_eq!(zero_space["resources"], json!([0, m26, directorio, 17]));
+    assert_eq!(zero_space["spaces"], after_give["spaces"]);
+    assert_eq!(zero_space["available"], after_give["available"]);
+    assert_eq!(zero_space["assault_result"], Value::Null);
+    assert_eq!(zero_space["owner"], "Syndicate");
+    assert_eq!(zero_space["next"]["role"], "2nd Eligible");
+    assert_eq!(zero_space["eligibility"]["government_box"], "OperationOnly");
+    app.capture("zero-space-after-give");
     app.quit();
 }
 

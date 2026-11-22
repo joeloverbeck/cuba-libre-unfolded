@@ -250,8 +250,8 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                         }
                     }),
                 "terror" => "Choose Terror".into(),
-                "assault:santiago:26july" => {
-                    format!("Pay {} · Assault Santiago", resources(view.alliance.coin_cost()))
+                action if crate::Game::assault_payment_space(action).is_some() => {
+                    format!("Pay {} · Assault", resources(view.alliance.coin_cost()))
                 }
                 "event:shaded" => "Choose shaded Event".into(),
                 "event:unshaded" => "Choose unshaded Event".into(),
@@ -262,7 +262,9 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
             enabled: true,
         },
         Some(c) => {
-            let label = if view.current_card == 18 {
+            let label = if crate::Game::assault_payment_space(c.action()).is_some() {
+                format!("Cannot pay {}", resources(view.alliance.coin_cost()))
+            } else if view.current_card == 18 {
                 "Inspection only".into()
             } else if view.eligibility.directorio_handoff() {
                 format!("{} is outside this task", c.label)
@@ -357,6 +359,16 @@ fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool) -> St
             return "Select a marked piece on the map.\nChoose Done to return to Assault.".into();
         }
         if executor == Faction::Government && view.executing.is_some() {
+            if let Some(space) = view.choices.iter().find_map(|choice| {
+                let id = crate::Game::assault_payment_space(choice.action())?;
+                view.spaces.iter().find(|space| space.id == id)
+            }) {
+                return format!(
+                    "{} · Select targets\n{balance} · {} per space",
+                    space.name,
+                    resources(view.alliance.coin_cost())
+                );
+            }
             return view.assault_result.as_ref().map_or_else(
                 || {
                     format!(
@@ -367,7 +379,8 @@ fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool) -> St
                 },
                 |result| {
                     format!(
-                        "Santiago · paid {} · {balance} left\n{}",
+                        "{} · paid {} · {balance} left\n{}",
+                        result.space_name(),
                         resources(result.paid),
                         result.removal_summary(),
                     )

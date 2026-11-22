@@ -45,11 +45,8 @@ fn funded_opening() -> Game {
 }
 
 fn santiago_target(game: &mut Game) -> Observation {
-    let has = |game: &Game, action| game.observe().choices.iter().any(|c| c.action() == action);
-    if has(game, "assault:areas:cities") {
-        choose(game, "assault:areas:cities");
-        choose(game, "assault:space:santiago");
-    }
+    choose(game, "assault:areas:cities");
+    choose(game, "assault:space:santiago");
     game.observe()
 }
 
@@ -72,12 +69,23 @@ fn only_the_giver_can_fund_the_next_assault_payment() {
     choose(&mut game, "transfer");
     choose(&mut game, "give:1:2");
     assert_eq!(game.observe().resources, [0, 5, 5, 15]);
+    let mut zero_space = game.clone();
+    let carried = zero_space.observe();
+    choose(&mut zero_space, "end-assault");
+    let completed = reload(&zero_space).observe();
+    assert_eq!(completed.resources, [0, 5, 5, 15]);
+    assert_eq!(completed.spaces, carried.spaces);
+    assert_eq!(completed.available, carried.available);
+    assert!(completed.assault_result.is_none());
+    assert_eq!(completed.next.unwrap().role, "2nd Eligible");
+    refuse(&mut zero_space, G, "transfer");
+
     let unfunded = santiago_target(&mut game.clone());
     let payment = unfunded
         .choices
         .iter()
         .find(|c| c.action() == "assault:santiago:26july");
-    assert!(payment.is_none_or(|p| !p.supported && p.preview.is_none()));
+    assert!(payment.is_some_and(|p| !p.supported && p.preview.is_none()));
 
     choose(&mut game, "transfer");
     choose(&mut game, "ask:1:1");

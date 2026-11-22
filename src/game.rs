@@ -696,7 +696,7 @@ pub struct Preview {
     /// Pieces that change state in place, such as an Underground Guerrilla flipped to
     /// Active (Activate, R 1.4.3).
     pub flips: Vec<Flip>,
-    /// Own pieces returned to Available (Voluntary removal, R 1.4.1).
+    /// Pieces returned to Available Forces by this decision.
     pub removed: Vec<Returned>,
     /// Spaces that receive a Terror marker.
     pub terror: Vec<String>,
@@ -1205,7 +1205,7 @@ impl Game {
             _ if action.starts_with("terror:")
                 || (action.starts_with("rally:")
                     && matches!(self.event, Some(EventProgress::Rally(_))))
-                || action.starts_with("assault:")
+                || Self::assault_payment_space(action).is_some()
                 || action == "end-assault"
                 || choice.removal().is_some() =>
             {

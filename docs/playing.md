@@ -94,7 +94,9 @@ Hover or focus Government's options to see what the rules allow and why a choice
 
 Syndicate takes over as 1st Eligible on Pact of Caracas. Inspect its Pass, Event, Operations and Special Activities.
 
-With at least 2 Resources under Firm US Alliance, choose **Assault · Operation Only**. Pin **Santiago · target 26July** to see the City's removal capacity and which Guerrillas the payment will return to Available Forces. Commit the payment to resolve Santiago, then choose **Finish Assault** to record Operation Only. Syndicate can inspect its Pass and Limited Operation as 2nd Eligible.
+Choose **Assault · Operation Only**, then choose **Cities**, **Provinces**, or **Economic Centers** and a space. Pin a target to see how many pieces the local Troops, Police and terrain let you affect, what remains protected, and what the payment will do. In Havana, targeting Syndicate closes the open Casino in place. In Santiago, the Event determines whether one or two 26July Guerrillas return to Available Forces.
+
+Under Firm US Alliance, each payment costs 2 Resources and resolves that space once. Continue in any order you can afford, or choose **Finish Assault**. Government may finish without paying for a space under the [card 18 local policy](local-rule-policies.md#zero-space-government-assault-on-card-18). Government earns no Pass income and Syndicate can inspect Pass and Limited Operation as 2nd Eligible.
 
 Once Government opens Assault, **Resource transfer** lets Government give or request Resources. Pending requests keep their giver's decision across a restart. The authorized amount changes the balance available for the next space.
 

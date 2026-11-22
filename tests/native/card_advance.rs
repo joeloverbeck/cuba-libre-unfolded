@@ -139,18 +139,7 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
                 briefing_text.contains("1 Resource and cannot pay"),
                 "{briefing_text}"
             );
-            let opening_bytes = fs::read(&app.save).unwrap();
-            app.activate("choice-commit", revision + 1);
-            let refused = app.observe();
-            assert!(
-                refused["table"]["notice"]
-                    .as_str()
-                    .unwrap()
-                    .contains("1 Resource and cannot pay")
-            );
-            assert_eq!(refused["observation"], *after);
-            assert_eq!(fs::read(&app.save).unwrap(), opening_bytes);
-            assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
+            assert!(briefing_text.contains("A zero-space Assault earns no Resources"));
         }
         app.capture("card-18-assault-briefing");
         app.activate("reader", revision + 1);
@@ -170,6 +159,62 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
         assert_eq!(fs::read(&app.save).unwrap(), advanced);
         assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
         app.capture("card-18-restarted");
+        if retained.is_some() {
+            for action in [
+                "government:assault",
+                "assault:areas:cities",
+                "assault:space:santiago",
+            ] {
+                let current = app.observe()["observation"]["revision"].as_u64().unwrap();
+                app.activate(&format!("option:{action}"), current);
+                app.choose(action);
+            }
+            let pending = app.observe()["observation"].clone();
+            let payment_revision = pending["revision"].as_u64().unwrap();
+            let active = fs::read(&app.save).unwrap();
+            let previous = fs::read(previous_path(&app.save)).unwrap();
+            app.activate("option:assault:santiago:26july", payment_revision);
+            assert!(
+                tag_text(&app.observe()["table"]["briefing"])
+                    .contains("1 Resource and cannot pay 2 Resources")
+            );
+            app.activate("choice-commit", payment_revision);
+            let refused = app.observe();
+            assert!(
+                refused["table"]["notice"]
+                    .as_str()
+                    .unwrap()
+                    .contains("1 Resource and cannot pay 2 Resources")
+            );
+            assert_eq!(refused["observation"], pending);
+            assert_eq!(fs::read(&app.save).unwrap(), active);
+            assert_eq!(fs::read(previous_path(&app.save)).unwrap(), previous);
+            app.capture("unfunded-assault-payment-refused");
+
+            for action in ["assault:back", "assault:back", "end-assault"] {
+                let current = app.observe()["observation"]["revision"].as_u64().unwrap();
+                app.activate(&format!("option:{action}"), current);
+                if action == "end-assault" {
+                    let explanation = tag_text(&app.observe()["table"]["briefing"]);
+                    assert!(explanation.contains("earns no Pass Resources (local policy)"));
+                    app.capture("zero-space-assault-preview");
+                }
+                app.choose(action);
+            }
+            let handoff = app.observe()["observation"].clone();
+            assert_eq!(handoff["current_card"], 18);
+            assert_eq!(handoff["resources"], after["resources"]);
+            assert_eq!(handoff["spaces"], after["spaces"]);
+            assert_eq!(handoff["available"], after["available"]);
+            assert_eq!(handoff["eligibility"]["government_box"], "OperationOnly");
+            assert_eq!(handoff["owner"], "Syndicate");
+            assert_eq!(handoff["next"]["role"], "2nd Eligible");
+            assert_eq!(
+                handoff["next"]["options"],
+                json!(["Pass", "Limited Operation"])
+            );
+            app.capture("zero-space-assault-handoff");
+        }
         app.quit();
     }
 }
@@ -236,9 +281,9 @@ fn native_government_pass_credits_once_and_hands_first_choice_to_syndicate() {
             let refusal = tag_text(&app.observe()["table"]["briefing"]);
             assert!(refusal.contains("2 Resources per space"), "{refusal}");
             assert!(refusal.contains("1 Resource and cannot pay"), "{refusal}");
-            app.request(
-                json!({"op":"activate","revision":revision,"choice":format!("{revision}:government:assault")}),
-                false,
+            assert!(
+                refusal.contains("A zero-space Assault earns no Resources"),
+                "{refusal}"
             );
         }
         app.activate("option:government:pass", revision);
