@@ -137,7 +137,7 @@ A single drawn visual element, such as an icon, marker, region outline, frame or
 _Avoid_: Layout, asset (when referring only to drawn elements)
 
 **Reference pixels**:
-The units of the 1920×1280 space in which interface sizes and positions are authored.
+The unit in which interface sizes are authored, and in which an interface area's distance from the window edge or centre it is anchored to is kept. One reference pixel is the smaller of the window's width divided by 1920 and its height divided by 1280; on the owner's display it is 1.6875 pixels.
 _Avoid_: Reference units, design pixels
 
 **Owner's display**:

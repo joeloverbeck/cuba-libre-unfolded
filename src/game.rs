@@ -3,8 +3,12 @@ use serde::{Deserialize, Serialize};
 use unfolded_random::SeededRandom;
 
 mod assault;
+mod cards;
 mod rally;
 pub use assault::AssaultResolution;
+pub use cards::{
+    CardFacts, CardWords, EventKind, EventStatus, EventText, LastingEffect, Role, ShownCards,
+};
 pub use rally::{Rally, RallyAction, RallyResolution};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -285,7 +289,6 @@ impl EventProgress {
             _ => None,
         }
     }
-    #[cfg(feature = "tabletop")]
     pub(crate) fn pending(&self) -> bool {
         self.outcome().is_none()
     }
@@ -537,6 +540,9 @@ pub struct Observation {
     pub preview_card: u8,
     pub played_cards: Vec<u8>,
     pub draw_count: usize,
+    /// The current and the preview card: their printed facts and where each Event
+    /// stands, as the card tag shows them.
+    pub cards: ShownCards,
     pub eligible: [bool; 4],
     pub passed: [bool; 4],
     pub aid: u8,
@@ -1005,6 +1011,9 @@ impl Game {
             played_cards.push(17);
         }
         let eligibility = self.eligibility();
+        let current_card = if self.card_18 { 18 } else { 17 };
+        // No Capability or Momentum is in effect in this build.
+        let capabilities: Vec<String> = vec![];
         Observation {
             revision: self.revision,
             owner: self.owner(),
@@ -1025,10 +1034,11 @@ impl Game {
                 .sum(),
             available_piece_count: self.available.iter().map(|p| p.count as u16).sum(),
             standings: self.standings(),
-            current_card: if self.card_18 { 18 } else { 17 },
+            current_card,
             preview_card: self.draw_deck[0],
             played_cards,
             draw_count: self.draw_deck.len(),
+            cards: self.shown_cards(current_card, self.draw_deck[0], &capabilities),
             passed: Faction::ALL.map(|f| match f {
                 Faction::M26 => self.action == ActionChoice::Pass,
                 Faction::Government => self.government_pass_from.is_some(),
@@ -1038,7 +1048,7 @@ impl Game {
             alliance: UsAlliance::Firm,
             cash_available: CASH_MARKERS,
             terror_available: 20 - self.spaces.iter().map(|s| s.terror).sum::<u8>(),
-            capabilities: vec![],
+            capabilities,
             momentum: vec![],
             finished: self.m26_action_ended,
             choices: self

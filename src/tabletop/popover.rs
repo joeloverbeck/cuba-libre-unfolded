@@ -580,13 +580,7 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
             button: None,
         });
     }
-    let terrain = match place.terrain {
-        Terrain::City => "City",
-        Terrain::Forest => "Province · Forest",
-        Terrain::Grassland => "Province · Grassland",
-        Terrain::Mountain => "Province · Mountain",
-        Terrain::EconomicCenter => "Economic center",
-    };
+    let terrain = super::status::kind(place.terrain);
     let m26 = view.resources[Faction::M26.index()];
     let mut subtitle = format!(
         "{terrain} · 26July executing Terror · 26July has {}",
@@ -1779,24 +1773,20 @@ pub(super) fn draw(
     let (s, _) = layout(&window);
     let pinned = popover.pinned.as_ref().map(|(space, _)| space.clone());
     // A space's popover opens on a click only; hover keeps the status tag.
-    let space = if ui.reader { None } else { pinned.clone() };
+    let space = pinned.clone();
     let shown = if targeting.removal.is_some() {
         let kept = popover.piece.as_ref().map(|(key, _)| key.clone());
         // A removable piece's popover opens on a click only (#58 story 49); hover
         // shows only the protected Guerrilla's reason tag (story 48).
-        let key = if ui.reader {
-            None
-        } else {
-            kept.clone().or_else(|| {
-                popover.hovered.clone().filter(|key| {
-                    ui.status.visible().is_some()
-                        && ui.rested.is_none()
-                        && targeting
-                            .piece(key)
-                            .is_some_and(|t| t.mark == PieceState::Protected)
-                })
+        let key = kept.clone().or_else(|| {
+            popover.hovered.clone().filter(|key| {
+                ui.status.visible().is_some()
+                    && ui.rested.is_none()
+                    && targeting
+                        .piece(key)
+                        .is_some_and(|t| t.mark == PieceState::Protected)
             })
-        };
+        });
         key.and_then(|key| {
             let quantity = if kept.as_ref() == Some(&key) {
                 popover.quantity
@@ -1868,14 +1858,14 @@ pub(super) fn draw(
 pub(super) fn place(
     window: Single<&Window, With<PrimaryWindow>>,
     camera: Single<(&Camera, &GlobalTransform), With<TableCamera>>,
+    main_view: Res<super::areas::Layout>,
     mut roots: Query<(&mut Root, &mut LabelAnchor)>,
     mut nodes: Query<(&mut Node, &ComputedNode)>,
 ) {
     let (camera, camera_at) = *camera;
     let (s, _) = layout(&window);
-    let Some(map) = camera.logical_viewport_rect() else {
-        return;
-    };
+    // Cards open in the part of the window the areas at its edges leave clear.
+    let map = main_view.clear(&window);
     let panel_left = window.width() - 540. * s;
     let margin = frame::MARGIN * s;
     for (mut root, mut anchor) in &mut roots {
@@ -1984,8 +1974,7 @@ pub(super) fn observe(world: &mut World) -> Option<serde_json::Value> {
 /// A kept-open popover not yet drawn, or a drawn one not yet beside its space.
 pub(super) fn unsettled(world: &mut World) -> Vec<String> {
     let popover = world.resource::<Popover>();
-    let pinned = (popover.pinned.is_some() || popover.piece.is_some())
-        && !world.resource::<Interface>().reader;
+    let pinned = popover.pinned.is_some() || popover.piece.is_some();
     let roots: Vec<bool> = world
         .query::<&Root>()
         .iter(world)

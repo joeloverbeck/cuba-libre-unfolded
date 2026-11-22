@@ -56,12 +56,20 @@ mod tests {
             include_str!("../../art/atlas/atlas-action-choice.variables.json"),
         ),
         (
+            "atlas-card-tag.figcraft",
+            include_str!("../../art/atlas/atlas-card-tag.variables.json"),
+        ),
+        (
             "atlas-eligibility.figcraft",
             include_str!("../../art/atlas/atlas-eligibility.variables.json"),
         ),
         (
             "atlas-execution.figcraft",
             include_str!("../../art/atlas/atlas-execution.variables.json"),
+        ),
+        (
+            "atlas-main-view.figcraft",
+            include_str!("../../art/atlas/atlas-main-view.variables.json"),
         ),
         (
             "atlas-popover.figcraft",

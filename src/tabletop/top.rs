@@ -304,10 +304,9 @@ pub(super) fn draw(
     let shown = ui
         .hover
         .visible()
-        .filter(|_| !ui.reader)
         .and_then(|target| match target {
             Target::Top(item) => Some(*item),
-            Target::Standing(_) | Target::Choice(_) | Target::Sequence(_) => None,
+            Target::Standing(_) | Target::Choice(_) | Target::Sequence(_) | Target::Card(_) => None,
         })
         .map(|item| {
             let mut shown = content(&play.game().observe(), item);

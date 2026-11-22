@@ -11,7 +11,9 @@ pub const MANIFEST: &str = include_str!("../art/atlas/runtime.sha256");
 // map/cards identity to which existing game records are bound.
 pub const STATUS_MANIFEST: &str = include_str!("../art/atlas/status.sha256");
 pub const VICTORY_MANIFEST: &str = include_str!("../art/atlas/victory.sha256");
-pub const LAYOUT_MANIFEST: &str = include_str!("../art/atlas/layout.sha256");
+/// The main view's layout record and the area frames it places (#142): stateless
+/// presentation. The record says where each area sits over the full-window map.
+pub const MAIN_VIEW_MANIFEST: &str = include_str!("../art/atlas/main-view.sha256");
 pub const TERRAIN_MANIFEST: &str = include_str!("../art/atlas/terrain.sha256");
 pub const TERROR_MANIFEST: &str = include_str!("../art/atlas/terror.sha256");
 pub const TOP_MANIFEST: &str = include_str!("../art/atlas/top.sha256");
@@ -30,12 +32,14 @@ pub const KIDNAP_MANIFEST: &str = include_str!("../art/atlas/kidnap.sha256");
 pub const POPOVER_MANIFEST: &str = include_str!("../art/atlas/popover.sha256");
 /// The selected EX-A execution panel's pills (#84): stateless presentation.
 pub const EXECUTION_MANIFEST: &str = include_str!("../art/atlas/execution.sha256");
+/// The card tag's mark plates (#139): stateless presentation.
+pub const CARD_TAG_MANIFEST: &str = include_str!("../art/atlas/card-tag.sha256");
 /// Every manifest admitted at launch, in the order `inspect` reads them.
-pub const MANIFESTS: [&str; 14] = [
+pub const MANIFESTS: [&str; 15] = [
     MANIFEST,
     STATUS_MANIFEST,
     VICTORY_MANIFEST,
-    LAYOUT_MANIFEST,
+    MAIN_VIEW_MANIFEST,
     TERRAIN_MANIFEST,
     TERROR_MANIFEST,
     TOP_MANIFEST,
@@ -46,11 +50,12 @@ pub const MANIFESTS: [&str; 14] = [
     KIDNAP_MANIFEST,
     POPOVER_MANIFEST,
     EXECUTION_MANIFEST,
+    CARD_TAG_MANIFEST,
 ];
 pub const SOURCE: &str = "deacd635db5f71f4d3f092bd9cc99a9d96bb7aab;R:8152cb0056e3690fdc01c7b4ff893369ad7eff288941abc540ceee2c9d606792;P:dcaa5afd6f01c0c9ed4746c18199c1b09058823d67b627384fd3184ed4015fe8";
 pub(crate) struct CardFace {
     pub(crate) name: &'static str,
-    pub(crate) title: &'static str,
+    pub(crate) number: u8,
     pub(crate) size: (u32, u32),
     length: u64,
     hash: &'static str,
@@ -59,21 +64,21 @@ pub(crate) struct CardFace {
 const CARD_FACES: [CardFace; 3] = [
     CardFace {
         name: "card-17.png",
-        title: "Alberto Bayo",
+        number: 17,
         size: (572, 820),
         length: 1138467,
         hash: "141f592b5dee5a8c7a6d26651410b0ee1171a7dcf2c2b5331a63b48407cec9ab",
     },
     CardFace {
         name: "card-18.png",
-        title: "Pact of Caracas",
+        number: 18,
         size: (573, 820),
         length: 1159661,
         hash: "50df7058e660bb4dc620096823945eeb095fe4123e0aead68fec6244ab097c4e",
     },
     CardFace {
         name: "card-19.png",
-        title: "Sierra Maestra Manifesto",
+        number: 19,
         size: (573, 819),
         length: 1089575,
         hash: "10bf73402f7fbb79d14aad0b928bc8ea20949ea5bd888799a869a6f4e270bc3b",
@@ -138,7 +143,7 @@ pub fn inspect(root: &Path, cards: &Path) -> Result<Verified> {
         let bytes = read_verified(cards, face.name, face.length, face.hash).with_context(|| {
             format!(
                 "Required private card {} missing or incompatible. Restore {} ({}, SHA-256 {}) or set --cards to a directory with the selected faces.",
-                cards.join(face.name).display(), face.name, face.title, face.hash,
+                cards.join(face.name).display(), face.name, crate::CardFacts::title_of(face.number), face.hash,
             )
         })?;
         decode(&bytes, face.name, Some(face.size))?;

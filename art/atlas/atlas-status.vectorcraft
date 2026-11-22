@@ -7,7 +7,7 @@
     "mime": "application/pdf",
     "blob": [
       0,
-      19620
+      24192
     ]
   },
   "document": {
@@ -157,6 +157,66 @@
           "y0": 1000.0,
           "x1": 8.0,
           "y1": 1008.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 13,
+        "name": "Space city",
+        "rect": {
+          "x0": 0.0,
+          "y0": 1060.0,
+          "x1": 272.0,
+          "y1": 1096.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 14,
+        "name": "Space forest",
+        "rect": {
+          "x0": 0.0,
+          "y0": 1120.0,
+          "x1": 272.0,
+          "y1": 1156.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 15,
+        "name": "Space grassland",
+        "rect": {
+          "x0": 0.0,
+          "y0": 1180.0,
+          "x1": 272.0,
+          "y1": 1216.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 16,
+        "name": "Space mountain",
+        "rect": {
+          "x0": 0.0,
+          "y0": 1240.0,
+          "x1": 272.0,
+          "y1": 1276.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 17,
+        "name": "Space economic-center",
+        "rect": {
+          "x0": 0.0,
+          "y0": 1300.0,
+          "x1": 272.0,
+          "y1": 1336.0
         },
         "show_center_mark": false,
         "show_cross_hairs": false
@@ -1743,6 +1803,721 @@
               }
             },
             {
+              "id": 83,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.38039216,
+                        "g": 0.44313726,
+                        "b": 0.42745098
+                      }
+                    },
+                    "width": 1.2
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            5.0,
+                            1301.0
+                          ],
+                          "in": [
+                            2.7908610006768257,
+                            1301.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            267.0,
+                            1301.0
+                          ],
+                          "out": [
+                            269.20913899932316,
+                            1301.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            271.0,
+                            1305.0
+                          ],
+                          "in": [
+                            271.0,
+                            1302.7908610006768
+                          ]
+                        },
+                        {
+                          "p": [
+                            271.0,
+                            1331.0
+                          ],
+                          "out": [
+                            271.0,
+                            1333.2091389993232
+                          ]
+                        },
+                        {
+                          "p": [
+                            267.0,
+                            1335.0
+                          ],
+                          "in": [
+                            269.20913899932316,
+                            1335.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            5.0,
+                            1335.0
+                          ],
+                          "out": [
+                            2.7908610006768257,
+                            1335.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1.0,
+                            1331.0
+                          ],
+                          "in": [
+                            1.0,
+                            1333.2091389993232
+                          ]
+                        },
+                        {
+                          "p": [
+                            1.0,
+                            1305.0
+                          ],
+                          "out": [
+                            1.0,
+                            1302.7908610006768
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 270.0,
+                  "h": 34.0,
+                  "radii": [
+                    4.0,
+                    4.0,
+                    4.0,
+                    4.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    1301.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 79,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.38039216,
+                        "g": 0.44313726,
+                        "b": 0.42745098
+                      }
+                    },
+                    "width": 1.2
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            5.0,
+                            1241.0
+                          ],
+                          "in": [
+                            2.7908610006768257,
+                            1241.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            267.0,
+                            1241.0
+                          ],
+                          "out": [
+                            269.20913899932316,
+                            1241.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            271.0,
+                            1245.0
+                          ],
+                          "in": [
+                            271.0,
+                            1242.7908610006768
+                          ]
+                        },
+                        {
+                          "p": [
+                            271.0,
+                            1271.0
+                          ],
+                          "out": [
+                            271.0,
+                            1273.2091389993232
+                          ]
+                        },
+                        {
+                          "p": [
+                            267.0,
+                            1275.0
+                          ],
+                          "in": [
+                            269.20913899932316,
+                            1275.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            5.0,
+                            1275.0
+                          ],
+                          "out": [
+                            2.7908610006768257,
+                            1275.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1.0,
+                            1271.0
+                          ],
+                          "in": [
+                            1.0,
+                            1273.2091389993232
+                          ]
+                        },
+                        {
+                          "p": [
+                            1.0,
+                            1245.0
+                          ],
+                          "out": [
+                            1.0,
+                            1242.7908610006768
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 270.0,
+                  "h": 34.0,
+                  "radii": [
+                    4.0,
+                    4.0,
+                    4.0,
+                    4.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    1241.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 75,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.38039216,
+                        "g": 0.44313726,
+                        "b": 0.42745098
+                      }
+                    },
+                    "width": 1.2
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            5.0,
+                            1181.0
+                          ],
+                          "in": [
+                            2.7908610006768257,
+                            1181.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            267.0,
+                            1181.0
+                          ],
+                          "out": [
+                            269.20913899932316,
+                            1181.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            271.0,
+                            1185.0
+                          ],
+                          "in": [
+                            271.0,
+                            1182.7908610006768
+                          ]
+                        },
+                        {
+                          "p": [
+                            271.0,
+                            1211.0
+                          ],
+                          "out": [
+                            271.0,
+                            1213.2091389993232
+                          ]
+                        },
+                        {
+                          "p": [
+                            267.0,
+                            1215.0
+                          ],
+                          "in": [
+                            269.20913899932316,
+                            1215.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            5.0,
+                            1215.0
+                          ],
+                          "out": [
+                            2.7908610006768257,
+                            1215.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1.0,
+                            1211.0
+                          ],
+                          "in": [
+                            1.0,
+                            1213.2091389993232
+                          ]
+                        },
+                        {
+                          "p": [
+                            1.0,
+                            1185.0
+                          ],
+                          "out": [
+                            1.0,
+                            1182.7908610006768
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 270.0,
+                  "h": 34.0,
+                  "radii": [
+                    4.0,
+                    4.0,
+                    4.0,
+                    4.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    1181.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 71,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.38039216,
+                        "g": 0.44313726,
+                        "b": 0.42745098
+                      }
+                    },
+                    "width": 1.2
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            5.0,
+                            1121.0
+                          ],
+                          "in": [
+                            2.7908610006768257,
+                            1121.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            267.0,
+                            1121.0
+                          ],
+                          "out": [
+                            269.20913899932316,
+                            1121.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            271.0,
+                            1125.0
+                          ],
+                          "in": [
+                            271.0,
+                            1122.7908610006768
+                          ]
+                        },
+                        {
+                          "p": [
+                            271.0,
+                            1151.0
+                          ],
+                          "out": [
+                            271.0,
+                            1153.2091389993232
+                          ]
+                        },
+                        {
+                          "p": [
+                            267.0,
+                            1155.0
+                          ],
+                          "in": [
+                            269.20913899932316,
+                            1155.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            5.0,
+                            1155.0
+                          ],
+                          "out": [
+                            2.7908610006768257,
+                            1155.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1.0,
+                            1151.0
+                          ],
+                          "in": [
+                            1.0,
+                            1153.2091389993232
+                          ]
+                        },
+                        {
+                          "p": [
+                            1.0,
+                            1125.0
+                          ],
+                          "out": [
+                            1.0,
+                            1122.7908610006768
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 270.0,
+                  "h": 34.0,
+                  "radii": [
+                    4.0,
+                    4.0,
+                    4.0,
+                    4.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    1121.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 67,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.38039216,
+                        "g": 0.44313726,
+                        "b": 0.42745098
+                      }
+                    },
+                    "width": 1.2
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            5.0,
+                            1061.0
+                          ],
+                          "in": [
+                            2.7908610006768257,
+                            1061.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            267.0,
+                            1061.0
+                          ],
+                          "out": [
+                            269.20913899932316,
+                            1061.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            271.0,
+                            1065.0
+                          ],
+                          "in": [
+                            271.0,
+                            1062.7908610006768
+                          ]
+                        },
+                        {
+                          "p": [
+                            271.0,
+                            1091.0
+                          ],
+                          "out": [
+                            271.0,
+                            1093.2091389993232
+                          ]
+                        },
+                        {
+                          "p": [
+                            267.0,
+                            1095.0
+                          ],
+                          "in": [
+                            269.20913899932316,
+                            1095.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            5.0,
+                            1095.0
+                          ],
+                          "out": [
+                            2.7908610006768257,
+                            1095.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1.0,
+                            1091.0
+                          ],
+                          "in": [
+                            1.0,
+                            1093.2091389993232
+                          ]
+                        },
+                        {
+                          "p": [
+                            1.0,
+                            1065.0
+                          ],
+                          "out": [
+                            1.0,
+                            1062.7908610006768
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 270.0,
+                  "h": 34.0,
+                  "radii": [
+                    4.0,
+                    4.0,
+                    4.0,
+                    4.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    1.0,
+                    1061.0
+                  ]
+                }
+              }
+            },
+            {
               "id": 19,
               "appearance": {
                 "items": [
@@ -1858,6 +2633,248 @@
               }
             },
             {
+              "id": 84,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.69411767,
+                        "g": 0.49803922,
+                        "b": 0.12941177
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.015686275,
+                        "g": 0.03137255,
+                        "b": 0.039215688
+                      }
+                    },
+                    "width": 1.5
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            8.0,
+                            1318.0
+                          ],
+                          "in": [
+                            8.0,
+                            1325.7319864976312
+                          ],
+                          "out": [
+                            8.0,
+                            1310.2680135023688
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            22.0,
+                            1304.0
+                          ],
+                          "in": [
+                            14.268013502368891,
+                            1304.0
+                          ],
+                          "out": [
+                            29.73198649763111,
+                            1304.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            36.0,
+                            1318.0
+                          ],
+                          "in": [
+                            36.0,
+                            1310.2680135023688
+                          ],
+                          "out": [
+                            36.0,
+                            1325.7319864976312
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            22.0,
+                            1332.0
+                          ],
+                          "in": [
+                            29.73198649763111,
+                            1332.0
+                          ],
+                          "out": [
+                            14.268013502368891,
+                            1332.0
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "ellipse",
+                  "w": 28.0,
+                  "h": 28.0,
+                  "pie": [
+                    0.0,
+                    360.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    8.0,
+                    1304.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 68,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.9372549,
+                        "g": 0.8862745,
+                        "b": 0.7372549
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.015686275,
+                        "g": 0.03137255,
+                        "b": 0.039215688
+                      }
+                    },
+                    "width": 1.5
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            8.0,
+                            1078.0
+                          ],
+                          "in": [
+                            8.0,
+                            1085.7319864976312
+                          ],
+                          "out": [
+                            8.0,
+                            1070.2680135023688
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            22.0,
+                            1064.0
+                          ],
+                          "in": [
+                            14.268013502368891,
+                            1064.0
+                          ],
+                          "out": [
+                            29.73198649763111,
+                            1064.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            36.0,
+                            1078.0
+                          ],
+                          "in": [
+                            36.0,
+                            1070.2680135023688
+                          ],
+                          "out": [
+                            36.0,
+                            1085.7319864976312
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            22.0,
+                            1092.0
+                          ],
+                          "in": [
+                            29.73198649763111,
+                            1092.0
+                          ],
+                          "out": [
+                            14.268013502368891,
+                            1092.0
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "ellipse",
+                  "w": 28.0,
+                  "h": 28.0,
+                  "pie": [
+                    0.0,
+                    360.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    8.0,
+                    1064.0
+                  ]
+                }
+              }
+            },
+            {
               "id": 20,
               "kind": {
                 "type": "text",
@@ -1935,6 +2952,311 @@
                 "runs": [
                   {
                     "text": "Uncontrolled",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Bold",
+                      "size": 19.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.1254902,
+                          "g": 0.19607843,
+                          "b": 0.21960784
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Left",
+                  "justify_auto": true,
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 86,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  44.0,
+                  1325.0
+                ],
+                "runs": [
+                  {
+                    "text": "Economic center",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Bold",
+                      "size": 19.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.1254902,
+                          "g": 0.19607843,
+                          "b": 0.21960784
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Left",
+                  "justify_auto": true,
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 82,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  44.0,
+                  1265.0
+                ],
+                "runs": [
+                  {
+                    "text": "Province ¬∑ Mountain",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Bold",
+                      "size": 19.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.1254902,
+                          "g": 0.19607843,
+                          "b": 0.21960784
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Left",
+                  "justify_auto": true,
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 78,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  44.0,
+                  1205.0
+                ],
+                "runs": [
+                  {
+                    "text": "Province ¬∑ Grassland",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Bold",
+                      "size": 19.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.1254902,
+                          "g": 0.19607843,
+                          "b": 0.21960784
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Left",
+                  "justify_auto": true,
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 74,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  44.0,
+                  1145.0
+                ],
+                "runs": [
+                  {
+                    "text": "Province ¬∑ Forest",
+                    "style": {
+                      "font_family": "Lato",
+                      "font_style": "Bold",
+                      "size": 19.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.1254902,
+                          "g": 0.19607843,
+                          "b": 0.21960784
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Left",
+                  "justify_auto": true,
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 70,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  44.0,
+                  1085.0
+                ],
+                "runs": [
+                  {
+                    "text": "City",
                     "style": {
                       "font_family": "Lato",
                       "font_style": "Bold",
@@ -7223,6 +8545,754 @@
                   ]
                 }
               }
+            },
+            {
+              "id": 87,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.5686275,
+                        "g": 0.70980394,
+                        "b": 0.6039216
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.38039216,
+                        "g": 0.44313726,
+                        "b": 0.42745098
+                      }
+                    },
+                    "width": 1.2
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            13.0,
+                            1124.0
+                          ],
+                          "in": [
+                            10.238576250846032,
+                            1124.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            31.0,
+                            1124.0
+                          ],
+                          "out": [
+                            33.76142374915397,
+                            1124.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            36.0,
+                            1129.0
+                          ],
+                          "in": [
+                            36.0,
+                            1126.238576250846
+                          ]
+                        },
+                        {
+                          "p": [
+                            36.0,
+                            1147.0
+                          ],
+                          "out": [
+                            36.0,
+                            1149.761423749154
+                          ]
+                        },
+                        {
+                          "p": [
+                            31.0,
+                            1152.0
+                          ],
+                          "in": [
+                            33.76142374915397,
+                            1152.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            13.0,
+                            1152.0
+                          ],
+                          "out": [
+                            10.238576250846032,
+                            1152.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            8.0,
+                            1147.0
+                          ],
+                          "in": [
+                            8.0,
+                            1149.761423749154
+                          ]
+                        },
+                        {
+                          "p": [
+                            8.0,
+                            1129.0
+                          ],
+                          "out": [
+                            8.0,
+                            1126.238576250846
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 28.0,
+                  "h": 28.0,
+                  "radii": [
+                    5.0,
+                    5.0,
+                    5.0,
+                    5.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    8.0,
+                    1124.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 88,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.8509804,
+                        "g": 0.8509804,
+                        "b": 0.6313726
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.38039216,
+                        "g": 0.44313726,
+                        "b": 0.42745098
+                      }
+                    },
+                    "width": 1.2
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            13.0,
+                            1184.0
+                          ],
+                          "in": [
+                            10.238576250846032,
+                            1184.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            31.0,
+                            1184.0
+                          ],
+                          "out": [
+                            33.76142374915397,
+                            1184.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            36.0,
+                            1189.0
+                          ],
+                          "in": [
+                            36.0,
+                            1186.238576250846
+                          ]
+                        },
+                        {
+                          "p": [
+                            36.0,
+                            1207.0
+                          ],
+                          "out": [
+                            36.0,
+                            1209.761423749154
+                          ]
+                        },
+                        {
+                          "p": [
+                            31.0,
+                            1212.0
+                          ],
+                          "in": [
+                            33.76142374915397,
+                            1212.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            13.0,
+                            1212.0
+                          ],
+                          "out": [
+                            10.238576250846032,
+                            1212.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            8.0,
+                            1207.0
+                          ],
+                          "in": [
+                            8.0,
+                            1209.761423749154
+                          ]
+                        },
+                        {
+                          "p": [
+                            8.0,
+                            1189.0
+                          ],
+                          "out": [
+                            8.0,
+                            1186.238576250846
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 28.0,
+                  "h": 28.0,
+                  "radii": [
+                    5.0,
+                    5.0,
+                    5.0,
+                    5.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    8.0,
+                    1184.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 89,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.78039217,
+                        "g": 0.69411767,
+                        "b": 0.6039216
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.38039216,
+                        "g": 0.44313726,
+                        "b": 0.42745098
+                      }
+                    },
+                    "width": 1.2
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            13.0,
+                            1244.0
+                          ],
+                          "in": [
+                            10.238576250846032,
+                            1244.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            31.0,
+                            1244.0
+                          ],
+                          "out": [
+                            33.76142374915397,
+                            1244.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            36.0,
+                            1249.0
+                          ],
+                          "in": [
+                            36.0,
+                            1246.238576250846
+                          ]
+                        },
+                        {
+                          "p": [
+                            36.0,
+                            1267.0
+                          ],
+                          "out": [
+                            36.0,
+                            1269.761423749154
+                          ]
+                        },
+                        {
+                          "p": [
+                            31.0,
+                            1272.0
+                          ],
+                          "in": [
+                            33.76142374915397,
+                            1272.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            13.0,
+                            1272.0
+                          ],
+                          "out": [
+                            10.238576250846032,
+                            1272.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            8.0,
+                            1267.0
+                          ],
+                          "in": [
+                            8.0,
+                            1269.761423749154
+                          ]
+                        },
+                        {
+                          "p": [
+                            8.0,
+                            1249.0
+                          ],
+                          "out": [
+                            8.0,
+                            1246.238576250846
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                },
+                "live": {
+                  "shape": "rectangle",
+                  "w": 28.0,
+                  "h": 28.0,
+                  "radii": [
+                    5.0,
+                    5.0,
+                    5.0,
+                    5.0
+                  ],
+                  "xf": [
+                    1.0,
+                    0.0,
+                    0.0,
+                    1.0,
+                    8.0,
+                    1244.0
+                  ]
+                }
+              }
+            },
+            {
+              "id": 64,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.5764706,
+                        "g": 0.59607846,
+                        "b": 0.4
+                      }
+                    },
+                    "width": 1.8,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            14.959999999999997,
+                            1205.03
+                          ],
+                          "out": [
+                            15.946666666666669,
+                            1201.0833333333333
+                          ]
+                        },
+                        {
+                          "p": [
+                            12.000000000000004,
+                            1194.67
+                          ],
+                          "in": [
+                            14.959999999999997,
+                            1197.63
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            20.88,
+                            1205.03
+                          ],
+                          "out": [
+                            20.88,
+                            1198.1233333333334
+                          ]
+                        },
+                        {
+                          "p": [
+                            24.580000000000002,
+                            1190.97
+                          ],
+                          "in": [
+                            22.113333333333333,
+                            1193.4366666666667
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            26.06,
+                            1205.03
+                          ],
+                          "out": [
+                            26.553333333333338,
+                            1202.07
+                          ]
+                        },
+                        {
+                          "p": [
+                            31.98,
+                            1197.63
+                          ],
+                          "in": [
+                            28.52666666666666,
+                            1199.6033333333332
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 65,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.32156864,
+                        "g": 0.4862745,
+                        "b": 0.39215687
+                      }
+                    },
+                    "width": 1.8,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            21.719196042811518,
+                            1147.6840542301038
+                          ]
+                        },
+                        {
+                          "p": [
+                            21.719196042811518,
+                            1142.7340542301038
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            15.669196042811507,
+                            1142.1840542301038
+                          ],
+                          "out": [
+                            9.06919604281154,
+                            1142.1840542301038
+                          ]
+                        },
+                        {
+                          "p": [
+                            14.56919604281154,
+                            1133.9340542301038
+                          ],
+                          "in": [
+                            9.619196042811495,
+                            1134.4840542301038
+                          ],
+                          "out": [
+                            14.019196042811473,
+                            1127.334054230104
+                          ]
+                        },
+                        {
+                          "p": [
+                            26.669196042811507,
+                            1132.2840542301037
+                          ],
+                          "in": [
+                            24.469196042811518,
+                            1126.2340542301038
+                          ],
+                          "out": [
+                            33.26919604281147,
+                            1131.1840542301038
+                          ]
+                        },
+                        {
+                          "p": [
+                            28.31919604281154,
+                            1142.1840542301038
+                          ],
+                          "in": [
+                            36.56919604281154,
+                            1141.6340542301039
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 66,
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "none"
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.5372549,
+                        "g": 0.48235294,
+                        "b": 0.40784314
+                      }
+                    },
+                    "width": 1.8,
+                    "cap": "Round",
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            11.019999999999982,
+                            1263.22
+                          ]
+                        },
+                        {
+                          "p": [
+                            17.5,
+                            1252.78
+                          ]
+                        },
+                        {
+                          "p": [
+                            26.139999999999986,
+                            1263.22
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            17.5,
+                            1252.78
+                          ]
+                        },
+                        {
+                          "p": [
+                            18.220000000000027,
+                            1258.18
+                          ]
+                        },
+                        {
+                          "p": [
+                            20.74000000000001,
+                            1261.06
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    },
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            23.25999999999999,
+                            1258.9
+                          ]
+                        },
+                        {
+                          "p": [
+                            26.860000000000014,
+                            1254.22
+                          ]
+                        },
+                        {
+                          "p": [
+                            32.98000000000002,
+                            1263.22
+                          ]
+                        }
+                      ],
+                      "closed": false
+                    }
+                  ]
+                }
+              }
             }
           ]
         }
@@ -8160,7 +10230,7 @@
     },
     "raster_effects_ppi": 72.0,
     "images": {},
-    "next_id": 64,
+    "next_id": 90,
     "metadata": {
       "author": "",
       "authorTitle": "",
@@ -8171,7 +10241,7 @@
       "copyrightNotice": "",
       "copyrightUrl": "",
       "created": 1794736319,
-      "modified": 1794736324
+      "modified": 1795377225
     }
   },
   "images": {}
@@ -8180,37 +10250,37 @@
 %ÄÄÄÄ
 
 1 0 obj
-<</Type/Pages/Count 12/Kids[17 0 R 18 0 R 19 0 R 20 0 R 21 0 R 22 0 R 23 0 R 24 0 R 25 0 R 26 0 R 27 0 R 28 0 R]>>
+<</Type/Pages/Count 17/Kids[22 0 R 23 0 R 24 0 R 25 0 R 26 0 R 27 0 R 28 0 R 29 0 R 30 0 R 31 0 R 32 0 R 33 0 R 34 0 R 35 0 R 36 0 R 37 0 R 38 0 R]>>
 endobj
 2 0 obj
-<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 14 0 R>>>>
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 19 0 R>>>>
 endobj
 3 0 obj
-<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 14 0 R>>>>
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 19 0 R>>>>
 endobj
 4 0 obj
-<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 14 0 R>>>>
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 19 0 R>>>>
 endobj
 5 0 obj
-<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 14 0 R>>>>
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 19 0 R>>>>
 endobj
 6 0 obj
-<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 14 0 R>>>>
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 19 0 R>>>>
 endobj
 7 0 obj
-<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 14 0 R>>>>
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 19 0 R>>>>
 endobj
 8 0 obj
-<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 14 0 R>>>>
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 19 0 R>>>>
 endobj
 9 0 obj
-<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 14 0 R>>>>
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 19 0 R>>>>
 endobj
 10 0 obj
-<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 14 0 R>>>>
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 19 0 R>>>>
 endobj
 11 0 obj
-<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 14 0 R>>>>
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 19 0 R>>>>
 endobj
 12 0 obj
 <</ProcSet[/PDF/Text/ImageC/ImageB]>>
@@ -8219,108 +10289,142 @@ endobj
 <</ProcSet[/PDF/Text/ImageC/ImageB]>>
 endobj
 14 0 obj
-<</Type/Font/Subtype/Type0/BaseFont/NAWLQV+Lato-Bold/Encoding/Identity-H/DescendantFonts[15 0 R]/ToUnicode 30 0 R>>
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 19 0 R>>>>
 endobj
 15 0 obj
-<</Type/Font/Subtype/CIDFontType2/BaseFont/NAWLQV+Lato-Bold/CIDSystemInfo<</Registry(Adobe)/Ordering(Identity)/Supplement 0>>/FontDescriptor 16 0 R/DW 0/CIDToGIDMap/Identity/W[0 0 547 1 1 726 2 2 574.5 3 3 528 4 4 534 5 5 373 6 6 564 7 7 837.5 8 8 372 9 9 243 10 10 482 11 11 248.5 12 13 580 14 14 429.5 15 15 564 16 16 527.5 17 17 760.5 18 18 254.00002 19 19 548.5 20 20 567.5 21 21 507.5 22 22 798 23 23 742.5 24 24 694.5 25 25 643.5 26 26 808 27 27 568 28 28 439.5 29 29 619 30 30 770.5]>>
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 19 0 R>>>>
 endobj
 16 0 obj
-<</Type/FontDescriptor/FontName/NAWLQV+Lato-Bold/Flags 131076/FontBBox[-5.5 -167.5 781.5 743.5]/ItalicAngle 0/Ascent 805/Descent -195/CapHeight 723/StemV 168.6/CIDSet 29 0 R/FontFile2 31 0 R>>
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 19 0 R>>>>
 endobj
 17 0 obj
-<</Type/Page/Resources 2 0 R/MediaBox[0 0 272 36]/BleedBox[0 0 272 36]/TrimBox[0 0 272 36]/Parent 1 0 R/Contents 32 0 R>>
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 19 0 R>>>>
 endobj
 18 0 obj
-<</Type/Page/Resources 3 0 R/MediaBox[0 0 272 36]/BleedBox[0 0 272 36]/TrimBox[0 0 272 36]/Parent 1 0 R/Contents 33 0 R>>
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 19 0 R>>>>
 endobj
 19 0 obj
-<</Type/Page/Resources 4 0 R/MediaBox[0 0 272 36]/BleedBox[0 0 272 36]/TrimBox[0 0 272 36]/Parent 1 0 R/Contents 34 0 R>>
+<</Type/Font/Subtype/Type0/BaseFont/QTVCNY+Lato-Bold/Encoding/Identity-H/DescendantFonts[20 0 R]/ToUnicode 40 0 R>>
 endobj
 20 0 obj
-<</Type/Page/Resources 5 0 R/MediaBox[0 0 272 36]/BleedBox[0 0 272 36]/TrimBox[0 0 272 36]/Parent 1 0 R/Contents 35 0 R>>
+<</Type/Font/Subtype/CIDFontType2/BaseFont/QTVCNY+Lato-Bold/CIDSystemInfo<</Registry(Adobe)/Ordering(Identity)/Supplement 0>>/FontDescriptor 21 0 R/DW 0/CIDToGIDMap/Identity/W[0 0 547 1 1 726 2 2 574.5 3 3 528 4 4 534 5 5 373 6 6 564 7 7 837.5 8 8 372 9 9 243 10 10 482 11 11 248.5 12 13 580 14 14 429.5 15 15 564 16 16 527.5 17 17 760.5 18 18 254.00002 19 19 548.5 20 20 567.5 21 21 507.5 22 22 798 23 23 742.5 24 24 694.5 25 25 643.5 26 26 808 27 27 568 28 28 439.5 29 29 619 30 30 770.5 31 31 661.5 32 32 274.5 33 33 566 34 34 945 35 35 575]>>
 endobj
 21 0 obj
-<</Type/Page/Resources 6 0 R/MediaBox[0 0 272 36]/BleedBox[0 0 272 36]/TrimBox[0 0 272 36]/Parent 1 0 R/Contents 36 0 R>>
+<</Type/FontDescriptor/FontName/QTVCNY+Lato-Bold/Flags 131076/FontBBox[-5.5 -167.5 864.5 743.5]/ItalicAngle 0/Ascent 805/Descent -195/CapHeight 723/StemV 168.6/CIDSet 39 0 R/FontFile2 41 0 R>>
 endobj
 22 0 obj
-<</Type/Page/Resources 7 0 R/MediaBox[0 0 272 88]/BleedBox[0 0 272 88]/TrimBox[0 0 272 88]/Parent 1 0 R/Contents 37 0 R>>
+<</Type/Page/Resources 2 0 R/MediaBox[0 0 272 36]/BleedBox[0 0 272 36]/TrimBox[0 0 272 36]/Parent 1 0 R/Contents 42 0 R>>
 endobj
 23 0 obj
-<</Type/Page/Resources 8 0 R/MediaBox[0 0 272 88]/BleedBox[0 0 272 88]/TrimBox[0 0 272 88]/Parent 1 0 R/Contents 38 0 R>>
+<</Type/Page/Resources 3 0 R/MediaBox[0 0 272 36]/BleedBox[0 0 272 36]/TrimBox[0 0 272 36]/Parent 1 0 R/Contents 43 0 R>>
 endobj
 24 0 obj
-<</Type/Page/Resources 9 0 R/MediaBox[0 0 272 88]/BleedBox[0 0 272 88]/TrimBox[0 0 272 88]/Parent 1 0 R/Contents 39 0 R>>
+<</Type/Page/Resources 4 0 R/MediaBox[0 0 272 36]/BleedBox[0 0 272 36]/TrimBox[0 0 272 36]/Parent 1 0 R/Contents 44 0 R>>
 endobj
 25 0 obj
-<</Type/Page/Resources 10 0 R/MediaBox[0 0 272 88]/BleedBox[0 0 272 88]/TrimBox[0 0 272 88]/Parent 1 0 R/Contents 40 0 R>>
+<</Type/Page/Resources 5 0 R/MediaBox[0 0 272 36]/BleedBox[0 0 272 36]/TrimBox[0 0 272 36]/Parent 1 0 R/Contents 45 0 R>>
 endobj
 26 0 obj
-<</Type/Page/Resources 11 0 R/MediaBox[0 0 272 88]/BleedBox[0 0 272 88]/TrimBox[0 0 272 88]/Parent 1 0 R/Contents 41 0 R>>
+<</Type/Page/Resources 6 0 R/MediaBox[0 0 272 36]/BleedBox[0 0 272 36]/TrimBox[0 0 272 36]/Parent 1 0 R/Contents 46 0 R>>
 endobj
 27 0 obj
-<</Type/Page/Resources 12 0 R/MediaBox[0 0 8 2]/BleedBox[0 0 8 2]/TrimBox[0 0 8 2]/Parent 1 0 R/Contents 42 0 R>>
+<</Type/Page/Resources 7 0 R/MediaBox[0 0 272 88]/BleedBox[0 0 272 88]/TrimBox[0 0 272 88]/Parent 1 0 R/Contents 47 0 R>>
 endobj
 28 0 obj
-<</Type/Page/Resources 13 0 R/MediaBox[0 0 8 8]/BleedBox[0 0 8 8]/TrimBox[0 0 8 8]/Parent 1 0 R/Contents 43 0 R>>
+<</Type/Page/Resources 8 0 R/MediaBox[0 0 272 88]/BleedBox[0 0 272 88]/TrimBox[0 0 272 88]/Parent 1 0 R/Contents 48 0 R>>
 endobj
 29 0 obj
-<</Length 13/Filter/FlateDecode>>
-stream
-xú˚ˇˇˇˇ w}
-endstream
+<</Type/Page/Resources 9 0 R/MediaBox[0 0 272 88]/BleedBox[0 0 272 88]/TrimBox[0 0 272 88]/Parent 1 0 R/Contents 49 0 R>>
 endobj
 30 0 obj
-<</Length 484/Type/CMap/Filter/FlateDecode/WMode 0>>
-stream
-xúmìOè⁄0≈Ô˘”É%ˆ@cìÑtBbë8Ï-´ˆÏÅF"v‰8æ}eèU’Cà~ûgﬁºxÃæ}Á[eN8œæs¯ƒ¡åV‚ºzm˙Ñ±ùëcá⁄Ω!*TSuXAoç–AuÿtÎ∆Z^GÖìÊíº¥˙!PçÉ3]¬ÿWÎÆ∏Ç-@Ë	
-µk›¯S¬ÿO¥CkÙ
-D¬ÿ^´ tæπ!I£§÷»#:8∑ZŸË'Ôõà®V∫H·WvM6oÉ√Ó†œ2R©±èJ ÄÙ/Ì‡Ïf°±'Px¶ ªUh[}ÅŸ‘Ï_≈„ÿ˜WÙM´®Uxß>¸[”!§1}5¶ÒX˙∫ıˇ ˝ıj‘ÇZîF·–7m£/ò¨9Á|Î∫ÆÎçw¸ßûq⁄v:Àﬂçr±Å5Áyπ	¥¥¨â≤@Âí(ßZATPmA¥§⁄û®$⁄˝ eNÙh¡â∂§Ãà^à*¢*PvD±ó=uΩ%™…Å:˛p^>≈|‰.bæXÀ‰.bæ®§|KA‰Û-º$Â+¢ÂÀ£íÚï˘√Ö2ÊÙMe,)ø†åeÏÄ2±3Ó√A∆ÛGÍ'˜>Cr¥µÉ∆OG´Ò~z”˚]·	Wg∫ÖûﬁÎ?\ 
-endstream
+<</Type/Page/Resources 10 0 R/MediaBox[0 0 272 88]/BleedBox[0 0 272 88]/TrimBox[0 0 272 88]/Parent 1 0 R/Contents 50 0 R>>
 endobj
 31 0 obj
-<</Length 6591/Filter/FlateDecode>>
-stream
-xú≠zt«yÓ?≥≥A  í …], í¿.¯~S!îΩRíÅ§Hâ"íe)R%[R˙ï¯‘ñs“Dub≥u«πñïá[ß—ıIö‘qo⁄¶π…ÕiOs‹Ùû$WJn¨ƒ…{fRî-'uN…s8ˇŒ|;Ûœˇ¯ÊÄ  Œ 5©csb«Ì´ó‡´ ˆËÙ°£?.¸¡ Ù@Ó•Céæ≥ΩÁª y ÷ãc#…a˝∑O∏Æ@”ÿÿH2Ôax¿u ‹cGÁé"nx@‡‹ƒT*9ÙÎÉ@~ ∫é&èO£ü‰Õ»? q2yt‰¯’KG ‹z rezjvnπ	R ïLqzfdz 0ﬁP˘C ¯¸◊ña^É◊¯E Çñ”∫´À{¯´+7àyÂfÊi=Ü_$∞ÚÀ;(˛b^}Ü+pŒ¡9·	~ë{
-ﬂd}¬S¸π«øﬂ5~í{Í.Ã√‹cw·÷Ø˜Ìªµ‚ø≠ÈıåÜ
-äHaw¨;.äëk`‹°¬Œ¡mp– xbT\ÿ£ÿì¸íÙêJ…íD!N!,w]·DH•H°bbT•XáE˙zîÔ‡ïJdwß∫w≈$Yr,ƒDç∆$å;D⁄¬§ñx\Lg@…aZçIŸ'ë÷∞ÒÜ|=G≈ÖÖ§H—X¬!Rëçò‘ƒ§¶Ñ#è«˘„qôB46è´îSƒnëOrX§|8£º¢ÇrHRú¢ÑJâ"K≤$ß˘É!ëçdg)üËNQŒ'âTã‚E˛tÔ°ƒª=ñà:í;‚19.â4∏3Fëﬂ¡6ï]Y•ºBuaˇ¿”
-’…!Y§ áí•(EQÇÚ>ïÍë)ôN]#pPd3–`"Œ â.MIΩrEó·ÓêOZ3vér∑ÒôYê_¶¶ƒìª‰$sÑf)p0kR—AÉkˆ°úGNveñ»˝Ä◊©;c/Ôı“3rËJÆÅÎéIYä˚$ïÊ)iåªÈp≤K•FÖ¢Ñ(“·~ˆ∫H7»°8ÕcO;b"ÕìCqïÊ+"-–L"^#êZêì‘Nà	ëÂê¨“%≤+ñ&√]q7Õëè´‘§D∂«";3ù)Ó¶≠ﬂ¨§!?º;ñŒœSî—|?Rä=°Ùˆ'{BŸdërûh,ÕåGâ'¥∞ jÀ˙$ô¢‰™Ï»å≥W∞GÎâ”·^öÓMP|∑´>¿Åi ã‹EQòBÁÑêÊ+ãi¿›ªb4_â›4WQÉL˘DHLPî|•† ÅB°ÖD⁄,¯È~á+Æ“B%øJ≠J±÷¶§1kÌJöcmëí&¨-V“<kKî¥¿Záí÷±÷©§ı¨-U“9¨≠Rƒ E˚UÍ”Ñè®‘Ø	3*-SÄÊ˘ˇ Àï4î˘U**iƒZIIc÷∫î4«ZYI÷∫ï4œZèíXÎU“:÷V(i=k+ïtkEÏ–BMUƒ-Hàaô¢Ûgí•è¬‚-†P’OUüJ´QÏ?¿r≤Ef4ˆ;)Æ“ö5˜ ≠ˆ•ydÌé’ƒµ÷Æ∑Ã˚áÎ±Q”∑^ä∫ﬂøE˛{.Œ˙¡ˆW⁄A“’)∑§Îê’ß“EÏ{?@_
-·dãJïÄΩC•MøJQ8’¢“f%ç¡Êb/K^ä=}ΩrØúcåÂ–ï&Ñ¨Ö>ï∂(lîx(Òhöˆè,dQÏXhQiÎùa1êôÉ9ƒP"M∞|nèΩåENtºåΩ\I<ƒ8Pd-˜$(	ø7ïåá2dè√âaôr·‰p4Fq8È†\8¡8ËΩÔ$eQ§ƒ+˜$[2’á{(ˆP}X[%!ﬁk9√v$ú`∂Á=I øoVJºlGM	Ob8öaπ;k≈U⁄∆l ä"ÂΩY»-*m◊∫©^â¢ÿ#˜≤≈ò∑:4ì±d-
-ªb±CñL„lß»tY5π‡°ºßo˝Èõq‘Ω"8ÎôÖÒ∆¨·U◊$ÿÒ¸ﬁ-Æ∫≤Së≈ ≥Zœéòÿ§®–Ø“Mk›—ı›¡ª—˜ƒlVhãˇûìÜ⁄Í_≈,-˜¿P–Ä_•·µ[µ..YÏrKv∫.%≠'û–äΩˇ]—«‘g¸“!∑8§u˛ñ‚Yªô1V˜ﬂ√ˆ/1À3≥˚X€rØB¡öIŒ+¿Ú–†>ïn˘Ä˛>%®–B}*ÌWh≥O•fµnYà=rr’N
-GÒ´t´r†ÀØ“˚î+Äò∞MπÇ¥û®ri=€¶€Ø“√Ñù√Ñ]√Ñ›≥ŸØ“=√ÑΩ√Ñ√0!Œ0aøJÜ	C√Ñ}√Ñ˝”„WÈÜa¬˝√Ñ√0!…0!øJ2R√ÑaÜa¬àB€÷Ã< hß_•á4iì_•cZ<µ˘i–Ø“qÖ∂Ø°≥}DìzBìÙ®B;÷†ìÏAÉNiÉNkÉ~D°◊†3ÏAÉŒjÉŒiÉ>†ºúCjÒÚS˝Â‹—„´gä
-@¿@ú¸"»–Ì∞	∫É!‡0¬öD0"ì Ä9¿) ¿Î	üÇú!ÇêäÄ^ØãÉN7¨ÿ‘i2Vzeü”e0î˙-ù®æÆ[ç$…ﬁN“ÿ‡ï]F,ª*,ù8;àeW #…$5K&Èˇ∂~2’3}_ï”Wêy€&¡^UØñ◊‹µnGæ´ ju◊ï:k=V´ß÷YZÁ∂.ø¿˝‚∂q37~˚9ÿ‰ÌN∂7ok˜y‹∂ƒåß—Ô©™óe≈X`,]™p÷±◊Íú•µn´’]KﬁÏÊKDVn}¸U®Üç¡6¬®
-q!‡∏~Ò@8û§ c4â «¡ L¿  TCµ\©T :C±ôåHvπΩ∏±¡‹‰f˚≥Îå®"¿±][Àp}]S≥Ivy7"æoÚ7èßóˇÌ[ìáøél/∆>ıÑ∫’‹ÊíB€GBG^<Í={u:z∫„jI)˛ß•W∑G&Ø£Çg?è
-ÆO8k{|'JÛ¨Ø”ºÂ¬WÁ>˙ıèı∫JëPj}Ü]Vní6bî√∂5EcAª¶1A ìe˜1Å˜ôBÒ†≈Zà¿Q\Xn-œÕ≤ÜB?ZÁ±∆ÜNl©k“\*Xm88ÛïÛ[∂úˇ ÃÏWœ˜ıùˇÍÏôì'œ<tÍ1˜_º˛‡âÎ˝˝◊O<x˝bˇÌœ|aqÒã/=ˇ¸ãÄ Äÿ	3H¡≤\ıs#4ÄaÕƒf0I&b∞˘sêåÍÎlvK≤w¢f`ƒæ<˛ØÀ„ﬂvzÑ7
-ärE¶ø”πã	˛Ì2¡%ÖK?¨ŸÏ´¡Ó¬¿Zπ…˝åòA*ú|≈∆Bª?c¢
-‡,pxZáê	R ¿œOF c2ÑLê«9E‚¡¢úÄ5GÒ∫ù%ÖÊ¸<–Éﬁùc∞˙QC À.!ïqıu, ëë[5j&-ôÀw4Ìl>r“ƒ ñTG«ﬁÕµˆÚ¸ﬁ™—©Ÿ¶#◊.ﬁ◊ıGØŒ&ü;.r·˘ö›AœâÈß∂ÕF<Nó”>X≥π¢†˜ëøˇÿ¯ó>Ìúq™•Xúü ¿ˇN¨P°%—X–¿#&ƒ!‹Ôà–Íl…ˆ∞ú}à«3oò1Bh5dÄ„ÜπÅÏõ6 d4íÜu£A' Ãa4¶ç∆w«„ØJV…Ì‚Y˙0¬`#ª4û–ôds7J’úÏıñÇ¸vgU∞æ¬tÎìﬁ2ûãÓ/ˇí9ﬂP§´ñ.Ïêauü‹Øâä°ÎBöóÀòÚ⁄Í›9Ñ–0À€{Ù ƒ_ï,≤’ù—ã”úbíMZ¥gÙ≤£dy˜÷X√Æáˆ™∑ˆƒÇ”u∑.’‰sÁ =÷÷COÏYö≈è8‘V∑TB∞∫¶ó‡ fP‡˛`>è¯Gp"®/£°M@Ñ¿F`4¢◊Ò\÷à%¿:ÿ(b6ûº3 Äälï≠^Øîcp¯ÎM,®òﬁ6˚›⁄◊Ô„ƒ•ö¸G{xk y™ºhÀûdÌÓsÉ’∑ˆÏÙnÆu˛zg¥i%¡Í@Yù€:æ∑æ/`k˛ƒ~∂±É©í⁄˛&:–X2eˆÁZπÅˇ7ﬂ.òr‚D<ÓèPc4,Ã·Ç‚‚¿ql3<˚tHcRG–≠çÉÄx$”Îp∞Zî:äl≥© ?O ‡B.Ω°–œªºçfe¥–éLíU2⁄2Èe+GFÑﬁ∫ƒx°Û˘ﬁi;ÉÃÀ?ØÆ≤ó€Õ9πF}”£óŒ„ç%%®®–∂¸]˙«ö¶‹πππ«’Ä∂∑ MÓ9ÕwGÇ!æå≥Ù·@nöõûÑÓ≈ø¶GN•WÆî]Ç°ƒèX20≤X=?ﬁœ6;œµZ‹u›ıõnÂ–Åˆˆæ:èΩ,ø∑*qËh”˝~∫oÛÈ/?8˚b7We,∞ó⁄´cß∂Ì8≥W-ïK≥\qÒú˛»◊ãˆwk{=ÄÊ¯7ÅÉ‚†çE€»2ÊÄ3qå√L≤	Õ›‚ﬂ|∑é#
-j†.X]ä ´Óåπ!‡∏#ñv(Zr!ê%´Ö'PÉ™yC°ﬂSg+ERcCS3Í‰5v4bùUØ¶^°Î=pˇTY}[¥⁄—´Õ{€ Àö∑÷(ë∂JÉ©©˛°¸=gˇ,1ºx,TΩÌp€Úó´˜˚ﬁV=º£∏ŸÜÆµåjmÿ÷‰(V;‹Å2Ω}Ï3„çÌœÏè^¸Ë\«ÚÀ∆|V‡¿Æï§á_TCMPEà Í ¬ÅV §"<‚8¥/s|ñ:+<ŒÍ“j_•,Ï~§[´w≤$€jG®ÆØÓâ9Í|…ñü>∂•ˇ¬k3s◊Íﬁπ≈Õ›ÍóiOıVz{∂∑'∫º“Ê˜©N´ΩÈËÁ&F“Á˙œefÙ{sË;EÆﬂVnI∂v¶∫›ïΩ…ñéTOÜﬂm+77¯E(ÇÍä∆^—kÁ©Éµı«µŒ†	8.uá®µ‰+ƒa·imlïY¬]µ∫Ïnb(Ú#m_ﬁäN‘Ã6™•V£I¬ﬂËòør¨i¨ï”s\©√‘Ïkçµó°<åŸëüg¨åV⁄FiÀÏÓ/òé”+7∏üvÿ4ÿáyÀ#Fû`åG3%BZÃ9Çˆ’^Äa6¥ZøƒÉy `ªluKS—$ª™≥)”h™◊Úø©Ÿƒ˝¸Rmûi”3ávùç©∑ˆÓN◊±A›‹÷:ˆƒ¸Ë“‹ÅC≠u¯m¶ü∞ú&eÉ\¡Ú|ﬂ]êåi9`´KŒ$F‰Gñ˜%eKˇê+ªØΩæú¸~©§ˇ_π˘∫sÓõzèù‡w\‚@¬Ω‚4/˝‘—‰t6;∞•ê±;`xÄû_ÑPÂAÁj…ôZ+9áa@™î≤Ó¿ë%ìTGlfûÖì;1ˇ¸·◊óÒ¸“˜q≈Û»¯˙·Âünö·Ú†‚√/Ão¬ﬂΩº¸ŒÎá˘≈#≥¸ŒÂ˘◊Óπ-Ù<¸`H †?·øÿ°Çëq&oG"åâÔcÖfÉ^„ ~ï÷’É,¸—â_£íõ$∂˙äã}≠¢‘Ê/…‘c»/∂∞æQjcm≥w`Â˛*lÑŒ`˚FÑxaÇ˚Ô0%AYc # ∆x†Ω’WÈëù%å*mÔ°Ja5+¥h’JÔ∆ÜÄ∞∆ôüﬂ‡(¥÷vu∂Ïju∂8~˙¯Å÷Ÿ/Ôæpr¬∑Õ öã€¢G"≥ß[ˇËÒ≠õé”ô3ˇ2@.[-ÂﬁrGM∏≤æ´∆Îo›{z‡_˛Qü£Æ«÷h©™´::⁄∫•÷UŸ2¯±‘∂ßÁz¢[ C˜ MÓW¸õP 0Ã˜" ÄÿF\Ñ}~t≤„P„YÌ òå BxàC„GP|ﬂ0∆√£yiäUFì…Ta™®tª+]⁄m$Ä÷ﬂ;,Îì#k^ˆ•Z[ÉÆ“¶˚j∂N‘‹∫TõgÌ|ˆ»ÆGGö;Á>7≤ÁDæ]ÔÛÌ~8>xjõl'ü}∑NMı∆zŒ_?=s˝€õ∏Tã›⁄ï‹«âr°	rÇb≠rÃd∂t/Ë¯i‡)Õè⁄Fπ!Ç≤ÖéÔw 9N€ÚÍÅÊ rIÖ«Ì-–ú~d‰¨ôåGMŸä«Â≠æsVíÊµ˚ß∑?s‰…òwkÁ¿T„“ﬂ•3¯¯¡˙iŸõk´Ëè5oûå*%Ì>~ıÅÿŒémµe%Ó\tïw¯Z§Õ-Õ-¯Á⁄«ü‹ªt‹*ˆÀçnã‹3÷]±µß3P uJ9eß√ú©áÊ1◊ÒK¿AQ–
-ÄÏf˝q@Ä∂ö
-∞¡Ê∑HViûﬂ˙ÓÀ¯•ó¥wûXπ¡wÚãPÓ†ƒj—îvrÆ∆<ÇBãqÉNÄbTú9956≠f!À0˛è˚NÓRQﬁŒOˇËëGÙÈù(O›}Ú˚.Ï‰ﬁ˛ÏŸ\é«/ˇ‡,wˆÂùÓo`˛[˘ ú_=ÿ†:®ıÛle¯ íZ≠ål÷Bsæ17á]h¥{!@F§„XÂ^¡IcE$qü°yNcû3Ô%Óœﬁíï‹â•&Ù◊ˇƒ≠»å]ËﬂƒX}}\Zññ~$ó†äÂÔ€ΩÏøà++¨é$îˇxÅ˝«UÂ¯¨cëï·ØÇ™÷Û„]WÚJ_Â:~\'KÆ´§2Œ®ÚπÂ_|Ì·Ø!„sì˚π≥É’À?{··ÊÉ¡y÷2÷º˘∆‘‘(ˇÚeîˇ∆T˝˛ÛœΩ~x˛µs==Á^õg4 HT”Òƒrö¯àUÀıáÇπÄIàÉ’R—°Â5ªlO≤l÷“wÇ±⁄a7©íÄL≠BÇÂ¿Û£vÄ{!‚Ò`éd©ÙTf
-»2§‘ôßÆb}ç‚≠»^d>‚Kµµnrï6m≠›:Qì∑ÈO'v=2“‹9˚yF ÏZÉı>ﬂF˜π7∑ˇ)ÀˇØüûΩ˛âÌç’À˚¯ÌŸ˚„ÄjbÜç–la\^ˆª∏|Ún.ó+™ëﬂ!r·ﬁ<ÆÌfç»ÒO6ìπ™©ª∫oßøwpˇ`ØøqÏS√ç#˚∑ïµÊñŸÌUM}- ¶*ãøwË˛°^]Úì˜˛b◊VêWX\ÿY'©.áXµ)÷Ÿj®ﬁ‚
-8òÃ%e%VóZ‰∏¢?îË⁄4≥ªæßuÌå&/hg¥ÉU∫,C8\JsàÄXëÑìcÇí‚"[û√Ë»ÕÅhÉN˚%„?2Y≤é#ìd¬Û˝ì}n˜ñ…»7ø˘…\˜<˙›«æπ¸K¸Owjc€ÅêºÙ¸ΩÆ12˛“Èûeé%
-“ÍÖa~l ≥Ç’xÑ√LÖlÌ§’*6ìM‚YÅ ¯∞Ÿÿ˝O˚l
-P£â^˝ÖKy¬œ3[Ãπ¯éãÔZãπÎ°ñ€˘E.«dº›"wïrSÄ‡ó‰)\Õ,`—ÓùZé¿@•õ—Ÿ{´\]‚oó÷é˝v	_ªV¥˙ãã˝≠ô{#9œwÄ.NÑtù{£†fxÑêˆ9„hÑùâ∞èd´√ÃÒ‚÷@¿±OØ√zl∞ÚaZiâ1Ÿó=Z‚¡\SÖÏëeìv∂H≤È=◊I˘}Nr˛÷≤˚ÆKed›çóÎ[©Ãﬁ7ù»ŒÓõô¸a≤~Ø§ÌÈk˜Áw¸
-äuo±Ó¯…ü?®µˇŸÏ¯mˇ“Ü3˙K⁄Áf8˚≠ê˘ÜÖ·Ío˚o=i8£Õ¥˛G"=‡„ø r
-¬DÑ¢@ˇ8A∆‡Ñú¿?zÄªatNëã0@.¬.nld¶I9¸Mx›ÜÈÉ ôÇnÓ‘
-0œˇ=<¡]˘ØóÖôÜ‹‘íÜgûÂD¯%Ø úÅ∑Q'öCˇè·ø‚‹‹ì‹ìDO\‰˘1ﬂƒ_‡ØXË®Œ•˚ÇÓ=÷o—Ô“/Ê∏sûŒ˘°¡fÆk;ì‡ÁP OÄ ¢êÄyˆ-ü‹K¿i£F¯"ìH ∫†›Wôå@è.dezÙxVÊ‡>ÙtV&`F?Œ <å°w≤≤ f| +Î ¡ÓHö¨á¸VVŒÅInu≠\®·&≥Ú®„>õïÛ÷ÈcÑÓ-√L√É0„p∆`D®ÑTÅuPµPjVj¬É ¬<QòÇ	H¬$É Å$Ã¬	°N¿8å¿∞÷¶¥9Ÿ‹s0mÏÛjò◊~⁄L”Îf
-@
-¶‡(TkÃ√8Ã¡à∞F`F`éiÛä–S0©È{$·(åÄ.Ä$Ã¡∏ †i≈VÅIÌ]ˆ÷⁄*l∂ã1Ì≠ù– ¬6ò÷∞ÎÁæ{Dÿ£Ω=„FÑZ@Ì=v8)Õ™”0≥–ﬁòÄ L¡Çjÿ=0 UY=3Zá4Kh˚∂≠Õ ÆÕ—ñıZ√=∆ﬁªá:d=‹æÊ˜FP°Z¥øMZˇΩ=8ëù}4k≥Ÿu>\]Y][˘é.„0"$5?Ã@RÛ QH¬QõÔ√«Y‡CøÒ˚‚ˆNnÜa-ŒDÿÛöû√0)mlu-∂À9Õ™,*«·à¶…úÜÅc:>º≈ˇê‡≤_Ó´gﬂº«O‰|cG,ç–„qä2ˇ†üNÉ∫:9ÿ”‰‚¡«Çí˙≠˙çBïﬁÆ„ıŸÆ#¬^°õ‘"ØuÂÜ˛∫ËåÂL˛√Äá_
-B¡µ_≠èÓJª—≈Ì1º”ûºÏÈÀ˙3ÄHbjó÷è«„¡)˝6˝&¡Ø/÷Ò|◊– yJKcËJÛ√] ˇ'¥/
-endstream
+<</Type/Page/Resources 11 0 R/MediaBox[0 0 272 88]/BleedBox[0 0 272 88]/TrimBox[0 0 272 88]/Parent 1 0 R/Contents 51 0 R>>
 endobj
 32 0 obj
+<</Type/Page/Resources 12 0 R/MediaBox[0 0 8 2]/BleedBox[0 0 8 2]/TrimBox[0 0 8 2]/Parent 1 0 R/Contents 52 0 R>>
+endobj
+33 0 obj
+<</Type/Page/Resources 13 0 R/MediaBox[0 0 8 8]/BleedBox[0 0 8 8]/TrimBox[0 0 8 8]/Parent 1 0 R/Contents 53 0 R>>
+endobj
+34 0 obj
+<</Type/Page/Resources 14 0 R/MediaBox[0 0 272 36]/BleedBox[0 0 272 36]/TrimBox[0 0 272 36]/Parent 1 0 R/Contents 54 0 R>>
+endobj
+35 0 obj
+<</Type/Page/Resources 15 0 R/MediaBox[0 0 272 36]/BleedBox[0 0 272 36]/TrimBox[0 0 272 36]/Parent 1 0 R/Contents 55 0 R>>
+endobj
+36 0 obj
+<</Type/Page/Resources 16 0 R/MediaBox[0 0 272 36]/BleedBox[0 0 272 36]/TrimBox[0 0 272 36]/Parent 1 0 R/Contents 56 0 R>>
+endobj
+37 0 obj
+<</Type/Page/Resources 17 0 R/MediaBox[0 0 272 36]/BleedBox[0 0 272 36]/TrimBox[0 0 272 36]/Parent 1 0 R/Contents 57 0 R>>
+endobj
+38 0 obj
+<</Type/Page/Resources 18 0 R/MediaBox[0 0 272 36]/BleedBox[0 0 272 36]/TrimBox[0 0 272 36]/Parent 1 0 R/Contents 58 0 R>>
+endobj
+39 0 obj
+<</Length 13/Filter/FlateDecode>>
+stream
+xú˚ˇˇˇˇ? Û˘
+endstream
+endobj
+40 0 obj
+<</Length 508/Type/CMap/Filter/FlateDecode/WMode 0>>
+stream
+xúmìOè¢@≈Ô|ä⁄âspid∆EI<Ãüåì›3“•K"iöÉﬂ~”˝ZùlˆÄ‰◊ı⁄WØ©|¶kŸy:˚)Ëìán‘5Oã◊™¬p€’cÀ º1Kñ∑Í∞†^wı¿Üä˝vØÑ·^’óQÚMÛ?…Üœçz¨„`∫6√Ø∆\xA,êÎâˆíïiÃïƒSÜøXMßa∏S≤ËZ€‹DﬁÉ¢›’6tjî‘ﬁâé÷7àíMm<πﬂ∫≠z∑˘p∑{uÍhï{Ø$"ä>˘‹F_i‚{"…'Tﬁµd›®3MnÕ~+∆æø∞míÑ[e%›;≤·ﬂ™ñ)ÚÅÔ´>%≈è•Økœ˛¢ﬂØùºAåÎNÚ–W5ÎJù9X
+!ƒäñeYñ+Î¯O}ña€ÒTˇ©¥ì«+Z
+ëÊ+Gâ£y	ö9 Á†µî°ñÄÊ®Ì@9hzÜ2Ω8JhÂ¥†¬—Ã;lAæó∫^ÉJ8†≥ÿÄ˘»ÁÉ{ÏÛ˘Úepè}>ØDæy≤˘+qÑ|ô˜{ÜÉW"_û>\ê1≈ô∆»ò#ååπÔ 3_Ûq¶12¶P&»∏¡WK|FúMÇå)N?A∆4s„‡øª;ˇ˜I¨G≠Y7˛nÏÏå5äÔ˜®ÔzªÀ=ÓﬁÓ≤•˜Ú/AJ'ã
+endstream
+endobj
+41 0 obj
+<</Length 7156/Filter/FlateDecode>>
+stream
+xú≠zt[≈ùÔÊŒΩí%[∂$K˛êl_ÈÍ√ñÆ‰Ôo«Q$ÀN,á(ﬂíÇŸâ;∂õ81M6BSÖrñN∑M”ÇªtåB	îí.l≥úvÈ˚∫ªºnª=€∑=¥Ôù“⁄G”“X~gÆd«	°]zV>÷¸ÔÃf˛Ûˇ¯ÕF ‰√I‡ ∞e{m√¯Æü? ﬂÄDÍ»¨ÿuÌ‚9 $¿;˚ß˙YÒèÆ ‡b ÌŸ«ˆ˛˜Ù|†‘::íVøÓˇÄÛª –2::í,∏˛¿ ‡=4{Ù´Ô∏ ÿƒT*y‚‘—E ◊À p€°‰—iÙn¡Ä; ƒ…‰°ë£œé∏e razjf6”) Ô∞ˆÈ√#”Sö± &|8r ø< î/@•Ÿí{	R∏ Úc¬aÓßÄó£Àe ∞±Æ≥«¢ dñÖ˛Ã<zXu}MtéµÃ/≤Ÿ@ˇıO2p	.±ûd“™ãô]¸≈Â+ƒ∞¸^ˆi-øH`˘7◊π¯ÁâaÂ.¿∏Ó‚πGÒ{¨NxîÜ{ˇÁÌwqèﬁ¿s˜‡|kÁ˚˛çRÒﬂW‰zL·
+≤Hag,≈»ã†€°¬ˆ¡m≤–Íxbø∏∞3F±3˘M5®!ïíˆYl6
+q
+!©Á %Ç>äd*&ˆ˚(ñ≈aëæ•ƒ5x°iB·Tx€PÃ&Ÿ,1ëF£1ƒ-"mcT[<.¶≥L…aZçŸrO"≠cÌuåÛïhL‹/.,$E™â∆ëä¨M√®Fµ$,âx<n°»èK¢±ëx‹G9Yãî8ì√"ÂC—Â• §†≈fãSîQ"K6…&ß˘}Aëµd'gﬂîOÑSîÛÿD*ÑƒqÅ"o∫éwR‚⁄KD-…mÒò∑â4∞=Fë◊¬ïõŸGyô™BﬁÄ≥™d™íÇíHA
+&)ﬁ∑ü¢E	 {|T%ãLHm(ı"Å}"Åq∆íËQÑTÀTZÖÉ€™≤Û‰ïØ…éÇºÖ%ŒÑ^êíÃä¶¿¬¥IE¨ÍárN)ŸìùB˚›©#cù∑Íîœ|F
+^–j∏pÃfëlqèÕG‰4∆a:úÏÒQùLQBi~®üuiæå”ˆ¥-&“)˜—BY§EäJƒ	§§$’Ö‚BB§:)(˘hëŸKì·û∏ÉåHG}T/G∂∆"€≥ï[‹AçJΩANCahg,]X¢(§Ö^Ê§;ÉÈ|ˆUÄùAäÃíH9g4ñf £ƒ\Xïi=6â¢‰
+m…∂≥.ÿ©‘ƒi~®èÑ˙ﬂh™è0`¿(ıP¢–}!§ÿ (CpxGåJA1LµRêj$ 'ÇbÇ¢‰ÛEEt.$“¡KÔÙZÏq-ñ”`Ù˙®IN#VöÂ4feâúÊXY*ß	+À‰4œ r9-∞“"ßU¨¥ i5++‰t+kd—O—Ì>ÍQàO¯®W!˚h•¥¿˚g»X%ß°“Î£¢úF¨¥…iÃJªúÊX)…i¬JáúÊYÈî”+]rZ≈J∑úV≥≤ZNÁ±Rñ≈.≈’|≤ò†E	1$Qî`ˆL≤ëôø˘eÍÛRü«GkeQÏ?¬R≤Mb0ˆG9,∂∏è÷≠öôi≠'Õ#S8VWXøV3nnê≈fEﬁF(
+xäº∑úú’É˘ F“”-µ•ê…„£M≤ÿ%ˆ}ÑºB…6mñ˝%]>⁄ÚßX)
+•⁄|¥UNc0;Eøÿ«ÇóbÁ¶ÖÖ>©OJä±}ãRBB¶bèè∂…Ãî8)q*,4/‰YK¢ÿµ–Ê£Ì◊õEvJ§ „iÇ≈{`kÏ9,r¢Â9Ï‚ „AÜÅÍê∏ )‹RoÇí–Õ°î`8î{JKî%á£1äCIÂB	ÜA7˜IJ¢HâKÍM∂Y$™ıRÏ§Íê2KBº’$RÌH(¡tœ;ìîˇ–®î∏ÿäúäŒƒp4ãr◊Áä˚h”Å(äîwÂt uµ˘hßRM’RP≈^©èM∆¨’•®å- ßQÿÛã]íÕ¬$ŒUäLñïN ;7≠›}≥Ü∫ïÁ,#17^óì ¥bö€ûo^‚ä)ªeIÙ3≠ınãâ]q⁄èäΩ>∫~µ:∫∂:p#˜-y6»¥Õ{ÀAÉ2m˜.àbsñÖ∂[PÚSø◊GC´∂¢]Ê\íÿ%˙•∂‹p=rZMú¡?√˚˛ªºèâœ•Kj≥ÿ÷ÿ€œ…f XY/[øçiûâò[«Íí˚d
+¶lp^ áF?mÚ¯Ë∆è®ﬂ$ßi≥«G˚e⁄ÍÒ—”ZX˝bÔÇî\—”ÄÃ‹ëFº>∫Yæ –„ı—€‰Ä±EæÄîö®|)5[OÿÎ£€#∂3FÏ`<åÿ…x6x}t„aƒn∆√à„aDúÒÑº>:»x1ƒx±áÒ0‚v∆”Îı—Ωåáw0F$#íå'Ëı—}åá)∆√àa∆√àôv¨™y?{†›^=†PÎΩ>:™¯Sáóº>:&”ŒUÓÉÏA·W(∆=°PåıêLªVY'ŸÉ¬:•PåuZ°Î'd∫nïı0{PXgä±Œ*cΩS~.è‡ï‰)Ë•Í 9¢GWˆ  ±Úã A+t¬zÇ¿aÑ94à`D& sÄS@ÄW>yyB!µZïjX5∞æ[Ø/ÆvI´]£©ªQcC%6ÎH!í‹Æn“‹‰íÏ:,Ÿ›∆¶núkƒí›èëMokµÈmˇ∑˝≥©ﬁÈ€j¨ûøƒõü“%5çæ™:ø£ﬁa)¥EMéÜ
+kΩ”dr÷[+¶ÃS‹ØØÈ6pc◊Œíª¸Î]·dgÎñNè”aNv6{ù5çí$ÎätKnkÎ÷`≠®wòLéz≤¡`òØ @Yæ¬o‚/B-¨tF5à#«ıà¬Ò$£!@h<C 0 PµRµ\-©4e^§◊!…Óp·Ê&CãÉ≠ØD•Cn?«Vm*Æƒç-≠z…ÓZá¯MìøˇL:Û”◊'~ôüé=~œÑo≥°√nn	é?=Ïª˚‚tÙD◊≈Ú
+¸/K/lçL^FEÁøÇä.OXÎ{=Û&£ÀjÿxﬂÀ≥ü¸Œß˙ÏH®0=∆ÀÔëb #T¡ñ’GcÅEbÇ &#< ≠cXn›2Ö‚£©Å•¨∏ T•Õ#2
+öb/Zc±Ê¶nllhQL*òäÕ8p¯[ß7n<˝≠√3/üﬁ¥ÈÙÀ3'Ô∫Î‰©„«â°ˇÃÂcÛó˙˚.œª|¶ˇ⁄ææ∏¯Ã≥O>˘4 » %ÉlÅJ-Ñ˙9å⁄ÄaE≈–€ÙDcˆÊ!	56òKåï®§µ2#%ô±ˇ»å}ﬂÍ^+*Õ”îÍˇAÂ(#¯ÇÀãó~\∑«ÔﬂSá≈ÂÄ!∏¸˜.1Ä|p◊ÛfÊ⁄˝YπÅ∞¿·iBj$pHH ?<?å…2A,ˇ5Œ)2îÊÂ‰˘Údó√Z^l(, 5®yì5˘±d
+Q%◊ÿ¿°
+È∏•f√Bê∏BKÀˆ÷ÒªÙº oLuuÌﬁP_RUÿW≥j¶e¸≈3∑ı¸≈3…'éÑJÌxÆng¿9?˝Ëñôà”j∑ñ÷mpı›ˇèü˚Êß£›sOOµπÅ˘˘< ˛ObÇR¯À-è∆!–#·~KÑ÷ÊjHÆÜ=‡‹C<ûÌa¿°óéÊr=Õ@»˛H∂÷¥¨Ä0á—®“ﬂ–èø`3ŸvûÖ1í]¡	ï^“3s£T›ΩÉ}ﬁ"ﬁXTÿi≠	4∫ıW?Î™‰πËû±™o
+5•æ@Õ“Ç-¨¨ì˚1@Ù<oDH±r%^ô=+;áf1`æIÆ\C¸õQ29≤rqäQÙí^Òˆ¨\%(Yﬁk⁄qj∑ÔÍÆX`∫·ÍŸ∫BÓﬁ™fß©˝¿CªñfÉ{t4,ïÏ[ïK∞»pG†êGºà#∏ø ¥)+°Y@Ñ¿F`D≠‚πúÀÅU∞V4ƒt<yΩ1(vY%K&…‰rŸÚ4o£û9ì€\r£Ù∫µÎò?[WXdÈmˆ'èWïn‹ï¨ﬂyÔ`Ì’]€]Í≠ø€mπΩö`ﬂ@eÉ√4∂ªqìﬂ‹4¸Ìla˚RÂı˝uå:∞∑Ÿø§œÆœæ|ˇ;ﬂvòhÚ‚D<ÓèP]4® Ã·√!ƒ≈Å„ÿbxˆ®êÇ§ñÄCiÒH‡ß◊¡∂x¿Ñ†¬Rj6ÙEÖ;≤´5≈^ﬁÓjŒ"+ÉÖN§∑ôl˙bs6ºÃUHá–[˜=4Vl}≤â∑öO"CÊWµ5%U%Ü<≠N›ﬂÚ@—Ÿ”x]y˘>*-6g.—•Æk—Êkµ⁄£>ø≤∂–Ú{‹äÌ∆!æås· @nömõûÑnÖöMéºjóT-ŸMπ±```±≤|-Ã%\\k*6:¬çˆm•‡ﬁŒŒMŒí ¬æöƒÅC-w¸ıâMNºtlÊÈ0W£+*©(©çﬂ≤Ì‰n_ÖTë√ä3‚Ø>Ì+k=Äf˘7ÄÉ≤Äôy€»u0ÊÄ”s√ÙíÕ^Âﬂ¯†Åk#2Í†!P[Å ˚‹sC¿q„v(Jp!êl&#O†’ÚöbØ≥¡\ÅlÕM-≠®õkV–QáU:Tªz≈:¨b¿˝KuÌ5—TÇ^h››QUŸ∫πNétTkÙ-çß
+w›˝’ƒ‚ë`ÌñÉôójo˜º„s˛Â∂≤V3z±mˇÅˆ¶--ñ2_ó√_©.˝¬XsÁƒc∑Gœ|r∂+ÛúÆê%8∞c˘
+ÈÂ¡µP!D ı≥ÀZî ·«°=ŸÌ≥¬ÍvZk+j=’í†)Ò"’jæì€ ŸjP'B›xeMÃàX”‡I∂m˚¸ëç˝˜]:<˚‚©ˆ›(n˚~úπø3’WÌÍ›◊ŸôËqŸ6$∏«ªM%-áæ<1íæw†ˇÙ∑Ô{ΩYjˇCqı∆d{w*Ï®ÓK∂u•z≥¯n^æÇøÀ/B)lãP{4ˆºZŸO-¨ƒ®?ÆTÙ¿q©Î@≠_) sO+m+`»Ó¢…^‚ öR/R÷Ârw£V∂P%¥öı6¸›ÆπGZF€95«UXÙ≠ûˆXg%*¿òm˘∫ÍhµŸ¢≥múŸ∆}ç…8Ω|Ö˚¡P[3‚0èÄcqƒ‡œ»åÒ˛läÖê‚sñ@…J-¿0kZ…_‚Å (Å…‰∞	LDΩdØÕÖL≥æQâˇñV=˜´≥ı˙ıèÿqwÃwu˜Ó¿tK|€[⁄G⁄ÖXö›{†Ωø√‰2iRI0ò¡®*ç	…®f0Ÿ•lB¢C^d¸PRRπÙOZ…Ò‚+ô‰+lÍ”™Ú⁄7‘ŒÇ?¯Yπ˝˜º’∞ÙKKã’⁄j¡∆bÜÓÄ·< ˇ$ø˘PUÎJ ôZM9áa¿VmÀôD≤Èmƒl‡ô{1∫ÛO|%ÛÎ'ó~à›O"›+3ø\?˜‘¡ÃœQŸ¡ßÊ÷„úÀ¸ˆïÉ¸‚¯ﬂf~{nÓ“=Ω◊Ñﬁ{.Ü ˙+˛u‡†‹å≥q;aH|=+6h‘
++∞&dÓèÊá ÀΩ6±›SVÊimﬁÚl>Üºb´km¨Ï`˙ˆ/_!¿_Ñu–Ë\á/"Lpˇu§$à#´H9B`<Å:€=’N…ZŒ†“|T
++aËVºUIΩõõ¸¬*f~%ﬂRl™ÔÍn€—nmﬂ{Ùƒ—ΩÌ°ª_:æÔÆ	œçh(ÎàéGfN¥Ô=˙…£{€◊•áO˛œrŒd¨rUYÍB’ç=u.o˚ÓÉ˚˛Ê/6YzΩwÎå55áˆ∑o¨∑W∑~*µÂs≥Ω—çÄ!º¸˜>ˇÅ∆Ö.§03¬àÎè∞˚ÛÄïmá
+Œ*¡d¬C¬xX‚áö1f<äï¶X†”ÎınΩª⁄·®∂+ß?Z{Ó0ÆéúÙ8„Iµ∑Ï-∑’mû®ªz∂æ¿‘}~|«#≠›≥_Ÿ5_áØ5z<;Ôâﬂ":…?h•˙bΩß/ü8|˘·≠-~\°¯n˝ÚÓ”ƒZhÅ;-BP¶déŸ»vÅJ‡?Õ~HC<§@;*ÂÜ %:û?¬»q íW6‘x@+IÂnß√U§÷XΩH«ô≤èZrè›U{}Ø$≠´ÁOó?6˛HÃµπ{`™yÈ“ø¸Ãæ∆i…•5ª˚£C≠&£ryÁﬁO_º3∂ΩkKW}eπCã.ÚOõmC[k>¯ÂŒ±Gv/5â˝R≥√(ıéÜ›õ{ª˝\◊ÅîU≤ZŸ|h?îL ¡NVh≥ækÃ^£Õdõ„7~ˆY•œCÀW¯n~ ¿∞±\4•Ïú+>è†ÿ®ÀW	PÜ ≤;ßÇ¬˙ï(dd%∆?øÌÆ>T∞˝Û?πˇÅü|~;*ÌºÎáM{Ô€ŒÌªˆ≈ªt.?˜£ªπ}◊ŒmøÔé&føÂ˜ïﬂ7Af®»A˝<õﬁÑ§V2c ≥©ÿP®”Ê±çr.‰¸»≠C*éeÓnŒ∆1TD6Ó¥¿™+∞<À}ı-I÷N,=5°ˆ€ˇnGlG?cççq[∆∂Ù©π3?,q±_óóYI(ˇ&∏¿	 *p‡ªã,_LP≥o8íW{™◊‡„⁄√8QPrM&%ê1ïOd~˝Í¡ÉØ"›ì˜Âªk3Ôé<u‡SsÅ¿+èjæ˜⁄‘‘k®‹9T¯⁄T„ÌßüxÂ‡‹•{{{ÔΩ4«`îÅ®"„|&M<ƒ§ƒ˙©Ä∂0 ‚`%U¥(qÕ€ì,öïù`®6JÿI™¸#X¶VXU¿Û˚≥Ë ∑‚à«y6cµ≥:õ@V"e£Œû8UÓµ9äÀù;»|¬ìÍh\oØhŸ\øy¢Æ`˝ó&v‹?“⁄=Û ÏXÉ4çœ.∑96t~â≈ˇwNÃ\~xksmfø5wæaPK∞:mÀ+ˇñOﬁàÂíªñyŸu nç„ jVÅˇRc÷jZ¬µõ∂{˚oÏÛ6è>>‹<r˚ñ vmeIIMÀ¶6y}ç—€7t«Pü∑!˘Ÿ;>”¡uów7ÿ|vãX≥>÷›|®—h˜[ˆÍÂïÂ&ªØ‘·∑[Do0—≥˛Œ∆ﬁˆ’=ö<•Ï—ñÈ≤·p)≈ bI"2Lt ÀJÕùEõ˘(_•\°dç·EzcŒ^§∑ÈÒ\ˇ‰&ác„d‰{ﬂ˚Ï?/Ñz¯¡ÉﬂÀ¸øÈß÷uÏJKø«o˜ÃmdÏŸΩé
+RÚÖa~Ã ±ÇÂxÑ√LÑ\Ó§‰*fΩŸ∆≥ï·°ôŸ˘OπõB~‘¨ÁáDoÒRÅÓÉ˙2£AãÀ~ÒÉASw9ÿvÌø»ÂÈu◊⁄§û
+n
+l^æ¬ïª≤p hDsÒ∏ü)Åp0- ‡	ì+¶g«∑ïÑAçª™¢ƒ¨/TÒPãj≥
+©B7™9{‡'kcµµëSf˝¡Xf˘Á3Àì£óêpÓãÔÔTóôEWCpw{Ú¸l |‰K{Z„ëêMcF;ı3áfs˜fÖóçÓ8ûo–óUñÈ√˜\:6ˇÌS·¸Úö <Âª–„ËMÆå´XΩõ’1¨ﬁRÌP∞˙¶KÀ]ç=ÓÍpceec∏⁄›”XÅ∑ª√çça∑;ƒ P÷F§û_Ñ<®	∞Vî‰! ÈV…µá13T‰Èız}6èeßWõﬁfBœ‚ •ˇï˘5˜0y+≥„Ì•Á¯≈Õ {@xï_'¯+èá˙q¿!òÊ	Œ¶¯+N‡GΩπ97∂§ojEÇŸ›®]wÜl˙ \¬´Ô
+ôHU¿® Ùr‰›◊Â&Ω•ı:]•˝ç⁄`*70·€6\{Ω≥ìk≥,◊˘E¨6^˚w±«·ãú≠–†∆+≤*:–≤ùeE,°!qeca…&”∆0«Ñ’Çñ)BüΩQU4°¸£g—ü∫6≠hcÍÕÃÅ∑ô:¸Ü<äk˘7¡FÂ.DÒ∑»öÌÊ◊ñ{;m´©hß∑úØ_MV€ΩeeﬁˆÏ]9ÕwÅŒ4VÑTEıªA%ÊB ›˜˛À”`…ùX≤)èCaé%yxz3¨ÂT$õr‹¡òÏ…•;ÒÄVÔñúí§WÚõ§øÈäC˙–%9}5„∏·¢#≤ÊˇÄ€¥ˆ¢#wbE%Ï$ÎgÏ‚ˇÌ¶Áﬁ¥ﬁQÿı>î©ﬁb’ˇÙãø>¶îˇª’Úá˛•◊4'’gïª\fÔ\øÏ[?öãËø˙àÊ§2“⁄èãÙÇáˇ:D»qÚàA¸`ûå¬ºp?Ã„_ÄΩ¿]Üzéì30@Œ¿nÃd¶I¸{p]ÉŸ~2aÓ*‘]0«ˇ#<ƒZ~üWÅ]àBÑL√<7ı‰_·º¿√yﬁõ±vë	8Ø⁄Á…	8œâ^v 8	Ô†n4ã˛≈ﬂ‡‹#‹#DMÏ‰^Ú3æÖøèø,`°[†*ªÍÎ™◊‘XΩQΩCΩòÁ»˚\ﬁè5fÕ)Õ3ö”÷i⁄Ö|]Ná.¯¡C  Ü($`éΩ˘¶=ú“™ÉgEÚ –} £®—}9É}&Gsp˙\é&`@?À—<å¢ﬂÊhxoéVAÇùÎZu¯≠ùì‹ \Z®„&st>4p_Ã—k‰—A˜Ñ`
+¶·Ü18 £0"TC
+j@Ñ®Éz®_éjˆ¡1aéA¶`í0	√ ¬ ‹	„êÑòz`∆`Üï2•å…∆ûÖiË`ø±¿úÚÁWFö^3íR0á†Vë`∆`FAÑm030á·à2ÆΩ0ìäº∑A¡à`áH¬,LÅ¸äTlˆòT˙≤^w*≥∞qÿ*Fï^€a∞7˚∂¿¥¬ªvÏGêAÑ]JÔSxD®?‘ﬂbÖ3êR¥:≥0~•«¯a
+√®Ö-–Pìì3+uP—ƒ«÷o«Í‚Í9´5›¢ÌÊ54Ä?g·ŒUª7ÉÍ†M˘nQÍom¡â‹Ë˚s:õYc√ïô}´3_óef@Ñ§bá√êT¨ríp∆AT∆˚¯~Êˇÿ=˛îﬂ^˜¿0¨¯ô;`Nës¶ •¥≠Ã≈V9´hïyÂå+íÃ*\#p‰c«¿«◊¯ü„É \ÓÖ‘FˆﬁÏ->ë·ª€biÑ>ß(˚R…tÑ‡≈…¡ﬁ;ˆ»O™7´◊	5ÍØŒUçªÖ0iD^©“ø]z“x≤§Ê§ ¿Cû'E¡oC`ıO©„Ü{“tfkåŒƒî'{zI}	úIÌP*„Òx<êüRoQØºÍ2üÔy-ü¶‰¡4Üû4?‹ ˇ±˘∞º
+endstream
+endobj
+42 0 obj
 <</Length 342/Filter/FlateDecode>>
 stream
 xú’RÀn1ºœW‘ë9ƒÙªÌk§)∑Ñπ.¨¥ ¥ãîâﬂGv&˚bë∏rq’ÿ›USm?ÉA ‹t–¿f*-≈≠u‚QC“;•VI^æ¬¡ÿC"¡ÿA¢°∆Ü$CJ6™Ò˙·ÿ‘QŸâÆ≈«6ı°•Ω÷;Ïé⁄Ω=CgÉ.ª√©”È'åÕÙm⁄N”Ûµl⁄S®ò)k †íÊ‘*?Äã‡◊Ú„ﬂBrˆ®Ÿì©K3P	ÊÀ~Ö"PÏ°Q$ºZÄµhXZ7U*ï#≥v∆Í‚—EW·≥›,©∆.z¶0‰w^Gi\¡˙/Ôl∫]@X^ﬁo	lX∂ßI	À˛›=Òº|üÓñs+30Ø”Ë.‘'¿-(´)®» /ç⁄£OGßx£2ÛÅÎ	∑}≈X1/ŒcŒ◊ñ/c˝9÷s;Ë_Ø#Úô≠¯EÎ¸yπC¯ó%»'
 endstream
 endobj
-33 0 obj
+43 0 obj
 <</Length 378/Filter/FlateDecode>>
 stream
 xú’RªéAÃÁ+2∆ÔnßH'$2`2éÑïÇY§[ùƒÔ#˜«AJ“.ªmóÀ›¿@@ºLú.@òM‹≤ÄGi^ê≤ì&\?ÅC0\@¢XA"Q(Ÿ ï∆Ç-©«Ê8ú»ë[@˜ÙÖÈ£]VÆóYaÔ¡Â›‘å>'}W∏Â˙ûºMxö>OÁÈÕÙ;âZbÑÕîµ…Ä“Ã);º}å_ˇ'≠Ô˛§5J°PÎ¶l@»)Ï—[ΩßÑî»é⁄ ô®s—jC·H2hä‰ﬁdD-8:£frAF#Û0H¬4´ü≥V˚û5ø†ßõ∆·ñ]ª∂<t
 l])„¿…éÆ¶!á˘∂È◊_õ{÷˘””ÀñÎã3,Á€=,ó˜œÓâË˛<ŒÎ¸ay=›-G>3`ﬁ»∏∏H∆ûc,Ω∂ø„üÈÚØt„$éômã∑›ÍfÖfÒÌÓqú_Ê‹SIvs€B˜Äœl∏W=•±>â˚îòÿA
 endstream
 endobj
-34 0 obj
+44 0 obj
 <</Length 322/Filter/FlateDecode>>
 stream
 xú’RªN1ÏÔ+¶‰
@@ -8328,19 +10432,19 @@ xú’RªN1ÏÔ+¶‰
 æ ùé∆g
 endstream
 endobj
-35 0 obj
+45 0 obj
 <</Length 367/Filter/FlateDecode>>
 stream
 xú’R±é1Ï˜+¶dÇÌ8â›"!$:`;éÜïﬁ!Ù“ùê¯}‰$è€Câñjf≤OlÔ¬À ·ä˝Jﬁ§®)’™¥î‹(;ÔQ¿∆∏@jÎÏ©ûÑúµki6IÕ…ÍT{g¬˝~gyzû‹¬•W‹Q:û1+Ö•‡hÂvåÄ3û≈^MÒ¢Ò‚}˘∫úñ˜À√Õ¶s¥äíjÊ‹§SiZ»ﬁÇì‡Á›˝«øv'vãñãô‰íc& ‹™Zl›ü/)I5∞v“;Wàtÿ!ûZf∑ê"◊É£√D®å{É∞DùÄ˝P>¥„17 ñ∏RÁ˘ïó◊€„´Å€È8¬vyqGDw$y›æ-o∂ÁY™àD˜˘I0Ø‘Lcz2˘üA~#Ë”SíîTÆäRùZ'J«ÔSïµ&w˜Í”¯e’YÅÜ„«∏ø˙ıx ™kõñyPV÷ﬂ˘◊kú◊œ€ª>Ä_2⁄t
 endstream
 endobj
-36 0 obj
+46 0 obj
 <</Length 333/Filter/FlateDecode>>
 stream
 xú’R±Nƒ0›˚o§¡vú8Yë–X®tá–Èn·˜Q“îÎ°”{v¸¸Ú“Ó¡ .àEå»eì†πêSÖRN‰3[à2&H¥ vêòùPf≠µCTúeJ±U„Ã¨ŒWÊÕQmaﬁje>T‹°m*íÄµp^7‘2xb˚-Rn7ª∑n”›w˚≥°}â'AN’≥7©TLÂÑá[∞|˛ÎÙèMÿ"AB¬TëúƒD÷JjrÖHÖíùyŒ©<ê¬«ï¢	c%18Û≤7©[LJÆ„rìb€∆Áãú˘òùñwÒø˘ãªÎÑ·pµ!∞bÿ¨üÖ0LœDÙL˚·ΩªN≠T¡<€pq!),G≤§‰§ÒüF˘å—”‚d=GZE±‚GüóÜ,ΩÕ≠◊÷=ÎQ◊∆ÿü"is—˛e∏´Åæ ¿çŒ
 endstream
 endobj
-37 0 obj
+47 0 obj
 <</Length 720/Filter/FlateDecode>>
 stream
 xú’U¡éS1º˜+|§∂;…	!qzc9U⁄Â–"mÖƒÔ£qÚ˙“*àßå€å„;yœ$ƒƒÙKÊJ«3Ò“L[%^j’d⁄0∂Z]û»(©–ô‘K†©∑EπIéXãPR]J„Í#2: ú∞?êŒ∆Œ\"+÷#Y¨'ô@)4{∫#ıNtsÏJBEΩ‚„Ó€Óq˜q˜¸[ŸÆ%õ/ •Ê$ôxë¶b^}zO≤(˝¸Øµæ’.JûˇB˚Âi˜ˆ@LáÀõG&itxúd:úøºz`ÊNºó¥Xèæèﬂ§Øúˆ‚cÁXå∫Ø+âS∫]YG‹)¨˙"ÌàŸ˜_vÔˇ÷‡ÀâQ≤Bg≤‡DfãõWK[°duIAE‡åF86î ¯ÃÙ	Ω°Y‡DízûãN‘õõu:xbZYkæ?Ÿ¢ñ„BKÛ–∆hc∞ˇsı/f{~Œ
@@ -8349,7 +10453,7 @@ e©Õ≤RJKjñ!B(Â˛)Ÿ‚úC∞PÚ[Nq1Ããp∂:≥lÕÜáa:7ıñ≥÷vøøMRQÉÆU*0ã7Ht≠ÓÜùHÿ{ã∫è\g
 O%D&t:ZeLlo=k7'u‹G∂0„ΩôQò(L ⁄Lÿÿ0a‘ˇáO8«√éY(ä∏ˆ°_-˝qCøµY?.Û¶?ÆvË˙]ıolËG÷–'Ö~ï2ÈW¡Œ+;"ËÔ˙M∏≤£;Ω˛°ˇçÌÓp
 endstream
 endobj
-38 0 obj
+48 0 obj
 <</Length 723/Filter/FlateDecode>>
 stream
 xú›U=ØS1›˚+<“ÅãÌƒâ≥"!$6†0Uze∏^ÖƒﬂG«π)z<êò†Ké{sü„|<í”K¶NÁ+Ò‘L[%û‹5ô6ÃïÕ=—ÌBF9]IK4ìñ6)7…k Yß⁄ÿÀùô&Ãd¡©€QçÒL„LK&P*çƒûÓL}ÅôÓñ]I®®W|>|=<ﬁüî]¥f‚IπzNíâ'i*Vº“á∑$ì“˜Z˚«{Ì¢TÚhø]ØOƒt∫Ωz`íFßá—@¶”ı”ãœÃ¸ôì≈&["µÂﬂ|?™ˆë”Q 2ó˚∑oÀL=˙ñ&•˚ëıÈtIÓøs9~9Ω;º9˝≤Ân‹ú!∂ƒØÓV‹.$FπV∫íÂ 3ôM≈ä[äÿ*ÂÍS
@@ -8358,7 +10462,7 @@ xú›U=ØS1›˚+<“ÅãÌƒâ≥"!$6†0Uze∏^ÖƒﬂG«π)z<êò†Ké{sü„|<í”K¶NÁ+Ò‘L[%û‹5ô6ÃïÕ
 `º`ÿ·Ubáã‘µ¡÷-õIluº§66Qop†hp†≠¡;F÷~¬±R?‚bCãÔ≈Œé(y†8Â@{;’-ı?oC-x¥—ip‰Ωf\zaBÒ≈Âûn&eLP·°Ñà¬Ñé`BG´åÅÌ≠gÌ&`•nB)K∂0°ÿhBDaB†0h7ag√Ñ•˛ﬂ\vwˆB≈¶àù˙U–‚–o=”Ljm‘è't◊è®Î˙m˙w6Ù#kËèïBøJÙ´`Ê∆é˙;Ç˛@C6vtß◊øËˇŸaı
 endstream
 endobj
-39 0 obj
+49 0 obj
 <</Length 690/Filter/FlateDecode>>
 stream
 xú›U±é1Ì˜+\rÉùƒN“"!$:`;†a§;äŸ‚Æ·˜—≥3≥πúN¢ÇmÚ<õÁ¯˘e<˜$ƒƒÙãïFÎÖxÈ5iÈ jÕRU@Óçsßá;RR∫P≤Íh£d}I‹•xú™êZZjÁñG§¥:≤í±ﬂë:ßNl+à™Ø+©ØE&•“Låt+≈=:v'°¢®x=˝8›û>ûÓ+:C^#^J…íkròjQÓç>Ω'Y˝¸ß’~¨^Yyë˙áª”€31ùﬁ‹2IßÛÌ‹D¶ÛÂÀ´ØÃ¸ï≥›à.:".±Jıı˚x™7vlI:∂‰õoÁßwÁ?Z‘P‚≈¸WÅP¢‡ZäíˆJ“‚`#’≈‘öfèµíˆ∂‰í·T%cFõõ™lbw$ƒ≤‚Äç$Gûà—«ÉÍÅa3 csöæ2Q”®˘˘õŸaá‚%¨·t◊"RM!‹lét	[àS∏Õp⁄A|†C¬¡vuÎäÉBæœœ-OT†ﬁ‘[ûŒ>à(k‘˝WØ%|ó∫Î◊»∏ëË·§wπœ˙µÔ˙π~Gá˛ÉÌ˙5÷’O˛ãN(ª≤=Ú‡»Ø Æ‹µÇÉÌ’ç˙üÔÉ`$sÍ∆µïLº§Å1ù0õ˛ßV<ôU/ˇ<I.ä…h√¿≤¥ÆEI≤.πk¡ÂílÒ/
@@ -8367,7 +10471,7 @@ xú›U±é1Ì˜+\rÉùƒN“"!$:`;†a§;äŸ‚Æ·˜—≥3≥πúN¢ÇmÚ<õÁ¯˘e<˜$ƒƒÙãïFÎÖxÈ5iÈ jÕRU@Óçs
 œ¡Û@ªkW6E÷·πµ›s≥˝ÖÜÁ¶≥ÁπÁé‹s”ŸÛÉÌûè˙üoÇ˘ï˜1P1›◊ü7⁄ıkd⁄(iüı„x’èOiËw‰˙˙∂Î◊Pç~·ÕÄ˛$u“èÈ4±=Ç˛@–4;∞≥√ù®ËˇrÑÂê
 endstream
 endobj
-40 0 obj
+50 0 obj
 <</Length 724/Filter/FlateDecode>>
 stream
 xú›U±é7Ì˜+XÊäLHJ§§6@ ]‚Ìb7^‡Œ≈\qá ˘˝‡ë⁄m_∏≤∑—„é…˜®—ºê”èXöw∫<o}TëÊFº‹ Î`NØOd‰]Ëô‘[†ù‘«¶<§F¨M»ªnmp/32∫j^∞?êß-ÏÊàZ¨≤Xw LJ£ïòÈ.îv∫+{%°£Ï¯r˙tz<˝~z˘OŸ2TÃ;¥÷bÆƒõ√ä⁄Ëè_I6•øøiÒÔÓ≈ãí◊/ˇ˙t˙˘LLÁ◊üôd–˘qµêÈ¸¸ÁÔô˘={€lFjÛﬂzø™Ê ÂA|ÓÂ|ˆ◊‹Q∆| míÀ˝ ◊$Y‰„√áÛoß_Œüp7ù+t≈b][5¡°£&çû…jÄùÃ67ÔV"∂FM˙VjëÅ2¶‡ÿ–Ç‡+SG$‘ÅIYÄù§dûåEjéÕ åÕ∫^ò8πº}Æáî¶Ü∑πu.C∫€|≈_ü»}
@@ -8377,87 +10481,138 @@ xú›U±é7Ì˜+XÊäLHJ§§6@ ]‚Ìb7^‡Œ≈\qá ˘˝‡ë⁄m_∏≤∑—„é…˜®—ºê”èXöw∫<o}TëÊFº‹
 ˘ÅnÚ6‰#kNïr¸bãÇWˇ`G Pú †£ÉÉçÓfˇ_s∑¡Ô”ÂL∏ìr_lP·•âà¬ÜD∞!—U»¬÷ëY”TJ‹g∂∞¡mµ!¢∞!Pÿ tÿp∞a√ÏˇlP´É!]ÜsÎµo:1Æx\ﬂìÔ>+4xÄ"⁄‚kè˚±å8›6+x1&ñ≠´F“}+√*^Q!È-ü¢¡ﬁ7Áw!ûåÒ2éè÷ƒuÆfwLªÂƒws≠f∑^ﬁµœ∑'Ô1m¡=–p!ÑÙ•*xΩc‹ñ∆Ì§6÷q„„{åQé;På;–m‹„F÷wTäq´¥e‹*ÿycGÑq'¬∏-Ó∆é√ò˝O˝ˇ S!ı|
 endstream
 endobj
-41 0 obj
+51 0 obj
 <</Length 721/Filter/FlateDecode>>
 stream
 xú›V=è1ÌÛ+¶$ffÏÒGãÑêË‡“q4D∫\±A∫âøèﬁÿõu$Ót§Òõ¨ﬂÃºg{ΩO$ƒƒÙC≠ïég‚P[)ŸàCS«05ññÈr"£ Bg“\-§πÂ&…c-Bï5î∆5é»ËÿQçòÔ»úSfvET|<¢N-òÌô2(ÖfbOwƒ»F›îΩíXF««›„Óa˜y˜ÙGŸ“T,WhM— \âCÜ©–óè$AÈ◊?-˛ÓVº(ÂÙÒó”Ó˝ÅòówL“Ë0[»t8}sœÃ˜y/1Xè~åˇ§è˜í«<N>˛Ïë∆}§RºY«h>~ﬂ;|⁄}8<ªú’∏UNP·?HÀZí	∂∞’XËLñ,d≤Âj—c+Tc1EI$∆ö dL(N»335Oò÷≈,$±ÁÈ±ËDı c2 c≤NÖ'f,kœ/Ô‚&±®·Ïñ ±©@w˙r¢úáp·ûn!·‹Ù*\Áπˆé æ£´Ñçu»ÍÚQ»ÂÁ‰π˙ˇ9NT†ﬁ‘\koƒX÷æ__£´œÄÍ€xˆÀ.eïo=·Bbk?›‰6ÀG‘Â;r˘éÆÚ76‰#k_}TÍÀ/6 8Ë€#ﬂ é| mllt7˙ŸúY∂ÊÜ¯Y*	¬M»uò†‹”-§\'Txj¡#7°#ò–—*cbß÷≥vP©õêÛ»Ê&dõM»Mp‰& m&llò0˙ˇõ◊˘ÂD*mµ¡z¬Ö‘⁄l^†õà∫é‹GW66l@V∑¡+π*e≤A%œlè`CG∞¡—¥W∂/R{çj©1§KÀ\jäƒA∆≠Ü;Ì≤‚Ó˘WcÅ (¢≈?ppIƒÊ˚!ÊÄÌa√¿j≥d§±Ñÿ,·=%§±ˆßh0∂ê9˘Ö §âoy#∆=Ω‚Ñì!Á∆D‘s˙ß¬TOz/oÌs¨¸oKáÛ®
 endstream
 endobj
-42 0 obj
+52 0 obj
 <</Length 82/Filter/FlateDecode>>
 stream
 xú-Ã±Ä D—ú*∂ôΩ„¿£kpF –˛4z?ÿŸÇXµ(ˆF≥$i’∆¨’D|≥ªûsNâü∂©¢˝üDW8¬ˆ‚*
 endstream
 endobj
-43 0 obj
+53 0 obj
 <</Length 115/Filter/FlateDecode>>
 stream
 xúUé±1{O¡bP∂ﬁñ∆»í4_‰˜/G _Ò$êîﬁƒmâêÜÿ¡*mSg[‰É”¥Éµùå„ôf≈û u:≠#u»⁄öµ—•{Œˆü¯äHH„º,{q©∑º¸KúˇDyïGπ })\
 endstream
 endobj
-44 0 obj
-<</Title(Atlas hover status components)/Creator(VectorCraft)/Producer(VectorCraft)/ModDate(D:20261115095204Z)/CreationDate(D:20261115095159Z)>>
-endobj
-45 0 obj
-<</Length 1080/Type/Metadata/Subtype/XML>>
+54 0 obj
+<</Length 325/Filter/FlateDecode>>
 stream
-<?xpacket begin="Ôªø" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="xmp-writer"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"  xmlns:xmp="http://ns.adobe.com/xap/1.0/"  xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/"  xmlns:xmpTPg="http://ns.adobe.com/xap/1.0/t/pg/"  xmlns:pdf="http://ns.adobe.com/pdf/1.3/" ><dc:title><rdf:Alt><rdf:li xml:lang="x-default">Atlas hover status components</rdf:li></rdf:Alt></dc:title><xmp:CreatorTool>VectorCraft</xmp:CreatorTool><pdf:Producer>VectorCraft</pdf:Producer><xmp:ModifyDate>2026-11-15T09:52:04+00:00</xmp:ModifyDate><xmp:CreateDate>2026-11-15T09:51:59+00:00</xmp:CreateDate><xmpTPg:NPages>12</xmpTPg:NPages><dc:format>application/pdf</dc:format><xmpMM:InstanceID>Cblwwo615VxNYEJYqY9FXw==</xmpMM:InstanceID><xmpMM:DocumentID>Cblwwo615VxNYEJYqY9FXw==</xmpMM:DocumentID><xmpMM:RenditionClass>default</xmpMM:RenditionClass><pdf:PDFVersion>1.7</pdf:PDFVersion></rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="r"?>
+xú›í=Oƒ0Ü˜˛äwÑÅb;ü^ë€q›8*›1–·∫‹ﬂGNR]+ÅXì'yÌ¯„ÅpgÜI#∆	‘kí‡’ ƒ%C“LN1ü¿$¶äüê®Ωê≤Øíÿ@˙§§ã06‘"©Ëän@C≠&±tL`—r,™Äµ∏≈D{ªI’E^~?v›±€uÁÔ[‡¨X·ÍΩwÏíî‰i∆À∏\˛O/ˆ?˜B›≤Ÿ∂¡€:§v6üê¡î2¶
+‘KÃˆf©ˆ¿C§⁄¢}r¨πtÀ√≈ï®:c• ”çD•∆R±
+WITJ˛E”>ıÀîâØNe °¢ä›¥9\˛|ë˚mëﬁÉπ÷»6'#çî≤w†^c>u√|$∞b8Æ[E¶◊õ»•jEä}o›æœ›„–Ìæ 9—Ÿî
 endstream
 endobj
-46 0 obj
-<</ViewerPreferences<</DisplayDocTitle true>>/Type/Catalog/Pages 1 0 R/Metadata 45 0 R>>
+55 0 obj
+<</Length 486/Filter/FlateDecode>>
+stream
+xú›T=è1ÌÛ+Üé-Ê€vãÑêÆÉ€é£a•°È"$˛>{˜í†ÉäÍöùÁ—ºyˆÛ¨ÅÅÄ‡MfXN@ÿä∏µ5§xBjï¥¡˘ Ã¬pâ2‡$
+5∂ëê¬	K£∂≠ñzß®ùw”¿}mÌII9˜$d∑ùÂpM^{.H÷ﬁ»_x¬€Óó›∑›~˜q˜¯ºöá 4S÷"J1ßV·”`¯ırº∏øı¬R{X¡9$âZP©¶@(+ÜÛa˜nÇ˘¸vO¿Ê˝µ£ÛÈÛÎ"z ı©Æê|bCﬂV2qlXGY◊—„è©m÷„œ¸¬æöÏ“ÓYë¡#ÒÎÙeæ€Ωüˇ>óŸ/cˆcãÛX”=Éh∑”‡™XÇM∫±E´ØãÀ@V≤æ£ñ$ø!ªåÆ.yì©‰íWIΩWIö‘+v«ñ§¡qÄU¸ö(ˆ¥˜ˇÙº+ÓˇaÖpDŒÄÂ\XFö„QÀp¢¶pﬂA7n„x’˙#qù,öF±cƒ%…£¥!˝ôlY≠‰xoU™ÿ‘˙èoHΩ∞[_P3-Ü∂ïv'$Üpñ©†TÀQîßñ<Ñ5ÜLc$∑¢¶FæL€˛ñgèræ˛poG&
+endstream
+endobj
+56 0 obj
+<</Length 482/Filter/FlateDecode>>
+stream
+xú›î?è1≈˚˝S≤√¸Ûÿnë“up€™ïÑ6H!Òı—ÿﬁªçƒuT◊ƒøI¸fûüÏ<¡˚XXÿaΩaÕí¨$/.9R-§nH¿\Æ û;n ^Q®≤ı/$sÄ`ÆT˜*¡⁄Q∏I:j”ßﬁ:`çq¥n≈õ*¡Q<zÆ0Êlp7˛Y÷Ü˚u˙1ùß/””ø#–8lTÑf ö•°dKT|˝åﬁNè˜YXòÔQp\í†Íîã) `∏]¶è,∑gÆ∞úèâ,◊oÔNDt"MsHif√¥W2≥Ô¨}µ∑ı◊\˜÷÷ﬂÒ	/x"‚9ø¥L≥?íÜª_YÔ≥Hl˛æ<Lüñ◊ÔGâk@vG>Ó…Ì¨ë¨¡¥Em∞Å*fgì∫Åz¨é¢%ç¢¬⁄H(«˛F5DÈ(ñ÷5÷µM
+⁄Ä©ı !cÅrP7Œ∞ƒò≠√~Ü±›˚z!o%ä«◊£HŸ-S?ıW—íËîà Ä·'∞am'IH
+W‡Ñ’‹€Û&F*j˚Æ=ŒhË·XK≥?‰£ÊZêEDêYU√tU4u1LmO¸´GG:Z«î∫FHê2H¡$›◊äNj†åµui¶÷»‚/Ó>i
+endstream
+endobj
+57 0 obj
+<</Length 459/Filter/FlateDecode>>
+stream
+xú›T=è1Ï˜Wå®ÿÇ`;Nú¥HÈ:∏Ì8VzÔÑﬁ"›9…Íˆ!Æ£∫f=ﬁx∆…‰„	·ùÀX7P®&I´ÉîKK©ä◊3Xî±A≤uxÅ‰Ñ*kˇ!∆$X•∫g	ÎÄ÷(∆∆ª∞4§Õ)ﬁŒí\≠‰∆J8íáÊ⁄ÄzÌM˚gûÚ>˚uzúN”ÁÈÈﬂD_¨p’»—§A1MTæ|¡Ô◊„≈˝≠™`ÓV∞G5ìç† „zû>, ,◊˜'W,ß££Ñe˚˙ˆÅà(¶πHifiœdÊº„ÿ£»»sã?Á∫hãø¸ãg¯fÊtÏëmô≠}ÍÈÔ.Û∑Ân˙∏º|"¨üÖ\ïŸrÉ„ò\œ‡Ën*6ƒfØ‚ÇÉeViF+bˆòÉƒíFR±vîÕÎ™NJ7dìÆj‚;ÎùL|k©iô”LPÏÜkZqÈ`4?}Ø«‹ˇ”≠x-V‹ølEä˚#©Ebí™€ı`ÌNww`¸ s Òiƒ Çl¡◊í$XiOFh∑Ω_ná7pÒﬂ,©nÂ¨ïs†Ïy‚”O%‘ˆÖ“RÌjQBmtu_÷}⁄2x
+endstream
+endobj
+58 0 obj
+<</Length 357/Filter/FlateDecode>>
+stream
+xú›ì=KAÜ˚˚/ÿxÖÎ|Ïg+à`sù⁄xêXxÅ!_f˜B>Pl≈ÊÊô›}gvfˆ∂`7fX5bú@Æ$	æÑò£§`H%ìÏ÷`%∆â©·$'Tÿ∑Il .*/`úQ´§°V›Y sh5â•”`ãñcUúäÁòc≤≥gÈè:‚√Ì«ÓΩ[uãn˚}‘äé ÁΩ≤&©(…*O`'ÿˇü^,ÓE,û9≈d®è@‰XÍr≤ë¡ Sr3ÉΩYjmivÑóîKÆÛ–x"jN∆ÿHB=z&Qi±T¨»ì$*5ˇA3_ÍóAﬂ8’AáÜElgu¿˛œπ</“{0∑Ÿ~g™C+ëRˆ
+r23vÎÓn aÿ›Æ\0¨N[E¶ÁÎ"∫ÍÖ+ºl˙“ÄHf/¸‘¨4Søüób˜©-Ωı˛r/ÙØ√cw?tã/Œ§ÔH
+endstream
+endobj
+59 0 obj
+<</Title(Atlas hover status components)/Creator(VectorCraft)/Producer(VectorCraft)/ModDate(D:20261122195345Z)/CreationDate(D:20261115095159Z)>>
+endobj
+60 0 obj
+<</Length 1148/Type/Metadata/Subtype/XML>>
+stream
+<?xpacket begin="Ôªø" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="xmp-writer"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"  xmlns:xmp="http://ns.adobe.com/xap/1.0/"  xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/"  xmlns:xmpTPg="http://ns.adobe.com/xap/1.0/t/pg/"  xmlns:pdf="http://ns.adobe.com/pdf/1.3/" ><dc:title><rdf:Alt><rdf:li xml:lang="x-default">Atlas hover status components</rdf:li></rdf:Alt></dc:title><xmp:CreatorTool>VectorCraft</xmp:CreatorTool><pdf:Producer>VectorCraft</pdf:Producer><dc:language><rdf:Bag><rdf:li>en-US</rdf:li></rdf:Bag></dc:language><xmp:ModifyDate>2026-11-22T19:53:45+00:00</xmp:ModifyDate><xmp:CreateDate>2026-11-15T09:51:59+00:00</xmp:CreateDate><xmpTPg:NPages>17</xmpTPg:NPages><dc:format>application/pdf</dc:format><xmpMM:InstanceID>Z2r6v0G/mzu6eMSZS9WXFg==</xmpMM:InstanceID><xmpMM:DocumentID>Z2r6v0G/mzu6eMSZS9WXFg==</xmpMM:DocumentID><xmpMM:RenditionClass>default</xmpMM:RenditionClass><pdf:PDFVersion>1.7</pdf:PDFVersion></rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="r"?>
+endstream
+endobj
+61 0 obj
+<</ViewerPreferences<</DisplayDocTitle true>>/Type/Catalog/Pages 1 0 R/Metadata 60 0 R/Lang(en-US)>>
 endobj
 xref
-0 47
+0 62
 0000000000 65535 f
 0000000016 00000 n
-0000000146 00000 n
-0000000218 00000 n
-0000000290 00000 n
-0000000362 00000 n
-0000000434 00000 n
-0000000506 00000 n
-0000000578 00000 n
-0000000650 00000 n
-0000000722 00000 n
-0000000795 00000 n
-0000000868 00000 n
-0000000922 00000 n
-0000000976 00000 n
-0000001108 00000 n
-0000001617 00000 n
-0000001826 00000 n
-0000001964 00000 n
-0000002102 00000 n
-0000002240 00000 n
-0000002378 00000 n
-0000002516 00000 n
-0000002654 00000 n
-0000002792 00000 n
-0000002930 00000 n
-0000003069 00000 n
-0000003208 00000 n
-0000003338 00000 n
-0000003468 00000 n
-0000003549 00000 n
-0000004120 00000 n
-0000010781 00000 n
-0000011192 00000 n
-0000011639 00000 n
-0000012030 00000 n
-0000012466 00000 n
-0000012868 00000 n
-0000013657 00000 n
-0000014449 00000 n
-0000015208 00000 n
-0000016001 00000 n
-0000016791 00000 n
-0000016941 00000 n
-0000017125 00000 n
-0000017285 00000 n
-0000018442 00000 n
+0000000181 00000 n
+0000000253 00000 n
+0000000325 00000 n
+0000000397 00000 n
+0000000469 00000 n
+0000000541 00000 n
+0000000613 00000 n
+0000000685 00000 n
+0000000757 00000 n
+0000000830 00000 n
+0000000903 00000 n
+0000000957 00000 n
+0000001011 00000 n
+0000001084 00000 n
+0000001157 00000 n
+0000001230 00000 n
+0000001303 00000 n
+0000001376 00000 n
+0000001508 00000 n
+0000002071 00000 n
+0000002280 00000 n
+0000002418 00000 n
+0000002556 00000 n
+0000002694 00000 n
+0000002832 00000 n
+0000002970 00000 n
+0000003108 00000 n
+0000003246 00000 n
+0000003384 00000 n
+0000003523 00000 n
+0000003662 00000 n
+0000003792 00000 n
+0000003922 00000 n
+0000004061 00000 n
+0000004200 00000 n
+0000004339 00000 n
+0000004478 00000 n
+0000004617 00000 n
+0000004698 00000 n
+0000005293 00000 n
+0000012519 00000 n
+0000012930 00000 n
+0000013377 00000 n
+0000013768 00000 n
+0000014204 00000 n
+0000014606 00000 n
+0000015395 00000 n
+0000016187 00000 n
+0000016946 00000 n
+0000017739 00000 n
+0000018529 00000 n
+0000018679 00000 n
+0000018863 00000 n
+0000019257 00000 n
+0000019812 00000 n
+0000020363 00000 n
+0000020891 00000 n
+0000021317 00000 n
+0000021477 00000 n
+0000022702 00000 n
 trailer
-<</Size 47/Root 46 0 R/Info 44 0 R/ID[(Cblwwo615VxNYEJYqY9FXw==)(Cblwwo615VxNYEJYqY9FXw==)]>>
+<</Size 62/Root 61 0 R/Info 59 0 R/ID[(Z2r6v0G/mzu6eMSZS9WXFg==)(Z2r6v0G/mzu6eMSZS9WXFg==)]>>
 startxref
-18547
+22819
 %%EOF

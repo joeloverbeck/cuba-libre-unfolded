@@ -7,7 +7,7 @@ The source scenario remains `deacd635db5f71f4d3f092bd9cc99a9d96bb7aab`. The orig
 ## Runtime files and editable custody
 
 - `atlas-ui.png` is the 1920×1280 authored main-view chrome, with every scenario value, map silhouette and repeated piece removed in VectorCraft. Its exact transparent opening is **x40,y320,w1300,h540**, made by subtracting the same rectangle from both authored backgrounds. Render the map Camera3d in this viewport beneath the UI camera; the map title and legend remain outside it. Its SVG is a portable outlined-vector export; `atlas-ui.vectorcraft` retains editable text and shapes.
-- `atlas-reader.png` / `.svg` / `.vectorcraft` provide the selected reader shell. All four faction panels remain visible. No imported card face or image link is embedded.
+- `atlas-reader.png` / `.svg` / `.vectorcraft` are the retired card reader's shell. #139 replaced the reader with the [card tag](CARD-TAG.md); nothing draws this file, but `runtime.sha256` still admits it because that manifest enters every save's identity. No imported card face or image link is embedded.
 - `atlas-components.vectorcraft` / `.svg` retain the selected blank contribution, transfer, removal, roll, space, recovery and completion panels and action backgrounds. `atlas-panel`, `atlas-button`, `atlas-button-primary` are cropped PNG/SVG component exports. Compose and size these authored components for each current decision; do not create replacement decorations in code.
 - `atlas-active-star` and `atlas-closed-slash` are transparent PNG/SVG exports of the selected state marks, from state-study objects 121 and 125. They are authored marks for solid piece faces, not pieces themselves.
 - Thirteen `atlas-label-*.png` files contain the selected static geography labels, terrain/population or EC economy. [labels.json](labels.json) records their source object IDs and current placement bounds. `atlas-labels.vectorcraft` contains their editable text after the owner-directed refinement. PNGs use twice the original coordinate resolution; positions and physical sizes use the recorded bounds, not PNG pixel dimensions.
@@ -38,18 +38,21 @@ Current refinement checks: thirteen manifold meshes with positive signed volumes
 
 ## Main-view composition and dynamic content
 
-Coordinates are in the original 1920×1280 design and scale uniformly with letterboxing. Keep native input targets and seat targets aligned with that same transform. A smaller viewport must preserve readable type by inspecting details in the selected panel/reader instead of shrinking all decision text indefinitely.
+The [main view layout](MAIN-VIEW.md) owns where every area sits: the 3D map fills the window and the areas below lie over it. Coordinates are reference pixels, measured from the window edge or centre each area is anchored to; one reference pixel is the smaller of the window's width over 1920 and its height over 1280, and nothing is letterboxed. Keep native input targets and seat targets aligned with that same transform. A smaller window must preserve readable type by inspecting details in the panels and tags instead of shrinking all decision text indefinitely.
 
 | Surface | Authored placement | Runtime responsibility |
 |---|---|---|
-| Standings | x=40,510,980,1450; y=76; each 450×146 | Current scores at y≈134, margins/extra conditions at y≈162; contributions at y≈205. Always visible. |
-| Map panel | panel x=40,y=280,w=1300,h=660; transparent 3D viewport x=40,y=320,w=1300,h=540 | Render navigable 3D map beneath the UI camera; title and legend stay outside the opening. Frame all thirteen spaces initially. |
-| Decision | x=1380,y=280,w=500,h=660 | Current actor, operation, Resources, choices, cost, target, legal/refused explanation and actual roll/owed Terror. |
-| Primary action | x=1404,y=825,w=452,h=65 | Dynamic Finish/resolve label and enabled state; no example outcome remains baked. |
-| Current/preview cards | panels x=64 and330,y=1024,h=170 | Fit imported portraits proportionally inside the available box; open full reader for text. Never stretch/crop faces to the landscape placeholder. |
-| Contributions | x=660,y=964,w=680,h=264 | Current faction, per-space multipliers, totals, thresholds and unmet conditions; deliberate open/pin/close as well as hover. |
-| Session | x=1380,y=964,w=500,h=264 | Actual pending giver, durable-save/recovery/refusal status; inspect/cancel/save/quit and continuation. |
-| Expanded reader | x=280,y=280,w=1360,h=900 | Current and preview faces approximately 420×602 at x=320 and1000, y=380; captions at y≈1080. Close returns to the same decision. |
+| Map | the whole window; Home fits all thirteen spaces into the layout's island box | Render the navigable 3D map beneath the UI camera. Orbit, zoom, pan and Home work wherever no area lies. |
+| Outside influence | top left: x=40,y=18,w=370,h=64 | Aid and the US Alliance track ([TOP.md](TOP.md)). |
+| Standings | top, centred: x=728,y=8,w=464,h=108 of a centred 1920 | Current margins under the four emblems; contributions in the hover tag. Always visible. |
+| Resources and Cash | top right: x=1688,y=20,w=192,h=246 | The Resources ledger and the Cash supply ([TOP.md](TOP.md)). |
+| Sequence of Play | top left: x=60,y=178,w=232,h=384 | The eligibility track ([ELIGIBILITY.md](ELIGIBILITY.md)). |
+| Decision | top right: x=1380,y=280,w=500,h=660 | Current actor, operation, Resources, choices, cost, target, legal/refused explanation and actual roll/owed Terror. |
+| Primary action | x=1404,y=825,w=452,h=65, in the decision panel | Dynamic Finish/resolve label and enabled state; no example outcome remains baked. |
+| Current/preview cards | bottom left: x=40,y=964,w=600,h=264 | Until #143 builds the card piles: both faces fitted proportionally, each opening its [card tag](CARD-TAG.md). Never stretch or crop a face. |
+| Session | bottom right: x=1380,y=964,w=500,h=264 | Actual pending giver, durable-save/recovery/refusal status; save/quit and continuation. |
+
+Each area takes the pointer over its own rectangle, so a press or a scroll there never reaches the map.
 
 The two background sheets contain constant faction names and victory thresholds, but no current numeric standings. Their constant statements do not replace the accepted rule source. UI fields and all quantities must update together with model observations after transfer, Terror, removal and resume. The generic selected panel/action exports cover transfer authorization/decline, own-removal confirmation/cancel, roll and owed-Terror feedback, per-space inspection, Finish, recovery and refusal without carrying any fixed outcome. The initial handoff required no motion. The later owner-directed [water proposals](water/README.md) use VectorCraft and EffectCraft sources and exported frames; selection and native consumption remain separately reviewable.
 
@@ -73,7 +76,7 @@ The app admits these private original faces from the directory supplied to `--ca
 | `card-18.png` | `50df7058e660bb4dc620096823945eeb095fe4123e0aead68fec6244ab097c4e` |
 | `card-19.png` | `10bf73402f7fbb79d14aad0b928bc8ea20949ea5bd888799a869a6f4e270bc3b` |
 
-The faces remain outside Git. The reader and the table use the same portrait slots as the original Atlas selection and follow the saved cards' current and preview roles. Both surfaces preserve the faces' proportions and edges. The app checks all three before gameplay. [Build and launch](../../README.md#build-and-launch)
+The faces remain outside Git. The card panel uses the same portrait slots as the original Atlas selection, and the card tag shows one face at reading size; both follow the saved cards' current and preview roles, preserve the faces' proportions, and round their corners so the black printed outside them never shows. The app checks all three before gameplay. [Build and launch](../../README.md#build-and-launch)
 
 ## Interface palette
 
@@ -100,7 +103,7 @@ The hashes only prove which source an export was taken from, so always re-export
 
 Before it creates or replaces a save, the app checks every manifest that `src/assets.rs` lists in `MANIFESTS`, decodes the PNGs, registers the fonts and admits the real scene and render path. A missing or altered asset refuses at launch.
 
-Apart from `runtime.sha256`, which enters a save's identity ([docs/agents/saves.md](../../docs/agents/saves.md)), there is one manifest per selected design: `status`, `victory`, `layout`, `terrain`, `terror`, `top`, `highlights`, `choice`, `eligibility`, `transfer`, `kidnap`, `popover` and `execution`. These are presentation only: adding one does not change what a save records, and does not weaken source, checksum or state admission.
+Apart from `runtime.sha256`, which enters a save's identity ([docs/agents/saves.md](../../docs/agents/saves.md)), there is one manifest per selected design: `status`, `victory`, `layout`, `terrain`, `terror`, `top`, `highlights`, `choice`, `eligibility`, `transfer`, `kidnap`, `popover`, `execution` and `card-tag`. These are presentation only: adding one does not change what a save records, and does not weaken source, checksum or state admission.
 
 ## Evidence limits and native check
 

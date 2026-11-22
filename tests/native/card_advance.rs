@@ -25,7 +25,7 @@ fn copy_owner_save(dir: &Path, text: &str, hash: &str, path: &Path) {
 }
 
 #[test]
-#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained card reader and table"]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained card tags and table"]
 fn native_card_advance_reopens_both_event_results_and_commits_once() {
     let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
         .map(PathBuf::from)
@@ -73,8 +73,15 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
         assert_eq!(end["preview_card"], 18);
         assert_eq!(end["draw_count"], 34);
         app.capture("card-17-result");
-        app.activate("reader", revision);
-        app.capture("card-17-current-18-preview");
+        // Both cards read through their tags (#139).
+        for (slot, number) in [("card:current", 17), ("card:preview", 18)] {
+            app.activate(slot, revision);
+            let tag = app.observe();
+            assert_card_tag_placed(&tag, slot);
+            assert_eq!(tag["table"]["card"]["shown"]["number"], number);
+            app.capture(&format!("card-17-tag-{number}"));
+            close_card_tag(&mut app);
+        }
         app.quit();
 
         app.launch_size("3840x2160");
@@ -142,8 +149,14 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
             assert!(briefing_text.contains("A zero-space Assault earns no Resources"));
         }
         app.capture("card-18-assault-briefing");
-        app.activate("reader", revision + 1);
-        app.capture("card-18-current-19-preview");
+        for (slot, number) in [("card:current", 18), ("card:preview", 19)] {
+            app.activate(slot, revision + 1);
+            let tag = app.observe();
+            assert_card_tag_placed(&tag, slot);
+            assert_eq!(tag["table"]["card"]["shown"]["number"], number);
+            app.capture(&format!("card-18-tag-{number}"));
+            close_card_tag(&mut app);
+        }
         app.quit();
 
         let advanced = fs::read(&app.save).unwrap();
