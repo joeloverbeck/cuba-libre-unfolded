@@ -1,5 +1,5 @@
 //! The Resource transfer modal in the selected TM-B design, "Two accounts" (#68, built
-//! in #71): 26July's account and the counterpart's side by side, a "Give to | Ask from"
+//! in #71): the executing faction's account and its counterpart's side by side, a "Give to | Ask from"
 //! toggle driving a flow arrow from giver to recipient, the amount typed or set by the
 //! quick values 1, 2 and Max or by Bevy's slider, the three limits, and in the giver's
 //! decision the same modal in the giver's colours.
@@ -113,12 +113,12 @@ pub(super) mod fig {
     pub const OPEN: [f32; 2] = [57., 28.];
 }
 
-/// 26July's two transfer decisions (R 1.5.1).
+/// The executing faction's two transfer decisions (R 1.5.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 pub(super) enum Direction {
-    /// 26July gives; the Resource transfer moves on confirmation.
+    /// The executor gives; the Resource transfer moves on confirmation.
     Give,
-    /// 26July asks; the counterpart decides what moves.
+    /// The executor asks; the counterpart decides what moves.
     Ask,
 }
 
@@ -193,7 +193,7 @@ pub(super) fn shown(transfer: Option<&Transfer>) -> bool {
     }
 }
 
-/// The deciding faction's colour key, or "ink" while 26July composes.
+/// The giver's colour key, or "ink" while the executing faction composes.
 fn tone(view: &Observation) -> &'static str {
     match &view.transfer {
         Some(Transfer::Authorizing { giver, .. }) => slug(*giver),
@@ -216,6 +216,7 @@ pub(super) struct Shown {
     pub label: String,
 }
 pub(super) fn content(view: &Observation, state: &State) -> Shown {
+    let executor = view.executing;
     let amount = state.amount();
     let offered = |action: String| {
         view.choices
@@ -245,8 +246,8 @@ pub(super) fn content(view: &Observation, state: &State) -> Shown {
         }
         _ => {
             let (giver, recipient) = match (state.counterpart, state.direction) {
-                (Some(other), Some(Direction::Give)) => (Some(Faction::M26), Some(other)),
-                (Some(other), Some(Direction::Ask)) => (Some(other), Some(Faction::M26)),
+                (Some(other), Some(Direction::Give)) => (executor, Some(other)),
+                (Some(other), Some(Direction::Ask)) => (Some(other), executor),
                 _ => (None, None),
             };
             let terms = view
@@ -360,12 +361,18 @@ fn tab_name(faction: Faction) -> String {
     format!("transfer:tab:{}", slug(faction))
 }
 
+fn counterparts(view: &Observation) -> impl Iterator<Item = Faction> + '_ {
+    Faction::ALL
+        .into_iter()
+        .filter(|&faction| Some(faction) != view.executing)
+}
+
 /// The modal's controls in Tab order, by their seat names.
 pub(super) fn focusable(view: &Observation, ui: &Interface) -> Vec<String> {
     let shown = content(view, &ui.transfer);
     let mut names = vec![];
     if matches!(view.transfer, Some(Transfer::Selecting)) {
-        names.extend([Faction::Government, Faction::Directorio, Faction::Syndicate].map(tab_name));
+        names.extend(counterparts(view).map(tab_name));
         names.extend([
             "transfer:direction:give".into(),
             "transfer:direction:ask".into(),
@@ -1022,6 +1029,12 @@ fn modal(
         .id();
     part(commands, root, "transfer-modal");
     // Header band, in the deciding faction's colour.
+    let executor = view.executing.unwrap_or(view.owner);
+    let activity = match &view.event {
+        Some(crate::EventProgress::Rally(_)) => "the free Rally",
+        Some(_) => "Alberto Bayo",
+        None => "Terror",
+    };
     let header = commands
         .spawn((
             plate(art, &format!("atlas-transfer-header-{tone}.png")),
@@ -1045,7 +1058,11 @@ fn modal(
         ),
         _ => (
             "RESOURCE TRANSFER".into(),
-            "Open while 26July executes Terror  ·  R 1.5.1".into(),
+            format!(
+                "Open while {} executes {}  ·  R 1.5.1",
+                executor.name(),
+                activity
+            ),
         ),
     };
     let t = words(
@@ -1073,6 +1090,7 @@ fn modal(
         giver: Faction::M26,
         ..
     }) = view.transfer
+        && view.event.is_none()
     {
         let banner = commands
             .spawn((
@@ -1111,7 +1129,7 @@ fn modal(
             s,
         );
     }
-    // Accounts: 26July, the direction and the counterpart.
+    // Accounts: the executing faction, the direction and the counterpart.
     let accounts = child(
         commands,
         root,
@@ -1132,12 +1150,13 @@ fn modal(
             Some((recipient, Live::RecipientAfter, refused))
         }
     };
-    let m26_role = match (shown.giver, shown.recipient) {
-        (Some(Faction::M26), _) => "executing Terror · giver",
-        (_, Some(Faction::M26)) => "executing Terror · recipient",
-        _ => "executing Terror",
+    let role = match (shown.giver, shown.recipient) {
+        (Some(giver), _) if giver == executor => " · giver",
+        (_, Some(recipient)) if recipient == executor => " · recipient",
+        _ => "",
     };
-    let m26_key = if shown.giver == Some(Faction::M26) {
+    let executor_role = format!("executing {activity}{role}");
+    let executor_key = if shown.giver == Some(executor) {
         format!("atlas-transfer-account-{tone}.png")
     } else {
         "atlas-transfer-account.png".into()
@@ -1146,14 +1165,14 @@ fn modal(
         commands,
         art,
         accounts,
-        Faction::M26,
-        m26_role,
-        view.resources[Faction::M26.index()],
-        after(Faction::M26),
-        &m26_key,
+        executor,
+        &executor_role,
+        view.resources[executor.index()],
+        after(executor),
+        &executor_key,
         s,
     );
-    part(commands, card, "account:26july");
+    part(commands, card, &format!("account:{}", slug(executor)));
     // Direction: the toggle while composing, the request's words in a decision.
     let direction = child(
         commands,
@@ -1257,10 +1276,9 @@ fn modal(
         .id();
     part(commands, band, "flow-band");
     if flowing {
-        // The arrow is drawn pointing right, from 26July to the counterpart; it turns
-        // when the counterpart gives.
+        // The arrow points from the giver's account to the recipient's.
         let mut arrow = ImageNode::new(image(art, "atlas-transfer-arrow.png"));
-        arrow.flip_x = shown.giver != Some(Faction::M26);
+        arrow.flip_x = shown.giver != Some(executor);
         commands.spawn((
             arrow,
             Node {
@@ -1279,7 +1297,9 @@ fn modal(
             giver.name(),
             terms.map_or(0, |t| t.limit)
         ),
-        (_, Some(Faction::M26)) => "26July would give;\nit moves on confirmation".into(),
+        (_, Some(giver)) if giver == executor => {
+            format!("{} would give;\nit moves on confirmation", executor.name())
+        }
         (_, Some(giver)) => format!(
             "{} would give;\n{} decides the amount",
             giver.name(),
@@ -1315,18 +1335,11 @@ fn modal(
     let other = match view.transfer {
         Some(Transfer::Authorizing {
             giver, recipient, ..
-        }) => Some(if giver == Faction::M26 {
-            recipient
-        } else {
-            giver
-        }),
+        }) => Some(if giver == executor { recipient } else { giver }),
         _ => state.counterpart,
     };
     let heading = match view.transfer {
-        Some(Transfer::Authorizing {
-            giver: Faction::M26,
-            ..
-        }) => "REQUESTER",
+        Some(Transfer::Authorizing { giver, .. }) if giver == executor => "REQUESTER",
         Some(Transfer::Authorizing { .. }) => "GIVER",
         _ => "COUNTERPART",
     };
@@ -1352,7 +1365,7 @@ fn modal(
                 ..default()
             },
         );
-        for faction in [Faction::Government, Faction::Directorio, Faction::Syndicate] {
+        for faction in counterparts(view) {
             let on = state.counterpart == Some(faction);
             let ([w, h], e) = if on {
                 (fig::TAB_ON, fig::TAB_EMBLEM_ON)
@@ -1396,10 +1409,9 @@ fn modal(
     match other {
         Some(faction) => {
             let role = match view.transfer {
-                Some(Transfer::Authorizing {
-                    giver: Faction::M26,
-                    ..
-                }) => "requester · recipient",
+                Some(Transfer::Authorizing { giver, .. }) if giver == executor => {
+                    "requester · recipient"
+                }
                 _ if shown.giver == Some(faction) => "giver",
                 _ if shown.recipient == Some(faction) => "recipient",
                 _ => "choose Give to or Ask from",
@@ -1521,7 +1533,9 @@ fn amount(
             "AMOUNT {} GIVES  ·  prefilled with the request",
             giver.name().to_uppercase()
         ),
-        (_, Some(t)) if t.giver == Faction::M26 => format!("AMOUNT TO GIVE  ·  0 to {}", t.limit),
+        (_, Some(t)) if Some(t.giver) == view.executing => {
+            format!("AMOUNT TO GIVE  ·  0 to {}", t.limit)
+        }
         (_, Some(t)) => format!("AMOUNT REQUESTED  ·  0 to {}", t.limit),
         _ => "AMOUNT  ·  opens once both are chosen".into(),
     };
@@ -1901,7 +1915,9 @@ fn footer(
     };
     let note = match (decision, shown.giver) {
         (Some(_), _) => "Wait keeps it pending, across save and quit.".to_owned(),
-        (None, Some(Faction::M26)) => "26July's own Resource transfer moves at once.".into(),
+        (None, Some(giver)) if Some(giver) == view.executing => {
+            format!("{}'s own Resource transfer moves at once.", giver.name())
+        }
         (None, Some(giver)) => format!("Nothing moves until {} authorizes.", giver.name()),
         (None, None) => "Zero and repeated transfers are allowed.".into(),
     };
@@ -1959,6 +1975,9 @@ fn footer(
         Some(choice) => (
             match decision {
                 Some(giver) => format!("atlas-transfer-primary-{}.png", slug(giver)),
+                None if view.executing == Some(Faction::Directorio) => {
+                    "atlas-transfer-primary-directorio.png".into()
+                }
                 None => "atlas-transfer-primary.png".into(),
             },
             choice.id.clone(),
@@ -2075,7 +2094,7 @@ fn pending(commands: &mut Commands, art: &Art, view: &Observation, s: f32, cente
         ))
         .id();
     let mut arrow = ImageNode::new(image(art, "atlas-transfer-arrow.png"));
-    arrow.flip_x = giver != Faction::M26;
+    arrow.flip_x = true;
     commands.spawn((
         arrow,
         Node {

@@ -158,7 +158,7 @@ struct UiRoot;
 struct StandingText(Faction);
 #[derive(Component)]
 struct PieceVisual;
-/// A 26July group's token: removal mode marks it, and a click on it opens its piece
+/// An executing faction's token: removal mode marks it, and a click opens its piece
 /// popover (#73). `key` is `space:group` as removal ids name it; `base` is the region
 /// top it stands on.
 #[derive(Component)]
@@ -563,13 +563,17 @@ fn sync_pieces(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     roots: Query<Entity, With<PieceVisual>>,
-    mut previous: Local<Vec<crate::Space>>,
+    mut previous: Local<Option<(Faction, Vec<crate::Space>)>>,
 ) {
     let game = play.game();
-    if *previous == game.spaces {
+    let executor = game.executing().unwrap_or(Faction::M26);
+    if previous
+        .as_ref()
+        .is_some_and(|(faction, spaces)| *faction == executor && *spaces == game.spaces)
+    {
         return;
     }
-    *previous = game.spaces.clone();
+    *previous = Some((executor, game.spaces.clone()));
     for entity in &roots {
         commands.entity(entity).despawn();
     }
@@ -635,7 +639,7 @@ fn sync_pieces(
                 .entity(token)
                 .insert((PieceVisual, status::SpaceTarget(space.id.clone())))
                 .remove::<Pickable>();
-            if piece.faction == Faction::M26 {
+            if piece.faction == executor {
                 let key = format!(
                     "{}:{}",
                     space.id,

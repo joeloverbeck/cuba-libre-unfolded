@@ -269,6 +269,7 @@ pub const CARD_17_ORDER: [Faction; 4] = [
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum EventProgress {
+    ExecuteShaded,
     ChooseRallyBeneficiary,
     Rally(Rally),
     Complete(EventOutcome),
@@ -281,8 +282,8 @@ impl EventProgress {
         }
     }
     #[cfg(feature = "tabletop")]
-    pub(crate) fn rally_pending(&self) -> bool {
-        matches!(self, Self::ChooseRallyBeneficiary | Self::Rally(_))
+    pub(crate) fn pending(&self) -> bool {
+        self.outcome().is_none()
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -322,9 +323,26 @@ pub struct Game {
     pub(crate) kidnap_open: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) event: Option<EventProgress>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    event_side_decisions: Option<EventSideDecisions>,
+}
+
+/// The supported Event state before its first side decision, plus the decisions
+/// since then. Load replays them in order so a Rally cannot borrow pieces returned
+/// by a later removal, and a pending request must have a legal giver.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct EventSideDecisions {
+    revision: u64,
+    event: EventProgress,
+    resources: [u8; 4],
+    pieces: Vec<Vec<Group>>,
+    available: Vec<Group>,
+    effect: bool,
+    actions: Vec<String>,
 }
 /// Removal mode (#73): open from "Remove own pieces" until Done. Each decision in it
-/// returns a chosen quantity of one 26July group to Available (R 1.4.1).
+/// returns a chosen quantity of the executing faction's group to Available (R 1.4.1).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Removal {
@@ -484,6 +502,9 @@ pub struct Observation {
     /// The faction executing the current Operation or Event. During the free Rally it
     /// is the faction directing the Operation granted by Directorio's Event (R 5.1).
     pub executing: Option<Faction>,
+    /// Directorio owns the Event even while another faction directs the free Rally.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub event_executor: Option<Faction>,
     pub eligibility: Eligibility,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub event: Option<EventProgress>,
@@ -514,7 +535,7 @@ pub struct Observation {
     pub special_activity: Option<String>,
     pub owed_terror: Option<String>,
     pub transfer: Option<Transfer>,
-    /// The terms of each transfer 26July may make now: all six directions while the
+    /// The terms of each transfer the executing faction may make now: all six directions while the
     /// transfer modal is open, the pending request's while it awaits its giver, and
     /// none otherwise.
     pub transfer_terms: Vec<TransferTerms>,
@@ -550,7 +571,7 @@ pub struct Choice {
     pub supported: bool,
     pub explanation: String,
     /// The faction that may submit it. Usually the observation's owner; while a
-    /// Transfer request awaits its giver, 26July may still withdraw it.
+    /// Transfer request awaits its giver during Terror, 26July may still withdraw it.
     pub owner: Faction,
     /// For a Special Activity listed at the action choice, the id of the Operation
     /// it accompanies (R 4.1).
@@ -617,7 +638,7 @@ impl Choice {
 /// A transfer decision, as its choice id names it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TransferChoice {
-    /// `give:<recipient>:<amount>`: 26July's own Resources move at once.
+    /// `give:<recipient>:<amount>`: the executing faction's Resources move at once.
     Give { recipient: Faction, amount: u8 },
     /// `ask:<giver>:<amount>`: a Transfer request; nothing moves yet.
     Ask { giver: Faction, amount: u8 },
@@ -937,6 +958,7 @@ impl Game {
             effect: false,
             kidnap_open: false,
             event: None,
+            event_side_decisions: None,
             available: vec![
                 group(Government, Troops, 3),
                 group(Government, Police, 8),
@@ -960,6 +982,7 @@ impl Game {
             owner: self.owner(),
             action: self.action,
             executing: self.executing(),
+            event_executor: self.event.as_ref().map(|_| Faction::Directorio),
             eligible: eligibility.eligible,
             eligibility,
             event: self.event.clone(),
@@ -996,6 +1019,9 @@ impl Game {
                 .collect(),
             next: self.next(),
             operation: match self.action {
+                _ if matches!(self.event, Some(EventProgress::ExecuteShaded)) => {
+                    "Directorio executes the shaded Event"
+                }
                 _ if matches!(self.event, Some(EventProgress::ChooseRallyBeneficiary)) => {
                     "Directorio chooses the Rally beneficiary"
                 }
@@ -1111,19 +1137,21 @@ impl Game {
             return None;
         }
         let action = choice.id.split_once(':')?.1;
-        let steps = match action {
+        let steps: &[&str] = match action {
             "kidnap" | "kidnap:roll" => return Some(self.kidnap_stakes(action)),
-            "pass" | "end-terror" | "event:shaded" => vec![action],
+            "event:shaded" => &[action, "resolve-shaded"],
+            "pass" | "end-terror" | "resolve-shaded" => &[action],
             _ if action.starts_with("terror:")
-                || matches!(self.event, Some(EventProgress::Rally(_)))
+                || (action.starts_with("rally:")
+                    && matches!(self.event, Some(EventProgress::Rally(_))))
                 || choice.removal().is_some() =>
             {
-                vec![action]
+                &[action]
             }
             _ => return None,
         };
         let mut after = self.clone();
-        for step in &steps {
+        for step in steps {
             after.apply(step).ok()?;
         }
         Some(self.consequences(&after, action))
@@ -1237,8 +1265,11 @@ impl Game {
                 });
             }
         }
-        if after.finished {
-            if !action.starts_with("rally:") {
+        if after.finished && !action.starts_with("remove:") {
+            if matches!(
+                action,
+                "end-terror" | "pass" | "event:shaded" | "resolve-shaded"
+            ) {
                 let e = after.eligibility();
                 preview.records = e.m26_box;
                 preview.m26_next_card = e.m26_next_card;
@@ -1251,7 +1282,9 @@ impl Game {
             let mut menu = self.clone();
             menu.removal = None;
             let mut later = after.clone();
-            later.removal = None;
+            if later.removal.is_some() {
+                later.apply("done-removal").ok();
+            }
             let later = later.choices();
             let suffix = |c: &Choice| {
                 c.id.split_once(':')
@@ -1302,7 +1335,7 @@ impl Game {
             if self.may_go_back() {
                 notes.push("Nothing has happened yet: Back to the action choice is still offered instead (local policy, #58).".into());
             }
-        } else if action == "event:shaded" {
+        } else if matches!(action, "event:shaded" | "resolve-shaded") {
             notes.push(CARD_17_SHADED.into());
             notes.push("The Event costs 0 Resources. After eligibility is adjusted (R 2.3.7), card 18 stays in preview.".into());
         } else if action.starts_with("rally:") {
@@ -1375,9 +1408,11 @@ impl Game {
         preview.notes = notes;
         preview
     }
-    fn executing(&self) -> Option<Faction> {
+    pub(crate) fn executing(&self) -> Option<Faction> {
         match &self.event {
-            Some(EventProgress::ChooseRallyBeneficiary) => Some(Faction::Directorio),
+            Some(EventProgress::ExecuteShaded | EventProgress::ChooseRallyBeneficiary) => {
+                Some(Faction::Directorio)
+            }
             Some(EventProgress::Rally(rally)) => Some(rally.beneficiary),
             _ => (self.action == ActionChoice::Terror && !self.finished).then_some(Faction::M26),
         }
@@ -1450,7 +1485,8 @@ impl Game {
     /// Local policy (#58): back to the action choice until the first effect, from the
     /// Operation menu or while a Transfer request awaits another faction.
     fn may_go_back(&self) -> bool {
-        self.executing().is_some()
+        !self.finished
+            && self.executing().is_some()
             && self.removal.is_none()
             && !self.kidnap_open
             && !self.effected()
@@ -1687,12 +1723,11 @@ impl Game {
         .collect()
     }
     fn choices(&self) -> Vec<Choice> {
-        if self.finished {
-            return match &self.event {
-                Some(EventProgress::ChooseRallyBeneficiary) => self.rally_beneficiary_choices(),
-                Some(EventProgress::Rally(rally)) => self.rally_choices(rally),
-                None if self.eligibility().directorio_handoff() => self.directorio_choices(),
-                _ => vec![],
+        if self.finished && self.executing().is_none() {
+            return if self.eligibility().directorio_handoff() {
+                self.directorio_choices()
+            } else {
+                vec![]
             };
         }
         if self.action == ActionChoice::Open {
@@ -1715,51 +1750,103 @@ impl Game {
         // Removal mode, including a #8 save's pending confirmation.
         if self.removal.is_some() {
             let mut choices = self.removal_choices();
+            let rally_exhausted = matches!(&self.event, Some(EventProgress::Rally(rally))
+                if self.rally_choices(rally).is_empty());
             choices.push(self.offer(
                 "done-removal",
-                "Done · leave removal mode",
+                if rally_exhausted {
+                    "Done · finish free Rally"
+                } else {
+                    "Done · leave removal mode"
+                },
                 true,
-                "Leaves removal mode for the Operation. Pieces already removed stay in Available; nothing is reversed.",
+                if rally_exhausted {
+                    "No legal Rally choices remain. The removed pieces stay in Available and card 18's eligibility is recorded (R 2.3.7, 5.1.3)."
+                } else {
+                    "Returns to execution. The removed pieces stay in Available."
+                },
             ));
             return choices;
         }
-        let finish = || {
-            let mut end = self.offer(
-                "end-terror",
-                "End Terror",
-                !self.owes_santiago(),
-                if self.owes_santiago() {
-                    SANTIAGO_OWED
-                } else if self.kidnap.is_some() {
-                    "Ends 26July's Terror and records Operation with Special Activity (R 2.3.4)."
-                } else {
-                    "Ends 26July's Terror and records Operation Only (R 2.3.4)."
-                },
-            );
-            // The commitment policy guarantees the owed Terror's payment and its
-            // Underground Guerrilla, so resolving it is always possible here.
-            if self.owes_santiago() {
-                end.remedies.push("Resolve Santiago's Terror".to_owned());
-            }
-            end
+        if let Some(choices) = self.transfer_choices() {
+            return choices;
+        }
+        let mut choices = match &self.event {
+            Some(EventProgress::ExecuteShaded) => vec![self.offer(
+                "resolve-shaded",
+                "Resolve shaded Event",
+                true,
+                "Activate the remaining Underground 26July Guerrillas and record 26July's restriction through card 18 (R 5.1).",
+            )],
+            Some(EventProgress::ChooseRallyBeneficiary) => self.rally_beneficiary_choices(),
+            Some(EventProgress::Rally(rally)) => self.rally_choices(rally),
+            _ => self.terror_choices(),
         };
-        let back = |label: &str| {
-            let mut back = self.offer(
+        let executor = self.executing().unwrap();
+        let side_choices = [
+            self.offer(
+                "transfer",
+                "Resource transfer",
+                true,
+                format!("Give {}'s Resources to another faction, or request Resources that only their giver may authorize (R 1.5.1).", executor.name()),
+            ),
+            self.offer(
+                "remove",
+                "Remove own pieces",
+                true,
+                if executor == Faction::M26 && !self.finished {
+                    "Voluntary removal (R 1.4.1): removal mode marks each 26July Guerrilla and Base on the map; remove any quantity of a stack, one decision at a time, until Done. Only an already owed Terror restricts removal.".to_owned()
+                } else {
+                    format!("Voluntary removal (R 1.4.1): choose from {}'s Guerrillas and Bases on the map.", executor.name())
+                },
+            ),
+        ];
+        let at = if self.finished { choices.len() } else { 1 };
+        choices.splice(at..at, side_choices);
+        choices
+    }
+
+    fn end_terror_choice(&self) -> Choice {
+        let mut end = self.offer(
+            "end-terror",
+            "End Terror",
+            !self.owes_santiago(),
+            if self.owes_santiago() {
+                SANTIAGO_OWED
+            } else if self.kidnap.is_some() {
+                "Ends 26July's Terror and records Operation with Special Activity (R 2.3.4)."
+            } else {
+                "Ends 26July's Terror and records Operation Only (R 2.3.4)."
+            },
+        );
+        // The commitment policy guarantees the owed Terror's payment and its
+        // Underground Guerrilla, so resolving it is always possible here.
+        if self.owes_santiago() {
+            end.remedies.push("Resolve Santiago's Terror".to_owned());
+        }
+        end
+    }
+
+    fn back_to_choice(&self, label: &str) -> Choice {
+        let mut back = self.offer(
                 "back-to-choice",
                 label,
                 true,
                 "Local policy (#58), not a publisher ruling: until the first effect (an authorized transfer, a resolved Terror, a Kidnap roll or a removal), 26July may return to its action choice. A pending Transfer request is withdrawn; nothing has moved.",
             );
-            back.owner = Faction::M26;
-            back
-        };
+        back.owner = Faction::M26;
+        back
+    }
+
+    fn transfer_choices(&self) -> Option<Vec<Choice>> {
+        let executor = self.executing()?;
         match self.transfer {
-            // The transfer modal: "Give to" moves 26July's own Resources at once;
+            // "Give to" moves the executor's own Resources at once;
             // "Ask from" creates a Transfer request that moves nothing (R 1.5.1).
             Some(Transfer::Selecting) => {
                 let mut choices = vec![];
                 for terms in self.transfer_terms() {
-                    let (verb, other) = if terms.giver == Faction::M26 {
+                    let (verb, other) = if terms.giver == executor {
                         ("give", terms.recipient)
                     } else {
                         ("ask", terms.giver)
@@ -1770,7 +1857,7 @@ impl Game {
                                 &format!("give:{}:{n}", other.index()),
                                 format!("Give {n} to {}", other.name()),
                                 true,
-                                "26July's own Resource transfer moves at once (R 1.5.1).",
+                                format!("{}'s own Resource transfer moves at once (R 1.5.1).", executor.name()),
                             )
                         } else {
                             self.offer(
@@ -1788,7 +1875,7 @@ impl Game {
                     true,
                     "Closes the transfer without moving anything.",
                 ));
-                return choices;
+                Some(choices)
             }
             Some(Transfer::Authorizing { giver, waited, .. }) => {
                 let limit = self.transfer_terms()[0].limit;
@@ -1806,7 +1893,7 @@ impl Game {
                     "decline",
                     format!("{} declines", giver.name()),
                     true,
-                    "Nothing moves, and 26July decides again.",
+                    format!("Nothing moves, and {} decides again.", executor.name()),
                 ));
                 // Wait sets the decision aside and Open brings it back; each is
                 // saved, so a restart shows the request as it was left (#75).
@@ -1827,11 +1914,12 @@ impl Game {
                 });
                 // Local policy (#58): 26July's request does not hold 26July's own
                 // Operation hostage; ending it or going back withdraws the request.
-                if giver != Faction::M26 {
+                if !self.finished && giver != Faction::M26 {
                     if self.may_go_back() {
-                        choices.push(back("26July withdraws · back to action choice"));
+                        choices
+                            .push(self.back_to_choice("26July withdraws · back to action choice"));
                     }
-                    let mut end = finish();
+                    let mut end = self.end_terror_choice();
                     end.label = format!("26July withdraws · {}", end.label);
                     end.owner = Faction::M26;
                     // Nothing else is offered until the giver decides, so a remedy
@@ -1841,32 +1929,21 @@ impl Game {
                     }
                     choices.push(end);
                 }
-                return choices;
+                Some(choices)
             }
-            None => {}
+            None => None,
         }
-        let mut choices = vec![
-            finish(),
-            self.offer(
-                "transfer",
-                "Resource transfer",
-                true,
-                "Opens the transfer: give 26July's Resources to a faction, or ask one for Resources, which it decides (R 1.5.1).",
-            ),
-            self.offer(
-                "remove",
-                "Remove own pieces",
-                true,
-                "Voluntary removal (R 1.4.1): removal mode marks each 26July Guerrilla and Base on the map; remove any quantity of a stack, one decision at a time, until Done. Only an already owed Terror restricts removal.",
-            ),
-        ];
+    }
+
+    fn terror_choices(&self) -> Vec<Choice> {
+        let mut choices = vec![self.end_terror_choice()];
         let kidnap = self.kidnap.is_none().then(|| self.kidnap_offer());
         for id in ["santiago", "oriente"] {
             choices.push(self.terror_target(id, kidnap.as_ref()));
         }
         choices.extend(kidnap);
         if self.may_go_back() {
-            choices.push(back("Back to the action choice"));
+            choices.push(self.back_to_choice("Back to the action choice"));
         }
         choices
     }
@@ -2000,25 +2077,31 @@ impl Game {
     }
     /// How many of a 26July group may be removed now.
     fn removable(&self, id: &str, kind: Kind, state: State) -> u8 {
+        let Some(executor) = self.executing() else {
+            return 0;
+        };
         self.spaces
             .iter()
             .find(|s| s.id == id)
             .and_then(|s| {
                 s.pieces
                     .iter()
-                    .find(|p| p.faction == Faction::M26 && p.kind == kind && p.state == state)
+                    .find(|p| p.faction == executor && p.kind == kind && p.state == state)
             })
             .map_or(0, |p| {
-                p.count.saturating_sub(u8::from(self.protects(id, state)))
+                p.count.saturating_sub(u8::from(
+                    executor == Faction::M26 && self.protects(id, state),
+                ))
             })
     }
-    /// Removal mode: every quantity of every 26July group on the map (R 1.4.1). A
+    /// Removal mode: every quantity of the executor's groups on the map (R 1.4.1). A
     /// quantity beyond what the owed-Terror protection allows is listed, refused with
     /// its reason.
     fn removal_choices(&self) -> Vec<Choice> {
+        let executor = self.executing().unwrap();
         let mut choices = vec![];
         for s in &self.spaces {
-            for p in s.pieces.iter().filter(|p| p.faction == Faction::M26) {
+            for p in s.pieces.iter().filter(|p| p.faction == executor) {
                 let group = removal_group(p.kind, p.state);
                 let limit = self.removable(&s.id, p.kind, p.state);
                 let (one, many) = match (p.kind, p.state) {
@@ -2030,7 +2113,8 @@ impl Game {
                     let pieces = if n == 1 { one } else { many };
                     let explanation = if n <= limit {
                         format!(
-                            "R 1.4.1: return {n} 26July {pieces} in {} to Available. Earlier Terror markers, support shifts and Kidnap results stay.",
+                            "R 1.4.1: return {n} {} {pieces} in {} to Available. Earlier Terror markers, support shifts and Kidnap results stay.",
+                            executor.name(),
                             s.name
                         )
                     } else if limit == 0 {
@@ -2113,7 +2197,40 @@ impl Game {
             .revision
             .checked_add(1)
             .ok_or("Match revision exhausted.")?;
-        let action = choice.split_once(':').ok_or("Unknown choice.")?.1;
+        let action = offered.action();
+        let checkpoint = self
+            .event
+            .as_ref()
+            .filter(|event| {
+                event.outcome().is_none()
+                    && self.event_side_decisions.is_none()
+                    && matches!(action, "transfer" | "remove")
+            })
+            .map(|event| EventSideDecisions {
+                revision: self.revision,
+                event: event.clone(),
+                resources: self.resources,
+                pieces: self
+                    .spaces
+                    .iter()
+                    .map(|space| space.pieces.clone())
+                    .collect(),
+                available: self.available.clone(),
+                effect: self.effect,
+                actions: vec![],
+            });
+        self.apply_decision(action, next_revision)?;
+        if let Some(checkpoint) = checkpoint {
+            self.event_side_decisions = Some(checkpoint);
+        }
+        if let Some(history) = &mut self.event_side_decisions {
+            history.actions.push(action.to_owned());
+        }
+        self.revision = next_revision;
+        Ok(())
+    }
+
+    fn apply_decision(&mut self, action: &str, next_revision: u64) -> Result<(), String> {
         match action {
             // The giver's decision set aside, or shown again: the request itself, and
             // whether going back is allowed, are unchanged (#75).
@@ -2141,8 +2258,15 @@ impl Game {
                 self.finished = true;
                 self.transfer = None;
             }
-            "event:shaded" => self.execute_shaded_event(),
+            "event:shaded" => self.event = Some(EventProgress::ExecuteShaded),
+            "resolve-shaded" => self.execute_shaded_event(),
             "event:unshaded" => self.event = Some(EventProgress::ChooseRallyBeneficiary),
+            _ if self.transfer.is_some()
+                || self.removal.is_some()
+                || matches!(action, "transfer" | "remove") =>
+            {
+                return self.execute(action, next_revision);
+            }
             _ if matches!(self.event, Some(EventProgress::ChooseRallyBeneficiary)) => {
                 self.select_rally_beneficiary(action)?;
             }
@@ -2151,16 +2275,19 @@ impl Game {
             }
             _ => return self.execute(action, next_revision),
         }
-        self.revision = next_revision;
         Ok(())
     }
-    /// The #8 Operation steps: removal, transfers, Terror and Kidnap.
+    /// Side decisions during execution, plus the original Terror and Kidnap steps.
     fn execute(&mut self, action: &str, next_revision: u64) -> Result<(), String> {
         // Removal mode: only its own choices are offered, so `submit` has already
         // bound the space, group and quantity to a supported removal.
+        let executor = self.executing().ok_or("No faction is executing.")?;
         if self.removal.is_some() {
             if action == "done-removal" {
                 self.removal = None;
+                if let Some(EventProgress::Rally(rally)) = &self.event {
+                    self.continue_rally(rally.clone());
+                }
             } else {
                 let mut parts = action.split(':').skip(1);
                 let (space, group, n) = (parts.next(), parts.next(), parts.next());
@@ -2174,20 +2301,19 @@ impl Game {
                 let piece = target
                     .pieces
                     .iter_mut()
-                    .find(|p| p.faction == Faction::M26 && p.kind == kind && p.state == state)
+                    .find(|p| p.faction == executor && p.kind == kind && p.state == state)
                     .ok_or("Unknown choice.")?;
                 piece.count = piece.count.checked_sub(n).ok_or("Unknown choice.")?;
                 target.pieces.retain(|p| p.count > 0);
                 self.effect = true;
                 self.available
                     .iter_mut()
-                    .find(|p| p.faction == Faction::M26 && p.kind == kind)
+                    .find(|p| p.faction == executor && p.kind == kind)
                     .unwrap()
                     .count += n;
                 // A #8 save's pending confirmation becomes ordinary removal mode.
                 self.removal = Some(Removal::Selecting);
             }
-            self.revision = next_revision;
             return Ok(());
         }
         match self.transfer.clone() {
@@ -2220,7 +2346,8 @@ impl Game {
                 self.resources[Faction::M26.index()] -= TERROR_COST;
                 self.effect = true;
             }
-            None => self.transfer = Some(Transfer::Selecting),
+            None if action == "transfer" => self.transfer = Some(Transfer::Selecting),
+            None => return Err("Unknown execution choice.".into()),
             Some(_) if action == "back" || action == "decline" => self.transfer = None,
             Some(Transfer::Selecting) => {
                 let (verb, rest) = action.split_once(':').unwrap();
@@ -2228,12 +2355,12 @@ impl Game {
                 let other = Faction::ALL[other.parse::<usize>().unwrap()];
                 let amount: u8 = amount.parse().unwrap();
                 if verb == "give" {
-                    self.move_resources(Faction::M26, other, amount);
+                    self.move_resources(executor, other, amount);
                     self.transfer = None;
                 } else {
                     self.transfer = Some(Transfer::Authorizing {
                         giver: other,
-                        recipient: Faction::M26,
+                        recipient: executor,
                         amount,
                         waited: false,
                     });
@@ -2247,7 +2374,6 @@ impl Game {
                 self.transfer = None;
             }
         }
-        self.revision = next_revision;
         Ok(())
     }
     /// An authorized Resource transfer, within the limits that offered it.
@@ -2257,16 +2383,18 @@ impl Game {
         // Zero is a deliberate non-transfer, not an effect.
         self.effect |= amount > 0;
     }
-    /// The terms of the transfers 26July may make now (R 1.5.1, 1.8 and the accepted
+    /// The terms of the transfers the executing faction may make now (R 1.5.1, 1.8 and the accepted
     /// commitment policy's reserve).
     fn transfer_terms(&self) -> Vec<TransferTerms> {
+        let Some(executor) = self.executing() else {
+            return vec![];
+        };
         let pairs = match self.transfer {
-            Some(Transfer::Selecting) => {
-                [Faction::Government, Faction::Directorio, Faction::Syndicate]
-                    .into_iter()
-                    .flat_map(|other| [(other, Faction::M26), (Faction::M26, other)])
-                    .collect()
-            }
+            Some(Transfer::Selecting) => Faction::ALL
+                .into_iter()
+                .filter(|&other| other != executor)
+                .flat_map(|other| [(other, executor), (executor, other)])
+                .collect(),
             Some(Transfer::Authorizing {
                 giver, recipient, ..
             }) => vec![(giver, recipient)],
@@ -2300,9 +2428,10 @@ impl Game {
             })
             .collect()
     }
-    /// Why an amount beyond its limit is refused, in the terms' own words: 26July's own Resource
+    /// Why an amount beyond its limit is refused, in the terms' own words: the executor's Resource
     /// transfer or request the modal offers, or the pending request's authorization.
     fn transfer_refusal(&self, action: &str) -> Option<String> {
+        let executor = self.executing()?;
         let terms = self.transfer_terms();
         let parts: Vec<_> = action.split(':').collect();
         let (direction, amount) = match parts[..] {
@@ -2310,9 +2439,9 @@ impl Game {
             [verb @ ("give" | "ask"), other, n] => {
                 let other = *Faction::ALL.get(other.parse::<usize>().ok()?)?;
                 let (giver, recipient) = if verb == "give" {
-                    (Faction::M26, other)
+                    (executor, other)
                 } else {
-                    (other, Faction::M26)
+                    (other, executor)
                 };
                 (
                     terms
@@ -2379,9 +2508,69 @@ impl Game {
         }
         self.event = Some(EventProgress::Complete(EventOutcome::Shaded { flips }));
     }
+
+    fn validate_event_side_decisions(&self, history: &EventSideDecisions) -> Result<(), String> {
+        if !matches!(
+            history.actions.first().map(String::as_str),
+            Some("transfer" | "remove")
+        ) || history.event.outcome().is_some()
+            || history.pieces.len() != self.spaces.len()
+            || history.revision.checked_add(history.actions.len() as u64) != Some(self.revision)
+        {
+            return Err("Unsupported Alberto Bayo side decision history.".into());
+        }
+        let mut before = self.clone();
+        before.event_side_decisions = None;
+        before.revision = history.revision;
+        before.event = Some(history.event.clone());
+        before.resources = history.resources;
+        before.available = history.available.clone();
+        before.effect = history.effect;
+        before.transfer = None;
+        before.removal = None;
+        for (space, pieces) in before.spaces.iter_mut().zip(&history.pieces) {
+            space.pieces = pieces.clone();
+        }
+        before.validate()?;
+        for action in &history.actions {
+            before.apply(action)?;
+        }
+        if before != *self {
+            return Err("Unsupported Alberto Bayo side decision state.".into());
+        }
+        Ok(())
+    }
+
+    fn validate_shaded_entry(&self) -> Result<(), String> {
+        let mut before = self.clone();
+        before.revision = self
+            .revision
+            .checked_sub(1)
+            .ok_or("Unsupported Event revision.")?;
+        if !before.finished
+            || before
+                .kidnap
+                .as_ref()
+                .is_none_or(|roll| roll.revision >= before.revision)
+        {
+            return Err("Shaded Alberto Bayo requires completed Terror with Kidnap.".into());
+        }
+        before.event = None;
+        before.validate()?;
+        before.apply("event:shaded")?;
+        if before != *self {
+            return Err("Unsupported shaded Event decision state.".into());
+        }
+        Ok(())
+    }
+
     /// Admit the prepared card-17 task after only the supported decisions and effects.
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(history) = &self.event_side_decisions {
+            return self.validate_event_side_decisions(history);
+        }
         let shaded = match &self.event {
+            Some(EventProgress::ExecuteShaded) => return self.validate_shaded_entry(),
             Some(EventProgress::ChooseRallyBeneficiary) => return self.validate_unshaded(None),
             Some(
                 EventProgress::Rally(rally)

@@ -382,17 +382,21 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
     if view
         .event
         .as_ref()
-        .is_some_and(crate::EventProgress::rally_pending)
+        .is_some_and(crate::EventProgress::pending)
     {
         let choice = listed(view, option)?;
-        let choosing_beneficiary = matches!(
-            view.event,
-            Some(crate::EventProgress::ChooseRallyBeneficiary)
-        );
-        let (rule, label) = if choosing_beneficiary {
-            ("R 5.1", "QUALIFYING BASE SPACES")
-        } else {
-            ("R 3.3.1, 5.5", "PLACEMENT AND COST")
+        let (rule, label) = match option {
+            "resolve-shaded" => ("R 5.1, 5.2", "EVENT EFFECT"),
+            "transfer" => ("R 1.5.1", "GIVER'S DECISION"),
+            "remove" | "done-removal" => ("R 1.4.1", "VOLUNTARY REMOVAL"),
+            _ if matches!(
+                view.event,
+                Some(crate::EventProgress::ChooseRallyBeneficiary)
+            ) =>
+            {
+                ("R 5.1", "QUALIFYING BASE SPACES")
+            }
+            _ => ("R 3.3.1, 5.5", "PLACEMENT AND COST"),
         };
         let mut entries = vec![entry(label, &choice.explanation)];
         let mut rules = String::new();

@@ -10,7 +10,7 @@
 //! In removal mode (#73) piece states replace them: each 26July group on the map is
 //! removable, or protected by the owed Terror (accepted commitment policy, local),
 //! and spaces holding no 26July piece are dimmed.
-use crate::{Choice, Faction, Kind, Observation, State, removal_group};
+use crate::{Choice, Kind, Observation, State, removal_group};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -105,11 +105,12 @@ pub struct RemovalTargets {
 /// removal mode.
 pub fn removal_targets(view: &Observation) -> Option<RemovalTargets> {
     view.removal.as_ref()?;
+    let executor = view.executing?;
     let mut pieces = vec![];
     let mut dimmed = vec![];
     for space in &view.spaces {
         let mut holds = false;
-        for p in space.pieces.iter().filter(|p| p.faction == Faction::M26) {
+        for p in space.pieces.iter().filter(|p| p.faction == executor) {
             let group = removal_group(p.kind, p.state);
             let here: Vec<&Choice> = view
                 .choices

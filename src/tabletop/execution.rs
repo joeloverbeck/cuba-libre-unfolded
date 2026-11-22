@@ -820,7 +820,7 @@ pub(super) fn panel(
         || view
             .event
             .as_ref()
-            .is_some_and(crate::EventProgress::rally_pending)
+            .is_some_and(crate::EventProgress::pending)
     {
         return choice::panel(commands, art, view, ui, s, o);
     }

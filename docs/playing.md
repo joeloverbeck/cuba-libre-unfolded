@@ -41,7 +41,10 @@ During Terror the panel lists the steps: Terror in Santiago and Oriente, with Ki
 
 After Kidnap and End Terror, hover or focus Pass, Limited Operation or either Event text for its briefing. Click or press Enter to pin it. The board and saved position stay at the handoff while you read.
 
-Pin the shaded Event to preview every activation and the restriction on 26July. Select **Execute shaded Event** to apply the flips, then inspect the result and each faction's eligibility for card 18. Card 18 stays in preview.
+Pin the shaded Event to preview every activation and the restriction on 26July. Commit
+**Choose shaded Event** to open Directorio's execution. You can transfer Resources or
+remove Directorio's pieces before you commit **Resolve shaded Event**. Then inspect
+the flips and each faction's eligibility for card 18. Card 18 stays in preview.
 
 ## Kidnap in Santiago
 
@@ -70,7 +73,12 @@ Supply, Control, standings and legal choices update at once; earlier Terror, sup
 
 ## Directorio’s unshaded Event
 
-Select **Event · unshaded** and commit it to open Directorio’s beneficiary choice. Inspect **Grant Rally to 26July** and **Grant Rally to Directorio** to see each faction’s Base spaces. The choice belongs to Directorio. The chosen faction then directs the Rally.
+Select **Event · unshaded** and commit it to open Directorio’s beneficiary choice.
+Inspect **Grant Rally to 26July** and **Grant Rally to Directorio** to see each
+faction’s Base spaces. Directorio can transfer Resources or remove its own pieces
+before choosing. The chosen faction then directs the Rally and can use those
+controls for its own faction. A Resource request moves nothing until the giver
+authorizes it.
 
 Inspect and pin a Rally option before committing it. Its preview shows the placement ceiling from Bases and population, the limit from Available Forces, and the zero Resource cost. A qualifying space counts as Neutral for the Rally. Its actual Support or Opposition stays in place. If the beneficiary has no qualifying Base, the Event ends without placing pieces.
 

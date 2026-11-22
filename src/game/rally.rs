@@ -256,7 +256,7 @@ impl Game {
         Ok(())
     }
 
-    fn continue_rally(&mut self, rally: Rally) {
+    pub(super) fn continue_rally(&mut self, rally: Rally) {
         self.event = if self.rally_options(&rally).is_empty() {
             Some(EventProgress::Complete(EventOutcome::Unshaded(rally)))
         } else {

@@ -9,6 +9,56 @@ fn reseal(record: &serde_json::Value) -> Vec<u8> {
 }
 
 #[test]
+fn event_transfer_refuses_the_executors_authorization_and_unrecorded_effects() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("event.json");
+    let mut session = Session::open(&path, None).unwrap();
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "end-terror",
+        "event:shaded",
+        "transfer",
+        "ask:3:2",
+    ] {
+        act(&mut session, action);
+    }
+    let pending = session.observe();
+    assert_eq!(pending.owner, Faction::Syndicate);
+    assert_eq!(pending.executing, Some(Faction::Directorio));
+    let saved = std::fs::read(&path).unwrap();
+    let id = format!("{}:authorize:2", pending.revision);
+    let refusal = session
+        .submit(Faction::Directorio, pending.revision, &id)
+        .unwrap_err();
+    assert!(refusal.to_string().contains("decision owner"), "{refusal}");
+    assert_eq!(session.observe(), pending);
+    assert_eq!(std::fs::read(&path).unwrap(), saved);
+
+    let mut forged: serde_json::Value = serde_json::from_slice(&saved).unwrap();
+    // Tally still balances, but Resources cannot already have moved while
+    // the request awaits its giver.
+    forged["payload"]["resources"][2] = (pending.resources[2] + 2).into();
+    forged["payload"]["resources"][3] = (pending.resources[3] - 2).into();
+    let forged_path = dir.path().join("unrecorded-transfer.json");
+    let forged_bytes = reseal(&forged);
+    std::fs::write(&forged_path, &forged_bytes).unwrap();
+    assert!(Session::open(&forged_path, None).is_err());
+    assert_eq!(std::fs::read(&forged_path).unwrap(), forged_bytes);
+
+    session
+        .submit(Faction::Syndicate, pending.revision, &id)
+        .unwrap();
+    let given = session.observe();
+    assert_eq!(given.owner, Faction::Directorio);
+    assert_eq!(given.resources[2], pending.resources[2] + 2);
+    assert_eq!(given.resources[3], pending.resources[3] - 2);
+    assert_eq!(Session::open(&path, None).unwrap().observe(), given);
+}
+
+#[test]
 fn pending_removal_and_owed_piece_survive_restart_without_duplicates() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("removal.json");

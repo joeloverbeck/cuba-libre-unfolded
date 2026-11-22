@@ -128,24 +128,31 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | Choice | Meaning |
 |---|---|
 | `<revision>:pass`, `<revision>:terror` | 26July's supported action choices. |
-| `<revision>:event:shaded` | Listed for inspection at 26July's opening decision. Directorio can execute Alberto Bayo's shaded text after Kidnap. Pin its option to preview the flips. |
+| `<revision>:event:shaded` | Listed for inspection at 26July's opening decision. Directorio can choose Alberto Bayo's shaded text after Kidnap. Pin its option to preview the flips. |
+| `<revision>:resolve-shaded` | Resolves the shaded Event after Directorio has chosen that text. |
 | `<revision>:event:unshaded` | Listed for inspection at 26July's opening decision and at Directorio's handoff after Kidnap. |
 | `<revision>:directorio:pass`, `<revision>:directorio:limited-operation` | Directorio's other legal options after Kidnap. Read their briefings for what they do and the build limits. |
 | `<revision>:rally:beneficiary:26july`, `<revision>:rally:beneficiary:directorio` | Directorio chooses the beneficiary of Alberto Bayo’s unshaded Rally. |
 | `<revision>:rally:sierra-maestra:place:1`, `<revision>:rally:sierra-maestra:place:2`, `<revision>:rally:sierra-maestra:place:3`, `<revision>:rally:sierra-maestra:place:4` | 26July chooses the Guerrillas to place Underground in Sierra Maestra when its Base qualifies. The offered quantities follow the inherited board and Available Forces. |
 | `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so 26July's option set is complete; unsupported, with the reason in `explanation`. |
-| `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap`, `<revision>:transfer`, `<revision>:remove` | Execution steps during Terror. |
+| `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap` | Execution steps during Terror. |
+| `<revision>:transfer`, `<revision>:remove` | Opens a Resource transfer or voluntary removal during Terror, Directorio's Event choices or the free Rally. |
 | `<revision>:back-to-choice` | Goes back to the action choice, until the first effect: from the Operation menu, or while a Transfer request awaits another faction, which withdraws it. Not offered in removal mode or while Kidnap is open. |
 | `<revision>:kidnap:roll`, `<revision>:kidnap:cancel` | Kidnap's Roll and Cancel. |
 | `<revision>:remove:<space>:<group>:<n>` | In removal mode, removes `n` pieces of a stack. |
 | `<revision>:done-removal` | Leaves removal mode; removed pieces stay in Available. |
-| `<revision>:give:<faction>:<amount>` | 26July gives Resources; moves at once. |
-| `<revision>:ask:<faction>:<amount>` | 26July asks a faction for Resources, which it decides. |
+| `<revision>:give:<faction>:<amount>` | The executing faction gives its own Resources immediately. |
+| `<revision>:ask:<faction>:<amount>` | The executing faction asks another faction for Resources. The giver decides how much moves. |
 | `<revision>:back` | Closes an open transfer without moving anything. |
 | `<revision>:authorize:<amount>`, `<revision>:decline`, `<revision>:wait` | The asked faction's decision. Wait sets the request aside. |
 | `<revision>:reopen` | Shows a waiting decision again. |
 
-Faction indices in choices: Government 0, Directorio 2, Syndicate 3.
+Faction indices in choices are Government 0, 26July 1, Directorio 2 and Syndicate 3.
+
+The observation reports `event_executor` for the faction carrying out Alberto Bayo,
+`executing` for the current play window and `owner` for the current decision. During 26July's
+free Rally, those are Directorio, 26July and 26July until a Resource request passes the
+decision to its giver.
 
 ### Example: a Resource transfer
 
@@ -183,6 +190,9 @@ Drawn-part names:
 ## Native regressions
 
 - `native_free_rally_hands_the_decision_to_the_beneficiary`: verifies the handoff, Sierra Maestra’s ceiling and zero cost, pending and completed save admission, stale and duplicate refusals, and the eligibility adjustment. Set `CUBA_TEST_RALLY_SAVE` to the retained revision-9 save pinned for #117 to exercise its exact old record. Otherwise the test plays to the handoff. Evidence goes to `local/verification/issue-120/`.
+- `native_shaded_execution_preserves_directorios_side_decisions`: checks the shaded Event's execution window, giver approval after restart, Directorio removal and card-end effects.
+- `native_beneficiary_and_rally_preserve_side_decision_owners`: checks the transfer before beneficiary selection, giver decline after restart, and 26July removal and Rally placement.
+- `native_rally_removing_the_last_base_closes_the_operation`: resumes a Rally after removing its last qualifying Base and refuses a stale placement. Set `CUBA_TEST_PENDING_RALLY` to exercise a retained pre-#121 pending Rally save. All three save evidence under `local/verification/issue-121/`.
 - `native_free_rally_without_a_base_finishes_the_event`: removes the Sierra Maestra Base during Terror before selecting 26July, then plays a separate Event selecting Directorio with no Base. Both runs preview and finish with an empty Rally effect, and reach card-end eligibility. Evidence goes to `local/verification/issue-120/`.
 
 The ignored native regressions need the selected card directory and a working renderer. `scripts/native` runs them all serially, both `tests/native.rs` and the in-process ones in the library, and passes extra arguments (a name filter, `--nocapture`) to both:

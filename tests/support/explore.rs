@@ -3,22 +3,30 @@
 //! discovery test (`src/tabletop/discovery.rs`). The includer brings `Choice`,
 //! `Faction`, `Game` and `TransferChoice` into scope.
 //!
-//! From each start, every state reachable through offered decisions is explored,
-//! with at most one Resource transfer on any path (every remedy here needs at most
-//! one), of 1 or of the direction's limit. The starts:
+//! From each start, offered decisions are explored with at most one Resource
+//! transfer on any path (every Terror remedy here needs at most one), of 1 or of
+//! the direction's limit. The Terror starts:
 //! - the prepared position under Kidnap roll 1 (#8's seed 19), which leaves the owed
 //!   Terror's reserve exactly paid, and under roll 3 (seed 5), which funds Oriente too;
 //! - Government and 26July both at 0 (Government gave 26July 6, which 26July gave
 //!   Directorio): Kidnap would take nothing, so only a transfer can fund Terror or
 //!   guarantee Kidnap's commitment.
+//!
+//! The Event's side decisions are explored from its two texts so the graph does
+//! not multiply their paths by every earlier Terror and transfer permutation.
 #![allow(dead_code)]
 use super::{Choice, Faction, Game, TransferChoice};
 use std::collections::{HashMap, HashSet};
 
-/// A state without its revision, which every decision advances.
+/// The current decision without its revision or the Event's save replay history.
+/// Reopening and cancelling a side decision reaches the same choices.
 pub fn key(game: &Game) -> String {
     let mut value = serde_json::to_value(game).unwrap();
     value["revision"] = 0.into();
+    value
+        .as_object_mut()
+        .unwrap()
+        .remove("event_side_decisions");
     value.to_string()
 }
 
@@ -82,6 +90,7 @@ pub struct Node {
 }
 
 pub fn explore(start: Game) -> Vec<Node> {
+    let starts_during_event = start.observe().event_executor.is_some();
     let mut index = HashMap::from([((key(&start), false), 0)]);
     let mut games = vec![(start, false)];
     let mut nodes = vec![];
@@ -105,6 +114,12 @@ pub fn explore(start: Game) -> Vec<Node> {
             transferred,
         };
         for choice in explored(&view.choices) {
+            if !starts_during_event
+                && view.event_executor.is_some()
+                && matches!(choice.action(), "transfer" | "remove")
+            {
+                continue;
+            }
             if transferred && transfers(choice) {
                 continue;
             }
@@ -168,4 +183,21 @@ pub fn starts() -> [(&'static str, Game); 3] {
         ("prepared, roll 3", Game::opening_with_seed(5)),
         ("Government and 26July at 0", drained()),
     ]
+}
+
+pub fn event_starts() -> [Game; 2] {
+    let mut handoff = Game::opening_with_seed(5);
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "end-terror",
+    ] {
+        choose(&mut handoff, action);
+    }
+    let mut shaded = handoff.clone();
+    choose(&mut shaded, "event:shaded");
+    choose(&mut handoff, "event:unshaded");
+    [shaded, handoff]
 }

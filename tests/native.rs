@@ -239,9 +239,11 @@ fn native_shaded_event_activates_26july_and_adjusts_card_end_eligibility() {
         json!({"op":"activate","revision":revision,"choice":format!("{revision}:event:shaded")});
     app.request(commit.clone(), true);
     app.request(json!({"op":"settle"}), true);
+    app.activate("option:resolve-shaded", revision + 1);
+    app.choose("resolve-shaded");
     let resolved = app.observe();
     let after = &resolved["observation"];
-    assert_eq!(after["revision"], revision + 1);
+    assert_eq!(after["revision"], revision + 2);
     assert_eq!(guerrillas(after, "santiago"), [("Active".into(), 2)].into());
     assert_eq!(guerrillas(after, "oriente"), [("Active".into(), 1)].into());
     assert!(after["spaces"].as_array().unwrap().iter().all(|space| {
@@ -302,7 +304,7 @@ fn native_shaded_event_activates_26july_and_adjusts_card_end_eligibility() {
     app.request(commit.clone(), false);
     assert_eq!(app.observe()["observation"], *after);
     app.request(
-        json!({"op":"activate","revision":revision + 1,"choice":format!("{}:event:shaded", revision + 1)}),
+        json!({"op":"activate","revision":revision + 2,"choice":format!("{}:event:shaded", revision + 2)}),
         false,
     );
     app.quit();

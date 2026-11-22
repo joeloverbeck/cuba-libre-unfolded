@@ -48,7 +48,8 @@ fn families(game: &Game) -> BTreeSet<String> {
 /// Every family offered in every explored state.
 fn offered() -> BTreeSet<String> {
     let mut offered = BTreeSet::new();
-    for (_, start) in explore::starts() {
+    let starts = explore::starts().into_iter().map(|(_, start)| start);
+    for start in starts.chain(explore::event_starts()) {
         for node in explore::explore(start) {
             offered.extend(families(&node.game));
         }

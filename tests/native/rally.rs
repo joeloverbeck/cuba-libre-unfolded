@@ -1,12 +1,16 @@
 use super::*;
 
 fn rally_app() -> (tempfile::TempDir, Native) {
+    event_app("free-rally-", "issue-120")
+}
+
+fn event_app(prefix: &str, issue: &str) -> (tempfile::TempDir, Native) {
     let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from("local/verification/issue-120"));
+        .unwrap_or_else(|| PathBuf::from("local/verification").join(issue));
     std::fs::create_dir_all(&evidence).unwrap();
     let root = tempfile::Builder::new()
-        .prefix("free-rally-")
+        .prefix(prefix)
         .tempdir_in(evidence)
         .unwrap()
         .keep()
@@ -20,7 +24,7 @@ fn rally_app() -> (tempfile::TempDir, Native) {
         root,
         step: 0,
     };
-    eprintln!("Free Rally evidence: {}", app.root.display());
+    eprintln!("Alberto Bayo evidence: {}", app.root.display());
     // The client must drop first so it can still quit the detached seat on failure.
     (socket, app)
 }
@@ -43,6 +47,278 @@ fn choose_rally_option(app: &mut Native, action: &str) {
     let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
     app.activate(&format!("option:{action}"), revision);
     app.choose(action);
+}
+
+fn open_event_handoff(app: &mut Native) {
+    if let Some(input) = std::env::var_os("CUBA_TEST_COMPLETED_KIDNAP") {
+        std::fs::copy(input, &app.save).unwrap();
+        app.launch_size("3840x2160");
+    } else {
+        app.launch_size("3840x2160");
+        for action in [
+            "terror",
+            "transfer",
+            "ask:2:2",
+            "authorize:2",
+            "terror:santiago",
+            "terror:oriente",
+            "kidnap",
+        ] {
+            app.choose(action);
+        }
+        app.roll();
+        app.choose("end-terror");
+    }
+}
+
+fn has_action(position: &Value, action: &str) -> bool {
+    position["choices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|choice| {
+            choice["supported"] == true
+                && choice["id"].as_str().unwrap().split_once(':').unwrap().1 == action
+        })
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained side decision captures"]
+fn native_shaded_execution_preserves_directorios_side_decisions() {
+    let (_socket, mut app) = event_app("shaded-side-decisions-", "issue-121");
+    open_event_handoff(&mut app);
+    let before = app.observe()["observation"].clone();
+    choose_rally_option(&mut app, "event:shaded");
+    let shaded = app.observe()["observation"].clone();
+    assert_eq!(shaded["executing"], "Directorio");
+    assert_eq!(shaded["event_executor"], "Directorio");
+    assert_eq!(shaded["owner"], "Directorio");
+    assert_eq!(shaded["spaces"], before["spaces"]);
+    assert_eq!(shaded["resources"], before["resources"]);
+    assert!(shaded["eligibility"]["next_card"].is_null());
+    app.capture("directorio-execution");
+
+    choose_rally_option(&mut app, "transfer");
+    assert_eq!(app.observe()["observation"]["transfer"], "Selecting");
+    app.choose("ask:3:2");
+    let pending = app.observe()["observation"].clone();
+    assert_eq!(pending["owner"], "Syndicate");
+    assert_eq!(pending["executing"], "Directorio");
+    assert_eq!(pending["resources"], before["resources"]);
+    app.choose("wait");
+    let waiting = app.observe()["observation"].clone();
+    let waiting_save = std::fs::read(&app.save).unwrap();
+    app.capture("shaded-request-waiting");
+    app.quit();
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["observation"], waiting);
+    assert_eq!(std::fs::read(&app.save).unwrap(), waiting_save);
+    let at = waiting["revision"].as_u64().unwrap();
+    app.request(json!({"op":"key","key":"Tab","revision":at}), true);
+    app.request(json!({"op":"settle"}), true);
+    app.request(
+        json!({"op":"key","key":"Enter","revision":at,"focused":format!("{at}:reopen")}),
+        true,
+    );
+    app.request(json!({"op":"settle"}), true);
+    let reopened = app.observe();
+    assert_eq!(reopened["observation"]["revision"], at + 1);
+    assert_eq!(reopened["observation"]["resources"], waiting["resources"]);
+    assert_eq!(reopened["observation"]["owner"], "Syndicate");
+    assert_eq!(reopened["table"]["transfer"]["state"]["shown"], true);
+    app.capture("syndicate-authorizes-directorio-request");
+    app.choose("authorize:2");
+    let funded = app.observe()["observation"].clone();
+    let mut balances = before["resources"].clone();
+    balances[2] = (balances[2].as_u64().unwrap() + 2).into();
+    balances[3] = (balances[3].as_u64().unwrap() - 2).into();
+    assert_eq!(funded["resources"], balances);
+    assert_eq!(funded["owner"], "Directorio");
+    assert!(has_action(&funded, "resolve-shaded"));
+    let funded_bytes = std::fs::read(&app.save).unwrap();
+    let given_at = funded["revision"].as_u64().unwrap() - 1;
+    app.request(
+        json!({"op":"activate","revision":given_at,"choice":format!("{given_at}:authorize:2")}),
+        false,
+    );
+    assert_eq!(app.observe()["observation"], funded);
+    assert_eq!(std::fs::read(&app.save).unwrap(), funded_bytes);
+
+    choose_rally_option(&mut app, "remove");
+    let removal = app.observe();
+    assert!(has_action(
+        &removal["observation"],
+        "remove:camaguey-province:underground:1"
+    ));
+    assert!(!has_action(
+        &removal["observation"],
+        "remove:sierra-maestra:base:1"
+    ));
+    app.capture("directorio-removal");
+    let revision = removal["observation"]["revision"].as_u64().unwrap();
+    app.activate(
+        "piece:camaguey-province Directorio Guerrilla Underground",
+        revision,
+    );
+    let card = app.observe()["table"]["popover"]["card"].clone();
+    assert_eq!(card["title"], "Directorio Guerrilla · Underground");
+    assert_eq!(
+        card["rows"][0]["choice"],
+        format!("{revision}:remove:camaguey-province:underground:1")
+    );
+    app.capture("directorio-removal-preview");
+    app.activate("popover:commit", revision);
+    let removed = app.point("space:camaguey-province");
+    assert_eq!(removed["table"]["status"]["control"], "Uncontrolled");
+    assert_eq!(removed["observation"]["standings"][2]["score"], 0);
+    assert_eq!(
+        removed["observation"]["available_piece_count"].as_u64(),
+        before["available_piece_count"]
+            .as_u64()
+            .map(|count| count + 1)
+    );
+    choose_rally_option(&mut app, "done-removal");
+    choose_rally_option(&mut app, "resolve-shaded");
+    let completed = app.observe()["observation"].clone();
+    assert_eq!(completed["resources"], balances);
+    assert_eq!(completed["kidnap"], before["kidnap"]);
+    assert_eq!(completed["eligible"], json!([true, false, false, true]));
+    assert_eq!(
+        completed["eligibility"]["event_restriction"],
+        json!({"faction":"M26","through_card":18})
+    );
+    assert_eq!(
+        completed["event"]["Complete"]["Shaded"]["flips"],
+        json!([{"space":"santiago","faction":"M26","kind":"Guerrilla","from":"Underground","to":"Active","count":1}])
+    );
+    app.capture("shaded-card-end");
+    app.quit();
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["observation"], completed);
+    app.quit();
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained side decision captures"]
+fn native_beneficiary_and_rally_preserve_side_decision_owners() {
+    let (_socket, mut app) = event_app("unshaded-side-decisions-", "issue-121");
+    open_event_handoff(&mut app);
+    let before = app.observe()["observation"].clone();
+    choose_rally_option(&mut app, "event:unshaded");
+    let choosing = app.observe()["observation"].clone();
+    assert_eq!(choosing["owner"], "Directorio");
+    assert_eq!(choosing["event_executor"], "Directorio");
+    assert_eq!(choosing["executing"], "Directorio");
+    app.capture("beneficiary-selection");
+    choose_rally_option(&mut app, "transfer");
+    app.choose("give:1:1");
+    let funded = app.observe()["observation"].clone();
+    let mut balances = before["resources"].clone();
+    balances[1] = (balances[1].as_u64().unwrap() + 1).into();
+    balances[2] = (balances[2].as_u64().unwrap() - 1).into();
+    assert_eq!(funded["resources"], balances);
+    assert_eq!(funded["owner"], "Directorio");
+    assert!(has_action(&funded, "rally:beneficiary:26july"));
+    choose_rally_option(&mut app, "rally:beneficiary:26july");
+    let rally = app.observe()["observation"].clone();
+    assert_eq!(rally["owner"], "M26");
+    assert_eq!(rally["executing"], "M26");
+    assert_eq!(rally["event_executor"], "Directorio");
+    app.capture("26july-rally");
+    choose_rally_option(&mut app, "transfer");
+    app.choose("ask:2:1");
+    let pending = app.observe()["observation"].clone();
+    assert_eq!(pending["owner"], "Directorio");
+    assert_eq!(pending["executing"], "M26");
+    assert_eq!(pending["event_executor"], "Directorio");
+    assert!(!has_action(&pending, "rally:sierra-maestra:place:3"));
+    app.capture("directorio-decides-26july-request");
+    app.quit();
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["observation"], pending);
+    app.choose("decline");
+    let resumed = app.observe()["observation"].clone();
+    assert_eq!(resumed["resources"], balances);
+    assert_eq!(resumed["owner"], "M26");
+    assert!(has_action(&resumed, "rally:sierra-maestra:place:3"));
+
+    choose_rally_option(&mut app, "remove");
+    let removal = app.observe();
+    assert!(!has_action(
+        &removal["observation"],
+        "remove:camaguey-province:underground:1"
+    ));
+    assert!(has_action(
+        &removal["observation"],
+        "remove:santiago:active:1"
+    ));
+    app.capture("26july-rally-removal");
+    app.remove("santiago:active", 1);
+    assert_eq!(available_guerrillas(&app.observe()["observation"]), 13);
+    choose_rally_option(&mut app, "done-removal");
+    let revised = app.observe()["observation"].clone();
+    assert!(has_action(&revised, "rally:sierra-maestra:place:4"));
+    choose_rally_option(&mut app, "rally:sierra-maestra:place:3");
+    let card_end = app.observe();
+    assert_unshaded_card_end(&revised, &card_end);
+    assert_eq!(available_guerrillas(&card_end["observation"]), 10);
+    assert_eq!(rally_space(&card_end["observation"])["support"], -2);
+    app.capture("rally-card-end");
+    app.quit();
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["observation"], card_end["observation"]);
+    app.quit();
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained side decision captures"]
+fn native_rally_removing_the_last_base_closes_the_operation() {
+    let (_socket, mut app) = event_app("rally-removed-last-base-", "issue-121");
+    if let Some(input) = std::env::var_os("CUBA_TEST_PENDING_RALLY") {
+        std::fs::copy(input, &app.save).unwrap();
+        app.launch_size("3840x2160");
+    } else {
+        open_event_handoff(&mut app);
+        choose_rally_option(&mut app, "event:unshaded");
+        choose_rally_option(&mut app, "rally:beneficiary:26july");
+    }
+    let rally = app.observe()["observation"].clone();
+    assert!(has_action(&rally, "rally:sierra-maestra:place:4"));
+    choose_rally_option(&mut app, "remove");
+    app.remove("sierra-maestra:base", 1);
+    let removal = app.observe()["observation"].clone();
+    assert!(
+        rally_space(&removal)["pieces"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    assert_eq!(
+        removal["standings"][1]["score"].as_i64().unwrap(),
+        rally["standings"][1]["score"].as_i64().unwrap() - 1
+    );
+    assert_eq!(
+        removal["available_piece_count"].as_u64().unwrap(),
+        rally["available_piece_count"].as_u64().unwrap() + 1
+    );
+    app.quit();
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["observation"], removal);
+    choose_rally_option(&mut app, "done-removal");
+    let card_end = app.observe();
+    assert_unshaded_card_end(&rally, &card_end);
+    assert!(
+        card_end["observation"]["event"]["Complete"]["Unshaded"]["resolutions"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    let at = card_end["observation"]["revision"].as_u64().unwrap();
+    let valid = std::fs::read(&app.save).unwrap();
+    app.request(json!({"op":"activate","revision":at,"choice":format!("{at}:rally:sierra-maestra:place:4")}), false);
+    assert_eq!(std::fs::read(&app.save).unwrap(), valid);
+    app.capture("no-base-card-end");
+    app.quit();
 }
 
 fn rally_space(view: &Value) -> &Value {

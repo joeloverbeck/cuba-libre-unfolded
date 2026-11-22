@@ -18,7 +18,7 @@ use super::briefing::{self, Briefing};
 use super::emblems::{self, Naming};
 use super::palette::{INK, PAPER, QUIET};
 use super::*;
-use crate::{ActionChoice, EventProgress, Observation, rally_spaces, resources};
+use crate::{ActionChoice, Choice, EventProgress, Observation, Transfer, rally_spaces, resources};
 use bevy::text::{Justify, LetterSpacing, LineHeight};
 
 /// Node coordinates in the FigCraft 16:9 frame, `art/atlas/atlas-action-choice.figcraft`.
@@ -244,7 +244,7 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                     .next()
                     .unwrap_or_else(|| "Pass".into()),
                 "terror" => "Choose Terror".into(),
-                "event:shaded" => "Execute shaded Event".into(),
+                "event:shaded" => "Choose shaded Event".into(),
                 "event:unshaded" => "Choose unshaded Event".into(),
                 _ => c.label.clone(),
             },
@@ -268,6 +268,12 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                 enabled: false,
             }
         }
+        None if view.transfer.is_some() => Commit {
+            label: "Resource transfer open".into(),
+            action: Action::Unsupported("Use the Resource transfer controls first.".into()),
+            name: "choice-commit".into(),
+            enabled: false,
+        },
         None => Commit {
             label: if view.eligibility.directorio_handoff() {
                 "Click an option to inspect it"
@@ -289,6 +295,12 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
     }
 }
 
+fn panel_options(view: &Observation) -> impl Iterator<Item = &Choice> {
+    view.choices.iter().filter(|choice| {
+        view.transfer.is_none() && (view.removal.is_none() || choice.action() == "done-removal")
+    })
+}
+
 /// The action choice inside the operation panel: heading, every listed option and
 /// the commit. `offset` is the right-anchored letterbox offset.
 pub(super) fn panel(
@@ -300,10 +312,8 @@ pub(super) fn panel(
     o: Vec2,
 ) {
     let directorio = view.eligibility.directorio_handoff();
-    let rally_pending = view
-        .event
-        .as_ref()
-        .is_some_and(EventProgress::rally_pending);
+    let event_pending = view.event.as_ref().is_some_and(EventProgress::pending);
+    let executor = view.executing.unwrap_or(view.owner);
     let part = |commands: &mut Commands, entity: Entity, name: &str| {
         commands.entity(entity).insert(Part(name.into()));
     };
@@ -311,7 +321,7 @@ pub(super) fn panel(
     let emblem = picture(
         commands,
         art,
-        &emblems::image(view.owner),
+        &emblems::image(executor),
         rect(x, y, w, h),
         s,
         o,
@@ -320,6 +330,8 @@ pub(super) fn panel(
     part(commands, emblem, "choice-heading-emblem");
     let [x, y, w] = fig::HEADING;
     let title = match &view.event {
+        _ if view.removal.is_some() => format!("{} · Voluntary removal", executor.name()),
+        Some(EventProgress::ExecuteShaded) => "Directorio · Shaded Event".into(),
         Some(EventProgress::ChooseRallyBeneficiary) => "Choose who Rallies".into(),
         Some(EventProgress::Rally(rally)) => format!("{} · Free Rally", rally.beneficiary.name()),
         _ if directorio => "Directorio's options".into(),
@@ -341,6 +353,7 @@ pub(super) fn panel(
     part(commands, heading, "choice-heading");
     let [x, y, w] = fig::SUBTITLE;
     let position = match &view.event {
+        Some(EventProgress::ExecuteShaded) => "Alberto Bayo · Directorio executes (R 5.2)".into(),
         Some(EventProgress::ChooseRallyBeneficiary) => {
             "Alberto Bayo · Directorio chooses the beneficiary".into()
         }
@@ -350,7 +363,11 @@ pub(super) fn panel(
                 .map(|space| space.name.as_str())
                 .collect::<Vec<_>>()
                 .join(", ");
-            format!("{places} · 0 Resources (R 5.5)")
+            if places.is_empty() {
+                "Directorio's Event · No qualifying Base spaces remain".into()
+            } else {
+                format!("Directorio's Event · {places} · 0 Resources (R 5.5)")
+            }
         }
         _ if directorio => "2nd Eligible on card 17 · Kidnap opened the Event (R 2.3.4)".into(),
         _ => format!(
@@ -358,12 +375,18 @@ pub(super) fn panel(
             resources(view.resources[Faction::M26.index()])
         ),
     };
+    let instruction = match &view.transfer {
+        Some(Transfer::Authorizing { giver, .. }) => {
+            format!("{} decides the Resource transfer", giver.name())
+        }
+        Some(Transfer::Selecting) => format!("{} composes the Resource transfer", executor.name()),
+        None if view.removal.is_some() => "Click a marked piece, or select Done".into(),
+        None => "Hover or focus an option for its briefing · click to pin it".into(),
+    };
     let subtitle = text(
         commands,
         art,
-        Prose::named(format!(
-            "{position}\nHover or focus an option for its briefing · click to pin it"
-        )),
+        Prose::named(format!("{position}\n{instruction}")),
         rx(x),
         ry(y),
         rs(w),
@@ -383,7 +406,7 @@ pub(super) fn panel(
         Some(rs(fig::SUBTITLE_LINE) * s),
     );
     part(commands, subtitle, "choice-subtitle");
-    for (name, top, words) in fig::SECTIONS.into_iter().filter(|_| !rally_pending) {
+    for (name, top, words) in fig::SECTIONS.into_iter().filter(|_| !event_pending) {
         let words = if directorio && name == "section:operations" {
             "OPERATIONS"
         } else {
@@ -413,10 +436,10 @@ pub(super) fn panel(
         );
         part(commands, label, name);
     }
-    for (choice, top) in view.choices.iter().zip(fig::ROWS) {
+    for (choice, top) in panel_options(view).zip(fig::ROWS) {
         let act = choice.action();
         let name = format!("option:{act}");
-        let (label, pill) = if directorio || rally_pending {
+        let (label, pill) = if directorio || event_pending {
             let status = (!choice.supported).then_some("NOT IN THIS TASK");
             (choice.label.as_str(), status)
         } else {
@@ -722,14 +745,23 @@ fn focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> {
     match view.action {
         _ if view.action == ActionChoice::Open
             || view.eligibility.directorio_handoff()
-            || view
-                .event
-                .as_ref()
-                .is_some_and(EventProgress::rally_pending) =>
+            || view.event.as_ref().is_some_and(EventProgress::pending) =>
         {
-            let commit = commit(view, ui.choice.pinned.as_deref());
-            view.choices
+            if matches!(
+                view.transfer,
+                Some(Transfer::Authorizing { waited: true, .. })
+            ) && let Some(choice) = view
+                .choices
                 .iter()
+                .find(|choice| choice.action() == "reopen")
+            {
+                return vec![(
+                    choice.id.clone(),
+                    Action::Decision(choice.owner, view.revision),
+                )];
+            }
+            let commit = commit(view, ui.choice.pinned.as_deref());
+            panel_options(view)
                 .map(|c| {
                     (
                         format!("option:{}", c.action()),
@@ -762,14 +794,15 @@ fn tab_name(option: &str) -> String {
 /// Escape unpins the briefing or closes the ribbon's tag, and closes an open space or
 /// piece popover.
 pub(super) fn keys(
-    keys: Res<ButtonInput<KeyCode>>,
+    mut keys: ResMut<ButtonInput<KeyCode>>,
     mut play: ResMut<Play>,
     mut ui: ResMut<Interface>,
     mut popover: ResMut<super::popover::Popover>,
     roll: Res<super::die::Roll>,
 ) {
+    let activation_keys = [KeyCode::Enter, KeyCode::NumpadEnter, KeyCode::Space];
     let tab = keys.just_pressed(KeyCode::Tab);
-    let enter = keys.any_just_pressed([KeyCode::Enter, KeyCode::NumpadEnter, KeyCode::Space]);
+    let enter = keys.any_just_pressed(activation_keys);
     let escape = keys.just_pressed(KeyCode::Escape);
     if !(tab || enter || escape) || ui.reader || play.session.is_none() {
         return;
@@ -820,6 +853,11 @@ pub(super) fn keys(
     let Some((focused, action)) = at.map(|i| order[i].clone()) else {
         return;
     };
+    // An activated control can open a modal in this update. Its next decision
+    // needs a fresh key press, even though the modal's input system runs below.
+    for key in activation_keys {
+        keys.clear_just_pressed(key);
+    }
     match action {
         Action::Pin(_) | Action::Ribbon | Action::Tab(_) => {
             activate(&mut ui, &action);
@@ -861,13 +899,7 @@ fn wanted(game: &Game, ui: &Interface, popover: bool) -> Option<(String, bool, b
     let (prefix, ribbon) = match game.action {
         ActionChoice::Open => ("option:", false),
         ActionChoice::Terror if game.eligibility().directorio_handoff() => ("option:", false),
-        _ if game
-            .event
-            .as_ref()
-            .is_some_and(EventProgress::rally_pending) =>
-        {
-            ("option:", false)
-        }
+        _ if game.event.as_ref().is_some_and(EventProgress::pending) => ("option:", false),
         _ if game.finished => return None,
         ActionChoice::Terror if ui.choice.ribbon => {
             return Some((ui.choice.tab().to_owned(), true, true));
@@ -875,7 +907,9 @@ fn wanted(game: &Game, ui: &Interface, popover: bool) -> Option<(String, bool, b
         ActionChoice::Terror => ("step:", true),
         ActionChoice::Pass => return None,
     };
-    if ribbon && (popover || super::transfer::shown(game.transfer.as_ref())) {
+    if (ribbon || game.event.as_ref().is_some_and(EventProgress::pending))
+        && (popover || super::transfer::shown(game.transfer.as_ref()))
+    {
         return None;
     }
     let hovered = match ui.hover.visible() {
@@ -1052,10 +1086,7 @@ pub(super) fn draw(
     let directorio = view.eligibility.directorio_handoff();
     let choosing = view.action == ActionChoice::Open
         || directorio
-        || view
-            .event
-            .as_ref()
-            .is_some_and(EventProgress::rally_pending);
+        || view.event.as_ref().is_some_and(EventProgress::pending);
     let content = if tabs || choosing {
         briefing::content(&view, &option)
     } else {
@@ -1070,10 +1101,10 @@ pub(super) fn draw(
     // The active row's outline: an option at the action choice, or a step during
     // Terror (the step a mode holds open is outlined by the panel itself).
     let row = if choosing {
-        view.choices
-            .iter()
-            .position(|c| c.action() == option)
-            .map(|i| [fig::ROW_X, fig::ROWS[i], fig::ROW_W, fig::ROW_H])
+        panel_options(&view)
+            .zip(fig::ROWS)
+            .find(|(c, _)| c.action() == option)
+            .map(|(_, top)| [fig::ROW_X, top, fig::ROW_W, fig::ROW_H])
     } else if super::execution::held(&view) == Some(option.as_str()) {
         None
     } else {
