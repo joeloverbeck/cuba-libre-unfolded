@@ -16,17 +16,28 @@ fi
 args=("$@")
 filters=()
 list=false
-skipping=false
+selection=()
 exact=false
 while (($#)); do
   case $1 in
     -h|--help) exec cargo test --locked --features tabletop --test native -- --help ;;
     --list) list=true ;;
-    --exact) exact=true ;;
+    --exact) exact=true; selection+=("$1") ;;
     --) shift; filters+=("$@"); break ;;
-    --skip) skipping=true; if (($# > 1)); then shift; fi ;;
-    --skip=*) skipping=true ;;
-    --format|--color|--test-threads|--shuffle-seed|--logfile|-Z)
+    --skip)
+      if (($# < 2)); then echo "--skip needs a filter" >&2; exit 2; fi
+      selection+=("$1" "$2")
+      shift ;;
+    --skip=*|--exclude-should-panic|--include-ignored|--ignored|--test|--bench)
+      selection+=("$1") ;;
+    --test-threads|--test-threads=*)
+      threads=${1#--test-threads=}
+      if [[ $1 == --test-threads ]]; then shift; threads=${1:-}; fi
+      if [[ $threads != 1 ]]; then
+        echo "Native regressions share a renderer. Use --test-threads=1." >&2
+        exit 2
+      fi ;;
+    --format|--color|--shuffle-seed|--logfile|-Z)
       # Space-separated option values aren't test names.
       if (($# > 1)); then shift; fi ;;
     -*) ;;
@@ -37,10 +48,10 @@ done
 
 cargo_test=(cargo test --locked --features tabletop)
 harness=(--ignored --test-threads=1)
-if ((${#filters[@]})) || "$list" || "$skipping"; then
-  list_args=(--list)
-  if "$list"; then list_args=(); fi
-  listing=$("${cargo_test[@]}" --test native --lib -- "${harness[@]}" "${list_args[@]}" "${args[@]}")
+if ((${#filters[@]} + ${#selection[@]})); then
+  # Let libtest apply the selection; keep output formatting and logging options
+  # for the caller's actual run so discovery always reads a plain catalogue.
+  listing=$("${cargo_test[@]}" --test native --lib -- "${harness[@]}" --list "${selection[@]}" -- "${filters[@]}")
   # The stable libtest catalogue prints one fully qualified "name: test" per line.
   mapfile -t names < <(sed -n 's/: test$//p' <<<"$listing")
   for filter in "${filters[@]}"; do
@@ -60,10 +71,9 @@ if ((${#filters[@]})) || "$list" || "$skipping"; then
     echo "No ignored native tests selected in either test binary." >&2
     exit 1
   fi
-  if "$list"; then
-    printf '%s\n' "$listing"
-    exit 0
-  fi
+fi
+if "$list"; then
+  exec "${cargo_test[@]}" --test native --lib -- "${harness[@]}" "${args[@]}"
 fi
 
 : "${CUBA_TEST_CARDS:?set CUBA_TEST_CARDS to the selected card directory (README, Where files live)}"
