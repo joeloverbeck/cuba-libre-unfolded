@@ -48,8 +48,10 @@ check_desktop_launch_arguments() {
   local command=$1
   [[ $command == 'cargo run '*" -- "* ]] || return 1
   bash -n <<<"$command" || return 1
-  local cargo_command=" ${command%% -- *} "
-  [[ $cargo_command == *' --bin cuba-libre '* && $cargo_command == *' --features tabletop '* ]] || return 1
+  local cargo_command=${command%% -- *}
+  local cargo_words='^cargo run( [[:alnum:]_-]+)*$'
+  [[ $cargo_command =~ $cargo_words ]] || return 1
+  [[ " $cargo_command " == *' --bin cuba-libre '* && " $cargo_command " == *' --features tabletop '* ]] || return 1
 
   # The example uses one shell word per path before variable expansion.
   local -a args
