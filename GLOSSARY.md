@@ -8,6 +8,10 @@ Terms for the game and its players, following the accepted [mission](docs/founda
 One of the game's four sides: Government, 26July, Directorio, or Syndicate, each with its own victory objective.
 _Avoid_: Team (when referring collectively to factions opposing the human)
 
+**Dual-use Event**:
+An Event with an unshaded text and a shaded text. The faction executing the Event chooses one of the two, regardless of its faction identity.
+_Avoid_: Two-part Event
+
 **Faction seat**:
 The player role responsible for one faction's decisions, held by a human or an assigned external agent.
 _Avoid_: Development seat, built-in bot
