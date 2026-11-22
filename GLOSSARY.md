@@ -25,7 +25,7 @@ The face-up pile of cards played so far, with the current card on top. Its conte
 _Avoid_: Discard pile, card history, played cards (when meaning only the cards beneath the current card)
 
 **Draw deck**:
-The cards not yet played, face down except for the preview card on top. Of its contents, only the number of cards and the preview card are open to inspection.
+The cards not yet played, face down except for the preview card on top. Its number of cards is open to inspection.
 _Avoid_: Draw pile, stock
 
 **Faction seat**:

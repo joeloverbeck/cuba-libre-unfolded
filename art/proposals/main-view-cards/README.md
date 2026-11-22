@@ -1,6 +1,6 @@
 # Full-bleed main view and card area studies
 
-Decision-only alternatives from the owner's 2026-11-22 design interview, recorded by [#136](https://github.com/joeloverbeck/cuba-libre-unfolded/pull/136). The spec issue written from that interview owns the work; this folder is its evidence, not a queue. The baseline is `8e0d825`. No runtime code or admission manifest consumes these files, and selection is not native play acceptance. Foundation [4](../../../docs/foundation/04-art-and-assets.md) governs the round.
+Decision-only alternatives from the owner's 2026-11-22 design interview, recorded by [#136](https://github.com/joeloverbeck/cuba-libre-unfolded/pull/136). The spec issue is still to be written from that interview and will own the work; this folder is its evidence, not a queue. The baseline is `8e0d825`. No runtime code or admission manifest consumes these files, and selection is not native play acceptance. Foundation [4](../../../docs/foundation/04-art-and-assets.md) governs the round.
 
 **Selected on 2026-11-22:** main view layout **A · Mesa** and card tag **T1 · Face and ledger**. The spec that implements them is still to be written; nothing here is production art yet.
 
@@ -24,7 +24,7 @@ Decision-only alternatives from the owner's 2026-11-22 design interview, recorde
 
 The two are independent: any tag works with any layout. [pile-tags-and-advance.png](pile-tags-and-advance.png) shows the pile tags, the advance in four steps and the card-position comparison; it carries no choice. The pile tags reuse the accepted hover tag, and the advance moves the cards between their two places, so neither is a new visual design that needs alternatives. The comparison only illustrates the owner's decision on card positions.
 
-Two statements on that sheet are the agent's proposals, which the owner read and did not change: the advance is saved before it is shown, as [ADR 0001](../../../docs/adr/0001-baked-die-tumbles-land-on-the-committed-face.md) does for the die, and a click, Space or Enter skips it. "Next Propaganda within 8 cards" assumes the deck was prepared with exactly equal piles, which Deck Preparation permits but does not require; the owner accepted the line with that assumption stated.
+Two statements on that sheet are the agent's proposals, which the owner read and did not change: the advance is saved before it is shown, as [ADR 0001](../../../docs/adr/0001-baked-die-tumbles-land-on-the-committed-face.md) does for the die, and a click, Space or Enter skips it. "Next Propaganda within the next 8 cards" assumes the deck was prepared with exactly equal piles, which Deck Preparation permits but does not require; the owner accepted the line with that assumption stated.
 
 ### Main view layouts
 
