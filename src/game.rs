@@ -2,7 +2,9 @@
 use serde::{Deserialize, Serialize};
 use unfolded_random::SeededRandom;
 
+mod assault;
 mod rally;
+pub use assault::AssaultResolution;
 pub use rally::{Rally, RallyAction, RallyResolution};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -176,19 +178,22 @@ impl SequenceBox {
         }
     }
 }
-/// Card 17's Eligibility record and its R 2.3.7 adjustment for card 18.
+/// The current card's Eligibility record (R 2.3).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Eligibility {
-    /// Card 17's faction order, left to right (R 2.3.2).
+    /// The printed faction order, left to right (R 2.3.2).
     pub order: [Faction; 4],
     /// Eligibility on the track, indexed like `Faction::ALL`. After adjustment
     /// these cylinders govern the next card.
     pub eligible: [bool; 4],
-    /// The 1st Eligible faction: Directorio after 26July Passes (R 2.3.3).
+    /// The 1st Eligible faction. A Pass gives this role to the next Eligible faction.
     pub first: Faction,
-    pub second: Faction,
+    pub second: Option<Faction>,
     /// The box 26July's cylinder occupies, once its action is recorded.
     pub m26_box: Option<SequenceBox>,
+    /// The box Government's cylinder occupies on card 18.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub government_box: Option<SequenceBox>,
     /// Whether 26July is Eligible for the next card, once its action is recorded:
     /// a Pass leaves it Eligible (R 2.3.3); an Operation makes it Ineligible when
     /// cylinders are adjusted after the card (R 2.3.7).
@@ -251,6 +256,7 @@ const SANTIAGO_OWED: &str = "Santiago Terror is owed: under the accepted commitm
 pub const KIDNAP_SPACE: &str = "santiago";
 /// A faction's Resources never exceed 49 (R 1.8); excess is lost.
 const RESOURCE_CAP: u8 = 49;
+const GOVERNMENT_PASS_INCOME: u8 = 3;
 /// What 26July pays for Terror in each City or Province it selects (R 3.3.4).
 pub const TERROR_COST: u8 = 1;
 /// The prepared position's Resources, indexed like `Faction::ALL`.
@@ -301,6 +307,14 @@ pub struct Game {
     pub(crate) m26_action_ended: bool,
     pub(crate) random: u64,
     pub(crate) draw_deck: Vec<u8>,
+    /// Card 18 entered play after the completed Alberto Bayo Event. Older saves
+    /// omit this field and remain on card 17.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) card_18: bool,
+    /// The Government balance before its recorded card 18 Pass. Retaining the
+    /// prior balance lets load replay the exact credit even at the Resource cap.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    government_pass_from: Option<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) transfer: Option<Transfer>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -324,6 +338,8 @@ pub struct Game {
     pub(crate) event: Option<EventProgress>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     event_side_decisions: Option<EventSideDecisions>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    assault: Option<assault::Assault>,
 }
 
 /// The supported Event state before its first side decision, plus the decisions
@@ -358,14 +374,18 @@ pub enum Removal {
 /// A removal choice's group, as its id names it: `remove:<space>:<group>:<quantity>`.
 pub fn removal_group(kind: Kind, state: State) -> &'static str {
     match (kind, state) {
+        (Kind::Troops, _) => "troops",
+        (Kind::Police, _) => "police",
         (Kind::Base, _) => "base",
         (_, State::Active) => "active",
         _ => "underground",
     }
 }
-/// The kind and state a removal group names, for 26July's Guerrillas and Base.
+/// The kind and state named by a supported voluntary removal group.
 pub fn removal_piece(group: &str) -> Option<(Kind, State)> {
     match group {
+        "troops" => Some((Kind::Troops, State::Ordinary)),
+        "police" => Some((Kind::Police, State::Ordinary)),
         "base" => Some((Kind::Base, State::Ordinary)),
         "active" => Some((Kind::Guerrilla, State::Active)),
         "underground" => Some((Kind::Guerrilla, State::Underground)),
@@ -529,10 +549,13 @@ pub struct Observation {
     /// can still be pending. Card-end eligibility is in `eligibility.next_card`.
     pub finished: bool,
     pub choices: Vec<Choice>,
-    /// The next faction to act, its role and its options, once 26July's action is
-    /// recorded (R 2.3.3–2.3.4).
+    /// The next faction to act, its role, and its options after a recorded action
+    /// (R 2.3.3–2.3.4).
     pub next: Option<Next>,
     pub operation: &'static str,
+    /// The paid Santiago result, once the target has resolved.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assault_result: Option<AssaultResolution>,
     pub special_activity: Option<String>,
     pub owed_terror: Option<String>,
     pub transfer: Option<Transfer>,
@@ -548,9 +571,7 @@ pub struct Observation {
     /// Terror, a Kidnap roll or a removal. Until then 26July may go back to its action
     /// choice (local policy, #58), so a step that waits says whether it still can.
     pub effected: bool,
-    /// What the step that recorded 26July's action itself changed in Resources, as
-    /// the authority applied it: a Pass's +1, which stops at 49 (R 2.3.3, 1.8). Empty
-    /// until the action is recorded, and after End Terror, which moves none itself.
+    /// The balance before and after a recorded Pass on this card (R 2.3.3, 1.8).
     pub recorded_resources: Vec<ResourceChange>,
     /// This tactical task starts without Terror markers. Each space with a marker
     /// contributes one resolution at the fixed per-space cost [`TERROR_COST`] (R 3.3.4).
@@ -581,7 +602,7 @@ pub struct Choice {
     /// it supported, such as "Kidnap here first"; empty when nothing here can.
     pub remedies: Vec<String>,
     /// The consequences of an irreversible step, computed by applying it to a copy of
-    /// the match: Pass, each Terror target, End Terror and each Voluntary removal.
+    /// the match, including Pass, Terror and Assault effects, and voluntary removal.
     pub preview: Option<Preview>,
 }
 impl Choice {
@@ -675,7 +696,7 @@ pub struct Preview {
     /// Pieces that change state in place, such as an Underground Guerrilla flipped to
     /// Active (Activate, R 1.4.3).
     pub flips: Vec<Flip>,
-    /// Own pieces returned to Available (Voluntary removal, R 1.4.1).
+    /// Pieces returned to Available Forces by this decision.
     pub removed: Vec<Returned>,
     /// Spaces that receive a Terror marker.
     pub terror: Vec<String>,
@@ -685,12 +706,12 @@ pub struct Preview {
     /// Choices offered now that the step would leave unavailable, with the reason
     /// they would then give.
     pub unavailable: Vec<Unavailable>,
-    /// The box 26July's action would record, when the step ends it.
+    /// The box the active faction's action would record, when the step ends it.
     pub records: Option<SequenceBox>,
     /// Whether 26July would be Eligible for the next card, when the step ends its
     /// action (R 2.3.3, 2.3.7).
     pub m26_next_card: Option<bool>,
-    /// Directorio's options, when the step ends 26July's action.
+    /// The next decision's owner, role and options, when the step hands over play.
     pub next: Option<Next>,
     /// What a Kidnap roll could take, for opening Kidnap and for its roll. A roll's
     /// result is never previewed.
@@ -952,6 +973,8 @@ impl Game {
             m26_action_ended: false,
             random: 17,
             draw_deck,
+            card_18: false,
+            government_pass_from: None,
             transfer: None,
             kidnap: None,
             removal: None,
@@ -960,6 +983,7 @@ impl Game {
             kidnap_open: false,
             event: None,
             event_side_decisions: None,
+            assault: None,
             available: vec![
                 group(Government, Troops, 3),
                 group(Government, Police, 8),
@@ -977,6 +1001,9 @@ impl Game {
         let mut played_cards: Vec<u8> = (1..=12).collect();
         played_cards.push(49);
         played_cards.extend(13..=16);
+        if self.card_18 {
+            played_cards.push(17);
+        }
         let eligibility = self.eligibility();
         Observation {
             revision: self.revision,
@@ -998,11 +1025,15 @@ impl Game {
                 .sum(),
             available_piece_count: self.available.iter().map(|p| p.count as u16).sum(),
             standings: self.standings(),
-            current_card: 17,
-            preview_card: 18,
+            current_card: if self.card_18 { 18 } else { 17 },
+            preview_card: self.draw_deck[0],
             played_cards,
             draw_count: self.draw_deck.len(),
-            passed: Faction::ALL.map(|f| f == Faction::M26 && self.action == ActionChoice::Pass),
+            passed: Faction::ALL.map(|f| match f {
+                Faction::M26 => self.action == ActionChoice::Pass,
+                Faction::Government => self.government_pass_from.is_some(),
+                _ => false,
+            }),
             aid: 15,
             alliance: UsAlliance::Firm,
             cash_available: CASH_MARKERS,
@@ -1020,6 +1051,14 @@ impl Game {
                 .collect(),
             next: self.next(),
             operation: match self.action {
+                _ if self.government_pass_from.is_some() => {
+                    "Government Passed: Syndicate is 1st Eligible on card 18"
+                }
+                _ if self.assault_finished() => {
+                    "Operation Only recorded. Syndicate is 2nd Eligible"
+                }
+                _ if self.assault.is_some() => "Government executes Assault",
+                _ if self.card_18 => "Government is 1st Eligible on card 18",
                 _ if matches!(self.event, Some(EventProgress::ExecuteShaded)) => {
                     "Directorio executes the shaded Event"
                 }
@@ -1045,6 +1084,7 @@ impl Game {
                 }
                 ActionChoice::Terror => "executing Terror",
             },
+            assault_result: self.assault_result(),
             special_activity: self.kidnap.as_ref().map(|_| "Kidnap".into()),
             owed_terror: self.owes_santiago().then(|| "santiago".into()),
             transfer: self.transfer.clone(),
@@ -1066,10 +1106,15 @@ impl Game {
             kidnap_stakes: (self.kidnap.is_none() && !self.m26_action_ended).then(|| self.stakes()),
         }
     }
-    /// What Pass changed in 26July's Resources. A Pass is taken only at the action
-    /// choice before any effect, so from the prepared Resources; a loaded save is held
-    /// to exactly that (`validate`).
+    /// The balance change from the Pass recorded on the current card.
     fn recorded_resources(&self) -> Vec<ResourceChange> {
+        if let Some(from) = self.government_pass_from {
+            return vec![ResourceChange {
+                faction: Faction::Government,
+                from,
+                to: self.resources[Faction::Government.index()],
+            }];
+        }
         if self.action != ActionChoice::Pass {
             return vec![];
         }
@@ -1080,9 +1125,19 @@ impl Game {
             to: self.resources[m26],
         }]
     }
-    /// The next faction to act once 26July's action is recorded: the first Eligible
-    /// faction other than 26July, in its role, with its options (R 2.3.3–2.3.4).
+    /// The next faction's role and options after the acting faction records a
+    /// decision (R 2.3.3–2.3.4).
     fn next(&self) -> Option<Next> {
+        if self.government_pass_from.is_some() {
+            return Some(Next {
+                faction: self.eligibility().first,
+                role: "1st Eligible".into(),
+                options: Self::first_eligible_options(),
+            });
+        }
+        if self.card_18 {
+            return self.assault_next();
+        }
         if self.event.is_some() {
             return None;
         }
@@ -1091,7 +1146,7 @@ impl Game {
         let (faction, role) = if e.first != Faction::M26 {
             (e.first, "1st Eligible")
         } else {
-            (e.second, "2nd Eligible")
+            (e.second?, "2nd Eligible")
         };
         Some(Next {
             faction,
@@ -1099,15 +1154,18 @@ impl Game {
             options: self.next_options(),
         })
     }
+    fn first_eligible_options() -> Vec<String> {
+        vec![
+            "Pass (+1 if executed later)".into(),
+            "Operation (with or without a Special Activity)".into(),
+            "Event".into(),
+        ]
+    }
     /// The next faction's options once 26July's action is recorded (R 2.3.3–2.3.4).
     fn next_options(&self) -> Vec<String> {
         if self.action == ActionChoice::Pass {
             // Directorio, now 1st Eligible, has every 1st Eligible option.
-            vec![
-                "Pass (+1 if executed later)".into(),
-                "Operation (with or without a Special Activity)".into(),
-                "Event".into(),
-            ]
+            Self::first_eligible_options()
         } else if self.m26_action_ended {
             let mut next = vec![
                 "Pass (+1 if executed later)".into(),
@@ -1143,10 +1201,12 @@ impl Game {
         let steps: &[&str] = match action {
             "kidnap" | "kidnap:roll" => return Some(self.kidnap_stakes(action)),
             "event:shaded" => &[action, "resolve-shaded"],
-            "pass" | "end-terror" | "resolve-shaded" => &[action],
+            "pass" | "government:pass" | "end-terror" | "resolve-shaded" => &[action],
             _ if action.starts_with("terror:")
                 || (action.starts_with("rally:")
                     && matches!(self.event, Some(EventProgress::Rally(_))))
+                || Self::assault_payment_space(action).is_some()
+                || action == "end-assault"
                 || choice.removal().is_some() =>
             {
                 &[action]
@@ -1268,7 +1328,10 @@ impl Game {
                 });
             }
         }
-        if after.m26_action_ended && !action.starts_with("remove:") {
+        if matches!(action, "government:pass" | "end-assault") {
+            preview.records = after.eligibility().government_box;
+            preview.next = after.next();
+        } else if after.m26_action_ended && !action.starts_with("remove:") {
             if matches!(
                 action,
                 "end-terror" | "pass" | "event:shaded" | "resolve-shaded"
@@ -1345,6 +1408,18 @@ impl Game {
             notes.push("The free Rally adds no eligibility penalty (R 5.5).".into());
         } else if action.starts_with("terror:") {
             notes.push(format!("R 3.3.4: pay 1 Resource, {TERROR_EFFECTS}."));
+        } else if self.card_18 {
+            match action {
+                "government:pass" => notes.push("Government stays Eligible for the next card. Syndicate now decides as 1st Eligible (R 2.3.3).".into()),
+                "end-assault" => notes.push("Records Operation Only. Syndicate may Pass or choose a Limited Operation as 2nd Eligible (R 2.3.4–5).".into()),
+                _ if action.starts_with("remove:") => notes.push("R 1.4.1: after Done, Assault uses the remaining cubes.".into()),
+                _ if Self::assault_payment_space(action).is_some() => {
+                    if let Some(note) = after.assault_preview_effect() {
+                        notes.push(note);
+                    }
+                }
+                _ => {}
+            }
         } else if action.ends_with(":1") {
             notes.push("R 1.4.1: the piece returns to Available. Earlier Terror markers, support shifts and Kidnap results stay.".into());
         } else {
@@ -1412,6 +1487,13 @@ impl Game {
         preview
     }
     pub(crate) fn executing(&self) -> Option<Faction> {
+        if self.card_18 {
+            return self
+                .assault
+                .as_ref()
+                .is_some_and(|op| !op.finished)
+                .then_some(Faction::Government);
+        }
         match &self.event {
             Some(EventProgress::ExecuteShaded | EventProgress::ChooseRallyBeneficiary) => {
                 Some(Faction::Directorio)
@@ -1444,9 +1526,36 @@ impl Game {
                 through_card: 18,
             },
         );
+        let eligible = next_card.map_or([true; 4], |results| results.map(|r| r.eligible));
+        if self.card_18 {
+            // Pact of Caracas has the same printed order as Alberto Bayo
+            // (P p. 33). Skip the factions made Ineligible by R 2.3.7.
+            let government_passed = self.government_pass_from.is_some();
+            let government_box = if government_passed {
+                Some(SequenceBox::Pass)
+            } else {
+                self.assault_finished()
+                    .then_some(SequenceBox::OperationOnly)
+            };
+            let mut in_order = CARD_17_ORDER.into_iter().filter(|&f| {
+                eligible[f.index()] && !(f == Faction::Government && government_passed)
+            });
+            return Eligibility {
+                order: CARD_17_ORDER,
+                eligible,
+                first: in_order.next().expect("Syndicate remains Eligible"),
+                second: in_order.next(),
+                m26_box: None,
+                m26_next_card: None,
+                government_box,
+                next_card: None,
+                event_restriction,
+                event_started: false,
+            };
+        }
         Eligibility {
             order: CARD_17_ORDER,
-            eligible: next_card.map_or([true; 4], |results| results.map(|r| r.eligible)),
+            eligible,
             next_card,
             event_restriction,
             event_started: self.event.is_some(),
@@ -1455,11 +1564,12 @@ impl Game {
             } else {
                 Faction::M26
             },
-            second: if passed {
+            second: Some(if passed {
                 Faction::Government
             } else {
                 Faction::Directorio
-            },
+            }),
+            government_box: None,
             m26_box: match self.action {
                 ActionChoice::Pass => Some(SequenceBox::Pass),
                 ActionChoice::Terror if self.m26_action_ended && self.kidnap.is_some() => {
@@ -1601,6 +1711,10 @@ impl Game {
     fn owner(&self) -> Faction {
         if let Some(Transfer::Authorizing { giver, .. }) = self.transfer {
             giver
+        } else if self.assault_finished() {
+            Faction::Syndicate
+        } else if self.card_18 {
+            self.eligibility().first
         } else if let Some(EventProgress::Rally(rally)) = &self.event {
             rally.beneficiary
         } else if self.m26_action_ended {
@@ -1727,9 +1841,31 @@ impl Game {
         .collect()
     }
     fn choices(&self) -> Vec<Choice> {
+        if self.card_18 {
+            if self.government_pass_from.is_some() {
+                return self.syndicate_choices();
+            }
+            return if self.assault.is_some() {
+                self.assault_choices()
+            } else {
+                self.government_choices()
+            };
+        }
         if self.m26_action_ended && self.executing().is_none() {
             return if self.eligibility().directorio_handoff() {
                 self.directorio_choices()
+            } else if self
+                .event
+                .as_ref()
+                .and_then(EventProgress::outcome)
+                .is_some()
+            {
+                vec![self.offer(
+                    "advance-card",
+                    "Advance to Pact of Caracas",
+                    true,
+                    "Make Pact of Caracas current and reveal Sierra Maestra Manifesto as preview (R 2.3.8).",
+                )]
             } else {
                 vec![]
             };
@@ -1751,26 +1887,8 @@ impl Game {
                 ),
             ];
         }
-        // Removal mode, including a #8 save's pending confirmation.
         if self.removal.is_some() {
-            let mut choices = self.removal_choices();
-            let rally_exhausted = matches!(&self.event, Some(EventProgress::Rally(rally))
-                if self.rally_choices(rally).is_empty());
-            choices.push(self.offer(
-                "done-removal",
-                if rally_exhausted {
-                    "Done · finish free Rally"
-                } else {
-                    "Done · leave removal mode"
-                },
-                true,
-                if rally_exhausted {
-                    "No legal Rally choices remain. The removed pieces stay in Available and card 18's eligibility is recorded (R 2.3.7, 5.1.3)."
-                } else {
-                    "Returns to execution. The removed pieces stay in Available."
-                },
-            ));
-            return choices;
+            return self.removal_menu();
         }
         if let Some(choices) = self.transfer_choices() {
             return choices;
@@ -1812,6 +1930,175 @@ impl Game {
         };
         choices.splice(at..at, side_choices);
         choices
+    }
+
+    /// The Government balance after Pass income (R 1.8, 2.3.3).
+    fn government_pass_balance(balance: u8) -> u8 {
+        balance
+            .saturating_add(GOVERNMENT_PASS_INCOME)
+            .min(RESOURCE_CAP)
+    }
+
+    /// The options of the 1st Eligible Government on card 18 (R 2.3.3–4).
+    fn government_choices(&self) -> Vec<Choice> {
+        let balance = self.resources[Faction::Government.index()];
+        let after_pass = Self::government_pass_balance(balance);
+        let alliance = UsAlliance::Firm;
+        let cost = alliance.coin_cost();
+        let offer = |id: &str, label: &str, rule: String| {
+            self.offer(
+                &format!("government:{id}"),
+                label,
+                false,
+                format!("{rule} This build offers inspection only."),
+            )
+        };
+        let operation = |id, label, rule, per_space| {
+            let charge = if per_space { "per space" } else { "total" };
+            let refusal = if balance < cost {
+                format!(" Government has {} and cannot pay.", resources(balance))
+            } else {
+                String::new()
+            };
+            offer(
+                id,
+                label,
+                format!(
+                    "{rule} {} US Alliance: {} {charge} (R 6.3.1).{refusal}",
+                    alliance.name(),
+                    resources(cost),
+                ),
+            )
+        };
+        let activity = |id, label, rule| {
+            let balance_status = if balance < cost {
+                format!(
+                    " Government has {} and cannot pay {} for an Operation.",
+                    resources(balance),
+                    resources(cost)
+                )
+            } else {
+                String::new()
+            };
+            offer(
+                id,
+                label,
+                format!(
+                    "Requires an Operation in at least one space (R 4.1). {rule}{balance_status}"
+                ),
+            )
+        };
+        vec![
+            self.offer(
+                "government:pass",
+                format!("Pass · +{} ({balance} → {after_pass})", resources(after_pass - balance)),
+                true,
+                format!(
+                    "Government has {}. Pass gains {GOVERNMENT_PASS_INCOME} Resources up to the cap of {RESOURCE_CAP}: {balance} → {after_pass}. Government stays Eligible for the next card, and Syndicate becomes 1st Eligible (R 1.8, 2.3.3).",
+                    resources(balance)
+                ),
+            ),
+            offer(
+                "event",
+                "Event · Pact of Caracas",
+                "Government may execute the Event as 1st Eligible (R 2.3.4). Its Capability is inactive until the Event executes (R 5.3).".into(),
+            ),
+            operation("train", "Train · Operation", "R 3.2.1.", true),
+            operation("garrison", "Garrison · Operation", "R 3.2.2.", false),
+            operation("sweep", "Sweep · Operation", "R 3.2.3.", true),
+            self.assault_opening(),
+            activity(
+                "transport",
+                "Transport · Special Activity",
+                "Transport may accompany any Government Operation (R 4.2.1).",
+            ),
+            activity(
+                "air-strike",
+                "Air Strike · Special Activity",
+                "Accompanies Garrison, Sweep or Assault. Air Strike occurs in a Province or economic center and requires an Alliance above Embargoed (R 4.2.2).",
+            ),
+            activity(
+                "reprisal",
+                "Reprisal · Special Activity",
+                "Accompanies Garrison, Sweep or Assault. Reprisal occurs in one Government-controlled space (R 4.2.3).",
+            ),
+        ]
+    }
+
+    /// Syndicate's 1st Eligible options after Government's Pass (R 2.3.3–4).
+    fn syndicate_choices(&self) -> Vec<Choice> {
+        let balance = self.resources[Faction::Syndicate.index()];
+        let after_pass = balance.saturating_add(1).min(RESOURCE_CAP);
+        let terror_refusal = if self.spaces.iter().any(|space| {
+            space.pieces.iter().any(|piece| {
+                piece.faction == Faction::Syndicate
+                    && piece.kind == Kind::Guerrilla
+                    && piece.state == State::Underground
+            })
+        }) {
+            ""
+        } else {
+            " No space has an Underground Syndicate Guerrilla, so Syndicate cannot select a Terror space."
+        };
+        let offer = |id: &str, label: &str, rule: &str| {
+            self.offer(
+                &format!("syndicate:{id}"),
+                label,
+                false,
+                format!("{rule} This build offers inspection only."),
+            )
+        };
+        vec![
+            offer(
+                "pass",
+                "Pass",
+                &format!(
+                    "Syndicate gains 1 Resource up to the cap of {RESOURCE_CAP}: {balance} → {after_pass}. With both Eligible factions Passed, resolve eligibility and advance to the next card (R 1.8, 2.3.3, 2.3.7–8)."
+                ),
+            ),
+            offer(
+                "event",
+                "Event · Pact of Caracas",
+                "Syndicate may execute the Event as 1st Eligible (R 2.3.4). Its Capability is inactive until the Event executes (R 5.3).",
+            ),
+            offer(
+                "rally",
+                "Rally · Operation",
+                "Pay 1 Resource per City or Province. Place a Syndicate Guerrilla, or flip all its Guerrillas Underground where it has an open Casino (R 3.3.1).",
+            ),
+            offer(
+                "march",
+                "March · Operation",
+                "Move Syndicate Guerrillas into adjacent spaces. Pay 1 Resource per final City or Province destination, or 0 for an economic center (R 3.3.2).",
+            ),
+            offer(
+                "terror",
+                "Terror · Operation",
+                &format!(
+                    "Activate a Syndicate Underground Guerrilla at each target. Pay 1 Resource per City or Province to place Terror and shift toward Neutral, or 0 per economic center to place Sabotage (R 3.3.4).{terror_refusal}"
+                ),
+            ),
+            offer(
+                "construct",
+                "Construct · Operation",
+                "Pay 5 Resources per Government- or Syndicate-controlled City or Province to open or place a Casino within stacking limits (R 3.3.5).",
+            ),
+            offer(
+                "profit",
+                "Profit · Special Activity",
+                "With Rally, March or Construct, stash Cash at open Casinos or gain Resources by closing Casinos or removing Syndicate Cash (R 4.5.1).",
+            ),
+            offer(
+                "muscle",
+                "Muscle · Special Activity",
+                "With Rally, March or Construct, move Police to a City with an open Casino, or Troops to a Province with an open Casino or to an economic center (R 4.5.3).",
+            ),
+            offer(
+                "bribe",
+                "Bribe · Special Activity",
+                "Pay 3 Resources in one space to remove cubes, remove or flip Guerrillas, or remove an enemy Base (R 4.5.4).",
+            ),
+        ]
     }
 
     fn end_terror_choice(&self) -> Choice {
@@ -2083,7 +2370,7 @@ impl Game {
     fn protects(&self, id: &str, state: State) -> bool {
         self.owes_santiago() && id == "santiago" && state == State::Underground
     }
-    /// How many of a 26July group may be removed now.
+    /// How many of the executing faction's group may be removed now.
     fn removable(&self, id: &str, kind: Kind, state: State) -> u8 {
         let Some(executor) = self.executing() else {
             return 0;
@@ -2113,13 +2400,20 @@ impl Game {
                 let group = removal_group(p.kind, p.state);
                 let limit = self.removable(&s.id, p.kind, p.state);
                 let (one, many) = match (p.kind, p.state) {
+                    (Kind::Troops, _) => ("Troop", "Troops"),
+                    (Kind::Police, _) => ("Police cube", "Police cubes"),
                     (Kind::Base, _) => ("Base", "Bases"),
                     (_, State::Active) => ("Active Guerrilla", "Active Guerrillas"),
                     _ => ("Underground Guerrilla", "Underground Guerrillas"),
                 };
                 for n in 1..=p.count {
                     let pieces = if n == 1 { one } else { many };
-                    let explanation = if n <= limit {
+                    let explanation = if self.card_18 {
+                        format!(
+                            "R 1.4.1: return {n} {pieces} in {} to Available Forces.",
+                            s.name
+                        )
+                    } else if n <= limit {
                         format!(
                             "R 1.4.1: return {n} {} {pieces} in {} to Available. Earlier Terror markers, support shifts and Kidnap results stay.",
                             executor.name(),
@@ -2149,6 +2443,28 @@ impl Game {
                 }
             }
         }
+        choices
+    }
+
+    /// Removal mode, including a #8 save's pending confirmation.
+    fn removal_menu(&self) -> Vec<Choice> {
+        let mut choices = self.removal_choices();
+        let rally_exhausted = matches!(&self.event, Some(EventProgress::Rally(rally))
+            if self.rally_choices(rally).is_empty());
+        choices.push(self.offer(
+            "done-removal",
+            if rally_exhausted {
+                "Done · finish free Rally"
+            } else {
+                "Done · leave removal mode"
+            },
+            true,
+            if rally_exhausted {
+                "No legal Rally choices remain. The removed pieces stay in Available and card 18's eligibility is recorded (R 2.3.7, 5.1.3)."
+            } else {
+                "Returns to execution. The removed pieces stay in Available."
+            },
+        ));
         choices
     }
 }
@@ -2231,7 +2547,9 @@ impl Game {
         if let Some(checkpoint) = checkpoint {
             self.event_side_decisions = Some(checkpoint);
         }
-        if let Some(history) = &mut self.event_side_decisions {
+        if !self.card_18
+            && let Some(history) = &mut self.event_side_decisions
+        {
             history.actions.push(action.to_owned());
         }
         self.revision = next_revision;
@@ -2240,13 +2558,6 @@ impl Game {
 
     fn apply_decision(&mut self, action: &str, next_revision: u64) -> Result<(), String> {
         match action {
-            // The giver's decision set aside, or shown again: the request itself, and
-            // whether going back is allowed, are unchanged (#75).
-            "wait" | "reopen" => {
-                if let Some(Transfer::Authorizing { waited, .. }) = &mut self.transfer {
-                    *waited = action == "wait";
-                }
-            }
             // R 2.3.3. Only offered at the action choice.
             "pass" => {
                 self.resources[Faction::M26.index()] = self.resources[Faction::M26.index()]
@@ -2255,6 +2566,12 @@ impl Game {
                 self.action = ActionChoice::Pass;
                 self.m26_action_ended = true;
             }
+            "government:pass" => {
+                let balance = &mut self.resources[Faction::Government.index()];
+                self.government_pass_from = Some(*balance);
+                *balance = Self::government_pass_balance(*balance);
+            }
+            _ if self.card_18 => return self.apply_assault(action, next_revision),
             "terror" if self.action == ActionChoice::Open => self.action = ActionChoice::Terror,
             // Local policy (#58): withdraws a pending request; nothing has moved.
             "back-to-choice" => {
@@ -2268,6 +2585,13 @@ impl Game {
             }
             "event:shaded" => self.event = Some(EventProgress::ExecuteShaded),
             "resolve-shaded" => self.execute_shaded_event(),
+            "advance-card" => {
+                if !self.draw_deck.starts_with(&[18, 19]) {
+                    return Err("The prepared deck must begin with cards 18 and 19.".into());
+                }
+                self.draw_deck.remove(0);
+                self.card_18 = true;
+            }
             "event:unshaded" => self.event = Some(EventProgress::ChooseRallyBeneficiary),
             _ if self.transfer.is_some()
                 || self.removal.is_some()
@@ -2313,7 +2637,7 @@ impl Game {
                     .ok_or("Unknown choice.")?;
                 piece.count = piece.count.checked_sub(n).ok_or("Unknown choice.")?;
                 target.pieces.retain(|p| p.count > 0);
-                self.effect = true;
+                self.effect |= !self.card_18;
                 self.available
                     .iter_mut()
                     .find(|p| p.faction == executor && p.kind == kind)
@@ -2357,6 +2681,21 @@ impl Game {
             None if action == "transfer" => self.transfer = Some(Transfer::Selecting),
             None => return Err("Unknown execution choice.".into()),
             Some(_) if action == "back" || action == "decline" => self.transfer = None,
+            // The request's giver can set it aside or reopen it without moving
+            // Resources. Assault and Event replay record these steps too.
+            Some(Transfer::Authorizing {
+                giver,
+                recipient,
+                amount,
+                ..
+            }) if matches!(action, "wait" | "reopen") => {
+                self.transfer = Some(Transfer::Authorizing {
+                    giver,
+                    recipient,
+                    amount,
+                    waited: action == "wait",
+                });
+            }
             Some(Transfer::Selecting) => {
                 let (verb, rest) = action.split_once(':').unwrap();
                 let (other, amount) = rest.split_once(':').unwrap();
@@ -2389,7 +2728,7 @@ impl Game {
         self.resources[giver.index()] -= amount;
         self.resources[recipient.index()] += amount;
         // Zero is a deliberate non-transfer, not an effect.
-        self.effect |= amount > 0;
+        self.effect |= amount > 0 && !self.card_18;
     }
     /// The terms of the transfers the executing faction may make now (R 1.5.1, 1.8 and the accepted
     /// commitment policy's reserve).
@@ -2443,7 +2782,9 @@ impl Game {
         let terms = self.transfer_terms();
         let parts: Vec<_> = action.split(':').collect();
         let (direction, amount) = match parts[..] {
-            ["authorize", n] => (terms.first()?, n),
+            ["authorize", n] if matches!(self.transfer, Some(Transfer::Authorizing { .. })) => {
+                (terms.first()?, n)
+            }
             [verb @ ("give" | "ask"), other, n] => {
                 let other = *Faction::ALL.get(other.parse::<usize>().ok()?)?;
                 let (giver, recipient) = if verb == "give" {
@@ -2572,8 +2913,41 @@ impl Game {
         Ok(())
     }
 
-    /// Admit the prepared card-17 task after only the supported decisions and effects.
+    /// Admit the prepared task after only the supported decisions and effects.
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(assault) = &self.assault {
+            return self.validate_assault(assault);
+        }
+        if let Some(from) = self.government_pass_from {
+            let mut before = self.clone();
+            before.government_pass_from = None;
+            before.resources[Faction::Government.index()] = from;
+            before.revision = self
+                .revision
+                .checked_sub(1)
+                .ok_or("Unsupported Government Pass revision.")?;
+            before.validate()?;
+            before.apply("government:pass")?;
+            if before != *self {
+                return Err("Unsupported Government Pass result.".into());
+            }
+            return Ok(());
+        }
+        if self.card_18 {
+            let mut before = self.clone();
+            before.card_18 = false;
+            before.revision = self
+                .revision
+                .checked_sub(1)
+                .ok_or("Unsupported card advance revision.")?;
+            before.draw_deck.insert(0, 18);
+            before.validate()?;
+            before.apply("advance-card")?;
+            if before != *self {
+                return Err("Unsupported transition to Pact of Caracas.".into());
+            }
+            return Ok(());
+        }
         if let Some(history) = &self.event_side_decisions {
             return self.validate_event_side_decisions(history);
         }
@@ -2767,5 +3141,61 @@ impl Game {
             );
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod government_pass_tests {
+    use super::{Faction, Game, SequenceBox};
+
+    #[test]
+    fn government_pass_applies_income_only_up_to_the_resource_cap() {
+        let mut opening = Game::prepared_with_seed(2);
+        for action in [
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+            "advance-card",
+        ] {
+            opening.apply(action).unwrap();
+        }
+
+        // R 2.3.3 grants 3 and R 1.8 caps balances at 49. The prepared match
+        // cannot accumulate these high balances, so set them only for this rule test.
+        for (from, to) in [(1, 4), (46, 49), (47, 49), (48, 49), (49, 49)] {
+            let mut game = opening.clone();
+            let government = Faction::Government.index();
+            game.resources[government] = from;
+            let before = game.observe();
+            let pass = before
+                .choices
+                .iter()
+                .find(|choice| choice.action() == "government:pass")
+                .unwrap();
+            let projected = pass.preview.as_ref().unwrap();
+            assert_eq!(projected.records, Some(SequenceBox::Pass));
+            if from == to {
+                assert!(projected.resources.is_empty());
+            } else {
+                assert_eq!(projected.resources.len(), 1);
+                assert_eq!(
+                    (projected.resources[0].from, projected.resources[0].to),
+                    (from, to)
+                );
+            }
+            assert!(pass.label.contains(&format!("+{}", to - from)));
+            assert_eq!(game.resources[government], from);
+            game.apply("government:pass").unwrap();
+            let after = game.observe();
+            assert_eq!(after.resources[government], to);
+            let recorded = &after.recorded_resources[0];
+            assert_eq!((recorded.from, recorded.to), (from, to));
+            assert_eq!(after.owner, Faction::Syndicate);
+            assert!(game.apply("government:pass").is_err());
+            assert_eq!(game.observe(), after);
+        }
     }
 }

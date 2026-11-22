@@ -2,7 +2,7 @@
 
 An Ubuntu Rust desktop implementation of **Cuba Libre**, the COIN game by Jeff Grossman and Volko Ruhnke, published by GMT Games. The goal is the standard four-faction game: one human, external Claude Code or Codex agents in the other seats, and save/resume ([mission](docs/foundation/01-mission-and-scope.md)).
 
-**Current build** is a native integration candidate for the bounded card 17 task. [First task (#8)](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/8) · [Directorio continuation (#117)](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/117)
+**Current build** is a native integration candidate. [First task (#8)](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/8) · [Card 18 continuation (#127)](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/127)
 
 ## Build and launch
 
@@ -11,7 +11,7 @@ An Ubuntu Rust desktop implementation of **Cuba Libre**, the COIN game by Jeff G
 - For the `tabletop` feature (the desktop app): Bevy 0.20.0, an X11 desktop, a Vulkan-capable graphics driver, the ordinary C/C++ build tools and the X11 development libraries Bevy uses.
 - Network access for the first build's Cargo dependencies. Sibling working trees are not needed: `Cargo.toml` and `Cargo.lock` pin the shared dependency and the root renderer patch.
 
-Put your private copies of `card-17.png` and `card-18.png` in `~/.local/share/cuba-libre-unfolded/cards/`. Both images must match [the admitted hashes](art/atlas/README.md#private-card-admission). If you keep the images elsewhere, use that directory for `--cards`.
+Put your private copies of `card-17.png`, `card-18.png` and `card-19.png` in `~/.local/share/cuba-libre-unfolded/cards/`. All three must match [the admitted hashes](art/atlas/README.md#private-card-admission). If you keep the images elsewhere, use that directory for `--cards`.
 
 From the checkout root, build and launch the desktop app with `cargo run`.
 

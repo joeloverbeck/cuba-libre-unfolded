@@ -1030,10 +1030,11 @@ fn modal(
     part(commands, root, "transfer-modal");
     // Header band, in the deciding faction's colour.
     let executor = view.executing.unwrap_or(view.owner);
-    let activity = match &view.event {
-        Some(crate::EventProgress::Rally(_)) => "the free Rally",
-        Some(_) => "Alberto Bayo",
-        None => "Terror",
+    let activity = match (view.current_card, &view.event) {
+        (18, _) => "Assault",
+        (_, Some(crate::EventProgress::Rally(_))) => "the free Rally",
+        (_, Some(_)) => "Alberto Bayo",
+        (_, None) => "Terror",
     };
     let header = commands
         .spawn((
@@ -1848,10 +1849,18 @@ fn amount(
         .id();
     part(commands, strip, "limits");
     let entries: Vec<(&str, String, bool)> = match terms {
-        Some(t) => limits(t).into(),
+        Some(t) => limits(t)
+            .into_iter()
+            .filter(|(icon, ..)| view.current_card != 18 || *icon != "reserve")
+            .collect(),
         None => vec![(
             "balance",
-            "Limits: the giver's balance, the recipient's 49 cap, the owed-Terror reserve".into(),
+            if view.current_card == 18 {
+                "Limited by the giver’s balance and the recipient’s 49-Resource cap".into()
+            } else {
+                "Limits: the giver's balance, the recipient's 49 cap, the owed-Terror reserve"
+                    .into()
+            },
             false,
         )],
     };

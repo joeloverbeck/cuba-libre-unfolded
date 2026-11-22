@@ -9,6 +9,656 @@ fn reseal(record: &serde_json::Value) -> Vec<u8> {
 }
 
 #[test]
+fn completed_alberto_bayo_advances_once_and_reloads_at_government_opening() {
+    let dir = tempfile::tempdir().unwrap();
+    for (text, resolution, shaded) in [
+        ("shaded", "resolve-shaded", true),
+        ("unshaded", "rally:beneficiary:directorio", false),
+    ] {
+        let path = dir.path().join(format!("{text}.json"));
+        let mut session = Session::open(&path, None).unwrap();
+        for action in [
+            "terror",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            &format!("event:{text}"),
+            resolution,
+        ] {
+            act(&mut session, action);
+        }
+        let resolved = session.observe();
+        let random = session.game().random_state();
+        let card_end = std::fs::read(&path).unwrap();
+        drop(session);
+        let mut session = Session::open(&path, None).unwrap();
+        assert_eq!(session.observe(), resolved);
+        assert_eq!(
+            (
+                resolved.current_card,
+                resolved.preview_card,
+                resolved.draw_count
+            ),
+            (17, 18, 34)
+        );
+        assert!(!resolved.played_cards.contains(&17));
+
+        act(&mut session, "advance-card");
+        let opening = session.observe();
+        assert_eq!(opening.revision, resolved.revision + 1);
+        assert_eq!(
+            (
+                opening.current_card,
+                opening.preview_card,
+                opening.draw_count
+            ),
+            (18, 19, 33)
+        );
+        let mut history = resolved.played_cards.clone();
+        history.push(17);
+        assert_eq!(opening.played_cards, history);
+        let public = serde_json::to_value(&opening).unwrap();
+        assert!(public.get("draw_deck").is_none());
+        assert!(opening.capabilities.is_empty());
+        assert!(opening.momentum.is_empty());
+        assert_eq!(opening.owner, Faction::Government);
+        assert_eq!(opening.eligibility.first, Faction::Government);
+        assert_eq!(opening.eligibility.second, Some(Faction::Syndicate));
+        assert_eq!(opening.executing, None);
+        assert_eq!(opening.eligible, [true, false, false, true]);
+        assert_eq!(
+            opening
+                .eligibility
+                .event_restriction
+                .map(|r| (r.faction, r.through_card)),
+            shaded.then_some((Faction::M26, 18))
+        );
+        assert_eq!(opening.resources, resolved.resources);
+        assert_eq!(opening.spaces, resolved.spaces);
+        assert_eq!(opening.available, resolved.available);
+        assert_eq!(opening.kidnap, resolved.kidnap);
+        assert_eq!(opening.resolved, resolved.resolved);
+        assert_eq!(opening.standings, resolved.standings);
+        assert_eq!(session.game().random_state(), random);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), card_end);
+
+        drop(session);
+        let mut resumed = Session::open(&path, None).unwrap();
+        assert_eq!(resumed.observe(), opening);
+        assert_eq!(resumed.game().random_state(), random);
+        let bytes = std::fs::read(&path).unwrap();
+        let record: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        let previous: serde_json::Value = serde_json::from_slice(&card_end).unwrap();
+        assert_ne!(record["identity"]["art"], previous["identity"]["art"]);
+        let recovered = dir.path().join(format!("{text}-recovered.json"));
+        assert_eq!(
+            Session::open(&recovered, Some(&path)).unwrap().observe(),
+            resolved
+        );
+        for (owner, revision) in [
+            (resolved.owner, resolved.revision),
+            (opening.owner, opening.revision),
+        ] {
+            assert!(
+                resumed
+                    .submit(owner, revision, &format!("{revision}:advance-card"))
+                    .is_err()
+            );
+        }
+        assert_eq!(resumed.observe(), opening);
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), card_end);
+
+        let pass = opening
+            .choices
+            .iter()
+            .find(|choice| choice.action() == "government:pass")
+            .unwrap();
+        assert!(pass.supported);
+        let preview = pass.preview.as_ref().unwrap();
+        assert_eq!(preview.resources.len(), 1);
+        assert_eq!(preview.resources[0].faction, Faction::Government);
+        let before = opening.resources[Faction::Government.index()];
+        assert_eq!(preview.resources[0].from, before);
+        assert_eq!(preview.resources[0].to, before + 3);
+        assert_eq!(preview.next.as_ref().unwrap().faction, Faction::Syndicate);
+        assert!(
+            preview
+                .notes
+                .iter()
+                .any(|note| note.contains("Syndicate now decides as 1st Eligible"))
+        );
+        assert!(preview.notes.iter().all(|note| !note.contains("Available")));
+        assert_eq!(resumed.observe(), opening);
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+
+        act(&mut resumed, "government:pass");
+        let handoff = resumed.observe();
+        assert_eq!(handoff.revision, opening.revision + 1);
+        let mut balances = opening.resources;
+        balances[Faction::Government.index()] += 3;
+        assert_eq!(handoff.resources, balances);
+        assert_eq!(handoff.owner, Faction::Syndicate);
+        assert_eq!(handoff.eligibility.first, Faction::Syndicate);
+        assert_eq!(handoff.eligibility.second, None);
+        assert_eq!(
+            handoff.eligibility.government_box,
+            Some(cuba_libre_unfolded::SequenceBox::Pass)
+        );
+        assert_eq!(handoff.eligible, opening.eligible);
+        assert_eq!(handoff.current_card, 18);
+        assert_eq!(handoff.preview_card, 19);
+        assert_eq!(handoff.draw_count, 33);
+        assert_eq!(handoff.played_cards, opening.played_cards);
+        assert_eq!(handoff.kidnap, opening.kidnap);
+        assert_eq!(handoff.spaces, opening.spaces);
+        assert_eq!(handoff.available, opening.available);
+        assert_eq!(handoff.recorded_resources, preview.resources);
+        assert!(handoff.passed[Faction::Government.index()]);
+        assert_eq!(handoff.next, preview.next);
+        assert_eq!(handoff.next.as_ref().unwrap().role, "1st Eligible");
+        assert_eq!(
+            handoff
+                .choices
+                .iter()
+                .map(|choice| choice.action())
+                .collect::<Vec<_>>(),
+            [
+                "syndicate:pass",
+                "syndicate:event",
+                "syndicate:rally",
+                "syndicate:march",
+                "syndicate:terror",
+                "syndicate:construct",
+                "syndicate:profit",
+                "syndicate:muscle",
+                "syndicate:bribe",
+            ]
+        );
+        assert!(
+            handoff
+                .choices
+                .iter()
+                .all(|choice| choice.owner == Faction::Syndicate && !choice.supported)
+        );
+        assert!(
+            handoff.choices[4]
+                .explanation
+                .contains("No space has an Underground Syndicate Guerrilla")
+        );
+        assert_eq!(resumed.game().random_state(), random);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), bytes);
+        let committed = std::fs::read(&path).unwrap();
+        drop(resumed);
+
+        let mut resumed = Session::open(&path, None).unwrap();
+        assert_eq!(resumed.observe(), handoff);
+        for (owner, revision, choice) in [
+            (opening.owner, opening.revision, pass.id.clone()),
+            (
+                opening.owner,
+                handoff.revision,
+                format!("{}:government:pass", handoff.revision),
+            ),
+        ] {
+            assert!(resumed.submit(owner, revision, &choice).is_err());
+        }
+        assert_eq!(resumed.observe(), handoff);
+        assert_eq!(std::fs::read(&path).unwrap(), committed);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), bytes);
+
+        let forged_path = dir.path().join(format!("{text}-extra-credit.json"));
+        let mut record: serde_json::Value = serde_json::from_slice(&committed).unwrap();
+        record["payload"]["resources"][0] = (balances[0] + 1).into();
+        let forged = reseal(&record);
+        std::fs::write(&forged_path, &forged).unwrap();
+        let error = Session::open(&forged_path, None).err().unwrap();
+        assert!(format!("{error:#}").contains("Unsupported Government Pass result"));
+        assert_eq!(std::fs::read(&forged_path).unwrap(), forged);
+    }
+}
+
+#[test]
+fn pact_of_caracas_lists_the_first_eligible_options_and_refuses_an_unfunded_assault() {
+    // Seed 2 rolls 5 (see the shared RNG cases in kidnap.rs). R 4.3.3
+    // leaves Government 1 of its original 6, as in both owner paths.
+    let mut game = Game::prepared_with_seed(2);
+    for action in [
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+    ] {
+        let view = game.observe();
+        let choice = view
+            .choices
+            .iter()
+            .find(|choice| choice.action() == action)
+            .unwrap();
+        game.submit(choice.owner, view.revision, &choice.id)
+            .unwrap();
+    }
+    let opening = game.observe();
+    let ids: Vec<_> = opening
+        .choices
+        .iter()
+        .map(|choice| choice.action())
+        .collect();
+    assert_eq!(
+        ids,
+        [
+            "government:pass",
+            "government:event",
+            "government:train",
+            "government:garrison",
+            "government:sweep",
+            "government:assault",
+            "government:transport",
+            "government:air-strike",
+            "government:reprisal",
+        ]
+    );
+    assert!(
+        opening
+            .choices
+            .iter()
+            .all(|choice| choice.owner == Faction::Government)
+    );
+    assert_eq!(opening.resources[0], 1);
+    let pass = &opening.choices[0];
+    assert!(pass.explanation.contains("1 → 4"));
+    let assault = &opening.choices[5];
+    assert!(assault.supported);
+    assert!(assault.explanation.contains("Firm"));
+    assert!(assault.explanation.contains("2 Resources per space"));
+    assert!(
+        assault
+            .explanation
+            .contains("1 Resource and cannot pay for a space")
+    );
+    assert!(
+        assault
+            .explanation
+            .contains("zero-space Assault earns no Resources")
+    );
+    for activity in &opening.choices[6..] {
+        assert!(
+            activity
+                .explanation
+                .contains("Operation in at least one space (R 4.1)")
+        );
+        assert!(
+            activity
+                .explanation
+                .contains("Government has 1 Resource and cannot pay 2 Resources for an Operation.")
+        );
+        assert!(!activity.supported);
+    }
+    for action in ["government:assault", "end-assault"] {
+        let view = game.observe();
+        let choice = view.choices.iter().find(|c| c.action() == action).unwrap();
+        if action == "end-assault" {
+            let notes = &choice.preview.as_ref().unwrap().notes;
+            assert!(
+                notes
+                    .iter()
+                    .any(|note| note.contains("Records Operation Only"))
+            );
+            assert!(notes.iter().all(|note| !note.contains("Available")));
+        }
+        game.submit(view.owner, view.revision, &choice.id).unwrap();
+    }
+    let handoff = game.observe();
+    assert_eq!(handoff.resources, opening.resources);
+    assert_eq!(handoff.spaces, opening.spaces);
+    assert_eq!(handoff.available, opening.available);
+    assert_eq!(handoff.owner, Faction::Syndicate);
+    let next = handoff.next.unwrap();
+    assert_eq!(next.role, "2nd Eligible");
+    assert_eq!(next.options, ["Pass", "Limited Operation"]);
+    game.validate().unwrap();
+}
+
+#[test]
+fn assault_can_resume_and_finish_at_the_legacy_save_size_limit() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("assault.json");
+    let mut session = Session::open(&path, None).unwrap();
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:assault",
+    ] {
+        act(&mut session, action);
+    }
+    let opening = session.observe();
+    drop(session);
+    // Each pair legally visits one area and returns with the same pieces,
+    // resources, owner and choices. The legacy record stores every such pair.
+    const LIMIT: usize = 256 * 1024;
+    let mut legacy: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    let assault = legacy["payload"]["assault"].as_object_mut().unwrap();
+    assault.remove("omitted");
+    let city = "assault:areas:cities";
+    let province = "assault:areas:provinces";
+    let back = "assault:back";
+    let pair_bytes = city.len() + back.len() + 6;
+    let pairs = (LIMIT - reseal(&legacy).len() - 20) / pair_bytes;
+    legacy["payload"]["revision"] = (opening.revision + 2 * pairs as u64).into();
+    legacy["payload"]["assault"]["actions"] =
+        serde_json::to_value([city, back].repeat(pairs)).unwrap();
+    let wider_pairs = (LIMIT - reseal(&legacy).len()) / (province.len() - city.len());
+    for pair in 0..wider_pairs {
+        legacy["payload"]["assault"]["actions"][2 * pair] = province.into();
+    }
+    let bytes = reseal(&legacy);
+    assert!(bytes.len() <= LIMIT && LIMIT - bytes.len() < 3);
+    std::fs::write(&path, &bytes).unwrap();
+
+    let mut resumed = Session::open(&path, None).unwrap();
+    let pending = resumed.observe();
+    assert_eq!(pending.revision, opening.revision + 2 * pairs as u64);
+    assert_eq!(pending.resources, opening.resources);
+    assert_eq!(pending.spaces, opening.spaces);
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    act(&mut resumed, "end-assault");
+    let finished = resumed.observe();
+    assert_eq!(finished.revision, pending.revision + 1);
+    assert_eq!(finished.resources, opening.resources);
+    assert_eq!(finished.spaces, opening.spaces);
+    assert_eq!(finished.owner, Faction::Syndicate);
+    assert_eq!(finished.next.as_ref().unwrap().role, "2nd Eligible");
+    assert_eq!(std::fs::read(previous_path(&path)).unwrap(), bytes);
+    drop(resumed);
+    assert_eq!(Session::open(&path, None).unwrap().observe(), finished);
+}
+
+#[test]
+fn assault_menu_loops_preserve_revision_and_the_live_giver_decision() {
+    use super::explore::choose;
+
+    let mut game = Game::prepared_with_seed(2);
+    for action in [
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:assault",
+    ] {
+        choose(&mut game, action);
+    }
+    let opening = game.observe();
+    let opening_bytes = serde_json::to_vec(&game).unwrap().len();
+    let loop_choices = [
+        "assault:areas:cities",
+        "assault:space:santiago",
+        "assault:back",
+        "assault:back",
+        "transfer",
+        "back",
+        "transfer",
+        "give:3:0",
+        "remove",
+        "done-removal",
+        "transfer",
+        "ask:1:1",
+        "wait",
+        "reopen",
+        "decline",
+        "transfer",
+        "ask:2:1",
+        "wait",
+        "authorize:0",
+    ];
+    for _ in 0..1200 {
+        for action in loop_choices {
+            choose(&mut game, action);
+        }
+    }
+    let resumed = game.observe();
+    assert_eq!(
+        resumed.revision,
+        opening.revision + 1200 * loop_choices.len() as u64
+    );
+    assert_eq!(resumed.resources, opening.resources);
+    assert_eq!(resumed.spaces, opening.spaces);
+    assert_eq!(resumed.available, opening.available);
+    assert!(serde_json::to_vec(&game).unwrap().len() <= opening_bytes + 32);
+
+    for action in ["transfer", "ask:1:1", "wait"] {
+        choose(&mut game, action);
+    }
+    let waiting = game.observe();
+    let mut saved = serde_json::to_value(&game).unwrap();
+    let mut reloaded: Game = serde_json::from_value(saved.clone()).unwrap();
+    reloaded.validate().unwrap();
+    assert_eq!(reloaded.observe(), waiting);
+    assert_eq!(waiting.owner, Faction::M26);
+    assert_eq!(
+        waiting.transfer,
+        Some(Transfer::Authorizing {
+            giver: Faction::M26,
+            recipient: Faction::Government,
+            amount: 1,
+            waited: true,
+        })
+    );
+    assert!(
+        reloaded
+            .submit(
+                Faction::Government,
+                waiting.revision,
+                &format!("{}:authorize:2", waiting.revision)
+            )
+            .is_err()
+    );
+    for action in ["reopen", "authorize:2", "end-assault"] {
+        choose(&mut reloaded, action);
+    }
+    reloaded.validate().unwrap();
+    assert_eq!(reloaded.observe().resources, [3, 2, 5, 15]);
+    assert_eq!(reloaded.observe().owner, Faction::Syndicate);
+
+    // A one-choice gap cannot leave a settled menu unchanged.
+    saved["assault"]["omitted"] = 1.into();
+    saved["revision"] = (opening.revision + 4).into();
+    let forged: Game = serde_json::from_value(saved).unwrap();
+    assert!(forged.validate().is_err());
+}
+
+#[test]
+fn full_committed_transfer_history_keeps_each_assault_exit_writable() {
+    const LIMIT: usize = 256 * 1024;
+    let dir = tempfile::tempdir().unwrap();
+    let opening_path = dir.path().join("opening.json");
+    let mut session = Session::open(&opening_path, None).unwrap();
+    for action in ["terror", "kidnap", "kidnap:roll", "terror:santiago"] {
+        act(&mut session, action);
+    }
+    if session.observe().resources[0] == 0 {
+        act(&mut session, "transfer");
+        act(&mut session, "give:0:1");
+    }
+    for action in [
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:assault",
+    ] {
+        act(&mut session, action);
+    }
+    let balances = session.observe().resources;
+    let round = ["transfer", "give:3:1", "transfer", "ask:3:1", "authorize:1"];
+    for action in round {
+        act(&mut session, action);
+    }
+    assert_eq!(session.observe().resources, balances);
+    drop(session);
+    let round_text = round.join("|") + "|";
+
+    for (name, prep, exit) in [
+        ("areas", &[][..], &["end-assault"][..]),
+        (
+            "giver",
+            &["transfer", "ask:3:2", "wait"],
+            &["decline", "end-assault"],
+        ),
+        (
+            "removal",
+            &["remove", "remove:santiago:troops:1"],
+            &["done-removal", "end-assault"],
+        ),
+    ] {
+        let path = dir.path().join(format!("{name}.json"));
+        std::fs::copy(&opening_path, &path).unwrap();
+        std::fs::copy(previous_path(&opening_path), previous_path(&path)).unwrap();
+        let mut session = Session::open(&path, None).unwrap();
+        for action in prep {
+            act(&mut session, action);
+        }
+        let position = session.observe();
+        drop(session);
+
+        // Each round moves one Resource in each direction via the actual giver.
+        // Prebuild repeatable history at the size limit without thousands of writes.
+        let saved = std::fs::read(&path).unwrap();
+        let mut record: serde_json::Value = serde_json::from_slice(&saved).unwrap();
+        let tail = record["payload"]["assault"]["actions"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let rounds = (LIMIT - saved.len() - 16) / round_text.len();
+        record["payload"]["revision"] = (position.revision + (rounds * round.len()) as u64).into();
+        record["payload"]["assault"]["actions"] = (round_text.repeat(rounds) + &tail).into();
+        let spare = LIMIT - reseal(&record).len();
+        let wider_request = round_text.replace("ask:3:1|", "ask:3:10|");
+        record["payload"]["assault"]["actions"] =
+            (wider_request.repeat(spare) + &round_text.repeat(rounds - spare) + &tail).into();
+        let bytes = reseal(&record);
+        assert_eq!(bytes.len(), LIMIT);
+        std::fs::write(&path, &bytes).unwrap();
+
+        let mut resumed = Session::open(&path, None).unwrap();
+        let pending = resumed.observe();
+        assert_eq!(pending.resources, balances);
+        assert_eq!(pending.removal, position.removal);
+        assert_eq!(pending.transfer, position.transfer);
+        assert_eq!(pending.owner, position.owner);
+        assert_eq!(pending.spaces, position.spaces);
+        assert_eq!(pending.available, position.available);
+        if name == "areas" {
+            let previous = std::fs::read(previous_path(&path)).unwrap();
+            let refusal = resumed
+                .submit(
+                    pending.owner,
+                    pending.revision,
+                    &format!("{}:transfer", pending.revision),
+                )
+                .unwrap_err();
+            assert!(refusal.to_string().contains("Save exceeds its size limit"));
+            assert_eq!(resumed.observe(), pending);
+            assert_eq!(std::fs::read(&path).unwrap(), bytes);
+            assert_eq!(std::fs::read(previous_path(&path)).unwrap(), previous);
+        }
+        for action in exit {
+            let predecessor = std::fs::read(&path).unwrap();
+            act(&mut resumed, action);
+            assert_eq!(std::fs::read(previous_path(&path)).unwrap(), predecessor);
+            let committed = resumed.observe();
+            drop(resumed);
+            resumed = Session::open(&path, None).unwrap();
+            assert_eq!(resumed.observe(), committed);
+        }
+        let finished = resumed.observe();
+        assert_eq!(finished.revision, pending.revision + exit.len() as u64);
+        assert_eq!(finished.resources, balances);
+        assert_eq!(finished.spaces, position.spaces);
+        assert_eq!(finished.available, position.available);
+        assert_eq!(finished.owner, Faction::Syndicate);
+    }
+}
+
+#[test]
+fn santiago_only_legacy_payment_survives_compaction_and_recovery() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("assault.json");
+    let mut session = Session::open(&path, None).unwrap();
+    for action in ["terror", "kidnap", "kidnap:roll", "terror:santiago"] {
+        act(&mut session, action);
+    }
+    let government = session.observe().resources[0];
+    if government < 2 {
+        act(&mut session, "transfer");
+        act(&mut session, &format!("give:0:{}", 2 - government));
+    }
+    for action in [
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:assault",
+        "assault:areas:cities",
+        "assault:space:santiago",
+        "assault:santiago:26july",
+    ] {
+        act(&mut session, action);
+    }
+    let paid = session.observe();
+    drop(session);
+    let mut legacy: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+    legacy["payload"]["revision"] = (paid.revision - 2).into();
+    let assault = legacy["payload"]["assault"].as_object_mut().unwrap();
+    assault.remove("browse");
+    assault.remove("omitted");
+    assault.insert(
+        "actions".into(),
+        serde_json::json!(["assault:santiago:26july"]),
+    );
+    assault["resolution"]
+        .as_object_mut()
+        .unwrap()
+        .remove("detail");
+    let old_bytes = reseal(&legacy);
+    std::fs::write(&path, &old_bytes).unwrap();
+
+    let mut recovered = Session::open(&path, None).unwrap();
+    let resumed = recovered.observe();
+    assert_eq!(resumed.revision, paid.revision - 2);
+    assert_eq!(resumed.resources, paid.resources);
+    assert_eq!(resumed.spaces, paid.spaces);
+    assert_eq!(resumed.available, paid.available);
+    assert_eq!(std::fs::read(&path).unwrap(), old_bytes);
+    act(&mut recovered, "end-assault");
+    let finished = recovered.observe();
+    assert_eq!(finished.assault_result, resumed.assault_result);
+    assert_eq!(finished.owner, Faction::Syndicate);
+    drop(recovered);
+    assert_eq!(Session::open(&path, None).unwrap().observe(), finished);
+    assert_eq!(std::fs::read(previous_path(&path)).unwrap(), old_bytes);
+    let copy = dir.path().join("recovered.json");
+    assert_eq!(
+        Session::open(&copy, Some(&path)).unwrap().observe(),
+        resumed
+    );
+}
+
+#[test]
 fn event_transfer_refuses_the_executors_authorization_and_unrecorded_effects() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("event.json");

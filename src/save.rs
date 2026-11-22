@@ -17,24 +17,25 @@ const VALIDITY: &str = "cuba-validity:";
 
 struct Cuba;
 impl Cuba {
-    fn current() -> Identity {
-        [
-            ("format", "1"),
-            ("source", assets::SOURCE),
-            ("art", &assets::identity()),
-        ]
-        .into_iter()
-        .collect()
+    fn selected(card_18: bool) -> Identity {
+        let art = if card_18 {
+            assets::continuation_identity()
+        } else {
+            assets::identity()
+        };
+        [("format", "1"), ("source", assets::SOURCE), ("art", &art)]
+            .into_iter()
+            .collect()
     }
 }
 impl Format for Cuba {
     type Payload = Game;
     const LIMIT: u64 = LIMIT;
-    fn identity(&self, _: &Game) -> Identity {
-        Self::current()
+    fn identity(&self, game: &Game) -> Identity {
+        Self::selected(game.card_18)
     }
     fn accepts(&self, identity: &Identity) -> bool {
-        *identity == Self::current()
+        *identity == Self::selected(false) || *identity == Self::selected(true)
     }
     // Marked, so a refusal can tell the game's own check from a payload that
     // does not decode as a game; `words` removes the mark.
@@ -131,6 +132,15 @@ impl Session {
         candidate
             .submit(owner, revision, choice)
             .map_err(anyhow::Error::msg)?;
+        for step in candidate.assault_exit().map_err(anyhow::Error::msg)? {
+            let payload = serde_json::to_value(&step)?;
+            let bytes = save::seal(&Cuba.identity(&step), &payload);
+            if bytes.len() as u64 > LIMIT {
+                return Err(anyhow!(
+                    "Save exceeds its size limit; finish the Assault before adding more decisions; original file preserved"
+                ));
+            }
+        }
         self.persist(&candidate)?;
         self.game = candidate;
         Ok(())

@@ -235,15 +235,24 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
     match choice {
         Some(c) if c.supported => Commit {
             label: match c.action() {
-                // The gain the authority previews: +1, or less at the 49 cap.
-                "pass" => c
+                // The gain the authority previews, possibly zero at the cap.
+                "pass" | "government:pass" => c
                     .preview
                     .iter()
                     .flat_map(|p| &p.resources)
                     .map(|r| format!("Pass · +{}", resources(r.to.saturating_sub(r.from))))
                     .next()
-                    .unwrap_or_else(|| "Pass".into()),
+                    .unwrap_or_else(|| {
+                        if c.preview.is_some() {
+                            format!("Pass · +{}", resources(0))
+                        } else {
+                            "Pass".into()
+                        }
+                    }),
                 "terror" => "Choose Terror".into(),
+                action if crate::Game::assault_payment_space(action).is_some() => {
+                    format!("Pay {} · Assault", resources(view.alliance.coin_cost()))
+                }
                 "event:shaded" => "Choose shaded Event".into(),
                 "event:unshaded" => "Choose unshaded Event".into(),
                 _ => c.label.clone(),
@@ -253,7 +262,11 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
             enabled: true,
         },
         Some(c) => {
-            let label = if view.eligibility.directorio_handoff() {
+            let label = if crate::Game::assault_payment_space(c.action()).is_some() {
+                format!("Cannot pay {}", resources(view.alliance.coin_cost()))
+            } else if view.current_card == 18 {
+                "Inspection only".into()
+            } else if view.eligibility.directorio_handoff() {
                 format!("{} is outside this task", c.label)
             } else if c.action() == "terror:kidnap" {
                 "Kidnap is offered once Terror is chosen".into()
@@ -275,14 +288,14 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
             enabled: false,
         },
         None => Commit {
-            label: if view.eligibility.directorio_handoff() {
+            label: if view.current_card == 18 || view.eligibility.directorio_handoff() {
                 "Click an option to inspect it"
             } else {
                 "Click an option to choose it"
             }
             .into(),
             action: Action::Unsupported(
-                if view.eligibility.directorio_handoff() {
+                if view.current_card == 18 || view.eligibility.directorio_handoff() {
                     "Hover or focus an option for its briefing. Click or press Enter to pin it."
                 } else {
                     "Pin an option first: click it, or focus it with Tab and press Enter. Its briefing stays open and this button commits it."
@@ -301,9 +314,10 @@ fn panel_options(view: &Observation) -> impl Iterator<Item = &Choice> {
     })
 }
 
-/// Event choices have no section headings between rows.
+/// Event execution and the card 18 decisions use rows without section headings.
 fn panel_rows(view: &Observation) -> impl Iterator<Item = (&Choice, f32)> {
-    let tops = if view.event.as_ref().is_some_and(EventProgress::pending) {
+    let tops = if view.current_card == 18 || view.event.as_ref().is_some_and(EventProgress::pending)
+    {
         let within_section_pitch = fig::ROWS[2] - fig::ROWS[1];
         std::array::from_fn(|i| fig::ROWS[0] + i as f32 * within_section_pitch)
     } else {
@@ -313,6 +327,76 @@ fn panel_rows(view: &Observation) -> impl Iterator<Item = (&Choice, f32)> {
 }
 
 fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool) -> String {
+    if view.current_card == 18 {
+        let balance = resources(view.resources[view.owner.index()]);
+        if let Some(next) = &view.next {
+            let result =
+                if view.eligibility.government_box == Some(crate::SequenceBox::OperationOnly) {
+                    "\nGovernment recorded Operation Only (R 2.3.4)".into()
+                } else {
+                    view.recorded_resources
+                        .iter()
+                        .find(|change| change.faction == Faction::Government)
+                        .map_or_else(String::new, |change| {
+                            format!(
+                                "\nGovernment Passed · +{} ({} → {})",
+                                resources(change.to - change.from),
+                                change.from,
+                                change.to
+                            )
+                        })
+                };
+            return format!("{} on card 18 · {balance}{result}", next.role);
+        }
+        if let Some(Transfer::Authorizing { giver, .. }) = view.transfer {
+            return format!(
+                "{} decides the Resource transfer\nGovernment has {}",
+                giver.name(),
+                resources(view.resources[Faction::Government.index()])
+            );
+        }
+        if view.removal.is_some() {
+            return "Select a marked piece on the map.\nChoose Done to return to Assault.".into();
+        }
+        if executor == Faction::Government && view.executing.is_some() {
+            if let Some(space) = view.choices.iter().find_map(|choice| {
+                let id = crate::Game::assault_payment_space(choice.action())?;
+                view.spaces.iter().find(|space| space.id == id)
+            }) {
+                return format!(
+                    "{} · Select targets\n{balance} · {} per space",
+                    space.name,
+                    resources(view.alliance.coin_cost())
+                );
+            }
+            return view.assault_result.as_ref().map_or_else(
+                || {
+                    format!(
+                        "{balance} · {} US Alliance\n{} per space",
+                        view.alliance.name(),
+                        resources(view.alliance.coin_cost()),
+                    )
+                },
+                |result| {
+                    format!(
+                        "{} · paid {} · {balance} left\n{}",
+                        result.space_name(),
+                        resources(result.paid),
+                        result.removal_summary(),
+                    )
+                },
+            );
+        }
+        let eligibility = if view.eligibility.event_restriction.is_some() {
+            "Shaded Event keeps 26July Ineligible through card 18"
+        } else {
+            "26July and Directorio acted on card 17 (R 2.3.7)"
+        };
+        return format!(
+            "1st Eligible on card 18 · {balance} · {} US Alliance\n{eligibility}",
+            view.alliance.name()
+        );
+    }
     if let Some(preview) = view
         .choices
         .iter()
@@ -370,6 +454,7 @@ pub(super) fn panel(
 ) {
     let directorio = view.eligibility.directorio_handoff();
     let event_pending = view.event.as_ref().is_some_and(EventProgress::pending);
+    let card_18 = view.current_card == 18;
     let executor = view.executing.unwrap_or(view.owner);
     let part = |commands: &mut Commands, entity: Entity, name: &str| {
         commands.entity(entity).insert(Part(name.into()));
@@ -388,6 +473,10 @@ pub(super) fn panel(
     let [x, y, w] = fig::HEADING;
     let title = match &view.event {
         _ if view.removal.is_some() => format!("{} · Voluntary removal", executor.name()),
+        _ if card_18 && view.executing == Some(Faction::Government) => {
+            "Government · Assault".into()
+        }
+        _ if card_18 => format!("{}'s decision", view.owner.name()),
         Some(EventProgress::ExecuteShaded) => "Directorio · Shaded Event".into(),
         Some(EventProgress::ChooseRallyBeneficiary) => "Choose who Rallies".into(),
         Some(EventProgress::Rally(rally)) => format!("{} · Free Rally", rally.beneficiary.name()),
@@ -432,7 +521,10 @@ pub(super) fn panel(
         Some(rs(fig::SUBTITLE_LINE) * s),
     );
     part(commands, subtitle, "choice-subtitle");
-    for (name, top, words) in fig::SECTIONS.into_iter().filter(|_| !event_pending) {
+    for (name, top, words) in fig::SECTIONS
+        .into_iter()
+        .filter(|_| !event_pending && !card_18)
+    {
         let words = if directorio && name == "section:operations" {
             "OPERATIONS"
         } else {
@@ -465,7 +557,14 @@ pub(super) fn panel(
     for (choice, top) in panel_rows(view) {
         let act = choice.action();
         let name = format!("option:{act}");
-        let (label, pill) = if directorio || event_pending {
+        let (label, pill) = if act == "government:pass" {
+            ("Pass", None)
+        } else if card_18 {
+            (
+                choice.label.as_str(),
+                (!choice.supported).then_some("INSPECT"),
+            )
+        } else if directorio || event_pending {
             let status = (!choice.supported).then_some("NOT IN THIS TASK");
             (choice.label.as_str(), status)
         } else {
@@ -593,9 +692,9 @@ pub(super) fn panel(
                 None,
             );
             part(commands, words, &format!("pill:{act}-label"));
-        } else if matches!(act, "pass" | "terror") {
+        } else if matches!(act, "pass" | "government:pass" | "terror") {
             // Pass shows its gain from the game's own label; Terror its unit cost.
-            let value = if act == "pass" {
+            let value = if matches!(act, "pass" | "government:pass") {
                 choice
                     .label
                     .split_once(" · ")
@@ -768,8 +867,15 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
 /// The controls Tab moves through, in order, by their seat names, each with what
 /// Enter does to it.
 fn focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> {
+    if let Some(advance) = view.choices.iter().find(|c| c.action() == "advance-card") {
+        return vec![(
+            advance.id.clone(),
+            Action::Decision(advance.owner, view.revision),
+        )];
+    }
     match view.action {
-        _ if view.action == ActionChoice::Open
+        _ if view.current_card == 18
+            || view.action == ActionChoice::Open
             || view.eligibility.directorio_handoff()
             || view.event.as_ref().is_some_and(EventProgress::pending) =>
         {
@@ -923,6 +1029,7 @@ fn wanted(game: &Game, ui: &Interface, popover: bool) -> Option<(String, bool, b
         return None;
     }
     let (prefix, ribbon) = match game.action {
+        _ if game.card_18 => ("option:", false),
         ActionChoice::Open => ("option:", false),
         ActionChoice::Terror if game.eligibility().directorio_handoff() => ("option:", false),
         _ if game.event.as_ref().is_some_and(EventProgress::pending) => ("option:", false),
@@ -933,7 +1040,7 @@ fn wanted(game: &Game, ui: &Interface, popover: bool) -> Option<(String, bool, b
         ActionChoice::Terror => ("step:", true),
         ActionChoice::Pass => return None,
     };
-    if (ribbon || game.event.as_ref().is_some_and(EventProgress::pending))
+    if (ribbon || game.card_18 || game.event.as_ref().is_some_and(EventProgress::pending))
         && (popover || super::transfer::shown(game.transfer.as_ref()))
     {
         return None;
@@ -1110,7 +1217,8 @@ pub(super) fn draw(
     };
     let view = game.observe();
     let directorio = view.eligibility.directorio_handoff();
-    let choosing = view.action == ActionChoice::Open
+    let choosing = view.current_card == 18
+        || view.action == ActionChoice::Open
         || directorio
         || view.event.as_ref().is_some_and(EventProgress::pending);
     let content = if tabs || choosing {
@@ -1252,21 +1360,23 @@ pub(super) fn draw(
         0.,
     );
     spawned.push((title, "briefing-title".into()));
-    let rule = words(
-        &mut commands,
-        briefing.rule,
-        left_x,
-        y + fig::RULE_REF_TOP,
-        width,
-        fig::RULE_REF_SIZE,
-        QUIET,
-        false,
-        0.,
-    );
-    commands
-        .entity(rule)
-        .insert(TextLayout::justify(Justify::Right));
-    spawned.push((rule, "briefing-rule-ref".into()));
+    if !briefing.rule.is_empty() {
+        let rule = words(
+            &mut commands,
+            briefing.rule,
+            left_x,
+            y + fig::RULE_REF_TOP,
+            width,
+            fig::RULE_REF_SIZE,
+            QUIET,
+            false,
+            0.,
+        );
+        commands
+            .entity(rule)
+            .insert(TextLayout::justify(Justify::Right));
+        spawned.push((rule, "briefing-rule-ref".into()));
+    }
     y += fig::TITLE_LINE + fig::GAP;
     let separator = picture(
         &mut commands,

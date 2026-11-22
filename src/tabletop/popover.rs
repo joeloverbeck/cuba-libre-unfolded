@@ -628,15 +628,18 @@ fn removal_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
     let mut base = false;
     for r in &preview.removed {
         base |= r.kind == crate::Kind::Base;
-        let noun = if r.kind == crate::Kind::Base {
-            "Base"
-        } else {
-            "Guerrilla"
-        };
         let what = match (r.kind, r.count) {
             (crate::Kind::Base, 1) => "The Base".to_owned(),
             (crate::Kind::Base, n) => format!("{n} Bases"),
-            (_, n) => format!("{n} {:?} {noun}{}", r.state, if n == 1 { "" } else { "s" }),
+            (crate::Kind::Troops, 1) => "1 Troop".into(),
+            (crate::Kind::Troops, n) => format!("{n} Troops"),
+            (crate::Kind::Police, 1) => "1 Police cube".into(),
+            (crate::Kind::Police, n) => format!("{n} Police cubes"),
+            (_, n) => format!(
+                "{n} {:?} Guerrilla{}",
+                r.state,
+                if n == 1 { "" } else { "s" }
+            ),
         };
         lines.push((
             Tone::Plain,
@@ -663,8 +666,10 @@ fn removal_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
                 .map_or("none", Faction::name)
         ),
     };
-    let offered = if preview.unavailable.is_empty() {
-        "Terror and Kidnap: unchanged.".to_owned()
+    let control_line = if view.current_card == 18 {
+        control
+    } else if preview.unavailable.is_empty() {
+        format!("{control} Terror and Kidnap: unchanged.")
     } else {
         // Named as a player reads them, not by their panel labels.
         let lost: Vec<String> = preview
@@ -678,9 +683,9 @@ fn removal_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
                     .map_or_else(|| u.label.clone(), |at| format!("Terror in {}", name(at))),
             })
             .collect();
-        format!("Then unavailable: {}.", lost.join(", "))
+        format!("{control} Then unavailable: {}.", lost.join(", "))
     };
-    lines.push((Tone::Strong, format!("{control} {offered}")));
+    lines.push((Tone::Strong, control_line));
     if preview.standings.is_empty() {
         lines.push((Tone::Plain, "Standings: unchanged.".into()));
     }
@@ -713,7 +718,7 @@ fn removal_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
     lines
 }
 
-/// The piece popover for a 26July group in removal mode, or its protected tag. Every
+/// The piece popover for the executing faction's group, or its protected tag. Every
 /// fact is the authority's: the removal choice for the stepper's quantity, its preview,
 /// and the reason a quantity or the piece itself is refused.
 pub(super) fn piece_content(
@@ -730,10 +735,11 @@ pub(super) fn piece_content(
     };
     let executor = view.executing?;
     let base = target.kind == crate::Kind::Base;
-    let (one, many) = if base {
-        ("Base", "Bases")
-    } else {
-        ("Guerrilla", "Guerrillas")
+    let (one, many) = match target.kind {
+        crate::Kind::Base => ("Base", "Bases"),
+        crate::Kind::Troops => ("Troop", "Troops"),
+        crate::Kind::Police => ("Police cube", "Police cubes"),
+        _ => ("Guerrilla", "Guerrillas"),
     };
     let key = format!("{}:{}", target.space, target.group);
     if target.mark == PieceState::Protected {
@@ -788,10 +794,10 @@ pub(super) fn piece_content(
         lines.push((Tone::Secondary, limit.explanation.clone()));
     }
     lines.extend(removal_lines(view, removal));
-    let title = if base {
-        format!("{} Base", executor.name())
-    } else {
+    let title = if target.kind == crate::Kind::Guerrilla {
         format!("{} Guerrilla · {:?}", executor.name(), target.state)
+    } else {
+        format!("{} {one}", executor.name())
     };
     let size = if target.count > 1 {
         format!("stack of {}", target.count)

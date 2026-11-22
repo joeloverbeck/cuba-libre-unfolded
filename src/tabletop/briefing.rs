@@ -67,18 +67,24 @@ fn either(options: &[String]) -> String {
 const NOT_IN_TASK: &str =
     "Not in this task: listed so the option set is complete. It cannot be chosen here.";
 
+fn card_17_second(view: &Observation) -> Faction {
+    view.eligibility
+        .second
+        .expect("card 17 has a 2nd Eligible faction")
+}
+
 /// What the 2nd Eligible faction may do once 26July's action is recorded (R 2.3.4).
 fn second_after_operation(view: &Observation) -> String {
     format!(
         "{}, 2nd Eligible: Pass or a Limited Operation; with a Special Activity, also card 17's Event (R 2.3.4).",
-        view.eligibility.second.name()
+        card_17_second(view).name()
     )
 }
 
 fn second_after_event(view: &Observation) -> String {
     format!(
         "{}, 2nd Eligible: Pass, or an Operation with a Special Activity if desired (R 2.3.4).",
-        view.eligibility.second.name()
+        card_17_second(view).name()
     )
 }
 
@@ -167,7 +173,7 @@ fn terror(view: &Observation, m26: u8) -> Briefing {
                 "NEXT",
                 format!(
                     "{}, 2nd Eligible: Pass or a Limited Operation; after Kidnap, also card 17's Event (R 2.3.4).",
-                    view.eligibility.second.name()
+                    card_17_second(view).name()
                 ),
             ),
         ],
@@ -248,7 +254,7 @@ fn kidnap(view: &Observation, m26: u8) -> Briefing {
             "NEXT",
             format!(
                 "{} may then also take card 17's Event (R 2.3.4, 5.2). Shaded: {CARD_17_SHADED}",
-                view.eligibility.second.name()
+                card_17_second(view).name()
             ),
         ),
     ];
@@ -377,6 +383,116 @@ pub(super) fn activation_lines(view: &Observation, flips: &[Flip]) -> String {
 /// The briefing for one option at the action choice, or for the Terror and Kidnap
 /// tabs during execution. `option` is the choice id without its revision.
 pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
+    if view.current_card == 18 {
+        let choice = listed(view, option)?;
+        if view.passed[Faction::Government.index()] {
+            return Some(Briefing {
+                option: option.into(),
+                title: choice.label.clone(),
+                rule: "R 2.3.3–4",
+                entries: vec![
+                    entry("OPTION", &choice.explanation),
+                    entry(
+                        "WHY SYNDICATE IS FIRST",
+                        "Government Passed. Syndicate is the next Eligible faction in card order and inherits the 1st Eligible options.",
+                    ),
+                ],
+                rules: String::new(),
+            });
+        }
+        if view.eligibility.government_box == Some(crate::SequenceBox::OperationOnly) {
+            return Some(Briefing {
+                option: option.into(),
+                title: choice.label.clone(),
+                rule: "R 2.3.3–5",
+                entries: vec![
+                    entry("OPTION", &choice.explanation),
+                    entry(
+                        "2ND ELIGIBLE",
+                        "Government recorded Operation Only. Syndicate may Pass or choose a Limited Operation.",
+                    ),
+                ],
+                rules: String::new(),
+            });
+        }
+        if view.executing == Some(Faction::Government) {
+            let (rule, label) = match option {
+                "end-assault" => ("R 2.3.4", "RESULT"),
+                "assault:back" => ("", "NAVIGATION"),
+                "transfer" => ("R 1.5.1, 1.8", "GIVER'S DECISION"),
+                "remove" | "done-removal" => ("R 1.4.1", "VOLUNTARY REMOVAL"),
+                _ if view.transfer.is_some() => ("R 1.5.1, 1.8", "GIVER'S DECISION"),
+                _ if option.starts_with("remove:") => ("R 1.4.1", "VOLUNTARY REMOVAL"),
+                _ => ("R 3.1, 3.2.4, 6.3.1", "TARGET AND COST"),
+            };
+            let mut entries = vec![entry(label, &choice.explanation)];
+            if crate::Game::assault_payment_space(option).is_some()
+                && let Some(preview) = &choice.preview
+            {
+                let control = |f: Option<Faction>| {
+                    f.map_or("Uncontrolled".into(), |f| format!("{} Control", f.name()))
+                };
+                for change in &preview.control {
+                    entries.push(entry(
+                        "CONTROL",
+                        format!("{} → {}", control(change.from), control(change.to),),
+                    ));
+                }
+                for change in &preview.standings {
+                    let input = if change.faction == Faction::Syndicate {
+                        "open Casinos"
+                    } else {
+                        "victory score"
+                    };
+                    entries.push(entry(
+                        "STANDING",
+                        format!(
+                            "{} {input}: {} → {}. Margin: {} → {}.",
+                            change.faction.name(),
+                            change.score_from,
+                            change.score_to,
+                            change.margin_from,
+                            change.margin_to,
+                        ),
+                    ));
+                }
+                if preview.control.is_empty() && preview.standings.is_empty() {
+                    entries.push(entry("CONTROL AND STANDINGS", "Unchanged."));
+                }
+            }
+            return Some(Briefing {
+                option: option.into(),
+                title: choice.label.clone(),
+                rule,
+                entries,
+                rules: String::new(),
+            });
+        }
+        let role = if view.eligibility.event_restriction.is_some() {
+            "26July is Ineligible through card 18 under the shaded Event. Directorio executed the Event."
+        } else {
+            "26July executed Terror and Directorio executed the Event on card 17."
+        };
+        return Some(Briefing {
+            option: option.into(),
+            title: if option == "government:pass" {
+                "Pass".into()
+            } else {
+                choice.label.clone()
+            },
+            rule: "R 2.3.1–4",
+            entries: vec![
+                entry("OPTION", &choice.explanation),
+                entry(
+                    "WHY GOVERNMENT IS FIRST",
+                    format!(
+                        "{role} Government and Syndicate took no action on card 17. Government's symbol comes before Syndicate's."
+                    ),
+                ),
+            ],
+            rules: String::new(),
+        });
+    }
     if view.eligibility.directorio_handoff() {
         return directorio(view, option);
     }
@@ -697,6 +813,36 @@ mod tests {
         let view = game.observe();
         let id = format!("{}:{action}", view.revision);
         game.submit(view.owner, view.revision, &id).unwrap();
+    }
+
+    #[test]
+    fn assault_side_choices_show_the_rules_that_govern_them() {
+        let mut game = Game::prepared_with_seed(2);
+        for action in [
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+            "advance-card",
+            "government:assault",
+        ] {
+            step(&mut game, action);
+        }
+        let view = game.observe();
+        for (action, rule, label) in [
+            ("transfer", "R 1.5.1, 1.8", "GIVER'S DECISION"),
+            ("remove", "R 1.4.1", "VOLUNTARY REMOVAL"),
+        ] {
+            let briefing = content(&view, action).unwrap();
+            assert_eq!(briefing.rule, rule);
+            assert_eq!(briefing.entries[0].label, label);
+        }
+        step(&mut game, "assault:areas:cities");
+        let back = content(&game.observe(), "assault:back").unwrap();
+        assert!(back.rule.is_empty());
+        assert_eq!(back.entries[0].label, "NAVIGATION");
     }
 
     /// Cost and Kidnap's range follow current Resources, before and after a transfer,

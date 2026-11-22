@@ -44,7 +44,7 @@ After Kidnap and End Terror, hover or focus Pass, Limited Operation or either Ev
 Pin the shaded Event to see the recorded Terror and Kidnap result, the pending activations and the restriction on 26July. Commit
 **Choose shaded Event** to open Directorio's execution. You can transfer Resources or
 remove Directorio's pieces before you commit **Resolve shaded Event**. Then inspect
-the flips and each faction's eligibility for card 18. Card 18 stays in preview.
+the flips and each faction's eligibility for card 18. Card 18 stays in preview until you advance.
 
 ## Kidnap in Santiago
 
@@ -82,7 +82,25 @@ authorizes it.
 
 Inspect and pin a Rally option before committing it. Its preview shows the placement ceiling from Bases and population, the limit from Available Forces, and the zero Resource cost. **Place 0 Underground Guerrillas** resolves that qualifying space with its pieces and Available Forces unchanged. A qualifying space counts as Neutral for the Rally. Its actual Support or Opposition stays in place. If the beneficiary has no qualifying Base, the Event ends without a Rally decision.
 
-You can save and resume while the Rally is pending. After the last required effect, the panel reports the result and each faction’s eligibility for card 18. The table stops at that adjustment.
+You can save and resume while the Rally is pending. After the last required effect, the panel reports the result and each faction’s eligibility for card 18.
+
+## Advancing to Pact of Caracas
+
+At the completed Alberto Bayo result, inspect the board, the Event effects and each faction's eligibility. Choose **Advance to Pact of Caracas** to play card 18. **Read both cards** shows Pact of Caracas as current, Sierra Maestra Manifesto as preview and card 17 in the public history. The Pact's Capability takes effect only if its Event executes.
+
+Government is 1st Eligible and Syndicate is 2nd Eligible. Both skipped an Operation or Event on card 17. Terror and the Event made 26July and Directorio Ineligible. On the shaded branch, Alberto Bayo expressly keeps 26July Ineligible through card 18.
+
+Hover or focus Government's options to see what the rules allow and why a choice is unavailable. Pin **Pass** to review the current balance, the 3-Resource income and the balance after the 49-Resource cap. Select the **Pass** button to commit. Government's marker moves to the Pass box, and the next decision shows the credited income.
+
+Syndicate takes over as 1st Eligible on Pact of Caracas. Inspect its Pass, Event, Operations and Special Activities.
+
+Choose **Assault · Operation Only**, then choose **Cities**, **Provinces**, or **Economic Centers** and a space. Pin a target to see how many pieces the local Troops, Police and terrain let you affect, what remains protected, and what the payment will do. With the inherited cubes still in place, targeting Syndicate in Havana closes the open Casino in place. In Santiago, the Event determines whether one or two 26July Guerrillas return to Available Forces. Voluntary removal of Government cubes can reduce either city's capacity to zero.
+
+Under Firm US Alliance, each payment costs 2 Resources and resolves that space once. Continue in any order you can afford, or choose **Finish Assault**. Government may finish without paying for a space under the [card 18 local policy](local-rule-policies.md#zero-space-government-assault-on-card-18). Government earns no Pass income and Syndicate can inspect Pass and Limited Operation as 2nd Eligible.
+
+Once Government opens Assault, **Resource transfer** lets Government give or request Resources. Pending requests keep their giver's decision across a restart. The authorized amount changes the balance available for the next space.
+
+**Remove own pieces** opens the map's voluntary removal controls for Government. Click a marked Troop or Police stack, select a quantity and confirm to return it to Available Forces. Choose **Done** to return to Assault and inspect its removal capacity with the remaining cubes.
 
 ## Camera and keys
 

@@ -34,7 +34,7 @@ Santiago and Oriente become not involved when a target has nothing left in this 
 
 ## Removal mode (#73)
 
-"Remove own pieces" opens removal mode. `cuba_libre_unfolded::targets::removal_targets` reads each of the executing faction's groups from the authority's removal choices. The executing faction is 26July during Terror, Directorio during its Event decisions and the beneficiary during the free Rally.
+"Remove own pieces" opens removal mode. `cuba_libre_unfolded::targets::removal_targets` reads each of the executing faction's groups from the authority's removal choices. Government uses the same markers and piece popover for its Troop and Police stacks during Assault.
 - **Removable:** at least one of the group may be removed now. Marker: `atlas-piece-removable.png`, the red survey station (a ring with four ticks), artboard `A-piece-removable`.
 - **Protected:** none may, because the owed Santiago Terror keeps the last Underground Guerrilla there (accepted commitment policy, local). Marker: `atlas-piece-protected.png`, the double ink ring and lock tab, artboard `A-piece-protected`.
 - **Dimmed:** a space holding none of the executing faction's pieces shows its `not involved` veil.
