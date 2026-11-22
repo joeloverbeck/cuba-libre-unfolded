@@ -137,4 +137,12 @@ if [[ $output != *"No ignored native test matches filter '$missing'"* ]]; then
   echo "$output" >&2
   exit 1
 fi
-echo "native filters: both binaries discovered, missing name refused"
+if output=$(scripts/native --bench "$native_case" 2>&1); then
+  echo "native filter check: benchmark-only execution passed" >&2
+  exit 1
+fi
+if [[ $output != *"Benchmark-only mode skips native regressions."* ]]; then
+  echo "$output" >&2
+  exit 1
+fi
+echo "native filters: both binaries discovered, missing name and benchmark-only run refused"

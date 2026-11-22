@@ -18,6 +18,8 @@ filters=()
 list=false
 selection=()
 exact=false
+bench=false
+run_tests=false
 while (($#)); do
   case $1 in
     -h|--help) exec cargo test --locked --features tabletop --test native -- --help ;;
@@ -28,7 +30,13 @@ while (($#)); do
       if (($# < 2)); then echo "--skip needs a filter" >&2; exit 2; fi
       selection+=("$1" "$2")
       shift ;;
-    --skip=*|--exclude-should-panic|--include-ignored|--ignored|--test|--bench)
+    --bench) bench=true ;;
+    --test) run_tests=true ;;
+    -Z)
+      if (($# < 2)); then echo "-Z needs an option" >&2; exit 2; fi
+      selection+=("$1" "$2")
+      shift ;;
+    -Z*|--skip=*|--exclude-should-panic|--include-ignored|--ignored)
       selection+=("$1") ;;
     --test-threads|--test-threads=*)
       threads=${1#--test-threads=}
@@ -37,7 +45,7 @@ while (($#)); do
         echo "Native regressions share a renderer. Use --test-threads=1." >&2
         exit 2
       fi ;;
-    --format|--color|--shuffle-seed|--logfile|-Z)
+    --format|--color|--shuffle-seed|--logfile)
       # Space-separated option values aren't test names.
       if (($# > 1)); then shift; fi ;;
     -*) ;;
@@ -46,6 +54,11 @@ while (($#)); do
   shift
 done
 
+# In benchmark-only mode libtest lists ordinary tests but ignores them on execution.
+if "$bench" && ! "$run_tests" && ! "$list"; then
+  echo "Benchmark-only mode skips native regressions. Use --test to execute them." >&2
+  exit 2
+fi
 cargo_test=(cargo test --locked --features tabletop)
 harness=(--ignored --test-threads=1)
 if ((${#filters[@]} + ${#selection[@]})); then
