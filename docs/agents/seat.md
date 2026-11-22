@@ -122,12 +122,14 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 
 ## Choices
 
-Name these in a request's `"choice"`. Each starts with the revision it was offered at; take ids from the observation's `choices` (or a `--brief` reply).
+Each choice id starts with the revision it was offered at. Submit supported ids from the observation's `choices` (or a `--brief` reply). To preview an option, use its component.
 
 | Choice | Meaning |
 |---|---|
 | `<revision>:pass`, `<revision>:terror` | 26July's supported action choices. |
-| `<revision>:event:unshaded`, `<revision>:event:shaded`, `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so the option set is complete; unsupported, with the reason in `explanation`. |
+| `<revision>:event:unshaded`, `<revision>:event:shaded` | Both Event texts. Directorio can preview them after Kidnap. |
+| `<revision>:directorio:pass`, `<revision>:directorio:limited-operation` | Directorio's other legal options after Kidnap. Read their briefings for what they do and the build limits. |
+| `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so 26July's option set is complete; unsupported, with the reason in `explanation`. |
 | `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap`, `<revision>:transfer`, `<revision>:remove` | Execution steps during Terror. |
 | `<revision>:back-to-choice` | Goes back to the action choice, until the first effect: from the Operation menu, or while a Transfer request awaits another faction, which withdraws it. Not offered in removal mode or while Kidnap is open. |
 | `<revision>:kidnap:roll`, `<revision>:kidnap:cancel` | Kidnap's Roll and Cancel. |
