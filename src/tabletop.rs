@@ -1633,7 +1633,11 @@ fn draw_ui(
         text(
             &mut commands,
             &art,
-            "17 Alberto Bayo — current; Event inactive",
+            if view.eligibility.directorio_handoff() {
+                "17 Alberto Bayo — current; Event open to Directorio"
+            } else {
+                "17 Alberto Bayo — current; Event inactive"
+            },
             320.,
             1030.,
             600.,

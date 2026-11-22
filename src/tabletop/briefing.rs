@@ -8,6 +8,7 @@
 //! no province and compute no space's result, which the map popover previews (#72).
 //! Pass keeps its exact numbers, from the rules authority's preview, since it involves
 //! no space. Current Resources come from the observation; the wording only places them.
+use crate::game::CARD_17_UNSHADED;
 use crate::{
     CARD_17_SHADED, Choice, Faction, KidnapStakes, Observation, Preview, TERROR_COST, resources,
 };
@@ -286,9 +287,67 @@ fn absent(
     }
 }
 
+/// Directorio's legal options and the recorded reason the Event is available.
+fn directorio(view: &Observation, option: &str) -> Option<Briefing> {
+    let choice = listed(view, option)?;
+    let (title, rule, printed) = match option {
+        "directorio:pass" => ("Pass", "R 2.3.3", None),
+        "directorio:limited-operation" => ("Limited Operation", "R 2.3.5", None),
+        "event:unshaded" => (
+            "Alberto Bayo · unshaded",
+            "R 5.2",
+            Some(("VET TRAINS GUERRILLAS", CARD_17_UNSHADED)),
+        ),
+        "event:shaded" => (
+            "Alberto Bayo · shaded",
+            "R 5.2",
+            Some(("MEXICO BLOCKS TRAINING BY CUBAN EXPAT", CARD_17_SHADED)),
+        ),
+        _ => return None,
+    };
+    let mut entries = Vec::new();
+    if let Some((heading, text)) = printed {
+        entries.push(entry(heading, text));
+        entries.push(entry(
+            "WHY DIRECTORIO MAY CHOOSE",
+            "26July used Kidnap, so Terror recorded an Operation with Special Activity. That opens either Event text to the 2nd Eligible faction (R 2.3.4, 5.2).",
+        ));
+        if let Some(roll) = &view.kidnap {
+            let targets: Vec<_> = view
+                .resolved
+                .iter()
+                .filter_map(|r| view.spaces.iter().find(|s| s.id == r.space))
+                .map(|s| s.name.as_str())
+                .collect();
+            let paid = view.resolved.iter().map(|r| r.paid).sum();
+            entries.push(entry(
+                "26JULY'S RESULT",
+                format!(
+                    "Terror in {} · paid {}. Kidnap rolled {} and took {} from Government.",
+                    targets.join(", "),
+                    resources(paid),
+                    roll.die,
+                    resources(roll.proceeds)
+                ),
+            ));
+        }
+    }
+    entries.push(entry("IN THIS BUILD", &choice.explanation));
+    Some(Briefing {
+        option: option.into(),
+        title: title.into(),
+        rule,
+        entries,
+        rules: String::new(),
+    })
+}
+
 /// The briefing for one option at the action choice, or for the Terror and Kidnap
 /// tabs during execution. `option` is the choice id without its revision.
 pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
+    if view.eligibility.directorio_handoff() {
+        return directorio(view, option);
+    }
     let m26 = view.resources[Faction::M26.index()];
     let per_space = format!("1 Resource per space · 26July has {m26}.");
     let free = format!("No Resource beyond its Operation · 26July has {m26}.");
@@ -300,7 +359,7 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
             option,
             "Unshaded Event",
             "R 5.2",
-            "Card 17, Vet trains guerrillas: 26July or DR free Rallies in each space it has a Base (as if spaces Neutral).",
+            &format!("Card 17, Vet trains guerrillas: {CARD_17_UNSHADED}"),
             format!("None · 26July has {m26}."),
             second_after_event(view),
         ),

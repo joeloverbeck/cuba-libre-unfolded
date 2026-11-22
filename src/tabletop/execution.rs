@@ -4,8 +4,8 @@
 //! a fixed list of steps in AC-B's option rows, each with its state as a pill or a
 //! note; hovering or focusing a step opens its preview on the AC-B tag, a click pins
 //! it, and the full-width action at the panel's foot commits only the pinned step.
-//! After the Operation ends (Pass or End Terror) the panel keeps the same header and
-//! states what was recorded and what Directorio may do next.
+//! After Pass or Operation Only, the panel states what was recorded and what
+//! Directorio may do next. Kidnap hands the panel back to the action choices.
 //!
 //! Layout authority (foundation 4): `art/atlas/atlas-execution.figcraft` owns the
 //! structure, placement and sizes. The constants in [`fig`] are that file's 16:9
@@ -808,6 +808,9 @@ pub(super) fn panel(
     o: Vec2,
 ) {
     picture(commands, art, "atlas-panel.png", PANEL, s, o, 2);
+    if view.eligibility.directorio_handoff() {
+        return choice::panel(commands, art, view, ui, s, o);
+    }
     if view.finished {
         return ended(commands, art, view, s, o);
     }

@@ -191,12 +191,20 @@ pub struct Eligibility {
     /// cylinders are adjusted after the card (R 2.3.7).
     pub m26_next_card: Option<bool>,
 }
+impl Eligibility {
+    /// The card 17 continuation opens only after 26July records Terror with Kidnap.
+    pub(crate) fn directorio_handoff(&self) -> bool {
+        self.m26_box == Some(SequenceBox::OperationWithSpecialActivity)
+    }
+}
 /// A count of Resources in words: "1 Resource", "3 Resources".
 pub fn resources(n: u8) -> String {
     format!("{n} Resource{}", if n == 1 { "" } else { "s" })
 }
-/// Card 17's shaded text, from the admitted card face, which Directorio may execute
-/// after an Operation with Special Activity (R 2.3.4, 5.2).
+/// Card 17's unshaded text from the admitted card face (Playbook p. 33).
+pub(crate) const CARD_17_UNSHADED: &str =
+    "26July or DR free Rallies in each space it has a Base (as if spaces Neutral).";
+/// Card 17's shaded text from the admitted card face (Playbook p. 33).
 pub const CARD_17_SHADED: &str =
     "All 26July Guerrillas Active. 26July Ineligible through next card.";
 /// What Terror does in each space it resolves after paying, worded once (R 3.3.4).
@@ -433,7 +441,7 @@ pub struct Observation {
     pub finished: bool,
     pub choices: Vec<Choice>,
     /// The next faction to act, its role and its options, once 26July's action is
-    /// recorded (R 2.3.3–2.3.4). Shown, not executed.
+    /// recorded (R 2.3.3–2.3.4).
     pub next: Option<Next>,
     pub operation: &'static str,
     pub special_activity: Option<String>,
@@ -1272,7 +1280,7 @@ impl Game {
     fn executing(&self) -> Option<Faction> {
         (self.action == ActionChoice::Terror && !self.finished).then_some(Faction::M26)
     }
-    fn eligibility(&self) -> Eligibility {
+    pub(crate) fn eligibility(&self) -> Eligibility {
         let passed = self.action == ActionChoice::Pass;
         Eligibility {
             order: CARD_17_ORDER,
@@ -1480,7 +1488,7 @@ impl Game {
             absent(
                 "event:unshaded",
                 "Event (unshaded)",
-                "R 2.3.4, 5.2. Card 17, Vet trains guerrillas: 26July or DR free Rallies in each space it has a Base (as if spaces Neutral).",
+                &format!("R 2.3.4, 5.2. Card 17, Vet trains guerrillas: {CARD_17_UNSHADED}"),
             ),
             absent(
                 "event:shaded",
@@ -1523,9 +1531,40 @@ impl Game {
             ),
         ]
     }
+    fn directorio_choices(&self) -> Vec<Choice> {
+        [
+            (
+                "directorio:pass",
+                "Pass",
+                "Pass is legal. Directorio would gain 1 Resource and stay Eligible (R 2.3.3). Pass execution is outside this task.",
+            ),
+            (
+                "event:unshaded",
+                "Event · unshaded",
+                "Available for preview in this build.",
+            ),
+            (
+                "event:shaded",
+                "Event · shaded",
+                "Available for preview in this build.",
+            ),
+            (
+                "directorio:limited-operation",
+                "Limited Operation",
+                "A Limited Operation is legal in just one space without a Special Activity. March may bring pieces from several spaces to that one destination (R 2.3.5). Limited Operation execution is outside this task.",
+            ),
+        ]
+        .into_iter()
+        .map(|(id, label, explanation)| self.offer(id, label, false, explanation))
+        .collect()
+    }
     fn choices(&self) -> Vec<Choice> {
         if self.finished {
-            return vec![];
+            return if self.eligibility().directorio_handoff() {
+                self.directorio_choices()
+            } else {
+                vec![]
+            };
         }
         if self.action == ActionChoice::Open {
             return self.opening_choices();

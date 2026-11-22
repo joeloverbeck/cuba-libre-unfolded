@@ -25,3 +25,4 @@ The app never guesses a fresh task or overwrites the evidence.
 
 - A save written before #61's action choice resumes with Terror already chosen. If no effect has happened, it also offers going back. Admission does not rewrite it until the next decision.
 - A #8 save holding a pending removal confirmation resumes in removal mode.
+- A previously supported save after Terror with Kidnap opens at Directorio's options using the recorded Terror and roll. Reading the Event previews leaves the saved record intact.

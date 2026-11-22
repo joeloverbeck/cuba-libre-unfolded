@@ -8,7 +8,7 @@ The build plays one task from [#8](https://github.com/joeloverbeck/cuba-libre-un
 
 - **Playable:** Pass, and Terror with optional Kidnap in Santiago, Resource transfers and voluntary removal of 26July's own pieces.
 - **Listed but refused** as "not in this task", without changing the match: card 17's Event (both texts), Rally, March and Attack, with Infiltrate and Ambush under the Operations they accompany.
-- **Not executed:** Directorio's turn and anything after it. The task ends by showing what Directorio may do next.
+- **Directorio's handoff:** after Terror with Kidnap, inspect Directorio's legal options as 2nd Eligible. The two texts of Alberto Bayo are available for preview. Directorio's Pass and Limited Operation are outside the task.
 
 ## Reading the table
 
@@ -34,8 +34,12 @@ During Terror the panel lists the steps: Terror in Santiago and Oriente, with Ki
 - **The map:** each space is marked selectable, blocked (an in-task action would allow it) or not involved ([HIGHLIGHTS.md](../art/atlas/HIGHLIGHTS.md)). Hover a selectable or blocked space for its popover, and click to keep it open. The popover lists every action there with its preview and the one button that acts.
 - **Unavailable targets:** a target 26July cannot act on now stays listed, disabled, with its reason and in-task remedies: "Request a Resource transfer", and for Santiago "Kidnap here first" while Kidnap would take at least 1 Resource. A target already resolved, or lost to removal, has none.
 - **Each Terror** costs 1 Resource, activates one Underground Guerrilla, places a Terror marker and shifts toward Active Opposition. Santiago and Oriente can each resolve once, in either order you can afford.
-- **End Terror** records Operation Only without Kidnap, so Directorio may Pass or take a Limited Operation, and Operation with Special Activity with Kidnap, which also lets Directorio take card 17's Event (R 2.3.4, 5.2). Ending with no space resolved is allowed ([local policy](local-rule-policies.md#zero-space-operation-only)). Directorio's options are shown, not executed.
+- **End Terror** records Operation Only without Kidnap, which shows Directorio's Pass and Limited Operation. With Kidnap it records Operation with Special Activity and opens Directorio's options, including the Event (R 2.3.4, 5.2). Ending with no space resolved is allowed ([local policy](local-rule-policies.md#zero-space-operation-only)).
 - The [BRIEFING ribbon](../art/atlas/CHOICE.md) on the panel's top edge reopens the Terror and Kidnap briefings.
+
+## Inspecting the handoff to Directorio
+
+After Kidnap and End Terror, hover or focus Pass, Limited Operation or either Event text for its briefing. Click or press Enter to pin it. The two Event briefings include the recorded Terror targets, payments and Kidnap roll. The board and saved position stay at the handoff while you read.
 
 ## Kidnap in Santiago
 

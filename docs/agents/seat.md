@@ -96,6 +96,7 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `reader` | "Read both cards" | Opens the card reader on both cards' complete faces. |
 | `close` | Card reader | Closes the reader while it is open. |
 | `option:<option>`, `option:pass` … `option:terror:kidnap` | Action choice | Pins the option. |
+| `option:directorio:pass`, `option:directorio:limited-operation`, `option:event:unshaded`, `option:event:shaded` | Directorio's handoff after Kidnap | Opens or pins an option's briefing. |
 | `choice-commit` | Action choice | Commits the pinned option. |
 | `briefing-ribbon` | Terror | Reopens the briefings. |
 | `briefing-tab:kidnap`, `briefing-tab:terror` | Briefing tag | Switches the briefing. |
@@ -245,9 +246,10 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
   - The manual clock moves the die while the seat reports `Kidnap die landing` unsettled. It checks the ledger before and after landing, the landed face and result, and Continue by button and by Enter.
 - `native_right_drag_orbits_and_the_wheel_zooms_the_table_camera`: drives the table camera's right-drag orbit and wheel zoom through the seat's `drag` and `scroll` requests. Evidence: `local/verification/issue-79/native-*`.
 - `native_execution_panel_matches_layout_and_previews_every_step`: the EX-A panel against its FigCraft layout record at 3840×2160, within 2 px, and every step's tag before its committing click. Evidence: `local/verification/issue-84/ex-a-*`.
-  - It covers Terror targets from the panel, Kidnap opened (Roll and Cancel), End Terror's previews, the clash rule with a space popover, Escape and an outside click, the keyboard, and the ended panel.
+  - It covers Terror targets from the panel, Kidnap opened (Roll and Cancel), End Terror's previews, the clash rule with a space popover, Escape and an outside click, the keyboard, and Directorio's handoff.
 - `native_seat_skips_the_die_by_enter_space_or_a_click_on_the_tray` (in the library: `cargo test --features tabletop --lib -- --ignored native_seat_skips`): skips mid-tumble through the seat's own requests, by Enter or Space naming `kidnap-die` or by an activation of the tray. Tab is still refused as busy, and Enter naming Continue is refused (#87). Evidence: `local/verification/issue-87/skip-*`.
 - `native_refused_end_terror_while_a_request_waits_and_the_ended_panels`: runs at 3840×2160. Evidence: `local/verification/review-fix-3/refused-end-*`.
   - After an early Kidnap roll owes Santiago's Terror and a Transfer request waits on Directorio, the End Terror row, its tag, the commit's refusal and the request's tag all give the authority's reason and its remedy, timed "once Directorio has decided".
   - Pressing the disabled commit submits nothing.
-  - The Terror, End Terror and Pass notices and both ended panels state the authority's record.
+  - The Terror, End Terror and Pass notices, Directorio's handoff and the ended Pass panel state the authority's record.
+- `native_directorio_previews_the_inherited_kidnap_handoff`: uses the live Kidnap and Terror controls at 3840×2160, then previews both Alberto Bayo texts as Directorio and checks the inherited position and untouched save. Evidence: `local/verification/issue-118/directorio-handoff-*`.
