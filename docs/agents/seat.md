@@ -127,8 +127,8 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | Choice | Meaning |
 |---|---|
 | `<revision>:pass`, `<revision>:terror` | 26July's supported action choices. |
-| `<revision>:event:shaded` | Directorio executes Alberto Bayo's shaded text after Kidnap. Pin its option to preview the flips. |
-| `<revision>:event:unshaded` | Directorio's other Event text, available for preview after Kidnap. |
+| `<revision>:event:shaded` | Listed for inspection at 26July's opening decision. Directorio can execute Alberto Bayo's shaded text after Kidnap. Pin its option to preview the flips. |
+| `<revision>:event:unshaded` | Listed for inspection at 26July's opening decision and at Directorio's handoff after Kidnap. |
 | `<revision>:directorio:pass`, `<revision>:directorio:limited-operation` | Directorio's other legal options after Kidnap. Read their briefings for what they do and the build limits. |
 | `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so 26July's option set is complete; unsupported, with the reason in `explanation`. |
 | `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap`, `<revision>:transfer`, `<revision>:remove` | Execution steps during Terror. |

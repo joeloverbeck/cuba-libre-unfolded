@@ -10,25 +10,23 @@
 //! The oracle is reachability through the authority's own offered decisions, not the
 //! remedies' wording; the states explored are `support/explore.rs`'s. A disabled
 //! choice is judged where that path's one transfer is still unused.
-use crate::explore::{Node, action, choose, explore, reachable, starts};
+use crate::explore::{Action, Node, action, choose, explore, reachable, starts};
 use cuba_libre_unfolded::{Choice, Faction, Game, TransferChoice};
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 /// Every dishonest hint among the explored states, by label.
 fn dishonest(nodes: &[Node]) -> BTreeSet<String> {
     let future = reachable(nodes);
     let mut found = BTreeSet::new();
     for node in nodes.iter().filter(|n| !n.transferred) {
-        let later: BTreeSet<_> = node
-            .next
-            .iter()
-            .flat_map(|&j| future[j].iter().cloned())
-            .collect();
+        let later: HashSet<_> = node.next.iter().flat_map(|&j| &future[j]).collect();
         for (action, label, remedies) in &node.disabled {
             let possible = later.contains(action);
             if remedies.is_empty() == possible {
+                let (owner, name) = action;
                 found.insert(format!(
-                    "{label} ({action}): remedies {remedies:?}, but it {} become available",
+                    "{}: {label} ({name}): remedies {remedies:?}, but it {} become available",
+                    owner.name(),
                     if possible { "can" } else { "cannot" }
                 ));
             }
@@ -51,11 +49,11 @@ fn every_disabled_choice_s_remedies_are_exactly_what_this_task_allows() {
 
 /// Whether `wanted`, as an explored action, is supported in `game`: Kidnap's listing
 /// at the action choice (`terror:kidnap`) counts as Kidnap.
-fn action_supported(game: &Game, wanted: &str) -> bool {
+fn action_supported(game: &Game, wanted: &Action) -> bool {
     game.observe()
         .choices
         .iter()
-        .any(|c| c.supported && action(c) == wanted)
+        .any(|c| c.supported && action(c) == *wanted)
 }
 
 /// Whether a supported choice with exactly this action, as its id names it, is
@@ -121,7 +119,7 @@ fn performances(game: &Game, remedy: &str) -> Vec<Vec<String>> {
 
 /// Whether some performance of `remedy` makes `wanted` supported, each decision
 /// offered when it is made.
-fn performs(game: &Game, wanted: &str, remedy: &str) -> bool {
+fn performs(game: &Game, wanted: &Action, remedy: &str) -> bool {
     performances(game, remedy).into_iter().any(|decisions| {
         let mut after = game.clone();
         for decision in &decisions {
@@ -138,7 +136,7 @@ fn performs(game: &Game, wanted: &str, remedy: &str) -> bool {
 /// A remedy without timing must start now. One timed "once {giver} has decided" is
 /// named while a request awaits that giver: it cannot start before the decision,
 /// and works after each decision the giver may make (decline, nothing or its limit).
-fn works(game: &Game, wanted: &str, remedy: &str) -> Result<(), String> {
+fn works(game: &Game, wanted: &Action, remedy: &str) -> Result<(), String> {
     let (base, giver) = timing(remedy);
     let Some(giver) = giver else {
         return if performs(game, wanted, base) {
@@ -204,7 +202,11 @@ fn every_named_remedy_makes_its_choice_available() {
                         timed.insert(giver.to_owned());
                     }
                     if let Err(why) = works(&node.game, wanted, remedy) {
-                        failed.insert(format!("{label} ({wanted}): {remedy:?} {why}"));
+                        let (owner, name) = wanted;
+                        failed.insert(format!(
+                            "{}: {label} ({name}): {remedy:?} {why}",
+                            owner.name()
+                        ));
                     }
                 }
             }

@@ -1585,12 +1585,12 @@ impl Game {
             absent(
                 "event:unshaded",
                 "Event (unshaded)",
-                &format!("R 2.3.4, 5.2. Card 17, Vet trains guerrillas: {CARD_17_UNSHADED}"),
+                &format!("26July's opening decision (R 2.3.4, 5.2). Card 17, Vet trains guerrillas: {CARD_17_UNSHADED}"),
             ),
             absent(
                 "event:shaded",
                 "Event (shaded)",
-                &format!("R 2.3.4, 5.2. Card 17, Mexico blocks training by Cuban expat: {CARD_17_SHADED}"),
+                &format!("26July's opening decision (R 2.3.4, 5.2). Card 17, Mexico blocks training by Cuban expat: {CARD_17_SHADED}"),
             ),
             absent("rally", "Rally", "R 3.3.1: Rally places or flips 26July Guerrillas or a Base."),
             under(

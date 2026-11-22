@@ -7,7 +7,7 @@ What you can do in the current build and how to operate it. [README](../README.m
 The build plays one task from [#8](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/8): 26July's decision as 1st Eligible on card 17, whose faction order is 26July, Directorio, Government, Syndicate.
 
 - **Playable:** Pass, and Terror with optional Kidnap in Santiago, Resource transfers and voluntary removal of 26July's own pieces.
-- **Listed but refused** as "not in this task", without changing the match: card 17's Event (both texts), Rally, March and Attack, with Infiltrate and Ambush under the Operations they accompany.
+- **At 26July's opening decision**, both Event texts, Rally, March, Attack, and the accompanying Infiltrate and Ambush are listed for inspection. Choosing one is refused without changing the match.
 - **Directorio's handoff:** after Terror with Kidnap, inspect Directorio's legal options as 2nd Eligible. Directorio can execute Alberto Bayo's shaded text. Its Pass and Limited Operation are outside the task.
 
 ## Reading the table
