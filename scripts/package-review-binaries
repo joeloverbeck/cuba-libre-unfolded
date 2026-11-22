@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Run through scripts/heavy in the checkout being packaged.
+set -euo pipefail
+if (($# != 1)); then
+  echo "usage: scripts/package-review-binaries PACKAGE_DIRECTORY" >&2
+  exit 2
+fi
+
+# Use Cargo's actual executable paths even with a private target or target triple.
+artifacts=$(cargo build --locked --features tabletop --bin cuba-libre --bin cuba-tools \
+  --message-format=json-render-diagnostics |
+  jq -r 'select(.reason == "compiler-artifact" and .executable != null and
+    (.target.name == "cuba-libre" or .target.name == "cuba-tools")) | .executable')
+mapfile -t bins <<<"$artifacts"
+if ((${#bins[@]} != 2)); then
+  echo "Expected Cargo to produce both cuba-libre and cuba-tools." >&2
+  exit 1
+fi
+mkdir -p -- "$1"
+install -m 755 -- "${bins[@]}" "$1/"

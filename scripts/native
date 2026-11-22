@@ -1,13 +1,8 @@
 #!/usr/bin/env bash
-# Every ignored native regression, serially: the integration tests in
-# tests/native.rs, then the library's in-process ones. Both run even when the
-# first fails, so one failure cannot hide the other. They need the private card
-# faces and a working renderer, so CI cannot run them. Extra arguments go to both
-# test binaries, e.g. a name filter or --nocapture.
+# Run ignored regressions from both test binaries, serially.
 set -euo pipefail
-
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
-: "${CUBA_TEST_CARDS:?set CUBA_TEST_CARDS to the selected card directory (README, Where files live)}"
+
 echo "revision: $(git rev-parse HEAD)"
 changes=$(git status --porcelain --untracked-files=normal)
 if [[ -z $changes ]]; then
@@ -15,13 +10,91 @@ if [[ -z $changes ]]; then
 else
   echo "working tree: $(wc -l <<<"$changes") changed path(s) differ from the revision"
 fi
+
+# Keep the original libtest arguments for discovery and execution. Extract just
+# the positive name filters so one valid filter cannot mask a misspelled one.
+args=("$@")
+filters=()
+list=false
+selection=()
+exact=false
+bench=false
+run_tests=false
+while (($#)); do
+  case $1 in
+    -h|--help) exec cargo test --locked --features tabletop --test native -- --help ;;
+    --list) list=true ;;
+    --exact) exact=true; selection+=("$1") ;;
+    --) shift; filters+=("$@"); break ;;
+    --skip)
+      if (($# < 2)); then echo "--skip needs a filter" >&2; exit 2; fi
+      selection+=("$1" "$2")
+      shift ;;
+    --bench) bench=true ;;
+    --test) run_tests=true ;;
+    -Z)
+      if (($# < 2)); then echo "-Z needs an option" >&2; exit 2; fi
+      selection+=("$1" "$2")
+      shift ;;
+    -Z*|--skip=*|--exclude-should-panic|--include-ignored|--ignored)
+      selection+=("$1") ;;
+    --test-threads|--test-threads=*)
+      threads=${1#--test-threads=}
+      if [[ $1 == --test-threads ]]; then shift; threads=${1:-}; fi
+      if [[ $threads != 1 ]]; then
+        echo "Native regressions share a renderer. Use --test-threads=1." >&2
+        exit 2
+      fi ;;
+    --format|--color|--shuffle-seed|--logfile)
+      # Space-separated option values aren't test names.
+      if (($# > 1)); then shift; fi ;;
+    -*) ;;
+    *) filters+=("$1") ;;
+  esac
+  shift
+done
+
+# In benchmark-only mode libtest lists ordinary tests but ignores them on execution.
+if "$bench" && ! "$run_tests" && ! "$list"; then
+  echo "Benchmark-only mode skips native regressions. Use --test to execute them." >&2
+  exit 2
+fi
+cargo_test=(cargo test --locked --features tabletop)
+harness=(--ignored --test-threads=1)
+if ((${#filters[@]} + ${#selection[@]})); then
+  # Let libtest apply the selection; keep output formatting and logging options
+  # for the caller's actual run so discovery always reads a plain catalogue.
+  listing=$("${cargo_test[@]}" --test native --lib -- "${harness[@]}" --list "${selection[@]}" -- "${filters[@]}")
+  # The stable libtest catalogue prints one fully qualified "name: test" per line.
+  mapfile -t names < <(sed -n 's/: test$//p' <<<"$listing")
+  for filter in "${filters[@]}"; do
+    found=false
+    for name in "${names[@]}"; do
+      if [[ $name == "$filter" ]] || { ! "$exact" && [[ $name == *"$filter"* ]]; }; then
+        found=true
+        break
+      fi
+    done
+    if ! "$found"; then
+      echo "No ignored native test matches filter '$filter' in either test binary." >&2
+      exit 1
+    fi
+  done
+  if ((${#names[@]} == 0)); then
+    echo "No ignored native tests selected in either test binary." >&2
+    exit 1
+  fi
+fi
+if "$list"; then
+  exec "${cargo_test[@]}" --test native --lib -- "${harness[@]}" "${args[@]}"
+fi
+
+: "${CUBA_TEST_CARDS:?set CUBA_TEST_CARDS to the selected card directory (README, Where files live)}"
 failed=()
 echo "== tests/native.rs"
-cargo test --locked --features tabletop --test native -- --ignored --test-threads=1 "$@" ||
-  failed+=("tests/native.rs")
+"${cargo_test[@]}" --test native -- "${harness[@]}" "${args[@]}" || failed+=("tests/native.rs")
 echo "== library (in-process)"
-cargo test --locked --features tabletop --lib -- --ignored --test-threads=1 "$@" ||
-  failed+=("library")
+"${cargo_test[@]}" --lib -- "${harness[@]}" "${args[@]}" || failed+=("library")
 if ((${#failed[@]})); then
   echo "native regressions failed in: ${failed[*]}" >&2
   exit 1
