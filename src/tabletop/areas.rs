@@ -151,11 +151,13 @@ pub(super) struct Part(pub String);
 
 /// The thirteen spaces' mesh vertices in the world, read once the map is loaded.
 #[derive(Resource, Default)]
-pub(super) struct Island(BTreeMap<String, Vec<Vec3>>);
+pub(super) struct Island {
+    spaces: BTreeMap<String, Vec<Vec3>>,
+}
 
 impl Island {
     pub(super) fn surveyed(&self) -> bool {
-        !self.0.is_empty()
+        !self.spaces.is_empty()
     }
 }
 
@@ -253,6 +255,7 @@ pub(super) fn home(
     mesh_assets: Res<Assets<Mesh>>,
     controls: Query<&Control>,
     parents: Query<&ChildOf>,
+    mut counts: ResMut<Counts>,
     mut framed: Local<Option<Vec2>>,
 ) {
     // The session opens only after the map has loaded and been drawn, so every
@@ -292,13 +295,13 @@ pub(super) fn home(
         if spaces.len() < art.labels.len() {
             return;
         }
-        island.0 = spaces;
+        island.spaces = spaces;
     }
     let size = Vec2::new(window.width(), window.height());
     if *framed == Some(size) {
         return;
     }
-    let points: Vec<Vec3> = island.0.values().flatten().copied().collect();
+    let points: Vec<Vec3> = island.spaces.values().flatten().copied().collect();
     let Some(framing) = fit(&points, size, layout.island(&window)) else {
         return;
     };
@@ -306,6 +309,8 @@ pub(super) fn home(
     orbit.set_home(framing);
     if resting {
         orbit.focus(framing);
+        // The counts follow the camera's jump over the next frames.
+        counts.settling = 3;
     }
     *framed = Some(size);
 }
@@ -362,7 +367,7 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
         .map(|(camera, at)| {
             world
                 .resource::<Island>()
-                .0
+                .spaces
                 .iter()
                 .filter_map(|(space, points)| {
                     let mut bounds: Option<Rect> = None;

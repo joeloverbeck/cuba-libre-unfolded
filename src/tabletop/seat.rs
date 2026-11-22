@@ -1,6 +1,6 @@
 //! Development seat adapter: resolves real controls and never executes rules directly.
 use super::*;
-use bevy::{input::keyboard::Key, time::TimeUpdateStrategy};
+use bevy::{camera::primitives::Aabb, input::keyboard::Key, time::TimeUpdateStrategy};
 use serde_json::json;
 use std::sync::LazyLock;
 use unfolded_tabletop::{
@@ -102,6 +102,59 @@ fn named(control: &Control) -> TargetName {
     } else {
         TargetName::Component(control.name.clone())
     }
+}
+/// A grid of points across a piece's body as the map camera shows it: the bounds of
+/// its meshes on screen.
+fn body_points(world: &mut World, piece: Entity) -> Vec<Vec2> {
+    let Ok((camera, camera_at)) = world
+        .query_filtered::<(&Camera, &GlobalTransform), With<TableCamera>>()
+        .single(world)
+        .map(|(camera, at)| (camera.clone(), *at))
+    else {
+        return vec![];
+    };
+    let meshes: Vec<(Entity, Aabb, GlobalTransform)> = world
+        .query_filtered::<(Entity, &Aabb, &GlobalTransform), With<Mesh3d>>()
+        .iter(world)
+        .map(|(entity, bounds, at)| (entity, *bounds, *at))
+        .collect();
+    let mut seen: Option<Rect> = None;
+    for (entity, bounds, at) in meshes {
+        let mut current = Some(entity);
+        let mut belongs = false;
+        while let Some(e) = current {
+            if e == piece {
+                belongs = true;
+                break;
+            }
+            current = world.get::<ChildOf>(e).map(ChildOf::parent);
+        }
+        if !belongs {
+            continue;
+        }
+        for x in [-1., 1.] {
+            for y in [-1., 1.] {
+                for z in [-1., 1.] {
+                    let corner = Vec3::from(bounds.center)
+                        + Vec3::from(bounds.half_extents) * Vec3::new(x, y, z);
+                    if let Ok(p) = camera.world_to_viewport(&camera_at, at.transform_point(corner))
+                    {
+                        seen = Some(seen.map_or(Rect::from_corners(p, p), |r| Rect {
+                            min: r.min.min(p),
+                            max: r.max.max(p),
+                        }));
+                    }
+                }
+            }
+        }
+    }
+    let Some(seen) = seen else {
+        return vec![];
+    };
+    (1..8)
+        .flat_map(|x| (1..8).map(move |y| Vec2::new(x as f32, y as f32) / 8.))
+        .map(|at| seen.min + seen.size() * at)
+        .collect()
 }
 fn piece_name(world: &World, entity: Entity) -> Option<String> {
     if world.get::<Count>(entity).is_some()
@@ -405,6 +458,9 @@ impl SeatGame for Table {
                     points.push(found[0].2 + Vec2::new(x, y));
                 }
             }
+            // A piece is as large on screen as the camera makes it, and its count may
+            // cover all of those: try points across its body too (#142).
+            points.extend(body_points(world, found[0].0));
         }
         Ok(points)
     }
@@ -448,6 +504,9 @@ impl SeatGame for Table {
         }
         if play.session.is_some() && !world.resource::<areas::Island>().surveyed() {
             pending.push("Home framing".into());
+        }
+        if world.resource::<Counts>().settling > 0 {
+            pending.push("piece counts".into());
         }
         if world.resource::<Orbit>().is_moving() {
             pending.push("camera movement".into());

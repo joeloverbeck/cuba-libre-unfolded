@@ -370,6 +370,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .insert_resource(die_art)
         .insert_resource(main_view)
         .init_resource::<areas::Island>()
+        .init_resource::<Counts>()
         .init_resource::<die::Roll>()
         .insert_resource(TerrorLoop {
             clip: terror_clip,
@@ -563,6 +564,7 @@ fn setup(
         ));
     }
 }
+#[allow(clippy::too_many_arguments)] // A Bevy system: its parameters are the resources it reads.
 fn sync_pieces(
     mut commands: Commands,
     play: Res<Play>,
@@ -570,8 +572,12 @@ fn sync_pieces(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     roots: Query<Entity, With<PieceVisual>>,
+    mut counts: ResMut<Counts>,
     mut previous: Local<Option<(Faction, Vec<crate::Space>)>>,
 ) {
+    if counts.settling > 0 {
+        counts.settling -= 1;
+    }
     let game = play.game();
     let executor = game.executing().unwrap_or(Faction::M26);
     if previous
@@ -581,6 +587,7 @@ fn sync_pieces(
         return;
     }
     *previous = Some((executor, game.spaces.clone()));
+    counts.settling = 3;
     for entity in &roots {
         commands.entity(entity).despawn();
     }
@@ -732,6 +739,17 @@ fn sync_pieces(
 /// A count of pieces or Terror, kept over its token.
 #[derive(Component)]
 struct Count;
+
+/// How many frames the counts still need before they stand over their pieces. A
+/// count's node is placed in the frame it is spawned or the camera jumps, centred on
+/// its measured width in the next, and picked where it then stands from the one
+/// after. The development seat waits for that: with the map filling the window a
+/// count can settle over the middle of its piece, and a press that came a frame
+/// early would land on the count instead (#142).
+#[derive(Resource, Default)]
+struct Counts {
+    settling: u8,
+}
 
 /// A count's face. Its size is set in reference pixels; `scale_counts` scales it to the
 /// window before the interface is laid out.
