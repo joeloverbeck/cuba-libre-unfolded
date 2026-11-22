@@ -540,7 +540,8 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
     {
         let (head, _) = head(choice);
         // A Terror already resolved here is history, not a missing requirement.
-        let done = choice.action().starts_with("terror:") && place.terror > 0;
+        let done = choice.action().starts_with("terror:")
+            && view.resolved.iter().any(|r| r.space == space);
         rows.push(Row {
             choice: Some(choice.id.clone()),
             owner: choice.owner,

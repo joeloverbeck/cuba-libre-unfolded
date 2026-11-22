@@ -455,8 +455,8 @@ pub struct Observation {
     /// the authority applied it: a Pass's +1, which stops at 49 (R 2.3.3, 1.8). Empty
     /// until the action is recorded, and after End Terror, which moves none itself.
     pub recorded_resources: Vec<ResourceChange>,
-    /// The spaces where 26July's Terror resolved in this Operation, each with what it
-    /// paid (R 3.3.4), as the authority applied it.
+    /// This tactical task starts without Terror markers. Each space with a marker
+    /// contributes one resolution at the fixed per-space cost [`TERROR_COST`] (R 3.3.4).
     pub resolved: Vec<Resolved>,
     /// What a Kidnap roll could take now (R 4.3.3), from current Resources, until
     /// Kidnap is rolled or the action is recorded.

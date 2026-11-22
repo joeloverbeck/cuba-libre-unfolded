@@ -1069,6 +1069,10 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
     );
 }
 
+fn event_heading(faction: Faction) -> String {
+    format!("EVENT FOR {}", faction.name().to_uppercase())
+}
+
 /// The ended panel's entries: what was recorded, Eligibility, and what the next
 /// faction may do (shown, not executed). Every fact is the authority's: the box
 /// 26July's cylinder occupies, its Eligibility for the next card, the next faction
@@ -1143,7 +1147,7 @@ pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)>
     // among that faction's options.
     let event = match following {
         Some(n) if n.options.iter().any(|o| o == "Event") => entry(
-            "EVENT FOR DIRECTORIO",
+            event_heading(n.faction),
             format!(
                 "After a Special Activity, card 17's Event is open to {}, either text (R 2.3.4, 5.2).",
                 n.faction.name()
@@ -1180,7 +1184,7 @@ fn ended(commands: &mut Commands, art: &Art, view: &Observation, s: f32, o: Vec2
         let label = words(
             commands,
             art,
-            Prose::named(e.label),
+            Prose::named(&e.label),
             [acb::ROW_X, y, acb::ROW_W, acb::CAPS_SIZE],
             QUIET,
             true,
@@ -1385,7 +1389,12 @@ fn previewed(view: &Observation, action: &str, preview: &Preview) -> (Vec<Entry>
         } else if note.starts_with("No Event") {
             "NO EVENT"
         } else if note.contains("card 17's Event") {
-            "EVENT FOR DIRECTORIO"
+            let faction = preview
+                .next
+                .as_ref()
+                .map_or(view.eligibility.second, |n| n.faction);
+            entries.push(entry(event_heading(faction), note.clone()));
+            continue;
         } else if note.starts_with("No Terror resolved") {
             "ZERO SPACES"
         } else if note.starts_with("Rolling before") {
@@ -1530,11 +1539,9 @@ pub(super) fn tag(view: &Observation, action: &str) -> Option<Briefing> {
     }
     let choice = listed(view, action)?;
     if !choice.supported {
-        let resolved = action.starts_with("terror:")
-            && view
-                .spaces
-                .iter()
-                .any(|s| Some(s.id.as_str()) == action.strip_prefix("terror:") && s.terror > 0);
+        let resolved = id
+            .space()
+            .is_some_and(|space| view.resolved.iter().any(|r| r.space == space));
         let mut entries = vec![entry(
             if resolved {
                 "DONE"
@@ -2078,7 +2085,7 @@ mod tests {
             entries[2].text,
             "Syndicate, 1st Eligible, may: Pass (+1 if executed later) · Event"
         );
-        assert_eq!(entries[3].label, "EVENT FOR DIRECTORIO");
+        assert_eq!(entries[3].label, "EVENT FOR SYNDICATE");
         assert!(
             entries[3].text.contains("open to Syndicate"),
             "{}",
@@ -2106,6 +2113,47 @@ mod tests {
         );
         // Nothing recorded yet: no ended panel.
         assert!(ending(&Game::prepared().observe()).is_none());
+    }
+
+    #[test]
+    fn event_preview_names_the_next_faction() {
+        let mut game = Game::prepared_with_seed(5);
+        let mut view = game.observe();
+        // Kidnap has yet to end the Operation. Its preview still knows which
+        // faction is 2nd Eligible, through the current eligibility record.
+        view.eligibility.second = Faction::Syndicate;
+        let kidnap = tag(&view, "kidnap").unwrap();
+        assert!(
+            kidnap
+                .entries
+                .iter()
+                .any(|e| e.label == "EVENT FOR SYNDICATE")
+        );
+
+        for (revision, action) in ["kidnap", "kidnap:roll", "terror:santiago"]
+            .iter()
+            .enumerate()
+        {
+            game.submit(
+                Faction::M26,
+                revision as u64,
+                &format!("{revision}:{action}"),
+            )
+            .unwrap();
+        }
+        let mut view = game.observe();
+        let end = view
+            .choices
+            .iter_mut()
+            .find(|c| c.action() == "end-terror")
+            .unwrap();
+        end.preview.as_mut().unwrap().next.as_mut().unwrap().faction = Faction::Government;
+        let end = tag(&view, "end-terror").unwrap();
+        assert!(
+            end.entries
+                .iter()
+                .any(|e| e.label == "EVENT FOR GOVERNMENT")
+        );
     }
 
     /// A resolved target's pill states what the authority recorded it paid, and a
@@ -2153,7 +2201,33 @@ mod tests {
             row(&view, "terror:santiago"),
             Status::Pill(Pill::Done, "DONE · PAID 2".into())
         );
+        let target_status = |view: &Observation| {
+            let tag = tag(view, "terror:santiago").unwrap();
+            let card = super::super::popover::content(view, "santiago", None).unwrap();
+            let terror = card.rows.iter().find(|r| r.head == "Terror").unwrap();
+            (tag.entries[0].label.to_string(), terror.mark)
+        };
+        use super::super::popover::Mark;
+        // The matching resolution still counts without a marker.
+        let mut no_marker = view.clone();
+        no_marker
+            .spaces
+            .iter_mut()
+            .find(|s| s.id == "santiago")
+            .unwrap()
+            .terror = 0;
+        assert_eq!(target_status(&no_marker), ("DONE".into(), Mark::Done));
+
+        view.resolved[0].space = "oriente".into();
+        assert_eq!(
+            target_status(&view),
+            ("UNAVAILABLE".into(), Mark::Unavailable)
+        );
         view.resolved.clear();
+        assert_eq!(
+            target_status(&view),
+            ("UNAVAILABLE".into(), Mark::Unavailable)
+        );
         assert_ne!(
             row(&view, "terror:santiago"),
             Status::Pill(Pill::Done, "DONE · PAID 1".into())

@@ -3967,16 +3967,19 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
     let open = app.observe();
     assert_eq!(open["observation"]["action"], "Open");
     assert_eq!(open["table"]["briefing"], Value::Null);
-    let commit = |view: &Value| -> Value {
+    let part_text = |view: &Value, name: &str| -> Value {
         view["table"]["choice_parts"]
             .as_array()
             .unwrap()
             .iter()
-            .find(|p| p["part"] == "choice-commit-label")
+            .find(|p| p["part"] == name)
             .unwrap()["text"]
             .clone()
     };
-    assert_eq!(commit(&open), "Click an option to choose it");
+    assert_eq!(
+        part_text(&open, "choice-commit-label"),
+        "Click an option to choose it"
+    );
 
     // Hover: every listed option opens its briefing, unpinned, without changing the
     // match; none recommends a move.
@@ -4021,7 +4024,10 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
     let pass = app.observe();
     assert_eq!(pass["table"]["choice"]["pinned"], "pass");
     assert!(briefing(&pass).contains("RESULT: +1 Resource (0 → 1). 26July stays Eligible."));
-    assert_eq!(commit(&pass), "Pass · +1 Resource");
+    assert_eq!(
+        part_text(&pass, "choice-commit-label"),
+        "Pass · +1 Resource"
+    );
     app.capture("pass-pinned");
 
     // Terror pinned is the layout's 16:9 frame.
@@ -4029,13 +4035,18 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
     let pinned = app.observe();
     assert_eq!(pinned["table"]["briefing"]["option"], "terror");
     assert_eq!(pinned["table"]["briefing"]["pinned"], true);
-    assert_eq!(commit(&pinned), "Choose Terror");
+    assert_eq!(part_text(&pinned, "choice-commit-label"), "Choose Terror");
     compare(&pinned, &layout["parts"], &[0, 1, 2, 3]);
     compare(&pinned, &layout["stretched"], &[0, 1, 2]);
     compare(&pinned, &layout["text"], &[0, 1]);
     compare(&pinned, &layout["right_text"], &[1, 2]);
     compare(&pinned, &layout["centered_text"], &[1, 4]);
     let terror = briefing(&pinned);
+    // R 3.3.4 charges 26July one Resource per Terror space.
+    assert_eq!(
+        part_text(&pinned, "option:terror-value"),
+        "1 Resource per space"
+    );
     for fact in [
         "COST: 1 Resource per City or Province · 26July has 0.",
         "NEXT: Directorio, 2nd Eligible: Pass or a Limited Operation; after Kidnap, also card 17's Event",

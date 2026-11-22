@@ -501,7 +501,7 @@ pub(super) fn panel(
                     .split_once(" · ")
                     .map_or(String::new(), |(_, v)| v.to_owned())
             } else {
-                "1 Resource per space".into()
+                format!("{} per space", resources(crate::TERROR_COST))
             };
             let words = text(
                 commands,
@@ -1157,7 +1157,7 @@ pub(super) fn draw(
     for entry in &briefing.entries {
         let label = words(
             &mut commands,
-            entry.label,
+            &entry.label,
             left_x,
             y,
             width,

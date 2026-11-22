@@ -8,7 +8,9 @@
 //! no province and compute no space's result, which the map popover previews (#72).
 //! Pass keeps its exact numbers, from the rules authority's preview, since it involves
 //! no space. Current Resources come from the observation; the wording only places them.
-use crate::{CARD_17_SHADED, Choice, Faction, KidnapStakes, Observation, Preview, resources};
+use crate::{
+    CARD_17_SHADED, Choice, Faction, KidnapStakes, Observation, Preview, TERROR_COST, resources,
+};
 
 /// Value lines are broken by hand at this many characters, which the 420 px column
 /// holds at 15 px with margin (Lato averages about 6.5 px a character there), so each
@@ -21,7 +23,7 @@ pub(super) const RULES_CHARS: usize = 70;
 /// preview entry (#84). `chips` are in-task remedies, drawn as HF-A remedy chips.
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub(super) struct Entry {
-    pub label: &'static str,
+    pub label: String,
     pub text: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub chips: Vec<String>,
@@ -38,9 +40,9 @@ pub(super) struct Briefing {
     pub rules: String,
 }
 
-pub(super) fn entry(label: &'static str, text: impl Into<String>) -> Entry {
+pub(super) fn entry(label: impl Into<String>, text: impl Into<String>) -> Entry {
     Entry {
-        label,
+        label: label.into(),
         text: text.into(),
         chips: vec![],
     }
@@ -81,7 +83,7 @@ fn second_after_event(view: &Observation) -> String {
 fn pass(view: &Observation, m26: u8) -> Briefing {
     let preview: Option<&Preview> = listed(view, "pass").and_then(|c| c.preview.as_ref());
     let mut result = vec![];
-    let mut next = None;
+    let next = preview.and_then(|p| p.next.as_ref());
     if let Some(preview) = preview {
         for change in &preview.resources {
             let gained = change.to.saturating_sub(change.from);
@@ -103,14 +105,6 @@ fn pass(view: &Observation, m26: u8) -> Briefing {
         if preview.standings.is_empty() && preview.control.is_empty() {
             result.push("Standings and Control unchanged.".into());
         }
-        next = preview.next.as_ref().map(|n| {
-            format!(
-                "{} becomes {}: {}. The task ends there.",
-                n.faction.name(),
-                n.role,
-                either(&n.options)
-            )
-        });
     }
     let mut entries = vec![
         entry(
@@ -122,15 +116,27 @@ fn pass(view: &Observation, m26: u8) -> Briefing {
     if !result.is_empty() {
         entries.push(entry("RESULT", result.join(" ")));
     }
-    entries.extend(next.map(|next| entry("NEXT", next)));
+    let mut rules = "Rules: R 2.3.3, R 2.3.4.".to_owned();
+    if let Some(next) = next {
+        let faction = next.faction.name();
+        entries.push(entry(
+            "NEXT",
+            format!(
+                "{faction} becomes {}: {}. The task ends there.",
+                next.role,
+                either(&next.options)
+            ),
+        ));
+        rules.push_str(&format!(
+            " The task shows {faction}'s options without executing them."
+        ));
+    }
     Briefing {
         option: "pass".into(),
         title: "Pass".into(),
         rule: "R 2.3.3",
         entries,
-        rules:
-            "Rules: R 2.3.3, R 2.3.4. The task shows Directorio's options without executing them."
-                .into(),
+        rules,
     }
 }
 
@@ -147,7 +153,8 @@ fn terror(view: &Observation, m26: u8) -> Briefing {
             entry(
                 "COST",
                 format!(
-                    "1 Resource per City or Province · 26July has {m26}. While 26July executes Terror, Kidnap proceeds or a Resource transfer can add Resources."
+                    "{} per City or Province · 26July has {m26}. While 26July executes Terror, Kidnap proceeds or a Resource transfer can add Resources.",
+                    resources(TERROR_COST)
                 ),
             ),
             entry(
@@ -451,7 +458,7 @@ mod tests {
         assert_eq!(listed, OPTIONS);
         for option in OPTIONS {
             let b = content(&view, option).unwrap();
-            let labels: Vec<_> = b.entries.iter().map(|e| e.label).collect();
+            let labels: Vec<_> = b.entries.iter().map(|e| e.label.as_str()).collect();
             for label in ["PURPOSE", "COST", "NEXT"] {
                 assert!(labels.contains(&label), "{option}: {labels:?}");
             }
@@ -494,19 +501,21 @@ mod tests {
             get(&changed, "pass", "RESULT").contains("26July becomes Ineligible after this card."),
         );
         assert!(get(&changed, "pass", "NEXT").starts_with("Syndicate becomes 1st Eligible"));
+        assert!(
+            content(&changed, "pass")
+                .unwrap()
+                .rules
+                .contains("Syndicate's options")
+        );
         changed
             .choices
             .iter_mut()
             .find(|c| c.action() == "pass")
             .unwrap()
             .preview = None;
-        assert!(
-            content(&changed, "pass")
-                .unwrap()
-                .entries
-                .iter()
-                .all(|e| e.label != "NEXT")
-        );
+        let without_preview = content(&changed, "pass").unwrap();
+        assert!(without_preview.entries.iter().all(|e| e.label != "NEXT"));
+        assert!(!without_preview.rules.contains("Directorio"));
     }
 
     /// The owner's refinement: Operation briefings are general. They name no
