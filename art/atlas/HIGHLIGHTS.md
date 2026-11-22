@@ -56,7 +56,7 @@ The frames are A-P5 (a stack, with the quantity stepper), A-P7 (one piece) and A
 
 Every number is the authority's preview of the removal choice for the stepper's quantity; the stepper only chooses among the choices the authority lists, and Remove submits that choice through the checked interface.
 
-**Seat names:** a piece is `piece:<space> <faction> <Kind> <State>`, with `M26` for 26July and `Directorio` for Directorio. The popover's controls are `popover:quantity:minus`, `popover:quantity:plus`, `popover:commit` and `popover:cancel`. The panel's `<revision>:done-removal` leaves the mode. The seat reports `table.removal` (each group's state and choices, and the dimmed spaces), `table.markers` and `table.popover` (with `kind` and `piece`).
+The development-seat reference lists the removal mode and piece popover [components](../../docs/agents/seat.md#components), the [choices](../../docs/agents/seat.md#choices) they submit and [what the table reports](../../docs/agents/seat.md#what-the-table-reports).
 
 ## The space popover
 

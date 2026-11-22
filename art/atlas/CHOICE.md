@@ -12,13 +12,13 @@ The owner selected **AC-B, Briefing tag** in #68 ([selection on #58](https://git
 
 ## Briefing content
 
-The owner narrowed the briefings for #69. A briefing describes its option in general:
+The owner narrowed 26July's opening action briefings for #69. Each describes its option in general:
 - what is done in eligible spaces, and why a faction takes it;
 - its cost against current Resources;
 - what Directorio may do next;
 - the rule reference.
 
-It names no province and computes no space's result. The map popover previews those (#72). Pass keeps its exact numbers from the rules authority's preview, because it involves no space. Briefings state facts and never recommend a move. The content lives in `src/tabletop/briefing.rs`.
+26July's opening briefings name no province and compute no space's result. The map popover previews those (#72). Pass keeps its exact numbers from the rules authority's preview, because it involves no space. Briefings state facts and never recommend a move. The content lives in `src/tabletop/briefing.rs`.
 
 After Terror with Kidnap, #118 uses the same header, option rows, tag and button for Directorio's handoff. The header uses Directorio's emblem and the tag uses the selected Directorio plate from [VICTORY.md](VICTORY.md). The handoff fills the Pass row, two Event rows and the first Operation row. Both Event tags show the card text, why Kidnap opened the Event and the recorded Terror and Kidnap result. The shaded tag also lists the activations that will occur on resolution, or says when no Underground 26July Guerrillas remain.
 
