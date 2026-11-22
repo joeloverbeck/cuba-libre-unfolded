@@ -83,6 +83,57 @@ fn has_action(position: &Value, action: &str) -> bool {
 }
 
 #[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan"]
+fn native_shaded_panel_previews_multiple_spaces_and_no_flips() {
+    for remove_underground in [false, true] {
+        let (_socket, mut app) = event_app("shaded-preview-", "issue-117");
+        app.launch_size("3840x2160");
+        app.choose("terror");
+        app.choose("kidnap");
+        app.roll();
+        app.choose("terror:santiago");
+        if remove_underground {
+            app.choose("remove");
+            app.remove("santiago:underground", 1);
+            app.remove("oriente:underground", 1);
+            app.choose("done-removal");
+        }
+        app.choose("end-terror");
+        choose_rally_option(&mut app, "event:shaded");
+        let shown = app.observe();
+        let subtitle = choice_part(&shown, "choice-subtitle");
+        let text = subtitle["text"].as_str().unwrap();
+        if remove_underground {
+            assert!(
+                text.contains("No Underground 26July Guerrillas remain."),
+                "{text}"
+            );
+        } else {
+            for space in ["Santiago de Cuba", "Oriente"] {
+                assert!(
+                    text.contains(&format!("{space} · 1 Underground Guerrilla → Active")),
+                    "{text}"
+                );
+            }
+        }
+        let resolve = choice_part(&shown, "option:resolve-shaded");
+        assert!(subtitle["bounds"][3].as_f64().unwrap() <= resolve["bounds"][1].as_f64().unwrap());
+        app.capture("pending");
+        choose_rally_option(&mut app, "resolve-shaded");
+        let ended = app.observe();
+        let flips = ended["observation"]["event"]["Complete"]["Shaded"]["flips"]
+            .as_array()
+            .unwrap();
+        assert_eq!(flips.len(), if remove_underground { 0 } else { 2 });
+        assert_eq!(
+            ended["observation"]["eligibility"]["event_restriction"],
+            json!({"faction": "M26", "through_card": 18})
+        );
+        app.quit();
+    }
+}
+
+#[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained side decision captures"]
 fn native_shaded_execution_preserves_directorios_side_decisions() {
     let (_socket, mut app) = event_app("shaded-side-decisions-", "issue-121");
@@ -429,22 +480,24 @@ fn native_free_rally_can_choose_zero_in_a_qualifying_base_space() {
     );
     assert_eq!(available_guerrillas(&pending), 12);
 
+    let mut row_tops = Vec::new();
     for count in 0..=4 {
         let action = format!("rally:sierra-maestra:place:{count}");
         assert!(has_action(&pending, &action), "{action}");
         let label = format!("option:{action}-label");
+        let row = choice_part(&shown, &label);
         assert!(
-            shown["table"]["choice_parts"]
-                .as_array()
+            row["text"]
+                .as_str()
                 .unwrap()
-                .iter()
-                .any(|part| part["part"] == label
-                    && part["text"]
-                        .as_str()
-                        .unwrap()
-                        .contains(&format!("Place {count}"))),
-            "quantity {count} has no visible row"
+                .contains(&format!("Place {count}"))
         );
+        row_tops.push(row["bounds"][1].as_f64().unwrap());
+    }
+    // The selected Atlas within-section pitch is 97.2 frame units at 6144 wide.
+    // Native text bounds round to whole pixels on the 3840-wide owner display.
+    for pair in row_tops.windows(2) {
+        assert!(((pair[1] - pair[0]) - 60.75).abs() <= 1.0, "{row_tops:?}");
     }
     let place_zero = "rally:sierra-maestra:place:0";
     let preview = app.point(&format!("option:{place_zero}"));

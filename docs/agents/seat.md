@@ -225,6 +225,7 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
 - `native_transfer_modal_gives_asks_and_waits_for_the_giver`: evidence in `local/verification/issue-13/transfers-*`.
 - `native_kidnap_owed_terror_restart_and_next_permissions`: evidence in `local/verification/issue-14/terror-*`.
 - `native_resource_transfers_enable_both_orders_without_or_with_late_kidnap`: evidence in `local/verification/issue-14/donated-terror-*`.
+- `native_shaded_panel_previews_multiple_spaces_and_no_flips`: checks the pending panel and the resolved restriction with two affected spaces and with no Underground Guerrillas left.
 - `native_shaded_event_activates_26july_and_adjusts_card_end_eligibility`: preview, conserved forces, four eligibility reasons, restriction, restart and stale/duplicate refusal. Evidence in `local/verification/issue-119/shaded-event-*`.
 - `native_own_removal_restart_obligation_and_all_pieces_finish`: evidence in `local/verification/issue-15/removal-*`.
 - `native_hover_status_is_transient_without_region_inspection`: all ten city/province tags, three EC exclusions, piece/count hover, reader suppression, camera navigation, complete home framing, and Terror/removal updates. Evidence: `local/verification/issue-16/hover-status-*`.

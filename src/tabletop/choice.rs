@@ -301,6 +301,63 @@ fn panel_options(view: &Observation) -> impl Iterator<Item = &Choice> {
     })
 }
 
+/// Event choices have no section headings between rows.
+fn panel_rows(view: &Observation) -> impl Iterator<Item = (&Choice, f32)> {
+    let tops = if view.event.as_ref().is_some_and(EventProgress::pending) {
+        let within_section_pitch = fig::ROWS[2] - fig::ROWS[1];
+        std::array::from_fn(|i| fig::ROWS[0] + i as f32 * within_section_pitch)
+    } else {
+        fig::ROWS
+    };
+    panel_options(view).zip(tops)
+}
+
+fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool) -> String {
+    if let Some(preview) = view
+        .choices
+        .iter()
+        .find(|choice| choice.action() == "resolve-shaded")
+        .and_then(|choice| choice.preview.as_ref())
+    {
+        return format!(
+            "Pending · {}",
+            briefing::activation_lines(view, &preview.flips)
+        );
+    }
+    let position = match &view.event {
+        Some(EventProgress::ExecuteShaded) => "Alberto Bayo · Directorio executes (R 5.2)".into(),
+        Some(EventProgress::ChooseRallyBeneficiary) => {
+            "Alberto Bayo · Directorio chooses the beneficiary".into()
+        }
+        Some(EventProgress::Rally(rally)) => {
+            let places = rally
+                .remaining_spaces(&view.spaces)
+                .map(|space| space.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            if places.is_empty() {
+                "Directorio's Event · No qualifying Base spaces remain".into()
+            } else {
+                format!("Directorio's Event · {places} · 0 Resources (R 5.5)")
+            }
+        }
+        _ if directorio => "2nd Eligible on card 17 · Kidnap opened the Event (R 2.3.4)".into(),
+        _ => format!(
+            "1st Eligible on card 17 · 26July has {}",
+            resources(view.resources[Faction::M26.index()])
+        ),
+    };
+    let instruction = match &view.transfer {
+        Some(Transfer::Authorizing { giver, .. }) => {
+            format!("{} decides the Resource transfer", giver.name())
+        }
+        Some(Transfer::Selecting) => format!("{} composes the Resource transfer", executor.name()),
+        None if view.removal.is_some() => "Click a marked piece, or select Done".into(),
+        None => "Hover or focus an option for its briefing · click to pin it".into(),
+    };
+    format!("{position}\n{instruction}")
+}
+
 /// The action choice inside the operation panel: heading, every listed option and
 /// the commit. `offset` is the right-anchored letterbox offset.
 pub(super) fn panel(
@@ -352,41 +409,10 @@ pub(super) fn panel(
     commands.entity(heading).insert(TextColor(INK));
     part(commands, heading, "choice-heading");
     let [x, y, w] = fig::SUBTITLE;
-    let position = match &view.event {
-        Some(EventProgress::ExecuteShaded) => "Alberto Bayo · Directorio executes (R 5.2)".into(),
-        Some(EventProgress::ChooseRallyBeneficiary) => {
-            "Alberto Bayo · Directorio chooses the beneficiary".into()
-        }
-        Some(EventProgress::Rally(rally)) => {
-            let places = rally
-                .remaining_spaces(&view.spaces)
-                .map(|space| space.name.as_str())
-                .collect::<Vec<_>>()
-                .join(", ");
-            if places.is_empty() {
-                "Directorio's Event · No qualifying Base spaces remain".into()
-            } else {
-                format!("Directorio's Event · {places} · 0 Resources (R 5.5)")
-            }
-        }
-        _ if directorio => "2nd Eligible on card 17 · Kidnap opened the Event (R 2.3.4)".into(),
-        _ => format!(
-            "1st Eligible on card 17 · 26July has {}",
-            resources(view.resources[Faction::M26.index()])
-        ),
-    };
-    let instruction = match &view.transfer {
-        Some(Transfer::Authorizing { giver, .. }) => {
-            format!("{} decides the Resource transfer", giver.name())
-        }
-        Some(Transfer::Selecting) => format!("{} composes the Resource transfer", executor.name()),
-        None if view.removal.is_some() => "Click a marked piece, or select Done".into(),
-        None => "Hover or focus an option for its briefing · click to pin it".into(),
-    };
     let subtitle = text(
         commands,
         art,
-        Prose::named(format!("{position}\n{instruction}")),
+        Prose::named(panel_subtitle(view, executor, directorio)),
         rx(x),
         ry(y),
         rs(w),
@@ -436,7 +462,7 @@ pub(super) fn panel(
         );
         part(commands, label, name);
     }
-    for (choice, top) in panel_options(view).zip(fig::ROWS) {
+    for (choice, top) in panel_rows(view) {
         let act = choice.action();
         let name = format!("option:{act}");
         let (label, pill) = if directorio || event_pending {
@@ -1101,8 +1127,7 @@ pub(super) fn draw(
     // The active row's outline: an option at the action choice, or a step during
     // Terror (the step a mode holds open is outlined by the panel itself).
     let row = if choosing {
-        panel_options(&view)
-            .zip(fig::ROWS)
+        panel_rows(&view)
             .find(|(c, _)| c.action() == option)
             .map(|(_, top)| [fig::ROW_X, top, fig::ROW_W, fig::ROW_H])
     } else if super::execution::held(&view) == Some(option.as_str()) {

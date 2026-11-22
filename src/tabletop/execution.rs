@@ -1153,7 +1153,8 @@ pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)>
             entries.push(entry(
                 "EVENT RESTRICTION",
                 format!(
-                    "{} is also Ineligible through card {} (Alberto Bayo).",
+                    "Card {}, Alberto Bayo, keeps {} Ineligible through card {}, Pact of Caracas.",
+                    view.current_card,
                     restriction.faction.name(),
                     restriction.through_card
                 ),

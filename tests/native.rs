@@ -25,6 +25,15 @@ fn session_log_checks_the_level_field() {
     ));
 }
 
+fn choice_part<'a>(view: &'a Value, name: &str) -> &'a Value {
+    view["table"]["choice_parts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|part| part["part"] == name)
+        .unwrap_or_else(|| panic!("missing choice panel part: {name}"))
+}
+
 fn unexpected_record(line: &str) -> bool {
     let plain = anstream::adapter::strip_str(line).to_string();
     let mut fields = plain.split_whitespace();
@@ -259,6 +268,13 @@ fn native_shaded_event_activates_26july_and_adjusts_card_end_eligibility() {
     assert_eq!(committed["observation"]["finished"], true);
     assert!(committed["observation"]["eligibility"]["next_card"].is_null());
     assert!(committed["observation"]["eligibility"]["event_restriction"].is_null());
+    let subtitle = choice_part(&committed, "choice-subtitle")["text"]
+        .as_str()
+        .unwrap();
+    assert!(
+        subtitle.contains("Santiago de Cuba · 1 Underground Guerrilla → Active"),
+        "missing pending flip on the panel: {subtitle}"
+    );
     app.capture("shaded-chosen");
     app.activate("option:resolve-shaded", revision + 1);
     app.choose("resolve-shaded");
@@ -320,10 +336,9 @@ fn native_shaded_event_activates_26july_and_adjusts_card_end_eligibility() {
     ] {
         assert!(eligibility.contains(reason), "{eligibility}");
     }
-    assert!(
-        text("ended-value:EVENT RESTRICTION")
-            .contains("26July is also Ineligible through card 18 (Alberto Bayo).")
-    );
+    assert!(text("ended-value:EVENT RESTRICTION").contains(
+        "Card 17, Alberto Bayo, keeps 26July Ineligible through card 18, Pact of Caracas."
+    ));
     app.capture("card-end-eligibility");
     let saved_after = std::fs::read(&app.save).unwrap();
     app.request(commit.clone(), false);
