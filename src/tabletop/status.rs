@@ -107,6 +107,9 @@ pub(super) fn draw(
     labels: Query<(&SpaceTarget, &ComputedNode, &UiGlobalTransform)>,
     // An open space popover (#72): the tag stays visible beside it.
     cards: Query<(&ComputedNode, &UiGlobalTransform), With<super::popover::CardNode>>,
+    // The Sequence of Play track lies over the map's western margin; a tag
+    // must not hide it (#138: the taller tag moved Havana's over it).
+    track: Query<(&ComputedNode, &UiGlobalTransform), With<super::eligibility::Drawn>>,
     controls: Query<&Control>,
     parents: Query<&ChildOf>,
     roots: Query<Entity, With<Tag>>,
@@ -201,7 +204,7 @@ pub(super) fn draw(
                 occupied.push(r);
             }
         }
-        for (node, at) in &cards {
+        for (node, at) in cards.iter().chain(&track) {
             occupied.push(Rect::from_center_size(
                 at.translation * node.inverse_scale_factor,
                 node.size() * node.inverse_scale_factor,
