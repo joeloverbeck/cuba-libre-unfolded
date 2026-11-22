@@ -44,15 +44,34 @@ desktop_launch=$(awk '
         exit
     }
 ' README.md)
-expected_launch='cargo run --locked --features tabletop --bin cuba-libre --'
-expected_launch+=' --cards "$HOME/.local/share/cuba-libre-unfolded/cards"'
-expected_launch+=' --save "$HOME/.local/share/cuba-libre-unfolded/saves/task.json"'
-if [[ $desktop_launch != "$expected_launch" ]]; then
-  echo "README desktop launch: use the documented cards directory and save file after Cargo's --" >&2
-  echo "expected: $expected_launch" >&2
+check_desktop_launch_arguments() {
+  local command=$1
+  [[ $command == 'cargo run '*" -- "* ]] || return 1
+  local cargo_command=" ${command%% -- *} "
+  [[ $cargo_command == *' --bin cuba-libre '* && $cargo_command == *' --features tabletop '* ]] || return 1
+
+  # The example uses one shell word per path before variable expansion.
+  local -a args
+  read -r -a args <<<"${command#* -- }"
+  ((${#args[@]} == 4)) || return 1
+  if [[ ${args[0]} == --save ]]; then
+    args=("${args[2]}" "${args[3]}" "${args[0]}" "${args[1]}")
+  fi
+  [[ ${args[0]} == --cards && ${args[2]} == --save ]] || return 1
+  local card_directory=.local/share/cuba-libre-unfolded/cards
+  case ${args[1]} in
+    '"$HOME/'"$card_directory"'"'|'"${HOME}/'"$card_directory"'"'|'~/'"$card_directory") ;;
+    *) return 1 ;;
+  esac
+  case ${args[3]} in
+    --*|""|'""'|"''") return 1 ;;
+  esac
+}
+if ! check_desktop_launch_arguments "$desktop_launch"; then
+  echo "README desktop launch: run the tabletop binary with --cards ~/.local/share/cuba-libre-unfolded/cards and --save FILE after Cargo's --" >&2
   exit 1
 fi
-echo "README desktop launch: required arguments and paths match"
+echo "README desktop launch: required arguments and card directory match"
 # docs/agents/seat.md catalogues every native regression, one bullet per test (#91). A
 # `fn native_*` is a native regression by name; rename a helper rather than list it.
 # grep exits 1 on no match, which pipefail would turn into a silent failure here; an
