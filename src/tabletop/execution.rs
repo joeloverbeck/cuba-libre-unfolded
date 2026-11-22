@@ -738,13 +738,21 @@ fn pill(
     commands.entity(anchor).add_child(plate);
 }
 
-/// The panel's header: the 26July emblem, the heading and two subtitle lines.
-fn header(commands: &mut Commands, art: &Art, heading: &str, subtitle: &str, s: f32, o: Vec2) {
+/// The panel's header: the acting faction's emblem, heading and two subtitle lines.
+fn header(
+    commands: &mut Commands,
+    art: &Art,
+    faction: Faction,
+    heading: &str,
+    subtitle: &str,
+    s: f32,
+    o: Vec2,
+) {
     let [x, y, w, h] = acb::EMBLEM;
     let emblem = picture(
         commands,
         art,
-        &emblems::image(Faction::M26),
+        &emblems::image(faction),
         rect(x, y, w, h),
         s,
         o,
@@ -846,7 +854,7 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
             ),
         ),
     };
-    header(commands, art, &heading, &subtitle, s, o);
+    header(commands, art, Faction::M26, &heading, &subtitle, s, o);
     let steps = steps(view);
     let pinned = ui.choice.pinned.as_deref();
     for (i, (name, caps, top)) in fig::SECTIONS.iter().enumerate() {
@@ -1224,7 +1232,12 @@ fn ended(commands: &mut Commands, art: &Art, view: &Observation, s: f32, o: Vec2
     let Some((heading, subtitle, entries)) = ending(view) else {
         return;
     };
-    header(commands, art, &heading, &subtitle, s, o);
+    let faction = if view.eligibility.next_card.is_some() {
+        Faction::Directorio
+    } else {
+        Faction::M26
+    };
+    header(commands, art, faction, &heading, &subtitle, s, o);
     let mut y = fig::ENDED_TOP;
     for e in entries {
         let label = words(
