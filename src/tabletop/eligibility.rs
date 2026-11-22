@@ -774,14 +774,10 @@ pub(super) fn draw(
     let Some(game) = play.session.as_ref().map(Session::game) else {
         return;
     };
-    let slot = ui
-        .hover
-        .visible()
-        .filter(|_| !ui.reader)
-        .and_then(|t| match t {
-            Target::Sequence(slot) => Some(*slot),
-            _ => None,
-        });
+    let slot = ui.hover.visible().and_then(|t| match t {
+        Target::Sequence(slot) => Some(*slot),
+        _ => None,
+    });
     let key = (
         game.revision,
         slot,

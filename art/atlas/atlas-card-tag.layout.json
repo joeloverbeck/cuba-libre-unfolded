@@ -1,0 +1,61 @@
+{
+  "source": "atlas-card-tag.figcraft",
+  "note": "Each part's [x, y, width, height] relative to its frame (the tag's plate), read from FigCraft get_node. The frames are drawn at the owner's display, 3840x2160, which is the 1920x1280 reference x1.6875, as sheet T1 was. Image parts are compared on all four edges; text parts on left, top and right (line height is the renderer's). The frames' text is example content for the named state.",
+  "scale": 1.6875,
+  "frames": {
+    "current": {
+      "state": "card 17 current, Directorio's handoff after 26July's Terror with Kidnap",
+      "parts": {
+        "plate": [0, 0, 1250, 1090],
+        "mark": [940, 46, 270, 46],
+        "rule": [60, 120, 1150, 2],
+        "face": [60, 150, 620, 889],
+        "emblem-0": [720, 188, 52, 52],
+        "emblem-1": [784, 188, 52, 52],
+        "emblem-2": [848, 188, 52, 52],
+        "emblem-3": [912, 188, 52, 52]
+      },
+      "text": {
+        "title": [60, 34, 860, 65],
+        "mark-label": [940, 55, 270, 26],
+        "label-order": [720, 150, 490, 26],
+        "label-event": [720, 280, 490, 26],
+        "event": [720, 314, 490, 76],
+        "label-status": [720, 440, 490, 26],
+        "status": [720, 474, 490, 76],
+        "label-lasting": [720, 600, 490, 26],
+        "lasting": [720, 634, 490, 38],
+        "label-rules": [720, 722, 490, 26],
+        "rules": [720, 756, 490, 38],
+        "hint": [720, 1000, 490, 31]
+      }
+    },
+    "preview": {
+      "state": "card 18 preview, Directorio's handoff after 26July's Terror with Kidnap",
+      "parts": {
+        "plate": [0, 0, 1250, 1090],
+        "mark": [1020, 46, 190, 46],
+        "rule": [60, 120, 1150, 2],
+        "face": [60, 150, 620, 889],
+        "emblem-0": [720, 188, 52, 52],
+        "emblem-1": [784, 188, 52, 52],
+        "emblem-2": [848, 188, 52, 52],
+        "emblem-3": [912, 188, 52, 52]
+      },
+      "text": {
+        "title": [60, 34, 860, 65],
+        "mark-label": [1020, 55, 190, 26],
+        "label-order": [720, 150, 490, 26],
+        "label-event": [720, 280, 490, 26],
+        "event": [720, 314, 490, 76],
+        "label-status": [720, 440, 490, 26],
+        "status": [720, 474, 490, 76],
+        "label-lasting": [720, 600, 490, 26],
+        "lasting": [720, 634, 490, 76],
+        "label-rules": [720, 760, 490, 26],
+        "rules": [720, 794, 490, 38],
+        "hint": [720, 1000, 490, 31]
+      }
+    }
+  }
+}

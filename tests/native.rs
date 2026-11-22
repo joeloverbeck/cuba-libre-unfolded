@@ -12,6 +12,8 @@ mod assault;
 mod assault_side;
 #[path = "native/card_advance.rs"]
 mod card_advance;
+#[path = "native/card_tag.rs"]
+mod card_tag;
 #[path = "native/rally.rs"]
 mod rally;
 #[test]
@@ -813,13 +815,16 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
         app.capture("region-hover");
         app.point("standing:0");
         app.capture("victory-hover");
-        app.activate("reader", revision);
-        assert!(app.observe()["table"]["status"].is_null());
-        app.capture("reader");
-        app.activate("close", revision);
-        app.capture("after-reader");
+        // The card tag opens inside every window and leaves both cards visible (#139).
+        app.activate("card:current", revision);
+        let tag = app.observe();
+        assert_card_tag_placed(&tag, "card:current");
+        assert!(tag["table"]["status"].is_null());
+        app.capture("card-tag");
+        close_card_tag(&mut app);
+        app.capture("after-card-tag");
         let before_pixels = image::open(app.root.join("home.png")).unwrap().to_rgb8();
-        let after_pixels = image::open(app.root.join("after-reader.png"))
+        let after_pixels = image::open(app.root.join("after-card-tag.png"))
             .unwrap()
             .to_rgb8();
         let panel_corner = ((45. * scale) as u32, (970. * scale) as u32);
@@ -935,21 +940,17 @@ fn native_victory_emblems_disclose_live_margins_without_inspection() {
         }
         app.capture(&format!("victory-{index}"));
     }
-    assert!(app.point("reader")["table"]["victory"].is_null());
+    // One tag at a time: the card tag replaces the victory tag (#139).
+    assert!(app.point("card:current")["table"]["victory"].is_null());
     app.point("standing:0");
-    app.activate("reader", 0);
-    let reader = app.observe();
-    assert!(reader["table"]["victory"].is_null());
-    assert!(reader["table"]["standings"].as_array().unwrap().is_empty());
-    assert!(
-        !reader["table"]["controls"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|c| c["name"].as_str().unwrap().starts_with("standing:"))
-    );
-    app.capture("reader-without-score-panels");
-    app.activate("close", 0);
+    app.activate("card:current", 0);
+    let reading = app.observe();
+    assert!(reading["table"]["victory"].is_null());
+    assert_eq!(reading["table"]["card"]["shown"]["card"], "card:current");
+    // The standings stay shown while a card is read.
+    assert_eq!(reading["table"]["standings"].as_array().unwrap().len(), 4);
+    app.capture("card-tag-with-score-panels");
+    close_card_tag(&mut app);
     // Real authorized transfers and Terror grow the contribution list and
     // update both factions' margins without reopening a stale disclosure.
     for action in [
@@ -1282,8 +1283,9 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
     let refusal = app.refuse("end-terror");
     assert!(refusal.contains("owed"), "{refusal}");
     assert_eq!(std::fs::read(&app.save).unwrap(), saved_roll);
-    app.activate("reader", rev);
-    app.activate("close", rev);
+    // Reading a card changes nothing (#139).
+    app.activate("card:preview", rev);
+    close_card_tag(&mut app);
     assert_eq!(app.observe()["observation"], rolled["observation"]);
     app.choose("terror:santiago");
     let after = app.observe();
@@ -1688,7 +1690,8 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         assert_eq!(app.observe()["observation"]["revision"], 0);
     }
     app.capture("raised-ec-picking");
-    app.point("reader");
+    // Rest the pointer on interface chrome, off the map.
+    app.point("quit");
     let home = app.observe()["table"]["camera"].clone();
     for _ in 0..24 {
         app.request(json!({"op":"key","key":"ArrowLeft","revision":0}), true);
@@ -1709,15 +1712,12 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     );
     app.request(json!({"op":"key","key":"Home","revision":0}), true);
     assert_eq!(app.observe()["table"]["camera"], home);
-    app.activate("reader", 0);
+    // A pinned card tag leaves the standings shown (#139).
+    app.activate("card:current", 0);
     let reading = app.observe();
-    let standings = reading["table"]["standings"].as_array().unwrap();
-    assert!(standings.is_empty());
-    app.capture("reader");
-    let before = app.observe()["table"]["camera"].clone();
-    app.request(json!({"op":"key","key":"KeyW","revision":0}), true);
-    assert_eq!(app.observe()["table"]["camera"], before);
-    app.activate("close", 0);
+    assert_eq!(reading["table"]["standings"].as_array().unwrap().len(), 4);
+    app.capture("card-tag");
+    close_card_tag(&mut app);
     assert_eq!(
         std::fs::read(&app.save).unwrap(),
         original,
@@ -2209,10 +2209,7 @@ fn native_hover_status_is_transient_without_region_inspection() {
     app.capture("matanzas-hover");
     app.activate("space:matanzas", 0);
     assert_eq!(app.observe()["observation"]["revision"], 0);
-    app.request(
-        json!({"op":"point","revision":0,"component":"reader"}),
-        true,
-    );
+    app.request(json!({"op":"point","revision":0,"component":"quit"}), true);
     assert!(app.observe()["table"]["status"].is_null());
     // Independent prepared-position expectations from R1.6/1.7 and the
     // accepted tactical handoff, including mixed Control/opinion cases. The
@@ -2351,10 +2348,12 @@ fn native_hover_status_is_transient_without_region_inspection() {
             .unwrap();
         assert_eq!(app.point(target)["table"]["status"]["space"], "havana");
     }
-    app.activate("reader", 0);
+    // The card tag is a tag of its own: the region's closes when the pointer
+    // moves to a card (#139).
+    app.activate("card:current", 0);
     assert!(app.observe()["table"]["status"].is_null());
-    app.capture("reader-suppresses-status");
-    app.activate("close", 0);
+    app.capture("card-tag-over-map");
+    close_card_tag(&mut app);
     for key in ["ArrowLeft", "Equal", "Minus"] {
         for _ in 0..5 {
             app.request(json!({"op":"key","revision":0,"key":key}), true);
@@ -2783,12 +2782,18 @@ fn native_top_display_matches_layout_and_follows_the_economy() {
     assert_ne!(resources[0], "6", "a Kidnap roll takes at least 1");
     assert_eq!(ledger(&roll), resources);
     app.capture("after-kidnap");
+    // The top display is always shown, a card tag open or not (#139).
     let revision = roll["observation"]["revision"].as_u64().unwrap();
-    app.activate("reader", revision);
-    let reader = app.observe();
-    assert!(reader["table"]["top"].is_null());
-    assert!(reader["table"]["top_parts"].as_array().unwrap().is_empty());
-    app.capture("reader-without-title");
+    app.activate("card:current", revision);
+    let reading = app.observe();
+    assert!(reading["table"]["top"].is_null());
+    assert_eq!(
+        reading["table"]["top_parts"].as_array().unwrap().len(),
+        parts.len()
+    );
+    assert_eq!(ledger(&reading), resources);
+    app.capture("card-tag-with-top-display");
+    close_card_tag(&mut app);
     app.quit();
 }
 
@@ -2817,6 +2822,56 @@ fn assert_counts_follow_the_window(view: &Value, expected: Option<f64>, scale: f
         );
     }
     size
+}
+
+/// #139: the open card tag reads `slot`, lies inside the window, and leaves both cards
+/// visible: it overlaps neither card's thumbnail.
+fn assert_card_tag_placed(view: &Value, slot: &str) {
+    let card = &view["table"]["card"];
+    assert_eq!(card["shown"]["card"], slot, "{card}");
+    let plate = rect_of(&card["shown"]["bounds"]);
+    let viewport = view["table"]["viewport"].as_array().unwrap();
+    let (width, height) = (viewport[0].as_f64().unwrap(), viewport[1].as_f64().unwrap());
+    assert!(
+        plate[0] >= 0. && plate[1] >= 0. && plate[2] <= width && plate[3] <= height,
+        "the tag {plate:?} leaves the {width}x{height} window"
+    );
+    let thumbnails = card["cards"].as_array().unwrap();
+    assert_eq!(thumbnails.len(), 2, "{card}");
+    for thumbnail in thumbnails {
+        let bounds = rect_of(&thumbnail["bounds"]);
+        assert!(
+            plate[2] <= bounds[0]
+                || bounds[2] <= plate[0]
+                || plate[3] <= bounds[1]
+                || bounds[3] <= plate[1],
+            "the tag {plate:?} covers {thumbnail}"
+        );
+    }
+    for part in card["parts"].as_array().unwrap() {
+        let bounds = rect_of(&part["bounds"]);
+        assert!(
+            bounds[0] >= plate[0] - 0.5
+                && bounds[1] >= plate[1] - 0.5
+                && bounds[2] <= plate[2] + 0.5
+                && bounds[3] <= plate[3] + 0.5,
+            "{part} leaves the plate {plate:?}"
+        );
+    }
+}
+
+/// Escape closes the open card tag; nothing in the match changes.
+fn close_card_tag(app: &mut Native) {
+    let before = app.observe();
+    let revision = before["observation"]["revision"].as_u64().unwrap();
+    app.request(json!({"op":"key","revision":revision,"key":"Escape"}), true);
+    let after = app.request(json!({"op":"settle"}), true);
+    assert!(
+        after["table"]["card"]["shown"].is_null(),
+        "{}",
+        after["table"]["card"]
+    );
+    assert_eq!(app.observe()["observation"], before["observation"]);
 }
 
 fn rect_of(value: &Value) -> [f64; 4] {
@@ -3159,24 +3214,6 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         );
         app.capture("kidnap");
 
-        // The reader's Eligibility line.
-        let revision = kidnap["observation"]["revision"].as_u64().unwrap();
-        app.activate("reader", revision);
-        let reader = app.observe();
-        checked += assert_inline_emblems(&reader);
-        assert!(
-            reader["table"]["inline_text"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|t| t["text"]
-                    .as_str()
-                    .unwrap()
-                    .contains("Eligible: Government, 26July")
-                    && t["emblems"].as_array().unwrap().len() >= 4)
-        );
-        app.capture("reader");
-        app.activate("close", revision);
         app.quit();
 
         // Pass, on a fresh save: its notice and Directorio's options name factions by emblem.
@@ -5529,7 +5566,7 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
             }
         }
         // The tag dismisses like the other hover tags when the pointer leaves.
-        let away = app.point("reader");
+        let away = app.point("quit");
         assert!(away["table"]["eligibility"]["tag"].is_null());
         assert_eq!(app.observe()["table"]["eligibility"]["tag"], Value::Null);
     };

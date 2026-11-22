@@ -191,7 +191,6 @@ pub(super) fn setup(
 pub(super) fn markers(
     mut commands: Commands,
     targeting: Res<Targeting>,
-    ui: Res<Interface>,
     art: Option<Res<Markers>>,
     pieces: Query<(&OwnPiece, &Transform)>,
     placed: Query<Entity, With<Marker>>,
@@ -201,7 +200,7 @@ pub(super) fn markers(
         return;
     };
     let mut wanted = vec![];
-    if let Some(removal) = targeting.removal.as_ref().filter(|_| !ui.reader) {
+    if let Some(removal) = targeting.removal.as_ref() {
         for target in &removal.pieces {
             let key = format!("{}:{}", target.space, target.group);
             let Some((piece, at)) = pieces.iter().find(|(p, _)| p.key == key) else {
@@ -246,17 +245,12 @@ pub(super) fn markers(
     *previous = wanted;
 }
 
-pub(super) fn show(
-    targeting: Res<Targeting>,
-    ui: Res<Interface>,
-    mut decals: Query<(&Decal, &mut Visibility)>,
-) {
+pub(super) fn show(targeting: Res<Targeting>, mut decals: Query<(&Decal, &mut Visibility)>) {
     for (decal, mut visibility) in &mut decals {
-        let shown = !ui.reader
-            && decal
-                .spaces
-                .iter()
-                .all(|space| targeting.shown(space) == Some(decal.state));
+        let shown = decal
+            .spaces
+            .iter()
+            .all(|space| targeting.shown(space) == Some(decal.state));
         visibility.set_if_neq(if shown {
             Visibility::Inherited
         } else {
