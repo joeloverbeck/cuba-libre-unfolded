@@ -235,14 +235,20 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
     match choice {
         Some(c) if c.supported => Commit {
             label: match c.action() {
-                // The gain the authority previews: +1, or less at the 49 cap.
-                "pass" => c
+                // The gain the authority previews, possibly zero at the cap.
+                "pass" | "government:pass" => c
                     .preview
                     .iter()
                     .flat_map(|p| &p.resources)
                     .map(|r| format!("Pass · +{}", resources(r.to.saturating_sub(r.from))))
                     .next()
-                    .unwrap_or_else(|| "Pass".into()),
+                    .unwrap_or_else(|| {
+                        if c.preview.is_some() {
+                            format!("Pass · +{}", resources(0))
+                        } else {
+                            "Pass".into()
+                        }
+                    }),
                 "terror" => "Choose Terror".into(),
                 "event:shaded" => "Choose shaded Event".into(),
                 "event:unshaded" => "Choose unshaded Event".into(),
@@ -303,7 +309,7 @@ fn panel_options(view: &Observation) -> impl Iterator<Item = &Choice> {
     })
 }
 
-/// Event execution and Government's opening use the rows without section headings.
+/// Event execution and the card 18 decisions use rows without section headings.
 fn panel_rows(view: &Observation) -> impl Iterator<Item = (&Choice, f32)> {
     let tops = if view.current_card == 18 || view.event.as_ref().is_some_and(EventProgress::pending)
     {
@@ -317,7 +323,22 @@ fn panel_rows(view: &Observation) -> impl Iterator<Item = (&Choice, f32)> {
 
 fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool) -> String {
     if view.current_card == 18 {
-        let balance = resources(view.resources[Faction::Government.index()]);
+        let balance = resources(view.resources[view.owner.index()]);
+        if let Some(next) = &view.next {
+            let result = view
+                .recorded_resources
+                .iter()
+                .find(|change| change.faction == Faction::Government)
+                .map_or_else(String::new, |change| {
+                    format!(
+                        "\nGovernment Passed · +{} ({} → {})",
+                        resources(change.to - change.from),
+                        change.from,
+                        change.to
+                    )
+                });
+            return format!("{} on card 18 · {balance}{result}", next.role);
+        }
         let eligibility = if view.eligibility.event_restriction.is_some() {
             "Shaded Event keeps 26July Ineligible through card 18"
         } else {
@@ -385,7 +406,7 @@ pub(super) fn panel(
 ) {
     let directorio = view.eligibility.directorio_handoff();
     let event_pending = view.event.as_ref().is_some_and(EventProgress::pending);
-    let government_opening = view.current_card == 18;
+    let card_18 = view.current_card == 18;
     let executor = view.executing.unwrap_or(view.owner);
     let part = |commands: &mut Commands, entity: Entity, name: &str| {
         commands.entity(entity).insert(Part(name.into()));
@@ -403,7 +424,7 @@ pub(super) fn panel(
     part(commands, emblem, "choice-heading-emblem");
     let [x, y, w] = fig::HEADING;
     let title = match &view.event {
-        _ if government_opening => "Government's decision".into(),
+        _ if card_18 => format!("{}'s decision", view.owner.name()),
         _ if view.removal.is_some() => format!("{} · Voluntary removal", executor.name()),
         Some(EventProgress::ExecuteShaded) => "Directorio · Shaded Event".into(),
         Some(EventProgress::ChooseRallyBeneficiary) => "Choose who Rallies".into(),
@@ -451,7 +472,7 @@ pub(super) fn panel(
     part(commands, subtitle, "choice-subtitle");
     for (name, top, words) in fig::SECTIONS
         .into_iter()
-        .filter(|_| !event_pending && !government_opening)
+        .filter(|_| !event_pending && !card_18)
     {
         let words = if directorio && name == "section:operations" {
             "OPERATIONS"
@@ -485,7 +506,9 @@ pub(super) fn panel(
     for (choice, top) in panel_rows(view) {
         let act = choice.action();
         let name = format!("option:{act}");
-        let (label, pill) = if government_opening {
+        let (label, pill) = if act == "government:pass" {
+            ("Pass", None)
+        } else if card_18 {
             (
                 choice.label.as_str(),
                 (!choice.supported).then_some("INSPECT"),
@@ -618,9 +641,9 @@ pub(super) fn panel(
                 None,
             );
             part(commands, words, &format!("pill:{act}-label"));
-        } else if matches!(act, "pass" | "terror") {
+        } else if matches!(act, "pass" | "government:pass" | "terror") {
             // Pass shows its gain from the game's own label; Terror its unit cost.
-            let value = if act == "pass" {
+            let value = if matches!(act, "pass" | "government:pass") {
                 choice
                     .label
                     .split_once(" · ")

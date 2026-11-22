@@ -1508,7 +1508,9 @@ pub(super) fn previewed(
             let faction = preview
                 .next
                 .as_ref()
-                .map_or(view.eligibility.second, |n| n.faction);
+                .map(|n| n.faction)
+                .or(view.eligibility.second)
+                .expect("card 17 has a 2nd Eligible faction");
             entries.push(entry(event_heading(faction), note.clone()));
             continue;
         } else if note.starts_with("No Terror resolved") {
@@ -2182,7 +2184,7 @@ mod tests {
         assert_eq!(entries[3].label, "NO EVENT");
         // The next faction is the authority's, not the first Eligible one that is not
         // 26July: changing the Eligibility record changes nothing here.
-        view.eligibility.second = Faction::Government;
+        view.eligibility.second = Some(Faction::Government);
         let (_, _, entries) = ending(&view).unwrap();
         assert!(
             entries[2]
@@ -2237,7 +2239,7 @@ mod tests {
         let mut view = game.observe();
         // Kidnap has yet to end the Operation. Its preview still knows which
         // faction is 2nd Eligible, through the current eligibility record.
-        view.eligibility.second = Faction::Syndicate;
+        view.eligibility.second = Some(Faction::Syndicate);
         let kidnap = tag(&view, "kidnap").unwrap();
         assert!(
             kidnap

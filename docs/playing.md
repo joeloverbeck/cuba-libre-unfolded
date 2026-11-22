@@ -90,7 +90,9 @@ At the completed Alberto Bayo result, inspect the board, the Event effects and e
 
 Government is 1st Eligible and Syndicate is 2nd Eligible. Both skipped an Operation or Event on card 17. Terror and the Event made 26July and Directorio Ineligible. On the shaded branch, Alberto Bayo expressly keeps 26July Ineligible through card 18.
 
-Hover or focus Government's options to see what the rules allow and why a choice is unavailable. The briefing shows the cost at the current US Alliance level, Government's balance and the income it would receive from Pass. This build reaches and saves that opening decision for inspection.
+Hover or focus Government's options to see what the rules allow and why a choice is unavailable. Pin **Pass** to review the current balance, the 3-Resource income and the balance after the 49-Resource cap. Select the **Pass** button to commit. Government's marker moves to the Pass box, and the next decision shows the actual payment.
+
+Syndicate takes over as 1st Eligible on Pact of Caracas. Inspect its Pass, Event, Operations and Special Activities. The build stops at this decision.
 
 ## Camera and keys
 

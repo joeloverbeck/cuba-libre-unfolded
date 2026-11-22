@@ -67,18 +67,24 @@ fn either(options: &[String]) -> String {
 const NOT_IN_TASK: &str =
     "Not in this task: listed so the option set is complete. It cannot be chosen here.";
 
+fn card_17_second(view: &Observation) -> Faction {
+    view.eligibility
+        .second
+        .expect("card 17 has a 2nd Eligible faction")
+}
+
 /// What the 2nd Eligible faction may do once 26July's action is recorded (R 2.3.4).
 fn second_after_operation(view: &Observation) -> String {
     format!(
         "{}, 2nd Eligible: Pass or a Limited Operation; with a Special Activity, also card 17's Event (R 2.3.4).",
-        view.eligibility.second.name()
+        card_17_second(view).name()
     )
 }
 
 fn second_after_event(view: &Observation) -> String {
     format!(
         "{}, 2nd Eligible: Pass, or an Operation with a Special Activity if desired (R 2.3.4).",
-        view.eligibility.second.name()
+        card_17_second(view).name()
     )
 }
 
@@ -167,7 +173,7 @@ fn terror(view: &Observation, m26: u8) -> Briefing {
                 "NEXT",
                 format!(
                     "{}, 2nd Eligible: Pass or a Limited Operation; after Kidnap, also card 17's Event (R 2.3.4).",
-                    view.eligibility.second.name()
+                    card_17_second(view).name()
                 ),
             ),
         ],
@@ -248,7 +254,7 @@ fn kidnap(view: &Observation, m26: u8) -> Briefing {
             "NEXT",
             format!(
                 "{} may then also take card 17's Event (R 2.3.4, 5.2). Shaded: {CARD_17_SHADED}",
-                view.eligibility.second.name()
+                card_17_second(view).name()
             ),
         ),
     ];
@@ -379,6 +385,21 @@ pub(super) fn activation_lines(view: &Observation, flips: &[Flip]) -> String {
 pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
     if view.current_card == 18 {
         let choice = listed(view, option)?;
+        if view.passed[Faction::Government.index()] {
+            return Some(Briefing {
+                option: option.into(),
+                title: choice.label.clone(),
+                rule: "R 2.3.3–4",
+                entries: vec![
+                    entry("OPTION", &choice.explanation),
+                    entry(
+                        "WHY SYNDICATE IS FIRST",
+                        "Government Passed. Syndicate is the next Eligible faction in card order and inherits the 1st Eligible options.",
+                    ),
+                ],
+                rules: String::new(),
+            });
+        }
         let role = if view.eligibility.event_restriction.is_some() {
             "26July is Ineligible through card 18 under the shaded Event. Directorio executed the Event."
         } else {
@@ -386,7 +407,11 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
         };
         return Some(Briefing {
             option: option.into(),
-            title: choice.label.clone(),
+            title: if option == "government:pass" {
+                "Pass".into()
+            } else {
+                choice.label.clone()
+            },
             rule: "R 2.3.1–4",
             entries: vec![
                 entry("OPTION", &choice.explanation),
