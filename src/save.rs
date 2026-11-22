@@ -132,6 +132,15 @@ impl Session {
         candidate
             .submit(owner, revision, choice)
             .map_err(anyhow::Error::msg)?;
+        for step in candidate.assault_exit().map_err(anyhow::Error::msg)? {
+            let payload = serde_json::to_value(&step)?;
+            let bytes = save::seal(&Cuba.identity(&step), &payload);
+            if bytes.len() as u64 > LIMIT {
+                return Err(anyhow!(
+                    "Save exceeds its size limit; finish the Assault before adding more decisions; original file preserved"
+                ));
+            }
+        }
         self.persist(&candidate)?;
         self.game = candidate;
         Ok(())

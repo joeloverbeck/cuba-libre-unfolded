@@ -11,31 +11,91 @@ const ENEMIES: [Faction; 3] = [Faction::M26, Faction::Directorio, Faction::Syndi
 #[serde(deny_unknown_fields)]
 pub(super) struct Assault {
     start: AssaultStart,
-    actions: Vec<String>,
+    actions: RecordedChoices,
     /// Choices in completed menu loops. Older records retain every choice.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    skipped_choices: Option<u64>,
+    #[serde(default, alias = "skipped_choices", skip_serializing_if = "is_zero")]
+    omitted: u64,
     resolution: Option<AssaultResolution>,
     pub(super) finished: bool,
     #[serde(default)]
     browse: Browse,
 }
 
+fn is_zero(count: &u64) -> bool {
+    *count == 0
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged)]
+enum RecordedChoices {
+    Legacy(Vec<String>),
+    Packed(
+        #[serde(serialize_with = "write_choices", deserialize_with = "read_choices")] Vec<String>,
+    ),
+}
+
+impl RecordedChoices {
+    fn choices(&self) -> &[String] {
+        match self {
+            Self::Legacy(choices) | Self::Packed(choices) => choices,
+        }
+    }
+}
+
+// Choice IDs contain no pipe. The one-byte exit token for a removal menu also
+// leaves room to close it on a legacy record already at the byte limit.
+fn write_choices<S: serde::Serializer>(
+    choices: &[String],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    let tokens: Vec<_> = choices
+        .iter()
+        .map(|choice| {
+            if choice == "done-removal" {
+                "!"
+            } else {
+                choice
+            }
+        })
+        .collect();
+    serializer.serialize_str(&tokens.join("|"))
+}
+
+fn read_choices<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<String>, D::Error> {
+    let packed = String::deserialize(deserializer)?;
+    if packed.is_empty() {
+        return Ok(vec![]);
+    }
+    Ok(packed
+        .split('|')
+        .map(|token| if token == "!" { "done-removal" } else { token }.to_owned())
+        .collect())
+}
+
 impl Assault {
     fn record_action(&mut self, action: &str) {
-        if self.skipped_choices.is_none() {
-            self.skipped_choices = Some(0);
-            for earlier in std::mem::take(&mut self.actions) {
+        if let RecordedChoices::Legacy(choices) = &mut self.actions {
+            let choices = std::mem::take(choices);
+            self.actions = RecordedChoices::Packed(vec![]);
+            for earlier in choices {
                 self.retain_action(earlier);
             }
         }
-        self.retain_action(action.into());
+        // A packed record already represents Finish with its finished flag.
+        if action != FINISH {
+            self.retain_action(action.into());
+        }
     }
 
     /// Drop closed loops that return to the same decision, including waits that
     /// have been reopened. Keep open menus and every committed effect in order.
     fn retain_action(&mut self, action: String) {
-        let remove = match (action.as_str(), self.actions.as_slice()) {
+        let RecordedChoices::Packed(actions) = &mut self.actions else {
+            unreachable!("convert legacy choices before recording");
+        };
+        let remove = match (action.as_str(), actions.as_slice()) {
             (BACK, [.., open])
                 if open.starts_with("assault:areas:") || open.starts_with("assault:space:") =>
             {
@@ -62,10 +122,10 @@ impl Assault {
             _ => 0,
         };
         if remove == 0 {
-            self.actions.push(action);
+            actions.push(action);
         } else {
-            self.actions.truncate(self.actions.len() - remove);
-            *self.skipped_choices.as_mut().unwrap() += remove as u64 + 1;
+            actions.truncate(actions.len() - remove);
+            self.omitted += remove as u64 + 1;
         }
     }
 }
@@ -435,6 +495,29 @@ impl Game {
         self.assault.as_ref().is_some_and(|op| op.finished)
     }
 
+    /// The saved choices needed to leave any open menu and finish the Operation.
+    pub(crate) fn assault_exit(&self) -> Result<Vec<Self>, String> {
+        let Some(assault) = self.assault.as_ref().filter(|op| !op.finished) else {
+            return Ok(vec![]);
+        };
+        let steps: &[&str] = match (&self.transfer, &self.removal, &assault.browse) {
+            (Some(Transfer::Selecting), ..) => &["back", FINISH],
+            (Some(Transfer::Authorizing { .. }), ..) => &["decline", FINISH],
+            (_, Some(_), _) => &["done-removal", FINISH],
+            (_, _, Browse::Targets(_)) => &[BACK, BACK, FINISH],
+            (_, _, Browse::Spaces(_)) => &[BACK, FINISH],
+            (_, _, Browse::Areas) => &[FINISH],
+        };
+        let mut exit = self.clone();
+        steps
+            .iter()
+            .map(|step| {
+                exit.apply(step)?;
+                Ok(exit.clone())
+            })
+            .collect()
+    }
+
     pub(super) fn assault_opening(&self) -> Choice {
         let alliance = UsAlliance::Firm;
         let balance = self.resources[Faction::Government.index()];
@@ -476,12 +559,17 @@ impl Game {
 
     fn assault_browse_choices(&self) -> Vec<Choice> {
         let assault = self.assault.as_ref().unwrap();
-        let unselected = |space: &&Space| {
-            !assault
+        let paid: Vec<_> = if assault.resolution.is_some() {
+            assault
                 .actions
+                .choices()
                 .iter()
-                .any(|action| payment_action(action) == Some(&space.id))
+                .filter_map(|action| payment_action(action))
+                .collect()
+        } else {
+            vec![]
         };
+        let unselected = |space: &&Space| !paid.contains(&space.id.as_str());
         let balance = self.resources[Faction::Government.index()];
         let cost = UsAlliance::Firm.coin_cost();
         let funded = balance >= cost;
@@ -619,8 +707,8 @@ impl Game {
                         pieces: self.spaces.iter().map(|s| s.pieces.clone()).collect(),
                         available: self.available.clone(),
                     },
-                    actions: vec![],
-                    skipped_choices: Some(0),
+                    actions: RecordedChoices::Packed(vec![]),
+                    omitted: 0,
                     resolution: None,
                     finished: false,
                     browse: Browse::Areas,
@@ -726,15 +814,18 @@ impl Game {
 
     pub(super) fn validate_assault(&self, assault: &Assault) -> Result<(), String> {
         let start = &assault.start;
-        let skipped = assault.skipped_choices.unwrap_or(0);
+        let choices = assault.actions.choices();
+        let legacy_log = matches!(assault.actions, RecordedChoices::Legacy(_));
+        let implicit_finish = assault.finished && !legacy_log;
         if !self.card_18
             || start.pieces.len() != self.spaces.len()
-            || skipped == 1
+            || assault.omitted == 1
             || start
                 .revision
                 .checked_add(1)
-                .and_then(|rev| rev.checked_add(assault.actions.len() as u64))
-                .and_then(|rev| rev.checked_add(skipped))
+                .and_then(|rev| rev.checked_add(choices.len() as u64))
+                .and_then(|rev| rev.checked_add(u64::from(implicit_finish)))
+                .and_then(|rev| rev.checked_add(assault.omitted))
                 != Some(self.revision)
         {
             return Err("Unsupported Assault history.".into());
@@ -751,7 +842,7 @@ impl Game {
         }
         before.validate()?;
         before.apply(OPEN)?;
-        for (index, action) in assault.actions.iter().enumerate() {
+        for (index, action) in choices.iter().enumerate() {
             // The Santiago-only build committed directly from the initial menu.
             let legacy = index == 0 && action == LEGACY_SANTIAGO;
             if legacy {
@@ -774,19 +865,22 @@ impl Game {
                     .detail = None;
             }
         }
+        if implicit_finish {
+            before.apply(FINISH)?;
+        }
+        // From Areas, opening and cancelling a transfer takes two choices.
+        // Opening, asking for zero and declining takes three. Any omitted
+        // count of two or more has a witness without changing the position.
+        // Card 18 changes only the match revision for these choices.
+        before.revision += assault.omitted;
         let replay = before.assault.as_mut().unwrap();
-        if assault.skipped_choices.is_some() {
-            // From Areas, opening and cancelling a transfer takes two choices.
-            // Opening, asking for zero and declining takes three. Any skipped
-            // count of two or more has a witness without changing the position.
-            // Card 18 changes only the match revision for these choices.
-            before.revision += skipped;
-            *replay.skipped_choices.as_mut().unwrap() += skipped;
-        } else {
+        if legacy_log {
             // Check every legacy choice without accumulating menu loops in the
             // replay. Preserve the admitted record until the player acts again.
             replay.actions.clone_from(&assault.actions);
-            replay.skipped_choices = None;
+            replay.omitted = assault.omitted;
+        } else {
+            replay.omitted += assault.omitted;
         }
         if before != *self {
             return Err("Unsupported Assault state.".into());

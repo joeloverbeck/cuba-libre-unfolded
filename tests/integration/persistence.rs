@@ -349,7 +349,7 @@ fn assault_can_resume_and_finish_at_the_legacy_save_size_limit() {
     let mut legacy: serde_json::Value =
         serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
     let assault = legacy["payload"]["assault"].as_object_mut().unwrap();
-    assault.remove("skipped_choices");
+    assault.remove("omitted");
     let city = "assault:areas:cities";
     let province = "assault:areas:provinces";
     let back = "assault:back";
@@ -437,7 +437,7 @@ fn assault_menu_loops_preserve_revision_and_the_live_giver_decision() {
     assert_eq!(resumed.resources, opening.resources);
     assert_eq!(resumed.spaces, opening.spaces);
     assert_eq!(resumed.available, opening.available);
-    assert!(serde_json::to_vec(&game).unwrap().len() <= opening_bytes + 12);
+    assert!(serde_json::to_vec(&game).unwrap().len() <= opening_bytes + 32);
 
     for action in ["transfer", "ask:1:1", "wait"] {
         choose(&mut game, action);
@@ -474,10 +474,123 @@ fn assault_menu_loops_preserve_revision_and_the_live_giver_decision() {
     assert_eq!(reloaded.observe().owner, Faction::Syndicate);
 
     // A one-choice gap cannot leave a settled menu unchanged.
-    saved["assault"]["skipped_choices"] = 1.into();
+    saved["assault"]["omitted"] = 1.into();
     saved["revision"] = (opening.revision + 4).into();
     let forged: Game = serde_json::from_value(saved).unwrap();
     assert!(forged.validate().is_err());
+}
+
+#[test]
+fn full_committed_transfer_history_keeps_each_assault_exit_writable() {
+    const LIMIT: usize = 256 * 1024;
+    let dir = tempfile::tempdir().unwrap();
+    let opening_path = dir.path().join("opening.json");
+    let mut session = Session::open(&opening_path, None).unwrap();
+    for action in ["terror", "kidnap", "kidnap:roll", "terror:santiago"] {
+        act(&mut session, action);
+    }
+    if session.observe().resources[0] == 0 {
+        act(&mut session, "transfer");
+        act(&mut session, "give:0:1");
+    }
+    for action in [
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:assault",
+    ] {
+        act(&mut session, action);
+    }
+    let balances = session.observe().resources;
+    let round = ["transfer", "give:3:1", "transfer", "ask:3:1", "authorize:1"];
+    for action in round {
+        act(&mut session, action);
+    }
+    assert_eq!(session.observe().resources, balances);
+    drop(session);
+    let round_text = round.join("|") + "|";
+
+    for (name, prep, exit) in [
+        ("areas", &[][..], &["end-assault"][..]),
+        (
+            "giver",
+            &["transfer", "ask:3:2", "wait"],
+            &["decline", "end-assault"],
+        ),
+        (
+            "removal",
+            &["remove", "remove:santiago:troops:1"],
+            &["done-removal", "end-assault"],
+        ),
+    ] {
+        let path = dir.path().join(format!("{name}.json"));
+        std::fs::copy(&opening_path, &path).unwrap();
+        std::fs::copy(previous_path(&opening_path), previous_path(&path)).unwrap();
+        let mut session = Session::open(&path, None).unwrap();
+        for action in prep {
+            act(&mut session, action);
+        }
+        let position = session.observe();
+        drop(session);
+
+        // Each round moves one Resource in each direction via the actual giver.
+        // Prebuild repeatable history at the size limit without thousands of writes.
+        let saved = std::fs::read(&path).unwrap();
+        let mut record: serde_json::Value = serde_json::from_slice(&saved).unwrap();
+        let tail = record["payload"]["assault"]["actions"]
+            .as_str()
+            .unwrap()
+            .to_owned();
+        let rounds = (LIMIT - saved.len() - 16) / round_text.len();
+        record["payload"]["revision"] = (position.revision + (rounds * round.len()) as u64).into();
+        record["payload"]["assault"]["actions"] = (round_text.repeat(rounds) + &tail).into();
+        let spare = LIMIT - reseal(&record).len();
+        let wider_request = round_text.replace("ask:3:1|", "ask:3:10|");
+        record["payload"]["assault"]["actions"] =
+            (wider_request.repeat(spare) + &round_text.repeat(rounds - spare) + &tail).into();
+        let bytes = reseal(&record);
+        assert_eq!(bytes.len(), LIMIT);
+        std::fs::write(&path, &bytes).unwrap();
+
+        let mut resumed = Session::open(&path, None).unwrap();
+        let pending = resumed.observe();
+        assert_eq!(pending.resources, balances);
+        assert_eq!(pending.removal, position.removal);
+        assert_eq!(pending.transfer, position.transfer);
+        assert_eq!(pending.owner, position.owner);
+        assert_eq!(pending.spaces, position.spaces);
+        assert_eq!(pending.available, position.available);
+        if name == "areas" {
+            let previous = std::fs::read(previous_path(&path)).unwrap();
+            let refusal = resumed
+                .submit(
+                    pending.owner,
+                    pending.revision,
+                    &format!("{}:transfer", pending.revision),
+                )
+                .unwrap_err();
+            assert!(refusal.to_string().contains("Save exceeds its size limit"));
+            assert_eq!(resumed.observe(), pending);
+            assert_eq!(std::fs::read(&path).unwrap(), bytes);
+            assert_eq!(std::fs::read(previous_path(&path)).unwrap(), previous);
+        }
+        for action in exit {
+            let predecessor = std::fs::read(&path).unwrap();
+            act(&mut resumed, action);
+            assert_eq!(std::fs::read(previous_path(&path)).unwrap(), predecessor);
+            let committed = resumed.observe();
+            drop(resumed);
+            resumed = Session::open(&path, None).unwrap();
+            assert_eq!(resumed.observe(), committed);
+        }
+        let finished = resumed.observe();
+        assert_eq!(finished.revision, pending.revision + exit.len() as u64);
+        assert_eq!(finished.resources, balances);
+        assert_eq!(finished.spaces, position.spaces);
+        assert_eq!(finished.available, position.available);
+        assert_eq!(finished.owner, Faction::Syndicate);
+    }
 }
 
 #[test]
@@ -512,7 +625,7 @@ fn santiago_only_legacy_payment_survives_compaction_and_recovery() {
     legacy["payload"]["revision"] = (paid.revision - 2).into();
     let assault = legacy["payload"]["assault"].as_object_mut().unwrap();
     assault.remove("browse");
-    assault.remove("skipped_choices");
+    assault.remove("omitted");
     assault.insert(
         "actions".into(),
         serde_json::json!(["assault:santiago:26july"]),
