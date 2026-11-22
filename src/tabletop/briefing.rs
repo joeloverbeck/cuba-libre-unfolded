@@ -379,6 +379,36 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
     if view.eligibility.directorio_handoff() {
         return directorio(view, option);
     }
+    if view
+        .event
+        .as_ref()
+        .is_some_and(crate::EventProgress::rally_pending)
+    {
+        let choice = listed(view, option)?;
+        let choosing_beneficiary = matches!(
+            view.event,
+            Some(crate::EventProgress::ChooseRallyBeneficiary)
+        );
+        let (rule, label) = if choosing_beneficiary {
+            ("R 5.1", "QUALIFYING BASE SPACES")
+        } else {
+            ("R 3.3.1, 5.5", "PLACEMENT AND COST")
+        };
+        let mut entries = vec![entry(label, &choice.explanation)];
+        let mut rules = String::new();
+        if let Some(preview) = &choice.preview {
+            let (effects, notes) = super::execution::previewed(view, option, preview);
+            entries.extend(effects);
+            rules = notes.join(" ");
+        }
+        return Some(Briefing {
+            option: option.into(),
+            title: choice.label.clone(),
+            rule,
+            entries,
+            rules,
+        });
+    }
     let m26 = view.resources[Faction::M26.index()];
     let per_space = format!("1 Resource per space · 26July has {m26}.");
     let free = format!("No Resource beyond its Operation · 26July has {m26}.");

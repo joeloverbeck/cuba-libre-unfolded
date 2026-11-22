@@ -22,6 +22,8 @@ It names no province and computes no space's result. The map popover previews th
 
 After Terror with Kidnap, #118 uses the same header, option rows, tag and button for Directorio's handoff. The header uses Directorio's emblem and the tag uses the selected Directorio plate from [VICTORY.md](VICTORY.md). The handoff fills the Pass row, two Event rows and the first Operation row. Its Event tags show the card text, why Kidnap opened it and the recorded Terror and Kidnap result.
 
+Alberto Bayo’s unshaded text reuses the option rows for Directorio’s beneficiary choice and the beneficiary’s Rally procedures. The header emblem and briefing plate follow the faction making the decision. The same briefing tag shows the Base spaces or the Rally procedure’s placement arithmetic and cost.
+
 ## Files
 
 - **Layout source:** `atlas-action-choice.figcraft`, copied from the #64 proposal's AC-B frames. It keeps the `Atlas` colour variables and the `Choice/*`, `Briefing/*` and `Tag/*` text styles, and has three frames:

@@ -18,7 +18,7 @@ use super::briefing::{self, Briefing};
 use super::emblems::{self, Naming};
 use super::palette::{INK, PAPER, QUIET};
 use super::*;
-use crate::{ActionChoice, Observation, resources};
+use crate::{ActionChoice, EventProgress, Observation, rally_spaces, resources};
 use bevy::text::{Justify, LetterSpacing, LineHeight};
 
 /// Node coordinates in the FigCraft 16:9 frame, `art/atlas/atlas-action-choice.figcraft`.
@@ -245,7 +245,8 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                     .unwrap_or_else(|| "Pass".into()),
                 "terror" => "Choose Terror".into(),
                 "event:shaded" => "Execute shaded Event".into(),
-                other => listing(other).0.into(),
+                "event:unshaded" => "Choose unshaded Event".into(),
+                _ => c.label.clone(),
             },
             action: Action::Commit(c.owner, view.revision),
             name: c.id.clone(),
@@ -253,10 +254,7 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
         },
         Some(c) => {
             let label = if view.eligibility.directorio_handoff() {
-                match c.action() {
-                    "event:unshaded" | "event:shaded" => "Event preview only".into(),
-                    _ => format!("{} is outside this task", c.label),
-                }
+                format!("{} is outside this task", c.label)
             } else if c.action() == "terror:kidnap" {
                 "Kidnap is offered once Terror is chosen".into()
             } else {
@@ -302,6 +300,10 @@ pub(super) fn panel(
     o: Vec2,
 ) {
     let directorio = view.eligibility.directorio_handoff();
+    let rally_pending = view
+        .event
+        .as_ref()
+        .is_some_and(EventProgress::rally_pending);
     let part = |commands: &mut Commands, entity: Entity, name: &str| {
         commands.entity(entity).insert(Part(name.into()));
     };
@@ -317,14 +319,16 @@ pub(super) fn panel(
     );
     part(commands, emblem, "choice-heading-emblem");
     let [x, y, w] = fig::HEADING;
+    let title = match &view.event {
+        Some(EventProgress::ChooseRallyBeneficiary) => "Choose who Rallies".into(),
+        Some(EventProgress::Rally(rally)) => format!("{} · Free Rally", rally.beneficiary.name()),
+        _ if directorio => "Directorio's options".into(),
+        _ => "Choose 26July's action".into(),
+    };
     let heading = text(
         commands,
         art,
-        Prose::named(if directorio {
-            "Directorio's options"
-        } else {
-            "Choose 26July's action"
-        }),
+        Prose::named(title),
         rx(x),
         ry(y),
         rs(w),
@@ -336,13 +340,23 @@ pub(super) fn panel(
     commands.entity(heading).insert(TextColor(INK));
     part(commands, heading, "choice-heading");
     let [x, y, w] = fig::SUBTITLE;
-    let position = if directorio {
-        "2nd Eligible on card 17 · Kidnap opened the Event (R 2.3.4)".into()
-    } else {
-        format!(
+    let position = match &view.event {
+        Some(EventProgress::ChooseRallyBeneficiary) => {
+            "Alberto Bayo · Directorio chooses the beneficiary".into()
+        }
+        Some(EventProgress::Rally(rally)) => {
+            let places = rally_spaces(&view.spaces, rally.beneficiary)
+                .filter(|space| !rally.resolutions.iter().any(|step| step.space == space.id))
+                .map(|space| space.name.as_str())
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("{places} · 0 Resources (R 5.5)")
+        }
+        _ if directorio => "2nd Eligible on card 17 · Kidnap opened the Event (R 2.3.4)".into(),
+        _ => format!(
             "1st Eligible on card 17 · 26July has {}",
             resources(view.resources[Faction::M26.index()])
-        )
+        ),
     };
     let subtitle = text(
         commands,
@@ -369,7 +383,7 @@ pub(super) fn panel(
         Some(rs(fig::SUBTITLE_LINE) * s),
     );
     part(commands, subtitle, "choice-subtitle");
-    for (name, top, words) in fig::SECTIONS {
+    for (name, top, words) in fig::SECTIONS.into_iter().filter(|_| !rally_pending) {
         let words = if directorio && name == "section:operations" {
             "OPERATIONS"
         } else {
@@ -402,12 +416,8 @@ pub(super) fn panel(
     for (choice, top) in view.choices.iter().zip(fig::ROWS) {
         let act = choice.action();
         let name = format!("option:{act}");
-        let (label, pill) = if directorio {
-            let status = match act {
-                _ if choice.supported => None,
-                "event:unshaded" | "event:shaded" => Some("PREVIEW"),
-                _ => Some("NOT IN THIS TASK"),
-            };
+        let (label, pill) = if directorio || rally_pending {
+            let status = (!choice.supported).then_some("NOT IN THIS TASK");
             (choice.label.as_str(), status)
         } else {
             listing(act)
@@ -710,7 +720,13 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
 /// Enter does to it.
 fn focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> {
     match view.action {
-        _ if view.action == ActionChoice::Open || view.eligibility.directorio_handoff() => {
+        _ if view.action == ActionChoice::Open
+            || view.eligibility.directorio_handoff()
+            || view
+                .event
+                .as_ref()
+                .is_some_and(EventProgress::rally_pending) =>
+        {
             let commit = commit(view, ui.choice.pinned.as_deref());
             view.choices
                 .iter()
@@ -845,6 +861,13 @@ fn wanted(game: &Game, ui: &Interface, popover: bool) -> Option<(String, bool, b
     let (prefix, ribbon) = match game.action {
         ActionChoice::Open => ("option:", false),
         ActionChoice::Terror if game.eligibility().directorio_handoff() => ("option:", false),
+        _ if game
+            .event
+            .as_ref()
+            .is_some_and(EventProgress::rally_pending) =>
+        {
+            ("option:", false)
+        }
         _ if game.finished => return None,
         ActionChoice::Terror if ui.choice.ribbon => {
             return Some((ui.choice.tab().to_owned(), true, true));
@@ -1027,7 +1050,12 @@ pub(super) fn draw(
     };
     let view = game.observe();
     let directorio = view.eligibility.directorio_handoff();
-    let choosing = view.action == ActionChoice::Open || directorio;
+    let choosing = view.action == ActionChoice::Open
+        || directorio
+        || view
+            .event
+            .as_ref()
+            .is_some_and(EventProgress::rally_pending);
     let content = if tabs || choosing {
         briefing::content(&view, &option)
     } else {
@@ -1255,7 +1283,7 @@ pub(super) fn draw(
         y += fig::RULES_LINE * lines.len() as f32 + fig::PAD[2];
     }
     let height = y - fig::PANEL[1];
-    let faction = if directorio { view.owner } else { Faction::M26 };
+    let faction = if choosing { view.owner } else { Faction::M26 };
     let plate = picture(
         &mut commands,
         &art,

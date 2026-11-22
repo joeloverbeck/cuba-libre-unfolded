@@ -68,6 +68,14 @@ Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfe
 
 Supply, Control, standings and legal choices update at once; earlier Terror, support shifts and Kidnap results stay. While Santiago Terror is owed, its last Underground Guerrilla is locked ([local policy](local-rule-policies.md#owed-terror-after-an-early-kidnap)). Other factions cannot remove their pieces in this Operation.
 
+## Directorio’s unshaded Event
+
+Select **Event · unshaded** and commit it to open Directorio’s beneficiary choice. Inspect **Grant Rally to 26July** and **Grant Rally to Directorio** to see each faction’s Base spaces. The choice belongs to Directorio. The chosen faction then directs the Rally.
+
+Inspect and pin a Rally option before committing it. Its preview shows the placement ceiling from Bases and population, the limit from Available Forces, and the zero Resource cost. A qualifying space counts as Neutral for the Rally. Its actual Support or Opposition stays in place. If the beneficiary has no qualifying Base, the Event ends without placing pieces.
+
+You can save and resume while the Rally is pending. After the last required effect, the panel reports the result and each faction’s eligibility for card 18. The table stops at that adjustment.
+
 ## Camera and keys
 
 | Input | Effect |

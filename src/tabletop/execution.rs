@@ -808,7 +808,12 @@ pub(super) fn panel(
     o: Vec2,
 ) {
     picture(commands, art, "atlas-panel.png", PANEL, s, o, 2);
-    if view.eligibility.directorio_handoff() {
+    if view.eligibility.directorio_handoff()
+        || view
+            .event
+            .as_ref()
+            .is_some_and(crate::EventProgress::rally_pending)
+    {
         return choice::panel(commands, art, view, ui, s, o);
     }
     if view.finished {
@@ -1092,6 +1097,31 @@ pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)>
                 "SHADED EVENT · ACTIVATIONS",
                 briefing::activation_lines(view, flips),
             ),
+            crate::EventOutcome::Unshaded(rally) => {
+                let effects = if rally.resolutions.is_empty() {
+                    "No qualifying Base spaces. No Rally effect (R 5.1.3).".into()
+                } else {
+                    rally
+                        .resolutions
+                        .iter()
+                        .map(|step| {
+                            format!(
+                                "{} · {}.",
+                                space_name(view, &step.space),
+                                step.action.description()
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                };
+                entry(
+                    "UNSHADED EVENT · FREE RALLY",
+                    format!(
+                        "{} · 0 Resources. The free Rally adds no eligibility penalty (R 5.5).\n{effects}",
+                        rally.beneficiary.name()
+                    ),
+                )
+            }
         }];
         let reasons = results
             .into_iter()
@@ -1282,7 +1312,11 @@ fn reason(explanation: &str) -> String {
 
 /// A preview's lines under their labels: the authority's computed changes, then its
 /// notes. Notes that cite a rule's procedure become the tag's rules line.
-fn previewed(view: &Observation, action: &str, preview: &Preview) -> (Vec<Entry>, Vec<String>) {
+pub(super) fn previewed(
+    view: &Observation,
+    action: &str,
+    preview: &Preview,
+) -> (Vec<Entry>, Vec<String>) {
     let mut entries = vec![];
     let mut rules = vec![];
     let name = |id: &str| space_name(view, id).to_owned();

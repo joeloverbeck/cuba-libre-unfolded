@@ -1230,6 +1230,13 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
             None => "Terror ended. Saved.".into(),
         },
         "event:shaded" => "Shaded Event resolved. Eligibility for card 18 recorded. Saved.".into(),
+        "event:unshaded" => "Directorio chooses who will Rally. Saved.".into(),
+        _ if action.starts_with("rally:") => match &after.event {
+            Some(crate::EventProgress::Rally(rally)) => {
+                format!("{} directs the free Rally. Saved.", rally.beneficiary.name())
+            }
+            _ => "Unshaded Event resolved. Eligibility for card 18 recorded. Saved.".into(),
+        },
         _ => "Decision saved.".into(),
     }
 }
@@ -1636,6 +1643,8 @@ fn draw_ui(
             &art,
             if view.eligibility.next_card.is_some() {
                 "17 Alberto Bayo — Event resolved"
+            } else if view.event.is_some() {
+                "17 Alberto Bayo — Event in progress"
             } else if view.eligibility.directorio_handoff() {
                 "17 Alberto Bayo — current; Event open to Directorio"
             } else {

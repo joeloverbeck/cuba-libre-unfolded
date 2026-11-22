@@ -2,6 +2,11 @@
 use serde::{Deserialize, Serialize};
 use unfolded_random::SeededRandom;
 
+mod rally;
+#[cfg(feature = "tabletop")]
+pub(crate) use rally::rally_spaces;
+pub use rally::{Rally, RallyAction, RallyResolution};
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Faction {
     Government,
@@ -264,19 +269,27 @@ pub const CARD_17_ORDER: [Faction; 4] = [
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum EventProgress {
+    ChooseRallyBeneficiary,
+    Rally(Rally),
     Complete(EventOutcome),
 }
 impl EventProgress {
     pub fn outcome(&self) -> Option<&EventOutcome> {
         match self {
             Self::Complete(outcome) => Some(outcome),
+            _ => None,
         }
+    }
+    #[cfg(feature = "tabletop")]
+    pub(crate) fn rally_pending(&self) -> bool {
+        matches!(self, Self::ChooseRallyBeneficiary | Self::Rally(_))
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum EventOutcome {
     Shaded { flips: Vec<Flip> },
+    Unshaded(Rally),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -468,9 +481,8 @@ pub struct Observation {
     pub owner: Faction,
     /// 26July's action choice: open, Pass or Terror.
     pub action: ActionChoice,
-    /// The faction executing an Operation now (glossary): 26July from choosing Terror
-    /// until End Terror; none at the action choice or after Pass. Resource transfers are
-    /// offered only while it is set (R 1.5.1).
+    /// The faction executing the current Operation or Event. During the free Rally it
+    /// is the faction directing the Operation granted by Directorio's Event (R 5.1).
     pub executing: Option<Faction>,
     pub eligibility: Eligibility,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -984,6 +996,10 @@ impl Game {
                 .collect(),
             next: self.next(),
             operation: match self.action {
+                _ if matches!(self.event, Some(EventProgress::ChooseRallyBeneficiary)) => {
+                    "Directorio chooses the Rally beneficiary"
+                }
+                _ if matches!(self.event, Some(EventProgress::Rally(_))) => "executing free Rally",
                 _ if self
                     .event
                     .as_ref()
@@ -1098,7 +1114,12 @@ impl Game {
         let steps = match action {
             "kidnap" | "kidnap:roll" => return Some(self.kidnap_stakes(action)),
             "pass" | "end-terror" | "event:shaded" => vec![action],
-            _ if action.starts_with("terror:") || choice.removal().is_some() => vec![action],
+            _ if action.starts_with("terror:")
+                || matches!(self.event, Some(EventProgress::Rally(_)))
+                || choice.removal().is_some() =>
+            {
+                vec![action]
+            }
             _ => return None,
         };
         let mut after = self.clone();
@@ -1217,10 +1238,12 @@ impl Game {
             }
         }
         if after.finished {
-            let e = after.eligibility();
-            preview.records = e.m26_box;
-            preview.m26_next_card = e.m26_next_card;
-            preview.next = after.next();
+            if !action.starts_with("rally:") {
+                let e = after.eligibility();
+                preview.records = e.m26_box;
+                preview.m26_next_card = e.m26_next_card;
+                preview.next = after.next();
+            }
         } else {
             // Compare the Operation menus, so removal mode's own menu does not count:
             // a removal leaves the mode open, but what it changes is what the
@@ -1282,6 +1305,8 @@ impl Game {
         } else if action == "event:shaded" {
             notes.push(CARD_17_SHADED.into());
             notes.push("The Event costs 0 Resources. After eligibility is adjusted (R 2.3.7), card 18 stays in preview.".into());
+        } else if action.starts_with("rally:") {
+            notes.push("The free Rally adds no eligibility penalty (R 5.5).".into());
         } else if action.starts_with("terror:") {
             notes.push(format!("R 3.3.4: pay 1 Resource, {TERROR_EFFECTS}."));
         } else if action.ends_with(":1") {
@@ -1351,7 +1376,11 @@ impl Game {
         preview
     }
     fn executing(&self) -> Option<Faction> {
-        (self.action == ActionChoice::Terror && !self.finished).then_some(Faction::M26)
+        match &self.event {
+            Some(EventProgress::ChooseRallyBeneficiary) => Some(Faction::Directorio),
+            Some(EventProgress::Rally(rally)) => Some(rally.beneficiary),
+            _ => (self.action == ActionChoice::Terror && !self.finished).then_some(Faction::M26),
+        }
     }
     pub(crate) fn eligibility(&self) -> Eligibility {
         let passed = self.action == ActionChoice::Pass;
@@ -1527,13 +1556,15 @@ impl Game {
             })
             .collect()
     }
-    /// Who decides now: the giver of a pending authorization, Directorio once 26July's
-    /// action is recorded, otherwise 26July.
+    /// Who decides now: the giver of a pending authorization, the faction directing
+    /// a free Rally, or the faction whose card action is open.
     fn owner(&self) -> Faction {
-        if self.finished {
-            Faction::Directorio
-        } else if let Some(Transfer::Authorizing { giver, .. }) = self.transfer {
+        if let Some(Transfer::Authorizing { giver, .. }) = self.transfer {
             giver
+        } else if let Some(EventProgress::Rally(rally)) = &self.event {
+            rally.beneficiary
+        } else if self.finished {
+            Faction::Directorio
         } else {
             Faction::M26
         }
@@ -1638,7 +1669,7 @@ impl Game {
             (
                 "event:unshaded",
                 "Event · unshaded",
-                "Available for preview in this build.",
+                "Directorio chooses the beneficiary. That faction directs the Rally, at no Resource cost (R 5.1, 5.5).",
             ),
             (
                 "event:shaded",
@@ -1652,15 +1683,16 @@ impl Game {
             ),
         ]
         .into_iter()
-        .map(|(id, label, explanation)| self.offer(id, label, id == "event:shaded", explanation))
+        .map(|(id, label, explanation)| self.offer(id, label, id.starts_with("event:"), explanation))
         .collect()
     }
     fn choices(&self) -> Vec<Choice> {
         if self.finished {
-            return if self.eligibility().directorio_handoff() {
-                self.directorio_choices()
-            } else {
-                vec![]
+            return match &self.event {
+                Some(EventProgress::ChooseRallyBeneficiary) => self.rally_beneficiary_choices(),
+                Some(EventProgress::Rally(rally)) => self.rally_choices(rally),
+                None if self.eligibility().directorio_handoff() => self.directorio_choices(),
+                _ => vec![],
             };
         }
         if self.action == ActionChoice::Open {
@@ -2110,6 +2142,13 @@ impl Game {
                 self.transfer = None;
             }
             "event:shaded" => self.execute_shaded_event(),
+            "event:unshaded" => self.event = Some(EventProgress::ChooseRallyBeneficiary),
+            _ if matches!(self.event, Some(EventProgress::ChooseRallyBeneficiary)) => {
+                self.select_rally_beneficiary(action)?;
+            }
+            _ if let Some(EventProgress::Rally(rally)) = &self.event => {
+                self.resolve_rally(rally.clone(), action)?;
+            }
             _ => return self.execute(action, next_revision),
         }
         self.revision = next_revision;
@@ -2340,10 +2379,16 @@ impl Game {
         }
         self.event = Some(EventProgress::Complete(EventOutcome::Shaded { flips }));
     }
-    /// Admit only the prepared board at the action choice, after Pass, or with Terror
-    /// chosen: transfers, two Terror effects, Kidnap and own removal.
+    /// Admit the prepared card-17 task after only the supported decisions and effects.
     pub fn validate(&self) -> Result<(), String> {
         let shaded = match &self.event {
+            Some(EventProgress::ChooseRallyBeneficiary) => return self.validate_unshaded(None),
+            Some(
+                EventProgress::Rally(rally)
+                | EventProgress::Complete(EventOutcome::Unshaded(rally)),
+            ) => {
+                return self.validate_unshaded(Some(rally));
+            }
             Some(EventProgress::Complete(EventOutcome::Shaded { flips })) => {
                 if !self.finished
                     || self.action != ActionChoice::Terror
