@@ -335,7 +335,7 @@ fn capacity(space: &Space) -> (u8, String) {
         Terrain::Mountain => (
             troops / 2,
             format!(
-                "{troops} Troops ÷ 2 = {} in Mountain (round down); {police} Police do not count",
+                "{troops} Troops ÷ 2 = {} in Mountain (round down). {police} Police do not count",
                 troops / 2
             ),
         ),
@@ -347,7 +347,7 @@ fn capacity(space: &Space) -> (u8, String) {
             };
             (
                 troops,
-                format!("{troops} Troops = {troops} in {name}; {police} Police do not count"),
+                format!("{troops} Troops = {troops} in {name}. {police} Police do not count"),
             )
         }
     };
@@ -441,7 +441,13 @@ impl Game {
                 )).collect();
                 let result = assault.resolution.as_ref().map_or_else(
                     || "No spaces selected. A zero-space Assault costs nothing and earns no Pass Resources (local policy).".into(),
-                    |result| format!("{} paid {}. {} left.", result.space_name(), resources(result.paid), resources(balance)),
+                    |result| format!(
+                        "{} · paid {}. {}. Government has {} left.",
+                        result.space_name(),
+                        resources(result.paid),
+                        result.removal_summary(),
+                        resources(balance),
+                    ),
                 );
                 choices.push(self.offer(FINISH, "Finish Assault", true, format!(
                     "{result} Finish to record Operation Only and give Syndicate Pass or Limited Operation as 2nd Eligible (R 2.3.4)."

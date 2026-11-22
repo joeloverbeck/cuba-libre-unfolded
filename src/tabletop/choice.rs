@@ -262,7 +262,9 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
             enabled: true,
         },
         Some(c) => {
-            let label = if view.current_card == 18 {
+            let label = if crate::Game::assault_payment_space(c.action()).is_some() {
+                format!("Cannot pay {}", resources(view.alliance.coin_cost()))
+            } else if view.current_card == 18 {
                 "Inspection only".into()
             } else if view.eligibility.directorio_handoff() {
                 format!("{} is outside this task", c.label)
