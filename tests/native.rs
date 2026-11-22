@@ -5,6 +5,36 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+#[test]
+fn session_log_rejects_the_historical_dither_warning() {
+    let line = "\x1b[2m2026-11-17T08:00:15.950912Z\x1b[0m \x1b[33m WARN\x1b[0m \x1b[2mbevy_core_pipeline::tonemapping\x1b[0m\x1b[2m:\x1b[0m Camera 406v0 has `Tonemapping::None` with `DebandDither::Enabled`, so dithering has no effect. Use `Tonemapping::Linear` to keep dithering, or set `DebandDither::Disabled`.";
+    assert!(unexpected_record(line));
+}
+
+#[test]
+fn session_log_checks_the_level_field() {
+    assert!(unexpected_record(
+        "2026-11-17T08:00:15Z ERROR renderer: failed"
+    ));
+    assert!(unexpected_record("WARN renderer: failed"));
+    assert!(!unexpected_record(
+        "2026-11-17T08:00:15Z INFO renderer: ERROR count is zero"
+    ));
+}
+
+fn unexpected_record(line: &str) -> bool {
+    let plain = anstream::adapter::strip_str(line).to_string();
+    let mut fields = plain.split_whitespace();
+    let first = fields.next();
+    // Bevy tracing records start with an ISO timestamp followed by their level.
+    let level = if first.is_some_and(|field| field.ends_with('Z') && field.contains('T')) {
+        fields.next()
+    } else {
+        first
+    };
+    matches!(level, Some("WARN" | "ERROR"))
+}
+
 struct Native {
     root: PathBuf,
     cards: PathBuf,
@@ -238,7 +268,49 @@ impl Native {
         advanced
     }
     fn quit(&mut self) {
+        use rustix::{
+            event::{PollFd, PollFlags, Timespec, poll},
+            fs::inotify::{self, CreateFlags, WatchFlags},
+        };
+
+        let mut runtime = self.socket.as_os_str().to_owned();
+        runtime.push(".log");
+        let retained = self.root.join(format!("{:03}-quit-runtime.log", self.step));
+        // The detached process can still write after replying to quit. Wait for its
+        // stderr to close before copying, even when recovery started the session.
+        let close = inotify::init(CreateFlags::CLOEXEC).unwrap();
+        inotify::add_watch(&close, Path::new(&runtime), WatchFlags::CLOSE_WRITE).unwrap();
         self.request(json!({"op":"quit"}), true);
+        let timeout = Timespec {
+            tv_sec: 30,
+            tv_nsec: 0,
+        };
+        let mut pending = [PollFd::new(&close, PollFlags::IN)];
+        assert_eq!(
+            poll(&mut pending, Some(&timeout)).unwrap(),
+            1,
+            "seat stderr still open at shutdown: {}",
+            retained.display()
+        );
+        let mut buffer = [std::mem::MaybeUninit::uninit(); 128];
+        let mut events = inotify::Reader::new(&close, &mut buffer);
+        assert!(
+            events
+                .next()
+                .unwrap()
+                .events()
+                .contains(inotify::ReadFlags::CLOSE_WRITE)
+        );
+        std::fs::copy(runtime, &retained).unwrap();
+        let bytes = std::fs::read(&retained).unwrap();
+        for (index, line) in String::from_utf8_lossy(&bytes).lines().enumerate() {
+            assert!(
+                !unexpected_record(line),
+                "{}:{}: {line}",
+                retained.display(),
+                index + 1
+            );
+        }
     }
 }
 /// A step of the EX-A execution panel, which commits only after its row is pinned.
