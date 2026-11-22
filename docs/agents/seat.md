@@ -117,7 +117,7 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `popover:commit` | Space or piece popover | Commits. |
 | `popover:quantity:minus`, `popover:quantity:plus` | Piece popover | Steps the quantity. |
 | `popover:cancel` | Piece popover | Cancels. |
-| `own-piece:<space>:<group>` | Removal mode | Opens a 26July piece's popover. The seat reaches it as `piece:<space> M26 <Kind> <State>`. |
+| `own-piece:<space>:<group>` | Removal mode | Opens an executing faction's piece popover. The seat reaches it as `piece:<space> <faction> <Kind> <State>`, with `M26` for 26July and `Directorio` for Directorio. |
 
 [`art/atlas/EXECUTION.md`](../../art/atlas/EXECUTION.md) lists every name in the execution panel.
 
@@ -133,7 +133,7 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:event:unshaded` | Listed for inspection at 26July's opening decision and at Directorio's handoff after Kidnap. |
 | `<revision>:directorio:pass`, `<revision>:directorio:limited-operation` | Directorio's other legal options after Kidnap. Read their briefings for what they do and the build limits. |
 | `<revision>:rally:beneficiary:26july`, `<revision>:rally:beneficiary:directorio` | Directorio chooses the beneficiary of Alberto Bayo’s unshaded Rally. |
-| `<revision>:rally:sierra-maestra:place:1`, `<revision>:rally:sierra-maestra:place:2`, `<revision>:rally:sierra-maestra:place:3`, `<revision>:rally:sierra-maestra:place:4` | 26July chooses the Guerrillas to place Underground in Sierra Maestra when its Base qualifies. The offered quantities follow the inherited board and Available Forces. |
+| `<revision>:rally:sierra-maestra:place:0`, `<revision>:rally:sierra-maestra:place:1`, `<revision>:rally:sierra-maestra:place:2`, `<revision>:rally:sierra-maestra:place:3`, `<revision>:rally:sierra-maestra:place:4` | 26July chooses how many Guerrillas to place Underground in Sierra Maestra when its Base qualifies. The offered quantities range from 0 to the ceiling the board and Available Forces allow. |
 | `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so 26July's option set is complete; unsupported, with the reason in `explanation`. |
 | `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap` | Execution steps during Terror. |
 | `<revision>:transfer`, `<revision>:remove` | Opens a Resource transfer or voluntary removal during Terror, Directorio's Event choices or the free Rally. |
@@ -153,6 +153,8 @@ The observation reports `event_executor` for the faction carrying out Alberto Ba
 `executing` for the current play window and `owner` for the current decision. During 26July's
 free Rally, those are Directorio, 26July and 26July until a Resource request passes the
 decision to its giver.
+
+`observation.finished` records the end of 26July's first action on card 17. Inspect `observation.eligibility.next_card` for the completed Event's card-end adjustment.
 
 ### Example: a Resource transfer
 
@@ -190,6 +192,7 @@ Drawn-part names:
 ## Native regressions
 
 - `native_free_rally_hands_the_decision_to_the_beneficiary`: verifies the handoff, Sierra Maestra’s ceiling and zero cost, pending and completed save admission, stale and duplicate refusals, and the eligibility adjustment. Set `CUBA_TEST_RALLY_SAVE` to the retained revision-9 save pinned for #117 to exercise its exact old record. Otherwise the test plays to the handoff. Evidence goes to `local/verification/issue-120/`.
+- `native_free_rally_can_choose_zero_in_a_qualifying_base_space`: checks the visible quantities and a deliberate placement of zero through restart and card-end eligibility. It accepts the same `CUBA_TEST_RALLY_SAVE` fixture.
 - `native_shaded_execution_preserves_directorios_side_decisions`: checks the shaded Event's execution window, giver approval after restart, Directorio removal and card-end effects.
 - `native_beneficiary_and_rally_preserve_side_decision_owners`: checks the transfer before beneficiary selection, giver decline after restart, and 26July removal and Rally placement.
 - `native_rally_removing_the_last_base_closes_the_operation`: resumes a Rally after removing its last qualifying Base and refuses a stale placement. Set `CUBA_TEST_PENDING_RALLY` to exercise a retained pre-#121 pending Rally save. All three save evidence under `local/verification/issue-121/`.

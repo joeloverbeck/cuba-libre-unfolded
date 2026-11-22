@@ -41,7 +41,7 @@ During Terror the panel lists the steps: Terror in Santiago and Oriente, with Ki
 
 After Kidnap and End Terror, hover or focus Pass, Limited Operation or either Event text for its briefing. Click or press Enter to pin it. The board and saved position stay at the handoff while you read.
 
-Pin the shaded Event to preview every activation and the restriction on 26July. Commit
+Pin the shaded Event to see the recorded Terror and Kidnap result, the pending activations and the restriction on 26July. Commit
 **Choose shaded Event** to open Directorio's execution. You can transfer Resources or
 remove Directorio's pieces before you commit **Resolve shaded Event**. Then inspect
 the flips and each faction's eligibility for card 18. Card 18 stays in preview.
@@ -67,9 +67,9 @@ Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfe
 
 ## Removing your own pieces
 
-"Remove own pieces" opens removal mode (#73). The map marks 26July's removable Guerrillas and Base and dims every other space ([HIGHLIGHTS.md, "Removal mode"](../art/atlas/HIGHLIGHTS.md#removal-mode-73)). Click a piece to keep its popover open, with a quantity for a stack, the preview, Remove and Cancel. Each Remove returns that many pieces to Available, and the mode stays open until Done. The mode survives Save / quit; an open popover does not.
+"Remove own pieces" opens removal mode (#73). The map marks the executing faction's removable pieces and dims spaces holding none of its pieces ([HIGHLIGHTS.md, "Removal mode"](../art/atlas/HIGHLIGHTS.md#removal-mode-73)). Click a marked piece for the preview, Remove and Cancel, and a quantity selector when it is in a stack. Each Remove returns that many pieces to Available. The mode stays open until Done and survives Save / quit. After resuming, click a piece to reopen its popover.
 
-Supply, Control, standings and legal choices update at once; earlier Terror, support shifts and Kidnap results stay. While Santiago Terror is owed, its last Underground Guerrilla is locked ([local policy](local-rule-policies.md#owed-terror-after-an-early-kidnap)). Other factions cannot remove their pieces in this Operation.
+Supply, Control, standings and legal choices update at once. Earlier Terror, support shifts and Kidnap results stay. While Santiago Terror is owed, its last Underground Guerrilla is locked ([local policy](local-rule-policies.md#owed-terror-after-an-early-kidnap)). During the Event, Directorio can remove its pieces before resolving shaded or choosing the Rally beneficiary, then the beneficiary can remove its own pieces while Rallying.
 
 ## Directorio’s unshaded Event
 
@@ -80,7 +80,7 @@ before choosing. The chosen faction then directs the Rally and can use those
 controls for its own faction. A Resource request moves nothing until the giver
 authorizes it.
 
-Inspect and pin a Rally option before committing it. Its preview shows the placement ceiling from Bases and population, the limit from Available Forces, and the zero Resource cost. A qualifying space counts as Neutral for the Rally. Its actual Support or Opposition stays in place. If the beneficiary has no qualifying Base, the Event ends without placing pieces.
+Inspect and pin a Rally option before committing it. Its preview shows the placement ceiling from Bases and population, the limit from Available Forces, and the zero Resource cost. **Place 0 Underground Guerrillas** resolves that qualifying space with its pieces and Available Forces unchanged. A qualifying space counts as Neutral for the Rally. Its actual Support or Opposition stays in place. If the beneficiary has no qualifying Base, the Event ends without a Rally decision.
 
 You can save and resume while the Rally is pending. After the last required effect, the panel reports the result and each faction’s eligibility for card 18. The table stops at that adjustment.
 

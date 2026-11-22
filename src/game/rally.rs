@@ -9,6 +9,16 @@ pub struct Rally {
     pub resolutions: Vec<RallyResolution>,
 }
 
+impl Rally {
+    pub(crate) fn remaining_spaces<'a>(
+        &'a self,
+        spaces: &'a [Space],
+    ) -> impl Iterator<Item = &'a Space> {
+        rally_spaces(spaces, self.beneficiary)
+            .filter(|space| !self.resolutions.iter().any(|step| step.space == space.id))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RallyResolution {
@@ -73,7 +83,7 @@ fn count(pieces: &[Group], faction: Faction, kind: Kind, state: Option<State>) -
         .map_or(0, |group| group.count)
 }
 
-pub(crate) fn rally_spaces(spaces: &[Space], beneficiary: Faction) -> impl Iterator<Item = &Space> {
+fn rally_spaces(spaces: &[Space], beneficiary: Faction) -> impl Iterator<Item = &Space> {
     spaces.iter().filter(move |space| {
         space.terrain != Terrain::EconomicCenter
             && count(&space.pieces, beneficiary, Kind::Base, None) > 0
@@ -122,6 +132,10 @@ impl RallyTarget<'_> {
             format!("{} Base + {} Population", self.bases, self.space.population)
         };
         let supply = match action {
+            RallyAction::Place(0) => format!(
+                "No pieces move. {} Guerrillas stay in Available Forces.",
+                self.available
+            ),
             RallyAction::Place(count) => format!(
                 "This leaves {} Guerrillas in Available Forces.",
                 self.available - count
@@ -142,7 +156,7 @@ impl RallyTarget<'_> {
     }
 
     fn actions(&self, available_bases: u8) -> Vec<RallyAction> {
-        let mut actions: Vec<_> = (1..=self.ceiling().min(self.available))
+        let mut actions: Vec<_> = (0..=self.ceiling().min(self.available))
             .map(RallyAction::Place)
             .collect();
         let pieces = &self.space.pieces;
@@ -197,8 +211,8 @@ impl Game {
         let beneficiary = rally.beneficiary;
         let available = count(&self.available, beneficiary, Kind::Guerrilla, None);
         let available_bases = count(&self.available, beneficiary, Kind::Base, None);
-        rally_spaces(&self.spaces, beneficiary)
-            .filter(|space| !rally.resolutions.iter().any(|step| step.space == space.id))
+        rally
+            .remaining_spaces(&self.spaces)
             .flat_map(|space| {
                 let target = RallyTarget {
                     space,
@@ -277,6 +291,9 @@ impl Game {
             .iter_mut()
             .find(|space| space.id == step.space)
             .ok_or("Unknown Rally space.")?;
+        if step.action == RallyAction::Place(0) {
+            return Ok(());
+        }
         let mut pieces = space.pieces.clone();
         let mut available = self.available.clone();
         let delta = |n: u8| if forward { i16::from(n) } else { -i16::from(n) };

@@ -229,6 +229,17 @@ fn native_shaded_event_activates_26july_and_adjusts_card_end_eligibility() {
         "{shown}"
     );
     assert!(shown.contains("Ineligible through next card"), "{shown}");
+    let die = before["kidnap"]["die"].as_u64().unwrap();
+    let proceeds = before["kidnap"]["proceeds"].as_u64().unwrap();
+    let kidnap = format!(
+        "Kidnap rolled {die} and took {proceeds} Resource{} from Government.",
+        if proceeds == 1 { "" } else { "s" }
+    );
+    assert!(
+        shown.contains("Terror in Santiago de Cuba, Oriente · paid 2 Resources.")
+            && shown.contains(&kidnap),
+        "{shown}"
+    );
     app.capture("shaded-preview");
     app.activate("option:event:shaded", revision);
     assert_eq!(app.observe()["observation"], before);
@@ -239,9 +250,23 @@ fn native_shaded_event_activates_26july_and_adjusts_card_end_eligibility() {
         json!({"op":"activate","revision":revision,"choice":format!("{revision}:event:shaded")});
     app.request(commit.clone(), true);
     app.request(json!({"op":"settle"}), true);
+    let committed = app.observe();
+    assert_eq!(
+        committed["table"]["notice"],
+        "Directorio chose the shaded Event. Resolve it to apply its effects. Saved."
+    );
+    assert_eq!(committed["observation"]["spaces"], before["spaces"]);
+    assert_eq!(committed["observation"]["finished"], true);
+    assert!(committed["observation"]["eligibility"]["next_card"].is_null());
+    assert!(committed["observation"]["eligibility"]["event_restriction"].is_null());
+    app.capture("shaded-chosen");
     app.activate("option:resolve-shaded", revision + 1);
     app.choose("resolve-shaded");
     let resolved = app.observe();
+    assert_eq!(
+        resolved["table"]["notice"],
+        "Shaded Event resolved. Eligibility for card 18 recorded. Saved."
+    );
     let after = &resolved["observation"];
     assert_eq!(after["revision"], revision + 2);
     assert_eq!(guerrillas(after, "santiago"), [("Active".into(), 2)].into());

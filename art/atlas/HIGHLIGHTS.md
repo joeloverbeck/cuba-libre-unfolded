@@ -34,16 +34,16 @@ Santiago and Oriente become not involved when a target has nothing left in this 
 
 ## Removal mode (#73)
 
-"Remove own pieces" opens removal mode. `cuba_libre_unfolded::targets::removal_targets` reads each 26July group's state from the authority's removal choices:
+"Remove own pieces" opens removal mode. `cuba_libre_unfolded::targets::removal_targets` reads each of the executing faction's groups from the authority's removal choices. The executing faction is 26July during Terror, Directorio during its Event decisions and the beneficiary during the free Rally.
 - **Removable:** at least one of the group may be removed now. Marker: `atlas-piece-removable.png`, the red survey station (a ring with four ticks), artboard `A-piece-removable`.
 - **Protected:** none may, because the owed Santiago Terror keeps the last Underground Guerrilla there (accepted commitment policy, local). Marker: `atlas-piece-protected.png`, the double ink ring and lock tab, artboard `A-piece-protected`.
-- **Dimmed:** a space holding no 26July piece shows its `not involved` veil.
+- **Dimmed:** a space holding none of the executing faction's pieces shows its `not involved` veil.
 
 No space rule shows in removal mode. Each marker is the proposal's `graphics/piece-{artboard}.png`, byte for byte, at 8 px per unit. The manifest's `pieces` entries place it as the proposal's Blender pass did: a flat unlit square 64 atlas units (0.64 world units) across, centred under its piece, 0.003 above the region top, so it stays under the pieces, counts and region labels and never intercepts picks.
 
 ## The piece popover (#73)
 
-In removal mode, clicking a removable 26July piece opens its popover (#58 story 49); hovering it opens nothing. Clicking it again, Cancel, a region or any decision closes it. A protected piece shows A-P6's tag on hover (story 48), and a click on it opens nothing. Until #58's final review a hover also opened a removable piece's popover, unpinned. Removal mode stays open after each removal until the panel's Done.
+In removal mode, clicking one of the executing faction's removable pieces opens its popover (#58 story 49). Clicking it again, Cancel, a region or any decision closes it. A protected piece shows A-P6's tag on hover (story 48), and a click on it opens nothing. Until #58's final review a hover also opened a removable piece's popover, unpinned. Removal mode stays open after each removal until the panel's Done.
 
 The frames are A-P5 (a stack, with the quantity stepper), A-P7 (one piece) and A-P6 (the protected tag) on the same FigCraft page. `src/tabletop/popover.rs` implements their values in reference pixels:
 - **Card and header:** as the space popover. A-P6 is 300 wide with an `ink` top rule; it informs and nothing on it acts.
@@ -56,7 +56,7 @@ The frames are A-P5 (a stack, with the quantity stepper), A-P7 (one piece) and A
 
 Every number is the authority's preview of the removal choice for the stepper's quantity; the stepper only chooses among the choices the authority lists, and Remove submits that choice through the checked interface.
 
-**Seat names:** each 26July piece is `piece:<space> M26 <Kind> <State>`; the popover's controls are `popover:quantity:minus`, `popover:quantity:plus`, `popover:commit` and `popover:cancel`; the panel's `<revision>:done-removal` leaves the mode. The seat reports `table.removal` (each group's state and choices, and the dimmed spaces), `table.markers` and `table.popover` (with `kind` and `piece`).
+**Seat names:** a piece is `piece:<space> <faction> <Kind> <State>`, with `M26` for 26July and `Directorio` for Directorio. The popover's controls are `popover:quantity:minus`, `popover:quantity:plus`, `popover:commit` and `popover:cancel`. The panel's `<revision>:done-removal` leaves the mode. The seat reports `table.removal` (each group's state and choices, and the dimmed spaces), `table.markers` and `table.popover` (with `kind` and `piece`).
 
 ## The space popover
 

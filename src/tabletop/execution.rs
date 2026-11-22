@@ -1113,11 +1113,12 @@ pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)>
                         .resolutions
                         .iter()
                         .map(|step| {
-                            format!(
-                                "{} · {}.",
-                                space_name(view, &step.space),
-                                step.action.description()
-                            )
+                            let space = space_name(view, &step.space);
+                            if step.action == crate::RallyAction::Place(0) {
+                                format!("{space} · Chose to place 0 Guerrillas. No pieces moved.")
+                            } else {
+                                format!("{space} · {}.", step.action.description())
+                            }
                         })
                         .collect::<Vec<_>>()
                         .join("\n")

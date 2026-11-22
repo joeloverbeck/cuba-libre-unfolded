@@ -3,8 +3,6 @@ use serde::{Deserialize, Serialize};
 use unfolded_random::SeededRandom;
 
 mod rally;
-#[cfg(feature = "tabletop")]
-pub(crate) use rally::rally_spaces;
 pub use rally::{Rally, RallyAction, RallyResolution};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -299,7 +297,8 @@ pub struct Game {
     pub(crate) resources: [u8; 4],
     pub(crate) spaces: Vec<Space>,
     pub(crate) available: Vec<Group>,
-    pub(crate) finished: bool,
+    #[serde(rename = "finished")]
+    pub(crate) m26_action_ended: bool,
     pub(crate) random: u64,
     pub(crate) draw_deck: Vec<u8>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -526,6 +525,8 @@ pub struct Observation {
     pub terror_available: u8,
     pub capabilities: Vec<String>,
     pub momentum: Vec<String>,
+    /// True once 26July's first action on card 17 is recorded. Directorio's Event
+    /// can still be pending. Card-end eligibility is in `eligibility.next_card`.
     pub finished: bool,
     pub choices: Vec<Choice>,
     /// The next faction to act, its role and its options, once 26July's action is
@@ -948,7 +949,7 @@ impl Game {
             revision: 0,
             resources: PREPARED_RESOURCES,
             spaces,
-            finished: false,
+            m26_action_ended: false,
             random: 17,
             draw_deck,
             transfer: None,
@@ -1008,7 +1009,7 @@ impl Game {
             terror_available: 20 - self.spaces.iter().map(|s| s.terror).sum::<u8>(),
             capabilities: vec![],
             momentum: vec![],
-            finished: self.finished,
+            finished: self.m26_action_ended,
             choices: self
                 .choices()
                 .into_iter()
@@ -1036,10 +1037,12 @@ impl Game {
                 }
                 ActionChoice::Open => "1st Eligible: choose an action",
                 ActionChoice::Pass => "Passed: +1 Resource, stays Eligible",
-                ActionChoice::Terror if self.finished && self.kidnap.is_some() => {
+                ActionChoice::Terror if self.m26_action_ended && self.kidnap.is_some() => {
                     "Terror ended: Operation with Special Activity recorded"
                 }
-                ActionChoice::Terror if self.finished => "Terror ended: Operation Only recorded",
+                ActionChoice::Terror if self.m26_action_ended => {
+                    "Terror ended: Operation Only recorded"
+                }
                 ActionChoice::Terror => "executing Terror",
             },
             special_activity: self.kidnap.as_ref().map(|_| "Kidnap".into()),
@@ -1060,7 +1063,7 @@ impl Game {
                     paid: TERROR_COST,
                 })
                 .collect(),
-            kidnap_stakes: (self.kidnap.is_none() && !self.finished).then(|| self.stakes()),
+            kidnap_stakes: (self.kidnap.is_none() && !self.m26_action_ended).then(|| self.stakes()),
         }
     }
     /// What Pass changed in 26July's Resources. A Pass is taken only at the action
@@ -1105,7 +1108,7 @@ impl Game {
                 "Operation (with or without a Special Activity)".into(),
                 "Event".into(),
             ]
-        } else if self.finished {
+        } else if self.m26_action_ended {
             let mut next = vec![
                 "Pass (+1 if executed later)".into(),
                 "Limited Operation".into(),
@@ -1265,7 +1268,7 @@ impl Game {
                 });
             }
         }
-        if after.finished && !action.starts_with("remove:") {
+        if after.m26_action_ended && !action.starts_with("remove:") {
             if matches!(
                 action,
                 "end-terror" | "pass" | "event:shaded" | "resolve-shaded"
@@ -1347,7 +1350,7 @@ impl Game {
         } else {
             notes.push("R 1.4.1: the pieces return to Available. Earlier Terror markers, support shifts and Kidnap results stay.".into());
         }
-        if !self.effected() && after.effected() && !after.finished {
+        if !self.effected() && after.effected() && !after.m26_action_ended {
             notes.push("This is the first effect: going back to the action choice ends (local policy, #58).".into());
         }
         notes
@@ -1414,7 +1417,8 @@ impl Game {
                 Some(Faction::Directorio)
             }
             Some(EventProgress::Rally(rally)) => Some(rally.beneficiary),
-            _ => (self.action == ActionChoice::Terror && !self.finished).then_some(Faction::M26),
+            _ => (self.action == ActionChoice::Terror && !self.m26_action_ended)
+                .then_some(Faction::M26),
         }
     }
     pub(crate) fn eligibility(&self) -> Eligibility {
@@ -1458,15 +1462,15 @@ impl Game {
             },
             m26_box: match self.action {
                 ActionChoice::Pass => Some(SequenceBox::Pass),
-                ActionChoice::Terror if self.finished && self.kidnap.is_some() => {
+                ActionChoice::Terror if self.m26_action_ended && self.kidnap.is_some() => {
                     Some(SequenceBox::OperationWithSpecialActivity)
                 }
-                ActionChoice::Terror if self.finished => Some(SequenceBox::OperationOnly),
+                ActionChoice::Terror if self.m26_action_ended => Some(SequenceBox::OperationOnly),
                 _ => None,
             },
             m26_next_card: match self.action {
                 ActionChoice::Pass => Some(true),
-                ActionChoice::Terror if self.finished => Some(false),
+                ActionChoice::Terror if self.m26_action_ended => Some(false),
                 _ => None,
             },
         }
@@ -1485,7 +1489,7 @@ impl Game {
     /// Local policy (#58): back to the action choice until the first effect, from the
     /// Operation menu or while a Transfer request awaits another faction.
     fn may_go_back(&self) -> bool {
-        !self.finished
+        !self.m26_action_ended
             && self.executing().is_some()
             && self.removal.is_none()
             && !self.kidnap_open
@@ -1599,7 +1603,7 @@ impl Game {
             giver
         } else if let Some(EventProgress::Rally(rally)) = &self.event {
             rally.beneficiary
-        } else if self.finished {
+        } else if self.m26_action_ended {
             Faction::Directorio
         } else {
             Faction::M26
@@ -1723,7 +1727,7 @@ impl Game {
         .collect()
     }
     fn choices(&self) -> Vec<Choice> {
-        if self.finished && self.executing().is_none() {
+        if self.m26_action_ended && self.executing().is_none() {
             return if self.eligibility().directorio_handoff() {
                 self.directorio_choices()
             } else {
@@ -1794,14 +1798,18 @@ impl Game {
                 "remove",
                 "Remove own pieces",
                 true,
-                if executor == Faction::M26 && !self.finished {
+                if executor == Faction::M26 && !self.m26_action_ended {
                     "Voluntary removal (R 1.4.1): removal mode marks each 26July Guerrilla and Base on the map; remove any quantity of a stack, one decision at a time, until Done. Only an already owed Terror restricts removal.".to_owned()
                 } else {
                     format!("Voluntary removal (R 1.4.1): choose from {}'s Guerrillas and Bases on the map.", executor.name())
                 },
             ),
         ];
-        let at = if self.finished { choices.len() } else { 1 };
+        let at = if self.m26_action_ended {
+            choices.len()
+        } else {
+            1
+        };
         choices.splice(at..at, side_choices);
         choices
     }
@@ -1914,7 +1922,7 @@ impl Game {
                 });
                 // Local policy (#58): 26July's request does not hold 26July's own
                 // Operation hostage; ending it or going back withdraws the request.
-                if !self.finished && giver != Faction::M26 {
+                if !self.m26_action_ended && giver != Faction::M26 {
                     if self.may_go_back() {
                         choices
                             .push(self.back_to_choice("26July withdraws · back to action choice"));
@@ -2245,7 +2253,7 @@ impl Game {
                     .saturating_add(1)
                     .min(RESOURCE_CAP);
                 self.action = ActionChoice::Pass;
-                self.finished = true;
+                self.m26_action_ended = true;
             }
             "terror" if self.action == ActionChoice::Open => self.action = ActionChoice::Terror,
             // Local policy (#58): withdraws a pending request; nothing has moved.
@@ -2255,7 +2263,7 @@ impl Game {
             }
             // Ending closes transfers and withdraws a pending request.
             "end-terror" => {
-                self.finished = true;
+                self.m26_action_ended = true;
                 self.transfer = None;
             }
             "event:shaded" => self.event = Some(EventProgress::ExecuteShaded),
@@ -2547,7 +2555,7 @@ impl Game {
             .revision
             .checked_sub(1)
             .ok_or("Unsupported Event revision.")?;
-        if !before.finished
+        if !before.m26_action_ended
             || before
                 .kidnap
                 .as_ref()
@@ -2579,7 +2587,7 @@ impl Game {
                 return self.validate_unshaded(Some(rally));
             }
             Some(EventProgress::Complete(EventOutcome::Shaded { flips })) => {
-                if !self.finished
+                if !self.m26_action_ended
                     || self.action != ActionChoice::Terror
                     || self
                         .kidnap
@@ -2659,9 +2667,9 @@ impl Game {
         passed[Faction::M26.index()] += 1;
         let consistent = match self.action {
             ActionChoice::Open => {
-                untouched && !self.finished && self.resources == PREPARED_RESOURCES
+                untouched && !self.m26_action_ended && self.resources == PREPARED_RESOURCES
             }
-            ActionChoice::Pass => untouched && self.finished && self.resources == passed,
+            ActionChoice::Pass => untouched && self.m26_action_ended && self.resources == passed,
             ActionChoice::Terror => true,
         };
         expected.action = self.action;
@@ -2672,19 +2680,19 @@ impl Game {
             || self.revision
                 < u64::from(paid)
                     + u64::from(self.kidnap.is_some())
-                    + u64::from(self.finished)
+                    + u64::from(self.m26_action_ended)
                     + u64::from(shaded.is_some())
                     // Entering removal mode, then at least one removal decision,
                     // which may return several pieces of one group (#73).
                     + if removed > 0 { 2 } else { u64::from(self.removal.is_some()) }
             || (self.revision == 0 && *self != expected)
-            || (self.finished && (self.transfer.is_some() || self.removal.is_some()))
+            || (self.m26_action_ended && (self.transfer.is_some() || self.removal.is_some()))
             || (self.transfer.is_some() && self.removal.is_some())
             // An opened Kidnap is a modal step of Terror execution, still unrolled
             // and on the terms that offered it.
             || (self.kidnap_open
                 && (self.action != ActionChoice::Terror
-                    || self.finished
+                    || self.m26_action_ended
                     || self.kidnap.is_some()
                     || self.transfer.is_some()
                     || self.removal.is_some()
@@ -2704,7 +2712,7 @@ impl Game {
                 || u16::from(kidnap.government_before) + u16::from(kidnap.m26_before) > 26
                 || kidnap.proceeds != die.min(kidnap.government_before)
                 || (self.owes_santiago()
-                    && (self.finished
+                    && (self.m26_action_ended
                         || self.resources[Faction::M26.index()] == 0
                         || !self.spaces.iter().any(|s| {
                             s.id == "santiago"
@@ -2742,7 +2750,7 @@ impl Game {
         {
             return Err("Unsupported pending giver authorization.".into());
         }
-        expected.finished = self.finished;
+        expected.m26_action_ended = self.m26_action_ended;
         expected.revision = self.revision;
         expected.resources = self.resources;
         expected.transfer = self.transfer.clone();

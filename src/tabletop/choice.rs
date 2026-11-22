@@ -18,7 +18,7 @@ use super::briefing::{self, Briefing};
 use super::emblems::{self, Naming};
 use super::palette::{INK, PAPER, QUIET};
 use super::*;
-use crate::{ActionChoice, Choice, EventProgress, Observation, Transfer, rally_spaces, resources};
+use crate::{ActionChoice, Choice, EventProgress, Observation, Transfer, resources};
 use bevy::text::{Justify, LetterSpacing, LineHeight};
 
 /// Node coordinates in the FigCraft 16:9 frame, `art/atlas/atlas-action-choice.figcraft`.
@@ -358,8 +358,8 @@ pub(super) fn panel(
             "Alberto Bayo · Directorio chooses the beneficiary".into()
         }
         Some(EventProgress::Rally(rally)) => {
-            let places = rally_spaces(&view.spaces, rally.beneficiary)
-                .filter(|space| !rally.resolutions.iter().any(|step| step.space == space.id))
+            let places = rally
+                .remaining_spaces(&view.spaces)
                 .map(|space| space.name.as_str())
                 .collect::<Vec<_>>()
                 .join(", ");
@@ -900,7 +900,7 @@ fn wanted(game: &Game, ui: &Interface, popover: bool) -> Option<(String, bool, b
         ActionChoice::Open => ("option:", false),
         ActionChoice::Terror if game.eligibility().directorio_handoff() => ("option:", false),
         _ if game.event.as_ref().is_some_and(EventProgress::pending) => ("option:", false),
-        _ if game.finished => return None,
+        _ if game.m26_action_ended => return None,
         ActionChoice::Terror if ui.choice.ribbon => {
             return Some((ui.choice.tab().to_owned(), true, true));
         }

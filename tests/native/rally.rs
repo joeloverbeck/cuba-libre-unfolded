@@ -101,7 +101,12 @@ fn native_shaded_execution_preserves_directorios_side_decisions() {
     choose_rally_option(&mut app, "transfer");
     assert_eq!(app.observe()["observation"]["transfer"], "Selecting");
     app.choose("ask:3:2");
-    let pending = app.observe()["observation"].clone();
+    let asked = app.observe();
+    assert_eq!(
+        asked["table"]["notice"],
+        "Transfer request saved: Directorio asks Syndicate for 2. Nothing moves until Syndicate decides."
+    );
+    let pending = asked["observation"].clone();
     assert_eq!(pending["owner"], "Syndicate");
     assert_eq!(pending["executing"], "Directorio");
     assert_eq!(pending["resources"], before["resources"]);
@@ -146,6 +151,10 @@ fn native_shaded_execution_preserves_directorios_side_decisions() {
 
     choose_rally_option(&mut app, "remove");
     let removal = app.observe();
+    assert_eq!(
+        removal["table"]["notice"],
+        "Removal mode: click a ringed Directorio piece on the map. Saved."
+    );
     assert!(has_action(
         &removal["observation"],
         "remove:camaguey-province:underground:1"
@@ -399,6 +408,101 @@ fn assert_unshaded_card_end(before: &Value, table: &Value) {
 }
 
 #[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained zero-placement captures"]
+fn native_free_rally_can_choose_zero_in_a_qualifying_base_space() {
+    let (_socket, mut app) = rally_app();
+    if let Some(input) = std::env::var_os("CUBA_TEST_RALLY_SAVE") {
+        std::fs::copy(input, &app.save).unwrap();
+        app.launch_size("3840x2160");
+    } else {
+        ready_for_event(&mut app, true);
+    }
+    choose_rally_option(&mut app, "event:unshaded");
+    choose_rally_option(&mut app, "rally:beneficiary:26july");
+    let shown = app.point("space:sierra-maestra");
+    let pending = shown["observation"].clone();
+    assert_eq!(shown["table"]["status"]["control"], "26July");
+    assert_eq!(rally_space(&pending)["support"], -2);
+    assert_eq!(
+        rally_space(&pending)["pieces"],
+        json!([{"faction":"M26","kind":"Base","state":"Ordinary","count":1}])
+    );
+    assert_eq!(available_guerrillas(&pending), 12);
+
+    for count in 0..=4 {
+        let action = format!("rally:sierra-maestra:place:{count}");
+        assert!(has_action(&pending, &action), "{action}");
+        let label = format!("option:{action}-label");
+        assert!(
+            shown["table"]["choice_parts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|part| part["part"] == label
+                    && part["text"]
+                        .as_str()
+                        .unwrap()
+                        .contains(&format!("Place {count}"))),
+            "quantity {count} has no visible row"
+        );
+    }
+    let place_zero = "rally:sierra-maestra:place:0";
+    let preview = app.point(&format!("option:{place_zero}"));
+    let contents = tag_text(&preview["table"]["briefing"]);
+    for text in [
+        "No pieces move",
+        "12 Guerrillas stay",
+        "0 Resources",
+        "Actual Active Opposition stays",
+    ] {
+        assert!(contents.contains(text), "{contents}");
+    }
+    app.capture("zero-placement-preview");
+    choose_rally_option(&mut app, place_zero);
+
+    let completed = app.observe();
+    let after = &completed["observation"];
+    assert_unshaded_card_end(&pending, &completed);
+    for field in [
+        "spaces",
+        "available",
+        "map_piece_count",
+        "available_piece_count",
+        "standings",
+        "resources",
+        "kidnap",
+    ] {
+        assert_eq!(after[field], pending[field], "{field}");
+    }
+    assert_eq!(
+        after["event"]["Complete"]["Unshaded"]["resolutions"],
+        json!([{"space":"sierra-maestra","action":{"Place":0}}])
+    );
+    let parts = completed["table"]["choice_parts"].as_array().unwrap();
+    let text = parts
+        .iter()
+        .find(|part| part["part"] == "ended-value:UNSHADED EVENT · FREE RALLY")
+        .unwrap()["text"]
+        .as_str()
+        .unwrap();
+    assert!(text.contains("Chose to place 0 Guerrillas"), "{text}");
+    assert!(text.contains("No pieces moved"), "{text}");
+    assert!(!text.contains("No qualifying Base spaces"), "{text}");
+    app.capture("zero-placement-card-end");
+    assert_eq!(
+        app.point("space:sierra-maestra")["table"]["status"]["control"],
+        "26July"
+    );
+
+    let final_bytes = std::fs::read(&app.save).unwrap();
+    app.quit();
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["observation"], *after);
+    assert_eq!(std::fs::read(&app.save).unwrap(), final_bytes);
+    app.quit();
+}
+
+#[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained Rally captures"]
 fn native_free_rally_hands_the_decision_to_the_beneficiary() {
     let (_socket, mut app) = rally_app();
@@ -465,6 +569,7 @@ fn native_free_rally_hands_the_decision_to_the_beneficiary() {
     assert_eq!(
         options,
         [
+            "rally:sierra-maestra:place:0",
             "rally:sierra-maestra:place:1",
             "rally:sierra-maestra:place:2",
             "rally:sierra-maestra:place:3",

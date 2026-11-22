@@ -311,13 +311,9 @@ fn directorio(view: &Observation, option: &str) -> Option<Briefing> {
         entries.push(entry(heading, text));
         entries.push(entry(
             "WHY DIRECTORIO MAY CHOOSE",
-            "26July used Kidnap, so Terror recorded an Operation with Special Activity. That opens either Event text to the 2nd Eligible faction (R 2.3.4, 5.2).",
+            "Kidnap made Terror an Operation with Special Activity, opening the Event to the 2nd Eligible faction (R 2.3.4, 5.2).",
         ));
-        if let Some(preview) = &choice.preview
-            && option == "event:shaded"
-        {
-            entries.push(entry("ACTIVATE", activation_lines(view, &preview.flips)));
-        } else if let Some(roll) = &view.kidnap {
+        if let Some(roll) = &view.kidnap {
             let targets: Vec<_> = view
                 .resolved
                 .iter()
@@ -335,6 +331,11 @@ fn directorio(view: &Observation, option: &str) -> Option<Briefing> {
                     resources(roll.proceeds)
                 ),
             ));
+        }
+        if option == "event:shaded"
+            && let Some(preview) = &choice.preview
+        {
+            entries.push(entry("ACTIVATE", activation_lines(view, &preview.flips)));
         }
     }
     if choice.supported {

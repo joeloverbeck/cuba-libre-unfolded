@@ -1118,11 +1118,21 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
     if let Some(transfer) = choice.and_then(Choice::transfer) {
         return match transfer {
             TransferChoice::Give { recipient, amount } => {
-                format!("26July gave {amount} to {}. Saved.", recipient.name())
+                format!(
+                    "{} gave {amount} to {}. Saved.",
+                    owner.name(),
+                    recipient.name()
+                )
             }
             TransferChoice::Ask { .. } => match after.transfer {
-                Some(Transfer::Authorizing { giver, amount, .. }) => format!(
-                    "Transfer request saved: 26July asks {} for {amount}. Nothing moves until {} decides.",
+                Some(Transfer::Authorizing {
+                    giver,
+                    recipient,
+                    amount,
+                    ..
+                }) => format!(
+                    "Transfer request saved: {} asks {} for {amount}. Nothing moves until {} decides.",
+                    recipient.name(),
                     giver.name(),
                     giver.name()
                 ),
@@ -1191,7 +1201,10 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
         "kidnap:roll" => {
             "Kidnap roll saved. The die is landing: click it or press Space to skip.".into()
         }
-        "remove" => "Removal mode: click a ringed 26July piece on the map. Saved.".into(),
+        "remove" => format!(
+            "Removal mode: click a ringed {} piece on the map. Saved.",
+            owner.name()
+        ),
         "done-removal" => "Removal mode closed; removed pieces stay in Available. Saved.".into(),
         "pass" => {
             // The record Pass committed: its Resources, 26July's Eligibility for the
@@ -1233,7 +1246,11 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
             Some(record) => format!("Terror ended: {} recorded. Saved.", record.name()),
             None => "Terror ended. Saved.".into(),
         },
-        "event:shaded" => "Shaded Event resolved. Eligibility for card 18 recorded. Saved.".into(),
+        "event:shaded" => format!(
+            "{} chose the shaded Event. Resolve it to apply its effects. Saved.",
+            owner.name()
+        ),
+        "resolve-shaded" => "Shaded Event resolved. Eligibility for card 18 recorded. Saved.".into(),
         "event:unshaded" => "Directorio chooses who will Rally. Saved.".into(),
         _ if action.starts_with("rally:") => match &after.event {
             Some(crate::EventProgress::Rally(rally)) => {
