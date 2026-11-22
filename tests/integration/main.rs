@@ -14,6 +14,7 @@ mod explore;
 use cuba_libre_unfolded::{Choice, Faction, Game, TransferChoice};
 
 mod action_choice;
+mod assault;
 mod eligibility;
 mod highlights;
 mod honest_hints;

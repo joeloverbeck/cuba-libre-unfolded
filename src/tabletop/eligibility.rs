@@ -182,14 +182,19 @@ pub(super) struct Track {
 pub(super) fn track(view: &Observation) -> Track {
     let e = &view.eligibility;
     let adjusted = e.next_card.is_some();
-    let occupied = e.m26_box.map(Slot::of);
+    let occupied = e.government_box.or(e.m26_box).map(Slot::of);
+    let occupant = if e.government_box.is_some() {
+        Faction::Government
+    } else {
+        Faction::M26
+    };
     let rows = e
         .order
         .iter()
         .map(|&faction| Row {
             faction,
             eligible: e.eligible[faction.index()],
-            role: if adjusted {
+            role: if adjusted || (faction == occupant && e.government_box.is_some()) {
                 None
             } else if faction == e.first {
                 Some("1st")
@@ -198,7 +203,7 @@ pub(super) fn track(view: &Observation) -> Track {
             } else {
                 None
             },
-            acted: !adjusted && faction == Faction::M26 && occupied.is_some(),
+            acted: !adjusted && faction == occupant && occupied.is_some(),
         })
         .collect();
     Track {
@@ -248,7 +253,7 @@ const AFTER_THE_CARD: &str =
 /// next faction (R 2.3.3, 2.3.4); an empty one states the rule for that box.
 pub(super) fn content(view: &Observation, slot: Slot) -> Shown {
     let e = &view.eligibility;
-    let occupied = e.m26_box.map(Slot::of) == Some(slot);
+    let occupied = e.government_box.or(e.m26_box).map(Slot::of) == Some(slot);
     let (title, rule) = match slot {
         Slot::Pass => ("Pass", "R 2.3.3"),
         Slot::OperationOnly => ("Operation Only", "R 2.3.4"),
@@ -287,6 +292,9 @@ pub(super) fn content(view: &Observation, slot: Slot) -> Shown {
                 e.second.name()
             )
         }
+        (Slot::OperationOnly, true) if e.government_box.is_some() => format!(
+            "Government finished Assault and recorded Operation Only.{next}"
+        ),
         (Slot::OperationOnly, true) => format!(
             "26July executed an Operation without a Special Activity ({operation}). An End Terror with no space resolved also records this box (accepted zero-space reading, local policy).{next}"
         ),
@@ -342,15 +350,18 @@ struct Rows {
     shift: f32,
 }
 fn rows(track: &Track) -> Rows {
-    let acted = track.rows.first().is_some_and(|row| row.acted);
-    let shift = if acted { 0. } else { fig::OPEN_SHIFT };
+    let acted = track.rows.iter().position(|row| row.acted);
+    let shift = if acted.is_some() { 0. } else { fig::OPEN_SHIFT };
     let mut tops = fig::ROW_TOPS;
     for top in tops.iter_mut().skip(1) {
-        *top += shift;
+        *top += fig::OPEN_SHIFT;
     }
     let mut heights = [fig::ROW_H; 4];
-    if acted {
-        heights[0] = fig::ACTED_ROW_H;
+    if let Some(index) = acted {
+        heights[index] = fig::ACTED_ROW_H;
+        for top in tops.iter_mut().skip(index + 1) {
+            *top -= fig::OPEN_SHIFT;
+        }
     }
     Rows {
         tops,
@@ -615,7 +626,13 @@ pub(super) fn indicator(commands: &mut Commands, art: &Art, view: &Observation, 
             let emblem = picture(
                 commands,
                 art,
-                &emblems::image(Faction::M26),
+                &emblems::image(
+                    track
+                        .rows
+                        .iter()
+                        .find(|row| row.acted)
+                        .map_or(Faction::M26, |row| row.faction),
+                ),
                 rect(fig::BOX_X + ex, top + ey, size, size),
                 s,
                 o,

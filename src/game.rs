@@ -2,7 +2,9 @@
 use serde::{Deserialize, Serialize};
 use unfolded_random::SeededRandom;
 
+mod assault;
 mod rally;
+pub use assault::AssaultResolution;
 pub use rally::{Rally, RallyAction, RallyResolution};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -189,6 +191,8 @@ pub struct Eligibility {
     pub second: Faction,
     /// The box 26July's cylinder occupies, once its action is recorded.
     pub m26_box: Option<SequenceBox>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub government_box: Option<SequenceBox>,
     /// Whether 26July is Eligible for the next card, once its action is recorded:
     /// a Pass leaves it Eligible (R 2.3.3); an Operation makes it Ineligible when
     /// cylinders are adjusted after the card (R 2.3.7).
@@ -328,6 +332,8 @@ pub struct Game {
     pub(crate) event: Option<EventProgress>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     event_side_decisions: Option<EventSideDecisions>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    assault: Option<assault::Assault>,
 }
 
 /// The supported Event state before its first side decision, plus the decisions
@@ -537,6 +543,8 @@ pub struct Observation {
     /// recorded (R 2.3.3–2.3.4).
     pub next: Option<Next>,
     pub operation: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub assault_result: Option<AssaultResolution>,
     pub special_activity: Option<String>,
     pub owed_terror: Option<String>,
     pub transfer: Option<Transfer>,
@@ -965,6 +973,7 @@ impl Game {
             kidnap_open: false,
             event: None,
             event_side_decisions: None,
+            assault: None,
             available: vec![
                 group(Government, Troops, 3),
                 group(Government, Police, 8),
@@ -1028,6 +1037,10 @@ impl Game {
                 .collect(),
             next: self.next(),
             operation: match self.action {
+                _ if self.assault_finished() => {
+                    "Operation Only recorded. Syndicate is 2nd Eligible"
+                }
+                _ if self.assault.is_some() => "Government executes Assault",
                 _ if self.card_18 => "Government is 1st Eligible on card 18",
                 _ if matches!(self.event, Some(EventProgress::ExecuteShaded)) => {
                     "Directorio executes the shaded Event"
@@ -1054,6 +1067,7 @@ impl Game {
                 }
                 ActionChoice::Terror => "executing Terror",
             },
+            assault_result: self.assault_result(),
             special_activity: self.kidnap.as_ref().map(|_| "Kidnap".into()),
             owed_terror: self.owes_santiago().then(|| "santiago".into()),
             transfer: self.transfer.clone(),
@@ -1092,6 +1106,9 @@ impl Game {
     /// The next faction to act once 26July's action is recorded: the first Eligible
     /// faction other than 26July, in its role, with its options (R 2.3.3–2.3.4).
     fn next(&self) -> Option<Next> {
+        if self.card_18 {
+            return self.assault_next();
+        }
         if self.event.is_some() {
             return None;
         }
@@ -1156,6 +1173,8 @@ impl Game {
             _ if action.starts_with("terror:")
                 || (action.starts_with("rally:")
                     && matches!(self.event, Some(EventProgress::Rally(_))))
+                || action.starts_with("assault:")
+                || action == "end-assault"
                 || choice.removal().is_some() =>
             {
                 &[action]
@@ -1277,7 +1296,10 @@ impl Game {
                 });
             }
         }
-        if after.m26_action_ended && !action.starts_with("remove:") {
+        if action == "end-assault" {
+            preview.records = Some(SequenceBox::OperationOnly);
+            preview.next = after.next();
+        } else if after.m26_action_ended && !action.starts_with("remove:") {
             if matches!(
                 action,
                 "end-terror" | "pass" | "event:shaded" | "resolve-shaded"
@@ -1421,6 +1443,13 @@ impl Game {
         preview
     }
     pub(crate) fn executing(&self) -> Option<Faction> {
+        if self.card_18 {
+            return self
+                .assault
+                .as_ref()
+                .is_some_and(|op| !op.finished)
+                .then_some(Faction::Government);
+        }
         match &self.event {
             Some(EventProgress::ExecuteShaded | EventProgress::ChooseRallyBeneficiary) => {
                 Some(Faction::Directorio)
@@ -1464,6 +1493,9 @@ impl Game {
                 first: in_order.next().expect("Government remains Eligible"),
                 second: in_order.next().expect("Syndicate remains Eligible"),
                 m26_box: None,
+                government_box: self
+                    .assault_finished()
+                    .then_some(SequenceBox::OperationOnly),
                 m26_next_card: None,
                 next_card: None,
                 event_restriction,
@@ -1486,6 +1518,7 @@ impl Game {
             } else {
                 Faction::Directorio
             },
+            government_box: None,
             m26_box: match self.action {
                 ActionChoice::Pass => Some(SequenceBox::Pass),
                 ActionChoice::Terror if self.m26_action_ended && self.kidnap.is_some() => {
@@ -1627,6 +1660,8 @@ impl Game {
     fn owner(&self) -> Faction {
         if let Some(Transfer::Authorizing { giver, .. }) = self.transfer {
             giver
+        } else if self.assault_finished() {
+            Faction::Syndicate
         } else if self.card_18 {
             self.eligibility().first
         } else if let Some(EventProgress::Rally(rally)) = &self.event {
@@ -1756,7 +1791,11 @@ impl Game {
     }
     fn choices(&self) -> Vec<Choice> {
         if self.card_18 {
-            return self.government_choices();
+            return if self.assault.is_some() {
+                self.assault_choices()
+            } else {
+                self.government_choices()
+            };
         }
         if self.m26_action_ended && self.executing().is_none() {
             return if self.eligibility().directorio_handoff() {
@@ -1905,12 +1944,7 @@ impl Game {
             operation("train", "Train · Operation", "R 3.2.1.", true),
             operation("garrison", "Garrison · Operation", "R 3.2.2.", false),
             operation("sweep", "Sweep · Operation", "R 3.2.3.", true),
-            operation(
-                "assault",
-                "Assault · Operation Only",
-                "R 3.2.4. An Operation Only opens Pass or a Limited Operation for Syndicate as 2nd Eligible (R 2.3.4).",
-                true,
-            ),
+            self.assault_opening(),
             offer(
                 "transport",
                 "Transport · Special Activity",
@@ -2356,6 +2390,9 @@ impl Game {
     }
 
     fn apply_decision(&mut self, action: &str, next_revision: u64) -> Result<(), String> {
+        if self.card_18 {
+            return self.apply_assault(action);
+        }
         match action {
             // The giver's decision set aside, or shown again: the request itself, and
             // whether going back is allowed, are unchanged (#75).
@@ -2698,6 +2735,9 @@ impl Game {
 
     /// Admit the prepared task after only the supported decisions and effects.
     pub fn validate(&self) -> Result<(), String> {
+        if let Some(assault) = &self.assault {
+            return self.validate_assault(assault);
+        }
         if self.card_18 {
             let mut before = self.clone();
             before.card_18 = false;

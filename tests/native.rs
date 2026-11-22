@@ -6,6 +6,8 @@ use std::{
     process::Command,
 };
 
+#[path = "native/assault.rs"]
+mod assault;
 #[path = "native/card_advance.rs"]
 mod card_advance;
 #[path = "native/rally.rs"]

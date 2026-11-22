@@ -244,6 +244,9 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                     .next()
                     .unwrap_or_else(|| "Pass".into()),
                 "terror" => "Choose Terror".into(),
+                "assault:santiago:26july" => {
+                    format!("Pay {} · Assault Santiago", resources(view.alliance.coin_cost()))
+                }
                 "event:shaded" => "Choose shaded Event".into(),
                 "event:unshaded" => "Choose unshaded Event".into(),
                 _ => c.label.clone(),
@@ -317,7 +320,32 @@ fn panel_rows(view: &Observation) -> impl Iterator<Item = (&Choice, f32)> {
 
 fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool) -> String {
     if view.current_card == 18 {
+        if let Some(next) = &view.next {
+            return format!(
+                "{} on card 18 · {}\nGovernment recorded Operation Only (R 2.3.4)",
+                next.role,
+                resources(view.resources[next.faction.index()]),
+            );
+        }
         let balance = resources(view.resources[Faction::Government.index()]);
+        if executor == Faction::Government && view.executing.is_some() {
+            return view.assault_result.as_ref().map_or_else(
+                || {
+                    format!(
+                        "{balance} · {} US Alliance\n{} per space",
+                        view.alliance.name(),
+                        resources(view.alliance.coin_cost()),
+                    )
+                },
+                |result| {
+                    format!(
+                        "Santiago · paid {} · {balance} left\n{}",
+                        resources(result.paid),
+                        result.removal_summary(),
+                    )
+                },
+            );
+        }
         let eligibility = if view.eligibility.event_restriction.is_some() {
             "Shaded Event keeps 26July Ineligible through card 18"
         } else {
@@ -403,7 +431,10 @@ pub(super) fn panel(
     part(commands, emblem, "choice-heading-emblem");
     let [x, y, w] = fig::HEADING;
     let title = match &view.event {
-        _ if government_opening => "Government's decision".into(),
+        _ if government_opening && view.executing == Some(Faction::Government) => {
+            "Government · Assault".into()
+        }
+        _ if government_opening => format!("{}'s decision", view.owner.name()),
         _ if view.removal.is_some() => format!("{} · Voluntary removal", executor.name()),
         Some(EventProgress::ExecuteShaded) => "Directorio · Shaded Event".into(),
         Some(EventProgress::ChooseRallyBeneficiary) => "Choose who Rallies".into(),

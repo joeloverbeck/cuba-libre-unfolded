@@ -133,6 +133,18 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
                 briefing_text.contains("1 Resource and cannot pay"),
                 "{briefing_text}"
             );
+            let opening_bytes = fs::read(&app.save).unwrap();
+            app.activate("choice-commit", revision + 1);
+            let refused = app.observe();
+            assert!(
+                refused["table"]["notice"]
+                    .as_str()
+                    .unwrap()
+                    .contains("1 Resource and cannot pay")
+            );
+            assert_eq!(refused["observation"], *after);
+            assert_eq!(fs::read(&app.save).unwrap(), opening_bytes);
+            assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
         }
         app.capture("card-18-assault-briefing");
         app.activate("reader", revision + 1);

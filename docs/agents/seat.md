@@ -156,7 +156,11 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:rally:sierra-maestra:place:0`, `<revision>:rally:sierra-maestra:place:1`, `<revision>:rally:sierra-maestra:place:2`, `<revision>:rally:sierra-maestra:place:3`, `<revision>:rally:sierra-maestra:place:4` | 26July chooses how many Guerrillas to place Underground in Sierra Maestra when its Base qualifies. The offered quantities range from 0 to the ceiling the board and Available Forces allow. |
 | `<revision>:advance-card` | Saves the transition from the completed Alberto Bayo result to Pact of Caracas. |
 | `<revision>:government:pass`, `<revision>:government:event` | Government's Pass and Pact of Caracas briefings. |
-| `<revision>:government:train`, `<revision>:government:garrison`, `<revision>:government:sweep`, `<revision>:government:assault` | Government's opening Operation briefings. |
+| `<revision>:government:train`, `<revision>:government:garrison`, `<revision>:government:sweep` | Government's opening Operation briefings. |
+| `<revision>:government:assault` | Opens Operation Only Assault when Government can pay for Santiago. |
+| `<revision>:assault:santiago:26july` | Confirms the payment for Santiago and applies the effects against 26July. |
+| `<revision>:end-assault` | Finishes Assault and records Operation Only. |
+| `<revision>:syndicate:pass`, `<revision>:syndicate:limited-operation` | Inspect the options open to Syndicate as 2nd Eligible after Operation Only. |
 | `<revision>:government:transport`, `<revision>:government:air-strike`, `<revision>:government:reprisal` | Government's Special Activity briefings, including the Operations each may accompany. |
 | `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so 26July's option set is complete; unsupported, with the reason in `explanation`. |
 | `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap` | Execution steps during Terror. |
@@ -216,6 +220,8 @@ Drawn-part names:
 - **Card-end eligibility** (`table.eligibility.track.adjusted`): the track's rows now show eligibility for card 18. `observation.eligibility.next_card` gives the four ordinary reasons. `observation.eligibility.event_restriction` reports the separate restriction on the shaded branch. The result text is among the `table.choice_parts` with names beginning `ended-value:`.
 
 ## Native regressions
+
+- `native_funded_santiago_assault_carries_each_event_and_restarts` plays both Event texts and the funded Santiago Assault. It checks the payment, removal, process restarts, duplicate refusal and Syndicate's 2nd Eligible options. Set `CUBA_TEST_SANTIAGO_FUNDED_SAVE` to the retained common save identified in #130's evidence to use the exact funded match. Otherwise the test constructs a funded save through the rules authority. Evidence goes to `local/verification/issue-130/`.
 
 - `native_card_advance_reopens_both_event_results_and_commits_once` checks both Event branches, card 19 refusal and recovery, restart on each side of the advance and stale or repeated activation. Set `CUBA_TEST_CARD_18_SAVES` to the directory containing the two retained saves pinned in #127 to exercise the exact owner-played positions. Otherwise the test drives each Event to completion through the checked session. Evidence goes to `local/verification/issue-128/`.
 

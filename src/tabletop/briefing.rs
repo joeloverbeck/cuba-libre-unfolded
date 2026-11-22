@@ -379,6 +379,52 @@ pub(super) fn activation_lines(view: &Observation, flips: &[Flip]) -> String {
 pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
     if view.current_card == 18 {
         let choice = listed(view, option)?;
+        if view.eligibility.government_box == Some(crate::SequenceBox::OperationOnly) {
+            return Some(Briefing {
+                option: option.into(),
+                title: choice.label.clone(),
+                rule: "R 2.3.3–5",
+                entries: vec![
+                    entry("OPTION", &choice.explanation),
+                    entry(
+                        "2ND ELIGIBLE",
+                        "Government recorded Operation Only. Syndicate may Pass or choose a Limited Operation.",
+                    ),
+                ],
+                rules: String::new(),
+            });
+        }
+        if view.executing == Some(Faction::Government) {
+            let mut entries = vec![entry(
+                if option == "end-assault" {
+                    "RESULT"
+                } else {
+                    "TARGET AND COST"
+                },
+                &choice.explanation,
+            )];
+            if option != "end-assault"
+                && let Some(preview) = &choice.preview
+                && preview.control.is_empty()
+                && preview.standings.is_empty()
+            {
+                entries.push(entry(
+                    "CONTROL AND STANDINGS",
+                    "Santiago stays under Government Control. Standings are unchanged.",
+                ));
+            }
+            return Some(Briefing {
+                option: option.into(),
+                title: choice.label.clone(),
+                rule: if option == "end-assault" {
+                    "R 2.3.4"
+                } else {
+                    "R 3.1, 3.2.4, 6.3.1"
+                },
+                entries,
+                rules: String::new(),
+            });
+        }
         let role = if view.eligibility.event_restriction.is_some() {
             "26July is Ineligible through card 18 under the shaded Event. Directorio executed the Event."
         } else {

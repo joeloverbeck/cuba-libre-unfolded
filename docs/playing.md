@@ -90,7 +90,9 @@ At the completed Alberto Bayo result, inspect the board, the Event effects and e
 
 Government is 1st Eligible and Syndicate is 2nd Eligible. Both skipped an Operation or Event on card 17. Terror and the Event made 26July and Directorio Ineligible. On the shaded branch, Alberto Bayo expressly keeps 26July Ineligible through card 18.
 
-Hover or focus Government's options to see what the rules allow and why a choice is unavailable. The briefing shows the cost at the current US Alliance level, Government's balance and the income it would receive from Pass. This build reaches and saves that opening decision for inspection.
+Hover or focus Government's options to see what the rules allow and why a choice is unavailable. The briefing shows the cost at the current US Alliance level, Government's balance and the income it would receive from Pass.
+
+With at least 2 Resources under Firm US Alliance, choose **Assault · Operation Only**. Pin **Santiago · target 26July** to see the City's removal capacity and which Guerrillas the payment will return to Available Forces. Commit the payment to resolve Santiago, then choose **Finish Assault** to record Operation Only. Syndicate can inspect its Pass and Limited Operation as 2nd Eligible.
 
 ## Camera and keys
 

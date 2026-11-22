@@ -1253,6 +1253,9 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
         "resolve-shaded" => "Shaded Event resolved. Eligibility for card 18 recorded. Saved.".into(),
         "event:unshaded" => "Directorio chooses who will Rally. Saved.".into(),
         "advance-card" => "Pact of Caracas is current. Government is 1st Eligible. Saved.".into(),
+        "government:assault" => "Assault chosen. Inspect Santiago before paying. Saved.".into(),
+        "assault:santiago:26july" => "Assault resolved in Santiago. Saved.".into(),
+        "end-assault" => "Operation Only recorded. Syndicate is 2nd Eligible. Saved.".into(),
         _ if action.starts_with("rally:") => match &after.event {
             Some(crate::EventProgress::Rally(rally)) => {
                 format!("{} directs the free Rally. Saved.", rally.beneficiary.name())
