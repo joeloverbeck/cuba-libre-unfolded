@@ -2212,54 +2212,77 @@ fn native_hover_status_is_transient_without_region_inspection() {
     app.request(json!({"op":"point","revision":0,"component":"quit"}), true);
     assert!(app.observe()["table"]["status"].is_null());
     // Independent prepared-position expectations from R1.6/1.7 and the
-    // accepted tactical handoff, including mixed Control/opinion cases.
-    for (id, control, opinion, contribution) in [
+    // accepted tactical handoff, including mixed Control/opinion cases. The
+    // space types and terrains come from the third-printing playbook's Spaces
+    // List (p.36): three Cities; Forest Pinar del Río, Camagüey and Oriente;
+    // Grassland La Habana and Matanzas; Mountain Las Villas and Sierra Maestra.
+    for (id, terrain, control, opinion, contribution) in [
         (
             "havana",
+            "City",
             "Government",
             "Active Support",
             "×2 · Government +12",
         ),
         (
             "camaguey-city",
+            "City",
             "Government",
             "Passive Support",
             "×1 · Government +1",
         ),
-        ("santiago", "Government", "Neutral", "0 Support/Opposition"),
+        (
+            "santiago",
+            "City",
+            "Government",
+            "Neutral",
+            "0 Support/Opposition",
+        ),
         (
             "pinar-del-rio",
+            "Province · Forest",
             "Syndicate",
             "Active Support",
             "×2 · Government +2",
         ),
         (
             "la-habana",
+            "Province · Grassland",
             "Syndicate",
             "Passive Support",
             "×1 · Government +1",
         ),
         (
             "matanzas",
+            "Province · Grassland",
             "Uncontrolled",
             "Passive Opposition",
             "×1 · 26July +1",
         ),
         (
             "las-villas",
+            "Province · Mountain",
             "Government",
             "Neutral",
             "0 Support/Opposition",
         ),
         (
             "camaguey-province",
+            "Province · Forest",
             "Directorio",
             "Passive Opposition",
             "×1 · 26July +1",
         ),
-        ("oriente", "26July", "Passive Opposition", "×1 · 26July +2"),
+        (
+            "oriente",
+            "Province · Forest",
+            "26July",
+            "Passive Opposition",
+            "×1 · 26July +2",
+        ),
         (
             "sierra-maestra",
+            "Province · Mountain",
             "26July",
             "Active Opposition",
             "×2 · 26July +2",
@@ -2272,6 +2295,7 @@ fn native_hover_status_is_transient_without_region_inspection() {
         app.request(json!({"op":"settle"}), true);
         let status = app.observe()["table"]["status"].clone();
         assert_eq!(status["space"], id);
+        assert_eq!(status["terrain"], terrain, "{id}");
         assert_eq!(status["control"], control);
         assert_eq!(status["opinion"], opinion);
         assert_eq!(status["contribution"], contribution);
@@ -2291,6 +2315,9 @@ fn native_hover_status_is_transient_without_region_inspection() {
         }
         app.capture(&format!("status-{id}"));
     }
+    // An Economic Center's map label is only its gold value disc, which the
+    // removed terrain key explained (#138): its tag names it and has no Control
+    // or Support/Opposition rows, since neither applies (R 1.6, 1.7).
     for id in [
         "ec-pinar-la-habana",
         "ec-las-villas-camaguey",
@@ -2301,7 +2328,14 @@ fn native_hover_status_is_transient_without_region_inspection() {
             true,
         );
         app.request(json!({"op":"settle"}), true);
-        assert!(app.observe()["table"]["status"].is_null());
+        let status = app.observe()["table"]["status"].clone();
+        assert_eq!(status["space"], id);
+        assert_eq!(status["terrain"], "Economic center", "{id}");
+        for absent in ["control", "opinion", "contribution"] {
+            assert!(status[absent].is_null(), "{status}");
+        }
+        assert_status_geometry(&status);
+        app.capture(&format!("status-{id}"));
     }
     for prefix in ["piece:havana ", "count:havana "] {
         let view = app.observe();
@@ -2366,6 +2400,31 @@ fn native_hover_status_is_transient_without_region_inspection() {
     let final_state = app.observe()["observation"].clone();
     app.quit();
     app.launch();
+    assert_eq!(app.observe()["observation"], final_state);
+    app.quit();
+    // Every tag at the owner's display, with its terrain row (#138).
+    app.launch_size("3840x2160");
+    for (id, terrain) in [
+        ("havana", "City"),
+        ("camaguey-city", "City"),
+        ("santiago", "City"),
+        ("pinar-del-rio", "Province · Forest"),
+        ("la-habana", "Province · Grassland"),
+        ("matanzas", "Province · Grassland"),
+        ("las-villas", "Province · Mountain"),
+        ("camaguey-province", "Province · Forest"),
+        ("oriente", "Province · Forest"),
+        ("sierra-maestra", "Province · Mountain"),
+        ("ec-pinar-la-habana", "Economic center"),
+        ("ec-las-villas-camaguey", "Economic center"),
+        ("ec-oriente-sierra", "Economic center"),
+    ] {
+        let status = app.point(&format!("space:{id}"))["table"]["status"].clone();
+        assert_eq!(status["space"], id);
+        assert_eq!(status["terrain"], terrain, "{id}");
+        assert_status_geometry(&status);
+        app.capture(&format!("status-3840-{id}"));
+    }
     assert_eq!(app.observe()["observation"], final_state);
     app.quit();
     if let Some(legacy) = std::env::var_os("CUBA_COMPAT_SAVE") {

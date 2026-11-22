@@ -580,13 +580,7 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
             button: None,
         });
     }
-    let terrain = match place.terrain {
-        Terrain::City => "City",
-        Terrain::Forest => "Province · Forest",
-        Terrain::Grassland => "Province · Grassland",
-        Terrain::Mountain => "Province · Mountain",
-        Terrain::EconomicCenter => "Economic center",
-    };
+    let terrain = super::status::kind(place.terrain);
     let m26 = view.resources[Faction::M26.index()];
     let mut subtitle = format!(
         "{terrain} · 26July executing Terror · 26July has {}",

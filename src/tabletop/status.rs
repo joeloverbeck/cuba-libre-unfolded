@@ -10,9 +10,13 @@ pub(super) struct Tag;
 #[derive(Component, Clone, serde::Serialize, PartialEq)]
 pub(super) struct Shown {
     pub space: String,
-    pub control: String,
-    pub opinion: String,
-    pub contribution: String,
+    /// The space type, and a Province's terrain, as its terrain row names it.
+    pub terrain: &'static str,
+    /// Absent for an Economic Center, which has neither Control nor
+    /// Support/Opposition (R 1.6, 1.7).
+    pub control: Option<String>,
+    pub opinion: Option<String>,
+    pub contribution: Option<String>,
     pub bounds: [f32; 4],
     pub region_bounds: [f32; 4],
     pub occupied_bounds: Vec<[f32; 4]>,
@@ -58,15 +62,31 @@ pub(super) fn hover(
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(id, _)| id)
     });
-    let game = play.game();
-    let target = target.filter(|id| {
-        game.spaces
-            .iter()
-            .any(|s| &s.id == id && s.terrain != Terrain::EconomicCenter)
-    });
     let eligible = !over_ui && play.session.is_some();
     ui.status
         .update(target, eligible, time.delta(), Duration::from_millis(250));
+}
+
+/// What kind of space this is, in the words of the terrain row and the popover.
+pub(super) fn kind(terrain: Terrain) -> &'static str {
+    match terrain {
+        Terrain::City => "City",
+        Terrain::Forest => "Province · Forest",
+        Terrain::Grassland => "Province · Grassland",
+        Terrain::Mountain => "Province · Mountain",
+        Terrain::EconomicCenter => "Economic center",
+    }
+}
+
+/// The authored terrain row for a space type (STATUS.md).
+fn kind_row(terrain: Terrain) -> &'static str {
+    match terrain {
+        Terrain::City => "atlas-space-city.png",
+        Terrain::Forest => "atlas-space-forest.png",
+        Terrain::Grassland => "atlas-space-grassland.png",
+        Terrain::Mountain => "atlas-space-mountain.png",
+        Terrain::EconomicCenter => "atlas-space-economic-center.png",
+    }
 }
 
 fn array(rect: Rect) -> [f32; 4] {
@@ -87,6 +107,9 @@ pub(super) fn draw(
     labels: Query<(&SpaceTarget, &ComputedNode, &UiGlobalTransform)>,
     // An open space popover (#72): the tag stays visible beside it.
     cards: Query<(&ComputedNode, &UiGlobalTransform), With<super::popover::CardNode>>,
+    // The Sequence of Play track lies over the map's western margin; a tag
+    // must not hide it (#138: the taller tag moved Havana's over it).
+    track: Query<(&ComputedNode, &UiGlobalTransform), With<super::eligibility::Drawn>>,
     controls: Query<&Control>,
     parents: Query<&ChildOf>,
     roots: Query<Entity, With<Tag>>,
@@ -181,7 +204,7 @@ pub(super) fn draw(
                 occupied.push(r);
             }
         }
-        for (node, at) in &cards {
+        for (node, at) in cards.iter().chain(&track) {
             occupied.push(Rect::from_center_size(
                 at.translation * node.inverse_scale_factor,
                 node.size() * node.inverse_scale_factor,
@@ -194,7 +217,7 @@ pub(super) fn draw(
                 node.size() * node.inverse_scale_factor,
             ));
         }
-        let size = Vec2::new(272., 128.) * scale;
+        let size = Vec2::new(272., tag_height(space.terrain)) * scale;
         let gap = 22. * scale;
         let center = region.center();
         let mut candidates = vec![
@@ -257,32 +280,42 @@ pub(super) fn draw(
                 .total_cmp(&b.distance_squared(b.clamp(tag.min, tag.max)))
         })?;
         let end = start.clamp(tag.min, tag.max);
-        let opinion = match space.support {
-            -2 => "Active Opposition",
-            -1 => "Passive Opposition",
-            0 => "Neutral",
-            1 => "Passive Support",
-            2 => "Active Support",
-            _ => return None,
-        };
-        let contribution = if space.support == 0 {
-            "0 Support/Opposition".into()
+        let (control, opinion, contribution) = if space.terrain == Terrain::EconomicCenter {
+            (None, None, None)
         } else {
-            format!(
-                "×{} · {} +{}",
-                space.support.abs(),
-                if space.support > 0 {
-                    "Government"
-                } else {
-                    "26July"
-                },
-                space.population as i16 * space.support.abs() as i16
+            let opinion = match space.support {
+                -2 => "Active Opposition",
+                -1 => "Passive Opposition",
+                0 => "Neutral",
+                1 => "Passive Support",
+                2 => "Active Support",
+                _ => return None,
+            };
+            let contribution = if space.support == 0 {
+                "0 Support/Opposition".into()
+            } else {
+                format!(
+                    "×{} · {} +{}",
+                    space.support.abs(),
+                    if space.support > 0 {
+                        "Government"
+                    } else {
+                        "26July"
+                    },
+                    space.population as i16 * space.support.abs() as i16
+                )
+            };
+            (
+                Some(space.control().map_or("Uncontrolled", Faction::name).into()),
+                Some(opinion.into()),
+                Some(contribution),
             )
         };
         Some(Shown {
             space: id.clone(),
-            control: space.control().map_or("Uncontrolled", Faction::name).into(),
-            opinion: opinion.into(),
+            terrain: kind(space.terrain),
+            control,
+            opinion,
             contribution,
             bounds: array(tag),
             region_bounds: array(region),
@@ -341,9 +374,23 @@ pub(super) fn draw(
         5,
     );
     commands.entity(anchor).remove::<UiRoot>().insert(Tag);
+    let terrain = picture(
+        &mut commands,
+        &art,
+        kind_row(space.terrain),
+        [x, y, 272. * scale, 36. * scale],
+        1.,
+        Vec2::ZERO,
+        5,
+    );
+    commands.entity(terrain).remove::<UiRoot>().insert(Tag);
+    let Some(contribution) = shown.contribution.clone() else {
+        commands.entity(terrain).insert(shown);
+        return;
+    };
     for (key, top, height) in [
-        (format!("atlas-control-{controller}.png"), 0., 36.),
-        (format!("atlas-opinion-{political}.png"), 40., 88.),
+        (format!("atlas-control-{controller}.png"), 40., 36.),
+        (format!("atlas-opinion-{political}.png"), 80., 88.),
     ] {
         let row = picture(
             &mut commands,
@@ -359,9 +406,9 @@ pub(super) fn draw(
     let words = text(
         &mut commands,
         &art,
-        &shown.contribution,
+        &contribution,
         x + 12. * scale,
-        y + 100. * scale,
+        y + 140. * scale,
         248. * scale,
         17. * scale,
         1.,
@@ -372,4 +419,14 @@ pub(super) fn draw(
         .entity(words)
         .remove::<UiRoot>()
         .insert((Tag, shown));
+}
+
+/// The terrain row alone for an Economic Center; otherwise the terrain row,
+/// 4 px, Control, 4 px and the political row (STATUS.md).
+fn tag_height(terrain: Terrain) -> f32 {
+    if terrain == Terrain::EconomicCenter {
+        36.
+    } else {
+        168.
+    }
 }
