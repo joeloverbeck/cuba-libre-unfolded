@@ -96,8 +96,8 @@ Every full reply carries the whole rules observation and the whole table: many k
 | Key | Effect |
 |---|---|
 | Camera keys | Orbit, zoom, pan and Home framing, as [the play guide's "Camera and keys"](../playing.md#camera-and-keys) lists them. |
-| `Tab` | Moves keyboard focus through the action choice's options (`option:pass` … `option:terror:kidnap`) and its commit. During Terror it also moves through `briefing-ribbon`, `briefing-tab:kidnap`, `briefing-tab:terror` and the execution panel's steps. |
-| `Escape` | Unpins or closes the briefing; cancels an open transfer (Wait in a giver's decision); closes an open space popover, piece popover or briefing tag. |
+| `Tab` | Moves keyboard focus through the action choice's options (`option:pass` … `option:terror:kidnap`) and its commit. During Terror it also moves through `briefing-ribbon`, `briefing-tab:kidnap`, `briefing-tab:terror` and the execution panel's steps. Then `card:current` and `card:preview`, whose tags focus opens after the hover dwell. |
+| `Escape` | Closes an open card tag, alone; otherwise unpins or closes the briefing; cancels an open transfer (Wait in a giver's decision); closes an open space popover, piece popover or briefing tag. A focused or hovered card's tag stays closed until focus or the pointer moves on. |
 | `Backspace`, `0`–`9` | Edit the transfer amount. |
 | `Enter`, `Space` | Activate the focused control, which the request must name in `"focused"`, e.g. `{"op":"key","revision":0,"key":"Enter","focused":"option:pass"}`. |
 
@@ -114,8 +114,7 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `margin:0`–`margin:3` | Victory margins | Hover target for a faction's margin tag. |
 | `aid`, `us-alliance`, `resources`, `cash` | Top display | Each opens its tag. |
 | `space:<space>`, e.g. `space:havana` | Map | Picks the space; opens its popover where the rules allow. |
-| `reader` | "Read both cards" | Opens the card reader on both cards' complete faces. |
-| `close` | Card reader | Closes the reader while it is open. |
+| `card:current`, `card:preview` | Card panel | Hover target for the card's tag; activating pins or unpins it. Enter or Space naming the focused card does the same. Nothing in the match changes. |
 | `option:<option>`, `option:pass` … `option:terror:kidnap` | Action choice | Pins the option. |
 | `option:directorio:pass`, `option:directorio:limited-operation`, `option:event:unshaded`, `option:event:shaded` | Directorio's handoff after Kidnap | Opens or pins an option's briefing. |
 | `option:rally:beneficiary:<faction>`, `option:rally:sierra-maestra:place:<n>` | Unshaded Event | Opens or pins a beneficiary or Rally procedure. Commit the pinned option by its offered choice ID. |
@@ -226,6 +225,7 @@ The full reply's `table` describes what is drawn. Drawn parts are reported by na
 | `table.transfer.state` | The transfer modal: shown, pending, counterpart, direction, entry, limit, refusal, commit. |
 | `table.inline_text` | Inline emblem geometry. |
 | `table.counts` | Each piece and Terror count: its `name` (as its control is named), `text`, `font_size` and logical `bounds`. |
+| `table.card` | The card tag: `shown` (the open tag's `card`, `pinned`, `number`, `title`, `mark`, `order`, `event`, `status`, `lasting`, `rules` and plate `bounds`, or null), its drawn `parts` by their names in [the layout record](../../art/atlas/atlas-card-tag.layout.json), and each card's thumbnail `bounds` in `cards`. The facts come from `observation.cards`, whose `words` are the tag's text. |
 
 Drawn-part names:
 
@@ -240,6 +240,10 @@ Drawn-part names:
 - `native_funded_santiago_assault_carries_each_event_and_restarts` plays both Event texts and the funded Santiago Assault. It checks the payment, removal, process restarts, duplicate refusal and Syndicate's 2nd Eligible options. Set `CUBA_TEST_SANTIAGO_FUNDED_SAVE` to the retained common save identified in #130's evidence to use the exact funded match. Otherwise the test constructs a funded save through the rules authority. Evidence goes to `local/verification/issue-130/`.
 - `native_assault_resumes_giver_and_government_side_decisions` checks a transfer authorization and a voluntary Troop removal across restart, recalculated payment and removal capacity, and Syndicate's 2nd Eligible handoff. It accepts the same funded fixture and keeps evidence under `local/verification/issue-132/`.
 
+- `native_card_tag_matches_layout_and_reads_the_model`: the card tag at 3840×2160. Evidence: `local/verification/issue-139/card-tag-*`.
+  - Hover and keyboard focus each open both cards' tags after the shared dwell; Enter on a focused card and a click pin; Escape closes; nothing in the match changes, and the reader's targets are gone.
+  - At Directorio's handoff, both tags lie within 2 px of [the FigCraft layout record](../../art/atlas/atlas-card-tag.layout.json): images on all four edges, text on left, top and right. The face measures 620 px.
+  - Each tag states `observation.cards` at the opening, the handoff, the shaded Event in progress and resolved, and on card 18 after the advance; it stays inside the window and clear of both cards.
 - `native_card_advance_reopens_both_event_results_and_commits_once` checks both Event branches, card 19 refusal and recovery, restart on each side of the advance and stale or repeated activation. Set `CUBA_TEST_CARD_18_SAVES` to the directory containing the two retained saves pinned in #127 to exercise the exact owner-played positions, unaffordable Assault payment, and deliberate zero-space finish. Otherwise the test drives each Event to completion through the checked session. Evidence goes to `local/verification/issue-128/`.
 - `native_government_pass_credits_once_and_hands_first_choice_to_syndicate` checks the Pass preview, credit, Syndicate's 1st Eligible inspection, seat reconnects and process reload around the payment, and refusal of stale or repeated activation. It accepts the same `CUBA_TEST_CARD_18_SAVES` inputs. Evidence goes to `local/verification/issue-129/`.
 
@@ -280,9 +284,9 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
 - `native_shaded_panel_previews_multiple_spaces_and_no_flips`: checks the pending panel and the resolved restriction with two affected spaces and with no Underground Guerrillas left.
 - `native_shaded_event_activates_26july_and_adjusts_card_end_eligibility`: preview, conserved forces, four eligibility reasons, restriction, restart and stale/duplicate refusal. Evidence in `local/verification/issue-119/shaded-event-*`.
 - `native_own_removal_restart_obligation_and_all_pieces_finish`: evidence in `local/verification/issue-15/removal-*`.
-- `native_hover_status_is_transient_without_region_inspection`: all ten city/province tags, three EC exclusions, piece/count hover, reader suppression, camera navigation, complete home framing, and Terror/removal updates. Evidence: `local/verification/issue-16/hover-status-*`.
-- `native_victory_emblems_disclose_live_margins_without_inspection`: emblem and margin targets, one tag, reader/leave dismissal, actual transfer/Terror/removal updates, and rendered text bounds, including the largest reachable contribution list. Evidence: `local/verification/issue-16/victory-*`.
-- `native_responsive_layout_uses_width_and_preserves_picks`: 3:2, 16:9 and 21:9 native surfaces (agent-chosen regression coverage, not owner display policy; see the art foundation), all region picks, piece/count hover, counts that scale with the window (#50), centered emblems, panel anchors, the reader and unchanged save bytes. Evidence: `local/verification/issue-16/layout-*`.
+- `native_hover_status_is_transient_without_region_inspection`: all ten city/province tags, three EC exclusions, piece/count hover, the card tag closing the region's tag, camera navigation, complete home framing, and Terror/removal updates. Evidence: `local/verification/issue-16/hover-status-*`.
+- `native_victory_emblems_disclose_live_margins_without_inspection`: emblem and margin targets, one tag (the card tag replaces it, and the standings stay shown), leave dismissal, actual transfer/Terror/removal updates, and rendered text bounds, including the largest reachable contribution list. Evidence: `local/verification/issue-16/victory-*`.
+- `native_responsive_layout_uses_width_and_preserves_picks`: 3:2, 16:9 and 21:9 native surfaces (agent-chosen regression coverage, not owner display policy; see the art foundation), all region picks, piece/count hover, counts that scale with the window (#50), centered emblems, panel anchors, the card tag inside each window and clear of both cards, and unchanged save bytes. Evidence: `local/verification/issue-16/layout-*`.
 - `native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space`: resolves both Terrors and checks three things.
   - Captures exactly one loop apart (216 manual-clock steps, asked for with `advance`) are pixel-identical around each bell.
   - Each bell, advanced to the fixed seek times 0, 0.225, 0.45 and 0.675 s, visibly changes between two of those poses whatever the run's phase.
@@ -292,8 +296,8 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
   - Every image part, and the left, top and right edges of every value, lie within 2 px of [the FigCraft layout record](../../art/atlas/atlas-top-display.layout.json).
   - The `aid`, `us-alliance`, `resources` and `cash` tags each open, with their lines inside the plate, and the Resources tag leaves Cash visible.
   - A transfer, both Terror payments and a Kidnap each update the ledger.
-  - The reader hides the top display (its re-exported frame, without the title, is checked by its manifest and inspected in the capture).
-- `native_inline_emblems_sit_on_their_baseline_inside_their_text`: at 1920×1280 and 4096×2160, every inline emblem in the panel, buttons, notice, tags and reader. Evidence: `local/verification/issue-60/inline-*`.
+  - The top display stays shown while a card tag is open.
+- `native_inline_emblems_sit_on_their_baseline_inside_their_text`: at 1920×1280 and 4096×2160, every inline emblem in the panel, buttons, notice and tags. Evidence: `local/verification/issue-60/inline-*`.
   - It is 0.9× its type size, lies inside its text's bounds, sits within 1.5 px of its line's baseline, and keeps glued punctuation on its line.
   - Observations keep the names. The seat reports this geometry as `table.inline_text`.
   - Bevy's text layout, parley 0.11, always permits a line break right after an inline image, whatever character follows it, so a word joiner cannot prevent the break. A full stop glued to an emblem ("[S].") could therefore wrap to the next line; the test asserts it does not in the states it exercises.

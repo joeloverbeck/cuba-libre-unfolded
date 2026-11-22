@@ -1779,24 +1779,20 @@ pub(super) fn draw(
     let (s, _) = layout(&window);
     let pinned = popover.pinned.as_ref().map(|(space, _)| space.clone());
     // A space's popover opens on a click only; hover keeps the status tag.
-    let space = if ui.reader { None } else { pinned.clone() };
+    let space = pinned.clone();
     let shown = if targeting.removal.is_some() {
         let kept = popover.piece.as_ref().map(|(key, _)| key.clone());
         // A removable piece's popover opens on a click only (#58 story 49); hover
         // shows only the protected Guerrilla's reason tag (story 48).
-        let key = if ui.reader {
-            None
-        } else {
-            kept.clone().or_else(|| {
-                popover.hovered.clone().filter(|key| {
-                    ui.status.visible().is_some()
-                        && ui.rested.is_none()
-                        && targeting
-                            .piece(key)
-                            .is_some_and(|t| t.mark == PieceState::Protected)
-                })
+        let key = kept.clone().or_else(|| {
+            popover.hovered.clone().filter(|key| {
+                ui.status.visible().is_some()
+                    && ui.rested.is_none()
+                    && targeting
+                        .piece(key)
+                        .is_some_and(|t| t.mark == PieceState::Protected)
             })
-        };
+        });
         key.and_then(|key| {
             let quantity = if kept.as_ref() == Some(&key) {
                 popover.quantity
@@ -1984,8 +1980,7 @@ pub(super) fn observe(world: &mut World) -> Option<serde_json::Value> {
 /// A kept-open popover not yet drawn, or a drawn one not yet beside its space.
 pub(super) fn unsettled(world: &mut World) -> Vec<String> {
     let popover = world.resource::<Popover>();
-    let pinned = (popover.pinned.is_some() || popover.piece.is_some())
-        && !world.resource::<Interface>().reader;
+    let pinned = popover.pinned.is_some() || popover.piece.is_some();
     let roots: Vec<bool> = world
         .query::<&Root>()
         .iter(world)

@@ -64,7 +64,7 @@ pub(super) fn hover(
             .iter()
             .any(|s| &s.id == id && s.terrain != Terrain::EconomicCenter)
     });
-    let eligible = !ui.reader && !over_ui && play.session.is_some();
+    let eligible = !over_ui && play.session.is_some();
     ui.status
         .update(target, eligible, time.delta(), Duration::from_millis(250));
 }

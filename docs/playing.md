@@ -16,7 +16,7 @@ The native task begins with 26July's decision as 1st Eligible on card 17, *Alber
 - **Victory standings:** the four emblems at the top show official victory margins. Hover one for its calculation, contributions, conditions and available pieces ([VICTORY.md](../art/atlas/VICTORY.md)). Zero is the threshold, and a positive Government margin still requires every City at Active Support. No Propaganda victory check runs in this build.
 - **Top display:** Aid and the US Alliance at top left; each faction's Resources and the Cash supply at top right. Hover any of them for what it does and what it costs ([TOP.md](../art/atlas/TOP.md)).
 - **Sequence of Play.** The track in the map's western margin records 26July's action on card 17. Hover a box to see what it allows the next faction. When the Event ends, the track shows each faction's adjusted Eligibility for card 18 (R 2.3.7). [Eligibility layout](../art/atlas/ELIGIBILITY.md)
-- **Cards:** "Read both cards" opens the current and preview cards' complete faces.
+- **Cards:** hover the current or the preview card in the card panel, or focus it with Tab, for its tag: the face at reading size, its number and title, whether it is the current card or the preview, the faction order, the kind of Event, where the Event stands, any lasting Capability or Momentum, and the rule references ([CARD-TAG.md](../art/atlas/CARD-TAG.md)). Click the card (or press Enter on it) to keep the tag open; Escape closes it.
 - **Faction names:** running text names factions by their emblems, as in "[S] gave 1 to [26]. Saved." ([VICTORY.md, "Inline text emblems"](../art/atlas/VICTORY.md#inline-text-emblems)).
 
 ## Choosing an action
@@ -86,7 +86,7 @@ You can save and resume while the Rally is pending. After the last required effe
 
 ## Advancing to Pact of Caracas
 
-At the completed Alberto Bayo result, inspect the board, the Event effects and each faction's eligibility. Choose **Advance to Pact of Caracas** to play card 18. **Read both cards** shows Pact of Caracas as current, Sierra Maestra Manifesto as preview and card 17 in the public history. The Pact's Capability takes effect only if its Event executes.
+At the completed Alberto Bayo result, inspect the board, the Event effects and each faction's eligibility. Choose **Advance to Pact of Caracas** to play card 18. The card panel then shows Pact of Caracas as current and Sierra Maestra Manifesto as preview, and each card's tag reads it. The Pact's Capability takes effect only if its Event executes.
 
 Government is 1st Eligible and Syndicate is 2nd Eligible. Both skipped an Operation or Event on card 17. Terror and the Event made 26July and Directorio Ineligible. On the shaded branch, Alberto Bayo expressly keeps 26July Ineligible through card 18.
 
@@ -110,11 +110,11 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 | Wheel or `+`/`-` | Zoom |
 | `W` `A` `S` `D` | Pan |
 | `Home` | Restore the map framing; also brings back hover tags that extreme framing hid |
-| `Tab`, `Shift+Tab` | Move focus through options, steps and controls |
+| `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the current and the preview card |
 | `Enter`, `Space` | Activate the focused control |
-| `Escape` | Unpin a briefing, cancel an open transfer, or close a tag or popover |
+| `Escape` | Close a card's tag, unpin a briefing, cancel an open transfer, or close a tag or popover |
 
-The card reader and the transfer modal take camera input while open.
+The transfer modal takes camera input while open.
 
 ## Saving and quitting
 
