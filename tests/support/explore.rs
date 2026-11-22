@@ -3,32 +3,44 @@
 //! discovery test (`src/tabletop/discovery.rs`). The includer brings `Choice`,
 //! `Faction`, `Game` and `TransferChoice` into scope.
 //!
-//! From each start, every state reachable through offered decisions is explored,
-//! with at most one Resource transfer on any path (every remedy here needs at most
-//! one), of 1 or of the direction's limit. The starts:
+//! From each start, offered decisions are explored with at most one Resource
+//! transfer on any path (every Terror remedy here needs at most one), of 1 or of
+//! the direction's limit. The Terror starts:
 //! - the prepared position under Kidnap roll 1 (#8's seed 19), which leaves the owed
 //!   Terror's reserve exactly paid, and under roll 3 (seed 5), which funds Oriente too;
 //! - Government and 26July both at 0 (Government gave 26July 6, which 26July gave
 //!   Directorio): Kidnap would take nothing, so only a transfer can fund Terror or
 //!   guarantee Kidnap's commitment.
+//!
+//! The Event's side decisions are explored from its two texts so the graph does
+//! not multiply their paths by every earlier Terror and transfer permutation.
 #![allow(dead_code)]
 use super::{Choice, Faction, Game, TransferChoice};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{HashMap, HashSet};
 
-/// A state without its revision, which every decision advances.
+/// The current decision without its revision or the Event's save replay history.
+/// Reopening and cancelling a side decision reaches the same choices.
 pub fn key(game: &Game) -> String {
     let mut value = serde_json::to_value(game).unwrap();
     value["revision"] = 0.into();
+    value
+        .as_object_mut()
+        .unwrap()
+        .remove("event_side_decisions");
     value.to_string()
 }
 
-/// The action a choice stands for. Kidnap is listed at the action choice before
-/// Terror is chosen, under another id (R 4.1).
-pub fn action(choice: &Choice) -> String {
-    match choice.action() {
-        "terror:kidnap" => "kidnap".into(),
-        other => other.into(),
-    }
+pub type Action = (Faction, String);
+
+/// The action and the faction entitled to take it. Both factions can be shown
+/// the same Event text, and each has its own decision. Kidnap is listed under
+/// another id before Terror is chosen (R 4.1).
+pub fn action(choice: &Choice) -> Action {
+    let name = match choice.action() {
+        "terror:kidnap" => "kidnap",
+        other => other,
+    };
+    (choice.owner, name.into())
 }
 
 /// Submits the offered choice as the faction that owns it.
@@ -70,14 +82,15 @@ pub fn transfers(choice: &Choice) -> bool {
 pub struct Node {
     pub game: Game,
     /// The disabled choices here: (action, label, remedies).
-    pub disabled: Vec<(String, String, Vec<String>)>,
-    pub supported: BTreeSet<String>,
+    pub disabled: Vec<(Action, String, Vec<String>)>,
+    pub supported: HashSet<Action>,
     pub next: Vec<usize>,
     /// Whether this path's one Resource transfer has been made.
     pub transferred: bool,
 }
 
 pub fn explore(start: Game) -> Vec<Node> {
+    let starts_during_event = start.observe().event_executor.is_some();
     let mut index = HashMap::from([((key(&start), false), 0)]);
     let mut games = vec![(start, false)];
     let mut nodes = vec![];
@@ -101,6 +114,12 @@ pub fn explore(start: Game) -> Vec<Node> {
             transferred,
         };
         for choice in explored(&view.choices) {
+            if !starts_during_event
+                && view.event_executor.is_some()
+                && matches!(choice.action(), "transfer" | "remove")
+            {
+                continue;
+            }
             if transferred && transfers(choice) {
                 continue;
             }
@@ -122,7 +141,7 @@ pub fn explore(start: Game) -> Vec<Node> {
 }
 
 /// For each state, every action supported there or in any state reachable from it.
-pub fn reachable(nodes: &[Node]) -> Vec<BTreeSet<String>> {
+pub fn reachable(nodes: &[Node]) -> Vec<HashSet<Action>> {
     let mut future: Vec<_> = nodes.iter().map(|n| n.supported.clone()).collect();
     loop {
         let mut changed = false;
@@ -164,4 +183,21 @@ pub fn starts() -> [(&'static str, Game); 3] {
         ("prepared, roll 3", Game::opening_with_seed(5)),
         ("Government and 26July at 0", drained()),
     ]
+}
+
+pub fn event_starts() -> [Game; 2] {
+    let mut handoff = Game::opening_with_seed(5);
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "end-terror",
+    ] {
+        choose(&mut handoff, action);
+    }
+    let mut shaded = handoff.clone();
+    choose(&mut shaded, "event:shaded");
+    choose(&mut handoff, "event:unshaded");
+    [shaded, handoff]
 }

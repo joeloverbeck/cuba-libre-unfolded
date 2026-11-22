@@ -171,6 +171,8 @@ pub(super) struct Row {
 pub(super) struct Track {
     /// Card 17's factions, in its order.
     pub rows: Vec<Row>,
+    /// The cylinders now govern card 18 under R 2.3.7.
+    pub adjusted: bool,
     /// The box 26July's action is recorded in, if any.
     pub occupied: Option<Slot>,
     /// The Ineligible box's contents.
@@ -179,6 +181,7 @@ pub(super) struct Track {
 
 pub(super) fn track(view: &Observation) -> Track {
     let e = &view.eligibility;
+    let adjusted = e.next_card.is_some();
     let occupied = e.m26_box.map(Slot::of);
     let rows = e
         .order
@@ -186,18 +189,21 @@ pub(super) fn track(view: &Observation) -> Track {
         .map(|&faction| Row {
             faction,
             eligible: e.eligible[faction.index()],
-            role: if faction == e.first {
+            role: if adjusted {
+                None
+            } else if faction == e.first {
                 Some("1st")
             } else if faction == e.second {
                 Some("2nd")
             } else {
                 None
             },
-            acted: faction == Faction::M26 && occupied.is_some(),
+            acted: !adjusted && faction == Faction::M26 && occupied.is_some(),
         })
         .collect();
     Track {
         rows,
+        adjusted,
         occupied,
         ineligible: e
             .order
@@ -297,7 +303,11 @@ pub(super) fn content(view: &Observation, slot: Slot) -> Shown {
         title,
         rule,
         body,
-        note: AFTER_THE_CARD,
+        note: if e.next_card.is_some() {
+            "Eligibility for card 18 was adjusted after card 17 (R 2.3.7)."
+        } else {
+            AFTER_THE_CARD
+        },
         occupied,
     }
 }
@@ -421,7 +431,11 @@ pub(super) fn indicator(commands: &mut Commands, art: &Art, view: &Observation, 
     let title = label(
         commands,
         art,
-        "CARD 17 · SEQUENCE OF PLAY",
+        if track.adjusted {
+            "CARD 18 · ELIGIBILITY"
+        } else {
+            "CARD 17 · SEQUENCE OF PLAY"
+        },
         [x, y, w],
         fig::TITLE_SIZE,
         fig::TITLE_SPACING,
@@ -438,7 +452,11 @@ pub(super) fn indicator(commands: &mut Commands, art: &Art, view: &Observation, 
     let eligible = label(
         commands,
         art,
-        "ELIGIBLE FACTIONS · CARD ORDER",
+        if track.adjusted {
+            "AFTER CARD 17"
+        } else {
+            "ELIGIBLE FACTIONS · CARD ORDER"
+        },
         [x, y, fig::BOX_W],
         fig::CAPS_SIZE,
         fig::CAPS_SPACING,
@@ -572,7 +590,11 @@ pub(super) fn indicator(commands: &mut Commands, art: &Art, view: &Observation, 
     let recorded = label(
         commands,
         art,
-        "1ST ELIGIBLE · ACTION RECORDED",
+        if track.adjusted {
+            "CARD 17 · RECORDED ACTION"
+        } else {
+            "1ST ELIGIBLE · ACTION RECORDED"
+        },
         [x, y + shift, fig::BOX_W],
         fig::CAPS_SIZE,
         fig::CAPS_SPACING,

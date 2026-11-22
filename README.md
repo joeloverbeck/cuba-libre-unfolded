@@ -2,7 +2,7 @@
 
 An Ubuntu Rust desktop implementation of **Cuba Libre**, the COIN game by Jeff Grossman and Volko Ruhnke, published by GMT Games. The goal is the standard four-faction game: one human, external Claude Code or Codex agents in the other seats, and save/resume ([mission](docs/foundation/01-mission-and-scope.md)).
 
-**Current build:** an integration candidate for [the first native tactical task (#8)](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/8). It plays 26July's decision on card 17: Pass, or Terror with optional Kidnap in Santiago, Resource transfers and removal of its own pieces, on the selected Atlas map with live standings, card reader and durable saves. Final verification and owner review remain due under #8. It is not a complete card, the standard setup, a full game, a faction-agent player or an owner-accepted play experience.
+**Current build** is a native integration candidate for the bounded card 17 task. [First task (#8)](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/8) · [Directorio continuation (#117)](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/117)
 
 ## Build and launch
 
@@ -28,9 +28,7 @@ Missing or changed art or cards refuse before a save is created or replaced.
 
 ## Playing this build
 
-Choose Pass or Terror in the panel on the right; hovering an option explains it before you commit. Right-drag or the arrow keys orbit the map, the wheel zooms, WASD pans and Home restores the framing. **Save / quit** exits, and relaunching the same command resumes.
-
-[docs/playing.md](docs/playing.md) covers the rest: reading the table, Terror, Kidnap, transfers, removal and every key.
+[Playing this build](docs/playing.md) covers the decisions, table, controls and save/resume.
 
 ## Checks and development seat
 

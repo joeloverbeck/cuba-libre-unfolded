@@ -5,6 +5,9 @@ use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+
+#[path = "native/rally.rs"]
+mod rally;
 #[test]
 fn session_log_rejects_the_historical_dither_warning() {
     let line = "\x1b[2m2026-11-17T08:00:15.950912Z\x1b[0m \x1b[33m WARN\x1b[0m \x1b[2mbevy_core_pipeline::tonemapping\x1b[0m\x1b[2m:\x1b[0m Camera 406v0 has `Tonemapping::None` with `DebandDither::Enabled`, so dithering has no effect. Use `Tonemapping::Linear` to keep dithering, or set `DebandDither::Disabled`.";
@@ -22,6 +25,15 @@ fn session_log_checks_the_level_field() {
     ));
 }
 
+fn choice_part<'a>(view: &'a Value, name: &str) -> &'a Value {
+    view["table"]["choice_parts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|part| part["part"] == name)
+        .unwrap_or_else(|| panic!("missing choice panel part: {name}"))
+}
+
 fn unexpected_record(line: &str) -> bool {
     let plain = anstream::adapter::strip_str(line).to_string();
     let mut fields = plain.split_whitespace();
@@ -33,6 +45,314 @@ fn unexpected_record(line: &str) -> bool {
         first
     };
     matches!(level, Some("WARN" | "ERROR"))
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained handoff captures"]
+fn native_directorio_previews_the_inherited_kidnap_handoff() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-118"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("directorio-handoff-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
+        save: root.join("task.json"),
+        socket: socket.path().join("seat.sock"),
+        root,
+        step: 0,
+    };
+    eprintln!("Directorio handoff evidence: {}", app.root.display());
+    app.launch_size("3840x2160");
+    app.choose("terror");
+    app.choose("kidnap");
+    app.roll();
+    app.choose("terror:santiago");
+    let before = app.observe()["observation"].clone();
+    app.choose("end-terror");
+    let handoff = app.observe();
+    let position = &handoff["observation"];
+    let revision = position["revision"].as_u64().unwrap();
+    assert_eq!(position["owner"], "Directorio");
+    assert_eq!(position["next"]["role"], "2nd Eligible");
+    assert_eq!(
+        position["next"]["options"],
+        json!(["Pass (+1 if executed later)", "Limited Operation", "Event"])
+    );
+    for key in ["spaces", "available", "resources", "resolved", "kidnap"] {
+        assert_eq!(position[key], before[key], "{key}");
+    }
+    let die = position["kidnap"]["die"].as_u64().unwrap();
+    assert_eq!(position["resources"], json!([6 - die, die - 1, 5, 15]));
+    assert_eq!(position["resolved"], json!([{"space":"santiago","paid":1}]));
+    app.capture("directorio-handoff");
+
+    let choices = position["choices"].as_array().unwrap();
+    assert_eq!(choices.len(), 4);
+    assert!(choices.iter().all(|choice| choice["owner"] == "Directorio"));
+    let saved = std::fs::read(&app.save).unwrap();
+    for (option, expected) in [
+        (
+            "event:unshaded",
+            "26July or DR free Rallies in each space it has a Base (as if spaces Neutral).",
+        ),
+        (
+            "event:shaded",
+            "All 26July Guerrillas Active. 26July Ineligible through next card.",
+        ),
+    ] {
+        app.activate(&format!("option:{option}"), revision);
+        let shown = app.observe();
+        assert_eq!(shown["table"]["briefing"]["option"], option);
+        let contents = tag_text(&shown["table"]["briefing"]);
+        assert!(contents.contains(expected), "{contents}");
+        assert!(contents.contains("Kidnap"), "{contents}");
+        assert_eq!(shown["observation"], *position);
+        assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+        app.capture(option.replace(':', "-").as_str());
+    }
+    app.activate("option:directorio:pass", revision);
+    app.activate("choice-commit", revision);
+    assert_eq!(app.observe()["observation"], *position);
+    for (option, effect) in [
+        ("directorio:pass", "gain 1 Resource and stay Eligible"),
+        (
+            "directorio:limited-operation",
+            "one space without a Special Activity",
+        ),
+    ] {
+        let shown = app.point(&format!("option:{option}"));
+        assert_eq!(shown["table"]["briefing"]["option"], option);
+        let contents = tag_text(&shown["table"]["briefing"]);
+        assert!(contents.contains(effect), "{contents}");
+        assert!(
+            contents.contains("execution is outside this task"),
+            "{contents}"
+        );
+        assert_eq!(shown["observation"], *position);
+    }
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    app.quit();
+    app.launch_size("3840x2160");
+    let restarted = app.observe();
+    assert_eq!(restarted["observation"], *position);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    app.quit();
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained shaded Event captures"]
+fn native_shaded_event_activates_26july_and_adjusts_card_end_eligibility() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-119"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("shaded-event-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
+        save: root.join("task.json"),
+        socket: socket.path().join("seat.sock"),
+        root,
+        step: 0,
+    };
+    eprintln!("Shaded Event evidence: {}", app.root.display());
+    let historical = std::env::var_os("CUBA_TEST_COMPLETED_KIDNAP");
+    if let Some(input) = &historical {
+        std::fs::copy(input, &app.save).unwrap();
+    }
+    app.launch_size("3840x2160");
+    if historical.is_none() {
+        app.choose("terror");
+        app.choose("transfer");
+        app.choose("ask:2:2");
+        app.choose("authorize:2");
+        app.choose("terror:santiago");
+        app.choose("terror:oriente");
+        app.choose("kidnap");
+        app.roll();
+        app.choose("end-terror");
+    }
+
+    let guerrillas = |position: &Value, space: &str| {
+        position["spaces"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["id"] == space)
+            .unwrap()["pieces"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|p| p["faction"] == "M26" && p["kind"] == "Guerrilla")
+            .map(|p| {
+                (
+                    p["state"].as_str().unwrap().to_owned(),
+                    p["count"].as_u64().unwrap(),
+                )
+            })
+            .collect::<std::collections::BTreeMap<_, _>>()
+    };
+    let before = app.observe()["observation"].clone();
+    let revision = before["revision"].as_u64().unwrap();
+    let saved_before = std::fs::read(&app.save).unwrap();
+    assert_eq!(before["owner"], "Directorio");
+    assert_eq!(
+        guerrillas(&before, "santiago"),
+        [("Active".into(), 1), ("Underground".into(), 1)].into()
+    );
+    assert_eq!(
+        guerrillas(&before, "oriente"),
+        [("Active".into(), 1)].into()
+    );
+    let choice = before["choices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"] == format!("{revision}:event:shaded"))
+        .unwrap();
+    assert_eq!(choice["supported"], true);
+    assert_eq!(
+        choice["preview"]["flips"],
+        json!([{"space":"santiago","faction":"M26","kind":"Guerrilla",
+            "from":"Underground","to":"Active","count":1}])
+    );
+    app.activate("option:event:shaded", revision);
+    let preview = app.observe();
+    let shown = tag_text(&preview["table"]["briefing"]);
+    assert!(
+        shown.contains("Santiago") && shown.contains("Underground"),
+        "{shown}"
+    );
+    assert!(shown.contains("Ineligible through next card"), "{shown}");
+    let die = before["kidnap"]["die"].as_u64().unwrap();
+    let proceeds = before["kidnap"]["proceeds"].as_u64().unwrap();
+    let kidnap = format!(
+        "Kidnap rolled {die} and took {proceeds} Resource{} from Government.",
+        if proceeds == 1 { "" } else { "s" }
+    );
+    assert!(
+        shown.contains("Terror in Santiago de Cuba, Oriente · paid 2 Resources.")
+            && shown.contains(&kidnap),
+        "{shown}"
+    );
+    app.capture("shaded-preview");
+    app.activate("option:event:shaded", revision);
+    assert_eq!(app.observe()["observation"], before);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved_before);
+
+    app.activate("option:event:shaded", revision);
+    let commit =
+        json!({"op":"activate","revision":revision,"choice":format!("{revision}:event:shaded")});
+    app.request(commit.clone(), true);
+    app.request(json!({"op":"settle"}), true);
+    let committed = app.observe();
+    assert_eq!(
+        committed["table"]["notice"],
+        "Directorio chose the shaded Event. Resolve it to apply its effects. Saved."
+    );
+    assert_eq!(committed["observation"]["spaces"], before["spaces"]);
+    assert_eq!(committed["observation"]["finished"], true);
+    assert!(committed["observation"]["eligibility"]["next_card"].is_null());
+    assert!(committed["observation"]["eligibility"]["event_restriction"].is_null());
+    let subtitle = choice_part(&committed, "choice-subtitle")["text"]
+        .as_str()
+        .unwrap();
+    assert!(
+        subtitle.contains("Santiago de Cuba · 1 Underground Guerrilla → Active"),
+        "missing pending flip on the panel: {subtitle}"
+    );
+    app.capture("shaded-chosen");
+    app.activate("option:resolve-shaded", revision + 1);
+    app.choose("resolve-shaded");
+    let resolved = app.observe();
+    assert_eq!(
+        resolved["table"]["notice"],
+        "Shaded Event resolved. Eligibility for card 18 recorded. Saved."
+    );
+    let after = &resolved["observation"];
+    assert_eq!(after["revision"], revision + 2);
+    assert_eq!(guerrillas(after, "santiago"), [("Active".into(), 2)].into());
+    assert_eq!(guerrillas(after, "oriente"), [("Active".into(), 1)].into());
+    assert!(after["spaces"].as_array().unwrap().iter().all(|space| {
+        !guerrillas(after, space["id"].as_str().unwrap()).contains_key("Underground")
+    }));
+    for key in [
+        "available",
+        "resources",
+        "map_piece_count",
+        "available_piece_count",
+        "standings",
+        "resolved",
+        "kidnap",
+        "current_card",
+        "preview_card",
+        "played_cards",
+        "draw_count",
+    ] {
+        assert_eq!(after[key], before[key], "{key}");
+    }
+    assert_eq!(after["eligible"], json!([true, false, false, true]));
+    assert_eq!(
+        after["eligibility"]["event_restriction"],
+        json!({"faction":"M26","through_card":18})
+    );
+    assert_eq!(after["choices"], json!([]));
+    let track = &resolved["table"]["eligibility"]["track"];
+    assert_eq!(track["adjusted"], true);
+    assert_eq!(track["ineligible"], json!(["M26", "Directorio"]));
+    let parts = resolved["table"]["choice_parts"].as_array().unwrap();
+    let text = |part: &str| {
+        parts
+            .iter()
+            .find(|p| p["part"] == part)
+            .unwrap_or_else(|| panic!("missing {part}"))["text"]
+            .as_str()
+            .unwrap()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    assert!(text("ended-value:SHADED EVENT · ACTIVATIONS").contains("Santiago"));
+    let eligibility = text("ended-value:ELIGIBILITY FOR CARD 18 · R 2.3.7");
+    for reason in [
+        "Government · Eligible · took no Operation or Event",
+        "26July · Ineligible · executed Terror",
+        "Directorio · Ineligible · executed the Event",
+        "Syndicate · Eligible · took no Operation or Event",
+    ] {
+        assert!(eligibility.contains(reason), "{eligibility}");
+    }
+    assert!(text("ended-value:EVENT RESTRICTION").contains(
+        "Card 17, Alberto Bayo, keeps 26July Ineligible through card 18, Pact of Caracas."
+    ));
+    app.capture("card-end-eligibility");
+    let saved_after = std::fs::read(&app.save).unwrap();
+    app.request(commit.clone(), false);
+    assert_eq!(app.observe()["observation"], *after);
+    app.request(
+        json!({"op":"activate","revision":revision + 2,"choice":format!("{}:event:shaded", revision + 2)}),
+        false,
+    );
+    app.quit();
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["observation"], *after);
+    app.request(commit, false);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved_after);
+    app.quit();
 }
 
 struct Native {
@@ -4528,7 +4848,8 @@ fn native_execution_panel_matches_layout_and_previews_every_step() {
         "DONE · PAID 1"
     );
 
-    // End Terror after Kidnap (EX-A state 7), then the ended panel.
+    // End Terror after Kidnap, then inspect the recorded result from Directorio's
+    // action panel.
     let end = app.tag("end-terror", "end-terror-after-kidnap");
     for fact in [
         "RECORDS: Operation with Special Activity (R 2.3.4)",
@@ -4540,14 +4861,10 @@ fn native_execution_panel_matches_layout_and_previews_every_step() {
     app.choose("end-terror");
     let ended = app.observe();
     assert_eq!(ended["observation"]["finished"], true);
-    assert_eq!(words(&ended, "execution-heading"), "26July · Terror ended");
-    compare(&ended, &layout["ended"]["images"], &[0, 1, 2, 3]);
-    compare(&ended, &layout["ended"]["text"], &[0, 1]);
-    assert!(
-        words(&ended, "ended-value:RESULT").contains(&format!("Kidnap rolled {die}")),
-        "{}",
-        words(&ended, "ended-value:RESULT")
-    );
+    assert_eq!(words(&ended, "choice-heading"), "Directorio's options");
+    app.activate("option:event:unshaded", rev(&ended));
+    let result = tag_text(&app.observe()["table"]["briefing"]);
+    assert!(result.contains(&format!("Kidnap rolled {die}")), "{result}");
     app.capture("ended");
     app.quit();
 }
@@ -5273,7 +5590,7 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
 /// the authority refuses it, so the row, its tag, the commit and the request's tag all
 /// say not yet with the authority's reason and its remedy, timed "once Directorio has
 /// decided", and pressing the commit submits nothing. Then the remedy is taken, and
-/// the Terror and End Terror notices, both ended panels and the Pass notice state the
+/// the Terror and End Terror notices, Directorio's handoff and the Pass notice state the
 /// authority's record.
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained captures"]
@@ -5388,17 +5705,11 @@ fn native_refused_end_terror_while_a_request_waits_and_the_ended_panels() {
     );
     assert_eq!(ended["observation"]["eligibility"]["m26_next_card"], false);
     assert_eq!(
-        words(&ended, "execution-subtitle").lines().next(),
-        Some("Operation with Special Activity recorded (R 2.3.4)")
+        words(&ended, "choice-subtitle").lines().next(),
+        Some("2nd Eligible on card 17 · Kidnap opened the Event (R 2.3.4)")
     );
-    assert_eq!(
-        words(&ended, "ended-value:ELIGIBILITY"),
-        "26July becomes Ineligible after this card (R 2.3.7)."
-    );
-    assert!(
-        words(&ended, "ended-value:NEXT · SHOWN, NOT EXECUTED")
-            .starts_with("Directorio, 2nd Eligible, may:")
-    );
+    assert_eq!(words(&ended, "choice-heading"), "Directorio's options");
+    assert!(words(&ended, "option:event:unshaded-label").contains("unshaded"));
     app.capture("ended-special-activity");
     app.quit();
 

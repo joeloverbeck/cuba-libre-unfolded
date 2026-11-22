@@ -9,9 +9,10 @@ The track sits in the map's western margin, under the "CUBA" heading, 20 referen
 - **Header:** the ruled "CARD 17 · SEQUENCE OF PLAY" strip.
 - **Eligible box:** card 17's four factions in card order (R 2.3.2), each with its number, emblem, name and an Eligible check. The 1st and 2nd Eligible factions carry the 1st and 2nd ribbons and bold names. After a Pass, Directorio is 1st and Government 2nd (R 2.3.3).
 - **Action boxes:** Pass, Operation Only, and Operation + Special Activity. Once 26July's action is recorded, its emblem moves into that box, which takes the heavier ink outline. Its row then shows a dashed vacant slot and "acted: in its box below", and keeps its Eligible check. During Terror no box is occupied yet.
-- **Ineligible box:** empty, with "None on card 17: Eligibility changes after the card (R 2.3.7)". Nobody turns Ineligible inside the task.
+- **Ineligible box:** empty during card 17, with "None on card 17: Eligibility changes after the card (R 2.3.7)".
 - **Hover:** each action box is a hover target (`eligibility:pass`, `eligibility:operation-only`, `eligibility:operation-special-activity`). After the shared 400 ms dwell, a tag opens 8 px right of the panel with a leader to the box. An occupied box's tag says what 26July did and what it allows Directorio (R 2.3.3, 2.3.4). An empty box's tag states that box's rule. Every tag ends with "Nobody becomes Ineligible during this card: Eligibility is adjusted after it (R 2.3.7)". The tag closes when the pointer leaves, like the other hover tags. Tags state facts and never recommend a move.
 - **Not shown:** the next card's order.
+- **Card-end adjustment:** after Directorio's Event, the same four rows show eligibility for card 18. The role ribbons clear, the Ineligible box lists the Ineligible factions, and 26July's earlier action remains in the recorded action section. The ended panel explains the reasons.
 
 ## Files
 

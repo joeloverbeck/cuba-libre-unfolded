@@ -25,3 +25,11 @@ The app never guesses a fresh task or overwrites the evidence.
 
 - A save written before #61's action choice resumes with Terror already chosen. If no effect has happened, it also offers going back. Admission does not rewrite it until the next decision.
 - A #8 save holding a pending removal confirmation resumes in removal mode.
+- A previously supported save after Terror with Kidnap opens at Directorio's options using the recorded Terror and roll. Reading the Event previews leaves the saved record intact.
+- A completed Alberto Bayo Event resumes at card-end eligibility. The save validates the shaded activation record against the inherited position and retains the printed restriction through card 18. Restarting presents the saved result.
+- A save made during the unshaded Event remembers whether Directorio is choosing the beneficiary or that faction is directing the free Rally. Reload derives the available choices from the saved board and preserves the Kidnap result and consumed randomness. The record admits a completed Rally only when its recorded choices can be applied to a valid inherited position.
+- The shaded Event can resume before its printed effects resolve. If an Event or Rally opens
+  a transfer or voluntary removal, the record keeps that decision and its execution stage.
+  Admission replays those decisions in order from the first side decision's supported position,
+  checking the giver, pieces, supplies and remaining choices. Older Event records resume
+  under the original admission rules.

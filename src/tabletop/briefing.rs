@@ -8,8 +8,10 @@
 //! no province and compute no space's result, which the map popover previews (#72).
 //! Pass keeps its exact numbers, from the rules authority's preview, since it involves
 //! no space. Current Resources come from the observation; the wording only places them.
+use crate::game::CARD_17_UNSHADED;
 use crate::{
-    CARD_17_SHADED, Choice, Faction, KidnapStakes, Observation, Preview, TERROR_COST, resources,
+    CARD_17_SHADED, Choice, Faction, Flip, KidnapStakes, Observation, Preview, TERROR_COST,
+    resources,
 };
 
 /// Value lines are broken by hand at this many characters, which the 420 px column
@@ -286,9 +288,132 @@ fn absent(
     }
 }
 
+/// Directorio's legal options and the recorded reason the Event is available.
+fn directorio(view: &Observation, option: &str) -> Option<Briefing> {
+    let choice = listed(view, option)?;
+    let (title, rule, printed) = match option {
+        "directorio:pass" => ("Pass", "R 2.3.3", None),
+        "directorio:limited-operation" => ("Limited Operation", "R 2.3.5", None),
+        "event:unshaded" => (
+            "Alberto Bayo · unshaded",
+            "R 5.2",
+            Some(("VET TRAINS GUERRILLAS", CARD_17_UNSHADED)),
+        ),
+        "event:shaded" => (
+            "Alberto Bayo · shaded",
+            "R 5.2",
+            Some(("MEXICO BLOCKS TRAINING BY CUBAN EXPAT", CARD_17_SHADED)),
+        ),
+        _ => return None,
+    };
+    let mut entries = Vec::new();
+    if let Some((heading, text)) = printed {
+        entries.push(entry(heading, text));
+        entries.push(entry(
+            "WHY DIRECTORIO MAY CHOOSE",
+            "Kidnap made Terror an Operation with Special Activity, opening the Event to the 2nd Eligible faction (R 2.3.4, 5.2).",
+        ));
+        if let Some(roll) = &view.kidnap {
+            let targets: Vec<_> = view
+                .resolved
+                .iter()
+                .filter_map(|r| view.spaces.iter().find(|s| s.id == r.space))
+                .map(|s| s.name.as_str())
+                .collect();
+            let paid = view.resolved.iter().map(|r| r.paid).sum();
+            entries.push(entry(
+                "26JULY'S RESULT",
+                format!(
+                    "Terror in {} · paid {}. Kidnap rolled {} and took {} from Government.",
+                    targets.join(", "),
+                    resources(paid),
+                    roll.die,
+                    resources(roll.proceeds)
+                ),
+            ));
+        }
+        if option == "event:shaded"
+            && let Some(preview) = &choice.preview
+        {
+            entries.push(entry("ACTIVATE", activation_lines(view, &preview.flips)));
+        }
+    }
+    if choice.supported {
+        entries.push(entry("COST", &choice.explanation));
+    } else {
+        entries.push(entry("IN THIS BUILD", &choice.explanation));
+    }
+    Some(Briefing {
+        option: option.into(),
+        title: title.into(),
+        rule,
+        entries,
+        rules: String::new(),
+    })
+}
+
+pub(super) fn activation_lines(view: &Observation, flips: &[Flip]) -> String {
+    if flips.is_empty() {
+        return "No Underground 26July Guerrillas remain.".into();
+    }
+    flips
+        .iter()
+        .map(|flip| {
+            let space = view
+                .spaces
+                .iter()
+                .find(|s| s.id == flip.space)
+                .map_or(flip.space.as_str(), |s| s.name.as_str());
+            format!(
+                "{space} · {} Underground Guerrilla{} → Active",
+                flip.count,
+                if flip.count == 1 { "" } else { "s" }
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// The briefing for one option at the action choice, or for the Terror and Kidnap
 /// tabs during execution. `option` is the choice id without its revision.
 pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
+    if view.eligibility.directorio_handoff() {
+        return directorio(view, option);
+    }
+    if view
+        .event
+        .as_ref()
+        .is_some_and(crate::EventProgress::pending)
+    {
+        let choice = listed(view, option)?;
+        let (rule, label) = match option {
+            "resolve-shaded" => ("R 5.1, 5.2", "EVENT EFFECT"),
+            "transfer" => ("R 1.5.1", "GIVER'S DECISION"),
+            "remove" | "done-removal" => ("R 1.4.1", "VOLUNTARY REMOVAL"),
+            _ if matches!(
+                view.event,
+                Some(crate::EventProgress::ChooseRallyBeneficiary)
+            ) =>
+            {
+                ("R 5.1", "QUALIFYING BASE SPACES")
+            }
+            _ => ("R 3.3.1, 5.5", "PLACEMENT AND COST"),
+        };
+        let mut entries = vec![entry(label, &choice.explanation)];
+        let mut rules = String::new();
+        if let Some(preview) = &choice.preview {
+            let (effects, notes) = super::execution::previewed(view, option, preview);
+            entries.extend(effects);
+            rules = notes.join(" ");
+        }
+        return Some(Briefing {
+            option: option.into(),
+            title: choice.label.clone(),
+            rule,
+            entries,
+            rules,
+        });
+    }
     let m26 = view.resources[Faction::M26.index()];
     let per_space = format!("1 Resource per space · 26July has {m26}.");
     let free = format!("No Resource beyond its Operation · 26July has {m26}.");
@@ -300,7 +425,7 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
             option,
             "Unshaded Event",
             "R 5.2",
-            "Card 17, Vet trains guerrillas: 26July or DR free Rallies in each space it has a Base (as if spaces Neutral).",
+            &format!("Card 17, Vet trains guerrillas: {CARD_17_UNSHADED}"),
             format!("None · 26July has {m26}."),
             second_after_event(view),
         ),

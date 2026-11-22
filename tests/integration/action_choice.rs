@@ -142,6 +142,14 @@ fn unsupported_options_and_execution_choices_are_refused_without_effect() {
     refused(&mut game, Faction::Directorio, &["pass", "terror"]);
     assert!(game.submit(Faction::M26, 1, "1:pass").is_err());
     assert_eq!(game, Game::opening());
+    for name in ["unshaded", "shaded"] {
+        let refusal = game
+            .submit(Faction::M26, 0, &format!("0:event:{name}"))
+            .unwrap_err();
+        assert!(refusal.contains("26July's opening decision"), "{refusal}");
+        assert!(refusal.contains("not in this task"), "{refusal}");
+    }
+    assert_eq!(game, Game::opening());
     // The refusal names the reason rather than only rejecting the identity.
     let refusal = game.submit(Faction::M26, 0, "0:rally").unwrap_err();
     assert!(refusal.contains("not in this task"), "{refusal}");

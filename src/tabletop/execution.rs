@@ -4,8 +4,8 @@
 //! a fixed list of steps in AC-B's option rows, each with its state as a pill or a
 //! note; hovering or focusing a step opens its preview on the AC-B tag, a click pins
 //! it, and the full-width action at the panel's foot commits only the pinned step.
-//! After the Operation ends (Pass or End Terror) the panel keeps the same header and
-//! states what was recorded and what Directorio may do next.
+//! After Pass or Operation Only, the panel states what was recorded and what
+//! Directorio may do next. Kidnap hands the panel back to the action choices.
 //!
 //! Layout authority (foundation 4): `art/atlas/atlas-execution.figcraft` owns the
 //! structure, placement and sizes. The constants in [`fig`] are that file's 16:9
@@ -738,13 +738,21 @@ fn pill(
     commands.entity(anchor).add_child(plate);
 }
 
-/// The panel's header: the 26July emblem, the heading and two subtitle lines.
-fn header(commands: &mut Commands, art: &Art, heading: &str, subtitle: &str, s: f32, o: Vec2) {
+/// The panel's header: the acting faction's emblem, heading and two subtitle lines.
+fn header(
+    commands: &mut Commands,
+    art: &Art,
+    faction: Faction,
+    heading: &str,
+    subtitle: &str,
+    s: f32,
+    o: Vec2,
+) {
     let [x, y, w, h] = acb::EMBLEM;
     let emblem = picture(
         commands,
         art,
-        &emblems::image(Faction::M26),
+        &emblems::image(faction),
         rect(x, y, w, h),
         s,
         o,
@@ -808,6 +816,14 @@ pub(super) fn panel(
     o: Vec2,
 ) {
     picture(commands, art, "atlas-panel.png", PANEL, s, o, 2);
+    if view.eligibility.directorio_handoff()
+        || view
+            .event
+            .as_ref()
+            .is_some_and(crate::EventProgress::pending)
+    {
+        return choice::panel(commands, art, view, ui, s, o);
+    }
     if view.finished {
         return ended(commands, art, view, s, o);
     }
@@ -843,7 +859,7 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
             ),
         ),
     };
-    header(commands, art, &heading, &subtitle, s, o);
+    header(commands, art, Faction::M26, &heading, &subtitle, s, o);
     let steps = steps(view);
     let pinned = ui.choice.pinned.as_deref();
     for (i, (name, caps, top)) in fig::SECTIONS.iter().enumerate() {
@@ -1080,6 +1096,76 @@ fn event_heading(faction: Faction) -> String {
 /// resolved and what it paid. `None` until the action is recorded.
 pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)> {
     let e = &view.eligibility;
+    if let (Some(outcome), Some(results)) = (
+        view.event.as_ref().and_then(crate::EventProgress::outcome),
+        e.next_card,
+    ) {
+        let mut entries = vec![match outcome {
+            crate::EventOutcome::Shaded { flips } => entry(
+                "SHADED EVENT · ACTIVATIONS",
+                briefing::activation_lines(view, flips),
+            ),
+            crate::EventOutcome::Unshaded(rally) => {
+                let effects = if rally.resolutions.is_empty() {
+                    "No qualifying Base spaces. No Rally effect (R 5.1.3).".into()
+                } else {
+                    rally
+                        .resolutions
+                        .iter()
+                        .map(|step| {
+                            let space = space_name(view, &step.space);
+                            if step.action == crate::RallyAction::Place(0) {
+                                format!("{space} · Chose to place 0 Guerrillas. No pieces moved.")
+                            } else {
+                                format!("{space} · {}.", step.action.description())
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                };
+                entry(
+                    "UNSHADED EVENT · FREE RALLY",
+                    format!(
+                        "{} · 0 Resources. The free Rally adds no eligibility penalty (R 5.5).\n{effects}",
+                        rally.beneficiary.name()
+                    ),
+                )
+            }
+        }];
+        let reasons = results
+            .into_iter()
+            .map(|result| {
+                format!(
+                    "{} · {} · {}",
+                    result.faction.name(),
+                    if result.eligible {
+                        "Eligible"
+                    } else {
+                        "Ineligible"
+                    },
+                    result.reason.text(),
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        entries.push(entry("ELIGIBILITY FOR CARD 18 · R 2.3.7", reasons));
+        if let Some(restriction) = e.event_restriction {
+            entries.push(entry(
+                "EVENT RESTRICTION",
+                format!(
+                    "Card {}, Alberto Bayo, keeps {} Ineligible through card {}, Pact of Caracas.",
+                    view.current_card,
+                    restriction.faction.name(),
+                    restriction.through_card
+                ),
+            ));
+        }
+        return Some((
+            "Directorio · Event complete".into(),
+            "Card 17 complete · Eligibility adjusted\nCard 18 remains the preview".into(),
+            entries,
+        ));
+    }
     let record = e.m26_box?;
     let shown = "Shown, not executed: the card and Eligibility do not advance";
     let following = view.next.as_ref();
@@ -1178,7 +1264,12 @@ fn ended(commands: &mut Commands, art: &Art, view: &Observation, s: f32, o: Vec2
     let Some((heading, subtitle, entries)) = ending(view) else {
         return;
     };
-    header(commands, art, &heading, &subtitle, s, o);
+    let faction = if view.eligibility.next_card.is_some() {
+        Faction::Directorio
+    } else {
+        Faction::M26
+    };
+    header(commands, art, faction, &heading, &subtitle, s, o);
     let mut y = fig::ENDED_TOP;
     for e in entries {
         let label = words(
@@ -1236,7 +1327,11 @@ fn reason(explanation: &str) -> String {
 
 /// A preview's lines under their labels: the authority's computed changes, then its
 /// notes. Notes that cite a rule's procedure become the tag's rules line.
-fn previewed(view: &Observation, action: &str, preview: &Preview) -> (Vec<Entry>, Vec<String>) {
+pub(super) fn previewed(
+    view: &Observation,
+    action: &str,
+    preview: &Preview,
+) -> (Vec<Entry>, Vec<String>) {
     let mut entries = vec![];
     let mut rules = vec![];
     let name = |id: &str| space_name(view, id).to_owned();

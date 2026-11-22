@@ -728,6 +728,7 @@ pub(super) fn piece_content(
             .get(usize::from(n).checked_sub(1)?)
             .and_then(|id| view.choices.iter().find(|c| &c.id == id))
     };
+    let executor = view.executing?;
     let base = target.kind == crate::Kind::Base;
     let (one, many) = if base {
         ("Base", "Bases")
@@ -750,7 +751,7 @@ pub(super) fn piece_content(
             space: target.space.clone(),
             piece: Some(key),
             revision: view.revision,
-            title: format!("Protected · 26July {one}"),
+            title: format!("Protected · {} {one}", executor.name()),
             subtitle: format!(
                 "{} · {:?} · {}",
                 place.name,
@@ -788,9 +789,9 @@ pub(super) fn piece_content(
     }
     lines.extend(removal_lines(view, removal));
     let title = if base {
-        "26July Base".to_owned()
+        format!("{} Base", executor.name())
     } else {
-        format!("26July Guerrilla · {:?}", target.state)
+        format!("{} Guerrilla · {:?}", executor.name(), target.state)
     };
     let size = if target.count > 1 {
         format!("stack of {}", target.count)

@@ -96,6 +96,8 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `reader` | "Read both cards" | Opens the card reader on both cards' complete faces. |
 | `close` | Card reader | Closes the reader while it is open. |
 | `option:<option>`, `option:pass` … `option:terror:kidnap` | Action choice | Pins the option. |
+| `option:directorio:pass`, `option:directorio:limited-operation`, `option:event:unshaded`, `option:event:shaded` | Directorio's handoff after Kidnap | Opens or pins an option's briefing. |
+| `option:rally:beneficiary:<faction>`, `option:rally:sierra-maestra:place:<n>` | Unshaded Event | Opens or pins a beneficiary or Rally procedure. Commit the pinned option by its offered choice ID. |
 | `choice-commit` | Action choice | Commits the pinned option. |
 | `briefing-ribbon` | Terror | Reopens the briefings. |
 | `briefing-tab:kidnap`, `briefing-tab:terror` | Briefing tag | Switches the briefing. |
@@ -115,30 +117,44 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `popover:commit` | Space or piece popover | Commits. |
 | `popover:quantity:minus`, `popover:quantity:plus` | Piece popover | Steps the quantity. |
 | `popover:cancel` | Piece popover | Cancels. |
-| `own-piece:<space>:<group>` | Removal mode | Opens a 26July piece's popover. The seat reaches it as `piece:<space> M26 <Kind> <State>`. |
+| `own-piece:<space>:<group>` | Removal mode | Opens an executing faction's piece popover. The seat reaches it as `piece:<space> <faction> <Kind> <State>`, with `M26` for 26July and `Directorio` for Directorio. |
 
 [`art/atlas/EXECUTION.md`](../../art/atlas/EXECUTION.md) lists every name in the execution panel.
 
 ## Choices
 
-Name these in a request's `"choice"`. Each starts with the revision it was offered at; take ids from the observation's `choices` (or a `--brief` reply).
+Each choice id starts with the revision it was offered at. Submit supported ids from the observation's `choices` (or a `--brief` reply). To preview an option, use its component.
 
 | Choice | Meaning |
 |---|---|
 | `<revision>:pass`, `<revision>:terror` | 26July's supported action choices. |
-| `<revision>:event:unshaded`, `<revision>:event:shaded`, `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so the option set is complete; unsupported, with the reason in `explanation`. |
-| `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap`, `<revision>:transfer`, `<revision>:remove` | Execution steps during Terror. |
+| `<revision>:event:shaded` | Listed for inspection at 26July's opening decision. Directorio can choose Alberto Bayo's shaded text after Kidnap. Pin its option to preview the flips. |
+| `<revision>:resolve-shaded` | Resolves the shaded Event after Directorio has chosen that text. |
+| `<revision>:event:unshaded` | Listed for inspection at 26July's opening decision and at Directorio's handoff after Kidnap. |
+| `<revision>:directorio:pass`, `<revision>:directorio:limited-operation` | Directorio's other legal options after Kidnap. Read their briefings for what they do and the build limits. |
+| `<revision>:rally:beneficiary:26july`, `<revision>:rally:beneficiary:directorio` | Directorio chooses the beneficiary of Alberto Bayo’s unshaded Rally. |
+| `<revision>:rally:sierra-maestra:place:0`, `<revision>:rally:sierra-maestra:place:1`, `<revision>:rally:sierra-maestra:place:2`, `<revision>:rally:sierra-maestra:place:3`, `<revision>:rally:sierra-maestra:place:4` | 26July chooses how many Guerrillas to place Underground in Sierra Maestra when its Base qualifies. The offered quantities range from 0 to the ceiling the board and Available Forces allow. |
+| `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so 26July's option set is complete; unsupported, with the reason in `explanation`. |
+| `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap` | Execution steps during Terror. |
+| `<revision>:transfer`, `<revision>:remove` | Opens a Resource transfer or voluntary removal during Terror, Directorio's Event choices or the free Rally. |
 | `<revision>:back-to-choice` | Goes back to the action choice, until the first effect: from the Operation menu, or while a Transfer request awaits another faction, which withdraws it. Not offered in removal mode or while Kidnap is open. |
 | `<revision>:kidnap:roll`, `<revision>:kidnap:cancel` | Kidnap's Roll and Cancel. |
 | `<revision>:remove:<space>:<group>:<n>` | In removal mode, removes `n` pieces of a stack. |
 | `<revision>:done-removal` | Leaves removal mode; removed pieces stay in Available. |
-| `<revision>:give:<faction>:<amount>` | 26July gives Resources; moves at once. |
-| `<revision>:ask:<faction>:<amount>` | 26July asks a faction for Resources, which it decides. |
+| `<revision>:give:<faction>:<amount>` | The executing faction gives its own Resources immediately. |
+| `<revision>:ask:<faction>:<amount>` | The executing faction asks another faction for Resources. The giver decides how much moves. |
 | `<revision>:back` | Closes an open transfer without moving anything. |
 | `<revision>:authorize:<amount>`, `<revision>:decline`, `<revision>:wait` | The asked faction's decision. Wait sets the request aside. |
 | `<revision>:reopen` | Shows a waiting decision again. |
 
-Faction indices in choices: Government 0, Directorio 2, Syndicate 3.
+Faction indices in choices are Government 0, 26July 1, Directorio 2 and Syndicate 3.
+
+The observation reports `event_executor` for the faction carrying out Alberto Bayo,
+`executing` for the current play window and `owner` for the current decision. During 26July's
+free Rally, those are Directorio, 26July and 26July until a Resource request passes the
+decision to its giver.
+
+`observation.finished` records the end of 26July's first action on card 17. Inspect `observation.eligibility.next_card` for the completed Event's card-end adjustment.
 
 ### Example: a Resource transfer
 
@@ -161,8 +177,8 @@ The full reply's `table` describes what is drawn. Drawn parts are reported by na
 | `table.eligibility` | The drawn `track`, the shown `tag` and the drawn `parts`. |
 | `table.die` | The presented Kidnap roll. |
 | `table.map_targets`, `table.highlights` | Map states and visible highlights. |
-| `table.popover` | The open popover; `parts` for its layout. |
-| `table.removal`, `table.markers` | Removal mode and its piece markers. |
+| `table.popover` | The open popover's `kind`, its `piece` group ID when applicable, and `parts` for its layout. |
+| `table.removal`, `table.markers` | Removal-mode `pieces` with each group's `state`, `mark` and `choices`, the `dimmed` spaces, and the drawn piece markers. |
 | `table.transfer.state` | The transfer modal: shown, pending, counterpart, direction, entry, limit, refusal, commit. |
 | `table.inline_text` | Inline emblem geometry. |
 | `table.counts` | Each piece and Terror count: its `name` (as its control is named), `text`, `font_size` and logical `bounds`. |
@@ -171,8 +187,16 @@ Drawn-part names:
 
 - **Transfer modal** (`table.transfer.parts`): `account:26july`, `account:counterpart`, `header`, `direction-toggle`, `flow-band`, `number-field`, `track`, `limits`, `limit:<icon>` and `button:<action>`.
 - **Eligibility indicator** (`table.eligibility.parts`): `eligibility-row:<faction>:<part>`, where the part is `number`, `emblem`, `name`, `acted`, `1st` or `2nd`, `eligible` or `ineligible`. Also `eligibility-box:ineligible` with its `:label` and `:note`, `eligibility-label:eligible` and `eligibility-label:recorded`.
+- **Card-end eligibility** (`table.eligibility.track.adjusted`): the track's rows now show eligibility for card 18. `observation.eligibility.next_card` gives the four ordinary reasons. `observation.eligibility.event_restriction` reports the separate restriction on the shaded branch. The result text is among the `table.choice_parts` with names beginning `ended-value:`.
 
 ## Native regressions
+
+- `native_free_rally_hands_the_decision_to_the_beneficiary`: verifies the handoff, Sierra Maestra’s ceiling and zero cost, pending and completed save admission, stale and duplicate refusals, and the eligibility adjustment. Set `CUBA_TEST_RALLY_SAVE` to the retained revision-9 save pinned for #117 to exercise its exact old record. Otherwise the test plays to the handoff. Evidence goes to `local/verification/issue-120/`.
+- `native_free_rally_can_choose_zero_in_a_qualifying_base_space`: checks the visible quantities and a deliberate placement of zero through restart and card-end eligibility. It accepts the same `CUBA_TEST_RALLY_SAVE` fixture.
+- `native_shaded_execution_preserves_directorios_side_decisions`: checks the shaded Event's execution window, giver approval after restart, Directorio removal and card-end effects.
+- `native_beneficiary_and_rally_preserve_side_decision_owners`: checks the transfer before beneficiary selection, giver decline after restart, and 26July removal and Rally placement.
+- `native_rally_removing_the_last_base_closes_the_operation`: resumes a Rally after removing its last qualifying Base and refuses a stale placement. Set `CUBA_TEST_PENDING_RALLY` to exercise a retained pre-#121 pending Rally save. All three save evidence under `local/verification/issue-121/`.
+- `native_free_rally_without_a_base_finishes_the_event`: removes the Sierra Maestra Base during Terror before selecting 26July, then plays a separate Event selecting Directorio with no Base. Both runs preview and finish with an empty Rally effect, and reach card-end eligibility. Evidence goes to `local/verification/issue-120/`.
 
 The ignored native regressions need the selected card directory and a working renderer. `scripts/native` runs them all serially, both `tests/native.rs` and the in-process ones in the library, and passes extra arguments (a name filter, `--nocapture`) to both:
 
@@ -184,6 +208,7 @@ CUBA_TEST_CARDS="/path/to/cards" scripts/native
 - Inspect the images separately: passing assertions do not prove readability or owner acceptance.
 - Run native regressions serially (`--test-threads=1`).
 - Optionally set `CUBA_COMPAT_SAVE` to a record an earlier build wrote in the shared save record. The hover and responsive tests copy it into their evidence directories and verify the preserved save bytes; the hover test also checks two process resumes. They never open the supplied original as an application save path.
+- Optionally set `CUBA_TEST_COMPLETED_KIDNAP` to the worked card-17 save after both Terror targets and Kidnap. The shaded native test copies it before launch. Otherwise the test reaches that position through live seat controls.
 - A user-selected `CARGO_TARGET_DIR` can reuse a compatible warm build cache; it is not a runtime dependency.
 
 The first five tests below (evidence under `issue-12` to `issue-15`) together exercise:
@@ -200,6 +225,8 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
 - `native_transfer_modal_gives_asks_and_waits_for_the_giver`: evidence in `local/verification/issue-13/transfers-*`.
 - `native_kidnap_owed_terror_restart_and_next_permissions`: evidence in `local/verification/issue-14/terror-*`.
 - `native_resource_transfers_enable_both_orders_without_or_with_late_kidnap`: evidence in `local/verification/issue-14/donated-terror-*`.
+- `native_shaded_panel_previews_multiple_spaces_and_no_flips`: checks the pending panel and the resolved restriction with two affected spaces and with no Underground Guerrillas left.
+- `native_shaded_event_activates_26july_and_adjusts_card_end_eligibility`: preview, conserved forces, four eligibility reasons, restriction, restart and stale/duplicate refusal. Evidence in `local/verification/issue-119/shaded-event-*`.
 - `native_own_removal_restart_obligation_and_all_pieces_finish`: evidence in `local/verification/issue-15/removal-*`.
 - `native_hover_status_is_transient_without_region_inspection`: all ten city/province tags, three EC exclusions, piece/count hover, reader suppression, camera navigation, complete home framing, and Terror/removal updates. Evidence: `local/verification/issue-16/hover-status-*`.
 - `native_victory_emblems_disclose_live_margins_without_inspection`: emblem and margin targets, one tag, reader/leave dismissal, actual transfer/Terror/removal updates, and rendered text bounds, including the largest reachable contribution list. Evidence: `local/verification/issue-16/victory-*`.
@@ -245,9 +272,10 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
   - The manual clock moves the die while the seat reports `Kidnap die landing` unsettled. It checks the ledger before and after landing, the landed face and result, and Continue by button and by Enter.
 - `native_right_drag_orbits_and_the_wheel_zooms_the_table_camera`: drives the table camera's right-drag orbit and wheel zoom through the seat's `drag` and `scroll` requests. Evidence: `local/verification/issue-79/native-*`.
 - `native_execution_panel_matches_layout_and_previews_every_step`: the EX-A panel against its FigCraft layout record at 3840×2160, within 2 px, and every step's tag before its committing click. Evidence: `local/verification/issue-84/ex-a-*`.
-  - It covers Terror targets from the panel, Kidnap opened (Roll and Cancel), End Terror's previews, the clash rule with a space popover, Escape and an outside click, the keyboard, and the ended panel.
+  - It covers Terror targets from the panel, Kidnap opened (Roll and Cancel), End Terror's previews, the clash rule with a space popover, Escape and an outside click, the keyboard, and Directorio's handoff.
 - `native_seat_skips_the_die_by_enter_space_or_a_click_on_the_tray` (in the library: `cargo test --features tabletop --lib -- --ignored native_seat_skips`): skips mid-tumble through the seat's own requests, by Enter or Space naming `kidnap-die` or by an activation of the tray. Tab is still refused as busy, and Enter naming Continue is refused (#87). Evidence: `local/verification/issue-87/skip-*`.
 - `native_refused_end_terror_while_a_request_waits_and_the_ended_panels`: runs at 3840×2160. Evidence: `local/verification/review-fix-3/refused-end-*`.
   - After an early Kidnap roll owes Santiago's Terror and a Transfer request waits on Directorio, the End Terror row, its tag, the commit's refusal and the request's tag all give the authority's reason and its remedy, timed "once Directorio has decided".
   - Pressing the disabled commit submits nothing.
-  - The Terror, End Terror and Pass notices and both ended panels state the authority's record.
+  - The Terror, End Terror and Pass notices, Directorio's handoff and the ended Pass panel state the authority's record.
+- `native_directorio_previews_the_inherited_kidnap_handoff`: uses the live Kidnap and Terror controls at 3840×2160, then previews both Alberto Bayo texts as Directorio and checks the inherited position and untouched save. Evidence: `local/verification/issue-118/directorio-handoff-*`.

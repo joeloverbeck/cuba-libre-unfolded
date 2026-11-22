@@ -33,7 +33,7 @@ impl Targeting {
             .map(|t| t.state)
     }
     /// The space state whose graphic the map shows: a targeting state, or in removal
-    /// mode "not involved" for a space holding no 26July piece.
+    /// mode "not involved" for a space holding no piece belonging to the executing faction.
     pub fn shown(&self, space: &str) -> Option<SpaceState> {
         self.state(space).or_else(|| {
             self.removal
@@ -44,7 +44,7 @@ impl Targeting {
                 .then_some(SpaceState::NotInvolved)
         })
     }
-    /// A 26July group in removal mode, by its `space:group` key.
+    /// An executing faction's group in removal mode, by its `space:group` key.
     pub fn piece(&self, key: &str) -> Option<&crate::targets::PieceTarget> {
         self.removal
             .as_ref()?
@@ -81,7 +81,7 @@ struct Manifest {
     pieces: Vec<PieceMarker>,
 }
 
-/// A removal-mode marker, drawn under each 26July group in its state.
+/// A removal-mode marker, drawn under an executing faction's group in its state.
 #[derive(serde::Deserialize)]
 struct PieceMarker {
     file: String,
@@ -100,7 +100,7 @@ pub(super) struct Markers {
     materials: Vec<(PieceState, String, Handle<StandardMaterial>)>,
 }
 
-/// A marker placed under a 26July group in removal mode.
+/// A marker placed under an executing faction's group in removal mode.
 #[derive(Component, Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub(super) struct Marker {
     pub piece: String,
@@ -185,7 +185,7 @@ pub(super) fn setup(
     });
 }
 
-/// Places a marker under each 26July group in removal mode: the red survey station
+/// Places a marker under each eligible group in removal mode: the red survey station
 /// where a piece may be removed, the ink ring and lock where the owed Terror protects
 /// it. Markers follow the pieces and sit under them, so pieces and counts stay on top.
 pub(super) fn markers(

@@ -53,7 +53,7 @@ Current setup verification results are recorded in [founding evidence](../resear
 
 Run this preflight before reporting an MCP editor unavailable or switching authoring route. Each step separates one cause; report the first that fails, with its output. Every step only reads, so a running editor and its open documents stay as they are.
 
-1. **Missing tooling.** `command -v vectorcraft-cli effectcraft-cli photocraft-cli figcraft-cli` prints each registered command. For Blender, take its executable and add-on location from the session's MCP configuration (`[mcp_servers.blender]` in the user-level Codex configuration, running the `mcp-for-blender` package; this repository's `.mcp.json` does not register it). On the founding machine that is the portable `~/.local/opt/blender-5.2.3-linux-x64/blender`. Reinstall an absent Craft tool as "Installed tools and recovery" describes. Report an absent Blender: installing an editor is its own selected work.
+1. **Missing tooling.** `command -v vectorcraft-cli effectcraft-cli photocraft-cli figcraft-cli` prints each registered command. For Blender, take its executable and add-on location from the session's MCP configuration (`[mcp_servers.blender]` in the user-level Codex configuration, running the `mcp-for-blender` package; this repository's `.mcp.json` does not register it). On this machine that is the portable `~/.local/opt/blender-5.3.0-linux-x64/blender`. Reinstall an absent Craft tool as "Installed tools and recovery" describes. Report an absent Blender: installing an editor is its own selected work.
 2. **Stopped application.** The four Craft servers are stdio processes the client starts; a stopped one returns after reconnecting the MCP server or restarting the session. Blender's MCP server only relays to a running Blender: `pgrep -x blender`. If it is not running, start the configured Blender normally (not with `-b`); its add-on starts the listener once the startup file loads.
 3. **Inactive listener.** `ss -ltn 'sport = :9876'` shows the add-on's loopback listener. With Blender running but no listener, start the server from the add-on's sidebar panel.
 4. **Handshake failure.** The listener answers a read with `"status": "success"`: `(printf '{"type":"get_scene_info","params":{}}'; sleep 5) | nc 127.0.0.1 9876`. Keep the input open, as here: the add-on drops a connection whose input ends before it replies. For a Craft server, a handshake failure is an MCP initialization error in the session; quote it.
@@ -65,7 +65,7 @@ If you started Blender for the check, quit it afterwards.
 Claude Code has no Blender MCP (preflight step 1), so it drives the portable Blender headless:
 
 ```sh
-~/.local/opt/blender-5.2.3-linux-x64/blender -b --factory-startup --python <script> -- <args>
+~/.local/opt/blender-5.3.0-linux-x64/blender -b --factory-startup --python <script> -- <args>
 ```
 
 EEVEE renders headless on the founding machine.

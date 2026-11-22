@@ -4,18 +4,18 @@ What you can do in the current build and how to operate it. [README](../README.m
 
 ## What the task covers
 
-The build plays one task from [#8](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/8): 26July's decision as 1st Eligible on card 17, whose faction order is 26July, Directorio, Government, Syndicate.
+The native task begins with 26July's decision as 1st Eligible on card 17, *Alberto Bayo*. In faction order, the card shows 26July, Directorio, Government and Syndicate. [First task (#8)](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/8) · [Directorio continuation (#117)](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/117)
 
 - **Playable:** Pass, and Terror with optional Kidnap in Santiago, Resource transfers and voluntary removal of 26July's own pieces.
-- **Listed but refused** as "not in this task", without changing the match: card 17's Event (both texts), Rally, March and Attack, with Infiltrate and Ambush under the Operations they accompany.
-- **Not executed:** Directorio's turn and anything after it. The task ends by showing what Directorio may do next.
+- **At 26July's opening decision**, both Event texts, Rally, March, Attack, and the accompanying Infiltrate and Ambush are listed for inspection. Choosing one is refused without changing the match.
+- **Directorio's handoff:** after Terror with Kidnap, inspect Directorio's legal options as 2nd Eligible. Directorio can execute either text of Alberto Bayo. Its Pass and Limited Operation are outside the task.
 
 ## Reading the table
 
 - **Spaces:** hover a city or province, its pieces or a count for a tag with its Control, political opinion and population contribution ([STATUS.md](../art/atlas/STATUS.md)). Economic centers have no tag. Clicking a space does nothing except during Terror targeting.
 - **Victory standings:** the four emblems at the top show official victory margins. Hover one for its calculation, contributions, conditions and available pieces ([VICTORY.md](../art/atlas/VICTORY.md)). Zero is the threshold, and a positive Government margin still requires every City at Active Support. No Propaganda victory check runs in this build.
 - **Top display:** Aid and the US Alliance at top left; each faction's Resources and the Cash supply at top right. Hover any of them for what it does and what it costs ([TOP.md](../art/atlas/TOP.md)).
-- **Sequence of Play:** the track in the map's western margin shows card 17's Eligibility record and the box 26July's action lands in ([ELIGIBILITY.md](../art/atlas/ELIGIBILITY.md)). Hover a box for what it allows the next faction. Nobody turns Ineligible inside the task, because Eligibility changes only after the card (R 2.3.7). The next card's order is not shown.
+- **Sequence of Play.** The track in the map's western margin records 26July's action on card 17. Hover a box to see what it allows the next faction. When the Event ends, the track shows each faction's adjusted Eligibility for card 18 (R 2.3.7). [Eligibility layout](../art/atlas/ELIGIBILITY.md)
 - **Cards:** "Read both cards" opens the current and preview cards' complete faces.
 - **Faction names:** running text names factions by their emblems, as in "[S] gave 1 to [26]. Saved." ([VICTORY.md, "Inline text emblems"](../art/atlas/VICTORY.md#inline-text-emblems)).
 
@@ -34,8 +34,17 @@ During Terror the panel lists the steps: Terror in Santiago and Oriente, with Ki
 - **The map:** each space is marked selectable, blocked (an in-task action would allow it) or not involved ([HIGHLIGHTS.md](../art/atlas/HIGHLIGHTS.md)). Hover a selectable or blocked space for its popover, and click to keep it open. The popover lists every action there with its preview and the one button that acts.
 - **Unavailable targets:** a target 26July cannot act on now stays listed, disabled, with its reason and in-task remedies: "Request a Resource transfer", and for Santiago "Kidnap here first" while Kidnap would take at least 1 Resource. A target already resolved, or lost to removal, has none.
 - **Each Terror** costs 1 Resource, activates one Underground Guerrilla, places a Terror marker and shifts toward Active Opposition. Santiago and Oriente can each resolve once, in either order you can afford.
-- **End Terror** records Operation Only without Kidnap, so Directorio may Pass or take a Limited Operation, and Operation with Special Activity with Kidnap, which also lets Directorio take card 17's Event (R 2.3.4, 5.2). Ending with no space resolved is allowed ([local policy](local-rule-policies.md#zero-space-operation-only)). Directorio's options are shown, not executed.
+- **End Terror** records Operation Only without Kidnap, which shows Directorio's Pass and Limited Operation. With Kidnap it records Operation with Special Activity and opens Directorio's options, including the Event (R 2.3.4, 5.2). Ending with no space resolved is allowed ([local policy](local-rule-policies.md#zero-space-operation-only)).
 - The [BRIEFING ribbon](../art/atlas/CHOICE.md) on the panel's top edge reopens the Terror and Kidnap briefings.
+
+## Inspecting the handoff to Directorio
+
+After Kidnap and End Terror, hover or focus Pass, Limited Operation or either Event text for its briefing. Click or press Enter to pin it. The board and saved position stay at the handoff while you read.
+
+Pin the shaded Event to see the recorded Terror and Kidnap result, the pending activations and the restriction on 26July. Commit
+**Choose shaded Event** to open Directorio's execution. You can transfer Resources or
+remove Directorio's pieces before you commit **Resolve shaded Event**. Then inspect
+the flips and each faction's eligibility for card 18. Card 18 stays in preview.
 
 ## Kidnap in Santiago
 
@@ -50,17 +59,30 @@ Rolling before Santiago's Terror commits 26July to that Terror ([local policy](l
 
 The Resource transfer step opens the transfer modal ([TRANSFER.md](../art/atlas/TRANSFER.md)). Pick the other faction by its emblem tab, then Give to or Ask from, then the amount: type it, or use 1, 2, Max or the slider. Both balances and the limits update as you go, and an amount beyond a limit is refused with its reason.
 
-- **Give** moves 26July's Resources on confirmation.
+- **Give** moves Resources from the executing faction on confirmation.
 - **Ask** creates a Transfer request that moves nothing yet. The modal turns to the giver's colours. The giver authorizes any amount from 0 to its limit, declines, or waits.
 - **Wait** closes the modal and keeps the request pending, also across Save / quit; its tab in the top band reopens it.
 
-Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfer can fund either Terror target without Kidnap, or make Kidnap possible during or after Terror. These are local faction decisions, not external agent players or binding promises. Transfers are offered only while 26July executes ([local policy](local-rule-policies.md#transfers-open-once-terror-is-chosen)), and going back or ending Terror withdraws a pending request ([local policy](local-rule-policies.md#a-pending-transfer-request-is-withdrawn)).
+Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfer can fund either Terror target without Kidnap, or make Kidnap possible during or after Terror. 26July can transfer Resources once it chooses Terror. Going back or ending Terror withdraws a pending request. During the Event and the free Rally, the executing faction can transfer Resources. These decisions belong to the local player. [Transfer timing](local-rule-policies.md#transfers-open-once-terror-is-chosen) · [Withdrawing pending requests](local-rule-policies.md#a-pending-transfer-request-is-withdrawn)
 
 ## Removing your own pieces
 
-"Remove own pieces" opens removal mode (#73). The map marks 26July's removable Guerrillas and Base and dims every other space ([HIGHLIGHTS.md, "Removal mode"](../art/atlas/HIGHLIGHTS.md#removal-mode-73)). Click a piece to keep its popover open, with a quantity for a stack, the preview, Remove and Cancel. Each Remove returns that many pieces to Available, and the mode stays open until Done. The mode survives Save / quit; an open popover does not.
+"Remove own pieces" opens removal mode (#73). The map marks the executing faction's removable pieces and dims spaces holding none of its pieces ([HIGHLIGHTS.md, "Removal mode"](../art/atlas/HIGHLIGHTS.md#removal-mode-73)). Click a marked piece for the preview, Remove and Cancel, and a quantity selector when it is in a stack. Each Remove returns that many pieces to Available. The mode stays open until Done and survives Save / quit. After resuming, click a piece to reopen its popover.
 
-Supply, Control, standings and legal choices update at once; earlier Terror, support shifts and Kidnap results stay. While Santiago Terror is owed, its last Underground Guerrilla is locked ([local policy](local-rule-policies.md#owed-terror-after-an-early-kidnap)). Other factions cannot remove their pieces in this Operation.
+Supply, Control, standings and legal choices update at once. Earlier Terror, support shifts and Kidnap results stay. While Santiago Terror is owed, its last Underground Guerrilla is locked ([local policy](local-rule-policies.md#owed-terror-after-an-early-kidnap)). During the Event, Directorio can remove its pieces before resolving shaded or choosing the Rally beneficiary, then the beneficiary can remove its own pieces while Rallying.
+
+## Directorio’s unshaded Event
+
+Select **Event · unshaded** and commit it to open Directorio’s beneficiary choice.
+Inspect **Grant Rally to 26July** and **Grant Rally to Directorio** to see each
+faction’s Base spaces. Directorio can transfer Resources or remove its own pieces
+before choosing. The chosen faction then directs the Rally and can use those
+controls for its own faction. A Resource request moves nothing until the giver
+authorizes it.
+
+Inspect and pin a Rally option before committing it. Its preview shows the placement ceiling from Bases and population, the limit from Available Forces, and the zero Resource cost. **Place 0 Underground Guerrillas** resolves that qualifying space with its pieces and Available Forces unchanged. A qualifying space counts as Neutral for the Rally. Its actual Support or Opposition stays in place. If the beneficiary has no qualifying Base, the Event ends without a Rally decision.
+
+You can save and resume while the Rally is pending. After the last required effect, the panel reports the result and each faction’s eligibility for card 18. The table stops at that adjustment.
 
 ## Camera and keys
 
