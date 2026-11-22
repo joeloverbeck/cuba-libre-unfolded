@@ -6,11 +6,21 @@ It is distinct from a faction player's connection (foundation 5). It has no auth
 
 ## Launch and connect
 
-Use an isolated verification save in a fresh run directory, from the checkout root:
+From the checkout root, launch with the private card directory from the [README](../../README.md#build-and-launch), `jq`, and an isolated verification save in a fresh run directory.
 
 ```sh
 run=local/verification/seat-$(date +%Y%m%d-%H%M%S) && mkdir -p "$run"
-cargo run --locked --features tabletop --bin cuba-libre -- --cards "/path/to/cards" --save "$run/task.json" --agent-seat --socket /tmp/cuba-check.sock
+printf 'Launch logs in %s\n' "$run"
+scripts/heavy cargo run --locked --features tabletop --bin cuba-libre -- \
+  --cards "$HOME/.local/share/cuba-libre-unfolded/cards" --save "$run/task.json" \
+  --agent-seat --socket /tmp/cuba-check.sock \
+  >"$run/launch.jsonl" 2>"$run/launch.stderr" &&
+  jq -ce 'select(.status == "ready") | {status, revision: .observation.revision}' "$run/launch.jsonl"
+```
+
+Once the launcher reports `ready`, connect to the seat.
+
+```sh
 cargo run --locked --bin cuba-tools -- seat --brief /tmp/cuba-check.sock '{"op":"observe"}'
 cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"point","revision":0,"component":"standing:0"}' '{"op":"settle"}'
 cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock "{\"op\":\"capture\",\"path\":\"$PWD/$run/standing.png\"}"
@@ -21,7 +31,7 @@ cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"activat
 cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"quit"}'
 ```
 
-- **Launch.** The launch command returns with status 0 as soon as the seat is admitted, after printing its `ready` response. That exit is the launcher's, not the seat's: the seat keeps serving in the background.
+- **Launch.** The launch command returns with status 0 when it admits the seat. The seat keeps serving in the background. Inspect `launch.stderr` if startup fails. The full `ready` response is in `launch.jsonl`.
 - **Log.** The seat writes its diagnostics to the socket path with `.log` appended (`/tmp/cuba-check.sock.log` here).
 - **Connections.** Each `cuba-tools seat` invocation is its own connection, and closing it does not end the session.
 - **Session end.** The session ends at `quit`, at the table's own exit, or after 30 minutes without a request; then the socket is removed.

@@ -26,6 +26,33 @@ elif ((rc > 1)); then
   exit 1
 fi
 echo "conflict markers: none"
+# Check the primary desktop example without executing Markdown or requiring
+# private cards. Join shell continuations only within its launch code block.
+desktop_launch=$(awk '
+    /^## Build and launch$/ { in_section = 1; next }
+    in_section && /^## / { exit }
+    in_section && /^```sh$/ { in_example = 1; next }
+    in_example && /^```$/ { exit }
+    in_example && /^[[:space:]]*cargo run / { in_command = 1 }
+    in_command {
+        sub(/^[[:space:]]*/, "")
+        if (sub(/[[:space:]]*\\$/, "")) {
+            printf "%s ", $0
+            next
+        }
+        print
+        exit
+    }
+' README.md)
+expected_launch='cargo run --locked --features tabletop --bin cuba-libre --'
+expected_launch+=' --cards "$HOME/.local/share/cuba-libre-unfolded/cards"'
+expected_launch+=' --save "$HOME/.local/share/cuba-libre-unfolded/saves/task.json"'
+if [[ $desktop_launch != "$expected_launch" ]]; then
+  echo "README desktop launch: use the documented cards directory and save file after Cargo's --" >&2
+  echo "expected: $expected_launch" >&2
+  exit 1
+fi
+echo "README desktop launch: required arguments and paths match"
 # docs/agents/seat.md catalogues every native regression, one bullet per test (#91). A
 # `fn native_*` is a native regression by name; rename a helper rather than list it.
 # grep exits 1 on no match, which pipefail would turn into a silent failure here; an
