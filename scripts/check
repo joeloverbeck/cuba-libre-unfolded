@@ -47,6 +47,7 @@ desktop_launch=$(awk '
 check_desktop_launch_arguments() {
   local command=$1
   [[ $command == 'cargo run '*" -- "* ]] || return 1
+  bash -n <<<"$command" || return 1
   local cargo_command=" ${command%% -- *} "
   [[ $cargo_command == *' --bin cuba-libre '* && $cargo_command == *' --features tabletop '* ]] || return 1
 
@@ -63,9 +64,13 @@ check_desktop_launch_arguments() {
     '"$HOME/'"$card_directory"'"'|'"${HOME}/'"$card_directory"'"'|'~/'"$card_directory") ;;
     *) return 1 ;;
   esac
-  case ${args[3]} in
-    --*|""|'""'|"''") return 1 ;;
+  local save_path=${args[3]}
+  case $save_path in
+    \"*\") save_path=${save_path:1:-1} ;;
+    \'*\') save_path=${save_path:1:-1} ;;
   esac
+  local path_word='^([-[:alnum:]_./~]|\$HOME|\$\{HOME\})+$'
+  [[ $save_path =~ $path_word && $save_path != -* && $save_path != */ ]]
 }
 if ! check_desktop_launch_arguments "$desktop_launch"; then
   echo "README desktop launch: run the tabletop binary with --cards ~/.local/share/cuba-libre-unfolded/cards and --save FILE after Cargo's --" >&2

@@ -6,14 +6,15 @@ It is distinct from a faction player's connection (foundation 5). It has no auth
 
 ## Launch and connect
 
-From the checkout root, launch with the private card directory from the [README](../../README.md#build-and-launch), `jq`, and an isolated verification save in a fresh run directory. Use the [managed build scope](parallel-work.md#builds), which needs `flock` and a working user systemd bus.
+From the checkout root, use `jq`, the private card directory from the [README](../../README.md#build-and-launch), and an isolated verification save. Package the two binaries in the [managed build scope](parallel-work.md#builds) first, then run them directly. The detached seat keeps serving after the launcher exits.
 
 ```sh
 mkdir -p local/verification &&
 run=$(mktemp -d local/verification/seat.XXXXXX) &&
 socket="$run/seat.sock" &&
 printf 'Launch logs in %s\n' "$run" &&
-scripts/heavy cargo run --locked --features tabletop --bin cuba-libre -- \
+scripts/heavy scripts/package-review-binaries "$run/bin" >"$run/build.log" 2>&1 &&
+"$run/bin/cuba-libre" \
   --cards "$HOME/.local/share/cuba-libre-unfolded/cards" --save "$run/task.json" \
   --agent-seat --socket "$socket" \
   >"$run/launch.jsonl" 2>"$run/launch.stderr" &&
@@ -23,18 +24,18 @@ scripts/heavy cargo run --locked --features tabletop --bin cuba-libre -- \
 Once the launcher reports `ready`, connect to the seat.
 
 ```sh
-scripts/heavy cargo run --locked --bin cuba-tools -- seat --brief "$socket" '{"op":"observe"}'
-scripts/heavy cargo run --locked --bin cuba-tools -- seat "$socket" '{"op":"point","revision":0,"component":"standing:0"}' '{"op":"settle"}'
-scripts/heavy cargo run --locked --bin cuba-tools -- seat "$socket" "{\"op\":\"capture\",\"path\":\"$PWD/$run/standing.png\"}"
-scripts/heavy cargo run --locked --bin cuba-tools -- seat "$socket" '{"op":"activate","revision":0,"component":"option:terror"}' '{"op":"settle"}'
-scripts/heavy cargo run --locked --bin cuba-tools -- seat "$socket" '{"op":"activate","revision":0,"choice":"0:terror"}' '{"op":"settle"}'
-scripts/heavy cargo run --locked --bin cuba-tools -- seat "$socket" '{"op":"activate","revision":1,"component":"step:end-terror"}' '{"op":"settle"}'
-scripts/heavy cargo run --locked --bin cuba-tools -- seat "$socket" '{"op":"activate","revision":1,"choice":"1:end-terror"}' '{"op":"settle"}'
-scripts/heavy cargo run --locked --bin cuba-tools -- seat "$socket" '{"op":"quit"}'
+"$run/bin/cuba-tools" seat --brief "$socket" '{"op":"observe"}'
+"$run/bin/cuba-tools" seat --brief "$socket" '{"op":"point","revision":0,"component":"standing:0"}' '{"op":"settle"}'
+"$run/bin/cuba-tools" seat --brief "$socket" "{\"op\":\"capture\",\"path\":\"$PWD/$run/standing.png\"}"
+"$run/bin/cuba-tools" seat --brief "$socket" '{"op":"activate","revision":0,"component":"option:terror"}' '{"op":"settle"}'
+"$run/bin/cuba-tools" seat --brief "$socket" '{"op":"activate","revision":0,"choice":"0:terror"}' '{"op":"settle"}'
+"$run/bin/cuba-tools" seat --brief "$socket" '{"op":"activate","revision":1,"component":"step:end-terror"}' '{"op":"settle"}'
+"$run/bin/cuba-tools" seat --brief "$socket" '{"op":"activate","revision":1,"choice":"1:end-terror"}' '{"op":"settle"}'
+"$run/bin/cuba-tools" seat --brief "$socket" '{"op":"quit"}'
 ```
 
 - **Launch.** The launch command returns with status 0 when it admits the seat. The seat keeps serving in the background. The full `ready` response is in `launch.jsonl`.
-- **Logs.** On failure, inspect `launch.stderr` for the launcher's error and `seat.sock.log` for the seat's diagnostics once its process has started. Both are in the run directory.
+- **Logs.** The run directory keeps `build.log`, `launch.stderr`, and `seat.sock.log` for diagnosing a failed build or launch.
 - **Connections.** Each `cuba-tools seat` invocation is its own connection, and closing it does not end the session.
 - **Session end.** The session ends at `quit`, at the table's own exit, or after 30 minutes without a request; then the socket is removed.
 - **Second launch.** A launch on a socket where a seat still answers is refused and leaves that seat untouched: send it `quit` or choose another path.
