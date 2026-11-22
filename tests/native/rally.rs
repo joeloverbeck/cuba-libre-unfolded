@@ -236,6 +236,14 @@ fn native_free_rally_hands_the_decision_to_the_beneficiary() {
     );
     assert_eq!(rally_space(final_position)["support"], -2);
     assert_eq!(available_guerrillas(final_position), 9);
+    assert_eq!(
+        final_position["map_piece_count"],
+        handoff["map_piece_count"].as_u64().unwrap() + 3
+    );
+    assert_eq!(
+        final_position["available_piece_count"],
+        handoff["available_piece_count"].as_u64().unwrap() - 3
+    );
     assert_eq!(final_position["standings"], handoff["standings"]);
     if historical.is_some() {
         assert_eq!(
@@ -254,10 +262,12 @@ fn native_free_rally_hands_the_decision_to_the_beneficiary() {
     let final_bytes = std::fs::read(&app.save).unwrap();
     let before_record: Value = serde_json::from_slice(&pending_bytes).unwrap();
     let final_record: Value = serde_json::from_slice(&final_bytes).unwrap();
-    assert_eq!(
-        final_record["payload"]["random"],
-        before_record["payload"]["random"]
-    );
+    for field in ["random", "draw_deck"] {
+        assert_eq!(
+            final_record["payload"][field],
+            before_record["payload"][field]
+        );
+    }
     for submitted_revision in [revision, revision + 1] {
         app.request(json!({"op":"activate","revision":submitted_revision,"choice":format!("{submitted_revision}:{place_three}")}), false);
         assert_eq!(app.observe()["observation"], *final_position);

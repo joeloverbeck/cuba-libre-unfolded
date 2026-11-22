@@ -8,7 +8,7 @@ The build plays one task from [#8](https://github.com/joeloverbeck/cuba-libre-un
 
 - **Playable:** Pass, and Terror with optional Kidnap in Santiago, Resource transfers and voluntary removal of 26July's own pieces.
 - **At 26July's opening decision**, both Event texts, Rally, March, Attack, and the accompanying Infiltrate and Ambush are listed for inspection. Choosing one is refused without changing the match.
-- **Directorio's handoff:** after Terror with Kidnap, inspect Directorio's legal options as 2nd Eligible. Directorio can execute Alberto Bayo's shaded text. Its Pass and Limited Operation are outside the task.
+- **Directorio's handoff:** after Terror with Kidnap, inspect Directorio's legal options as 2nd Eligible. Directorio can execute either text of Alberto Bayo. Its Pass and Limited Operation are outside the task.
 
 ## Reading the table
 

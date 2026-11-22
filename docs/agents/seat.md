@@ -97,7 +97,7 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `close` | Card reader | Closes the reader while it is open. |
 | `option:<option>`, `option:pass` … `option:terror:kidnap` | Action choice | Pins the option. |
 | `option:directorio:pass`, `option:directorio:limited-operation`, `option:event:unshaded`, `option:event:shaded` | Directorio's handoff after Kidnap | Opens or pins an option's briefing. |
-| `option:rally:beneficiary:<faction>`, `option:rally:<space>:<procedure>` | Unshaded Event | Opens or pins a beneficiary or Rally procedure. Commit the pinned option by its offered choice ID. |
+| `option:rally:beneficiary:<faction>`, `option:rally:sierra-maestra:place:<n>` | Unshaded Event | Opens or pins a beneficiary or Rally procedure. Commit the pinned option by its offered choice ID. |
 | `choice-commit` | Action choice | Commits the pinned option. |
 | `briefing-ribbon` | Terror | Reopens the briefings. |
 | `briefing-tab:kidnap`, `briefing-tab:terror` | Briefing tag | Switches the briefing. |
@@ -132,7 +132,7 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:event:unshaded` | Listed for inspection at 26July's opening decision and at Directorio's handoff after Kidnap. |
 | `<revision>:directorio:pass`, `<revision>:directorio:limited-operation` | Directorio's other legal options after Kidnap. Read their briefings for what they do and the build limits. |
 | `<revision>:rally:beneficiary:26july`, `<revision>:rally:beneficiary:directorio` | Directorio chooses the beneficiary of Alberto Bayo’s unshaded Rally. |
-| `<revision>:rally:<space>:place:<n>`, `<revision>:rally:<space>:flip`, `<revision>:rally:<space>:base:<underground>` | The beneficiary chooses a Rally procedure in an unresolved Base space. The offered IDs reflect pieces on the board and in Available Forces. For a Base the quantity is the number of Underground Guerrillas among the two being replaced. |
+| `<revision>:rally:sierra-maestra:place:1`, `<revision>:rally:sierra-maestra:place:2`, `<revision>:rally:sierra-maestra:place:3`, `<revision>:rally:sierra-maestra:place:4` | 26July chooses the Guerrillas to place Underground in Sierra Maestra when its Base qualifies. The offered quantities follow the inherited board and Available Forces. |
 | `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so 26July's option set is complete; unsupported, with the reason in `explanation`. |
 | `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap`, `<revision>:transfer`, `<revision>:remove` | Execution steps during Terror. |
 | `<revision>:back-to-choice` | Goes back to the action choice, until the first effect: from the Operation menu, or while a Transfer request awaits another faction, which withdraws it. Not offered in removal mode or while Kidnap is open. |
