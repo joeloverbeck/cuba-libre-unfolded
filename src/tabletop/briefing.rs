@@ -424,15 +424,39 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
                 },
                 &choice.explanation,
             )];
-            if option != "end-assault"
+            if crate::Game::assault_payment_space(option).is_some()
                 && let Some(preview) = &choice.preview
-                && preview.control.is_empty()
-                && preview.standings.is_empty()
             {
-                entries.push(entry(
-                    "CONTROL AND STANDINGS",
-                    "Santiago stays under Government Control. Standings are unchanged.",
-                ));
+                let control = |f: Option<Faction>| {
+                    f.map_or("Uncontrolled".into(), |f| format!("{} Control", f.name()))
+                };
+                for change in &preview.control {
+                    entries.push(entry(
+                        "CONTROL",
+                        format!("{} → {}", control(change.from), control(change.to),),
+                    ));
+                }
+                for change in &preview.standings {
+                    let input = if change.faction == Faction::Syndicate {
+                        "open Casinos"
+                    } else {
+                        "victory score"
+                    };
+                    entries.push(entry(
+                        "STANDING",
+                        format!(
+                            "{} {input}: {} → {}. Margin: {} → {}.",
+                            change.faction.name(),
+                            change.score_from,
+                            change.score_to,
+                            change.margin_from,
+                            change.margin_to,
+                        ),
+                    ));
+                }
+                if preview.control.is_empty() && preview.standings.is_empty() {
+                    entries.push(entry("CONTROL AND STANDINGS", "Unchanged."));
+                }
             }
             return Some(Briefing {
                 option: option.into(),

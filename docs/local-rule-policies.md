@@ -27,6 +27,14 @@ The owner's [acceptance of the rules baseline and tactical scenario](https://git
 
 **Rules consequences, not policy:** as after any Operation Only, Directorio may only Pass or take a Limited Operation, and 26July is Ineligible after the card. The preview warns of all of this.
 
+### Zero-space Government Assault on card 18
+
+**Rules:** R 3.1 and 3.2.4 allow selection of any spaces and require payment for each selected space. They state no explicit minimum. R 2.3.3 gives Government income for Pass.
+
+**Policy:** In this continuation Government may open Assault and deliberately finish without selecting a space, even with fewer Resources than the space cost. Finish records Operation Only, earns no Pass income, and preserves any side decisions already committed. Each selected space still requires its full payment. The owner accepted this interpretation for card 18. [Owner ruling on #127](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/127#issuecomment-7080815790)
+
+Syndicate becomes 2nd Eligible and may inspect Pass or Limited Operation under R 2.3.4.
+
 ## Specified in a ticket, without a separate owner ruling
 
 These three were specified in [#61](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/61), part of #58, and merged in PR #76. #61's labelling criterion names the first two; the withdrawal is specified in its body. The app labels all three as local policy. No owner ruling on them as rules interpretations is recorded.

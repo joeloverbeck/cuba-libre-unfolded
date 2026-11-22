@@ -1201,7 +1201,7 @@ impl Game {
             _ if action.starts_with("terror:")
                 || (action.starts_with("rally:")
                     && matches!(self.event, Some(EventProgress::Rally(_))))
-                || action.starts_with("assault:")
+                || Self::assault_payment_space(action).is_some()
                 || action == "end-assault"
                 || choice.removal().is_some() =>
             {

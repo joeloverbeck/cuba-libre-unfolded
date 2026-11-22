@@ -260,14 +260,33 @@ fn pact_of_caracas_lists_the_first_eligible_options_and_refuses_an_unfunded_assa
     let pass = &opening.choices[0];
     assert!(pass.explanation.contains("1 → 4"));
     let assault = &opening.choices[5];
-    assert!(!assault.supported);
-    let refusal = game
-        .submit(Faction::Government, opening.revision, &assault.id)
-        .unwrap_err();
-    assert!(refusal.contains("Firm"), "{refusal}");
-    assert!(refusal.contains("2 Resources"), "{refusal}");
-    assert!(refusal.contains("1 Resource"), "{refusal}");
-    assert_eq!(game.observe(), opening);
+    assert!(assault.supported);
+    assert!(assault.explanation.contains("Firm"));
+    assert!(assault.explanation.contains("2 Resources per space"));
+    assert!(
+        assault
+            .explanation
+            .contains("1 Resource and cannot pay for a space")
+    );
+    assert!(
+        assault
+            .explanation
+            .contains("zero-space Assault earns no Resources")
+    );
+    for action in ["government:assault", "end-assault"] {
+        let view = game.observe();
+        let choice = view.choices.iter().find(|c| c.action() == action).unwrap();
+        game.submit(view.owner, view.revision, &choice.id).unwrap();
+    }
+    let handoff = game.observe();
+    assert_eq!(handoff.resources, opening.resources);
+    assert_eq!(handoff.spaces, opening.spaces);
+    assert_eq!(handoff.available, opening.available);
+    assert_eq!(handoff.owner, Faction::Syndicate);
+    let next = handoff.next.unwrap();
+    assert_eq!(next.role, "2nd Eligible");
+    assert_eq!(next.options, ["Pass", "Limited Operation"]);
+    game.validate().unwrap();
 }
 
 #[test]

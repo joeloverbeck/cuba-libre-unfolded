@@ -118,7 +118,7 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `option:directorio:pass`, `option:directorio:limited-operation`, `option:event:unshaded`, `option:event:shaded` | Directorio's handoff after Kidnap | Opens or pins an option's briefing. |
 | `option:rally:beneficiary:<faction>`, `option:rally:sierra-maestra:place:<n>` | Unshaded Event | Opens or pins a beneficiary or Rally procedure. Commit the pinned option by its offered choice ID. |
 | `option:government:<option>`, e.g. `option:government:assault` | Card 18 opening | Opens or pins an option's briefing. |
-| `option:assault:santiago:26july`, `option:end-assault` | Government's Assault | Opens or pins the Santiago payment or completion briefing. |
+| `option:<assault action>` | Government's Assault | Opens or pins a choice's briefing. Use the action suffix of the offered choice ID. |
 | `choice-commit` | Action choice | Commits the pinned option. |
 | `briefing-ribbon` | Terror | Reopens the briefings. |
 | `briefing-tab:kidnap`, `briefing-tab:terror` | Briefing tag | Switches the briefing. |
@@ -159,8 +159,11 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:government:pass` | Pin `option:government:pass` to preview the income, then commit using the offered choice. |
 | `<revision>:government:event` | Government's Pact of Caracas briefing. |
 | `<revision>:government:train`, `<revision>:government:garrison`, `<revision>:government:sweep` | Government's opening Operation briefings. |
-| `<revision>:government:assault` | Opens Operation Only Assault when Government can pay for Santiago. |
-| `<revision>:assault:santiago:26july` | Confirms the payment for Santiago and applies the effects against 26July. |
+| `<revision>:government:assault` | Opens Operation Only Assault. |
+| `<revision>:assault:areas:<area>` | Lists remaining Cities, Provinces, or Economic Centers. Area IDs are `cities`, `provinces`, and `economic-centers`. |
+| `<revision>:assault:space:<space>` | Lists legal target and piece choices in the selected space. |
+| `<revision>:assault:<space>:<targets>` | Confirms payment and effects. For example, `assault:havana:syndicate` closes its Casino. |
+| `<revision>:assault:back` | Returns to the previous Assault menu without paying. |
 | `<revision>:end-assault` | Finishes Assault and records Operation Only. |
 | `<revision>:syndicate:limited-operation` | Inspect Syndicate's Limited Operation as 2nd Eligible after Operation Only. |
 | `<revision>:government:transport`, `<revision>:government:air-strike`, `<revision>:government:reprisal` | Government's Special Activity briefings, including the Operations each may accompany. |
@@ -229,9 +232,11 @@ Drawn-part names:
 
 ## Native regressions
 
+- `native_havana_and_santiago_assault_in_either_order_restarts_and_finishes` commits the two spaces in both orders, restarts after the first, checks stale and repeat refusal, and ends with Syndicate's 2nd Eligible decision while Government retains 2 Resources. Use `CUBA_TEST_MULTISPACE_FUNDED_SAVE` for the retained #131 funded input, or let the test fund the position through checked decisions. Evidence goes to `local/verification/issue-131/`.
+
 - `native_funded_santiago_assault_carries_each_event_and_restarts` plays both Event texts and the funded Santiago Assault. It checks the payment, removal, process restarts, duplicate refusal and Syndicate's 2nd Eligible options. Set `CUBA_TEST_SANTIAGO_FUNDED_SAVE` to the retained common save identified in #130's evidence to use the exact funded match. Otherwise the test constructs a funded save through the rules authority. Evidence goes to `local/verification/issue-130/`.
 
-- `native_card_advance_reopens_both_event_results_and_commits_once` checks both Event branches, card 19 refusal and recovery, restart on each side of the advance and stale or repeated activation. Set `CUBA_TEST_CARD_18_SAVES` to the directory containing the two retained saves pinned in #127 to exercise the exact owner-played positions. Otherwise the test drives each Event to completion through the checked session. Evidence goes to `local/verification/issue-128/`.
+- `native_card_advance_reopens_both_event_results_and_commits_once` checks both Event branches, card 19 refusal and recovery, restart on each side of the advance and stale or repeated activation. Set `CUBA_TEST_CARD_18_SAVES` to the directory containing the two retained saves pinned in #127 to exercise the exact owner-played positions, unaffordable Assault payment, and deliberate zero-space finish. Otherwise the test drives each Event to completion through the checked session. Evidence goes to `local/verification/issue-128/`.
 - `native_government_pass_credits_once_and_hands_first_choice_to_syndicate` checks the Pass preview, credit, Syndicate's 1st Eligible inspection, seat reconnects and process reload around the payment, and refusal of stale or repeated activation. It accepts the same `CUBA_TEST_CARD_18_SAVES` inputs. Evidence goes to `local/verification/issue-129/`.
 
 - `native_free_rally_hands_the_decision_to_the_beneficiary`: verifies the handoff, Sierra Maestra’s ceiling and zero cost, pending and completed save admission, stale and duplicate refusals, and the eligibility adjustment. Set `CUBA_TEST_RALLY_SAVE` to the retained revision-9 save pinned for #117 to exercise its exact old record. Otherwise the test plays to the handoff. Evidence goes to `local/verification/issue-120/`.

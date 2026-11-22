@@ -37,7 +37,7 @@ fn native_funded_santiago_assault_carries_each_event_and_restarts() {
             fs::write(&app.save, bytes).unwrap();
             fs::copy(previous_path(source), previous_path(&app.save)).unwrap();
         } else {
-            fund_santiago(&app.save);
+            fund_santiago(&app.save, 1);
         }
         let random = Session::open(&app.save, None)
             .unwrap()
@@ -73,6 +73,11 @@ fn native_funded_santiago_assault_carries_each_event_and_restarts() {
         assert_eq!(pending["resources"], handoff["resources"]);
 
         const ATTACK: &str = "assault:santiago:26july";
+        for action in ["assault:areas:cities", "assault:space:santiago"] {
+            pin(&mut app, action);
+            app.choose(action);
+        }
+        let pending = app.observe()["observation"].clone();
         let before = fs::read(&app.save).unwrap();
         app.quit();
         app.launch_size("3840x2160");
@@ -183,7 +188,7 @@ fn pin(app: &mut Native, action: &str) {
     app.activate(&format!("option:{action}"), revision);
 }
 
-fn fund_santiago(path: &Path) {
+fn fund_santiago(path: &Path, amount: u8) {
     // Seed 2 makes the shared Kidnap die roll 5. Every decision after the seed
     // uses the same checked and durable Session submission as the native seat.
     drop(Session::open(path, None).unwrap());
@@ -198,7 +203,7 @@ fn fund_santiago(path: &Path) {
         "kidnap:roll",
         "terror:santiago",
         "transfer",
-        "give:0:1",
+        &format!("give:0:{amount}"),
         "end-terror",
     ] {
         let view = session.observe();
@@ -209,5 +214,204 @@ fn fund_santiago(path: &Path) {
                 &format!("{}:{action}", view.revision),
             )
             .unwrap();
+    }
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained 4K frames"]
+fn native_havana_and_santiago_assault_in_either_order_restarts_and_finishes() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-131"));
+    fs::create_dir_all(&evidence).unwrap();
+    let evidence = evidence.canonicalize().unwrap();
+    let funded = std::env::var_os("CUBA_TEST_MULTISPACE_FUNDED_SAVE").map(PathBuf::from);
+
+    for [first, second] in [["havana", "santiago"], ["santiago", "havana"]] {
+        let root = tempfile::Builder::new()
+            .prefix(&format!("{first}-first-"))
+            .tempdir_in(&evidence)
+            .unwrap()
+            .keep();
+        let socket = tempfile::tempdir().unwrap();
+        let mut app = Native {
+            cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
+            save: root.join("task.json"),
+            socket: socket.path().join("seat.sock"),
+            root,
+            step: 0,
+        };
+        eprintln!("{first} first Assault evidence: {}", app.root.display());
+        if let Some(source) = &funded {
+            let bytes = fs::read(source).unwrap();
+            assert_eq!(
+                assets::digest(&bytes),
+                "a5e6fdf9f43b857bab26d0e17e6152142be614b92d353e0ac4b1ab369bb27157"
+            );
+            fs::write(&app.save, bytes).unwrap();
+            fs::copy(previous_path(source), previous_path(&app.save)).unwrap();
+        } else {
+            fund_santiago(&app.save, 4);
+        }
+
+        app.launch_size("3840x2160");
+        pin(&mut app, "event:shaded");
+        app.choose("event:shaded");
+        if funded.is_none() {
+            pin(&mut app, "transfer");
+            app.choose("transfer");
+            app.choose("give:0:1");
+        }
+        pin(&mut app, "resolve-shaded");
+        app.choose("resolve-shaded");
+        app.choose("advance-card");
+        pin(&mut app, "government:assault");
+        app.choose("government:assault");
+        let opening = app.observe();
+        assert_eq!(opening["observation"]["resources"][0], 6);
+        app.capture("assault-areas");
+
+        for (index, space) in [first, second].into_iter().enumerate() {
+            pin(&mut app, "assault:areas:cities");
+            app.choose("assault:areas:cities");
+            let cities = app.observe();
+            if index == 1 {
+                assert!(
+                    cities["observation"]["choices"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .all(|c| c["id"].as_str().unwrap().split_once(':').unwrap().1
+                            != format!("assault:space:{first}"))
+                );
+            }
+            let inspect = format!("assault:space:{space}");
+            pin(&mut app, &inspect);
+            app.choose(&inspect);
+            let target = if space == "havana" {
+                "syndicate"
+            } else {
+                "26july"
+            };
+            let action = format!("assault:{space}:{target}");
+            pin(&mut app, &action);
+            let pinned = app.observe();
+            let before = &pinned["observation"];
+            let revision = before["revision"].as_u64().unwrap();
+            let id = format!("{revision}:{action}");
+            let choice = before["choices"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|c| c["id"] == id)
+                .unwrap();
+            let preview = &choice["preview"];
+            let balances = [6, 4, 2];
+            assert_eq!(preview["resources"][0]["from"], balances[index]);
+            assert_eq!(preview["resources"][0]["to"], balances[index + 1]);
+            let briefing = tag_text(&pinned["table"]["briefing"]);
+            if space == "havana" {
+                assert!(briefing.contains("6 Troops + 4 Police = 10"));
+                assert!(briefing.contains("Close 1 Casino in place"));
+                assert!(briefing.contains("open Casinos: 3 → 2"));
+                assert_eq!(
+                    preview["flips"],
+                    json!([{"space":"havana","faction":"Syndicate",
+                    "kind":"Casino","from":"Open","to":"Closed","count":1}])
+                );
+                assert_eq!(preview["removed"], json!([]));
+            } else {
+                assert!(briefing.contains("2 Troops + 1 Police = 3"));
+                assert_eq!(
+                    preview["removed"],
+                    json!([{"space":"santiago","faction":"M26",
+                    "kind":"Guerrilla","state":"Active","count":2}])
+                );
+            }
+            app.capture(&format!("{space}-payment-preview"));
+
+            app.choose(&action);
+            let settled = app.observe();
+            let after = &settled["observation"];
+            assert_eq!(after["resources"][0], balances[index + 1]);
+            assert_eq!(after["executing"], "Government");
+            assert_eq!(after["current_card"], 18);
+            assert_eq!(after["preview_card"], 19);
+            assert_eq!(after["draw_count"], 33);
+            let altered = after["spaces"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|s| s["id"] == space)
+                .unwrap();
+            let pieces = altered["pieces"].as_array().unwrap();
+            if space == "havana" {
+                assert_eq!(after["map_piece_count"], before["map_piece_count"]);
+                assert_eq!(after["available"], before["available"]);
+                let casino = pieces.iter().find(|p| p["kind"] == "Casino").unwrap();
+                assert_eq!(casino["count"], 1);
+                assert_eq!(casino["state"], "Closed");
+                let directorio = pieces
+                    .iter()
+                    .find(|p| p["faction"] == "Directorio")
+                    .unwrap();
+                assert_eq!(directorio["count"], 2);
+                assert_eq!(directorio["state"], "Underground");
+                assert_eq!(after["standings"][3]["score"], 2);
+                assert_eq!(after["standings"][3]["margin"], -15);
+                assert_eq!(
+                    after["standings"][3]["extra"],
+                    before["standings"][3]["extra"]
+                );
+            } else {
+                assert!(pieces.iter().all(|p| p["faction"] != "M26"));
+                assert_eq!(
+                    after["available_piece_count"].as_u64().unwrap(),
+                    before["available_piece_count"].as_u64().unwrap() + 2
+                );
+            }
+            app.capture(&format!("{space}-paid"));
+
+            if index == 0 {
+                let active = fs::read(&app.save).unwrap();
+                let previous = fs::read(previous_path(&app.save)).unwrap();
+                app.quit();
+                app.launch_size("3840x2160");
+                assert_eq!(app.observe()["observation"], *after);
+                for rejected in [revision, revision + 1] {
+                    app.request(
+                        json!({"op":"activate", "revision":rejected,
+                        "choice":format!("{rejected}:{action}")}),
+                        false,
+                    );
+                }
+                assert_eq!(fs::read(&app.save).unwrap(), active);
+                assert_eq!(fs::read(previous_path(&app.save)).unwrap(), previous);
+                assert_eq!(app.observe()["observation"], *after);
+            }
+        }
+        let before_finish = app.observe()["observation"].clone();
+        assert_eq!(before_finish["resources"][0], 2);
+        assert!(
+            before_finish["choices"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|c| c["label"] == "Provinces" && c["supported"] == true)
+        );
+        pin(&mut app, "end-assault");
+        app.choose("end-assault");
+        let handoff = app.observe()["observation"].clone();
+        assert_eq!(handoff["owner"], "Syndicate");
+        assert_eq!(handoff["next"]["role"], "2nd Eligible");
+        assert_eq!(
+            handoff["next"]["options"],
+            json!(["Pass", "Limited Operation"])
+        );
+        assert_eq!(handoff["eligibility"]["government_box"], "OperationOnly");
+        assert_eq!(handoff["resources"], before_finish["resources"]);
+        assert_eq!(handoff["spaces"], before_finish["spaces"]);
+        app.capture("syndicate-second-decision");
+        app.quit();
     }
 }
