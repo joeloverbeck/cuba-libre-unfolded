@@ -113,7 +113,8 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `standing:0`–`standing:3` | Victory standings | Hover target for a faction's standing tag. |
 | `margin:0`–`margin:3` | Victory margins | Hover target for a faction's margin tag. |
 | `aid`, `us-alliance`, `resources`, `cash` | Top display | Each opens its tag. |
-| `space:<space>`, e.g. `space:havana` | Map | Picks the space; opens its popover where the rules allow. |
+| `space:<space>`, e.g. `space:havana` | Map | Picks the space; opens its popover where the rules allow. A space under an overlaid area is covered: the reply is `missed` and names what covers it. |
+| `area:<area>`: `area:outside-influence`, `area:standings`, `area:resources`, `area:sequence-of-play`, `area:decision`, `area:session`, `area:cards` | An overlaid area's own rectangle, beneath its controls | Does nothing: it takes the pointer, so a scroll, a drag or a press there neither moves the camera nor reaches the map. The seat rests on a bare part of the rectangle. |
 | `card:current`, `card:preview` | Card panel | Hover target for the card's tag; activating pins or unpins it. Enter or Space naming the focused card does the same. Nothing in the match changes. |
 | `option:<option>`, `option:pass` … `option:terror:kidnap` | Action choice | Pins the option. |
 | `option:directorio:pass`, `option:directorio:limited-operation`, `option:event:unshaded`, `option:event:shaded` | Directorio's handoff after Kidnap | Opens or pins an option's briefing. |
@@ -226,6 +227,7 @@ The full reply's `table` describes what is drawn. Drawn parts are reported by na
 | `table.inline_text` | Inline emblem geometry. |
 | `table.status` | The open space tag: its `space`, `terrain` (`City`, `Province · Forest`, `Province · Grassland`, `Province · Mountain` or `Economic center`), `control`, `opinion` and `contribution` (null for an Economic center), and its `bounds`, `region_bounds`, `occupied_bounds`, `viewport` and `leader`. |
 | `table.counts` | Each piece and Terror count: its `name` (as its control is named), `text`, `font_size` and logical `bounds`. |
+| `table.main_view` | The main view against [its layout record](../../art/atlas/atlas-main-view.layout.json): each overlaid area's rectangle in `areas`, the Home `island` box, the `clear` rectangle where space and piece popovers open, each space's bounds on screen in `spaces`, and the drawn `parts` by their names in the record. Rectangles are [left, top, right, bottom] in logical window pixels. `table.map_viewport` is the whole window. |
 | `table.card` | The card tag: `shown` (the open tag's `card`, `pinned`, `number`, `title`, `mark`, `order`, `event`, `status`, `lasting`, `rules` and plate `bounds`, or null), its drawn `parts` by their names in [the layout record](../../art/atlas/atlas-card-tag.layout.json), and each card's thumbnail `bounds` in `cards`. The facts come from `observation.cards`, whose `words` are the tag's text. |
 
 Drawn-part names:
@@ -241,6 +243,13 @@ Drawn-part names:
 - `native_funded_santiago_assault_carries_each_event_and_restarts` plays both Event texts and the funded Santiago Assault. It checks the payment, removal, process restarts, duplicate refusal and Syndicate's 2nd Eligible options. Set `CUBA_TEST_SANTIAGO_FUNDED_SAVE` to the retained common save identified in #130's evidence to use the exact funded match. Otherwise the test constructs a funded save through the rules authority. Evidence goes to `local/verification/issue-130/`.
 - `native_assault_resumes_giver_and_government_side_decisions` checks a transfer authorization and a voluntary Troop removal across restart, recalculated payment and removal capacity, and Syndicate's 2nd Eligible handoff. It accepts the same funded fixture and keeps evidence under `local/verification/issue-132/`.
 
+- `native_main_view_fills_the_window_and_matches_its_layout`: the main view at 3840×2160. Evidence: `local/verification/issue-142/main-view-*`.
+  - The map camera draws the whole window, and the capture shows sea where the desk, the "CUBA" title, the terrain key and the adjacency line were.
+  - Every area's rectangle, every image part and the left, top and right edges of every text part lie within the record's 2 px of [the FigCraft layout record](../../art/atlas/atlas-main-view.layout.json). Nothing the record plans for the card piles is drawn yet.
+  - At Home all thirteen spaces are inside the island box, as large as it allows, and clear of every area; each one picks, and its tag keeps off every area.
+  - The wheel and a right-drag move the camera where the desk was; tags, highlights and a space popover work after a pan, an orbit and a zoom; Home returns.
+  - On each `area:<area>` a scroll, a right-drag and a press leave the camera and the match unchanged. A space zoomed under an area is `missed` and opens no tag; during Terror a target under an area opens no popover.
+- `native_main_view_keeps_areas_and_picks_in_other_windows`: at 3:2 (1920×1280) and 21:9 (2520×1080), every area is inside the window where its anchor puts it, every space is clear of every area and picks, and every target is inside the window. Evidence: `local/verification/issue-142/main-view-<size>-*`.
 - `native_card_tag_matches_layout_and_reads_the_model`: the card tag at 3840×2160. Evidence: `local/verification/issue-139/card-tag-*`.
   - Hover and keyboard focus each open both cards' tags after the shared dwell; Enter on a focused card and a click pin; Escape closes; nothing in the match changes, and the reader's targets are gone.
   - At Directorio's handoff, both tags lie within 2 px of [the FigCraft layout record](../../art/atlas/atlas-card-tag.layout.json): images on all four edges, text on left, top and right. The face measures 620 px.
@@ -287,7 +296,7 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
 - `native_own_removal_restart_obligation_and_all_pieces_finish`: evidence in `local/verification/issue-15/removal-*`.
 - `native_hover_status_is_transient_without_region_inspection`: all ten city/province tags with their space type and terrain from the playbook's Spaces List, the three Economic Center tags with no Control or opinion, every tag again at 3840×2160, piece/count hover, the card tag closing the region's tag, camera navigation, complete home framing, and Terror/removal updates. Evidence: `local/verification/issue-16/hover-status-*`.
 - `native_victory_emblems_disclose_live_margins_without_inspection`: emblem and margin targets, one tag (the card tag replaces it, and the standings stay shown), leave dismissal, actual transfer/Terror/removal updates, and rendered text bounds, including the largest reachable contribution list. Evidence: `local/verification/issue-16/victory-*`.
-- `native_responsive_layout_uses_width_and_preserves_picks`: 3:2, 16:9 and 21:9 native surfaces (agent-chosen regression coverage, not owner display policy; see the art foundation), all region picks, piece/count hover, counts that scale with the window (#50), centered emblems, panel anchors, the card tag inside each window and clear of both cards, and unchanged save bytes. Evidence: `local/verification/issue-16/layout-*`.
+- `native_responsive_layout_uses_width_and_preserves_picks`: 3:2, 16:9 and 21:9 native surfaces (agent-chosen regression coverage, not owner display policy; see the art foundation), the map over the whole window, all region picks, piece/count hover, counts that scale with the window (#50), centered emblems, panel anchors, the card tag inside each window and clear of both cards, and unchanged save bytes. Evidence: `local/verification/issue-16/layout-*`.
 - `native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space`: resolves both Terrors and checks three things.
   - Captures exactly one loop apart (216 manual-clock steps, asked for with `advance`) are pixel-identical around each bell.
   - Each bell, advanced to the fixed seek times 0, 0.225, 0.45 and 0.675 s, visibly changes between two of those poses whatever the run's phase.

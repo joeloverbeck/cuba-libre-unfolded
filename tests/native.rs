@@ -14,6 +14,8 @@ mod assault_side;
 mod card_advance;
 #[path = "native/card_tag.rs"]
 mod card_tag;
+#[path = "native/main_view.rs"]
+mod main_view;
 #[path = "native/rally.rs"]
 mod rally;
 #[test]
@@ -741,9 +743,11 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
             (size - first).abs() < 0.01,
             "count size {size} per reference pixel at {width}x{height}, {first} at first"
         );
-        let viewport = before["table"]["map_viewport"].as_array().unwrap();
-        assert!((viewport[0].as_f64().unwrap() - 40. * scale).abs() <= 1.);
-        assert!((viewport[2].as_f64().unwrap() - (width as f64 - 580. * scale)).abs() <= 1.);
+        // The map fills the window (#142).
+        assert_eq!(
+            before["table"]["map_viewport"],
+            json!([0., 0., width as f64, height as f64])
+        );
         let controls = before["table"]["controls"].as_array().unwrap();
         assert!(
             !controls
@@ -1780,7 +1784,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         .lines()
         .chain(cuba_libre_unfolded::assets::STATUS_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::VICTORY_MANIFEST.lines())
-        .chain(cuba_libre_unfolded::assets::LAYOUT_MANIFEST.lines())
+        .chain(cuba_libre_unfolded::assets::MAIN_VIEW_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::TERRAIN_MANIFEST.lines())
     {
         let (_, path) = line.split_once("  ").unwrap();
@@ -1820,6 +1824,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         "atlas-victory-icon-government.png",
         "atlas-victory-ui.png",
         "atlas-layout-card.png",
+        "atlas-main-view.layout.json",
         "atlas-terrain-map.glb",
         "terrain-labels.json",
         "atlas-terrain-label-havana.png",
@@ -4177,7 +4182,7 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
         .lines()
         .chain(cuba_libre_unfolded::assets::STATUS_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::VICTORY_MANIFEST.lines())
-        .chain(cuba_libre_unfolded::assets::LAYOUT_MANIFEST.lines())
+        .chain(cuba_libre_unfolded::assets::MAIN_VIEW_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::TERRAIN_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::TERROR_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::TOP_MANIFEST.lines())
@@ -5014,34 +5019,37 @@ fn native_space_popover_closes_the_briefing_tag() {
     assert_eq!(tag["table"]["briefing"]["option"], "terror");
     assert_eq!(tag["table"]["choice"]["ribbon"], true);
     app.capture("clash-tag-open");
-    // A click through the open tag reaches nothing on the map.
+    // A click through the open tag reaches nothing on the map. With the island filling
+    // the window to the decision panel (#142), the tag lies over Oriente and leaves
+    // Santiago's label clear; in the framed view it was the other way round.
     let covered = app.request(
-        json!({"op":"activate","revision":rev,"component":"space:santiago"}),
+        json!({"op":"activate","revision":rev,"component":"space:oriente"}),
         false,
     );
     assert!(
         covered["error"]
             .as_str()
             .unwrap()
-            .contains("not component space:santiago"),
+            .contains("not component space:oriente"),
         "{}",
         covered["error"]
     );
     let saved = std::fs::read(&app.save).unwrap();
-    app.activate("space:oriente", rev);
+    app.activate("space:santiago", rev);
     let popover = app.observe();
     assert_eq!(popover["table"]["popover"]["pinned"], true);
-    assert_eq!(popover["table"]["popover"]["space"], "oriente");
+    assert_eq!(popover["table"]["popover"]["space"], "santiago");
     assert_eq!(popover["table"]["briefing"], Value::Null);
     assert_eq!(popover["table"]["choice"]["ribbon"], false);
     assert_eq!(popover["observation"]["revision"], rev);
     assert_eq!(std::fs::read(&app.save).unwrap(), saved);
     app.capture("clash-popover-closes-tag");
-    // Clicking Oriente again closes its popover (#73 made it settle at this size).
-    app.activate("space:oriente", rev);
+    // Clicking the space again closes its popover. Oriente's opens below, once the
+    // tag is closed (#73 made it settle at this size).
+    app.activate("space:santiago", rev);
     assert_eq!(app.observe()["table"]["popover"], Value::Null);
-    app.activate("space:oriente", rev);
-    assert_eq!(app.observe()["table"]["popover"]["space"], "oriente");
+    app.activate("space:santiago", rev);
+    assert_eq!(app.observe()["table"]["popover"]["space"], "santiago");
 
     // Orchestrator implementation judgement (#58 carry-forward): whichever opened
     // last wins, and the tag closes by Escape or a click on the map outside it.
@@ -5057,8 +5065,8 @@ fn native_space_popover_closes_the_briefing_tag() {
     let escaped = app.observe();
     assert_eq!(escaped["table"]["choice"]["ribbon"], false);
     assert_eq!(escaped["table"]["briefing"], Value::Null);
-    app.activate("space:santiago", rev);
-    assert_eq!(app.observe()["table"]["popover"]["space"], "santiago");
+    app.activate("space:oriente", rev);
+    assert_eq!(app.observe()["table"]["popover"]["space"], "oriente");
     // A click on the map outside the tag closes it too, and changes nothing else.
     app.activate("briefing-ribbon", rev);
     assert_eq!(app.observe()["table"]["popover"], Value::Null);
@@ -5069,8 +5077,8 @@ fn native_space_popover_closes_the_briefing_tag() {
     assert_eq!(outside["table"]["popover"], Value::Null);
     assert_eq!(outside["observation"], popover["observation"]);
     assert_eq!(std::fs::read(&app.save).unwrap(), saved);
-    app.activate("space:santiago", rev);
-    assert_eq!(app.observe()["table"]["popover"]["space"], "santiago");
+    app.activate("space:oriente", rev);
+    assert_eq!(app.observe()["table"]["popover"]["space"], "oriente");
     app.capture("clash-map-click-closed-tag");
     // Escape closes an open space popover as it closes the tag (#75), deciding nothing.
     app.request(json!({"op":"key","revision":rev,"key":"Escape"}), true);

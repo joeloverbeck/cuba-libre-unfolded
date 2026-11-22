@@ -46,7 +46,7 @@ pub(super) fn header(
     for standing in &view.standings {
         let faction = standing.faction;
         let x = center(faction);
-        picture(
+        let emblem = picture(
             commands,
             art,
             &format!("atlas-victory-icon-{}.png", slug(faction)),
@@ -55,6 +55,9 @@ pub(super) fn header(
             offset,
             2,
         );
+        commands
+            .entity(emblem)
+            .insert(areas::Part(format!("standing-{}", slug(faction))));
         let margin = text(
             commands,
             art,
@@ -67,9 +70,11 @@ pub(super) fn header(
             offset,
             2,
         );
-        commands
-            .entity(margin)
-            .insert((StandingText(faction), TextLayout::justify(Justify::Center)));
+        commands.entity(margin).insert((
+            StandingText(faction),
+            TextLayout::justify(Justify::Center),
+            areas::Part(format!("standing-{}-margin", slug(faction))),
+        ));
         // Contiguous hit rectangles expose icon and margin through real picking.
         for (name, top, height) in [("standing", 8., 56.), ("margin", 64., 52.)] {
             commands

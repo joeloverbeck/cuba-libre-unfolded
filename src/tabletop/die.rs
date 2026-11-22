@@ -26,7 +26,10 @@
 //! [ADR 0001]: ../../../docs/adr/0001-baked-die-tumbles-land-on-the-committed-face.md
 use super::palette::{DESK, INK, QUIET};
 use super::*;
-use bevy::{camera::visibility::RenderLayers, light::CascadeShadowConfigBuilder};
+use bevy::{
+    camera::{Viewport, visibility::RenderLayers},
+    light::CascadeShadowConfigBuilder,
+};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::f32::consts::PI;

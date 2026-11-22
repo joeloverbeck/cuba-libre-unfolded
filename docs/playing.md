@@ -12,10 +12,11 @@ The native task begins with 26July's decision as 1st Eligible on card 17, *Alber
 
 ## Reading the table
 
+- **Map:** the map fills the window, and every panel lies over it ([MAIN-VIEW.md](../art/atlas/MAIN-VIEW.md)). **Home** shows all thirteen spaces clear of every panel.
 - **Spaces:** hover a space, its pieces or a count for a tag that names what kind of space it is: a City, a Province with its terrain (Forest, Grassland or Mountain), or an Economic center. A city's or province's tag adds its Control, political opinion and population contribution ([STATUS.md](../art/atlas/STATUS.md)). Clicking a space does nothing except during Terror targeting.
 - **Victory standings:** the four emblems at the top show official victory margins. Hover one for its calculation, contributions, conditions and available pieces ([VICTORY.md](../art/atlas/VICTORY.md)). Zero is the threshold, and a positive Government margin still requires every City at Active Support. No Propaganda victory check runs in this build.
 - **Top display:** Aid and the US Alliance at top left; each faction's Resources and the Cash supply at top right. Hover any of them for what it does and what it costs ([TOP.md](../art/atlas/TOP.md)).
-- **Sequence of Play.** The track in the map's western margin records 26July's action on card 17. Hover a box to see what it allows the next faction. When the Event ends, the track shows each faction's adjusted Eligibility for card 18 (R 2.3.7). [Eligibility layout](../art/atlas/ELIGIBILITY.md)
+- **Sequence of Play.** The track at the left, over the sea west of the island, records 26July's action on card 17. Hover a box to see what it allows the next faction. When the Event ends, the track shows each faction's adjusted Eligibility for card 18 (R 2.3.7). [Eligibility layout](../art/atlas/ELIGIBILITY.md)
 - **Cards:** hover the current or the preview card in the card panel, or focus it with Tab, for its tag: the face at reading size, its number and title, whether it is the current card or the preview, the faction order, the kind of Event, where the Event stands, any lasting Capability or Momentum, and the rule references ([CARD-TAG.md](../art/atlas/CARD-TAG.md)). Click the card (or press Enter on it) to keep the tag open; Escape closes it.
 - **Faction names:** running text names factions by their emblems, as in "[S] gave 1 to [26]. Saved." ([VICTORY.md, "Inline text emblems"](../art/atlas/VICTORY.md#inline-text-emblems)).
 
@@ -114,7 +115,7 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 | `Enter`, `Space` | Activate the focused control |
 | `Escape` | Close a card's tag, unpin a briefing, cancel an open transfer, or close a tag or popover |
 
-The transfer modal takes camera input while open.
+The camera answers wherever the pointer is over the map. A scroll, a drag or a click on a panel stays with that panel: it neither moves the camera nor reaches the space beneath. The transfer modal takes camera input while open.
 
 ## Saving and quitting
 

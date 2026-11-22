@@ -8,7 +8,6 @@ use crate::{
 use bevy::{
     app::AnimationSystems,
     asset::RenderAssetUsages,
-    camera::Viewport,
     core_pipeline::tonemapping::{DebandDither, Tonemapping},
     image::{
         CompressedImageFormats, ImageAddressMode, ImageSampler, ImageSamplerDescriptor, ImageType,
@@ -43,6 +42,7 @@ use unfolded_tabletop::{
     label_anchor::{LabelAnchor, LabelAnchorPlugin},
     token,
 };
+mod areas;
 mod briefing;
 mod cards;
 mod choice;
@@ -197,6 +197,9 @@ enum Action {
     /// An action box of the eligibility indicator: a hover disclosure only.
     Sequence(eligibility::Slot),
     Unsupported(String),
+    /// An overlaid area's own rectangle (`areas::Area`): it takes the pointer and
+    /// does nothing.
+    Area,
     /// Lands the Kidnap die at once.
     SkipDie,
     /// Closes the landed Kidnap die and returns the panel to Terror.
@@ -326,6 +329,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .resource_mut::<Assets<Font>>()
         .add(Font::from_bytes(verified.files["Lato-Bold.ttf"].clone()));
     let die_art = die::DieArt::load(&mut app, &verified.files["kidnap-die.json"])?;
+    let main_view = areas::Layout::read(&verified.files["atlas-main-view.layout.json"])?;
     let server = app.world().resource::<AssetServer>();
     let scene = server.load("atlas-terrain-map.glb#Scene0");
     let terror = server.load("atlas-terror-token.glb#Scene0");
@@ -364,6 +368,9 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             labels: labels.labels,
         })
         .insert_resource(die_art)
+        .insert_resource(main_view)
+        .init_resource::<areas::Island>()
+        .init_resource::<Counts>()
         .init_resource::<die::Roll>()
         .insert_resource(TerrorLoop {
             clip: terror_clip,
@@ -380,9 +387,12 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             dirty: true,
             ..default()
         })
-        // art/stage/preview-stage.blend mirrors this home framing; update it too.
+        // Where the camera waits while the map loads. `areas::home` then frames the
+        // island in the layout's box for the window; art/stage/preview-stage.blend
+        // mirrors that framing on the owner's display.
         .insert_resource(Orbit::new(Framing::new(Vec3::new(0.35, 0., 0.35), 9.6)))
-        // Atlas SVG map rim fill; the viewport continues the authored sea.
+        // The layout's `map` colour, which the authored sea also has: the window
+        // shows it beyond the sea's edge.
         .insert_resource(ClearColor(palette::MAP))
         .add_plugins((
             MeshPickingPlugin,
@@ -392,7 +402,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .configure_sets(
             Update,
             TableCameraSystems
-                .after(camera_facts_and_viewport)
+                .after(write_camera_facts)
                 .before(status::hover),
         )
         .init_resource::<highlights::Targeting>()
@@ -414,7 +424,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 // modal read the keyboard first and stand aside while it is shown.
                 (choice::keys, transfer::keys, die::present).chain(),
                 draw_ui,
-                camera_facts_and_viewport,
+                (areas::home, write_camera_facts).chain(),
                 status::hover,
                 status::draw,
                 victory::draw,
@@ -461,7 +471,7 @@ fn render_ready(
         queue.on_submitted_work_done(move || flag.store(true, Ordering::Release));
     }
 }
-/// art/stage/preview-stage.blend mirrors this viewport, light, sea and region
+/// art/stage/preview-stage.blend mirrors this light, sea and region
 /// tops, and `sync_pieces`' placement; update it when they change.
 fn setup(
     mut commands: Commands,
@@ -474,18 +484,11 @@ fn setup(
         TableCamera,
         // Renders the seat's image under the UI camera; nothing without one.
         unfolded_tabletop::capture::OnSurface,
-        // Preserve the authored unlit sea color against the UI's matching rim.
-        // Debanding needs tonemapping, so it is off too (#86).
+        // Preserve the authored unlit sea colour, which is the layout's `map`.
+        // Debanding needs tonemapping, so it is off too (#86). The camera has no
+        // viewport: the map fills the window (#142).
         Tonemapping::None,
         DebandDither::Disabled,
-        Camera {
-            viewport: Some(Viewport {
-                physical_position: UVec2::new(40, 176),
-                physical_size: UVec2::new(1300, 684),
-                ..default()
-            }),
-            ..default()
-        },
         Transform::from_xyz(-0.2, 8.84, 5.17).looking_at(Vec3::new(-0.2, 0., -0.5), Vec3::Y),
     ));
     commands.spawn((
@@ -561,6 +564,7 @@ fn setup(
         ));
     }
 }
+#[allow(clippy::too_many_arguments)] // A Bevy system: its parameters are the resources it reads.
 fn sync_pieces(
     mut commands: Commands,
     play: Res<Play>,
@@ -568,8 +572,12 @@ fn sync_pieces(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     roots: Query<Entity, With<PieceVisual>>,
+    mut counts: ResMut<Counts>,
     mut previous: Local<Option<(Faction, Vec<crate::Space>)>>,
 ) {
+    if counts.settling > 0 {
+        counts.settling -= 1;
+    }
     let game = play.game();
     let executor = game.executing().unwrap_or(Faction::M26);
     if previous
@@ -579,6 +587,7 @@ fn sync_pieces(
         return;
     }
     *previous = Some((executor, game.spaces.clone()));
+    counts.settling = 3;
     for entity in &roots {
         commands.entity(entity).despawn();
     }
@@ -730,6 +739,17 @@ fn sync_pieces(
 /// A count of pieces or Terror, kept over its token.
 #[derive(Component)]
 struct Count;
+
+/// How many frames the counts still need before they stand over their pieces. A
+/// count's node is placed in the frame it is spawned or the camera jumps, centred on
+/// its measured width in the next, and picked where it then stands from the one
+/// after. The development seat waits for that: with the map filling the window a
+/// count can settle over the middle of its piece, and a press that came a frame
+/// early would land on the count instead (#142).
+#[derive(Resource, Default)]
+struct Counts {
+    settling: u8,
+}
 
 /// A count's face. Its size is set in reference pixels; `scale_counts` scales it to the
 /// window before the interface is laid out.
@@ -984,7 +1004,7 @@ fn click(
     ui.clicked = true;
     match &control.action {
         // Hover disclosures never change a decision.
-        Action::Standing(_) | Action::Top(_) | Action::Sequence(_) => return,
+        Action::Standing(_) | Action::Top(_) | Action::Sequence(_) | Action::Area => return,
         // A region click opens or closes a space popover while Terror targets are
         // chosen, and does nothing otherwise; it never decides anything itself. An
         // opened popover wins over the AC-B briefing tag, which reopens from the
@@ -1275,40 +1295,27 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
         _ => "Decision saved.".into(),
     }
 }
+/// One reference pixel in logical window pixels, and where the reference's top-left
+/// corner goes for an area anchored to the window's top-left. An area keeps its
+/// distance from the edge or centre its layout anchors it to (`areas::Anchor`): the
+/// callers add the window's spare width for the right edge, half of it for the
+/// centre, and [`bottom`] for the bottom edge. Nothing is letterboxed.
 fn layout(window: &Window) -> (f32, Vec2) {
     let scale = (window.width() / WIDTH).min(window.height() / HEIGHT);
-    (
-        scale,
-        Vec2::new(0., (window.height() - HEIGHT * scale) / 2.),
-    )
+    (scale, Vec2::ZERO)
 }
-/// The authored map rectangle, in logical window pixels: the only part of the window
-/// that shows the scene. Extra width on wide windows goes to the map.
-fn map_rect(window: &Window) -> Rect {
-    let (scale, offset) = layout(window);
-    let min = offset + Vec2::new(40., 176.) * scale;
-    let size = Vec2::new(window.width() - 620. * scale, 684. * scale);
-    Rect {
-        min,
-        max: min + size,
-    }
-}
-/// The camera's viewport: the map rectangle, in physical pixels.
-fn map_viewport(window: &Window) -> Viewport {
-    let map = map_rect(window);
-    let physical_position = (map.min * window.scale_factor()).round().as_uvec2();
-    let physical_end = (map.max * window.scale_factor()).round().as_uvec2();
-    Viewport {
-        physical_position,
-        physical_size: physical_end - physical_position,
-        ..default()
-    }
+/// How far a bottom-anchored area lies below its place in the reference: the
+/// window's spare height.
+fn bottom(window: &Window) -> Vec2 {
+    Vec2::new(0., window.height() - HEIGHT * layout(window).0)
 }
 /// What the table says to the shared camera: an unopened session, the transfer modal
-/// and a presented Kidnap die block it, and only the map shows the
-/// scene. The die's camera is a second `Camera3d`, which the shared count anchors do
-/// not follow, so the map holds still under its counts while the die is shown.
-fn camera_facts(window: &Window, play: &Play, roll: &die::Roll) -> TableFacts {
+/// and a presented Kidnap die block it. The whole window shows the scene; the
+/// camera itself leaves the pointer to any interface node it is over, and each
+/// overlaid area has one (`areas::Area`). The die's camera is a second `Camera3d`,
+/// which the shared count anchors do not follow, so the map holds still under its
+/// counts while the die is shown.
+fn camera_facts(play: &Play, roll: &die::Roll) -> TableFacts {
     let (modal, die) = play.session.as_ref().map_or((false, false), |session| {
         let game = session.game();
         (
@@ -1318,21 +1325,12 @@ fn camera_facts(window: &Window, play: &Play, roll: &die::Roll) -> TableFacts {
     });
     TableFacts {
         blocks_camera: play.session.is_none() || modal || die,
-        scene: Scene::Within(map_rect(window)),
+        scene: Scene::WholeWindow,
         ..default()
     }
 }
-fn camera_facts_and_viewport(
-    window: Single<&Window, With<PrimaryWindow>>,
-    play: Res<Play>,
-    roll: Res<die::Roll>,
-    mut table: ResMut<TableFacts>,
-    mut cameras: Query<&mut Camera, With<TableCamera>>,
-) {
-    *table = camera_facts(&window, &play, &roll);
-    for mut camera in &mut cameras {
-        camera.viewport = Some(map_viewport(&window));
-    }
+fn write_camera_facts(play: Res<Play>, roll: Res<die::Roll>, mut table: ResMut<TableFacts>) {
+    *table = camera_facts(&play, &roll);
 }
 #[allow(clippy::too_many_arguments)] // Authored rectangle, type size and letterboxing coordinates.
 fn text(
@@ -1456,7 +1454,7 @@ fn control(
     offset: Vec2,
     choice: bool,
     z: i32,
-) {
+) -> Entity {
     let node = picture(
         commands,
         art,
@@ -1496,6 +1494,7 @@ fn control(
     commands
         .entity(words)
         .insert(TextColor(Color::srgb(0.98, 0.97, 0.92))); // own colour: Atlas desk button label (foundation 4)
+    node
 }
 #[allow(clippy::too_many_arguments)]
 fn draw_ui(
@@ -1507,6 +1506,7 @@ fn draw_ui(
     window: Single<&Window, With<PrimaryWindow>>,
     mut previous_size: Local<Vec2>,
     roll: Res<die::Roll>,
+    main_view: Res<areas::Layout>,
 ) {
     let size = Vec2::new(window.width(), window.height());
     if !ui.dirty && *previous_size == size {
@@ -1522,63 +1522,35 @@ fn draw_ui(
     let right = left + Vec2::new(extra, 0.);
     let centered = left + Vec2::new(extra / 2., 0.);
     let view = play.game().observe();
-    // The desk surrounds the native viewport. It must not paint over the
-    // camera's pixels; all four strips consume the authored flat desk asset.
-    let map_top = left.y + 176. * s;
-    let map_bottom = left.y + 860. * s;
-    for rect in [
-        [0., 0., window.width(), map_top],
-        [0., map_bottom, window.width(), window.height() - map_bottom],
-        [0., map_top, 40. * s, map_bottom - map_top],
-        [
-            window.width() - 580. * s,
-            map_top,
-            580. * s,
-            map_bottom - map_top,
-        ],
-    ] {
-        picture(
-            &mut commands,
-            &art,
-            "atlas-layout-background.png",
-            rect,
-            1.,
-            Vec2::ZERO,
-            0,
-        );
-    }
+    // The map fills the window (#142). Each area keeps its distance from the edge
+    // or centre the main view's layout anchors it to, and takes the pointer over
+    // its own rectangle.
+    let low = bottom(&window);
+    areas::draw(&mut commands, &main_view, &window);
     // The owner retired the "CUBA LIBRE" title in #46: its corner holds Aid and
     // the US Alliance (top::header).
-    for (key, rect, offset) in [
-        (
-            "atlas-layout-map-fill.png",
-            [40., 136., 1300. + extra / s, 40.],
-            left,
-        ),
-        (
-            "atlas-layout-map-fill.png",
-            [40., 860., 1300. + extra / s, 80.],
-            left,
-        ),
-        ("atlas-layout-map-header.png", [40., 136., 1300., 40.], left),
-        ("atlas-layout-map-footer.png", [40., 860., 1300., 80.], left),
+    for (key, part, rect, offset) in [
         (
             "atlas-layout-operation.png",
+            "decision-frame",
             [1380., 280., 500., 660.],
             right,
         ),
-        ("atlas-layout-card.png", [40., 964., 600., 264.], left),
-        ("atlas-layout-session.png", [1380., 964., 500., 264.], right),
+        (
+            "atlas-layout-card.png",
+            "card-frame",
+            [40., 964., 600., 264.],
+            left + low,
+        ),
+        (
+            "atlas-layout-session.png",
+            "session-frame",
+            [1380., 964., 500., 264.],
+            right + low,
+        ),
     ] {
-        let layer = if matches!(
-            key,
-            "atlas-layout-map-header.png" | "atlas-layout-map-footer.png"
-        ) {
-            2
-        } else {
-            1
-        };
-        picture(&mut commands, &art, key, rect, s, offset, layer);
+        let frame = picture(&mut commands, &art, key, rect, s, offset, 1);
+        commands.entity(frame).insert(areas::Part(part.into()));
     }
     victory::header(&mut commands, &art, &view, s, centered);
     top::header(
@@ -1595,8 +1567,8 @@ fn draw_ui(
         execution::panel(&mut commands, &art, &view, &ui, s, right);
     }
     eligibility::indicator(&mut commands, &art, &view, s, left);
-    cards::panel(&mut commands, &art, &view, s, left);
-    let o = right;
+    cards::panel(&mut commands, &art, &view, s, left + low);
+    let o = right + low;
     let status = play.error.clone().unwrap_or_else(|| {
         if play.session.is_none() {
             "Loading selected assets; no save created.".into()
@@ -1610,7 +1582,7 @@ fn draw_ui(
             )
         }
     });
-    text(
+    let status = text(
         &mut commands,
         &art,
         format!("{status}\n{}", ui.notice),
@@ -1622,7 +1594,10 @@ fn draw_ui(
         o,
         2,
     );
-    control(
+    commands
+        .entity(status)
+        .insert(areas::Part("session-status".into()));
+    let quit = control(
         &mut commands,
         &art,
         "quit",
@@ -1634,6 +1609,9 @@ fn draw_ui(
         false,
         2,
     );
+    commands
+        .entity(quit)
+        .insert(areas::Part("session-quit".into()));
 }
 
 #[cfg(test)]
@@ -1801,11 +1779,14 @@ mod tests {
             &table,
         );
     }
+    /// The map is the whole window: the wheel zooms wherever the pointer is, unless
+    /// the table blocks the camera. An area's own rectangle stops it natively (the
+    /// main view regression), through the interface node the shared camera finds.
     #[test]
-    fn camera_input_respects_authored_viewport() {
+    fn camera_takes_input_over_the_whole_window() {
         let dir = tempfile::tempdir().unwrap();
         let save = dir.path().join("task.json");
-        let play = Play {
+        let mut play = Play {
             session: Some(Session::open(&save, None).unwrap()),
             options: Options {
                 art: PathBuf::new(),
@@ -1824,43 +1805,51 @@ mod tests {
             focused: true,
             ..default()
         };
+        let roll = die::Roll::default();
+        assert_eq!(camera_facts(&play, &roll).scene, Scene::WholeWindow);
         let mut orbit = Orbit::new(Framing::new(Vec3::ZERO, 10.));
         let keys = ButtonInput::default();
-        window.set_cursor_position(Some(Vec2::new(700., 500.)));
-        drive(
-            &mut orbit,
-            &window,
-            &keys,
-            1.,
-            camera_facts(&window, &play, &die::Roll::default()),
+        let mut distance = 10.;
+        // Over the old map opening, the old right margin, the old desk under the
+        // map and the window's corner.
+        for at in [
+            Vec2::new(700., 500.),
+            Vec2::new(1360., 500.),
+            Vec2::new(1000., 1250.),
+            Vec2::new(2., 2.),
+        ] {
+            window.set_cursor_position(Some(at));
+            drive(&mut orbit, &window, &keys, 1., camera_facts(&play, &roll));
+            assert!(orbit.pose().distance < distance, "no zoom at {at}");
+            distance = orbit.pose().distance;
+        }
+        play.session = None;
+        drive(&mut orbit, &window, &keys, 1., camera_facts(&play, &roll));
+        assert_eq!(
+            orbit.pose().distance,
+            distance,
+            "an unopened session blocks"
         );
-        assert!(orbit.pose().distance < 10.);
-        let inside = orbit.pose();
-        window.set_cursor_position(Some(Vec2::new(1500., 500.)));
-        drive(
-            &mut orbit,
-            &window,
-            &keys,
-            1.,
-            camera_facts(&window, &play, &die::Roll::default()),
-        );
-        assert_eq!(orbit.pose(), inside);
-        // Maximizing a 3:2 design onto wider screens must put the extra
-        // horizontal room into the map, retaining the 40 px outer inset.
-        for width in [2560, 3360] {
-            window.resolution.set(width as f32, 1440.);
-            let viewport = map_viewport(&window);
-            assert_eq!(
-                viewport.physical_position.x, 45,
-                "maximized map has a wide left gap"
-            );
-            assert!(
-                ((viewport.physical_position.x + viewport.physical_size.x) as f32
-                    - (width as f32 - 652.5))
-                    .abs()
-                    <= 1.,
-                "extra window width must extend the map toward its right-anchored panels"
-            );
+    }
+
+    /// Areas scale with the smaller of the window's width over 1920 and height over
+    /// 1280, and the bottom row lies against the bottom edge in a taller window.
+    #[test]
+    fn nothing_is_letterboxed() {
+        for (width, height, scale, low) in [
+            (1920, 1280, 1., 0.),
+            (3840, 2160, 1.6875, 0.),
+            (2520, 1080, 0.84375, 0.),
+            (1600, 1280, 1600. / 1920., 1280. - 1280. * 1600. / 1920.),
+        ] {
+            let window = Window {
+                resolution: (width, height).into(),
+                ..default()
+            };
+            let (s, offset) = layout(&window);
+            assert!((s - scale).abs() < 1e-6, "{width}x{height}");
+            assert_eq!(offset, Vec2::ZERO);
+            assert!((bottom(&window).y - low).abs() < 1e-3, "{width}x{height}");
         }
     }
 }
