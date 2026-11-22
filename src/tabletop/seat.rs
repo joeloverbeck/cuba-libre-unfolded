@@ -365,13 +365,14 @@ impl SeatGame for Table {
             .collect::<Vec<_>>();
         let die = die::observe(world);
         let card = cards::observe(world);
+        let main_view = areas::observe(world);
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
         let pose = world.resource::<Orbit>().pose();
         let water_frame = world.get_resource::<Water>().map(|water| water.frame);
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
-            table: json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"top":top,"briefing":briefing,"choice":choice::observe(ui),"choice_parts":choice_parts,"eligibility":eligibility,"map_targets":map_targets,"highlights":highlights,"removal":removal,"markers":markers,"popover":popover,"transfer":transfer,"top_text":top_text,"inline_text":inline_text,"counts":counts,"top_parts":top_parts,"water_frame":water_frame,"terror":terror,"die":die,"settled":pending.is_empty(),"pending":pending,"card":card,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
+            table: json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"top":top,"briefing":briefing,"choice":choice::observe(ui),"choice_parts":choice_parts,"eligibility":eligibility,"map_targets":map_targets,"highlights":highlights,"removal":removal,"markers":markers,"popover":popover,"transfer":transfer,"top_text":top_text,"inline_text":inline_text,"counts":counts,"top_parts":top_parts,"water_frame":water_frame,"terror":terror,"die":die,"settled":pending.is_empty(),"pending":pending,"card":card,"main_view":main_view,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
         }
     }
     fn revision(&self, world: &mut World) -> u64 {

@@ -43,6 +43,7 @@ use unfolded_tabletop::{
     label_anchor::{LabelAnchor, LabelAnchorPlugin},
     token,
 };
+mod areas;
 mod briefing;
 mod cards;
 mod choice;
@@ -1456,7 +1457,7 @@ fn control(
     offset: Vec2,
     choice: bool,
     z: i32,
-) {
+) -> Entity {
     let node = picture(
         commands,
         art,
@@ -1496,6 +1497,7 @@ fn control(
     commands
         .entity(words)
         .insert(TextColor(Color::srgb(0.98, 0.97, 0.92))); // own colour: Atlas desk button label (foundation 4)
+    node
 }
 #[allow(clippy::too_many_arguments)]
 fn draw_ui(
@@ -1578,7 +1580,15 @@ fn draw_ui(
         } else {
             1
         };
-        picture(&mut commands, &art, key, rect, s, offset, layer);
+        let frame = picture(&mut commands, &art, key, rect, s, offset, layer);
+        if let Some(part) = match key {
+            "atlas-layout-operation.png" => Some("decision-frame"),
+            "atlas-layout-card.png" => Some("card-frame"),
+            "atlas-layout-session.png" => Some("session-frame"),
+            _ => None,
+        } {
+            commands.entity(frame).insert(areas::Part(part.into()));
+        }
     }
     victory::header(&mut commands, &art, &view, s, centered);
     top::header(
@@ -1610,7 +1620,7 @@ fn draw_ui(
             )
         }
     });
-    text(
+    let status = text(
         &mut commands,
         &art,
         format!("{status}\n{}", ui.notice),
@@ -1622,7 +1632,10 @@ fn draw_ui(
         o,
         2,
     );
-    control(
+    commands
+        .entity(status)
+        .insert(areas::Part("session-status".into()));
+    let quit = control(
         &mut commands,
         &art,
         "quit",
@@ -1634,6 +1647,9 @@ fn draw_ui(
         false,
         2,
     );
+    commands
+        .entity(quit)
+        .insert(areas::Part("session-quit".into()));
 }
 
 #[cfg(test)]
