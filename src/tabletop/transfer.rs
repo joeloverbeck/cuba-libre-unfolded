@@ -1030,10 +1030,11 @@ fn modal(
     part(commands, root, "transfer-modal");
     // Header band, in the deciding faction's colour.
     let executor = view.executing.unwrap_or(view.owner);
-    let activity = match &view.event {
-        Some(crate::EventProgress::Rally(_)) => "the free Rally",
-        Some(_) => "Alberto Bayo",
-        None => "Terror",
+    let activity = match (view.current_card, &view.event) {
+        (18, _) => "Assault",
+        (_, Some(crate::EventProgress::Rally(_))) => "the free Rally",
+        (_, Some(_)) => "Alberto Bayo",
+        (_, None) => "Terror",
     };
     let header = commands
         .spawn((

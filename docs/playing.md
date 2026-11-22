@@ -96,6 +96,10 @@ Syndicate takes over as 1st Eligible on Pact of Caracas. Inspect its Pass, Event
 
 With at least 2 Resources under Firm US Alliance, choose **Assault · Operation Only**. Pin **Santiago · target 26July** to see the City's removal capacity and which Guerrillas the payment will return to Available Forces. Commit the payment to resolve Santiago, then choose **Finish Assault** to record Operation Only. Syndicate can inspect its Pass and Limited Operation as 2nd Eligible.
 
+Once Government opens Assault, **Resource transfer** lets Government give or request Resources. Pending requests keep their giver's decision across a restart. The authorized amount changes the balance available for the next space.
+
+**Remove own pieces** opens the map's voluntary removal controls for Government. Click a marked Troop or Police stack, select a quantity and confirm to return it to Available Forces. Choose **Done** to return to Assault and inspect its removal capacity with the remaining cubes.
+
 ## Camera and keys
 
 | Input | Effect |

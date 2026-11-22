@@ -183,7 +183,7 @@ fn pin(app: &mut Native, action: &str) {
     app.activate(&format!("option:{action}"), revision);
 }
 
-fn fund_santiago(path: &Path) {
+pub(super) fn fund_santiago(path: &Path) {
     // Seed 2 makes the shared Kidnap die roll 5. Every decision after the seed
     // uses the same checked and durable Session submission as the native seat.
     drop(Session::open(path, None).unwrap());

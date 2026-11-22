@@ -119,6 +119,7 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `option:rally:beneficiary:<faction>`, `option:rally:sierra-maestra:place:<n>` | Unshaded Event | Opens or pins a beneficiary or Rally procedure. Commit the pinned option by its offered choice ID. |
 | `option:government:<option>`, e.g. `option:government:assault` | Card 18 opening | Opens or pins an option's briefing. |
 | `option:assault:santiago:26july`, `option:end-assault` | Government's Assault | Opens or pins the Santiago payment or completion briefing. |
+| `option:transfer`, `option:remove`, `option:done-removal` | Government's Assault | Pins the corresponding transfer or removal step. Commit using the offered choice ID. |
 | `choice-commit` | Action choice | Commits the pinned option. |
 | `briefing-ribbon` | Terror | Reopens the briefings. |
 | `briefing-tab:kidnap`, `briefing-tab:terror` | Briefing tag | Switches the briefing. |
@@ -138,7 +139,7 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `popover:commit` | Space or piece popover | Commits. |
 | `popover:quantity:minus`, `popover:quantity:plus` | Piece popover | Steps the quantity. |
 | `popover:cancel` | Piece popover | Cancels. |
-| `own-piece:<space>:<group>` | Removal mode | Opens an executing faction's piece popover. The seat reaches it as `piece:<space> <faction> <Kind> <State>`, with `M26` for 26July and `Directorio` for Directorio. |
+| `own-piece:<space>:<group>` | Removal mode | Opens an executing faction's piece popover. The seat reaches it as `piece:<space> <faction> <Kind> <State>`, for example `piece:santiago Government Troops Ordinary`. Use `M26` for 26July and `Directorio` for Directorio. |
 
 [`art/atlas/EXECUTION.md`](../../art/atlas/EXECUTION.md) lists every name in the execution panel.
 
@@ -170,7 +171,7 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:syndicate:profit`, `<revision>:syndicate:muscle`, `<revision>:syndicate:bribe` | Inspect Syndicate's Special Activities and which Operations they may accompany. |
 | `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so 26July's option set is complete; unsupported, with the reason in `explanation`. |
 | `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap` | Execution steps during Terror. |
-| `<revision>:transfer`, `<revision>:remove` | Opens a Resource transfer or voluntary removal during Terror, Directorio's Event choices or the free Rally. |
+| `<revision>:transfer`, `<revision>:remove` | Opens a Resource transfer or voluntary removal during Terror, Directorio's Event choices, the free Rally or Government's Assault. |
 | `<revision>:back-to-choice` | Goes back to the action choice, until the first effect: from the Operation menu, or while a Transfer request awaits another faction, which withdraws it. Not offered in removal mode or while Kidnap is open. |
 | `<revision>:kidnap:roll`, `<revision>:kidnap:cancel` | Kidnap's Roll and Cancel. |
 | `<revision>:remove:<space>:<group>:<n>` | In removal mode, removes `n` pieces of a stack. |
@@ -230,6 +231,7 @@ Drawn-part names:
 ## Native regressions
 
 - `native_funded_santiago_assault_carries_each_event_and_restarts` plays both Event texts and the funded Santiago Assault. It checks the payment, removal, process restarts, duplicate refusal and Syndicate's 2nd Eligible options. Set `CUBA_TEST_SANTIAGO_FUNDED_SAVE` to the retained common save identified in #130's evidence to use the exact funded match. Otherwise the test constructs a funded save through the rules authority. Evidence goes to `local/verification/issue-130/`.
+- `native_assault_resumes_giver_and_government_side_decisions` checks a transfer authorization and a voluntary Troop removal across restart, recalculated payment and removal capacity, and Syndicate's 2nd Eligible handoff. It accepts the same funded fixture and keeps evidence under `local/verification/issue-132/`.
 
 - `native_card_advance_reopens_both_event_results_and_commits_once` checks both Event branches, card 19 refusal and recovery, restart on each side of the advance and stale or repeated activation. Set `CUBA_TEST_CARD_18_SAVES` to the directory containing the two retained saves pinned in #127 to exercise the exact owner-played positions. Otherwise the test drives each Event to completion through the checked session. Evidence goes to `local/verification/issue-128/`.
 - `native_government_pass_credits_once_and_hands_first_choice_to_syndicate` checks the Pass preview, credit, Syndicate's 1st Eligible inspection, seat reconnects and process reload around the payment, and refusal of stale or repeated activation. It accepts the same `CUBA_TEST_CARD_18_SAVES` inputs. Evidence goes to `local/verification/issue-129/`.

@@ -346,6 +346,16 @@ fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool) -> St
                 };
             return format!("{} on card 18 · {balance}{result}", next.role);
         }
+        if let Some(Transfer::Authorizing { giver, .. }) = view.transfer {
+            return format!(
+                "{} decides the Resource transfer\nGovernment has {}",
+                giver.name(),
+                resources(view.resources[Faction::Government.index()])
+            );
+        }
+        if view.removal.is_some() {
+            return "Select a marked piece on the map.\nChoose Done to return to Assault.".into();
+        }
         if executor == Faction::Government && view.executing.is_some() {
             return view.assault_result.as_ref().map_or_else(
                 || {
@@ -449,11 +459,11 @@ pub(super) fn panel(
     part(commands, emblem, "choice-heading-emblem");
     let [x, y, w] = fig::HEADING;
     let title = match &view.event {
+        _ if view.removal.is_some() => format!("{} · Voluntary removal", executor.name()),
         _ if card_18 && view.executing == Some(Faction::Government) => {
             "Government · Assault".into()
         }
         _ if card_18 => format!("{}'s decision", view.owner.name()),
-        _ if view.removal.is_some() => format!("{} · Voluntary removal", executor.name()),
         Some(EventProgress::ExecuteShaded) => "Directorio · Shaded Event".into(),
         Some(EventProgress::ChooseRallyBeneficiary) => "Choose who Rallies".into(),
         Some(EventProgress::Rally(rally)) => format!("{} · Free Rally", rally.beneficiary.name()),
@@ -1017,7 +1027,7 @@ fn wanted(game: &Game, ui: &Interface, popover: bool) -> Option<(String, bool, b
         ActionChoice::Terror => ("step:", true),
         ActionChoice::Pass => return None,
     };
-    if (ribbon || game.event.as_ref().is_some_and(EventProgress::pending))
+    if (ribbon || game.card_18 || game.event.as_ref().is_some_and(EventProgress::pending))
         && (popover || super::transfer::shown(game.transfer.as_ref()))
     {
         return None;

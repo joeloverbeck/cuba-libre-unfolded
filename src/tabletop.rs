@@ -1151,6 +1151,12 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
         };
     }
     if let Some((_, _, n)) = choice.and_then(Choice::removal) {
+        if after.current_card == 18 {
+            return format!(
+                "Returned {n} {} to Available Forces. Choose Done to review Assault. Saved.",
+                if n == 1 { "piece" } else { "pieces" }
+            );
+        }
         return format!(
             "Removed {n} own piece{} to Available. Removal stays open until Done; earlier Terror, support shifts and Kidnap results remain. Saved.",
             if n == 1 { "" } else { "s" }

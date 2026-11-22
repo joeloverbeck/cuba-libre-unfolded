@@ -8,6 +8,8 @@ use std::{
 
 #[path = "native/assault.rs"]
 mod assault;
+#[path = "native/assault_side.rs"]
+mod assault_side;
 #[path = "native/card_advance.rs"]
 mod card_advance;
 #[path = "native/rally.rs"]
