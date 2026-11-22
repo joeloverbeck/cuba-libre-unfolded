@@ -60,9 +60,15 @@ fn native_assault_resumes_giver_and_government_side_decisions() {
             .contains("executes Assault"),
         "the transfer must name Government's current Operation"
     );
-    let text = composer["table"]["inline_text"].to_string();
-    assert!(text.contains("49-Resource cap"), "{text}");
-    assert!(!text.contains("Terror"), "{text}");
+    let parts = composer["table"]["transfer"]["parts"].as_array().unwrap();
+    let limits = parts
+        .iter()
+        .find(|part| part["part"] == "limit:balance")
+        .unwrap();
+    assert_eq!(
+        limits["text"],
+        "Limited by the giver’s balance and the recipient’s 49-Resource cap"
+    );
     app.capture("government-transfer-compose");
     app.choose("give:3:2");
     assert_eq!(
@@ -85,7 +91,11 @@ fn native_assault_resumes_giver_and_government_side_decisions() {
     assert_eq!(waiting["transfer"]["Authorizing"]["waited"], true);
     restart_pending(&mut app, &waiting, Faction::Government, "authorize:3");
     app.choose("reopen");
-    assert_eq!(app.observe()["table"]["transfer"]["state"]["shown"], true);
+    let shown = app.observe();
+    assert_eq!(shown["table"]["transfer"]["state"]["shown"], true);
+    let limits = shown["table"]["transfer"]["parts"].as_array().unwrap();
+    assert!(limits.iter().any(|part| part["part"] == "limit:cap"));
+    assert!(limits.iter().all(|part| part["part"] != "limit:reserve"));
     app.capture("26july-authorizes-government-request");
     let giver = app.observe()["observation"].clone();
     app.choose("authorize:3");
