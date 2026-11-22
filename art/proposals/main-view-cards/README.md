@@ -1,16 +1,17 @@
 # Full-bleed main view and card area studies
 
-Decision-only alternatives from the owner's 2026-11-22 design interview, made before the spec exists. The baseline is `8e0d825`. No runtime code or admission manifest consumes these files, and selection is not native play acceptance. Foundation [4](../../../docs/foundation/04-art-and-assets.md) governs the round.
+Decision-only alternatives from the owner's 2026-11-22 design interview, recorded by [#136](https://github.com/joeloverbeck/cuba-libre-unfolded/pull/136). The spec issue written from that interview owns the work; this folder is its evidence, not a queue. The baseline is `8e0d825`. No runtime code or admission manifest consumes these files, and selection is not native play acceptance. Foundation [4](../../../docs/foundation/04-art-and-assets.md) governs the round.
 
 **Selected on 2026-11-22:** main view layout **A · Mesa** and card tag **T1 · Face and ledger**. The spec that implements them is still to be written; nothing here is production art yet.
 
 ## Decided in the interview
 
 - The 3D map fills the window and every interface area sits over it. The "CUBA" title, the terrain key and the "Borders carry adjacency" line go; the space hover tag gains a Terrain row.
-- Cards follow the physical game (R 2.2, 2.3.8): the current card lies on top of the played pile, and the preview is the draw deck's top card, face up. There are two piles and nothing overlaps or sits askew.
-- The piles are 3D cards with rounded corners in a screen-fixed tray, like the Kidnap die tray.
-- The card reader is removed. A hover tag shows a card; a tag on each pile shows its count, the Propaganda cards played and, for the deck, how soon the next Propaganda can come.
-- The card advance is animated: the preview crosses to the played pile, then the deck's top card turns over. A shuffle animation waits for a game-setup spec, since nothing in this build shuffles.
+- Cards follow the physical game (R 2.2, 2.3.8): the current card lies on top of the played pile, and the preview is the draw deck's top card, face up. There are two piles. The owner rejected a preview overlapping the deck's edge and a current card resting askew on the pile.
+- The piles are 3D cards in a screen-fixed tray, like the Kidnap die tray. They use the shared card shape in `unfolded-tabletop`, whose corners are rounded; today's flat card images show black corners.
+- The card reader is removed. Hovering or focusing the current or preview card opens a tag with its face at reading size and its facts; a click pins the tag and Escape closes it.
+- A tag on each pile shows its count and the Propaganda cards played. The played pile's tag lists each played card by number and title, so the 48 Event titles are transcribed; the faces of cards already played stay unadmitted. The deck's tag says how soon the next Propaganda can come.
+- The card advance is animated: the preview crosses to the played pile, then the deck's top card turns over. The motion reuses Arkham's card motion, extracted into `unfolded-tabletop`. A shuffle animation waits for a game-setup spec, since nothing in this build shuffles.
 - The card back is the original from the owner's resource collection, admitted privately like the faces. Foundation 4 records the owner's exception.
 - A pile's side shows its cards: one visible seam per card, where the shared card solid in `unfolded-tabletop` is one flat colour today. The owner asked for this in the shared library, so that Arkham and Netrunner piles gain it too.
 
@@ -21,7 +22,9 @@ Decision-only alternatives from the owner's 2026-11-22 design interview, made be
 | Main view layout | [layout-a-mesa.png](layout-a-mesa.png), [layout-b-caja.png](layout-b-caja.png), [layout-c-columna.png](layout-c-columna.png) | **A** |
 | Card tag arrangement | [card-tags.png](card-tags.png) | **T1** |
 
-The two are independent: any tag works with any layout. [pile-tags-and-advance.png](pile-tags-and-advance.png) shows the pile tags, the advance in four steps and the card-position comparison; it carries no choice.
+The two are independent: any tag works with any layout. [pile-tags-and-advance.png](pile-tags-and-advance.png) shows the pile tags, the advance in four steps and the card-position comparison; it carries no choice. The pile tags reuse the accepted hover tag, and the advance moves the cards between their two places, so neither is a new visual design that needs alternatives. The comparison only illustrates the owner's decision on card positions.
+
+Two statements on that sheet are the agent's proposals, which the owner read and did not change: the advance is saved before it is shown, as [ADR 0001](../../../docs/adr/0001-baked-die-tumbles-land-on-the-committed-face.md) does for the die, and a click, Space or Enter skips it. "Next Propaganda within 8 cards" assumes the deck was prepared with exactly equal piles, which Deck Preparation permits but does not require; the owner accepted the line with that assumption stated.
 
 ### Main view layouts
 
