@@ -44,7 +44,7 @@ After Kidnap and End Terror, hover or focus Pass, Limited Operation or either Ev
 Pin the shaded Event to see the recorded Terror and Kidnap result, the pending activations and the restriction on 26July. Commit
 **Choose shaded Event** to open Directorio's execution. You can transfer Resources or
 remove Directorio's pieces before you commit **Resolve shaded Event**. Then inspect
-the flips and each faction's eligibility for card 18. Card 18 stays in preview.
+the flips and each faction's eligibility for card 18. Card 18 stays in preview until you advance.
 
 ## Kidnap in Santiago
 
@@ -82,7 +82,15 @@ authorizes it.
 
 Inspect and pin a Rally option before committing it. Its preview shows the placement ceiling from Bases and population, the limit from Available Forces, and the zero Resource cost. **Place 0 Underground Guerrillas** resolves that qualifying space with its pieces and Available Forces unchanged. A qualifying space counts as Neutral for the Rally. Its actual Support or Opposition stays in place. If the beneficiary has no qualifying Base, the Event ends without a Rally decision.
 
-You can save and resume while the Rally is pending. After the last required effect, the panel reports the result and each faction’s eligibility for card 18. The table stops at that adjustment.
+You can save and resume while the Rally is pending. After the last required effect, the panel reports the result and each faction’s eligibility for card 18.
+
+## Advancing to Pact of Caracas
+
+At the completed Alberto Bayo result, inspect the board, the Event effects and each faction's eligibility. Choose **Advance to Pact of Caracas** to play card 18. **Read both cards** shows Pact of Caracas as current, Sierra Maestra Manifesto as preview and card 17 in the public history. The Pact's Capability takes effect only if its Event executes.
+
+Government is 1st Eligible and Syndicate is 2nd Eligible. Both skipped an Operation or Event on card 17. Terror and the Event made 26July and Directorio Ineligible. On the shaded branch, Alberto Bayo expressly keeps 26July Ineligible through card 18.
+
+Hover or focus Government's options to see what the rules allow and why a choice is unavailable. The briefing shows the cost at the current US Alliance level, Government's balance and the income it would receive from Pass. This build reaches and saves that opening decision for inspection.
 
 ## Camera and keys
 

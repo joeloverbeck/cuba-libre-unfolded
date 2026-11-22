@@ -1252,6 +1252,7 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
         ),
         "resolve-shaded" => "Shaded Event resolved. Eligibility for card 18 recorded. Saved.".into(),
         "event:unshaded" => "Directorio chooses who will Rally. Saved.".into(),
+        "advance-card" => "Pact of Caracas is current. Government is 1st Eligible. Saved.".into(),
         _ if action.starts_with("rally:") => match &after.event {
             Some(crate::EventProgress::Rally(rally)) => {
                 format!("{} directs the free Rally. Saved.", rally.beneficiary.name())
@@ -1430,6 +1431,27 @@ fn picture(
         ))
         .id()
 }
+
+fn card_picture(
+    commands: &mut Commands,
+    art: &Art,
+    face: &assets::CardFace,
+    [x, y, width]: [f32; 3],
+    scale: f32,
+    offset: Vec2,
+    z: i32,
+) {
+    let height = width * face.size.1 as f32 / face.size.0 as f32;
+    picture(
+        commands,
+        art,
+        face.name,
+        [x, y, width, height],
+        scale,
+        offset,
+        z,
+    );
+}
 #[allow(clippy::too_many_arguments)]
 fn control(
     commands: &mut Commands,
@@ -1582,6 +1604,8 @@ fn draw_ui(
             right,
         );
     }
+    let current = assets::card_face(view.current_card);
+    let preview = assets::card_face(view.preview_card);
     if ui.reader {
         picture(
             &mut commands,
@@ -1629,24 +1653,8 @@ fn draw_ui(
             o,
             4,
         );
-        picture(
-            &mut commands,
-            &art,
-            "card-17.png",
-            [320., 380., 420., 602.1],
-            s,
-            o,
-            3,
-        );
-        picture(
-            &mut commands,
-            &art,
-            "card-18.png",
-            [1000., 380., 420., 601.05],
-            s,
-            o,
-            3,
-        );
+        card_picture(&mut commands, &art, current, [320., 380., 420.], s, o, 3);
+        card_picture(&mut commands, &art, preview, [1000., 380., 420.], s, o, 3);
         control(
             &mut commands,
             &art,
@@ -1659,18 +1667,21 @@ fn draw_ui(
             false,
             4,
         );
+        let current_status = if view.current_card == 18 {
+            "current · Event inactive"
+        } else if view.eligibility.next_card.is_some() {
+            "Event resolved"
+        } else if view.event.is_some() {
+            "Event in progress"
+        } else if view.eligibility.directorio_handoff() {
+            "current · Event open to Directorio"
+        } else {
+            "current · Event inactive"
+        };
         text(
             &mut commands,
             &art,
-            if view.eligibility.next_card.is_some() {
-                "17 Alberto Bayo — Event resolved"
-            } else if view.event.is_some() {
-                "17 Alberto Bayo — Event in progress"
-            } else if view.eligibility.directorio_handoff() {
-                "17 Alberto Bayo — current; Event open to Directorio"
-            } else {
-                "17 Alberto Bayo — current; Event inactive"
-            },
+            format!("{} {} — {current_status}", view.current_card, current.title),
             320.,
             1030.,
             600.,
@@ -1682,7 +1693,10 @@ fn draw_ui(
         text(
             &mut commands,
             &art,
-            "18 Pact of Caracas — preview; inactive",
+            format!(
+                "{} {} — preview · Event inactive",
+                view.preview_card, preview.title
+            ),
             1000.,
             1030.,
             600.,
@@ -1719,24 +1733,8 @@ fn draw_ui(
         }
         eligibility::indicator(&mut commands, &art, &view, s, left);
         let o = left;
-        picture(
-            &mut commands,
-            &art,
-            "card-17.png",
-            [100., 1040., 108., 154.8],
-            s,
-            o,
-            2,
-        );
-        picture(
-            &mut commands,
-            &art,
-            "card-18.png",
-            [366., 1040., 108., 154.55],
-            s,
-            o,
-            2,
-        );
+        card_picture(&mut commands, &art, current, [100., 1040., 108.], s, o, 2);
+        card_picture(&mut commands, &art, preview, [366., 1040., 108.], s, o, 2);
         control(
             &mut commands,
             &art,
@@ -1753,8 +1751,8 @@ fn draw_ui(
             &mut commands,
             &art,
             format!(
-                "17 current · 18 preview · {} cards in draw deck",
-                view.draw_count
+                "{} current · {} preview · {} cards in draw deck",
+                view.current_card, view.preview_card, view.draw_count
             ),
             64.,
             1003.,

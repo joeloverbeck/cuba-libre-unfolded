@@ -65,7 +65,15 @@ Fresh sibling inspection: Arkham `8301466b5bbc20b99411901cfcd6db2b29865431` (`sr
 
 ## Private card admission
 
-The only accepted imported original images are local `card-17.png` SHA-256 `141f592b5dee5a8c7a6d26651410b0ee1171a7dcf2c2b5331a63b48407cec9ab` and `card-18.png` SHA-256 `50df7058e660bb4dc620096823945eeb095fe4123e0aead68fec6244ab097c4e`. They remain outside Git. #12 must document the application-owned input location, hash-check both before gameplay, report absent/mismatched inputs clearly and keep input-independent rule tests available. No installer, art upload or redistribution is authorized here. The prior local reader probes preserved full edges, original proportions and original black corner pixels; native rendering and readability must still be inspected.
+The app admits these private original faces from the directory supplied to `--cards`.
+
+| File | SHA-256 |
+|---|---|
+| `card-17.png` | `141f592b5dee5a8c7a6d26651410b0ee1171a7dcf2c2b5331a63b48407cec9ab` |
+| `card-18.png` | `50df7058e660bb4dc620096823945eeb095fe4123e0aead68fec6244ab097c4e` |
+| `card-19.png` | `10bf73402f7fbb79d14aad0b928bc8ea20949ea5bd888799a869a6f4e270bc3b` |
+
+The faces remain outside Git. The reader and the table use the same portrait slots as the original Atlas selection and follow the saved cards' current and preview roles. Both surfaces preserve the faces' proportions and edges. The app checks all three before gameplay. [Build and launch](../../README.md#build-and-launch)
 
 ## Interface palette
 

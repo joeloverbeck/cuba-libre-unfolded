@@ -6,6 +6,8 @@ use std::{
     process::Command,
 };
 
+#[path = "native/card_advance.rs"]
+mod card_advance;
 #[path = "native/rally.rs"]
 mod rally;
 #[test]
@@ -310,7 +312,10 @@ fn native_shaded_event_activates_26july_and_adjusts_card_end_eligibility() {
         after["eligibility"]["event_restriction"],
         json!({"faction":"M26","through_card":18})
     );
-    assert_eq!(after["choices"], json!([]));
+    let choices = after["choices"].as_array().unwrap();
+    assert_eq!(choices.len(), 1);
+    assert_eq!(choices[0]["id"], format!("{}:advance-card", revision + 2));
+    assert_eq!(choices[0]["supported"], true);
     let track = &resolved["table"]["eligibility"]["track"];
     assert_eq!(track["adjusted"], true);
     assert_eq!(track["ineligible"], json!(["M26", "Directorio"]));

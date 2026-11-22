@@ -816,7 +816,8 @@ pub(super) fn panel(
     o: Vec2,
 ) {
     picture(commands, art, "atlas-panel.png", PANEL, s, o, 2);
-    if view.eligibility.directorio_handoff()
+    if view.current_card == 18
+        || view.eligibility.directorio_handoff()
         || view
             .event
             .as_ref()
@@ -1310,6 +1311,26 @@ fn ended(commands: &mut Commands, art: &Art, view: &Observation, s: f32, o: Vec2
             Part(format!("ended-value:{}", e.label)),
         ));
         y += acb::ENTRY_VALUE_TOP + acb::VALUE_LINE * lines.len() as f32 + acb::GAP;
+    }
+    if let Some(advance) = view
+        .choices
+        .iter()
+        .find(|choice| choice.action() == "advance-card")
+    {
+        choice::primary(
+            commands,
+            art,
+            Control {
+                name: advance.id.clone(),
+                choice: true,
+                action: Action::Decision(advance.owner, view.revision),
+            },
+            &advance.label,
+            true,
+            "advance-card",
+            s,
+            o,
+        );
     }
 }
 

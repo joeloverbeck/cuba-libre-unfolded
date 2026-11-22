@@ -48,13 +48,62 @@ pub const MANIFESTS: [&str; 14] = [
     EXECUTION_MANIFEST,
 ];
 pub const SOURCE: &str = "deacd635db5f71f4d3f092bd9cc99a9d96bb7aab;R:8152cb0056e3690fdc01c7b4ff893369ad7eff288941abc540ceee2c9d606792;P:dcaa5afd6f01c0c9ed4746c18199c1b09058823d67b627384fd3184ed4015fe8";
-const CARD_17: &str = "141f592b5dee5a8c7a6d26651410b0ee1171a7dcf2c2b5331a63b48407cec9ab";
-const CARD_18: &str = "50df7058e660bb4dc620096823945eeb095fe4123e0aead68fec6244ab097c4e";
+pub(crate) struct CardFace {
+    pub(crate) name: &'static str,
+    pub(crate) title: &'static str,
+    pub(crate) size: (u32, u32),
+    length: u64,
+    hash: &'static str,
+}
+
+const CARD_FACES: [CardFace; 3] = [
+    CardFace {
+        name: "card-17.png",
+        title: "Alberto Bayo",
+        size: (572, 820),
+        length: 1138467,
+        hash: "141f592b5dee5a8c7a6d26651410b0ee1171a7dcf2c2b5331a63b48407cec9ab",
+    },
+    CardFace {
+        name: "card-18.png",
+        title: "Pact of Caracas",
+        size: (573, 820),
+        length: 1159661,
+        hash: "50df7058e660bb4dc620096823945eeb095fe4123e0aead68fec6244ab097c4e",
+    },
+    CardFace {
+        name: "card-19.png",
+        title: "Sierra Maestra Manifesto",
+        size: (573, 819),
+        length: 1089575,
+        hash: "10bf73402f7fbb79d14aad0b928bc8ea20949ea5bd888799a869a6f4e270bc3b",
+    },
+];
+
+#[cfg(feature = "tabletop")]
+pub(crate) fn card_face(number: u8) -> &'static CardFace {
+    &CARD_FACES[usize::from(number - 17)]
+}
+
 pub fn digest(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
 }
 pub fn identity() -> String {
-    digest(format!("{MANIFEST}\ncard-17.png:{CARD_17}\ncard-18.png:{CARD_18}").as_bytes())
+    card_identity(&CARD_FACES[..2])
+}
+
+pub(crate) fn continuation_identity() -> String {
+    card_identity(&CARD_FACES)
+}
+
+fn card_identity(faces: &[CardFace]) -> String {
+    use std::fmt::Write;
+
+    let mut source = MANIFEST.to_owned();
+    for face in faces {
+        write!(source, "\n{}:{}", face.name, face.hash).expect("writing to a String");
+    }
+    digest(source.as_bytes())
 }
 pub struct Verified {
     pub root: PathBuf,
@@ -85,13 +134,15 @@ pub fn inspect(root: &Path, cards: &Path) -> Result<Verified> {
         }
         files.insert(local.to_owned(), bytes);
     }
-    for (name, length, hash, size) in [
-        ("card-17.png", 1138467, CARD_17, (572, 820)),
-        ("card-18.png", 1159661, CARD_18, (573, 820)),
-    ] {
-        let bytes=read_verified(cards,name,length,hash).with_context(||format!("Required private card {} missing or incompatible. Set --cards to the directory containing the selected card faces.",cards.join(name).display()))?;
-        decode(&bytes, name, Some(size))?;
-        files.insert(name.into(), bytes);
+    for face in &CARD_FACES {
+        let bytes = read_verified(cards, face.name, face.length, face.hash).with_context(|| {
+            format!(
+                "Required private card {} missing or incompatible. Restore {} ({}, SHA-256 {}) or set --cards to a directory with the selected faces.",
+                cards.join(face.name).display(), face.name, face.title, face.hash,
+            )
+        })?;
+        decode(&bytes, face.name, Some(face.size))?;
+        files.insert(face.name.into(), bytes);
     }
     Ok(Verified {
         root: root.canonicalize()?,

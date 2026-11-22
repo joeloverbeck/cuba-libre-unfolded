@@ -301,6 +301,10 @@ pub struct Game {
     pub(crate) m26_action_ended: bool,
     pub(crate) random: u64,
     pub(crate) draw_deck: Vec<u8>,
+    /// Card 18 entered play after the completed Alberto Bayo Event. Older saves
+    /// omit this field and remain on card 17.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) card_18: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) transfer: Option<Transfer>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -952,6 +956,7 @@ impl Game {
             m26_action_ended: false,
             random: 17,
             draw_deck,
+            card_18: false,
             transfer: None,
             kidnap: None,
             removal: None,
@@ -977,6 +982,9 @@ impl Game {
         let mut played_cards: Vec<u8> = (1..=12).collect();
         played_cards.push(49);
         played_cards.extend(13..=16);
+        if self.card_18 {
+            played_cards.push(17);
+        }
         let eligibility = self.eligibility();
         Observation {
             revision: self.revision,
@@ -998,8 +1006,8 @@ impl Game {
                 .sum(),
             available_piece_count: self.available.iter().map(|p| p.count as u16).sum(),
             standings: self.standings(),
-            current_card: 17,
-            preview_card: 18,
+            current_card: if self.card_18 { 18 } else { 17 },
+            preview_card: self.draw_deck[0],
             played_cards,
             draw_count: self.draw_deck.len(),
             passed: Faction::ALL.map(|f| f == Faction::M26 && self.action == ActionChoice::Pass),
@@ -1020,6 +1028,7 @@ impl Game {
                 .collect(),
             next: self.next(),
             operation: match self.action {
+                _ if self.card_18 => "Government is 1st Eligible on card 18",
                 _ if matches!(self.event, Some(EventProgress::ExecuteShaded)) => {
                     "Directorio executes the shaded Event"
                 }
@@ -1444,9 +1453,26 @@ impl Game {
                 through_card: 18,
             },
         );
+        let eligible = next_card.map_or([true; 4], |results| results.map(|r| r.eligible));
+        if self.card_18 {
+            // Pact of Caracas has the same printed order as Alberto Bayo
+            // (P p. 33). Skip the factions made Ineligible by R 2.3.7.
+            let mut in_order = CARD_17_ORDER.into_iter().filter(|f| eligible[f.index()]);
+            return Eligibility {
+                order: CARD_17_ORDER,
+                eligible,
+                first: in_order.next().expect("Government remains Eligible"),
+                second: in_order.next().expect("Syndicate remains Eligible"),
+                m26_box: None,
+                m26_next_card: None,
+                next_card: None,
+                event_restriction,
+                event_started: false,
+            };
+        }
         Eligibility {
             order: CARD_17_ORDER,
-            eligible: next_card.map_or([true; 4], |results| results.map(|r| r.eligible)),
+            eligible,
             next_card,
             event_restriction,
             event_started: self.event.is_some(),
@@ -1601,6 +1627,8 @@ impl Game {
     fn owner(&self) -> Faction {
         if let Some(Transfer::Authorizing { giver, .. }) = self.transfer {
             giver
+        } else if self.card_18 {
+            self.eligibility().first
         } else if let Some(EventProgress::Rally(rally)) = &self.event {
             rally.beneficiary
         } else if self.m26_action_ended {
@@ -1727,9 +1755,24 @@ impl Game {
         .collect()
     }
     fn choices(&self) -> Vec<Choice> {
+        if self.card_18 {
+            return self.government_choices();
+        }
         if self.m26_action_ended && self.executing().is_none() {
             return if self.eligibility().directorio_handoff() {
                 self.directorio_choices()
+            } else if self
+                .event
+                .as_ref()
+                .and_then(EventProgress::outcome)
+                .is_some()
+            {
+                vec![self.offer(
+                    "advance-card",
+                    "Advance to Pact of Caracas",
+                    true,
+                    "Make Pact of Caracas current and reveal Sierra Maestra Manifesto as preview (R 2.3.8).",
+                )]
             } else {
                 vec![]
             };
@@ -1812,6 +1855,78 @@ impl Game {
         };
         choices.splice(at..at, side_choices);
         choices
+    }
+
+    /// The options of the 1st Eligible Government on card 18 (R 2.3.3–4).
+    /// The transition exposes these for inspection.
+    fn government_choices(&self) -> Vec<Choice> {
+        let balance = self.resources[Faction::Government.index()];
+        let alliance = UsAlliance::Firm;
+        let cost = alliance.coin_cost();
+        let offer = |id: &str, label: &str, rule: String| {
+            self.offer(
+                &format!("government:{id}"),
+                label,
+                false,
+                format!("{rule} This build offers inspection only."),
+            )
+        };
+        let operation = |id, label, rule, per_space| {
+            let charge = if per_space { "per space" } else { "total" };
+            let refusal = if balance < cost {
+                format!(" Government has {} and cannot pay.", resources(balance))
+            } else {
+                String::new()
+            };
+            offer(
+                id,
+                label,
+                format!(
+                    "{rule} {} US Alliance: {} {charge} (R 6.3.1).{refusal}",
+                    alliance.name(),
+                    resources(cost),
+                ),
+            )
+        };
+        vec![
+            offer(
+                "pass",
+                "Pass",
+                format!(
+                    "Pass is legal. Government gains 3 Resources up to the cap of 49: {balance} → {}. Syndicate takes its place as 1st Eligible (R 1.8, 2.3.3).",
+                    (balance + 3).min(RESOURCE_CAP)
+                ),
+            ),
+            offer(
+                "event",
+                "Event · Pact of Caracas",
+                "Government may execute the Event as 1st Eligible (R 2.3.4). Its Capability is inactive until the Event executes (R 5.3).".into(),
+            ),
+            operation("train", "Train · Operation", "R 3.2.1.", true),
+            operation("garrison", "Garrison · Operation", "R 3.2.2.", false),
+            operation("sweep", "Sweep · Operation", "R 3.2.3.", true),
+            operation(
+                "assault",
+                "Assault · Operation Only",
+                "R 3.2.4. An Operation Only opens Pass or a Limited Operation for Syndicate as 2nd Eligible (R 2.3.4).",
+                true,
+            ),
+            offer(
+                "transport",
+                "Transport · Special Activity",
+                "Transport accompanies an Operation (R 4.1, 4.2.1).".into(),
+            ),
+            offer(
+                "air-strike",
+                "Air Strike · Special Activity",
+                "Air Strike can accompany Garrison, Sweep or Assault in a Province or EC. The rules forbid it with Train, in a City, or under Embargoed US Alliance (R 4.2.2).".into(),
+            ),
+            offer(
+                "reprisal",
+                "Reprisal · Special Activity",
+                "Reprisal can accompany Garrison, Sweep or Assault in a Government-controlled space. The rules forbid it with Train (R 4.2.3).".into(),
+            ),
+        ]
     }
 
     fn end_terror_choice(&self) -> Choice {
@@ -2231,7 +2346,9 @@ impl Game {
         if let Some(checkpoint) = checkpoint {
             self.event_side_decisions = Some(checkpoint);
         }
-        if let Some(history) = &mut self.event_side_decisions {
+        if !self.card_18
+            && let Some(history) = &mut self.event_side_decisions
+        {
             history.actions.push(action.to_owned());
         }
         self.revision = next_revision;
@@ -2268,6 +2385,13 @@ impl Game {
             }
             "event:shaded" => self.event = Some(EventProgress::ExecuteShaded),
             "resolve-shaded" => self.execute_shaded_event(),
+            "advance-card" => {
+                if !self.draw_deck.starts_with(&[18, 19]) {
+                    return Err("The prepared deck must begin with cards 18 and 19.".into());
+                }
+                self.draw_deck.remove(0);
+                self.card_18 = true;
+            }
             "event:unshaded" => self.event = Some(EventProgress::ChooseRallyBeneficiary),
             _ if self.transfer.is_some()
                 || self.removal.is_some()
@@ -2572,8 +2696,23 @@ impl Game {
         Ok(())
     }
 
-    /// Admit the prepared card-17 task after only the supported decisions and effects.
+    /// Admit the prepared task after only the supported decisions and effects.
     pub fn validate(&self) -> Result<(), String> {
+        if self.card_18 {
+            let mut before = self.clone();
+            before.card_18 = false;
+            before.revision = self
+                .revision
+                .checked_sub(1)
+                .ok_or("Unsupported card advance revision.")?;
+            before.draw_deck.insert(0, 18);
+            before.validate()?;
+            before.apply("advance-card")?;
+            if before != *self {
+                return Err("Unsupported transition to Pact of Caracas.".into());
+            }
+            return Ok(());
+        }
         if let Some(history) = &self.event_side_decisions {
             return self.validate_event_side_decisions(history);
         }

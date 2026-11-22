@@ -303,7 +303,7 @@ pub(super) fn content(view: &Observation, slot: Slot) -> Shown {
         title,
         rule,
         body,
-        note: if e.next_card.is_some() {
+        note: if e.next_card.is_some() || view.current_card == 18 {
             "Eligibility for card 18 was adjusted after card 17 (R 2.3.7)."
         } else {
             AFTER_THE_CARD
@@ -431,10 +431,10 @@ pub(super) fn indicator(commands: &mut Commands, art: &Art, view: &Observation, 
     let title = label(
         commands,
         art,
-        if track.adjusted {
-            "CARD 18 · ELIGIBILITY"
+        &if track.adjusted {
+            "CARD 18 · ELIGIBILITY".to_owned()
         } else {
-            "CARD 17 · SEQUENCE OF PLAY"
+            format!("CARD {} · SEQUENCE OF PLAY", view.current_card)
         },
         [x, y, w],
         fig::TITLE_SIZE,

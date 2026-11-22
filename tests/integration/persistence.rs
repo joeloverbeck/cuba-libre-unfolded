@@ -9,6 +9,173 @@ fn reseal(record: &serde_json::Value) -> Vec<u8> {
 }
 
 #[test]
+fn completed_alberto_bayo_advances_once_and_reloads_at_government_opening() {
+    let dir = tempfile::tempdir().unwrap();
+    for (text, resolution, shaded) in [
+        ("shaded", "resolve-shaded", true),
+        ("unshaded", "rally:beneficiary:directorio", false),
+    ] {
+        let path = dir.path().join(format!("{text}.json"));
+        let mut session = Session::open(&path, None).unwrap();
+        for action in [
+            "terror",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            &format!("event:{text}"),
+            resolution,
+        ] {
+            act(&mut session, action);
+        }
+        let resolved = session.observe();
+        let random = session.game().random_state();
+        let card_end = std::fs::read(&path).unwrap();
+        drop(session);
+        let mut session = Session::open(&path, None).unwrap();
+        assert_eq!(session.observe(), resolved);
+        assert_eq!(
+            (
+                resolved.current_card,
+                resolved.preview_card,
+                resolved.draw_count
+            ),
+            (17, 18, 34)
+        );
+        assert!(!resolved.played_cards.contains(&17));
+
+        act(&mut session, "advance-card");
+        let opening = session.observe();
+        assert_eq!(opening.revision, resolved.revision + 1);
+        assert_eq!(
+            (
+                opening.current_card,
+                opening.preview_card,
+                opening.draw_count
+            ),
+            (18, 19, 33)
+        );
+        let mut history = resolved.played_cards.clone();
+        history.push(17);
+        assert_eq!(opening.played_cards, history);
+        let public = serde_json::to_value(&opening).unwrap();
+        assert!(public.get("draw_deck").is_none());
+        assert!(opening.capabilities.is_empty());
+        assert!(opening.momentum.is_empty());
+        assert_eq!(opening.owner, Faction::Government);
+        assert_eq!(opening.eligibility.first, Faction::Government);
+        assert_eq!(opening.eligibility.second, Faction::Syndicate);
+        assert_eq!(opening.executing, None);
+        assert_eq!(opening.eligible, [true, false, false, true]);
+        assert_eq!(
+            opening
+                .eligibility
+                .event_restriction
+                .map(|r| (r.faction, r.through_card)),
+            shaded.then_some((Faction::M26, 18))
+        );
+        assert_eq!(opening.resources, resolved.resources);
+        assert_eq!(opening.spaces, resolved.spaces);
+        assert_eq!(opening.available, resolved.available);
+        assert_eq!(opening.kidnap, resolved.kidnap);
+        assert_eq!(opening.resolved, resolved.resolved);
+        assert_eq!(opening.standings, resolved.standings);
+        assert_eq!(session.game().random_state(), random);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), card_end);
+
+        drop(session);
+        let mut resumed = Session::open(&path, None).unwrap();
+        assert_eq!(resumed.observe(), opening);
+        assert_eq!(resumed.game().random_state(), random);
+        let bytes = std::fs::read(&path).unwrap();
+        let record: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
+        let previous: serde_json::Value = serde_json::from_slice(&card_end).unwrap();
+        assert_ne!(record["identity"]["art"], previous["identity"]["art"]);
+        let recovered = dir.path().join(format!("{text}-recovered.json"));
+        assert_eq!(
+            Session::open(&recovered, Some(&path)).unwrap().observe(),
+            resolved
+        );
+        for (owner, revision) in [
+            (resolved.owner, resolved.revision),
+            (opening.owner, opening.revision),
+        ] {
+            assert!(
+                resumed
+                    .submit(owner, revision, &format!("{revision}:advance-card"))
+                    .is_err()
+            );
+        }
+        assert_eq!(resumed.observe(), opening);
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), card_end);
+    }
+}
+
+#[test]
+fn pact_of_caracas_lists_the_first_eligible_options_and_refuses_an_unfunded_assault() {
+    // Seed 2 rolls 5 (see the shared RNG cases in kidnap.rs). R 4.3.3
+    // leaves Government 1 of its original 6, as in both owner paths.
+    let mut game = Game::prepared_with_seed(2);
+    for action in [
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+    ] {
+        let view = game.observe();
+        let choice = view
+            .choices
+            .iter()
+            .find(|choice| choice.action() == action)
+            .unwrap();
+        game.submit(choice.owner, view.revision, &choice.id)
+            .unwrap();
+    }
+    let opening = game.observe();
+    let ids: Vec<_> = opening
+        .choices
+        .iter()
+        .map(|choice| choice.action())
+        .collect();
+    assert_eq!(
+        ids,
+        [
+            "government:pass",
+            "government:event",
+            "government:train",
+            "government:garrison",
+            "government:sweep",
+            "government:assault",
+            "government:transport",
+            "government:air-strike",
+            "government:reprisal",
+        ]
+    );
+    assert!(
+        opening
+            .choices
+            .iter()
+            .all(|choice| choice.owner == Faction::Government)
+    );
+    assert_eq!(opening.resources[0], 1);
+    let pass = &opening.choices[0];
+    assert!(pass.explanation.contains("1 → 4"));
+    let assault = &opening.choices[5];
+    assert!(!assault.supported);
+    let refusal = game
+        .submit(Faction::Government, opening.revision, &assault.id)
+        .unwrap_err();
+    assert!(refusal.contains("Firm"), "{refusal}");
+    assert!(refusal.contains("2 Resources"), "{refusal}");
+    assert!(refusal.contains("1 Resource"), "{refusal}");
+    assert_eq!(game.observe(), opening);
+}
+
+#[test]
 fn event_transfer_refuses_the_executors_authorization_and_unrecorded_effects() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("event.json");

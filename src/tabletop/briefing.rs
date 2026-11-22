@@ -377,6 +377,29 @@ pub(super) fn activation_lines(view: &Observation, flips: &[Flip]) -> String {
 /// The briefing for one option at the action choice, or for the Terror and Kidnap
 /// tabs during execution. `option` is the choice id without its revision.
 pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
+    if view.current_card == 18 {
+        let choice = listed(view, option)?;
+        let role = if view.eligibility.event_restriction.is_some() {
+            "26July is Ineligible through card 18 under the shaded Event. Directorio executed the Event."
+        } else {
+            "26July executed Terror and Directorio executed the Event on card 17."
+        };
+        return Some(Briefing {
+            option: option.into(),
+            title: choice.label.clone(),
+            rule: "R 2.3.1–4",
+            entries: vec![
+                entry("OPTION", &choice.explanation),
+                entry(
+                    "WHY GOVERNMENT IS FIRST",
+                    format!(
+                        "{role} Government and Syndicate took no action on card 17. Government's symbol comes before Syndicate's."
+                    ),
+                ),
+            ],
+            rules: String::new(),
+        });
+    }
     if view.eligibility.directorio_handoff() {
         return directorio(view, option);
     }

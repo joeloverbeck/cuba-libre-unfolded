@@ -411,7 +411,13 @@ fn assert_unshaded_card_end(before: &Value, table: &Value) {
         ])
     );
     assert!(view["eligibility"]["event_restriction"].is_null());
-    assert!(view["choices"].as_array().unwrap().is_empty());
+    let choices = view["choices"].as_array().unwrap();
+    assert_eq!(choices.len(), 1);
+    assert_eq!(
+        choices[0]["id"],
+        format!("{}:advance-card", view["revision"].as_u64().unwrap())
+    );
+    assert_eq!(choices[0]["supported"], true);
     for key in [
         "draw_count",
         "played_cards",
