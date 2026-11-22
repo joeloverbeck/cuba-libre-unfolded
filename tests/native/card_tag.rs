@@ -282,6 +282,11 @@ fn native_card_tag_matches_layout_and_reads_the_model() {
             "Event not yet open: this card is played after card 18",
         ),
     ] {
+        // Directorio's options are committed by pinning the row, then its commit.
+        if action != "advance-card" {
+            let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
+            app.activate(&format!("option:{action}"), revision);
+        }
         app.choose(action);
         let view = app.observe();
         let revision = view["observation"]["revision"].as_u64().unwrap();
@@ -292,7 +297,11 @@ fn native_card_tag_matches_layout_and_reads_the_model() {
             assert_eq!(shown["table"]["card"]["shown"]["status"], status);
             assert_card_tag_placed(&shown, slot);
             assert_eq!(shown["observation"], view["observation"]);
-            app.capture(&format!("{action}-{}", slot.trim_start_matches("card:")));
+            app.capture(&format!(
+                "{}-{}",
+                action.replace(':', "-"),
+                slot.trim_start_matches("card:")
+            ));
             close_card_tag(&mut app);
         }
     }
