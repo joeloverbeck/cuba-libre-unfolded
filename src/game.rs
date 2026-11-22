@@ -2500,13 +2500,6 @@ impl Game {
 
     fn apply_decision(&mut self, action: &str, next_revision: u64) -> Result<(), String> {
         match action {
-            // The giver's decision set aside, or shown again: the request itself, and
-            // whether going back is allowed, are unchanged (#75).
-            "wait" | "reopen" => {
-                if let Some(Transfer::Authorizing { waited, .. }) = &mut self.transfer {
-                    *waited = action == "wait";
-                }
-            }
             // R 2.3.3. Only offered at the action choice.
             "pass" => {
                 self.resources[Faction::M26.index()] = self.resources[Faction::M26.index()]
@@ -2520,7 +2513,7 @@ impl Game {
                 self.government_pass_from = Some(*balance);
                 *balance = Self::government_pass_balance(*balance);
             }
-            _ if self.card_18 => return self.apply_assault(action),
+            _ if self.card_18 => return self.apply_assault(action, next_revision),
             "terror" if self.action == ActionChoice::Open => self.action = ActionChoice::Terror,
             // Local policy (#58): withdraws a pending request; nothing has moved.
             "back-to-choice" => {
@@ -2630,6 +2623,21 @@ impl Game {
             None if action == "transfer" => self.transfer = Some(Transfer::Selecting),
             None => return Err("Unknown execution choice.".into()),
             Some(_) if action == "back" || action == "decline" => self.transfer = None,
+            // The request's giver can set it aside or reopen it without moving
+            // Resources. Assault and Event replay record these steps too.
+            Some(Transfer::Authorizing {
+                giver,
+                recipient,
+                amount,
+                ..
+            }) if matches!(action, "wait" | "reopen") => {
+                self.transfer = Some(Transfer::Authorizing {
+                    giver,
+                    recipient,
+                    amount,
+                    waited: action == "wait",
+                });
+            }
             Some(Transfer::Selecting) => {
                 let (verb, rest) = action.split_once(':').unwrap();
                 let (other, amount) = rest.split_once(':').unwrap();
@@ -2662,7 +2670,7 @@ impl Game {
         self.resources[giver.index()] -= amount;
         self.resources[recipient.index()] += amount;
         // Zero is a deliberate non-transfer, not an effect.
-        self.effect |= amount > 0;
+        self.effect |= amount > 0 && !self.card_18;
     }
     /// The terms of the transfers the executing faction may make now (R 1.5.1, 1.8 and the accepted
     /// commitment policy's reserve).
@@ -2716,7 +2724,9 @@ impl Game {
         let terms = self.transfer_terms();
         let parts: Vec<_> = action.split(':').collect();
         let (direction, amount) = match parts[..] {
-            ["authorize", n] => (terms.first()?, n),
+            ["authorize", n] if matches!(self.transfer, Some(Transfer::Authorizing { .. })) => {
+                (terms.first()?, n)
+            }
             [verb @ ("give" | "ask"), other, n] => {
                 let other = *Faction::ALL.get(other.parse::<usize>().ok()?)?;
                 let (giver, recipient) = if verb == "give" {

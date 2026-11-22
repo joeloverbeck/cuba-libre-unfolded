@@ -84,13 +84,22 @@ impl Game {
                 self.offer("syndicate:limited-operation", "Limited Operation", false, "Syndicate may choose one space and has no Special Activity. Inspect only (R 2.3.4–5)."),
             ];
         }
+        if let Some(choices) = self.transfer_choices() {
+            return choices;
+        }
+        let transfer = self.offer(
+            "transfer",
+            "Resource transfer",
+            true,
+            "Government may give Resources or ask another faction for Resources. The giver decides how much to transfer (R 1.5.1, 1.8).",
+        );
         if let Some(result) = self.assault_result() {
             return vec![self.offer(
                 FINISH,
                 "Finish Assault",
                 true,
                 format!("Santiago paid {}. {} to Available Forces. Finish to record Operation Only and give Syndicate Pass or Limited Operation as 2nd Eligible (R 2.3.4).", resources(result.paid), result.removal_summary()),
-            )];
+            ), transfer];
         }
         let santiago = self.santiago();
         let troops = count(santiago, Faction::Government, Kind::Troops, State::Ordinary);
@@ -118,7 +127,7 @@ impl Game {
             "Santiago · target 26July",
             funded,
             format!("{troops} Troops + {police} Police = {} removal capacity in a City (R 3.2.4). 26July has {active} Active, {underground} Underground Guerrillas. {payment} Return {} Active to Available Forces.", troops + police, active.min(troops + police)),
-        )]
+        ), transfer]
     }
 
     pub(super) fn assault_next(&self) -> Option<Next> {
@@ -129,7 +138,7 @@ impl Game {
         })
     }
 
-    pub(super) fn apply_assault(&mut self, action: &str) -> Result<(), String> {
+    pub(super) fn apply_assault(&mut self, action: &str, next_revision: u64) -> Result<(), String> {
         match action {
             OPEN => {
                 self.assault = Some(Assault {
@@ -180,6 +189,9 @@ impl Game {
                     Some(AssaultResolution { paid, returned });
             }
             FINISH => self.assault.as_mut().unwrap().finished = true,
+            _ if self.transfer.is_some() || action == "transfer" => {
+                self.execute(action, next_revision)?;
+            }
             _ => return Err("Unsupported Assault decision.".into()),
         }
         self.assault.as_mut().unwrap().actions.push(action.into());
@@ -200,6 +212,7 @@ impl Game {
         }
         let mut before = self.clone();
         before.assault = None;
+        before.transfer = None;
         before.revision = start.revision;
         before.resources = start.resources;
         before.available.clone_from(&start.available);
