@@ -47,6 +47,8 @@ Build both executables from the reviewed checkout into the review package with `
 
 Follow the owner’s launch instructions in order at their display size. Capture the first decision frame before hover, focus, pin or click. Compare what each instruction promises with the frame visible at that step, including the choices and their spacing. If a briefing requires input, name that input in the instructions. Inspect the result after committing. Run the packaged replay from outside the build checkout using its packaged executables.
 
+When the goal names an effect, give the visible choices that produce it. For example, under **Havana · Select targets**, click **Syndicate** to preview the effect on its open Casino. Click **Pay 2 Resources · Assault** at the bottom to commit. The Casino stays in Havana, flips closed and reduces the Open Casinos count by one.
+
 ## The owner's display
 
 [Foundation 4](../foundation/04-art-and-assets.md) records the owner's display, which is 3840×2160. One pixel is 0.18 mm, and GNOME runs it at 125% scaling.
