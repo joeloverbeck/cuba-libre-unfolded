@@ -10,7 +10,8 @@
 //! no space. Current Resources come from the observation; the wording only places them.
 use crate::game::CARD_17_UNSHADED;
 use crate::{
-    CARD_17_SHADED, Choice, Faction, KidnapStakes, Observation, Preview, TERROR_COST, resources,
+    CARD_17_SHADED, Choice, Faction, Flip, KidnapStakes, Observation, Preview, TERROR_COST,
+    resources,
 };
 
 /// Value lines are broken by hand at this many characters, which the 420 px column
@@ -312,7 +313,11 @@ fn directorio(view: &Observation, option: &str) -> Option<Briefing> {
             "WHY DIRECTORIO MAY CHOOSE",
             "26July used Kidnap, so Terror recorded an Operation with Special Activity. That opens either Event text to the 2nd Eligible faction (R 2.3.4, 5.2).",
         ));
-        if let Some(roll) = &view.kidnap {
+        if let Some(preview) = &choice.preview
+            && option == "event:shaded"
+        {
+            entries.push(entry("ACTIVATE", activation_lines(view, &preview.flips)));
+        } else if let Some(roll) = &view.kidnap {
             let targets: Vec<_> = view
                 .resolved
                 .iter()
@@ -332,7 +337,11 @@ fn directorio(view: &Observation, option: &str) -> Option<Briefing> {
             ));
         }
     }
-    entries.push(entry("IN THIS BUILD", &choice.explanation));
+    if choice.supported {
+        entries.push(entry("COST", &choice.explanation));
+    } else {
+        entries.push(entry("IN THIS BUILD", &choice.explanation));
+    }
     Some(Briefing {
         option: option.into(),
         title: title.into(),
@@ -340,6 +349,28 @@ fn directorio(view: &Observation, option: &str) -> Option<Briefing> {
         entries,
         rules: String::new(),
     })
+}
+
+pub(super) fn activation_lines(view: &Observation, flips: &[Flip]) -> String {
+    if flips.is_empty() {
+        return "No Underground 26July Guerrillas remain.".into();
+    }
+    flips
+        .iter()
+        .map(|flip| {
+            let space = view
+                .spaces
+                .iter()
+                .find(|s| s.id == flip.space)
+                .map_or(flip.space.as_str(), |s| s.name.as_str());
+            format!(
+                "{space} · {} Underground Guerrilla{} → Active",
+                flip.count,
+                if flip.count == 1 { "" } else { "s" }
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 /// The briefing for one option at the action choice, or for the Terror and Kidnap

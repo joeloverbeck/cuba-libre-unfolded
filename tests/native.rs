@@ -106,6 +106,7 @@ fn native_directorio_previews_the_inherited_kidnap_handoff() {
         assert_eq!(std::fs::read(&app.save).unwrap(), saved);
         app.capture(option.replace(':', "-").as_str());
     }
+    app.activate("option:directorio:pass", revision);
     app.activate("choice-commit", revision);
     assert_eq!(app.observe()["observation"], *position);
     for (option, effect) in [
@@ -131,6 +132,181 @@ fn native_directorio_previews_the_inherited_kidnap_handoff() {
     let restarted = app.observe();
     assert_eq!(restarted["observation"], *position);
     assert_eq!(std::fs::read(&app.save).unwrap(), saved);
+    app.quit();
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained shaded Event captures"]
+fn native_shaded_event_activates_26july_and_adjusts_card_end_eligibility() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-119"));
+    std::fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("shaded-event-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let socket = tempfile::tempdir().unwrap();
+    let mut app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
+        save: root.join("task.json"),
+        socket: socket.path().join("seat.sock"),
+        root,
+        step: 0,
+    };
+    eprintln!("Shaded Event evidence: {}", app.root.display());
+    let historical = std::env::var_os("CUBA_TEST_COMPLETED_KIDNAP");
+    if let Some(input) = &historical {
+        std::fs::copy(input, &app.save).unwrap();
+    }
+    app.launch_size("3840x2160");
+    if historical.is_none() {
+        app.choose("terror");
+        app.choose("transfer");
+        app.choose("ask:2:2");
+        app.choose("authorize:2");
+        app.choose("terror:santiago");
+        app.choose("terror:oriente");
+        app.choose("kidnap");
+        app.roll();
+        app.choose("end-terror");
+    }
+
+    let guerrillas = |position: &Value, space: &str| {
+        position["spaces"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["id"] == space)
+            .unwrap()["pieces"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|p| p["faction"] == "M26" && p["kind"] == "Guerrilla")
+            .map(|p| {
+                (
+                    p["state"].as_str().unwrap().to_owned(),
+                    p["count"].as_u64().unwrap(),
+                )
+            })
+            .collect::<std::collections::BTreeMap<_, _>>()
+    };
+    let before = app.observe()["observation"].clone();
+    let revision = before["revision"].as_u64().unwrap();
+    let saved_before = std::fs::read(&app.save).unwrap();
+    assert_eq!(before["owner"], "Directorio");
+    assert_eq!(
+        guerrillas(&before, "santiago"),
+        [("Active".into(), 1), ("Underground".into(), 1)].into()
+    );
+    assert_eq!(
+        guerrillas(&before, "oriente"),
+        [("Active".into(), 1)].into()
+    );
+    let choice = before["choices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["id"] == format!("{revision}:event:shaded"))
+        .unwrap();
+    assert_eq!(choice["supported"], true);
+    assert_eq!(
+        choice["preview"]["flips"],
+        json!([{"space":"santiago","faction":"M26","kind":"Guerrilla",
+            "from":"Underground","to":"Active","count":1}])
+    );
+    app.activate("option:event:shaded", revision);
+    let preview = app.observe();
+    let shown = tag_text(&preview["table"]["briefing"]);
+    assert!(
+        shown.contains("Santiago") && shown.contains("Underground"),
+        "{shown}"
+    );
+    assert!(shown.contains("Ineligible through next card"), "{shown}");
+    app.capture("shaded-preview");
+    app.activate("option:event:shaded", revision);
+    assert_eq!(app.observe()["observation"], before);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved_before);
+
+    app.activate("option:event:shaded", revision);
+    let commit =
+        json!({"op":"activate","revision":revision,"choice":format!("{revision}:event:shaded")});
+    app.request(commit.clone(), true);
+    app.request(json!({"op":"settle"}), true);
+    let resolved = app.observe();
+    let after = &resolved["observation"];
+    assert_eq!(after["revision"], revision + 1);
+    assert_eq!(guerrillas(after, "santiago"), [("Active".into(), 2)].into());
+    assert_eq!(guerrillas(after, "oriente"), [("Active".into(), 1)].into());
+    assert!(after["spaces"].as_array().unwrap().iter().all(|space| {
+        !guerrillas(after, space["id"].as_str().unwrap()).contains_key("Underground")
+    }));
+    for key in [
+        "available",
+        "resources",
+        "map_piece_count",
+        "available_piece_count",
+        "standings",
+        "resolved",
+        "kidnap",
+        "current_card",
+        "preview_card",
+        "played_cards",
+        "draw_count",
+    ] {
+        assert_eq!(after[key], before[key], "{key}");
+    }
+    assert_eq!(after["eligible"], json!([true, false, false, true]));
+    assert_eq!(
+        after["eligibility"]["event_restriction"],
+        json!({"faction":"M26","through_card":18})
+    );
+    assert_eq!(after["choices"], json!([]));
+    let track = &resolved["table"]["eligibility"]["track"];
+    assert_eq!(track["adjusted"], true);
+    assert_eq!(track["ineligible"], json!(["M26", "Directorio"]));
+    let parts = resolved["table"]["choice_parts"].as_array().unwrap();
+    let text = |part: &str| {
+        parts
+            .iter()
+            .find(|p| p["part"] == part)
+            .unwrap_or_else(|| panic!("missing {part}"))["text"]
+            .as_str()
+            .unwrap()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    assert!(text("ended-value:SHADED EVENT · ACTIVATIONS").contains("Santiago"));
+    let eligibility = text("ended-value:ELIGIBILITY FOR CARD 18 · R 2.3.7");
+    for reason in [
+        "Government · Eligible · took no Operation or Event",
+        "26July · Ineligible · executed Terror",
+        "Directorio · Ineligible · executed the Event",
+        "Syndicate · Eligible · took no Operation or Event",
+    ] {
+        assert!(eligibility.contains(reason), "{eligibility}");
+    }
+    assert!(
+        text("ended-value:EVENT RESTRICTION")
+            .contains("26July is also Ineligible through card 18 (Alberto Bayo).")
+    );
+    app.capture("card-end-eligibility");
+    let saved_after = std::fs::read(&app.save).unwrap();
+    app.request(commit.clone(), false);
+    assert_eq!(app.observe()["observation"], *after);
+    app.request(
+        json!({"op":"activate","revision":revision + 1,"choice":format!("{}:event:shaded", revision + 1)}),
+        false,
+    );
+    app.quit();
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["observation"], *after);
+    app.request(commit, false);
+    assert_eq!(std::fs::read(&app.save).unwrap(), saved_after);
     app.quit();
 }
 

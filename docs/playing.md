@@ -8,7 +8,7 @@ The build plays one task from [#8](https://github.com/joeloverbeck/cuba-libre-un
 
 - **Playable:** Pass, and Terror with optional Kidnap in Santiago, Resource transfers and voluntary removal of 26July's own pieces.
 - **Listed but refused** as "not in this task", without changing the match: card 17's Event (both texts), Rally, March and Attack, with Infiltrate and Ambush under the Operations they accompany.
-- **Directorio's handoff:** after Terror with Kidnap, inspect Directorio's legal options as 2nd Eligible. The two texts of Alberto Bayo are available for preview. Directorio's Pass and Limited Operation are outside the task.
+- **Directorio's handoff:** after Terror with Kidnap, inspect Directorio's legal options as 2nd Eligible. Directorio can execute Alberto Bayo's shaded text. Its Pass and Limited Operation are outside the task.
 
 ## Reading the table
 
@@ -39,7 +39,9 @@ During Terror the panel lists the steps: Terror in Santiago and Oriente, with Ki
 
 ## Inspecting the handoff to Directorio
 
-After Kidnap and End Terror, hover or focus Pass, Limited Operation or either Event text for its briefing. Click or press Enter to pin it. The two Event briefings include the recorded Terror targets, payments and Kidnap roll. The board and saved position stay at the handoff while you read.
+After Kidnap and End Terror, hover or focus Pass, Limited Operation or either Event text for its briefing. Click or press Enter to pin it. The board and saved position stay at the handoff while you read.
+
+Pin the shaded Event to preview every activation and the restriction on 26July. Select **Execute shaded Event** to apply the flips, then inspect the result and each faction's eligibility for card 18. Card 18 stays in preview.
 
 ## Kidnap in Santiago
 

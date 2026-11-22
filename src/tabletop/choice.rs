@@ -244,6 +244,7 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                     .next()
                     .unwrap_or_else(|| "Pass".into()),
                 "terror" => "Choose Terror".into(),
+                "event:shaded" => "Execute shaded Event".into(),
                 other => listing(other).0.into(),
             },
             action: Action::Commit(c.owner, view.revision),

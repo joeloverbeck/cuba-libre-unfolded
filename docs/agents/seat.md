@@ -127,7 +127,8 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | Choice | Meaning |
 |---|---|
 | `<revision>:pass`, `<revision>:terror` | 26July's supported action choices. |
-| `<revision>:event:unshaded`, `<revision>:event:shaded` | Both Event texts. Directorio can preview them after Kidnap. |
+| `<revision>:event:shaded` | Directorio executes Alberto Bayo's shaded text after Kidnap. Pin its option to preview the flips. |
+| `<revision>:event:unshaded` | Directorio's other Event text, available for preview after Kidnap. |
 | `<revision>:directorio:pass`, `<revision>:directorio:limited-operation` | Directorio's other legal options after Kidnap. Read their briefings for what they do and the build limits. |
 | `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so 26July's option set is complete; unsupported, with the reason in `explanation`. |
 | `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap`, `<revision>:transfer`, `<revision>:remove` | Execution steps during Terror. |
@@ -174,6 +175,7 @@ Drawn-part names:
 
 - **Transfer modal** (`table.transfer.parts`): `account:26july`, `account:counterpart`, `header`, `direction-toggle`, `flow-band`, `number-field`, `track`, `limits`, `limit:<icon>` and `button:<action>`.
 - **Eligibility indicator** (`table.eligibility.parts`): `eligibility-row:<faction>:<part>`, where the part is `number`, `emblem`, `name`, `acted`, `1st` or `2nd`, `eligible` or `ineligible`. Also `eligibility-box:ineligible` with its `:label` and `:note`, `eligibility-label:eligible` and `eligibility-label:recorded`.
+- **Card-end eligibility** (`table.eligibility.track.adjusted`): the track's rows now show eligibility for card 18. `observation.eligibility.next_card` gives the four ordinary reasons. `observation.eligibility.event_restriction` reports the separate restriction on the shaded branch. The result text is among the `table.choice_parts` with names beginning `ended-value:`.
 
 ## Native regressions
 
@@ -187,6 +189,7 @@ CUBA_TEST_CARDS="/path/to/cards" scripts/native
 - Inspect the images separately: passing assertions do not prove readability or owner acceptance.
 - Run native regressions serially (`--test-threads=1`).
 - Optionally set `CUBA_COMPAT_SAVE` to a record an earlier build wrote in the shared save record. The hover and responsive tests copy it into their evidence directories and verify the preserved save bytes; the hover test also checks two process resumes. They never open the supplied original as an application save path.
+- Optionally set `CUBA_TEST_COMPLETED_KIDNAP` to the worked card-17 save after both Terror targets and Kidnap. The shaded native test copies it before launch. Otherwise the test reaches that position through live seat controls.
 - A user-selected `CARGO_TARGET_DIR` can reuse a compatible warm build cache; it is not a runtime dependency.
 
 The first five tests below (evidence under `issue-12` to `issue-15`) together exercise:
@@ -203,6 +206,7 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
 - `native_transfer_modal_gives_asks_and_waits_for_the_giver`: evidence in `local/verification/issue-13/transfers-*`.
 - `native_kidnap_owed_terror_restart_and_next_permissions`: evidence in `local/verification/issue-14/terror-*`.
 - `native_resource_transfers_enable_both_orders_without_or_with_late_kidnap`: evidence in `local/verification/issue-14/donated-terror-*`.
+- `native_shaded_event_activates_26july_and_adjusts_card_end_eligibility`: preview, conserved forces, four eligibility reasons, restriction, restart and stale/duplicate refusal. Evidence in `local/verification/issue-119/shaded-event-*`.
 - `native_own_removal_restart_obligation_and_all_pieces_finish`: evidence in `local/verification/issue-15/removal-*`.
 - `native_hover_status_is_transient_without_region_inspection`: all ten city/province tags, three EC exclusions, piece/count hover, reader suppression, camera navigation, complete home framing, and Terror/removal updates. Evidence: `local/verification/issue-16/hover-status-*`.
 - `native_victory_emblems_disclose_live_margins_without_inspection`: emblem and margin targets, one tag, reader/leave dismissal, actual transfer/Terror/removal updates, and rendered text bounds, including the largest reachable contribution list. Evidence: `local/verification/issue-16/victory-*`.

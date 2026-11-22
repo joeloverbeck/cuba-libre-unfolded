@@ -20,6 +20,7 @@ The owner selected **EX-A, Pinned step tag** in #83's round ([selection on #58](
   - **The transfer:** TM-B's modal decides. After Wait, the pending request holds the Resource transfer step, and the commit opens it in the giver's colour (TM-B's primary plate). End Terror and Back each withdraw the request when pinned.
 - **The die-presented frame** (#74) is unchanged: the tray takes the panel while the die is shown, and Continue Terror returns to the steps.
 - **After the Operation:** Operation Only keeps the ended panel with RESULT, ELIGIBILITY, NEXT and NO EVENT. With Kidnap, the panel shows Directorio's options using [AC-B](CHOICE.md). After Pass, the ended panel lists RESULT, ELIGIBILITY and NEXT.
+- **After Alberto Bayo:** the ended panel uses the same heading and text slots for the Event result, eligibility for all four factions, and the printed restriction when the shaded text was executed.
 - **The clash rule** (#58, extended to step tags in #83's selection): a space or piece popover wins over an open step tag. The tag reopens from its row, and reopening it closes the popover. Escape and a click on the map outside the tag close it, as they do for AC-B's tag. Pinning a step takes the tag's place from the BRIEFING ribbon's tag; the ribbon reopens its own.
 - **Keyboard:** Tab and Shift+Tab move through the steps that can be pinned, Kidnap's Cancel, the commit, then the ribbon and its tabs. Enter or Space activates the focused control as a click would.
 

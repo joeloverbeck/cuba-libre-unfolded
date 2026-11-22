@@ -1083,6 +1083,49 @@ fn event_heading(faction: Faction) -> String {
 /// resolved and what it paid. `None` until the action is recorded.
 pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)> {
     let e = &view.eligibility;
+    if let (Some(outcome), Some(results)) = (
+        view.event.as_ref().and_then(crate::EventProgress::outcome),
+        e.next_card,
+    ) {
+        let mut entries = vec![match outcome {
+            crate::EventOutcome::Shaded { flips } => entry(
+                "SHADED EVENT · ACTIVATIONS",
+                briefing::activation_lines(view, flips),
+            ),
+        }];
+        let reasons = results
+            .into_iter()
+            .map(|result| {
+                format!(
+                    "{} · {} · {}",
+                    result.faction.name(),
+                    if result.eligible {
+                        "Eligible"
+                    } else {
+                        "Ineligible"
+                    },
+                    result.reason.text(),
+                )
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        entries.push(entry("ELIGIBILITY FOR CARD 18 · R 2.3.7", reasons));
+        if let Some(restriction) = e.event_restriction {
+            entries.push(entry(
+                "EVENT RESTRICTION",
+                format!(
+                    "{} is also Ineligible through card {} (Alberto Bayo).",
+                    restriction.faction.name(),
+                    restriction.through_card
+                ),
+            ));
+        }
+        return Some((
+            "Directorio · Event complete".into(),
+            "Card 17 complete · Eligibility adjusted\nCard 18 remains the preview".into(),
+            entries,
+        ));
+    }
     let record = e.m26_box?;
     let shown = "Shown, not executed: the card and Eligibility do not advance";
     let following = view.next.as_ref();

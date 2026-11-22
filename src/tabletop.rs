@@ -1229,6 +1229,7 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
             Some(record) => format!("Terror ended: {} recorded. Saved.", record.name()),
             None => "Terror ended. Saved.".into(),
         },
+        "event:shaded" => "Shaded Event resolved. Eligibility for card 18 recorded. Saved.".into(),
         _ => "Decision saved.".into(),
     }
 }
@@ -1633,7 +1634,9 @@ fn draw_ui(
         text(
             &mut commands,
             &art,
-            if view.eligibility.directorio_handoff() {
+            if view.eligibility.next_card.is_some() {
+                "17 Alberto Bayo — Event resolved"
+            } else if view.eligibility.directorio_handoff() {
                 "17 Alberto Bayo — current; Event open to Directorio"
             } else {
                 "17 Alberto Bayo — current; Event inactive"

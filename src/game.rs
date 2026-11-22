@@ -173,13 +173,13 @@ impl SequenceBox {
         }
     }
 }
-/// Card 17's Eligibility record. Nobody turns Ineligible inside the task: R 2.3.7
-/// adjusts cylinders only after the card.
+/// Card 17's Eligibility record and its R 2.3.7 adjustment for card 18.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Eligibility {
     /// Card 17's faction order, left to right (R 2.3.2).
     pub order: [Faction; 4],
-    /// Eligible or Ineligible, indexed like `Faction::ALL`.
+    /// Eligibility on the track, indexed like `Faction::ALL`. After adjustment
+    /// these cylinders govern the next card.
     pub eligible: [bool; 4],
     /// The 1st Eligible faction: Directorio after 26July Passes (R 2.3.3).
     pub first: Faction,
@@ -190,12 +190,44 @@ pub struct Eligibility {
     /// a Pass leaves it Eligible (R 2.3.3); an Operation makes it Ineligible when
     /// cylinders are adjusted after the card (R 2.3.7).
     pub m26_next_card: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub next_card: Option<[CardEndEligibility; 4]>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub event_restriction: Option<EligibilityRestriction>,
+    #[serde(skip_serializing)]
+    event_started: bool,
 }
 impl Eligibility {
     /// The card 17 continuation opens only after 26July records Terror with Kidnap.
     pub(crate) fn directorio_handoff(&self) -> bool {
-        self.m26_box == Some(SequenceBox::OperationWithSpecialActivity)
+        self.m26_box == Some(SequenceBox::OperationWithSpecialActivity) && !self.event_started
     }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct CardEndEligibility {
+    pub faction: Faction,
+    pub eligible: bool,
+    pub reason: EligibilityReason,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum EligibilityReason {
+    NoOperationOrEvent,
+    ExecutedOperation,
+    ExecutedEvent,
+}
+impl EligibilityReason {
+    pub fn text(self) -> &'static str {
+        match self {
+            Self::NoOperationOrEvent => "took no Operation or Event",
+            Self::ExecutedOperation => "executed Terror",
+            Self::ExecutedEvent => "executed the Event",
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct EligibilityRestriction {
+    pub faction: Faction,
+    pub through_card: u8,
 }
 /// A count of Resources in words: "1 Resource", "3 Resources".
 pub fn resources(n: u8) -> String {
@@ -227,6 +259,25 @@ pub const CARD_17_ORDER: [Faction; 4] = [
     Faction::Government,
     Faction::Syndicate,
 ];
+/// Card 17's Event is absent in older saves. A completed Event carries the applied
+/// effect so its result and printed eligibility restriction survive restart.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub enum EventProgress {
+    Complete(EventOutcome),
+}
+impl EventProgress {
+    pub fn outcome(&self) -> Option<&EventOutcome> {
+        match self {
+            Self::Complete(outcome) => Some(outcome),
+        }
+    }
+}
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub enum EventOutcome {
+    Shaded { flips: Vec<Flip> },
+}
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Game {
@@ -256,6 +307,8 @@ pub struct Game {
     /// randomness; only the roll does.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub(crate) kidnap_open: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) event: Option<EventProgress>,
 }
 /// Removal mode (#73): open from "Remove own pieces" until Done. Each decision in it
 /// returns a chosen quantity of one 26July group to Available (R 1.4.1).
@@ -420,6 +473,8 @@ pub struct Observation {
     /// offered only while it is set (R 1.5.1).
     pub executing: Option<Faction>,
     pub eligibility: Eligibility,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub event: Option<EventProgress>,
     pub resources: [u8; 4],
     pub spaces: Vec<Space>,
     pub available: Vec<Group>,
@@ -631,7 +686,8 @@ pub struct ResourceChange {
     pub from: u8,
     pub to: u8,
 }
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Flip {
     pub space: String,
     pub faction: Faction,
@@ -868,6 +924,7 @@ impl Game {
             action: ActionChoice::Terror,
             effect: false,
             kidnap_open: false,
+            event: None,
             available: vec![
                 group(Government, Troops, 3),
                 group(Government, Police, 8),
@@ -885,12 +942,15 @@ impl Game {
         let mut played_cards: Vec<u8> = (1..=12).collect();
         played_cards.push(49);
         played_cards.extend(13..=16);
+        let eligibility = self.eligibility();
         Observation {
             revision: self.revision,
             owner: self.owner(),
             action: self.action,
             executing: self.executing(),
-            eligibility: self.eligibility(),
+            eligible: eligibility.eligible,
+            eligibility,
+            event: self.event.clone(),
             resources: self.resources,
             spaces: self.spaces.clone(),
             available: self.available.clone(),
@@ -906,7 +966,6 @@ impl Game {
             preview_card: 18,
             played_cards,
             draw_count: self.draw_deck.len(),
-            eligible: [true; 4],
             passed: Faction::ALL.map(|f| f == Faction::M26 && self.action == ActionChoice::Pass),
             aid: 15,
             alliance: UsAlliance::Firm,
@@ -925,6 +984,14 @@ impl Game {
                 .collect(),
             next: self.next(),
             operation: match self.action {
+                _ if self
+                    .event
+                    .as_ref()
+                    .and_then(EventProgress::outcome)
+                    .is_some() =>
+                {
+                    "Card 17 ended: Eligibility adjusted"
+                }
                 ActionChoice::Open => "1st Eligible: choose an action",
                 ActionChoice::Pass => "Passed: +1 Resource, stays Eligible",
                 ActionChoice::Terror if self.finished && self.kidnap.is_some() => {
@@ -971,6 +1038,9 @@ impl Game {
     /// The next faction to act once 26July's action is recorded: the first Eligible
     /// faction other than 26July, in its role, with its options (R 2.3.3–2.3.4).
     fn next(&self) -> Option<Next> {
+        if self.event.is_some() {
+            return None;
+        }
         let e = self.eligibility();
         e.m26_box?;
         let (faction, role) = if e.first != Faction::M26 {
@@ -1027,7 +1097,7 @@ impl Game {
         let action = choice.id.split_once(':')?.1;
         let steps = match action {
             "kidnap" | "kidnap:roll" => return Some(self.kidnap_stakes(action)),
-            "pass" | "end-terror" => vec![action],
+            "pass" | "end-terror" | "event:shaded" => vec![action],
             _ if action.starts_with("terror:") || choice.removal().is_some() => vec![action],
             _ => return None,
         };
@@ -1209,6 +1279,9 @@ impl Game {
             if self.may_go_back() {
                 notes.push("Nothing has happened yet: Back to the action choice is still offered instead (local policy, #58).".into());
             }
+        } else if action == "event:shaded" {
+            notes.push(CARD_17_SHADED.into());
+            notes.push("The Event costs 0 Resources. After eligibility is adjusted (R 2.3.7), card 18 stays in preview.".into());
         } else if action.starts_with("terror:") {
             notes.push(format!("R 3.3.4: pay 1 Resource, {TERROR_EFFECTS}."));
         } else if action.ends_with(":1") {
@@ -1282,9 +1355,33 @@ impl Game {
     }
     pub(crate) fn eligibility(&self) -> Eligibility {
         let passed = self.action == ActionChoice::Pass;
+        let outcome = self.event.as_ref().and_then(EventProgress::outcome);
+        let next_card = outcome.map(|_| {
+            Faction::ALL.map(|faction| {
+                let reason = match faction {
+                    Faction::M26 => EligibilityReason::ExecutedOperation,
+                    Faction::Directorio => EligibilityReason::ExecutedEvent,
+                    _ => EligibilityReason::NoOperationOrEvent,
+                };
+                CardEndEligibility {
+                    faction,
+                    eligible: reason == EligibilityReason::NoOperationOrEvent,
+                    reason,
+                }
+            })
+        });
+        let event_restriction = matches!(outcome, Some(EventOutcome::Shaded { .. })).then_some(
+            EligibilityRestriction {
+                faction: Faction::M26,
+                through_card: 18,
+            },
+        );
         Eligibility {
             order: CARD_17_ORDER,
-            eligible: [true; 4],
+            eligible: next_card.map_or([true; 4], |results| results.map(|r| r.eligible)),
+            next_card,
+            event_restriction,
+            event_started: self.event.is_some(),
             first: if passed {
                 Faction::Directorio
             } else {
@@ -1546,7 +1643,7 @@ impl Game {
             (
                 "event:shaded",
                 "Event · shaded",
-                "Available for preview in this build.",
+                "0 Resources. Already Active Guerrillas stay Active.",
             ),
             (
                 "directorio:limited-operation",
@@ -1555,7 +1652,7 @@ impl Game {
             ),
         ]
         .into_iter()
-        .map(|(id, label, explanation)| self.offer(id, label, false, explanation))
+        .map(|(id, label, explanation)| self.offer(id, label, id == "event:shaded", explanation))
         .collect()
     }
     fn choices(&self) -> Vec<Choice> {
@@ -2012,6 +2109,7 @@ impl Game {
                 self.finished = true;
                 self.transfer = None;
             }
+            "event:shaded" => self.execute_shaded_event(),
             _ => return self.execute(action, next_revision),
         }
         self.revision = next_revision;
@@ -2209,9 +2307,57 @@ impl Game {
         space.terror += 1;
         space.support = (space.support - 1).max(-2);
     }
+    fn execute_shaded_event(&mut self) {
+        let mut flips = Vec::new();
+        for space in &mut self.spaces {
+            let m26_guerrilla = |p: &Group| p.faction == Faction::M26 && p.kind == Kind::Guerrilla;
+            let Some(underground) = space
+                .pieces
+                .iter()
+                .position(|p| m26_guerrilla(p) && p.state == State::Underground)
+            else {
+                continue;
+            };
+            let count = space.pieces[underground].count;
+            if let Some(active) = space
+                .pieces
+                .iter_mut()
+                .find(|p| m26_guerrilla(p) && p.state == State::Active)
+            {
+                active.count += count;
+                space.pieces.remove(underground);
+            } else {
+                space.pieces[underground].state = State::Active;
+            }
+            flips.push(Flip {
+                space: space.id.clone(),
+                faction: Faction::M26,
+                kind: Kind::Guerrilla,
+                from: State::Underground,
+                to: State::Active,
+                count,
+            });
+        }
+        self.event = Some(EventProgress::Complete(EventOutcome::Shaded { flips }));
+    }
     /// Admit only the prepared board at the action choice, after Pass, or with Terror
     /// chosen: transfers, two Terror effects, Kidnap and own removal.
     pub fn validate(&self) -> Result<(), String> {
+        let shaded = match &self.event {
+            Some(EventProgress::Complete(EventOutcome::Shaded { flips })) => {
+                if !self.finished
+                    || self.action != ActionChoice::Terror
+                    || self
+                        .kidnap
+                        .as_ref()
+                        .is_none_or(|r| self.revision.saturating_sub(r.revision) < 2)
+                {
+                    return Err("Shaded Alberto Bayo requires completed Terror with Kidnap.".into());
+                }
+                Some(flips.as_slice())
+            }
+            None => None,
+        };
         let mut expected = Self::prepared_with_seed(self.random);
         let mut paid = 0;
         let mut removed = 0u64;
@@ -2224,19 +2370,33 @@ impl Game {
                 paid += 1;
             }
             if let Some(actual) = self.spaces.iter().find(|s| s.id == space.id) {
+                let activated = shaded
+                    .and_then(|flips| flips.iter().find(|f| f.space == space.id))
+                    .map_or(0, |f| f.count);
                 for piece in &mut space.pieces {
                     if piece.faction != Faction::M26 {
                         continue;
                     }
-                    let remaining = actual
-                        .pieces
-                        .iter()
-                        .find(|p| {
-                            p.faction == piece.faction
-                                && p.kind == piece.kind
-                                && p.state == piece.state
-                        })
-                        .map_or(0, |p| p.count);
+                    let on_map = |state| {
+                        actual
+                            .pieces
+                            .iter()
+                            .find(|p| {
+                                p.faction == piece.faction
+                                    && p.kind == piece.kind
+                                    && p.state == state
+                            })
+                            .map_or(0, |p| p.count)
+                    };
+                    // Infer the inherited counts from the recorded flips. The
+                    // exact replay below verifies every flip and final group.
+                    let remaining = match (shaded, piece.kind, piece.state) {
+                        (Some(_), Kind::Guerrilla, State::Underground) => activated,
+                        (Some(_), Kind::Guerrilla, State::Active) => on_map(State::Active)
+                            .checked_sub(activated)
+                            .ok_or("Unsupported shaded Event activation.")?,
+                        _ => on_map(piece.state),
+                    };
                     let returned = piece
                         .count
                         .checked_sub(remaining)
@@ -2279,6 +2439,7 @@ impl Game {
                 < u64::from(paid)
                     + u64::from(self.kidnap.is_some())
                     + u64::from(self.finished)
+                    + u64::from(shaded.is_some())
                     // Entering removal mode, then at least one removal decision,
                     // which may return several pieces of one group (#73).
                     + if removed > 0 { 2 } else { u64::from(self.removal.is_some()) }
@@ -2355,6 +2516,9 @@ impl Game {
         expected.removal = self.removal.clone();
         expected.effect = self.effect;
         expected.kidnap_open = self.kidnap_open;
+        if shaded.is_some() {
+            expected.execute_shaded_event();
+        }
         if *self != expected {
             return Err(
                 "State is not a supported prepared transfer/Terror/Kidnap/removal position.".into(),
