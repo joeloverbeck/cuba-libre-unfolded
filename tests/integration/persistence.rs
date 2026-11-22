@@ -64,7 +64,7 @@ fn completed_alberto_bayo_advances_once_and_reloads_at_government_opening() {
         assert!(opening.momentum.is_empty());
         assert_eq!(opening.owner, Faction::Government);
         assert_eq!(opening.eligibility.first, Faction::Government);
-        assert_eq!(opening.eligibility.second, Faction::Syndicate);
+        assert_eq!(opening.eligibility.second, Some(Faction::Syndicate));
         assert_eq!(opening.executing, None);
         assert_eq!(opening.eligible, [true, false, false, true]);
         assert_eq!(
@@ -109,6 +109,101 @@ fn completed_alberto_bayo_advances_once_and_reloads_at_government_opening() {
         assert_eq!(resumed.observe(), opening);
         assert_eq!(std::fs::read(&path).unwrap(), bytes);
         assert_eq!(std::fs::read(previous_path(&path)).unwrap(), card_end);
+
+        let pass = opening
+            .choices
+            .iter()
+            .find(|choice| choice.action() == "government:pass")
+            .unwrap();
+        assert!(pass.supported);
+        let preview = pass.preview.as_ref().unwrap();
+        assert_eq!(preview.resources.len(), 1);
+        assert_eq!(preview.resources[0].faction, Faction::Government);
+        let before = opening.resources[Faction::Government.index()];
+        assert_eq!(preview.resources[0].from, before);
+        assert_eq!(preview.resources[0].to, before + 3);
+        assert_eq!(preview.next.as_ref().unwrap().faction, Faction::Syndicate);
+        assert_eq!(resumed.observe(), opening);
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+
+        act(&mut resumed, "government:pass");
+        let handoff = resumed.observe();
+        assert_eq!(handoff.revision, opening.revision + 1);
+        let mut balances = opening.resources;
+        balances[Faction::Government.index()] += 3;
+        assert_eq!(handoff.resources, balances);
+        assert_eq!(handoff.owner, Faction::Syndicate);
+        assert_eq!(handoff.eligibility.first, Faction::Syndicate);
+        assert_eq!(handoff.eligibility.second, None);
+        assert_eq!(
+            handoff.eligibility.government_box,
+            Some(cuba_libre_unfolded::SequenceBox::Pass)
+        );
+        assert_eq!(handoff.eligible, opening.eligible);
+        assert_eq!(handoff.current_card, 18);
+        assert_eq!(handoff.preview_card, 19);
+        assert_eq!(handoff.draw_count, 33);
+        assert_eq!(handoff.played_cards, opening.played_cards);
+        assert_eq!(handoff.kidnap, opening.kidnap);
+        assert_eq!(handoff.spaces, opening.spaces);
+        assert_eq!(handoff.available, opening.available);
+        assert_eq!(handoff.recorded_resources, preview.resources);
+        assert!(handoff.passed[Faction::Government.index()]);
+        assert_eq!(handoff.next, preview.next);
+        assert_eq!(handoff.next.as_ref().unwrap().role, "1st Eligible");
+        assert_eq!(
+            handoff
+                .choices
+                .iter()
+                .map(|choice| choice.action())
+                .collect::<Vec<_>>(),
+            [
+                "syndicate:pass",
+                "syndicate:event",
+                "syndicate:rally",
+                "syndicate:march",
+                "syndicate:terror",
+                "syndicate:construct",
+                "syndicate:profit",
+                "syndicate:muscle",
+                "syndicate:bribe",
+            ]
+        );
+        assert!(
+            handoff
+                .choices
+                .iter()
+                .all(|choice| choice.owner == Faction::Syndicate && !choice.supported)
+        );
+        assert_eq!(resumed.game().random_state(), random);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), bytes);
+        let committed = std::fs::read(&path).unwrap();
+        drop(resumed);
+
+        let mut resumed = Session::open(&path, None).unwrap();
+        assert_eq!(resumed.observe(), handoff);
+        for (owner, revision, choice) in [
+            (opening.owner, opening.revision, pass.id.clone()),
+            (
+                opening.owner,
+                handoff.revision,
+                format!("{}:government:pass", handoff.revision),
+            ),
+        ] {
+            assert!(resumed.submit(owner, revision, &choice).is_err());
+        }
+        assert_eq!(resumed.observe(), handoff);
+        assert_eq!(std::fs::read(&path).unwrap(), committed);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), bytes);
+
+        let forged_path = dir.path().join(format!("{text}-extra-credit.json"));
+        let mut record: serde_json::Value = serde_json::from_slice(&committed).unwrap();
+        record["payload"]["resources"][0] = (balances[0] + 1).into();
+        let forged = reseal(&record);
+        std::fs::write(&forged_path, &forged).unwrap();
+        let error = Session::open(&forged_path, None).err().unwrap();
+        assert!(format!("{error:#}").contains("Unsupported Government Pass result"));
+        assert_eq!(std::fs::read(&forged_path).unwrap(), forged);
     }
 }
 

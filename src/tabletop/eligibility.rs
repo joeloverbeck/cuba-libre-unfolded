@@ -169,47 +169,58 @@ pub(super) struct Row {
 /// What the indicator shows, read from the observation's Eligibility record alone.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize)]
 pub(super) struct Track {
-    /// Card 17's factions, in its order.
+    /// The factions in printed card order.
     pub rows: Vec<Row>,
     /// The cylinders now govern card 18 under R 2.3.7.
     pub adjusted: bool,
-    /// The box 26July's action is recorded in, if any.
+    /// The box the first action was recorded in, if any.
     pub occupied: Option<Slot>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub occupant: Option<Faction>,
     /// The Ineligible box's contents.
     pub ineligible: Vec<Faction>,
+}
+
+fn recorded(view: &Observation) -> Option<(Faction, Slot)> {
+    let eligibility = &view.eligibility;
+    eligibility
+        .government_box
+        .map(|record| (Faction::Government, Slot::of(record)))
+        .or_else(|| {
+            eligibility
+                .m26_box
+                .map(|record| (Faction::M26, Slot::of(record)))
+        })
 }
 
 pub(super) fn track(view: &Observation) -> Track {
     let e = &view.eligibility;
     let adjusted = e.next_card.is_some();
-    let occupied = e.government_box.or(e.m26_box).map(Slot::of);
-    let occupant = if e.government_box.is_some() {
-        Faction::Government
-    } else {
-        Faction::M26
-    };
+    let (occupant, occupied) =
+        recorded(view).map_or((None, None), |(faction, slot)| (Some(faction), Some(slot)));
     let rows = e
         .order
         .iter()
         .map(|&faction| Row {
             faction,
             eligible: e.eligible[faction.index()],
-            role: if adjusted || (faction == occupant && e.government_box.is_some()) {
+            role: if adjusted || (Some(faction) == occupant && e.government_box.is_some()) {
                 None
             } else if faction == e.first {
                 Some("1st")
-            } else if faction == e.second {
+            } else if Some(faction) == e.second {
                 Some("2nd")
             } else {
                 None
             },
-            acted: !adjusted && faction == occupant && occupied.is_some(),
+            acted: !adjusted && Some(faction) == occupant,
         })
         .collect();
     Track {
         rows,
         adjusted,
         occupied,
+        occupant,
         ineligible: e
             .order
             .iter()
@@ -241,7 +252,7 @@ pub(super) struct Shown {
     pub rule: &'static str,
     pub body: String,
     pub note: &'static str,
-    /// 26July's action is recorded in this box.
+    /// An action is recorded in this box.
     pub occupied: bool,
 }
 
@@ -253,7 +264,9 @@ const AFTER_THE_CARD: &str =
 /// next faction (R 2.3.3, 2.3.4); an empty one states the rule for that box.
 pub(super) fn content(view: &Observation, slot: Slot) -> Shown {
     let e = &view.eligibility;
-    let occupied = e.government_box.or(e.m26_box).map(Slot::of) == Some(slot);
+    let occupant = recorded(view)
+        .and_then(|(faction, recorded_slot)| (recorded_slot == slot).then_some(faction));
+    let occupied = occupant.is_some();
     let (title, rule) = match slot {
         Slot::Pass => ("Pass", "R 2.3.3"),
         Slot::OperationOnly => ("Operation Only", "R 2.3.4"),
@@ -275,6 +288,16 @@ pub(super) fn content(view: &Observation, slot: Slot) -> Shown {
         )
     });
     let body = match (slot, occupied) {
+        (Slot::Pass, true) if occupant == Some(Faction::Government) => {
+            let income = view
+                .recorded_resources
+                .iter()
+                .find(|r| r.faction == Faction::Government)
+                .map_or_else(String::new, |r| {
+                    format!(" +{} ({} → {}),", resources(r.to - r.from), r.from, r.to)
+                });
+            format!("Government Passed:{income} and stays Eligible for the next card.{next}")
+        }
         (Slot::Pass, true) => {
             let gained: Vec<String> = view
                 .recorded_resources
@@ -289,10 +312,10 @@ pub(super) fn content(view: &Observation, slot: Slot) -> Shown {
             format!(
                 "26July Passed: {}{eligibility}.{next} {} is now 2nd Eligible.",
                 gained.join(", "),
-                e.second.name()
+                e.second.expect("card 17 has a 2nd Eligible faction").name()
             )
         }
-        (Slot::OperationOnly, true) if e.government_box.is_some() => format!(
+        (Slot::OperationOnly, true) if occupant == Some(Faction::Government) => format!(
             "Government finished Assault and recorded Operation Only.{next}"
         ),
         (Slot::OperationOnly, true) => format!(
@@ -619,20 +642,14 @@ pub(super) fn indicator(commands: &mut Commands, art: &Art, view: &Observation, 
         let top = fig::BOX_TOPS[slot.index()] + shift;
         let area = rect(fig::BOX_X, top, fig::BOX_W, fig::BOX_H);
         let occupied = track.occupied == Some(slot);
-        if occupied {
+        if let Some(faction) = track.occupant.filter(|_| occupied) {
             let plate = picture(commands, art, key::OCCUPIED, area, s, o, 3);
             part(commands, plate, "eligibility-box-occupied".into());
             let [ex, ey, size] = fig::BOX_EMBLEM;
             let emblem = picture(
                 commands,
                 art,
-                &emblems::image(
-                    track
-                        .rows
-                        .iter()
-                        .find(|row| row.acted)
-                        .map_or(Faction::M26, |row| row.faction),
-                ),
+                &emblems::image(faction),
                 rect(fig::BOX_X + ex, top + ey, size, size),
                 s,
                 o,

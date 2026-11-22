@@ -117,7 +117,7 @@ impl Game {
             SANTIAGO,
             "Santiago · target 26July",
             funded,
-            format!("City: {troops} Troops + {police} Police = {} removal capacity (R 3.2.4). 26July has {active} Active, {underground} Underground. {payment} Return {} Active to Available Forces. Underground Guerrillas stay.", troops + police, active.min(troops + police)),
+            format!("{troops} Troops + {police} Police = {} removal capacity in a City (R 3.2.4). 26July has {active} Active, {underground} Underground Guerrillas. {payment} Return {} Active to Available Forces.", troops + police, active.min(troops + police)),
         )]
     }
 

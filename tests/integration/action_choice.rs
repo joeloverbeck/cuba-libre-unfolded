@@ -198,7 +198,7 @@ fn pass_gains_one_resource_keeps_26july_eligible_and_makes_directorio_first_elig
     assert_eq!(e.eligible, [true; 4]);
     assert_eq!(
         (e.first, e.second),
-        (Faction::Directorio, Faction::Government)
+        (Faction::Directorio, Some(Faction::Government))
     );
     assert_eq!(e.m26_box, Some(SequenceBox::Pass));
     game.validate().unwrap();
@@ -225,21 +225,21 @@ fn eligibility_shows_order_and_roles_at_the_choice_during_terror_and_after_each_
     assert_eq!((e.order, e.eligible), (order, [true; 4]));
     assert_eq!(
         (e.first, e.second, e.m26_box),
-        (Faction::M26, Faction::Directorio, None)
+        (Faction::M26, Some(Faction::Directorio), None)
     );
     choose(&mut game, "terror");
     // The cylinder is placed when the action is completed (R 2.3, record steps).
     let e = game.observe().eligibility;
     assert_eq!(
         (e.first, e.second, e.m26_box),
-        (Faction::M26, Faction::Directorio, None)
+        (Faction::M26, Some(Faction::Directorio), None)
     );
     let mut only = game.clone();
     choose(&mut only, "end-terror");
     let view = only.observe();
     assert_eq!(
         (view.eligibility.first, view.eligibility.second),
-        (Faction::M26, Faction::Directorio)
+        (Faction::M26, Some(Faction::Directorio))
     );
     assert_eq!(view.eligibility.m26_box, Some(SequenceBox::OperationOnly));
     assert_eq!(

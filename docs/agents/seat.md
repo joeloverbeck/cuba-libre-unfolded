@@ -118,6 +118,7 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `option:directorio:pass`, `option:directorio:limited-operation`, `option:event:unshaded`, `option:event:shaded` | Directorio's handoff after Kidnap | Opens or pins an option's briefing. |
 | `option:rally:beneficiary:<faction>`, `option:rally:sierra-maestra:place:<n>` | Unshaded Event | Opens or pins a beneficiary or Rally procedure. Commit the pinned option by its offered choice ID. |
 | `option:government:<option>`, e.g. `option:government:assault` | Card 18 opening | Opens or pins an option's briefing. |
+| `option:assault:santiago:26july`, `option:end-assault` | Government's Assault | Opens or pins the Santiago payment or completion briefing. |
 | `choice-commit` | Action choice | Commits the pinned option. |
 | `briefing-ribbon` | Terror | Reopens the briefings. |
 | `briefing-tab:kidnap`, `briefing-tab:terror` | Briefing tag | Switches the briefing. |
@@ -155,13 +156,18 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:rally:beneficiary:26july`, `<revision>:rally:beneficiary:directorio` | Directorio chooses the beneficiary of Alberto Bayo’s unshaded Rally. |
 | `<revision>:rally:sierra-maestra:place:0`, `<revision>:rally:sierra-maestra:place:1`, `<revision>:rally:sierra-maestra:place:2`, `<revision>:rally:sierra-maestra:place:3`, `<revision>:rally:sierra-maestra:place:4` | 26July chooses how many Guerrillas to place Underground in Sierra Maestra when its Base qualifies. The offered quantities range from 0 to the ceiling the board and Available Forces allow. |
 | `<revision>:advance-card` | Saves the transition from the completed Alberto Bayo result to Pact of Caracas. |
-| `<revision>:government:pass`, `<revision>:government:event` | Government's Pass and Pact of Caracas briefings. |
+| `<revision>:government:pass` | Pin `option:government:pass` to preview the income, then commit using the offered choice. |
+| `<revision>:government:event` | Government's Pact of Caracas briefing. |
 | `<revision>:government:train`, `<revision>:government:garrison`, `<revision>:government:sweep` | Government's opening Operation briefings. |
 | `<revision>:government:assault` | Opens Operation Only Assault when Government can pay for Santiago. |
 | `<revision>:assault:santiago:26july` | Confirms the payment for Santiago and applies the effects against 26July. |
 | `<revision>:end-assault` | Finishes Assault and records Operation Only. |
-| `<revision>:syndicate:pass`, `<revision>:syndicate:limited-operation` | Inspect the options open to Syndicate as 2nd Eligible after Operation Only. |
+| `<revision>:syndicate:limited-operation` | Inspect Syndicate's Limited Operation as 2nd Eligible after Operation Only. |
 | `<revision>:government:transport`, `<revision>:government:air-strike`, `<revision>:government:reprisal` | Government's Special Activity briefings, including the Operations each may accompany. |
+| `<revision>:syndicate:pass` | Inspect Syndicate's Pass after Government Passes or records Operation Only. |
+| `<revision>:syndicate:event` | Inspect Pact of Caracas after Government Passes. |
+| `<revision>:syndicate:rally`, `<revision>:syndicate:march`, `<revision>:syndicate:terror`, `<revision>:syndicate:construct` | Inspect Syndicate's 1st Eligible Operations. |
+| `<revision>:syndicate:profit`, `<revision>:syndicate:muscle`, `<revision>:syndicate:bribe` | Inspect Syndicate's Special Activities and which Operations they may accompany. |
 | `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so 26July's option set is complete; unsupported, with the reason in `explanation`. |
 | `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap` | Execution steps during Terror. |
 | `<revision>:transfer`, `<revision>:remove` | Opens a Resource transfer or voluntary removal during Terror, Directorio's Event choices or the free Rally. |
@@ -185,6 +191,8 @@ decision to its giver.
 `observation.finished` records the end of 26July's first action on card 17. Inspect `observation.eligibility.next_card` for the completed Event's card-end adjustment.
 
 At the completed Event, activate the offered choice `<revision>:advance-card` through the primary button. The next observation shows `current_card: 18`, `preview_card: 19`, the updated public history and Government as the owner.
+
+After Government Passes, `recorded_resources` gives its before and after balances, `eligibility.government_box` records `Pass`, and `next` identifies Syndicate as 1st Eligible. `eligibility.second` is null because no Eligible faction follows Syndicate. Its `option:syndicate:…` components open the briefings.
 
 ### Example: a Resource transfer
 
@@ -224,6 +232,7 @@ Drawn-part names:
 - `native_funded_santiago_assault_carries_each_event_and_restarts` plays both Event texts and the funded Santiago Assault. It checks the payment, removal, process restarts, duplicate refusal and Syndicate's 2nd Eligible options. Set `CUBA_TEST_SANTIAGO_FUNDED_SAVE` to the retained common save identified in #130's evidence to use the exact funded match. Otherwise the test constructs a funded save through the rules authority. Evidence goes to `local/verification/issue-130/`.
 
 - `native_card_advance_reopens_both_event_results_and_commits_once` checks both Event branches, card 19 refusal and recovery, restart on each side of the advance and stale or repeated activation. Set `CUBA_TEST_CARD_18_SAVES` to the directory containing the two retained saves pinned in #127 to exercise the exact owner-played positions. Otherwise the test drives each Event to completion through the checked session. Evidence goes to `local/verification/issue-128/`.
+- `native_government_pass_credits_once_and_hands_first_choice_to_syndicate` checks the Pass preview, credit, Syndicate's 1st Eligible inspection, seat reconnects and process reload around the payment, and refusal of stale or repeated activation. It accepts the same `CUBA_TEST_CARD_18_SAVES` inputs. Evidence goes to `local/verification/issue-129/`.
 
 - `native_free_rally_hands_the_decision_to_the_beneficiary`: verifies the handoff, Sierra Maestra’s ceiling and zero cost, pending and completed save admission, stale and duplicate refusals, and the eligibility adjustment. Set `CUBA_TEST_RALLY_SAVE` to the retained revision-9 save pinned for #117 to exercise its exact old record. Otherwise the test plays to the handoff. Evidence goes to `local/verification/issue-120/`.
 - `native_free_rally_can_choose_zero_in_a_qualifying_base_space`: checks the visible quantities and a deliberate placement of zero through restart and card-end eligibility. It accepts the same `CUBA_TEST_RALLY_SAVE` fixture.
