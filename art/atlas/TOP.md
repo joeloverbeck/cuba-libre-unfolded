@@ -62,6 +62,6 @@ The ledger rows reuse `atlas-victory-icon-*.png` at 1704,76+31n, 27×27. Values 
   - VectorCraft CLI 0.24.1. Checkout `ed6f22a8` was inspected; this is not build provenance for the installed binary.
   - FigCraft CLI 0.18.1, rebuilt from `storytold/figcraft@559c952d`, as [art-tools.md](../../docs/agents/art-tools.md) records.
 - **Always shown:** the card reader, whose frame once hid the top display, was removed in #139. The top display stays shown while a [card tag](CARD-TAG.md) is open.
-- **Title export:** `atlas-layout-title.png` is retired from `layout.sha256`.
+- **Title export:** `atlas-layout-title.png` was retired from `layout.sha256`, which `main-view.sha256` has since replaced ([MAIN-VIEW.md](MAIN-VIEW.md)).
 - **Native placement evidence:** at 3840×2160, the owner's display. The owner accepted the top display's legibility on that display in #46; [the seat reference](../../docs/agents/seat.md#the-owners-display) says how to judge it from a capture.
 - **What this establishes:** component and placement evidence, plus the native regression `native_top_display_matches_layout_and_follows_the_economy`. It is not owner play acceptance.

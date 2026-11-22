@@ -22,6 +22,7 @@ mod highlights;
 mod honest_hints;
 mod kidnap;
 mod kidnap_die;
+mod main_view;
 mod map_targets;
 mod persistence;
 mod popover;

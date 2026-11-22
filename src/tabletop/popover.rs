@@ -1858,14 +1858,14 @@ pub(super) fn draw(
 pub(super) fn place(
     window: Single<&Window, With<PrimaryWindow>>,
     camera: Single<(&Camera, &GlobalTransform), With<TableCamera>>,
+    main_view: Res<super::areas::Layout>,
     mut roots: Query<(&mut Root, &mut LabelAnchor)>,
     mut nodes: Query<(&mut Node, &ComputedNode)>,
 ) {
     let (camera, camera_at) = *camera;
     let (s, _) = layout(&window);
-    let Some(map) = camera.logical_viewport_rect() else {
-        return;
-    };
+    // Cards open in the part of the window the areas at its edges leave clear.
+    let map = main_view.clear(&window);
     let panel_left = window.width() - 540. * s;
     let margin = frame::MARGIN * s;
     for (mut root, mut anchor) in &mut roots {

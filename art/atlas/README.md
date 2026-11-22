@@ -38,18 +38,21 @@ Current refinement checks: thirteen manifold meshes with positive signed volumes
 
 ## Main-view composition and dynamic content
 
-Coordinates are in the original 1920×1280 design and scale uniformly with letterboxing. Keep native input targets and seat targets aligned with that same transform. A smaller viewport must preserve readable type by inspecting details in the selected panel/reader instead of shrinking all decision text indefinitely.
+The [main view layout](MAIN-VIEW.md) owns where every area sits: the 3D map fills the window and the areas below lie over it. Coordinates are reference pixels, measured from the window edge or centre each area is anchored to; one reference pixel is the smaller of the window's width over 1920 and its height over 1280, and nothing is letterboxed. Keep native input targets and seat targets aligned with that same transform. A smaller window must preserve readable type by inspecting details in the panels and tags instead of shrinking all decision text indefinitely.
 
 | Surface | Authored placement | Runtime responsibility |
 |---|---|---|
-| Standings | x=40,510,980,1450; y=76; each 450×146 | Current scores at y≈134, margins/extra conditions at y≈162; contributions at y≈205. Always visible. |
-| Map panel | panel x=40,y=280,w=1300,h=660; transparent 3D viewport x=40,y=320,w=1300,h=540 | Render navigable 3D map beneath the UI camera; title and legend stay outside the opening. Frame all thirteen spaces initially. |
-| Decision | x=1380,y=280,w=500,h=660 | Current actor, operation, Resources, choices, cost, target, legal/refused explanation and actual roll/owed Terror. |
-| Primary action | x=1404,y=825,w=452,h=65 | Dynamic Finish/resolve label and enabled state; no example outcome remains baked. |
-| Current/preview cards | panels x=64 and330,y=1024,h=170 | Fit imported portraits proportionally inside the available box, with rounded corners; hover, focus or click a card for its [tag](CARD-TAG.md). Never stretch/crop faces to the landscape placeholder. |
-| Contributions | x=660,y=964,w=680,h=264 | Current faction, per-space multipliers, totals, thresholds and unmet conditions; deliberate open/pin/close as well as hover. |
-| Session | x=1380,y=964,w=500,h=264 | Actual pending giver, durable-save/recovery/refusal status; inspect/cancel/save/quit and continuation. |
-| Card tag | x=40, bottom y=956, about 741×646 | The [card tag](CARD-TAG.md) opens above the card panel, so both cards stay visible. It replaced the expanded reader in #139. |
+| Map | the whole window; Home fits all thirteen spaces into the layout's island box | Render the navigable 3D map beneath the UI camera. Orbit, zoom, pan and Home work wherever no area lies. |
+| Outside influence | top left: x=40,y=18,w=370,h=64 | Aid and the US Alliance track ([TOP.md](TOP.md)). |
+| Standings | top, centred: x=728,y=8,w=464,h=108 of a centred 1920 | Current margins under the four emblems; contributions in the hover tag. Always visible. |
+| Resources and Cash | top right: x=1688,y=20,w=192,h=246 | The Resources ledger and the Cash supply ([TOP.md](TOP.md)). |
+| Sequence of Play | top left: x=60,y=178,w=232,h=384 | The eligibility track ([ELIGIBILITY.md](ELIGIBILITY.md)). |
+| Decision | top right: x=1380,y=280,w=500,h=660 | Current actor, operation, Resources, choices, cost, target, legal/refused explanation and actual roll/owed Terror. |
+| Primary action | x=1404,y=825,w=452,h=65, in the decision panel | Dynamic Finish/resolve label and enabled state; no example outcome remains baked. |
+| Current/preview cards | bottom left: x=40,y=964,w=600,h=264 | Until #143 builds the card piles: both faces fitted proportionally, each opening its [card tag](CARD-TAG.md). Never stretch or crop a face. |
+| Session | bottom right: x=1380,y=964,w=500,h=264 | Actual pending giver, durable-save/recovery/refusal status; save/quit and continuation. |
+
+Each area takes the pointer over its own rectangle, so a press or a scroll there never reaches the map.
 
 The two background sheets contain constant faction names and victory thresholds, but no current numeric standings. Their constant statements do not replace the accepted rule source. UI fields and all quantities must update together with model observations after transfer, Terror, removal and resume. The generic selected panel/action exports cover transfer authorization/decline, own-removal confirmation/cancel, roll and owed-Terror feedback, per-space inspection, Finish, recovery and refusal without carrying any fixed outcome. The initial handoff required no motion. The later owner-directed [water proposals](water/README.md) use VectorCraft and EffectCraft sources and exported frames; selection and native consumption remain separately reviewable.
 

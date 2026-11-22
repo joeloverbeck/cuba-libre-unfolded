@@ -11,7 +11,9 @@ pub const MANIFEST: &str = include_str!("../art/atlas/runtime.sha256");
 // map/cards identity to which existing game records are bound.
 pub const STATUS_MANIFEST: &str = include_str!("../art/atlas/status.sha256");
 pub const VICTORY_MANIFEST: &str = include_str!("../art/atlas/victory.sha256");
-pub const LAYOUT_MANIFEST: &str = include_str!("../art/atlas/layout.sha256");
+/// The main view's layout record and the area frames it places (#142): stateless
+/// presentation. The record says where each area sits over the full-window map.
+pub const MAIN_VIEW_MANIFEST: &str = include_str!("../art/atlas/main-view.sha256");
 pub const TERRAIN_MANIFEST: &str = include_str!("../art/atlas/terrain.sha256");
 pub const TERROR_MANIFEST: &str = include_str!("../art/atlas/terror.sha256");
 pub const TOP_MANIFEST: &str = include_str!("../art/atlas/top.sha256");
@@ -37,7 +39,7 @@ pub const MANIFESTS: [&str; 15] = [
     MANIFEST,
     STATUS_MANIFEST,
     VICTORY_MANIFEST,
-    LAYOUT_MANIFEST,
+    MAIN_VIEW_MANIFEST,
     TERRAIN_MANIFEST,
     TERROR_MANIFEST,
     TOP_MANIFEST,

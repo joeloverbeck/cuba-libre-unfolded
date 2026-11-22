@@ -1,6 +1,6 @@
 //! Development seat adapter: resolves real controls and never executes rules directly.
 use super::*;
-use bevy::{input::keyboard::Key, time::TimeUpdateStrategy};
+use bevy::{camera::primitives::Aabb, input::keyboard::Key, time::TimeUpdateStrategy};
 use serde_json::json;
 use std::sync::LazyLock;
 use unfolded_tabletop::{
@@ -102,6 +102,59 @@ fn named(control: &Control) -> TargetName {
     } else {
         TargetName::Component(control.name.clone())
     }
+}
+/// A grid of points across a piece's body as the map camera shows it: the bounds of
+/// its meshes on screen.
+fn body_points(world: &mut World, piece: Entity) -> Vec<Vec2> {
+    let Ok((camera, camera_at)) = world
+        .query_filtered::<(&Camera, &GlobalTransform), With<TableCamera>>()
+        .single(world)
+        .map(|(camera, at)| (camera.clone(), *at))
+    else {
+        return vec![];
+    };
+    let meshes: Vec<(Entity, Aabb, GlobalTransform)> = world
+        .query_filtered::<(Entity, &Aabb, &GlobalTransform), With<Mesh3d>>()
+        .iter(world)
+        .map(|(entity, bounds, at)| (entity, *bounds, *at))
+        .collect();
+    let mut seen: Option<Rect> = None;
+    for (entity, bounds, at) in meshes {
+        let mut current = Some(entity);
+        let mut belongs = false;
+        while let Some(e) = current {
+            if e == piece {
+                belongs = true;
+                break;
+            }
+            current = world.get::<ChildOf>(e).map(ChildOf::parent);
+        }
+        if !belongs {
+            continue;
+        }
+        for x in [-1., 1.] {
+            for y in [-1., 1.] {
+                for z in [-1., 1.] {
+                    let corner = Vec3::from(bounds.center)
+                        + Vec3::from(bounds.half_extents) * Vec3::new(x, y, z);
+                    if let Ok(p) = camera.world_to_viewport(&camera_at, at.transform_point(corner))
+                    {
+                        seen = Some(seen.map_or(Rect::from_corners(p, p), |r| Rect {
+                            min: r.min.min(p),
+                            max: r.max.max(p),
+                        }));
+                    }
+                }
+            }
+        }
+    }
+    let Some(seen) = seen else {
+        return vec![];
+    };
+    (1..8)
+        .flat_map(|x| (1..8).map(move |y| Vec2::new(x as f32, y as f32) / 8.))
+        .map(|at| seen.min + seen.size() * at)
+        .collect()
 }
 fn piece_name(world: &World, entity: Entity) -> Option<String> {
     if world.get::<Count>(entity).is_some()
@@ -365,13 +418,14 @@ impl SeatGame for Table {
             .collect::<Vec<_>>();
         let die = die::observe(world);
         let card = cards::observe(world);
+        let main_view = areas::observe(world);
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
         let pose = world.resource::<Orbit>().pose();
         let water_frame = world.get_resource::<Water>().map(|water| water.frame);
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
-            table: json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"top":top,"briefing":briefing,"choice":choice::observe(ui),"choice_parts":choice_parts,"eligibility":eligibility,"map_targets":map_targets,"highlights":highlights,"removal":removal,"markers":markers,"popover":popover,"transfer":transfer,"top_text":top_text,"inline_text":inline_text,"counts":counts,"top_parts":top_parts,"water_frame":water_frame,"terror":terror,"die":die,"settled":pending.is_empty(),"pending":pending,"card":card,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
+            table: json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"top":top,"briefing":briefing,"choice":choice::observe(ui),"choice_parts":choice_parts,"eligibility":eligibility,"map_targets":map_targets,"highlights":highlights,"removal":removal,"markers":markers,"popover":popover,"transfer":transfer,"top_text":top_text,"inline_text":inline_text,"counts":counts,"top_parts":top_parts,"water_frame":water_frame,"terror":terror,"die":die,"settled":pending.is_empty(),"pending":pending,"card":card,"main_view":main_view,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
         }
     }
     fn revision(&self, world: &mut World) -> u64 {
@@ -389,6 +443,13 @@ impl SeatGame for Table {
             ));
         }
         let mut points = vec![found[0].2];
+        // An area's own controls can cover its middle: its edges and corners are
+        // bare. The shared seat still verifies the actual picked name.
+        if found[0].1.name.starts_with("area:")
+            && let Some(node) = world.get::<ComputedNode>(found[0].0)
+        {
+            points = areas::bare_points(found[0].2, node.size() * node.inverse_scale_factor);
+        }
         // A count can cover the center of its solid piece. Try exposed body
         // points too; the shared seat still verifies the actual picked name.
         if found[0].1.name.starts_with("piece:") {
@@ -397,6 +458,9 @@ impl SeatGame for Table {
                     points.push(found[0].2 + Vec2::new(x, y));
                 }
             }
+            // A piece is as large on screen as the camera makes it, and its count may
+            // cover all of those: try points across its body too (#142).
+            points.extend(body_points(world, found[0].0));
         }
         Ok(points)
     }
@@ -437,6 +501,12 @@ impl SeatGame for Table {
         }
         if ui.dirty {
             pending.push("control redraw".into());
+        }
+        if play.session.is_some() && !world.resource::<areas::Island>().surveyed() {
+            pending.push("Home framing".into());
+        }
+        if world.resource::<Counts>().settling > 0 {
+            pending.push("piece counts".into());
         }
         if world.resource::<Orbit>().is_moving() {
             pending.push("camera movement".into());

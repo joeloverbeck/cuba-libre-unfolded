@@ -599,7 +599,9 @@ pub(super) fn draw(
         return;
     }
     scrim(&mut commands, &art, &window, s, left);
-    modal(&mut commands, &art, &view, &ui, s, centered);
+    // The modal sits in the middle of the window; its note above stays at the top.
+    let middle = centered + bottom(&window) / 2.;
+    modal(&mut commands, &art, &view, &ui, s, middle);
 }
 
 /// Moves the thumb and fill and rewrites the amount and balances during a drag.
