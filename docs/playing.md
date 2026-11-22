@@ -90,11 +90,11 @@ At the completed Alberto Bayo result, inspect the board, the Event effects and e
 
 Government is 1st Eligible and Syndicate is 2nd Eligible. Both skipped an Operation or Event on card 17. Terror and the Event made 26July and Directorio Ineligible. On the shaded branch, Alberto Bayo expressly keeps 26July Ineligible through card 18.
 
-Hover or focus Government's options to see what the rules allow and why a choice is unavailable. Pin **Pass** to review the current balance, the 3-Resource income and the balance after the 49-Resource cap. Select the **Pass** button to commit. Government's marker moves to the Pass box, and the next decision shows the actual payment.
+Hover or focus Government's options to see what the rules allow and why a choice is unavailable. Pin **Pass** to review the current balance, the 3-Resource income and the balance after the 49-Resource cap. Select the **Pass** button to commit. Government's marker moves to the Pass box, and the next decision shows the credited income.
 
 Syndicate takes over as 1st Eligible on Pact of Caracas. Inspect its Pass, Event, Operations and Special Activities.
 
-Choose **Assault · Operation Only**, then choose **Cities**, **Provinces**, or **Economic Centers** and a space. Pin a target to see how many pieces the local Troops, Police and terrain let you affect, what remains protected, and what the payment will do. In Havana, targeting Syndicate closes the open Casino in place. In Santiago, the Event determines whether one or two 26July Guerrillas return to Available Forces.
+Choose **Assault · Operation Only**, then choose **Cities**, **Provinces**, or **Economic Centers** and a space. Pin a target to see how many pieces the local Troops, Police and terrain let you affect, what remains protected, and what the payment will do. With the inherited cubes still in place, targeting Syndicate in Havana closes the open Casino in place. In Santiago, the Event determines whether one or two 26July Guerrillas return to Available Forces. Voluntary removal of Government cubes can reduce either city's capacity to zero.
 
 Under Firm US Alliance, each payment costs 2 Resources and resolves that space once. Continue in any order you can afford, or choose **Finish Assault**. Government may finish without paying for a space under the [card 18 local policy](local-rule-policies.md#zero-space-government-assault-on-card-18). Government earns no Pass income and Syndicate can inspect Pass and Limited Operation as 2nd Eligible.
 

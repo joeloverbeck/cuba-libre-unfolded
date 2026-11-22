@@ -12,10 +12,62 @@ const ENEMIES: [Faction; 3] = [Faction::M26, Faction::Directorio, Faction::Syndi
 pub(super) struct Assault {
     start: AssaultStart,
     actions: Vec<String>,
+    /// Choices in completed menu loops. Older records retain every choice.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    skipped_choices: Option<u64>,
     resolution: Option<AssaultResolution>,
     pub(super) finished: bool,
     #[serde(default)]
     browse: Browse,
+}
+
+impl Assault {
+    fn record_action(&mut self, action: &str) {
+        if self.skipped_choices.is_none() {
+            self.skipped_choices = Some(0);
+            for earlier in std::mem::take(&mut self.actions) {
+                self.retain_action(earlier);
+            }
+        }
+        self.retain_action(action.into());
+    }
+
+    /// Drop closed loops that return to the same decision, including waits that
+    /// have been reopened. Keep open menus and every committed effect in order.
+    fn retain_action(&mut self, action: String) {
+        let remove = match (action.as_str(), self.actions.as_slice()) {
+            (BACK, [.., open])
+                if open.starts_with("assault:areas:") || open.starts_with("assault:space:") =>
+            {
+                1
+            }
+            ("back", [.., open]) if open == "transfer" => 1,
+            ("reopen", [.., wait]) if wait == "wait" => 1,
+            ("done-removal", [.., open]) if open == "remove" => 1,
+            (give, [.., open])
+                if open == "transfer" && give.starts_with("give:") && give.ends_with(":0") =>
+            {
+                1
+            }
+            ("decline" | "authorize:0", [.., open, ask, wait])
+                if open == "transfer" && ask.starts_with("ask:") && wait == "wait" =>
+            {
+                3
+            }
+            ("decline" | "authorize:0", [.., open, ask])
+                if open == "transfer" && ask.starts_with("ask:") =>
+            {
+                2
+            }
+            _ => 0,
+        };
+        if remove == 0 {
+            self.actions.push(action);
+        } else {
+            self.actions.truncate(self.actions.len() - remove);
+            *self.skipped_choices.as_mut().unwrap() += remove as u64 + 1;
+        }
+    }
 }
 
 /// The card 18 position before the Operation. Admission checks it against the
@@ -368,6 +420,17 @@ impl Game {
         self.assault.as_ref()?.resolution.clone()
     }
 
+    pub(super) fn assault_preview_effect(&self) -> Option<String> {
+        let detail = self
+            .assault
+            .as_ref()?
+            .resolution
+            .as_ref()?
+            .detail
+            .as_ref()?;
+        Some(format!("R 3.2.4: {}.", detail.effect(false)))
+    }
+
     pub(super) fn assault_finished(&self) -> bool {
         self.assault.as_ref().is_some_and(|op| op.finished)
     }
@@ -557,6 +620,7 @@ impl Game {
                         available: self.available.clone(),
                     },
                     actions: vec![],
+                    skipped_choices: Some(0),
                     resolution: None,
                     finished: false,
                     browse: Browse::Areas,
@@ -592,7 +656,7 @@ impl Game {
             }
             _ => self.resolve_assault(action)?,
         }
-        self.assault.as_mut().unwrap().actions.push(action.into());
+        self.assault.as_mut().unwrap().record_action(action);
         Ok(())
     }
 
@@ -662,12 +726,15 @@ impl Game {
 
     pub(super) fn validate_assault(&self, assault: &Assault) -> Result<(), String> {
         let start = &assault.start;
+        let skipped = assault.skipped_choices.unwrap_or(0);
         if !self.card_18
             || start.pieces.len() != self.spaces.len()
+            || skipped == 1
             || start
                 .revision
                 .checked_add(1)
                 .and_then(|rev| rev.checked_add(assault.actions.len() as u64))
+                .and_then(|rev| rev.checked_add(skipped))
                 != Some(self.revision)
         {
             return Err("Unsupported Assault history.".into());
@@ -706,6 +773,20 @@ impl Game {
                     .unwrap()
                     .detail = None;
             }
+        }
+        let replay = before.assault.as_mut().unwrap();
+        if assault.skipped_choices.is_some() {
+            // From Areas, opening and cancelling a transfer takes two choices.
+            // Opening, asking for zero and declining takes three. Any skipped
+            // count of two or more has a witness without changing the position.
+            // Card 18 changes only the match revision for these choices.
+            before.revision += skipped;
+            *replay.skipped_choices.as_mut().unwrap() += skipped;
+        } else {
+            // Check every legacy choice without accumulating menu loops in the
+            // replay. Preserve the admitted record until the player acts again.
+            replay.actions.clone_from(&assault.actions);
+            replay.skipped_choices = None;
         }
         if before != *self {
             return Err("Unsupported Assault state.".into());

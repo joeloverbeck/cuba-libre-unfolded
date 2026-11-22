@@ -1408,8 +1408,18 @@ impl Game {
             notes.push("The free Rally adds no eligibility penalty (R 5.5).".into());
         } else if action.starts_with("terror:") {
             notes.push(format!("R 3.3.4: pay 1 Resource, {TERROR_EFFECTS}."));
-        } else if self.card_18 && action.starts_with("remove:") {
-            notes.push("R 1.4.1: after Done, Assault uses the remaining cubes.".into());
+        } else if self.card_18 {
+            match action {
+                "government:pass" => notes.push("Government stays Eligible for the next card. Syndicate now decides as 1st Eligible (R 2.3.3).".into()),
+                "end-assault" => notes.push("Records Operation Only. Syndicate may Pass or choose a Limited Operation as 2nd Eligible (R 2.3.4–5).".into()),
+                _ if action.starts_with("remove:") => notes.push("R 1.4.1: after Done, Assault uses the remaining cubes.".into()),
+                _ if Self::assault_payment_space(action).is_some() => {
+                    if let Some(note) = after.assault_preview_effect() {
+                        notes.push(note);
+                    }
+                }
+                _ => {}
+            }
         } else if action.ends_with(":1") {
             notes.push("R 1.4.1: the piece returns to Available. Earlier Terror markers, support shifts and Kidnap results stay.".into());
         } else {
@@ -1960,13 +1970,31 @@ impl Game {
                 ),
             )
         };
+        let activity = |id, label, rule| {
+            let balance_status = if balance < cost {
+                format!(
+                    " Government has {} and cannot pay {} for an Operation.",
+                    resources(balance),
+                    resources(cost)
+                )
+            } else {
+                String::new()
+            };
+            offer(
+                id,
+                label,
+                format!(
+                    "Requires an Operation in at least one space (R 4.1). {rule}{balance_status}"
+                ),
+            )
+        };
         vec![
             self.offer(
                 "government:pass",
                 format!("Pass · +{} ({balance} → {after_pass})", resources(after_pass - balance)),
                 true,
                 format!(
-                    "Government has {}. Pass pays {GOVERNMENT_PASS_INCOME} Resources up to the cap of {RESOURCE_CAP}: {balance} → {after_pass}. Government stays Eligible for the next card, and Syndicate becomes 1st Eligible (R 1.8, 2.3.3).",
+                    "Government has {}. Pass gains {GOVERNMENT_PASS_INCOME} Resources up to the cap of {RESOURCE_CAP}: {balance} → {after_pass}. Government stays Eligible for the next card, and Syndicate becomes 1st Eligible (R 1.8, 2.3.3).",
                     resources(balance)
                 ),
             ),
@@ -1979,20 +2007,20 @@ impl Game {
             operation("garrison", "Garrison · Operation", "R 3.2.2.", false),
             operation("sweep", "Sweep · Operation", "R 3.2.3.", true),
             self.assault_opening(),
-            offer(
+            activity(
                 "transport",
                 "Transport · Special Activity",
-                "Transport accompanies an Operation (R 4.1, 4.2.1).".into(),
+                "Transport may accompany any Government Operation (R 4.2.1).",
             ),
-            offer(
+            activity(
                 "air-strike",
                 "Air Strike · Special Activity",
-                "Air Strike can accompany Garrison, Sweep or Assault in a Province or EC. The rules forbid it with Train, in a City, or under Embargoed US Alliance (R 4.2.2).".into(),
+                "Accompanies Garrison, Sweep or Assault. Air Strike occurs in a Province or economic center and requires an Alliance above Embargoed (R 4.2.2).",
             ),
-            offer(
+            activity(
                 "reprisal",
                 "Reprisal · Special Activity",
-                "Reprisal can accompany Garrison, Sweep or Assault in a Government-controlled space. The rules forbid it with Train (R 4.2.3).".into(),
+                "Accompanies Garrison, Sweep or Assault. Reprisal occurs in one Government-controlled space (R 4.2.3).",
             ),
         ]
     }
@@ -2001,6 +2029,17 @@ impl Game {
     fn syndicate_choices(&self) -> Vec<Choice> {
         let balance = self.resources[Faction::Syndicate.index()];
         let after_pass = balance.saturating_add(1).min(RESOURCE_CAP);
+        let terror_refusal = if self.spaces.iter().any(|space| {
+            space.pieces.iter().any(|piece| {
+                piece.faction == Faction::Syndicate
+                    && piece.kind == Kind::Guerrilla
+                    && piece.state == State::Underground
+            })
+        }) {
+            ""
+        } else {
+            " No space has an Underground Syndicate Guerrilla, so Syndicate cannot select a Terror space."
+        };
         let offer = |id: &str, label: &str, rule: &str| {
             self.offer(
                 &format!("syndicate:{id}"),
@@ -2035,7 +2074,9 @@ impl Game {
             offer(
                 "terror",
                 "Terror · Operation",
-                "Activate a Syndicate Underground Guerrilla at each target. Pay 1 Resource per City or Province to place Terror and shift toward Neutral, or 0 per economic center to place Sabotage (R 3.3.4).",
+                &format!(
+                    "Activate a Syndicate Underground Guerrilla at each target. Pay 1 Resource per City or Province to place Terror and shift toward Neutral, or 0 per economic center to place Sabotage (R 3.3.4).{terror_refusal}"
+                ),
             ),
             offer(
                 "construct",

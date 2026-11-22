@@ -214,6 +214,18 @@ fn havana_assault_closes_the_targeted_casino_without_returning_it() {
     assert_eq!(preview.resources[0].from, 5);
     assert_eq!(preview.resources[0].to, 3);
     assert!(preview.removed.is_empty());
+    assert!(
+        preview
+            .notes
+            .iter()
+            .any(|note| note.contains("Close 1 Casino in place"))
+    );
+    assert!(
+        preview
+            .notes
+            .iter()
+            .all(|note| !note.contains("to Available"))
+    );
     let flip = &preview.flips[0];
     assert_eq!(
         (

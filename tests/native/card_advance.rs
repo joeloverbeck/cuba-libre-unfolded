@@ -195,8 +195,12 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
                 let current = app.observe()["observation"]["revision"].as_u64().unwrap();
                 app.activate(&format!("option:{action}"), current);
                 if action == "end-assault" {
-                    let explanation = tag_text(&app.observe()["table"]["briefing"]);
+                    let view = app.observe();
+                    let explanation = tag_text(&view["table"]["briefing"]);
                     assert!(explanation.contains("earns no Pass Resources (local policy)"));
+                    let notes = preview_notes(&view, action);
+                    assert!(notes.contains("Records Operation Only"), "{notes}");
+                    assert!(!notes.contains("Available"), "{notes}");
                     app.capture("zero-space-assault-preview");
                 }
                 app.choose(action);
@@ -285,12 +289,29 @@ fn native_government_pass_credits_once_and_hands_first_choice_to_syndicate() {
                 refusal.contains("A zero-space Assault earns no Resources"),
                 "{refusal}"
             );
+            app.activate("option:government:transport", revision);
+            let briefing = tag_text(&app.observe()["table"]["briefing"]);
+            assert!(
+                briefing.contains("Operation in at least one space (R 4.1)"),
+                "{briefing}"
+            );
+            assert!(
+                briefing.contains("cannot pay 2 Resources for an Operation"),
+                "{briefing}"
+            );
+            app.capture("government-special-activity-briefing");
         }
         app.activate("option:government:pass", revision);
         let preview = app.observe();
         let briefing = tag_text(&preview["table"]["briefing"]);
-        assert!(briefing.contains("Pass pays 3 Resources"), "{briefing}");
+        assert!(briefing.contains("Pass gains 3 Resources"), "{briefing}");
         assert!(briefing.contains(&format!("{from} → {to}")), "{briefing}");
+        let notes = preview_notes(&preview, "government:pass");
+        assert!(
+            notes.contains("Syndicate now decides as 1st Eligible"),
+            "{notes}"
+        );
+        assert!(!notes.contains("Available"), "{notes}");
         assert_eq!(preview["observation"], opening);
         assert_eq!(fs::read(&app.save).unwrap(), advanced);
         assert_eq!(fs::read(previous_path(&app.save)).unwrap(), previous);
@@ -378,6 +399,14 @@ fn native_government_pass_credits_once_and_hands_first_choice_to_syndicate() {
         let tag = &result["table"]["eligibility"]["tag"];
         assert!(tag["body"].as_str().unwrap().contains("Government Passed"));
         app.capture("government-pass-record");
+        app.activate("option:syndicate:terror", revision + 1);
+        let briefing = tag_text(&app.observe()["table"]["briefing"]);
+        assert!(
+            briefing.contains("No space has an Underground Syndicate Guerrilla"),
+            "{briefing}"
+        );
+        assert!(briefing.contains("inspection only"), "{briefing}");
+        app.capture("syndicate-terror-briefing");
         app.activate("option:syndicate:construct", revision + 1);
         let inspection = app.observe();
         let briefing = tag_text(&inspection["table"]["briefing"]);
@@ -407,6 +436,18 @@ fn native_government_pass_credits_once_and_hands_first_choice_to_syndicate() {
         app.capture("syndicate-restarted");
         app.quit();
     }
+}
+
+fn preview_notes(reply: &Value, action: &str) -> String {
+    let view = &reply["observation"];
+    let id = format!("{}:{action}", view["revision"]);
+    view["choices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|choice| choice["id"] == id)
+        .unwrap()["preview"]["notes"]
+        .to_string()
 }
 
 fn finish_event(path: &Path, text: &str) {

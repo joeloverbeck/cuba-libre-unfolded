@@ -47,7 +47,12 @@ fn native_assault_resumes_giver_and_government_side_decisions() {
     }
     app.choose("advance-card");
     choose_row(&mut app, "government:assault");
-    choose_row(&mut app, "transfer");
+    pin(&mut app, "transfer");
+    let briefing = app.observe()["table"]["briefing"].clone();
+    assert_eq!(briefing["rule"], "R 1.5.1, 1.8");
+    assert!(tag_text(&briefing).contains("GIVER'S DECISION"));
+    app.capture("government-transfer-briefing");
+    app.choose("transfer");
     let composer = app.observe();
     assert!(
         composer["table"]["inline_text"]
@@ -55,6 +60,9 @@ fn native_assault_resumes_giver_and_government_side_decisions() {
             .contains("executes Assault"),
         "the transfer must name Government's current Operation"
     );
+    let text = composer["table"]["inline_text"].to_string();
+    assert!(text.contains("49-Resource cap"), "{text}");
+    assert!(!text.contains("Terror"), "{text}");
     app.capture("government-transfer-compose");
     app.choose("give:3:2");
     assert_eq!(
@@ -87,7 +95,12 @@ fn native_assault_resumes_giver_and_government_side_decisions() {
     assert_eq!(receipt["transfer"], Value::Null);
     refuse_repeat(&mut app, &giver, &receipt, "authorize:3");
 
-    choose_row(&mut app, "remove");
+    pin(&mut app, "remove");
+    let briefing = app.observe()["table"]["briefing"].clone();
+    assert_eq!(briefing["rule"], "R 1.4.1");
+    assert!(tag_text(&briefing).contains("VOLUNTARY REMOVAL"));
+    app.capture("government-removal-briefing");
+    app.choose("remove");
     let removal = app.observe()["observation"].clone();
     assert_eq!(removal["owner"], "Government");
     let action = "remove:santiago:troops:2";
@@ -124,6 +137,11 @@ fn native_assault_resumes_giver_and_government_side_decisions() {
 
     choose_row(&mut app, "done-removal");
     choose_row(&mut app, "assault:areas:cities");
+    pin(&mut app, "assault:back");
+    let briefing = app.observe()["table"]["briefing"].clone();
+    assert_eq!(briefing["rule"], "");
+    assert!(tag_text(&briefing).contains("NAVIGATION"));
+    app.capture("assault-back-briefing");
     choose_row(&mut app, "assault:space:santiago");
     let payment = "assault:santiago:26july";
     pin(&mut app, payment);

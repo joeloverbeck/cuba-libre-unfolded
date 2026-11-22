@@ -320,8 +320,16 @@ fn native_havana_and_santiago_assault_in_either_order_restarts_and_finishes() {
                     "kind":"Casino","from":"Open","to":"Closed","count":1}])
                 );
                 assert_eq!(preview["removed"], json!([]));
+                let notes = preview["notes"].to_string();
+                assert!(notes.contains("Close 1 Casino in place"), "{notes}");
+                assert!(!notes.contains("to Available"), "{notes}");
             } else {
                 assert!(briefing.contains("2 Troops + 1 Police = 3"));
+                assert!(
+                    preview["notes"]
+                        .to_string()
+                        .contains("Return 2 26July Active Guerrillas to Available Forces")
+                );
                 assert_eq!(
                     preview["removed"],
                     json!([{"space":"santiago","faction":"M26",

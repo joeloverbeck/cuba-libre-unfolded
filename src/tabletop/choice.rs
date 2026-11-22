@@ -1360,21 +1360,23 @@ pub(super) fn draw(
         0.,
     );
     spawned.push((title, "briefing-title".into()));
-    let rule = words(
-        &mut commands,
-        briefing.rule,
-        left_x,
-        y + fig::RULE_REF_TOP,
-        width,
-        fig::RULE_REF_SIZE,
-        QUIET,
-        false,
-        0.,
-    );
-    commands
-        .entity(rule)
-        .insert(TextLayout::justify(Justify::Right));
-    spawned.push((rule, "briefing-rule-ref".into()));
+    if !briefing.rule.is_empty() {
+        let rule = words(
+            &mut commands,
+            briefing.rule,
+            left_x,
+            y + fig::RULE_REF_TOP,
+            width,
+            fig::RULE_REF_SIZE,
+            QUIET,
+            false,
+            0.,
+        );
+        commands
+            .entity(rule)
+            .insert(TextLayout::justify(Justify::Right));
+        spawned.push((rule, "briefing-rule-ref".into()));
+    }
     y += fig::TITLE_LINE + fig::GAP;
     let separator = picture(
         &mut commands,

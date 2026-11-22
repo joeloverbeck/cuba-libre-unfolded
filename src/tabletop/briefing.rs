@@ -416,14 +416,16 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
             });
         }
         if view.executing == Some(Faction::Government) {
-            let mut entries = vec![entry(
-                if option == "end-assault" {
-                    "RESULT"
-                } else {
-                    "TARGET AND COST"
-                },
-                &choice.explanation,
-            )];
+            let (rule, label) = match option {
+                "end-assault" => ("R 2.3.4", "RESULT"),
+                "assault:back" => ("", "NAVIGATION"),
+                "transfer" => ("R 1.5.1, 1.8", "GIVER'S DECISION"),
+                "remove" | "done-removal" => ("R 1.4.1", "VOLUNTARY REMOVAL"),
+                _ if view.transfer.is_some() => ("R 1.5.1, 1.8", "GIVER'S DECISION"),
+                _ if option.starts_with("remove:") => ("R 1.4.1", "VOLUNTARY REMOVAL"),
+                _ => ("R 3.1, 3.2.4, 6.3.1", "TARGET AND COST"),
+            };
+            let mut entries = vec![entry(label, &choice.explanation)];
             if crate::Game::assault_payment_space(option).is_some()
                 && let Some(preview) = &choice.preview
             {
@@ -461,11 +463,7 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
             return Some(Briefing {
                 option: option.into(),
                 title: choice.label.clone(),
-                rule: if option == "end-assault" {
-                    "R 2.3.4"
-                } else {
-                    "R 3.1, 3.2.4, 6.3.1"
-                },
+                rule,
                 entries,
                 rules: String::new(),
             });
@@ -815,6 +813,36 @@ mod tests {
         let view = game.observe();
         let id = format!("{}:{action}", view.revision);
         game.submit(view.owner, view.revision, &id).unwrap();
+    }
+
+    #[test]
+    fn assault_side_choices_show_the_rules_that_govern_them() {
+        let mut game = Game::prepared_with_seed(2);
+        for action in [
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+            "advance-card",
+            "government:assault",
+        ] {
+            step(&mut game, action);
+        }
+        let view = game.observe();
+        for (action, rule, label) in [
+            ("transfer", "R 1.5.1, 1.8", "GIVER'S DECISION"),
+            ("remove", "R 1.4.1", "VOLUNTARY REMOVAL"),
+        ] {
+            let briefing = content(&view, action).unwrap();
+            assert_eq!(briefing.rule, rule);
+            assert_eq!(briefing.entries[0].label, label);
+        }
+        step(&mut game, "assault:areas:cities");
+        let back = content(&game.observe(), "assault:back").unwrap();
+        assert!(back.rule.is_empty());
+        assert_eq!(back.entries[0].label, "NAVIGATION");
     }
 
     /// Cost and Kidnap's range follow current Resources, before and after a transfer,
