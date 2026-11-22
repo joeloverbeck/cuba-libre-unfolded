@@ -4042,13 +4042,13 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
     compare(&pinned, &layout["right_text"], &[1, 2]);
     compare(&pinned, &layout["centered_text"], &[1, 4]);
     let terror = briefing(&pinned);
-    let cost = cuba_libre_unfolded::resources(cuba_libre_unfolded::TERROR_COST);
+    // R 3.3.4 charges 26July one Resource per Terror space.
     assert_eq!(
         part_text(&pinned, "option:terror-value"),
-        format!("{cost} per space")
+        "1 Resource per space"
     );
     for fact in [
-        &format!("COST: {cost} per City or Province · 26July has 0."),
+        "COST: 1 Resource per City or Province · 26July has 0.",
         "NEXT: Directorio, 2nd Eligible: Pass or a Limited Operation; after Kidnap, also card 17's Event",
     ] {
         assert!(terror.contains(fact), "{fact}: {terror}");
