@@ -1,6 +1,6 @@
 //! #132. R 1.5.1 and 1.8 give the pending transfer to the giver and cap
 //! its amount. R 1.4.1 allows Government to return its own pieces.
-use cuba_libre_unfolded::{Faction, Game, Observation, Transfer};
+use cuba_libre_unfolded::{Faction, Game, Kind, Observation, State, Transfer};
 
 const G: Faction = Faction::Government;
 const M: Faction = Faction::M26;
@@ -138,4 +138,105 @@ fn only_the_giver_can_fund_the_next_assault_payment() {
     assert_eq!(finished.resources, [3, 0, 5, 15]);
     assert_eq!(finished.next.unwrap().role, "2nd Eligible");
     refuse(&mut game, G, "transfer");
+}
+
+#[test]
+fn voluntary_removal_changes_santiago_control_and_assault_capacity() {
+    let mut game = funded_opening();
+    refuse(&mut game, G, "remove");
+    choose(&mut game, "government:assault");
+    let opening_capacity = santiago_target(&mut game.clone()).choices;
+    let opening_payment = opening_capacity
+        .iter()
+        .find(|choice| choice.action() == "assault:santiago:26july")
+        .unwrap();
+    assert!(
+        opening_payment
+            .explanation
+            .contains("2 Troops + 1 Police = 3")
+    );
+    choose(&mut game, "remove");
+
+    let pending = game.observe();
+    assert_eq!(pending.owner, G);
+    let mut no_removal = game.clone();
+    choose(&mut no_removal, "done-removal");
+    assert_eq!(no_removal.observe().spaces, pending.spaces);
+    assert_eq!(no_removal.observe().available, pending.available);
+    let mut game = reload(&game);
+    refuse(&mut game, M, "remove:santiago:troops:1");
+    for illegal in [
+        "remove:santiago:troops:0",
+        "remove:santiago:troops:3",
+        "remove:santiago:active:1",
+        "remove:santiago:police:2",
+    ] {
+        refuse(&mut game, G, illegal);
+    }
+
+    let mut partial = game.clone();
+    choose(&mut partial, "remove:santiago:troops:1");
+    let santiago = |view: &Observation| {
+        view.spaces
+            .iter()
+            .find(|s| s.id == "santiago")
+            .unwrap()
+            .control()
+    };
+    assert_eq!(santiago(&partial.observe()), None);
+
+    let action = "remove:santiago:troops:2";
+    let removal = pending
+        .choices
+        .iter()
+        .find(|choice| choice.action() == action)
+        .unwrap();
+    let effect = removal.preview.as_ref().unwrap();
+    assert_eq!(effect.removed.len(), 1);
+    assert_eq!(
+        (
+            effect.removed[0].faction,
+            effect.removed[0].kind,
+            effect.removed[0].state,
+            effect.removed[0].count
+        ),
+        (G, Kind::Troops, State::Ordinary, 2)
+    );
+    assert_eq!(effect.control[0].from, Some(G));
+    assert_eq!(effect.control[0].to, Some(M));
+    assert!(effect.standings.is_empty());
+    choose(&mut game, action);
+    let removed = game.observe();
+    assert_eq!(santiago(&removed), Some(M));
+    assert_eq!(removed.standings, pending.standings);
+    assert_eq!(removed.map_piece_count, pending.map_piece_count - 2);
+    assert_eq!(
+        removed.available_piece_count,
+        pending.available_piece_count + 2
+    );
+    let available_troops = |view: &Observation| {
+        view.available
+            .iter()
+            .find(|p| p.faction == G && p.kind == Kind::Troops)
+            .unwrap()
+            .count
+    };
+    assert_eq!(available_troops(&removed), available_troops(&pending) + 2);
+    assert!(game.submit(G, pending.revision, &removal.id).is_err());
+    refuse(&mut game, G, action);
+    let mut game = reload(&game);
+    choose(&mut game, "done-removal");
+    let next = santiago_target(&mut game);
+    let payment = next
+        .choices
+        .iter()
+        .find(|choice| choice.action() == "assault:santiago:26july")
+        .unwrap();
+    assert!(payment.explanation.contains("0 Troops + 1 Police = 1"));
+    assert_eq!(payment.preview.as_ref().unwrap().removed[0].count, 1);
+    choose(&mut game, payment.action());
+    assert_eq!(santiago(&game.observe()), None);
+    choose(&mut game, "end-assault");
+    assert_eq!(reload(&game).observe().next.unwrap().role, "2nd Eligible");
+    refuse(&mut game, G, "remove");
 }

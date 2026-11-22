@@ -87,19 +87,30 @@ impl Game {
         if let Some(choices) = self.transfer_choices() {
             return choices;
         }
-        let transfer = self.offer(
-            "transfer",
-            "Resource transfer",
-            true,
-            "Government may give Resources or ask another faction for Resources. The giver decides how much to transfer (R 1.5.1, 1.8).",
-        );
+        if self.removal.is_some() {
+            return self.removal_menu();
+        }
+        let side_choices = [
+            self.offer(
+                "transfer",
+                "Resource transfer",
+                true,
+                "Government may give Resources or ask another faction for Resources. The giver decides how much to transfer (R 1.5.1, 1.8).",
+            ),
+            self.offer(
+                "remove",
+                "Remove own pieces",
+                true,
+                "Choose Government pieces on the map to return to Available Forces (R 1.4.1). Assault uses the remaining cubes.",
+            ),
+        ];
         if let Some(result) = self.assault_result() {
-            return vec![self.offer(
+            return [self.offer(
                 FINISH,
                 "Finish Assault",
                 true,
                 format!("Santiago paid {}. {} to Available Forces. Finish to record Operation Only and give Syndicate Pass or Limited Operation as 2nd Eligible (R 2.3.4).", resources(result.paid), result.removal_summary()),
-            ), transfer];
+            )].into_iter().chain(side_choices).collect();
         }
         let santiago = self.santiago();
         let troops = count(santiago, Faction::Government, Kind::Troops, State::Ordinary);
@@ -122,12 +133,12 @@ impl Game {
                 resources(cost)
             )
         };
-        vec![self.offer(
+        [self.offer(
             SANTIAGO,
             "Santiago · target 26July",
             funded,
             format!("{troops} Troops + {police} Police = {} removal capacity in a City (R 3.2.4). 26July has {active} Active, {underground} Underground Guerrillas. {payment} Return {} Active to Available Forces.", troops + police, active.min(troops + police)),
-        ), transfer]
+        )].into_iter().chain(side_choices).collect()
     }
 
     pub(super) fn assault_next(&self) -> Option<Next> {
@@ -189,7 +200,10 @@ impl Game {
                     Some(AssaultResolution { paid, returned });
             }
             FINISH => self.assault.as_mut().unwrap().finished = true,
-            _ if self.transfer.is_some() || action == "transfer" => {
+            _ if self.transfer.is_some()
+                || self.removal.is_some()
+                || matches!(action, "transfer" | "remove") =>
+            {
                 self.execute(action, next_revision)?;
             }
             _ => return Err("Unsupported Assault decision.".into()),
@@ -213,6 +227,7 @@ impl Game {
         let mut before = self.clone();
         before.assault = None;
         before.transfer = None;
+        before.removal = None;
         before.revision = start.revision;
         before.resources = start.resources;
         before.available.clone_from(&start.available);

@@ -374,14 +374,18 @@ pub enum Removal {
 /// A removal choice's group, as its id names it: `remove:<space>:<group>:<quantity>`.
 pub fn removal_group(kind: Kind, state: State) -> &'static str {
     match (kind, state) {
+        (Kind::Troops, _) => "troops",
+        (Kind::Police, _) => "police",
         (Kind::Base, _) => "base",
         (_, State::Active) => "active",
         _ => "underground",
     }
 }
-/// The kind and state a removal group names, for 26July's Guerrillas and Base.
+/// The kind and state named by a supported voluntary removal group.
 pub fn removal_piece(group: &str) -> Option<(Kind, State)> {
     match group {
+        "troops" => Some((Kind::Troops, State::Ordinary)),
+        "police" => Some((Kind::Police, State::Ordinary)),
         "base" => Some((Kind::Base, State::Ordinary)),
         "active" => Some((Kind::Guerrilla, State::Active)),
         "underground" => Some((Kind::Guerrilla, State::Underground)),
@@ -1404,6 +1408,8 @@ impl Game {
             notes.push("The free Rally adds no eligibility penalty (R 5.5).".into());
         } else if action.starts_with("terror:") {
             notes.push(format!("R 3.3.4: pay 1 Resource, {TERROR_EFFECTS}."));
+        } else if self.card_18 && action.starts_with("remove:") {
+            notes.push("R 1.4.1: after Done, Assault uses the remaining cubes.".into());
         } else if action.ends_with(":1") {
             notes.push("R 1.4.1: the piece returns to Available. Earlier Terror markers, support shifts and Kidnap results stay.".into());
         } else {
@@ -1871,26 +1877,8 @@ impl Game {
                 ),
             ];
         }
-        // Removal mode, including a #8 save's pending confirmation.
         if self.removal.is_some() {
-            let mut choices = self.removal_choices();
-            let rally_exhausted = matches!(&self.event, Some(EventProgress::Rally(rally))
-                if self.rally_choices(rally).is_empty());
-            choices.push(self.offer(
-                "done-removal",
-                if rally_exhausted {
-                    "Done · finish free Rally"
-                } else {
-                    "Done · leave removal mode"
-                },
-                true,
-                if rally_exhausted {
-                    "No legal Rally choices remain. The removed pieces stay in Available and card 18's eligibility is recorded (R 2.3.7, 5.1.3)."
-                } else {
-                    "Returns to execution. The removed pieces stay in Available."
-                },
-            ));
-            return choices;
+            return self.removal_menu();
         }
         if let Some(choices) = self.transfer_choices() {
             return choices;
@@ -2341,7 +2329,7 @@ impl Game {
     fn protects(&self, id: &str, state: State) -> bool {
         self.owes_santiago() && id == "santiago" && state == State::Underground
     }
-    /// How many of a 26July group may be removed now.
+    /// How many of the executing faction's group may be removed now.
     fn removable(&self, id: &str, kind: Kind, state: State) -> u8 {
         let Some(executor) = self.executing() else {
             return 0;
@@ -2371,13 +2359,20 @@ impl Game {
                 let group = removal_group(p.kind, p.state);
                 let limit = self.removable(&s.id, p.kind, p.state);
                 let (one, many) = match (p.kind, p.state) {
+                    (Kind::Troops, _) => ("Troop", "Troops"),
+                    (Kind::Police, _) => ("Police cube", "Police cubes"),
                     (Kind::Base, _) => ("Base", "Bases"),
                     (_, State::Active) => ("Active Guerrilla", "Active Guerrillas"),
                     _ => ("Underground Guerrilla", "Underground Guerrillas"),
                 };
                 for n in 1..=p.count {
                     let pieces = if n == 1 { one } else { many };
-                    let explanation = if n <= limit {
+                    let explanation = if self.card_18 {
+                        format!(
+                            "R 1.4.1: return {n} {pieces} in {} to Available Forces.",
+                            s.name
+                        )
+                    } else if n <= limit {
                         format!(
                             "R 1.4.1: return {n} {} {pieces} in {} to Available. Earlier Terror markers, support shifts and Kidnap results stay.",
                             executor.name(),
@@ -2407,6 +2402,28 @@ impl Game {
                 }
             }
         }
+        choices
+    }
+
+    /// Removal mode, including a #8 save's pending confirmation.
+    fn removal_menu(&self) -> Vec<Choice> {
+        let mut choices = self.removal_choices();
+        let rally_exhausted = matches!(&self.event, Some(EventProgress::Rally(rally))
+            if self.rally_choices(rally).is_empty());
+        choices.push(self.offer(
+            "done-removal",
+            if rally_exhausted {
+                "Done · finish free Rally"
+            } else {
+                "Done · leave removal mode"
+            },
+            true,
+            if rally_exhausted {
+                "No legal Rally choices remain. The removed pieces stay in Available and card 18's eligibility is recorded (R 2.3.7, 5.1.3)."
+            } else {
+                "Returns to execution. The removed pieces stay in Available."
+            },
+        ));
         choices
     }
 }
@@ -2579,7 +2596,7 @@ impl Game {
                     .ok_or("Unknown choice.")?;
                 piece.count = piece.count.checked_sub(n).ok_or("Unknown choice.")?;
                 target.pieces.retain(|p| p.count > 0);
-                self.effect = true;
+                self.effect |= !self.card_18;
                 self.available
                     .iter_mut()
                     .find(|p| p.faction == executor && p.kind == kind)
