@@ -62,7 +62,7 @@ pub(super) fn hover(
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(id, _)| id)
     });
-    let eligible = !ui.reader && !over_ui && play.session.is_some();
+    let eligible = !over_ui && play.session.is_some();
     ui.status
         .update(target, eligible, time.delta(), Duration::from_millis(250));
 }

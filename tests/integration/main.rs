@@ -16,6 +16,7 @@ use cuba_libre_unfolded::{Choice, Faction, Game, TransferChoice};
 mod action_choice;
 mod assault;
 mod assault_side;
+mod card_facts;
 mod eligibility;
 mod highlights;
 mod honest_hints;
