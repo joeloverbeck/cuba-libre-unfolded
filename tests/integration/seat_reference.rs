@@ -1,15 +1,13 @@
 //! The seat reference's Choices table (`docs/agents/seat.md`) against the choices
-//! the rules authority offers (#94). Agents name choices from that table; one it
-//! lacks gets refused or missed, and one it lists that the game no longer offers
-//! misleads them. The game is the oracle: every choice `Game::observe` offers,
-//! supported or not, in every state the shared explorer reaches from its starts.
+//! the rules authority offers (#94). Agents name choices from that table; a missing
+//! or stale family can mislead them. The oracle is `Game::observe` at every explored
+//! card 17 state and along checked card 18 paths.
 //!
 //! Not covered: states the explorer does not reach. It follows at most one Resource
-//! transfer per path, of 1 or of the direction's limit, from the starts it names. A
-//! family offered only elsewhere is invisible to the missing check, and fails the
-//! stale check only if the table lists it. `Game::prepared()`, the state every #8
-//! save began in, is not a start: #94's triage probe explored from it too and found
-//! no family the starts lack.
+//! transfer per path, of 1 or of the direction's limit, from the starts it names.
+//! Card 18 visits the menus on the inherited board, with one paid Assault and
+//! representative side choices. A family appearing only in another state will
+//! fail the stale check if the table lists it.
 use crate::explore;
 use cuba_libre_unfolded::{Choice, Faction, Game, TransferChoice};
 use std::collections::BTreeSet;
@@ -54,6 +52,77 @@ fn offered() -> BTreeSet<String> {
             offered.extend(families(&node.game));
         }
     }
+    offered.extend(card_18_families());
+    offered
+}
+
+fn card_18_families() -> BTreeSet<String> {
+    let [mut opening, _] = explore::event_starts();
+    for action in ["resolve-shaded", "advance-card"] {
+        explore::choose(&mut opening, action);
+    }
+    let mut passed = opening.clone();
+    explore::choose(&mut passed, "government:pass");
+    let mut offered = families(&opening);
+    offered.extend(families(&passed));
+
+    let mut assault = opening;
+    explore::choose(&mut assault, "government:assault");
+    let root = assault.observe();
+    let mut browsable = false;
+    for area in &root.choices {
+        if !area.action().starts_with("assault:areas:") {
+            offered.insert(family(area));
+            continue;
+        }
+        browsable = true;
+        offered.insert("assault:areas:<area>".into());
+        let mut spaces = assault.clone();
+        explore::choose(&mut spaces, area.action());
+        for space in &spaces.observe().choices {
+            let Some(id) = space.action().strip_prefix("assault:space:") else {
+                offered.insert(family(space));
+                continue;
+            };
+            offered.insert("assault:space:<space>".into());
+            let mut targets = spaces.clone();
+            explore::choose(&mut targets, space.action());
+            let payment = format!("assault:{id}:");
+            for target in &targets.observe().choices {
+                offered.insert(if target.action().starts_with(&payment) {
+                    "assault:<space>:<targets>".into()
+                } else {
+                    family(target)
+                });
+            }
+        }
+    }
+
+    for actions in [&["transfer", "ask:1:1", "wait"][..], &["remove"]] {
+        if root
+            .choices
+            .iter()
+            .any(|choice| choice.action() == actions[0])
+        {
+            let mut side = assault.clone();
+            for action in actions {
+                explore::choose(&mut side, action);
+                offered.extend(families(&side));
+            }
+        }
+    }
+    if browsable {
+        for action in ["assault:areas:cities", "assault:space:santiago"] {
+            explore::choose(&mut assault, action);
+        }
+    }
+    explore::choose(&mut assault, "assault:santiago:26july");
+    offered.extend(families(&assault).into_iter().filter(|family| {
+        // The same area family remains available after paying for one space.
+        !browsable || !family.starts_with("assault:areas:")
+    }));
+    explore::choose(&mut assault, "end-assault");
+    offered.extend(families(&assault));
     offered
 }
 

@@ -14,6 +14,8 @@
 //!
 //! The Event's side decisions are explored from its two texts so the graph does
 //! not multiply their paths by every earlier Terror and transfer permutation.
+//! Card 18 opens a separate Operation with a replay history. Its seat documentation
+//! uses checked representative paths instead of folding that history into this graph.
 #![allow(dead_code)]
 use super::{Choice, Faction, Game, TransferChoice};
 use std::collections::{HashMap, HashSet};
@@ -113,6 +115,10 @@ pub fn explore(start: Game) -> Vec<Node> {
             next: vec![],
             transferred,
         };
+        if view.current_card == 18 {
+            nodes.push(node);
+            continue;
+        }
         for choice in explored(&view.choices) {
             if !starts_during_event
                 && view.event_executor.is_some()
