@@ -28,6 +28,12 @@ cargo run --locked --bin cuba-tools -- seat /tmp/cuba-check.sock '{"op":"quit"}'
 - **Second launch.** A launch on a socket where a seat still answers is refused and leaves that seat untouched: send it `quit` or choose another path.
 - **Size.** Add `--seat-size 1920x1080` or `--seat-size 2520x1080` to exercise wider surfaces through the same renderer. The default is 1920×1280, and sizes run from 640×480 to 4096×2160. `--seat-size 3840x2160` is [the owner's display](#the-owners-display).
 
+## Native owner handoff
+
+Build both executables from the reviewed checkout into the review package with `scripts/heavy scripts/package-review-binaries "$package"` (requires `jq`). Include both in the package manifest. Have the replay script launch the packaged game and call `"$package/cuba-tools" seat`. Keep the input and recovery saves with their recorded hashes, and run each branch on a fresh copy.
+
+Follow the owner’s launch instructions in order at their display size. Capture the first decision frame before hover, focus, pin or click. Compare what each instruction promises with the frame visible at that step, including the choices and their spacing. If a briefing requires input, name that input in the instructions. Inspect the result after committing. Run the packaged replay from outside the build checkout using its packaged executables.
+
 ## The owner's display
 
 [Foundation 4](../foundation/04-art-and-assets.md) records the owner's display, which is 3840×2160. One pixel is 0.18 mm, and GNOME runs it at 125% scaling.
@@ -198,7 +204,7 @@ Drawn-part names:
 - `native_rally_removing_the_last_base_closes_the_operation`: resumes a Rally after removing its last qualifying Base and refuses a stale placement. Set `CUBA_TEST_PENDING_RALLY` to exercise a retained pre-#121 pending Rally save. All three save evidence under `local/verification/issue-121/`.
 - `native_free_rally_without_a_base_finishes_the_event`: removes the Sierra Maestra Base during Terror before selecting 26July, then plays a separate Event selecting Directorio with no Base. Both runs preview and finish with an empty Rally effect, and reach card-end eligibility. Evidence goes to `local/verification/issue-120/`.
 
-The ignored native regressions need the selected card directory and a working renderer. `scripts/native` runs them all serially, both `tests/native.rs` and the in-process ones in the library, and passes extra arguments (a name filter, `--nocapture`) to both:
+The ignored native regressions need the selected card directory and a working renderer. `scripts/native` runs them all serially, both `tests/native.rs` and the in-process ones in the library, and passes extra arguments (a name filter, `--nocapture`) to both. For a focused run, use this runner with a name filter. It checks each requested filter against the combined selection, including the effects of `--exact` and `--skip`. Use `scripts/native --list` to find the fully qualified names without opening a seat.
 
 ```sh
 CUBA_TEST_CARDS="/path/to/cards" scripts/native

@@ -16,7 +16,7 @@ Start every subagent with a fresh context window.
 
 Communication to and from subagents should be sparse. Communicate primarily through **context pointers**: to the spec, tickets, research notes, and previous commits. Don't duplicate information already available via pointers.
 
-**Implementer subagents** should be run in the background where possible for maximum concurrency.
+At each ready frontier, present the known implementers and their merger together for the owner’s model and effort choices. Run ready implementers in the background where possible. Start their merger when its dependencies are ready. Request settings for a newly discovered role when its job is known. While an agent runs, do independent work and let its completion notification resume the dependent step.
 
 ## Steps
 
@@ -28,7 +28,7 @@ Communication to and from subagents should be sparse. Communicate primarily thro
 
 4. Use a fresh **implementer subagent** for each ticket, each in its own worktree under `local/worktrees/` on its own branch. Agents running at once share the machine's memory, disk and art editors: brief every subagent to follow `docs/agents/parallel-work.md`. Each implementer subagent:
    - confirms its worktree is based on the integration branch before starting, and resets onto it if not;
-   - for executable changes, uses test-driven development within the accepted scope;
+   - for executable changes, uses test-driven development within the accepted scope. Before implementing a quantity choice, derive its full legal range from the governing rule and a worked position. Record the effect of each boundary (including zero when legal) and a refusal just outside the range;
    - for source-only documents/research, reconciles the controlling sources and revisions, independently checks calculations where applicable, and checks that general rules, exceptions and worked examples agree. Cite the evidence and label interpretations or unresolved conflicts. Skip TDD and executable scaffolding for this branch. In mixed tickets, apply each verification path to the relevant changes;
    - merges the integration branch tip into its own branch before reporting done
 

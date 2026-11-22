@@ -18,7 +18,9 @@
 //! Local policy, not publisher rulings (#58): going back to the action choice before
 //! the first effect; transfers open once Terror is chosen; a pending Transfer request
 //! is withdrawn by going back or by ending the Operation.
-use cuba_libre_unfolded::{ActionChoice, Faction, Game, SequenceBox};
+use cuba_libre_unfolded::{
+    ActionChoice, EventOutcome, EventProgress, Faction, Game, RallyAction, SequenceBox,
+};
 
 const INITIAL: [u8; 4] = [6, 0, 5, 15];
 
@@ -539,4 +541,33 @@ fn admission_refuses_impossible_action_choice_records() {
         let game: Game = serde_json::from_value(case.clone()).unwrap();
         assert!(game.validate().is_err(), "admitted {case}");
     }
+}
+
+#[test]
+fn free_rally_offers_zero_through_four_and_zero_finishes_the_space() {
+    // Living Rules 3.3.1: up to 2 × (1 Base + 1 population), with 12 available.
+    let [_, mut game] = crate::explore::event_starts();
+    choose(&mut game, "rally:beneficiary:26july");
+    let before = game.observe();
+    let prefix = "rally:sierra-maestra:place:";
+    let amounts: Vec<_> = before
+        .choices
+        .iter()
+        .filter(|c| c.supported)
+        .filter_map(|c| c.action().strip_prefix(prefix))
+        .collect();
+    assert_eq!(amounts, ["0", "1", "2", "3", "4"]);
+    refused(&mut game, Faction::M26, &["rally:sierra-maestra:place:5"]);
+
+    choose(&mut game, "rally:sierra-maestra:place:0");
+    let after = game.observe();
+    assert_eq!(after.spaces, before.spaces);
+    assert_eq!(after.available, before.available);
+    assert_eq!(after.resources, before.resources);
+    let Some(EventProgress::Complete(EventOutcome::Unshaded(rally))) = after.event else {
+        panic!("the only qualifying space should be complete");
+    };
+    assert_eq!(rally.resolutions.len(), 1);
+    assert_eq!(rally.resolutions[0].space, "sierra-maestra");
+    assert_eq!(rally.resolutions[0].action, RallyAction::Place(0));
 }

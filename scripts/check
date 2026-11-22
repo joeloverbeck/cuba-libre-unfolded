@@ -123,3 +123,18 @@ cargo clippy --locked --all-targets -- -D warnings
 cargo test --locked
 cargo clippy --locked --all-targets --features tabletop -- -D warnings
 cargo test --locked --features tabletop
+# Exercise focused native discovery in CI with the real libtest binaries.
+# Listing needs neither the private card faces nor a renderer.
+native_case=rally::native_free_rally_can_choose_zero_in_a_qualifying_base_space
+library_case=tabletop::seat::tests::native_seat_skips_the_die_by_enter_space_or_a_click_on_the_tray
+scripts/native --list --exact "$native_case" "$library_case" >/dev/null
+missing=retro_missing_native_test
+if output=$(scripts/native --list "$native_case" "$missing" 2>&1); then
+  echo "native filter check: an unmatched name passed beside a valid name" >&2
+  exit 1
+fi
+if [[ $output != *"No ignored native test matches filter '$missing'"* ]]; then
+  echo "$output" >&2
+  exit 1
+fi
+echo "native filters: both binaries discovered, missing name refused"
