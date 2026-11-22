@@ -6,7 +6,7 @@ This foundation specializes `PURP-2`, `EVID-3`, `REP-1`, `INT-4`, and `OPS-7` ar
 
 All **2D visual designs** are authored in editors, by one of two routes the owner divided on 2026-11-16 ([#19](https://github.com/joeloverbeck/cuba-libre-unfolded/pull/19)):
 
-- **Graphics** are authored in **VectorCraft**: map region profiles, marker/token artwork, icons, controls drawn as single elements, card backs, proclamation frames, ornaments and even simple visible geometric decorations.
+- **Graphics** are authored in **VectorCraft**: map region profiles, marker/token artwork, icons, controls drawn as single elements, proclamation frames, ornaments and even simple visible geometric decorations.
 - **Layouts** are authored in **FigCraft**: which interface areas exist on a screen or written document, their placement, sizes, grouping and spacing, and how they adapt to the display. A layout places VectorCraft graphics; it does not redraw them.
 
 Rust loads, composes and renders authored exports and implements interaction. It must not create substitute 2D visual designs using procedural drawing, handwritten SVG paths, generated textures or an independently invented layout. Runtime values and user-written proclamation text remain dynamic content placed into authored designs; they are not required to become separately drawn images. The owner's subsequent 3D clarification below governs meshes.
@@ -23,7 +23,9 @@ Each new layout supplies a 16:9 frame for the owner's display (3840×2160, about
 
 Layouts accepted before this division, Atlas desk and its #16 refinements, stay VectorCraft-authored until a new layout decision reopens them. Their palette and typography are the starting values for new interface work.
 
-Imported original images are limited to the supplied card faces unless the owner accepts a specifically enumerated exception. The shared card back, board scan, reference charts, token atlases and piece textures are references for authored replacements. An exception names the particular asset and why it is needed. There are no extra raster exceptions approved at founding.
+Imported original images are limited to the supplied card faces unless the owner accepts a specifically enumerated exception. The board scan, reference charts, token atlases and piece textures are references for authored replacements. An exception names the particular asset and why it is needed. No extra raster exception was approved at founding.
+
+The owner accepted one exception on 2026-11-22, recorded in [#136](https://github.com/joeloverbeck/cuba-libre-unfolded/pull/136): the shared card back, `images/card-backs/cuba-libre-card-back.png` in the supplied collection (SHA-256 `c905d7a7313480b254e49dc70c56c41fe77e3039b037b238485e148cc82dbaa9`). The owner saw no reason to design a back while the cards use their real fronts, so a face-down card shows the same original printing as its face. The back has the faces' custody: a private input admitted by its hash, kept out of Git and out of any asset release until its distribution basis is settled. A replacement back, if one is ever selected, is a VectorCraft graphic; three unselected alternates are kept in [`art/proposals/main-view-cards/`](../../art/proposals/main-view-cards/README.md).
 
 ## Map and physical pieces
 

@@ -12,6 +12,22 @@ _Avoid_: Team (when referring collectively to factions opposing the human)
 An Event with an unshaded text and a shaded text. The faction executing the Event chooses one of the two, regardless of its faction identity.
 _Avoid_: Two-part Event
 
+**Current card**:
+The card being played: the top card of the played pile. An Event card's faction order and Event govern the factions' choices on it; a Propaganda card brings a Propaganda Round instead.
+_Avoid_: Active card, card in play
+
+**Preview card**:
+The draw deck's top card, turned face up, which is played next. It still belongs to the draw deck and counts in its number.
+_Avoid_: Next card (R 2.3.8's name for the step that plays it), upcoming card
+
+**Played pile**:
+The face-up pile of cards played so far, with the current card on top. Its contents are open to inspection. A Government Momentum card whose Event is in effect stays beside the board, and Reset places it on the pile.
+_Avoid_: Discard pile, card history, played cards (when meaning only the cards beneath the current card)
+
+**Draw deck**:
+The cards not yet played, face down except for the preview card on top. Its number of cards is open to inspection.
+_Avoid_: Draw pile, stock
+
 **Faction seat**:
 The player role responsible for one faction's decisions, held by a human or an assigned external agent.
 _Avoid_: Development seat, built-in bot
