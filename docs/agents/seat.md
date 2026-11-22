@@ -177,8 +177,8 @@ The full reply's `table` describes what is drawn. Drawn parts are reported by na
 | `table.eligibility` | The drawn `track`, the shown `tag` and the drawn `parts`. |
 | `table.die` | The presented Kidnap roll. |
 | `table.map_targets`, `table.highlights` | Map states and visible highlights. |
-| `table.popover` | The open popover; `parts` for its layout. |
-| `table.removal`, `table.markers` | Removal mode and its piece markers. |
+| `table.popover` | The open popover's `kind`, its `piece` group ID when applicable, and `parts` for its layout. |
+| `table.removal`, `table.markers` | Removal-mode `pieces` with each group's `state`, `mark` and `choices`, the `dimmed` spaces, and the drawn piece markers. |
 | `table.transfer.state` | The transfer modal: shown, pending, counterpart, direction, entry, limit, refusal, commit. |
 | `table.inline_text` | Inline emblem geometry. |
 | `table.counts` | Each piece and Terror count: its `name` (as its control is named), `text`, `font_size` and logical `bounds`. |
