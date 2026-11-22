@@ -70,13 +70,11 @@ pub(super) fn header(
             offset,
             2,
         );
-        commands
-            .entity(margin)
-            .insert((
-                StandingText(faction),
-                TextLayout::justify(Justify::Center),
-                areas::Part(format!("standing-{}-margin", slug(faction))),
-            ));
+        commands.entity(margin).insert((
+            StandingText(faction),
+            TextLayout::justify(Justify::Center),
+            areas::Part(format!("standing-{}-margin", slug(faction))),
+        ));
         // Contiguous hit rectangles expose icon and margin through real picking.
         for (name, top, height) in [("standing", 8., 56.), ("margin", 64., 52.)] {
             commands

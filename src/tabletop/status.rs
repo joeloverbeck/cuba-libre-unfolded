@@ -107,9 +107,9 @@ pub(super) fn draw(
     labels: Query<(&SpaceTarget, &ComputedNode, &UiGlobalTransform)>,
     // An open space popover (#72): the tag stays visible beside it.
     cards: Query<(&ComputedNode, &UiGlobalTransform), With<super::popover::CardNode>>,
-    // The Sequence of Play track lies over the map's western margin; a tag
-    // must not hide it (#138: the taller tag moved Havana's over it).
-    track: Query<(&ComputedNode, &UiGlobalTransform), With<super::eligibility::Drawn>>,
+    // Every area lies over the map (#142); a tag must not hide one (#138: the
+    // taller tag moved Havana's over the Sequence of Play track).
+    areas: Query<(&ComputedNode, &UiGlobalTransform), With<super::areas::Area>>,
     controls: Query<&Control>,
     parents: Query<&ChildOf>,
     roots: Query<Entity, With<Tag>>,
@@ -120,6 +120,8 @@ pub(super) fn draw(
     let (scale, _) = layout(&window);
     let shown = ui.status.visible().and_then(|id| {
         let space = game.spaces.iter().find(|s| &s.id == id)?;
+        // The map camera draws the whole window (#142); the areas over it are
+        // `occupied` below.
         let viewport = camera.logical_viewport_rect()?;
         // Use the authored solid region's full projected mesh bounds, not its
         // caption or centroid: Havana's city and pieces must stay unobscured.
@@ -204,7 +206,7 @@ pub(super) fn draw(
                 occupied.push(r);
             }
         }
-        for (node, at) in cards.iter().chain(&track) {
+        for (node, at) in cards.iter().chain(&areas) {
             occupied.push(Rect::from_center_size(
                 at.translation * node.inverse_scale_factor,
                 node.size() * node.inverse_scale_factor,

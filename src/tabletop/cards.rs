@@ -353,6 +353,8 @@ pub(super) fn draw(
     mut previous: Local<Option<Shown>>,
 ) {
     let (s, left) = layout(&window);
+    // The tag opens above the card area, which lies against the window's bottom.
+    let left = left + bottom(&window);
     let view = play.game().observe();
     let shown = play.session.as_ref().and(shown(&ui)).map(|slot| {
         let mut shown = content(&view, slot, ui.card.pinned == Some(slot));

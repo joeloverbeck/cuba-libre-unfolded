@@ -390,6 +390,13 @@ impl SeatGame for Table {
             ));
         }
         let mut points = vec![found[0].2];
+        // An area's own controls can cover its middle: its edges and corners are
+        // bare. The shared seat still verifies the actual picked name.
+        if found[0].1.name.starts_with("area:")
+            && let Some(node) = world.get::<ComputedNode>(found[0].0)
+        {
+            points = areas::bare_points(found[0].2, node.size() * node.inverse_scale_factor);
+        }
         // A count can cover the center of its solid piece. Try exposed body
         // points too; the shared seat still verifies the actual picked name.
         if found[0].1.name.starts_with("piece:") {
@@ -438,6 +445,9 @@ impl SeatGame for Table {
         }
         if ui.dirty {
             pending.push("control redraw".into());
+        }
+        if play.session.is_some() && !world.resource::<areas::Island>().surveyed() {
+            pending.push("Home framing".into());
         }
         if world.resource::<Orbit>().is_moving() {
             pending.push("camera movement".into());

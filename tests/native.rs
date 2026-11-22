@@ -14,6 +14,8 @@ mod assault_side;
 mod card_advance;
 #[path = "native/card_tag.rs"]
 mod card_tag;
+#[path = "native/main_view.rs"]
+mod main_view;
 #[path = "native/rally.rs"]
 mod rally;
 #[test]
@@ -741,9 +743,11 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
             (size - first).abs() < 0.01,
             "count size {size} per reference pixel at {width}x{height}, {first} at first"
         );
-        let viewport = before["table"]["map_viewport"].as_array().unwrap();
-        assert!((viewport[0].as_f64().unwrap() - 40. * scale).abs() <= 1.);
-        assert!((viewport[2].as_f64().unwrap() - (width as f64 - 580. * scale)).abs() <= 1.);
+        // The map fills the window (#142).
+        assert_eq!(
+            before["table"]["map_viewport"],
+            json!([0., 0., width as f64, height as f64])
+        );
         let controls = before["table"]["controls"].as_array().unwrap();
         assert!(
             !controls
@@ -1780,7 +1784,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         .lines()
         .chain(cuba_libre_unfolded::assets::STATUS_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::VICTORY_MANIFEST.lines())
-        .chain(cuba_libre_unfolded::assets::LAYOUT_MANIFEST.lines())
+        .chain(cuba_libre_unfolded::assets::MAIN_VIEW_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::TERRAIN_MANIFEST.lines())
     {
         let (_, path) = line.split_once("  ").unwrap();
@@ -1820,6 +1824,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         "atlas-victory-icon-government.png",
         "atlas-victory-ui.png",
         "atlas-layout-card.png",
+        "atlas-main-view.layout.json",
         "atlas-terrain-map.glb",
         "terrain-labels.json",
         "atlas-terrain-label-havana.png",
@@ -4177,7 +4182,7 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
         .lines()
         .chain(cuba_libre_unfolded::assets::STATUS_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::VICTORY_MANIFEST.lines())
-        .chain(cuba_libre_unfolded::assets::LAYOUT_MANIFEST.lines())
+        .chain(cuba_libre_unfolded::assets::MAIN_VIEW_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::TERRAIN_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::TERROR_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::TOP_MANIFEST.lines())

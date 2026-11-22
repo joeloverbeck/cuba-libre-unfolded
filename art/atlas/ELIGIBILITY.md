@@ -4,7 +4,7 @@ The owner selected **EL-A, Sequence track** in #68 ([selection on #58](https://g
 
 ## What it shows
 
-The track sits in the map's western margin, under the "CUBA" heading, 20 reference px right of the map's left edge. It reads only the observation's Eligibility record (#61): the presentation derives nothing.
+The track lies over the sea west of the island, 60 reference px from the window's left edge and 178 from its top, where the [main view layout](MAIN-VIEW.md) places it. It reads only the observation's Eligibility record (#61): the presentation derives nothing.
 
 - **Header:** the ruled "CARD 17 · SEQUENCE OF PLAY" strip.
 - **Eligible box:** card 17's four factions in card order (R 2.3.2), each with its number, emblem, name and an Eligible check. The 1st and 2nd Eligible factions carry the 1st and 2nd ribbons and bold names. After a Pass, Directorio is 1st and Government 2nd (R 2.3.3).

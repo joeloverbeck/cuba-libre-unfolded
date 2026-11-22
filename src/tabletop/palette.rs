@@ -68,6 +68,10 @@ mod tests {
             include_str!("../../art/atlas/atlas-execution.variables.json"),
         ),
         (
+            "atlas-main-view.figcraft",
+            include_str!("../../art/atlas/atlas-main-view.variables.json"),
+        ),
+        (
             "atlas-popover.figcraft",
             include_str!("../../art/atlas/atlas-popover.variables.json"),
         ),
