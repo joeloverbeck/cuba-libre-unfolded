@@ -128,8 +128,8 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | Choice | Meaning |
 |---|---|
 | `<revision>:pass`, `<revision>:terror` | 26July's supported action choices. |
-| `<revision>:event:shaded` | Directorio executes Alberto Bayo's shaded text after Kidnap. Pin its option to preview the flips. |
-| `<revision>:event:unshaded` | Directorio's other Event text, available for preview after Kidnap. |
+| `<revision>:event:shaded` | Listed for inspection at 26July's opening decision. Directorio can execute Alberto Bayo's shaded text after Kidnap. Pin its option to preview the flips. |
+| `<revision>:event:unshaded` | Listed for inspection at 26July's opening decision and at Directorio's handoff after Kidnap. |
 | `<revision>:directorio:pass`, `<revision>:directorio:limited-operation` | Directorio's other legal options after Kidnap. Read their briefings for what they do and the build limits. |
 | `<revision>:rally:beneficiary:26july`, `<revision>:rally:beneficiary:directorio` | Directorio chooses the beneficiary of Alberto Bayo’s unshaded Rally. |
 | `<revision>:rally:<space>:place:<n>`, `<revision>:rally:<space>:flip`, `<revision>:rally:<space>:base:<underground>` | The beneficiary chooses a Rally procedure in an unresolved Base space. The offered IDs reflect pieces on the board and in Available Forces. For a Base the quantity is the number of Underground Guerrillas among the two being replaced. |

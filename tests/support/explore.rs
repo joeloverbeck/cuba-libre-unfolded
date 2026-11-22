@@ -13,7 +13,7 @@
 //!   guarantee Kidnap's commitment.
 #![allow(dead_code)]
 use super::{Choice, Faction, Game, TransferChoice};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{HashMap, HashSet};
 
 /// A state without its revision, which every decision advances.
 pub fn key(game: &Game) -> String {
@@ -22,13 +22,17 @@ pub fn key(game: &Game) -> String {
     value.to_string()
 }
 
-/// The action a choice stands for. Kidnap is listed at the action choice before
-/// Terror is chosen, under another id (R 4.1).
-pub fn action(choice: &Choice) -> String {
-    match choice.action() {
-        "terror:kidnap" => "kidnap".into(),
-        other => other.into(),
-    }
+pub type Action = (Faction, String);
+
+/// The action and the faction entitled to take it. Both factions can be shown
+/// the same Event text, and each has its own decision. Kidnap is listed under
+/// another id before Terror is chosen (R 4.1).
+pub fn action(choice: &Choice) -> Action {
+    let name = match choice.action() {
+        "terror:kidnap" => "kidnap",
+        other => other,
+    };
+    (choice.owner, name.into())
 }
 
 /// Submits the offered choice as the faction that owns it.
@@ -70,8 +74,8 @@ pub fn transfers(choice: &Choice) -> bool {
 pub struct Node {
     pub game: Game,
     /// The disabled choices here: (action, label, remedies).
-    pub disabled: Vec<(String, String, Vec<String>)>,
-    pub supported: BTreeSet<String>,
+    pub disabled: Vec<(Action, String, Vec<String>)>,
+    pub supported: HashSet<Action>,
     pub next: Vec<usize>,
     /// Whether this path's one Resource transfer has been made.
     pub transferred: bool,
@@ -122,7 +126,7 @@ pub fn explore(start: Game) -> Vec<Node> {
 }
 
 /// For each state, every action supported there or in any state reachable from it.
-pub fn reachable(nodes: &[Node]) -> Vec<BTreeSet<String>> {
+pub fn reachable(nodes: &[Node]) -> Vec<HashSet<Action>> {
     let mut future: Vec<_> = nodes.iter().map(|n| n.supported.clone()).collect();
     loop {
         let mut changed = false;
