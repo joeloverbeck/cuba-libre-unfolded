@@ -4,7 +4,7 @@ What you can do in the current build and how to operate it. [README](../README.m
 
 ## What the task covers
 
-The build plays one task from [#8](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/8): 26July's decision as 1st Eligible on card 17, whose faction order is 26July, Directorio, Government, Syndicate.
+The native task begins with 26July's decision as 1st Eligible on card 17, *Alberto Bayo*. In faction order, the card shows 26July, Directorio, Government and Syndicate. [First task (#8)](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/8) · [Directorio continuation (#117)](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/117)
 
 - **Playable:** Pass, and Terror with optional Kidnap in Santiago, Resource transfers and voluntary removal of 26July's own pieces.
 - **At 26July's opening decision**, both Event texts, Rally, March, Attack, and the accompanying Infiltrate and Ambush are listed for inspection. Choosing one is refused without changing the match.
@@ -15,7 +15,7 @@ The build plays one task from [#8](https://github.com/joeloverbeck/cuba-libre-un
 - **Spaces:** hover a city or province, its pieces or a count for a tag with its Control, political opinion and population contribution ([STATUS.md](../art/atlas/STATUS.md)). Economic centers have no tag. Clicking a space does nothing except during Terror targeting.
 - **Victory standings:** the four emblems at the top show official victory margins. Hover one for its calculation, contributions, conditions and available pieces ([VICTORY.md](../art/atlas/VICTORY.md)). Zero is the threshold, and a positive Government margin still requires every City at Active Support. No Propaganda victory check runs in this build.
 - **Top display:** Aid and the US Alliance at top left; each faction's Resources and the Cash supply at top right. Hover any of them for what it does and what it costs ([TOP.md](../art/atlas/TOP.md)).
-- **Sequence of Play:** the track in the map's western margin shows card 17's Eligibility record and the box 26July's action lands in ([ELIGIBILITY.md](../art/atlas/ELIGIBILITY.md)). Hover a box for what it allows the next faction. Nobody turns Ineligible inside the task, because Eligibility changes only after the card (R 2.3.7). The next card's order is not shown.
+- **Sequence of Play.** The track in the map's western margin records 26July's action on card 17. Hover a box to see what it allows the next faction. When the Event ends, the track shows each faction's adjusted Eligibility for card 18 (R 2.3.7). [Eligibility layout](../art/atlas/ELIGIBILITY.md)
 - **Cards:** "Read both cards" opens the current and preview cards' complete faces.
 - **Faction names:** running text names factions by their emblems, as in "[S] gave 1 to [26]. Saved." ([VICTORY.md, "Inline text emblems"](../art/atlas/VICTORY.md#inline-text-emblems)).
 
@@ -59,11 +59,11 @@ Rolling before Santiago's Terror commits 26July to that Terror ([local policy](l
 
 The Resource transfer step opens the transfer modal ([TRANSFER.md](../art/atlas/TRANSFER.md)). Pick the other faction by its emblem tab, then Give to or Ask from, then the amount: type it, or use 1, 2, Max or the slider. Both balances and the limits update as you go, and an amount beyond a limit is refused with its reason.
 
-- **Give** moves 26July's Resources on confirmation.
+- **Give** moves Resources from the executing faction on confirmation.
 - **Ask** creates a Transfer request that moves nothing yet. The modal turns to the giver's colours. The giver authorizes any amount from 0 to its limit, declines, or waits.
 - **Wait** closes the modal and keeps the request pending, also across Save / quit; its tab in the top band reopens it.
 
-Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfer can fund either Terror target without Kidnap, or make Kidnap possible during or after Terror. These are local faction decisions, not external agent players or binding promises. Transfers are offered only while 26July executes ([local policy](local-rule-policies.md#transfers-open-once-terror-is-chosen)), and going back or ending Terror withdraws a pending request ([local policy](local-rule-policies.md#a-pending-transfer-request-is-withdrawn)).
+Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfer can fund either Terror target without Kidnap, or make Kidnap possible during or after Terror. 26July can transfer Resources once it chooses Terror. Going back or ending Terror withdraws a pending request. During the Event and the free Rally, the executing faction can transfer Resources. These decisions belong to the local player. [Transfer timing](local-rule-policies.md#transfers-open-once-terror-is-chosen) · [Withdrawing pending requests](local-rule-policies.md#a-pending-transfer-request-is-withdrawn)
 
 ## Removing your own pieces
 
