@@ -411,23 +411,23 @@ fn admission_refuses_an_impossible_opened_kidnap() {
             .unwrap();
     }
     let record: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-    assert_eq!(record["payload"]["kidnap_open"], true);
+    assert_eq!(record["payload"]["position"]["kidnap_open"], true);
     let reseal = |record: &serde_json::Value| {
         let identity = serde_json::from_value(record["identity"].clone()).unwrap();
         unfolded_record_replacement::save::seal(&identity, &record["payload"])
     };
     let mut cases = vec![];
     let mut altered = record.clone();
-    altered["payload"]["action"] = "Open".into();
+    altered["payload"]["position"]["action"] = "Open".into();
     cases.push(altered); // open before Terror is chosen
     let mut altered = record.clone();
-    altered["payload"]["transfer"] = "Selecting".into();
+    altered["payload"]["position"]["transfer"] = "Selecting".into();
     cases.push(altered); // open beside a transfer
     let mut altered = record.clone();
-    altered["payload"]["removal"] = "Selecting".into();
+    altered["payload"]["position"]["removal"] = "Selecting".into();
     cases.push(altered); // open beside a removal
     let mut altered = record;
-    altered["payload"]["finished"] = true.into();
+    altered["payload"]["position"]["finished"] = true.into();
     cases.push(altered); // open after End Terror
     for altered in cases {
         let bytes = reseal(&altered);

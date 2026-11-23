@@ -1213,8 +1213,10 @@ impl Game {
             vec![]
         }
     }
-    /// Submits `action` as the faction the game offers it to.
-    fn apply(&mut self, action: &str) -> Result<(), String> {
+    /// Submits `action` as the faction the game offers it to, at the current match
+    /// revision, through the checked submission play uses. A save replays its
+    /// decisions this way (`crate::save`).
+    pub(crate) fn apply(&mut self, action: &str) -> Result<(), String> {
         let id = format!("{}:{action}", self.revision);
         let owner = self
             .choices()

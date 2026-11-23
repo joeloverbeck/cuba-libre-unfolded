@@ -495,29 +495,6 @@ impl Game {
         self.assault.as_ref().is_some_and(|op| op.finished)
     }
 
-    /// The saved choices needed to leave any open menu and finish the Operation.
-    pub(crate) fn assault_exit(&self) -> Result<Vec<Self>, String> {
-        let Some(assault) = self.assault.as_ref().filter(|op| !op.finished) else {
-            return Ok(vec![]);
-        };
-        let steps: &[&str] = match (&self.transfer, &self.removal, &assault.browse) {
-            (Some(Transfer::Selecting), ..) => &["back", FINISH],
-            (Some(Transfer::Authorizing { .. }), ..) => &["decline", FINISH],
-            (_, Some(_), _) => &["done-removal", FINISH],
-            (_, _, Browse::Targets(_)) => &[BACK, BACK, FINISH],
-            (_, _, Browse::Spaces(_)) => &[BACK, FINISH],
-            (_, _, Browse::Areas) => &[FINISH],
-        };
-        let mut exit = self.clone();
-        steps
-            .iter()
-            .map(|step| {
-                exit.apply(step)?;
-                Ok(exit.clone())
-            })
-            .collect()
-    }
-
     pub(super) fn assault_opening(&self) -> Choice {
         let alliance = UsAlliance::Firm;
         let balance = self.resources[Faction::Government.index()];
