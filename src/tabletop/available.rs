@@ -221,8 +221,9 @@ fn kind_label(kind: Kind) -> &'static str {
 }
 
 /// A faction's tag: its title, a row per kind reading "N of T · M on the map" (its
-/// Available count, its inventory and its pieces on the map in any state, a closed
-/// Casino included), and the rule, broken into drawn lines.
+/// Available count, its inventory, and the inventory less Available: every piece not
+/// Available is on the map, in any state, a closed Casino included), and the rule,
+/// broken into drawn lines. It reads nothing from the map (story 38).
 pub(super) fn tag(
     view: &Observation,
     faction: Faction,
@@ -235,20 +236,13 @@ pub(super) fn tag(
         .cells
         .iter()
         .map(|cell| {
-            let on_map: u32 = view
-                .spaces
-                .iter()
-                .flat_map(|space| &space.pieces)
-                .filter(|group| group.faction == faction && group.kind == cell.kind)
-                .map(|group| u32::from(group.count))
-                .sum();
+            let total = inventory(faction, cell.kind);
+            // Available never exceeds the inventory (the integration test
+            // `every_reached_position_keeps_each_inventory`).
+            let on_map = total.saturating_sub(cell.count);
             (
                 kind_label(cell.kind).to_owned(),
-                format!(
-                    "{} of {} · {on_map} on the map",
-                    cell.count,
-                    inventory(faction, cell.kind)
-                ),
+                format!("{} of {total} · {on_map} on the map", cell.count),
             )
         })
         .collect();
@@ -632,6 +626,32 @@ mod tests {
              and a replacement only removes (R 1.4.1).\n\
              While executing, a faction may return its own\n\
              pieces from the map to Available."
+        );
+    }
+
+    /// Story 38: the tag reads the rules authority's Available Forces and computes
+    /// nothing of its own beyond inventory less Available, so "M on the map" is T − N
+    /// and the tag reads nothing from the map. Here 2 26July Guerrillas are returned to
+    /// Available without the map changing, and then the map is emptied.
+    #[test]
+    fn the_tag_derives_its_on_map_count_from_the_inventory_and_available() {
+        let mut view = Game::opening().observe();
+        view.available.push(Group {
+            faction: Faction::M26,
+            kind: Kind::Guerrilla,
+            state: State::Active,
+            count: 2,
+        });
+        for space in &mut view.spaces {
+            space.pieces.clear();
+        }
+        // 15 Guerrillas and 4 Bases in the chart (p. 20); 14 and 3 Available.
+        assert_eq!(
+            tag_rows(&view, Faction::M26),
+            pairs(&[
+                ("Guerrillas", "14 of 15 · 1 on the map"),
+                ("Bases", "3 of 4 · 1 on the map"),
+            ])
         );
     }
 
