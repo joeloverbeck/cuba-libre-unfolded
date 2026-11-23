@@ -35,6 +35,13 @@ Look for the originating spec, in this order:
 
 Search the repo for every file that documents how code should be written. When `CODING_STANDARDS.md` or `CONTRIBUTING.md` exists, it must be on the list.
 
+This repository has neither. Its standards live in these places, and the list starts from them:
+
+- `CLAUDE.md`, project section: "Documenting a change" (each fact has one home; README carries no per-feature behaviour), Rust-only code, and what stays out of Git.
+- `GLOSSARY.md` with `docs/agents/domain.md`: glossary terms in code and documents. The reviewer searches the diff's added lines for the `_Avoid_` terms of every concept the change touches.
+- The foundations (`docs/foundation/`) and ADRs (`docs/adr/`) the change touches, and the constitution rules the spec cites (`scripts/rule ID…` prints them).
+- The agent document that owns the changed area, under `docs/agents/`.
+
 For source-only documents/research, collect the applicable documentation, source-authority and evidence standards instead. Skip the code-smell baseline and do not demand executable tests or scaffolding. The Standards review checks citations, source identities/precedence and evidence limits against those standards. The Spec review checks source reconciliation, independently checks relevant calculations, and compares general rules and exceptions with worked examples. Verify that conclusions, acceptance status and claimed downstream readiness match the cited evidence and recorded authority. For mixed changes, apply these checks to the documents and code checks to the executable changes.
 
 For executable changes, the Standards axis also carries the **smell baseline** below: a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules bind it:

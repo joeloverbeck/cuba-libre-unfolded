@@ -26,16 +26,19 @@ At activation, present one **role table** for the owner’s model and effort cho
 
 3. Create the integration branch. If the issue tracker closes work through PRs, or the user asks for one, open a draft PR after the first merge in step 5 (a branch with no commits ahead of main can't open one), referencing the spec and tickets with `For #N`.
 
-4. Use a fresh **implementer subagent** for each ticket, each in its own worktree under `local/worktrees/` on its own branch. Agents running at once share the machine's memory, disk and art editors: brief every subagent to follow `docs/agents/parallel-work.md`. Each implementer subagent:
+4. Use a fresh **implementer subagent** for each ticket, each in its own worktree under `local/worktrees/` on its own branch. Agents running at once share the machine's memory, disk and art editors: brief every subagent to follow `docs/agents/parallel-work.md`. Fill in [BRIEF.md](BRIEF.md) once for the spec and point every subagent at it. Each implementer subagent:
    - confirms its worktree is based on the integration branch before starting, and resets onto it if not;
    - for executable changes, uses test-driven development within the accepted scope. Before implementing a quantity choice, derive its full legal range from the governing rule and a worked position. Record the effect of each boundary (including zero when legal) and a refusal just outside the range. For an Operation that stays open across decisions, establish how the player can finish after giving away the last Resource, removing a needed piece or reaching the save limit, wherever those states are reachable. Test the exit from a saved position through the pending choice and Finish. Reopen the result and verify the recovery record contains the exact pre-Finish save.
    - for a new player-visible consequence, work out the expected effect independently in one legal position. Check the development seat’s explanation, the native preview before confirmation and the state after committing. Assert the facts that distinguish the outcomes, such as which piece stays on the board and how the count changes.
    - for source-only documents/research, reconciles the controlling sources and revisions, independently checks calculations where applicable, and checks that general rules, exceptions and worked examples agree. Cite the evidence and label interpretations or unresolved conflicts. Skip TDD and executable scaffolding for this branch. In mixed tickets, apply each verification path to the relevant changes;
+   - for a ticket that removes a concept, finishes by searching every tracked file for it, whatever documents the spec lists, and records the search terms and each remaining hit in its done note;
    - merges the integration branch tip into its own branch before reporting done
 
    A ticket that changes a sibling repository runs as [docs/agents/extraction.md](../../../docs/agents/extraction.md) describes: its implementer stops at open pull requests.
 
 5. Once an **implementer subagent** completes, merge its work to the integration branch with a **merger subagent**, which then clears disk as `docs/agents/parallel-work.md`, "Disk", says.
+
+   A ticket branch that already contains the integration tip merges without changing content. Merge it yourself with `--no-ff`, confirm `git diff <ticket head> HEAD` prints nothing, so the ticket's own checks stand for the merged tree, then push and clear disk. The merger subagent is for a merge that combines work.
 
 6. If this changes the **frontier** of available tickets, kick off more **implementer subagents** to work on the new tickets. This allows for maximum concurrency.
 

@@ -12,6 +12,8 @@ The issue tracker and triage label vocabulary should have been provided to you. 
 
 1. Explore the repo to understand the current state of the codebase, if you haven't already. Use the project's domain glossary vocabulary throughout the spec, and respect any ADRs in the area you're touching.
 
+   For a spec that removes, replaces or renames something, search every tracked file for each item it names as going: code, tests, documents, scripts and environment variables. This step is done when every such item has its readers counted in the spec, and every quantity the spec states ("the hook", "about 95 tests") comes from that search. Settle an unexpected reader, such as a test that calls a function the spec deletes, in the spec's decisions before publishing.
+
 2. Sketch out the seams at which you're going to test the feature. Existing seams should be preferred to new ones. Use the highest seam possible. If new seams are needed, propose them at the highest point you can. The fewer seams across the codebase, the better - the ideal number is one.
 
 Check with the user that these seams match their expectations.
