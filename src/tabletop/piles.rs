@@ -173,8 +173,9 @@ const CAMERA_HEIGHT: f32 = 4.;
 const PICTURE_HALF: f32 = 10240.;
 /// A face lies this far above its pile, so the two never share a depth.
 const FACE_LIFT: f32 = 0.00002;
-/// The pile's paper, lit: the layout draws the edges `#E4DDCB`.
-const EDGE: Color = Color::srgb_u8(228, 221, 203);
+/// The pile's paper, lit: the layout draws the cards' edges in this colour, which is
+/// card stock and no variable of the interface palette.
+const EDGE: Color = Color::srgb_u8(228, 221, 203); // own colour: card stock, the layout's pile edge #E4DDCB
 
 /// The layers a pile of `cards` cards is drawn in: one seam for every six to seven
 /// cards, and at least one seam wherever two cards meet (the owner's selection in
