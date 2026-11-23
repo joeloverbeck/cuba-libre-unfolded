@@ -95,6 +95,16 @@ if [[ $documented != "$defined" ]]; then
   exit 1
 fi
 echo "native catalogue: $(wc -l <<<"$defined") tests, all listed once"
+# CLAUDE.md routes work to constitution rules by identifier, and work whose required
+# rule cannot be found is unauthorized. `scripts/rule` prints a rule and fails on an
+# identifier with none; run it over every identifier CLAUDE.md names.
+mapfile -t named < <({ grep -oE '`[A-Z]+-[0-9]+`' CLAUDE.md || [[ $? == 1 ]]; } | tr -d '`' | sort -u)
+if ((${#named[@]} == 0)); then
+  echo "constitution rules: CLAUDE.md names no rule identifier" >&2
+  exit 1
+fi
+scripts/rule "${named[@]}" >/dev/null
+echo "constitution rules: all ${#named[@]} identifiers in CLAUDE.md resolve"
 # Interface sizes follow the window, never the desktop's scale factor (ADR 0002, #50). A
 # type size or length written as a bare number is fixed in logical pixels; write it in
 # reference pixels and multiply it by the layout scale. Zero and scaled expressions pass.
