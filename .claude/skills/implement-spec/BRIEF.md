@@ -19,7 +19,7 @@ Main checkout: `<absolute path>` (stays on `main`; edit tracked files and switch
 - Integration branch: `integration/spec-<SPEC>`, worktree `local/worktrees/integration/spec-<SPEC>`. Tickets reach it only by a merge.
 - Implementer for ticket N: from the main checkout, `git worktree add -b ticket/<N>-<slug> local/worktrees/ticket/<N>-<slug> integration/spec-<SPEC>`. Start only when `git merge-base HEAD integration/spec-<SPEC>` equals the integration tip.
 - Commit on your own branch with `For #<N>` in the message and the attribution line the orchestrator gives you. Pushing, pull requests and closing issues are the orchestrator's.
-- Build target: <each worktree's own, or the spec's one target as parallel-work.md, "Disk", describes, with the exact `CARGO_TARGET_DIR=…` prefix>.
+- Build target: <each worktree's own, or the spec's one target as parallel-work.md, "One target for tickets in turn", describes, with the exact `CARGO_TARGET_DIR=…` prefix>.
 - Leave your worktree and target in place when you finish.
 
 ## Private inputs and evidence
