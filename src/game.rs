@@ -155,15 +155,8 @@ pub enum ActionChoice {
     /// R 2.3.3: +1 Resource, 26July stays Eligible and Directorio becomes 1st Eligible.
     /// The task ends there.
     Pass,
-    /// Terror is chosen: 26July executes it until End Terror. A #8 save began here, at
-    /// revision 0, and has no `action` field; it resumes in this state.
+    /// Terror is chosen: 26July executes it until End Terror.
     Terror,
-}
-/// The #8-save admission: a #8 record has no `action` field because #8 began with
-/// Terror chosen, so it resumes with Terror chosen. This is only the serde default of
-/// `Game::action`; a new task opens at `ActionChoice::Open`.
-fn eight_save_entry() -> ActionChoice {
-    ActionChoice::Terror
 }
 /// The Sequence of Play box a faction's cylinder occupies once its action is recorded
 /// (R 2.3, record steps; R 2.3.4).
@@ -280,8 +273,8 @@ pub const CARD_17_ORDER: [Faction; 4] = [
     Faction::Government,
     Faction::Syndicate,
 ];
-/// Card 17's Event is absent in older saves. A completed Event carries the applied
-/// effect so its result and printed eligibility restriction survive restart.
+/// Card 17's Event in progress. A completed Event carries the applied effect so its
+/// result and printed eligibility restriction survive restart.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum EventProgress {
@@ -307,6 +300,8 @@ pub enum EventOutcome {
     Shaded { flips: Vec<Flip> },
     Unshaded(Rally),
 }
+/// The match's position. A saved position decodes only in this shape: every field is
+/// required, an `Option` included, and an unknown field is refused.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Game {
@@ -314,73 +309,41 @@ pub struct Game {
     pub(crate) resources: [u8; 4],
     pub(crate) spaces: Vec<Space>,
     pub(crate) available: Vec<Group>,
-    #[serde(rename = "finished")]
     pub(crate) m26_action_ended: bool,
     pub(crate) random: u64,
     pub(crate) draw_deck: Vec<u8>,
-    /// Card 18 entered play after the completed Alberto Bayo Event. Older saves
-    /// omit this field and remain on card 17.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    /// Card 18 entered play after the completed Alberto Bayo Event.
     pub(crate) card_18: bool,
-    /// The Government balance before its recorded card 18 Pass. Retaining the
-    /// prior balance lets load replay the exact credit even at the Resource cap.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    /// The Government balance before its recorded card 18 Pass, which the record of
+    /// its Resources shows.
+    #[serde(deserialize_with = "Option::deserialize")]
     government_pass_from: Option<u8>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(deserialize_with = "Option::deserialize")]
     pub(crate) transfer: Option<Transfer>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(deserialize_with = "Option::deserialize")]
     pub(crate) kidnap: Option<Kidnap>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(deserialize_with = "Option::deserialize")]
     pub(crate) removal: Option<Removal>,
-    /// A #8 save lacks this field and resumes with Terror chosen.
-    #[serde(default = "eight_save_entry")]
     pub(crate) action: ActionChoice,
-    /// Set by the first real effect: an authorized nonzero transfer, a resolved
-    /// Terror, a Kidnap roll or a removal. Going back to the action choice is local
-    /// policy (#58) allowed only before it. A #8 save lacks it; `effected` also reads
-    /// such a save's state.
-    #[serde(default)]
+    /// Set by the first real effect: 26July's Pass, an authorized nonzero transfer, a
+    /// resolved Terror, a Kidnap roll or a removal. Going back to the action choice is
+    /// local policy (#58) allowed only before it.
     pub(crate) effect: bool,
     /// Kidnap opened and not yet rolled or cancelled (#63). Opening consumes no
     /// randomness; only the roll does.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub(crate) kidnap_open: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(deserialize_with = "Option::deserialize")]
     pub(crate) event: Option<EventProgress>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    event_side_decisions: Option<EventSideDecisions>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(deserialize_with = "Option::deserialize")]
     assault: Option<assault::Assault>,
 }
 
-/// The supported Event state before its first side decision, plus the decisions
-/// since then. Load replays them in order so a Rally cannot borrow pieces returned
-/// by a later removal, and a pending request must have a legal giver.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct EventSideDecisions {
-    revision: u64,
-    event: EventProgress,
-    resources: [u8; 4],
-    pieces: Vec<Vec<Group>>,
-    available: Vec<Group>,
-    effect: bool,
-    actions: Vec<String>,
-}
 /// Removal mode (#73): open from "Remove own pieces" until Done. Each decision in it
 /// returns a chosen quantity of the executing faction's group to Available (R 1.4.1).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum Removal {
     Selecting,
-    /// Only in #8 saves, which chose a group and then confirmed one piece. Such a
-    /// save resumes in removal mode with the same choices as `Selecting`; new
-    /// decisions never write it.
-    Confirming {
-        space: String,
-        kind: Kind,
-        state: State,
-    },
 }
 /// A removal choice's group, as its id names it: `remove:<space>:<group>:<quantity>`.
 pub fn removal_group(kind: Kind, state: State) -> &'static str {
@@ -414,8 +377,7 @@ pub struct Kidnap {
     pub m26_before: u8,
     pub random_before: u64,
     /// The match revision this roll created (#74). The die presentation chooses its
-    /// tumble from it, independently of the die. A #8 roll lacks it and reads 0.
-    #[serde(default)]
+    /// tumble from it, independently of the die.
     pub revision: u64,
 }
 impl Kidnap {
@@ -444,10 +406,7 @@ pub enum Transfer {
         recipient: Faction,
         amount: u8,
         /// Wait set the giver's decision aside (#75): the request stays pending, its
-        /// tab in the top band reopens the decision, and a restart shows it so. Saves
-        /// written before #75 lack it and read false, the giver deciding, as they
-        /// resumed before.
-        #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+        /// tab in the top band reopens the decision, and a restart shows it so.
         waited: bool,
     },
 }
@@ -842,8 +801,8 @@ fn group(faction: Faction, kind: Kind, count: u8) -> Group {
     }
 }
 impl Game {
-    /// #8's entry: the accepted prepared position with Terror already chosen, at
-    /// revision 0, as every #8 save began. New tasks start at `opening` instead.
+    /// The accepted prepared position with Terror already chosen, at revision 0. New
+    /// matches and every save start at `opening` instead.
     pub fn prepared() -> Self {
         use Faction::*;
         use Kind::*;
@@ -1005,7 +964,6 @@ impl Game {
             effect: false,
             kidnap_open: false,
             event: None,
-            event_side_decisions: None,
             assault: None,
             available: vec![
                 group(Government, Troops, 3),
@@ -1126,7 +1084,7 @@ impl Game {
             kidnap: self.kidnap.clone(),
             kidnap_open: self.kidnap_open,
             removal: self.removal.clone(),
-            effected: self.effected(),
+            effected: self.effect,
             recorded_resources: self.recorded_resources(),
             resolved: self
                 .spaces
@@ -1461,7 +1419,7 @@ impl Game {
         } else {
             notes.push("R 1.4.1: the pieces return to Available. Earlier Terror markers, support shifts and Kidnap results stay.".into());
         }
-        if !self.effected() && after.effected() && !after.m26_action_ended {
+        if !self.effect && after.effect && !after.m26_action_ended {
             notes.push("This is the first effect: going back to the action choice ends (local policy, #58).".into());
         }
         notes
@@ -1511,7 +1469,7 @@ impl Game {
             });
         }
         notes.push(format!("End Terror then records Operation with Special Activity: Directorio may execute card 17's Event, either text (R 2.3.4, 5.2). Shaded: \"{CARD_17_SHADED}\""));
-        if !self.effected() {
+        if !self.effect {
             notes.push("The roll is the first effect: going back to the action choice ends (local policy, #58).".into());
             preview.unavailable.push(Unavailable {
                 choice: "back-to-choice".into(),
@@ -1621,17 +1579,6 @@ impl Game {
             },
         }
     }
-    /// Whether a real effect has happened. A #8 save has no `effect` flag, so its
-    /// state is read too: Resources, Terror, a roll or a removed piece. (A #8 save
-    /// whose transfers returned every Resource is indistinguishable from none.)
-    fn effected(&self) -> bool {
-        let prepared = Self::prepared();
-        self.effect
-            || self.kidnap.is_some()
-            || self.spaces.iter().any(|s| s.terror > 0)
-            || self.available != prepared.available
-            || self.resources != prepared.resources
-    }
     /// Local policy (#58): back to the action choice until the first effect, from the
     /// Operation menu or while a Transfer request awaits another faction.
     fn may_go_back(&self) -> bool {
@@ -1639,7 +1586,7 @@ impl Game {
             && self.executing().is_some()
             && self.removal.is_none()
             && !self.kidnap_open
-            && !self.effected()
+            && !self.effect
             && match self.transfer {
                 None => true,
                 Some(Transfer::Authorizing { giver, .. }) => giver != Faction::M26,
@@ -2482,7 +2429,7 @@ impl Game {
         choices
     }
 
-    /// Removal mode, including a #8 save's pending confirmation.
+    /// Removal mode.
     fn removal_menu(&self) -> Vec<Choice> {
         let mut choices = self.removal_choices();
         let rally_exhausted = matches!(&self.event, Some(EventProgress::Rally(rally))
@@ -2557,37 +2504,7 @@ impl Game {
             .revision
             .checked_add(1)
             .ok_or("Match revision exhausted.")?;
-        let action = offered.action();
-        let checkpoint = self
-            .event
-            .as_ref()
-            .filter(|event| {
-                event.outcome().is_none()
-                    && self.event_side_decisions.is_none()
-                    && matches!(action, "transfer" | "remove")
-            })
-            .map(|event| EventSideDecisions {
-                revision: self.revision,
-                event: event.clone(),
-                resources: self.resources,
-                pieces: self
-                    .spaces
-                    .iter()
-                    .map(|space| space.pieces.clone())
-                    .collect(),
-                available: self.available.clone(),
-                effect: self.effect,
-                actions: vec![],
-            });
-        self.apply_decision(action, next_revision)?;
-        if let Some(checkpoint) = checkpoint {
-            self.event_side_decisions = Some(checkpoint);
-        }
-        if !self.card_18
-            && let Some(history) = &mut self.event_side_decisions
-        {
-            history.actions.push(action.to_owned());
-        }
+        self.apply_decision(offered.action(), next_revision)?;
         self.revision = next_revision;
         Ok(())
     }
@@ -2601,6 +2518,8 @@ impl Game {
                     .min(RESOURCE_CAP);
                 self.action = ActionChoice::Pass;
                 self.m26_action_ended = true;
+                // Its Resource is the first effect.
+                self.effect = true;
             }
             "government:pass" => {
                 let balance = &mut self.resources[Faction::Government.index()];
@@ -2679,8 +2598,6 @@ impl Game {
                     .find(|p| p.faction == executor && p.kind == kind)
                     .unwrap()
                     .count += n;
-                // A #8 save's pending confirmation becomes ordinary removal mode.
-                self.removal = Some(Removal::Selecting);
             }
             return Ok(());
         }
@@ -2718,7 +2635,7 @@ impl Game {
             None => return Err("Unknown execution choice.".into()),
             Some(_) if action == "back" || action == "decline" => self.transfer = None,
             // The request's giver can set it aside or reopen it without moving
-            // Resources. Assault and Event replay record these steps too.
+            // Resources.
             Some(Transfer::Authorizing {
                 giver,
                 recipient,
@@ -2892,291 +2809,6 @@ impl Game {
             });
         }
         self.event = Some(EventProgress::Complete(EventOutcome::Shaded { flips }));
-    }
-
-    fn validate_event_side_decisions(&self, history: &EventSideDecisions) -> Result<(), String> {
-        if !matches!(
-            history.actions.first().map(String::as_str),
-            Some("transfer" | "remove")
-        ) || history.event.outcome().is_some()
-            || history.pieces.len() != self.spaces.len()
-            || history.revision.checked_add(history.actions.len() as u64) != Some(self.revision)
-        {
-            return Err("Unsupported Alberto Bayo side decision history.".into());
-        }
-        let mut before = self.clone();
-        before.event_side_decisions = None;
-        before.revision = history.revision;
-        before.event = Some(history.event.clone());
-        before.resources = history.resources;
-        before.available = history.available.clone();
-        before.effect = history.effect;
-        before.transfer = None;
-        before.removal = None;
-        for (space, pieces) in before.spaces.iter_mut().zip(&history.pieces) {
-            space.pieces = pieces.clone();
-        }
-        before.validate()?;
-        for action in &history.actions {
-            before.apply(action)?;
-        }
-        if before != *self {
-            return Err("Unsupported Alberto Bayo side decision state.".into());
-        }
-        Ok(())
-    }
-
-    fn validate_shaded_entry(&self) -> Result<(), String> {
-        let mut before = self.clone();
-        before.revision = self
-            .revision
-            .checked_sub(1)
-            .ok_or("Unsupported Event revision.")?;
-        if !before.m26_action_ended
-            || before
-                .kidnap
-                .as_ref()
-                .is_none_or(|roll| roll.revision >= before.revision)
-        {
-            return Err("Shaded Alberto Bayo requires completed Terror with Kidnap.".into());
-        }
-        before.event = None;
-        before.validate()?;
-        before.apply("event:shaded")?;
-        if before != *self {
-            return Err("Unsupported shaded Event decision state.".into());
-        }
-        Ok(())
-    }
-
-    /// Admit the prepared task after only the supported decisions and effects.
-    pub fn validate(&self) -> Result<(), String> {
-        if let Some(assault) = &self.assault {
-            return self.validate_assault(assault);
-        }
-        if let Some(from) = self.government_pass_from {
-            let mut before = self.clone();
-            before.government_pass_from = None;
-            before.resources[Faction::Government.index()] = from;
-            before.revision = self
-                .revision
-                .checked_sub(1)
-                .ok_or("Unsupported Government Pass revision.")?;
-            before.validate()?;
-            before.apply("government:pass")?;
-            if before != *self {
-                return Err("Unsupported Government Pass result.".into());
-            }
-            return Ok(());
-        }
-        if self.card_18 {
-            let mut before = self.clone();
-            before.card_18 = false;
-            before.revision = self
-                .revision
-                .checked_sub(1)
-                .ok_or("Unsupported card advance revision.")?;
-            before.draw_deck.insert(0, 18);
-            before.validate()?;
-            before.apply("advance-card")?;
-            if before != *self {
-                return Err("Unsupported transition to Pact of Caracas.".into());
-            }
-            return Ok(());
-        }
-        if let Some(history) = &self.event_side_decisions {
-            return self.validate_event_side_decisions(history);
-        }
-        let shaded = match &self.event {
-            Some(EventProgress::ExecuteShaded) => return self.validate_shaded_entry(),
-            Some(EventProgress::ChooseRallyBeneficiary) => return self.validate_unshaded(None),
-            Some(
-                EventProgress::Rally(rally)
-                | EventProgress::Complete(EventOutcome::Unshaded(rally)),
-            ) => {
-                return self.validate_unshaded(Some(rally));
-            }
-            Some(EventProgress::Complete(EventOutcome::Shaded { flips })) => {
-                if !self.m26_action_ended
-                    || self.action != ActionChoice::Terror
-                    || self
-                        .kidnap
-                        .as_ref()
-                        .is_none_or(|r| self.revision.saturating_sub(r.revision) < 2)
-                {
-                    return Err("Shaded Alberto Bayo requires completed Terror with Kidnap.".into());
-                }
-                Some(flips.as_slice())
-            }
-            None => None,
-        };
-        let mut expected = Self::prepared_with_seed(self.random);
-        let mut paid = 0;
-        let mut removed = 0u64;
-        for space in &mut expected.spaces {
-            if let Some(actual) = self.spaces.iter().find(|s| s.id == space.id)
-                && actual.terror == 1
-                && matches!(space.id.as_str(), "santiago" | "oriente")
-            {
-                Self::resolve_terror(space);
-                paid += 1;
-            }
-            if let Some(actual) = self.spaces.iter().find(|s| s.id == space.id) {
-                let activated = shaded
-                    .and_then(|flips| flips.iter().find(|f| f.space == space.id))
-                    .map_or(0, |f| f.count);
-                for piece in &mut space.pieces {
-                    if piece.faction != Faction::M26 {
-                        continue;
-                    }
-                    let on_map = |state| {
-                        actual
-                            .pieces
-                            .iter()
-                            .find(|p| {
-                                p.faction == piece.faction
-                                    && p.kind == piece.kind
-                                    && p.state == state
-                            })
-                            .map_or(0, |p| p.count)
-                    };
-                    // Infer the inherited counts from the recorded flips. The
-                    // exact replay below verifies every flip and final group.
-                    let remaining = match (shaded, piece.kind, piece.state) {
-                        (Some(_), Kind::Guerrilla, State::Underground) => activated,
-                        (Some(_), Kind::Guerrilla, State::Active) => on_map(State::Active)
-                            .checked_sub(activated)
-                            .ok_or("Unsupported shaded Event activation.")?,
-                        _ => on_map(piece.state),
-                    };
-                    let returned = piece
-                        .count
-                        .checked_sub(remaining)
-                        .ok_or("Unsupported added or activated own pieces.")?;
-                    removed += u64::from(returned);
-                    expected
-                        .available
-                        .iter_mut()
-                        .find(|p| p.faction == Faction::M26 && p.kind == piece.kind)
-                        .unwrap()
-                        .count += returned;
-                    piece.count = remaining;
-                }
-                space.pieces.retain(|p| p.count > 0);
-            }
-        }
-        // Pass and the choice itself have no other effect; only Terror executes.
-        let untouched = !self.effect
-            && paid == 0
-            && removed == 0
-            && self.kidnap.is_none()
-            && !self.kidnap_open
-            && self.transfer.is_none()
-            && self.removal.is_none();
-        let mut passed = PREPARED_RESOURCES;
-        passed[Faction::M26.index()] += 1;
-        let consistent = match self.action {
-            ActionChoice::Open => {
-                untouched && !self.m26_action_ended && self.resources == PREPARED_RESOURCES
-            }
-            ActionChoice::Pass => untouched && self.m26_action_ended && self.resources == passed,
-            ActionChoice::Terror => true,
-        };
-        expected.action = self.action;
-        if !consistent
-            || self.resources.iter().any(|&n| n > RESOURCE_CAP)
-            || self.resources.iter().map(|&n| n as u16).sum::<u16>()
-                != 26 - paid + u16::from(self.action == ActionChoice::Pass)
-            || self.revision
-                < u64::from(paid)
-                    + u64::from(self.kidnap.is_some())
-                    + u64::from(self.m26_action_ended)
-                    + u64::from(shaded.is_some())
-                    // Entering removal mode, then at least one removal decision,
-                    // which may return several pieces of one group (#73).
-                    + if removed > 0 { 2 } else { u64::from(self.removal.is_some()) }
-            || (self.revision == 0 && *self != expected)
-            || (self.m26_action_ended && (self.transfer.is_some() || self.removal.is_some()))
-            || (self.transfer.is_some() && self.removal.is_some())
-            // An opened Kidnap is a modal step of Terror execution, still unrolled
-            // and on the terms that offered it.
-            || (self.kidnap_open
-                && (self.action != ActionChoice::Terror
-                    || self.m26_action_ended
-                    || self.kidnap.is_some()
-                    || self.transfer.is_some()
-                    || self.removal.is_some()
-                    || self.revision == 0
-                    || !self.kidnap_offer().supported))
-        {
-            return Err("Unsupported transfer balances or decision state.".into());
-        }
-        if let Some(kidnap) = &self.kidnap {
-            let mut rng = SeededRandom::new(kidnap.random_before);
-            let die = (rng.index(6) + 1) as u8;
-            if kidnap.die != die
-                || kidnap.revision > self.revision
-                || self.random != rng.state()
-                || kidnap.government_before > 26
-                || kidnap.m26_before > 26
-                || u16::from(kidnap.government_before) + u16::from(kidnap.m26_before) > 26
-                || kidnap.proceeds != die.min(kidnap.government_before)
-                || (self.owes_santiago()
-                    && (self.m26_action_ended
-                        || self.resources[Faction::M26.index()] == 0
-                        || !self.spaces.iter().any(|s| {
-                            s.id == "santiago"
-                                && s.pieces.iter().any(|p| {
-                                    p.faction == Faction::M26
-                                        && p.kind == Kind::Guerrilla
-                                        && p.state == State::Underground
-                                        && p.count > 0
-                                })
-                        })
-                        || (kidnap.government_before == 0 && kidnap.m26_before == 0)))
-            {
-                return Err("Unsupported Kidnap result or impossible owed Santiago Terror.".into());
-            }
-        }
-        if let Some(Removal::Confirming { space, kind, state }) = &self.removal
-            && self.removable(space, *kind, *state) == 0
-        {
-            return Err("Unsupported pending own removal or protected owed Terror piece.".into());
-        }
-        if let Some(Transfer::Authorizing {
-            giver,
-            recipient,
-            amount,
-            ..
-        }) = self.transfer
-            && (giver == recipient
-                || (giver != Faction::M26 && recipient != Faction::M26)
-                || amount > self.resources[giver.index()]
-                || (self.owes_santiago()
-                    && giver == Faction::M26
-                    && amount >= self.resources[Faction::M26.index()])
-                || u16::from(self.resources[recipient.index()]) + u16::from(amount)
-                    > u16::from(RESOURCE_CAP))
-        {
-            return Err("Unsupported pending giver authorization.".into());
-        }
-        expected.m26_action_ended = self.m26_action_ended;
-        expected.revision = self.revision;
-        expected.resources = self.resources;
-        expected.transfer = self.transfer.clone();
-        expected.kidnap = self.kidnap.clone();
-        expected.removal = self.removal.clone();
-        expected.effect = self.effect;
-        expected.kidnap_open = self.kidnap_open;
-        if shaded.is_some() {
-            expected.execute_shaded_event();
-        }
-        if *self != expected {
-            return Err(
-                "State is not a supported prepared transfer/Terror/Kidnap/removal position.".into(),
-            );
-        }
-        Ok(())
     }
 }
 

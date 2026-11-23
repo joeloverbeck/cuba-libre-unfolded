@@ -255,13 +255,13 @@ impl Roll {
 }
 
 /// The roll the tray presents: one made by the latest decision, until Continue closes
-/// it. A #8 roll records revision 0 and is never presented.
+/// it.
 pub(super) fn presented<'a>(
     revision: u64,
     kidnap: Option<&'a crate::Kidnap>,
     roll: &Roll,
 ) -> Option<&'a crate::Kidnap> {
-    kidnap.filter(|k| k.revision == revision && revision > 0 && roll.closed != Some(revision))
+    kidnap.filter(|k| k.revision == revision && roll.closed != Some(revision))
 }
 
 /// The tray's world, spawned for one presented roll.

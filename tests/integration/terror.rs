@@ -270,8 +270,8 @@ fn refused_targets_activities_funds_duplicates_and_stale_input_preserve_all_stat
 
 #[test]
 fn active_only_missing_guerrillas_and_failed_outnumbering_refuse_without_rng_consumption() {
-    // Deliberately malformed counterfactual states test refusal as well as
-    // admission. Actual supported removals are covered in removal.rs.
+    // Deliberately malformed counterfactual states test refusal. Actual supported
+    // removals are covered in removal.rs.
     for variant in 0..3 {
         let mut source = serde_json::to_value(Game::prepared()).unwrap();
         source["resources"] = serde_json::json!([5, 1, 5, 15]);

@@ -424,7 +424,7 @@ fn admission_refuses_an_impossible_opened_kidnap() {
     altered["payload"]["position"]["removal"] = "Selecting".into();
     cases.push(altered); // open beside a removal
     let mut altered = record;
-    altered["payload"]["position"]["finished"] = true.into();
+    altered["payload"]["position"]["m26_action_ended"] = true.into();
     cases.push(altered); // open after End Terror
     for altered in cases {
         let bytes = reseal(&altered);

@@ -26,8 +26,8 @@ pub struct RallyResolution {
     pub action: RallyAction,
 }
 
-/// R 3.3.1 gives a choice of procedure in each qualifying space. Retain the
-/// affected piece counts so admission can reconstruct the inherited position.
+/// R 3.3.1 gives a choice of procedure in each qualifying space, with the affected
+/// piece counts its description names.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum RallyAction {
@@ -264,7 +264,7 @@ impl Game {
             .map(|(step, _)| step)
             .find(|step| step.id() == action)
             .ok_or("Unknown Rally choice.")?;
-        self.change_rally_pieces(rally.beneficiary, &step, true)?;
+        self.change_rally_pieces(rally.beneficiary, &step)?;
         rally.resolutions.push(step);
         self.continue_rally(rally);
         Ok(())
@@ -284,7 +284,6 @@ impl Game {
         &mut self,
         beneficiary: Faction,
         step: &RallyResolution,
-        forward: bool,
     ) -> Result<(), String> {
         let space = self
             .spaces
@@ -296,7 +295,7 @@ impl Game {
         }
         let mut pieces = space.pieces.clone();
         let mut available = self.available.clone();
-        let delta = |n: u8| if forward { i16::from(n) } else { -i16::from(n) };
+        let delta = i16::from;
         let (active, underground, base) = match step.action {
             RallyAction::Place(n) => (0, delta(n), 0),
             RallyAction::FlipUnderground(n) => (-delta(n), delta(n), 0),
@@ -329,44 +328,6 @@ impl Game {
         }
         space.pieces = pieces;
         self.available = available;
-        Ok(())
-    }
-
-    pub(super) fn validate_unshaded(&self, rally: Option<&Rally>) -> Result<(), String> {
-        let mut before = self.clone();
-        before.event = None;
-        let mut steps = 1;
-        if let Some(rally) = rally {
-            if !BENEFICIARIES.contains(&rally.beneficiary) {
-                return Err("Unsupported Rally beneficiary.".into());
-            }
-            for step in rally.resolutions.iter().rev() {
-                before.change_rally_pieces(rally.beneficiary, step, false)?;
-            }
-            steps += 1 + rally.resolutions.len() as u64;
-        }
-        before.revision = before
-            .revision
-            .checked_sub(steps)
-            .ok_or("Unsupported Rally revision.")?;
-        if before
-            .kidnap
-            .as_ref()
-            .is_none_or(|roll| roll.revision >= before.revision)
-        {
-            return Err("The free Rally requires a completed Kidnap and Terror.".into());
-        }
-        before.validate()?;
-        before.apply("event:unshaded")?;
-        if let Some(rally) = rally {
-            before.apply(beneficiary_id(rally.beneficiary))?;
-            for step in &rally.resolutions {
-                before.apply(&step.id())?;
-            }
-        }
-        if before != *self {
-            return Err("Unsupported Rally progress or result.".into());
-        }
         Ok(())
     }
 }

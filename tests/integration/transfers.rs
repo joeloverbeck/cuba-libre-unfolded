@@ -433,8 +433,7 @@ fn the_reserved_state_is_decided_by_26july_within_its_reserve() {
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     let mut record = serde_json::to_value(&game).unwrap();
-    record["transfer"] =
-        serde_json::json!({"Authorizing":{"giver":"M26","recipient":"Directorio","amount":2}});
+    record["transfer"] = serde_json::json!({"Authorizing":{"giver":"M26","recipient":"Directorio","amount":2,"waited":false}});
     record["revision"] = (game.observe().revision + 1).into();
     let mut reserved: Game = serde_json::from_value(record).unwrap();
     let view = reserved.observe();

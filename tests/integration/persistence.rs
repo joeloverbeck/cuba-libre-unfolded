@@ -842,6 +842,107 @@ fn saves_this_build_cannot_continue_are_refused_with_every_file_unchanged() {
     assert!(recovered.observe().kidnap_open);
 }
 
+/// A saved position decodes only in its current shape (#152): a position lacking any
+/// field, an absent `Option` included, or carrying a field this build does not know,
+/// such as a removed one, is refused, and the save and its previous record stay byte
+/// for byte as they were.
+#[test]
+fn a_position_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("shape.json");
+    // Seed 2 rolls 5, and 26July funds the Assault. The position ends inside the paid
+    // Assault with a request set aside, so it holds absent and present optional fields.
+    let mut session = Session::create_seeded(&path, 2).unwrap();
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "transfer",
+        "give:0:1",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:assault",
+        "assault:areas:cities",
+        "assault:space:santiago",
+        "assault:santiago:26july",
+        "transfer",
+        "ask:1:1",
+        "wait",
+    ] {
+        act(&mut session, action);
+    }
+    drop(session);
+    let valid = record(&path);
+    let position = &valid["payload"]["position"];
+    assert!(position["removal"].is_null() && position["government_pass_from"].is_null());
+    assert_eq!(position["transfer"]["Authorizing"]["waited"], true);
+    assert!(position["kidnap"].is_object() && position["assault"]["resolution"].is_object());
+    let previous = std::fs::read(previous_path(&path)).unwrap();
+
+    let mut cases = vec![];
+    for field in position.as_object().unwrap().keys() {
+        let mut altered = valid.clone();
+        altered["payload"]["position"]
+            .as_object_mut()
+            .unwrap()
+            .remove(field);
+        cases.push((format!("missing field `{field}`"), altered));
+    }
+    for (pointer, field) in [
+        ("/payload/position/kidnap", "revision"),
+        ("/payload/position/transfer/Authorizing", "waited"),
+        ("/payload/position/assault", "paid_spaces"),
+        ("/payload/position/assault", "resolution"),
+        ("/payload/position/assault/resolution", "detail"),
+    ] {
+        let mut altered = valid.clone();
+        let fields = altered
+            .pointer_mut(pointer)
+            .unwrap()
+            .as_object_mut()
+            .unwrap();
+        assert!(fields.remove(field).is_some(), "{pointer}/{field}");
+        cases.push((format!("missing field `{field}`"), altered));
+    }
+    for (pointer, field) in [
+        ("/payload/position", "finished"),
+        ("/payload/position", "event_side_decisions"),
+        ("/payload/position/assault", "omitted"),
+        ("/payload/position/kidnap", "unknown"),
+    ] {
+        let mut altered = valid.clone();
+        let fields = altered
+            .pointer_mut(pointer)
+            .unwrap()
+            .as_object_mut()
+            .unwrap();
+        fields.insert(field.into(), 0.into());
+        cases.push((format!("unknown field `{field}`"), altered));
+    }
+    assert_eq!(cases.len(), position.as_object().unwrap().len() + 9);
+    for (expected, altered) in cases {
+        let bytes = reseal(&altered);
+        std::fs::write(&path, &bytes).unwrap();
+        let refusal = format!("{:#}", Session::open(&path, None).err().expect(&expected));
+        assert!(
+            refusal.starts_with("Malformed save; original file preserved"),
+            "{refusal}"
+        );
+        assert!(refusal.contains(&expected), "{expected}: {refusal}");
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), previous);
+    }
+    // The save as written still opens.
+    std::fs::write(&path, reseal(&valid)).unwrap();
+    assert_eq!(
+        serde_json::to_value(Session::open(&path, None).unwrap().game()).unwrap(),
+        *position
+    );
+}
+
 /// Submits each action and restarts after it: the reopened save shows exactly what
 /// was published, with the same randomness; the match revision equals the number of
 /// saved decisions; and resubmitting the decision is refused with the bytes unchanged.
@@ -984,7 +1085,7 @@ fn admission_refuses_forged_roll_effects_and_impossible_revision_without_replaci
         cases.push(record);
     }
     let mut record = rolled.clone();
-    record["payload"]["position"]["finished"] = true.into();
+    record["payload"]["position"]["m26_action_ended"] = true.into();
     cases.push(record);
     let mut record = resolved.clone();
     record["payload"]["position"]["revision"] = 1.into();
