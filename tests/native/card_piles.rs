@@ -500,8 +500,10 @@ fn assert_tags_open(app: &mut Native, name: &str, before: &Value) {
     assert_card_tag_placed(&focused, "card:preview");
     assert_eq!(focused["observation"], before["observation"]);
     close_card_tag(app);
-    // Move focus off the card, so its tag can open again later.
+    // Move focus off the card, so its tag can open again later. It moves to the played
+    // pile, whose tag waits for the shared dwell (#144).
     app.request(json!({"op":"key","revision":revision,"key":"Tab"}), true);
+    app.request(json!({"op":"settle"}), true);
     app.point("quit");
 }
 
