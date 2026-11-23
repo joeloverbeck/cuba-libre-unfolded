@@ -2818,7 +2818,7 @@ mod government_pass_tests {
 
     #[test]
     fn government_pass_applies_income_only_up_to_the_resource_cap() {
-        let mut opening = Game::prepared_with_seed(2);
+        let mut opening = crate::terror_chosen(Game::opening_with_seed(2));
         for action in [
             "kidnap",
             "kidnap:roll",

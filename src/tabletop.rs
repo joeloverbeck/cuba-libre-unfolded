@@ -1728,7 +1728,7 @@ mod tests {
     /// from whether Kidnap was rolled.
     #[test]
     fn the_end_terror_notice_states_the_recorded_box() {
-        let mut game = Game::prepared();
+        let mut game = crate::terror_chosen(Game::opening());
         let only = noticed(&mut game.clone(), "end-terror", |_, _| {});
         assert_eq!(only, "Terror ended: Operation Only recorded. Saved.");
         let recorded = noticed(&mut game, "end-terror", |previous, after| {
@@ -1751,17 +1751,17 @@ mod tests {
     /// Resource … shifted 1 level") did not follow.
     #[test]
     fn a_terror_notice_states_the_authority_s_preview() {
-        let mut funded = Game::prepared_with_seed(5);
-        funded.submit(Faction::M26, 0, "0:transfer").unwrap();
+        let mut funded = crate::terror_chosen(Game::opening_with_seed(5));
+        funded.submit(Faction::M26, 1, "1:transfer").unwrap();
         funded
             .submit(
                 Faction::M26,
-                1,
-                &format!("1:ask:{}:2", Faction::Syndicate.index()),
+                2,
+                &format!("2:ask:{}:2", Faction::Syndicate.index()),
             )
             .unwrap();
         funded
-            .submit(Faction::Syndicate, 2, "2:authorize:2")
+            .submit(Faction::Syndicate, 3, "3:authorize:2")
             .unwrap();
         let santiago = noticed(&mut funded.clone(), "terror:santiago", |_, _| {});
         assert_eq!(
@@ -1789,8 +1789,8 @@ mod tests {
     /// the authority recorded.
     #[test]
     fn transfer_notices_name_the_decision_and_the_recorded_request() {
-        let mut game = Game::prepared();
-        game.submit(Faction::M26, 0, "0:transfer").unwrap();
+        let mut game = crate::terror_chosen(Game::opening());
+        game.submit(Faction::M26, 1, "1:transfer").unwrap();
         let asked = noticed(
             &mut game.clone(),
             &format!("ask:{}:2", Faction::Government.index()),
@@ -1800,12 +1800,12 @@ mod tests {
             asked,
             "Transfer request saved: 26July asks Government for 2. Nothing moves until Government decides."
         );
-        let mut gave = Game::prepared();
-        gave.submit(Faction::M26, 0, "0:transfer").unwrap();
+        let mut gave = crate::terror_chosen(Game::opening());
+        gave.submit(Faction::M26, 1, "1:transfer").unwrap();
         gave.submit(
             Faction::M26,
-            1,
-            &format!("1:ask:{}:2", Faction::Syndicate.index()),
+            2,
+            &format!("2:ask:{}:2", Faction::Syndicate.index()),
         )
         .unwrap();
         let authorized = noticed(&mut gave, "authorize:2", |_, _| {});
