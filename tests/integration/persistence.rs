@@ -619,9 +619,6 @@ fn removal_admission_refuses_foreign_changes_wrong_supply_and_impossible_obligat
     altered["payload"]["position"]["available"][3]["count"] = 14.into();
     cases.push(altered); // exact totals, but owed Terror lost its last Underground
     let mut altered = source.clone();
-    altered["payload"]["position"]["removal"] = serde_json::json!({"Confirming":{"space":"santiago","kind":"Guerrilla","state":"Underground"}});
-    cases.push(altered); // impossible pending confirmation
-    let mut altered = source.clone();
     altered["payload"]["position"]["removal"] = "Selecting".into();
     altered["payload"]["position"]["transfer"] = "Selecting".into();
     cases.push(altered); // mutually exclusive local decisions

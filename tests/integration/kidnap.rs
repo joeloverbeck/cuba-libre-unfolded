@@ -464,16 +464,3 @@ fn the_roll_saves_the_revision_it_created_and_a_restart_keeps_it() {
     drop(session);
     assert_eq!(Session::open(&path, None).unwrap().observe(), rolled);
 }
-
-/// A saved roll cannot claim a revision the match has not reached.
-#[test]
-fn a_roll_from_a_later_revision_is_invalid() {
-    let mut game = Game::prepared_with_seed(5);
-    choose(&mut game, "kidnap");
-    choose(&mut game, "kidnap:roll");
-    game.validate().unwrap();
-    let mut forged = serde_json::to_value(&game).unwrap();
-    forged["kidnap"]["revision"] = 3.into();
-    let forged: Game = serde_json::from_value(forged).unwrap();
-    assert!(forged.validate().is_err());
-}

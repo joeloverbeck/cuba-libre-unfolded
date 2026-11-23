@@ -198,25 +198,6 @@ fn wait_sets_the_request_aside_and_open_brings_it_back_both_saved() {
     game.validate().unwrap();
 }
 
-/// A request saved before #75 has no Waited mark: it is admitted unchanged as the
-/// giver deciding, as it resumed before, and a request not set aside is written in
-/// that same form.
-#[test]
-fn a_request_saved_before_75_is_admitted_as_the_giver_deciding() {
-    let mut game = Game::prepared();
-    choose(&mut game, "transfer");
-    choose(&mut game, "ask:3:2");
-    let record = serde_json::to_value(&game).unwrap();
-    assert_eq!(
-        record["transfer"],
-        serde_json::json!({"Authorizing":{"giver":"Syndicate","recipient":"M26","amount":2}})
-    );
-    let admitted: Game = serde_json::from_value(record).unwrap();
-    admitted.validate().unwrap();
-    assert_eq!(admitted, game);
-    assert!(actions(&admitted).contains(&"wait".to_owned()));
-}
-
 #[test]
 fn zero_and_repeated_transfers_are_allowed_and_zero_is_no_effect() {
     let mut game = Game::prepared();

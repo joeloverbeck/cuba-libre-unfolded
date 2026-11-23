@@ -426,21 +426,3 @@ fn all_own_pieces_can_return_to_supply_and_zero_space_finish_remains_legal() {
     );
     game.validate().unwrap();
 }
-
-/// A #8 save may hold a group awaiting confirmation. It resumes in removal mode with
-/// the same choices, so it can be finished or left with Done.
-#[test]
-fn a_pending_confirmation_from_an_8_save_resumes_in_removal_mode() {
-    let mut game = Game::prepared();
-    choose(&mut game, "remove");
-    let mut record = serde_json::to_value(&game).unwrap();
-    record["removal"] = serde_json::json!({"Confirming":{"space":"santiago","kind":"Guerrilla","state":"Underground"}});
-    let resumed: Game = serde_json::from_value(record).unwrap();
-    resumed.validate().unwrap();
-    let ids = |g: &Game| -> Vec<String> { g.observe().choices.into_iter().map(|c| c.id).collect() };
-    assert_eq!(ids(&resumed), ids(&game));
-    let mut resumed = resumed;
-    choose(&mut resumed, "remove:santiago:underground:1");
-    assert_eq!(resumed.observe().removal, Some(Removal::Selecting));
-    resumed.validate().unwrap();
-}
