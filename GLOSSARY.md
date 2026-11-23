@@ -92,6 +92,10 @@ _Avoid_: Donation, gift, payment
 One faction's nonbinding ask that another give it Resources. It moves nothing; only the giver's authorization makes a Resource transfer.
 _Avoid_: Petition, demand, pending transfer
 
+**Available Forces**:
+A faction's pieces not on the map, counted by kind: Troops, Police, Guerrillas, and Bases or Casinos. A piece is placed or replaced only from them, and a removed piece returns to them. A closed Casino is on the map, not Available.
+_Avoid_: Supply, reserve, pool
+
 **Voluntary removal**:
 The executing faction's return of its own on-map pieces, Casinos included, to Available Forces during its Operation, Special Activity or Event. The rules set no count limit, and the Syndicate may instead close a Casino.
 _Avoid_: Retreat, casualty, elimination
