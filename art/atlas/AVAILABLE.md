@@ -19,7 +19,7 @@ The study's [`hover-tag.png`](../proposals/available-forces/hover-tag.png) drew 
 - **Words:** the title "Available <faction> Forces"; one row per kind, its plural name and "N of T · M on the map": N Available, T the faction's inventory of that kind from the Available Forces chart (rules, p. 20; `INVENTORY` in the rules model) and M the inventory less Available: every piece that is not Available is on the map, in any state, a closed Casino included. The tag reads nothing from the map. Then the rule (R 1.4.1): "Pieces are placed only from Available Forces. With none of a kind left, a placement is skipped and a replacement only removes (R 1.4.1). While executing, a faction may return its own pieces from the map to Available." N + M is T by construction.
 - **Geometry and export:** the top-display tag's: `atlas-top-tag.png` stretched to the tag, 468 reference pixels wide; the title, the rule `atlas-victory-rule.png`, rows from 76 every 28 with values at 230, and notes 12 below the rows at 23 per line, broken by hand at 50 characters. The Government's, three rows and five note lines, is 790×508 on the owner's display; the others are 47 shorter.
 - **Place:** every faction's tag opens at one place, anchored top right as the ledger is: 8 reference pixels (13.5 on the owner's display) left of the ledger, its top 8 below the standings area's foot, so 2125.5, 209.25 on the owner's display. It covers neither ledger, the Cash supply, the standings nor the decision panel, and stays inside the window at 3:2, 16:9 and 21:9: it lies over the map only (see "Provenance and limits").
-- **Tab order:** the panel's controls, then the four rows (`available:government`, `available:26july`, `available:directorio`, `available:syndicate`), then the cards and the piles. The rows stand above the panel, so they follow it and come before the card tray at the bottom left.
+- **Tab order:** the panel's controls, then the four rows, then the cards and the piles ([seat reference](../../docs/agents/seat.md#keys) names the stops). The rows stand above the panel, so they follow it and come before the card tray at the bottom left.
 
 ## Files
 
@@ -51,11 +51,14 @@ Rows lie 52.31 apart (31 reference pixels), from the Government's emblem at 2952
 
 ## Pointer and seat
 
-`area:available-forces` is the ledger's area. Each row is the component `available:<faction>`, which the seat points at or focuses; the open tag is `table.top`. The development seat reports the ledger as `table.available_forces`: its `rows` by faction, with each cell's `kind` and `count`, and its drawn `parts` by their names in the record, each with its `bounds`, a count's `text` and whether a piece is `dimmed` ([seat reference](../../docs/agents/seat.md#what-the-table-reports)).
+The development seat names the ledger's area `area:available-forces` and each row `available:<faction>`, and reports the ledger as `table.available_forces` and the open tag as `table.top` ([seat reference](../../docs/agents/seat.md#what-the-table-reports)).
 
 ## Provenance and limits
 
-- **Tools:** VectorCraft CLI 0.24.1 and FigCraft CLI 0.18.1, the binaries [art-tools.md](../../docs/agents/art-tools.md) records.
+- **Tools:**
+  - VectorCraft CLI 0.24.1, installed on 2026-11-22 from a local checkout of `storytold/vectorcraft@88f5ece1`.
+  - FigCraft CLI 0.18.1, installed on 2026-11-22 from a local checkout of `storytold/figcraft@5c2a3784`.
+  - Each checkout reached that commit minutes before its binary was built, has not moved since and is clean; the sources were authored the next day. This is reflog and timestamp evidence, not a recorded build. The FigCraft build [art-tools.md](../../docs/agents/art-tools.md) records, `559c952d`, is an earlier one.
 - **The Resources tag:** it opens directly left of the Resources ledger at its top ([TOP.md](TOP.md)), which is now this ledger's place, so while it is open it covers this ledger. #159 left it there; the owner judges it in #157's native review.
 - **What the tag covers:** only the map, in every window checked. At 3840×2160 every faction's tag lies over open sea between the standings and the decision panel, 13.5 left of this ledger and below the standings, and covers no space; at 1920×1280 (3:2) it lies just below the 26July, Directorio and Syndicate standings, and at 2520×1080 (21:9) over sea left of the ledger, again covering no space. A unit test checks the same against every area at six windows from 3:2 to 21:9.
 - **What this establishes:** placement and count evidence from the native regressions `native_available_forces_ledger_matches_layout_and_follows_a_removal`, `native_available_forces_tags_open_on_hover_and_focus_and_follow_a_removal` and `native_available_forces_follow_a_rally_and_not_its_preview`, with the main view's regressions for the area in other windows. It is not owner play acceptance: the owner judges the ledger's legibility on the display in #157's review.
