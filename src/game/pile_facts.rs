@@ -159,7 +159,7 @@ pub fn next_propaganda_words(played: u8, propaganda: u8, preview: bool) -> (Stri
     };
     // The pile the preview lies in has had its Propaganda card played: the next is in
     // the pile after it.
-    let next_pile = PILE * propaganda >= played + 1;
+    let next_pile = PILE * propaganda > played;
     let (figure, why) = if next_pile {
         (
             format!(
