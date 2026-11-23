@@ -87,7 +87,7 @@ You can save and resume while the Rally is pending. After the last required effe
 
 ## Advancing to Pact of Caracas
 
-At the completed Alberto Bayo result, inspect the board, the Event effects and each faction's eligibility. Choose **Advance to Pact of Caracas** to play card 18. Pact of Caracas then lies on the played pile as the current card and Sierra Maestra Manifesto is turned up on the draw deck as the preview; the counts read 19 and 33, and each card's tag reads it. The Pact's Capability takes effect only if its Event executes.
+At the completed Alberto Bayo result, inspect the board, the Event effects and each faction's eligibility. Choose **Advance to Pact of Caracas** to play card 18. The advance is saved at once, and then you see it: Pact of Caracas lifts off the draw deck and crosses to the played pile, and the deck's next card, Sierra Maestra Manifesto, turns over where it lies, its back showing as it turns ([the card advance](../art/atlas/MAIN-VIEW.md#the-card-advance)). The counts change with the cards: the deck's reads 33 as the card leaves it and the played pile's reads 19 as it lands. A click anywhere, Space or Enter lands the cards at once and does nothing else. Pact of Caracas then lies on the played pile as the current card and Sierra Maestra Manifesto on the draw deck as the preview, and each card's tag reads it. The Pact's Capability takes effect only if its Event executes.
 
 Government is 1st Eligible and Syndicate is 2nd Eligible. Both skipped an Operation or Event on card 17. Terror and the Event made 26July and Directorio Ineligible. On the shaded branch, Alberto Bayo expressly keeps 26July Ineligible through card 18.
 
@@ -112,11 +112,11 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 | `W` `A` `S` `D` | Pan |
 | `Home` | Restore the map framing; also brings back hover tags that extreme framing hid |
 | `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the current and the preview card |
-| `Enter`, `Space` | Activate the focused control |
+| `Enter`, `Space` | Activate the focused control. While a played card is moving, land the cards instead |
 | `Escape` | Close a card's tag, unpin a briefing, cancel an open transfer, or close a tag or popover |
 
 The camera answers wherever the pointer is over the map. A scroll, a drag or a click on a panel stays with that panel: it neither moves the camera nor reaches the space beneath. The transfer modal takes camera input while open.
 
 ## Saving and quitting
 
-Reading, previews, camera moves and cancelling have no effect on the match. Reading cards never undoes an effect or rerolls. **Save / quit** exits, and relaunching with the same `--save` resumes that record, including an open Kidnap, a landed die and a pending request. README covers recovering a damaged save.
+Reading, previews, camera moves and cancelling have no effect on the match. Reading cards never undoes an effect or rerolls. **Save / quit** exits, and relaunching with the same `--save` resumes that record, including an open Kidnap, a landed die and a pending request. A card that was still moving when you quit is already played: the cards lie at rest and nothing is replayed. README covers recovering a damaged save.
