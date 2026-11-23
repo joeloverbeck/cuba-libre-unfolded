@@ -27,7 +27,7 @@ Every card in the played pile is in the tag. Sheet's tag showed eight and "… 1
   - **draw-deck tag · card 17.**
   The main view's frame holds two hidden rectangles, `played-pile-tag` and `deck-pile-tag`, where each opens on card 17. Every part is named as the runtime names it; a played card's row is `column-<c>-row-<r>` at runtime, the frames' `column-<c>` text box holding its rows. `atlas-pile-tags-layout.png` is the four frames at half size.
 - **Layout record:** `atlas-pile-tags.layout.json` holds each frame's parts relative to it, the `open` rectangles and the column rule. A unit test holds the runtime's constants to it, and the native regression `native_pile_tags_match_layout_and_read_the_model` compares the running app with it at 3840×2160 within 2 px: the plate and the rule on all four edges, text on left, top and right.
-- **Reused components:** the hover tag plate (`atlas-top-tag.png`, stretched to the tag, as every tag stretches it), the briefing rule (`atlas-victory-rule.png`) and Lato. No new export or manifest: the tags are stateless presentation and, like all art, are not part of a save's identity.
+- **Reused components:** the hover tag plate (`atlas-top-tag.png`, stretched to the tag, as every tag stretches it), the briefing rule (`atlas-victory-rule.png`) and Lato. No new export or manifest: the tags are stateless presentation.
 
 | Part | Frame rectangle (x, y, w) | Type |
 |---|---|---|

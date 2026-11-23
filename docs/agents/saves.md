@@ -27,7 +27,7 @@ These are refused, leaving the save and its `.previous` byte for byte as they we
 - a missing main record that has recovery history, which is never taken as a fresh start;
 - a failed replacement, which publishes nothing.
 
-A decision whose candidate fails the check before it is written keeps that check's own words: it is a defect in this build, not another build's save. A kept `.previous` that fails it refuses every write in that save with the words for a save another build wrote, although the save itself opened.
+A decision whose candidate fails the check before it is written keeps that check's own words: it is a defect in this build, not another build's save. A kept `.previous` that fails it refuses every write in that save with the words for a save another build wrote, although the save itself opened. A write gets the same words, not "changed in another session", when another session has replaced the save with one this build cannot read.
 
 ## Recovery
 
