@@ -26,7 +26,7 @@ fn refuse(game: &mut Game, owner: Faction, action: &str) -> String {
 }
 
 fn funded_opening() -> Game {
-    let mut game = Game::prepared_with_seed(2);
+    let mut game = crate::terror_chosen(Game::opening_with_seed(2));
     for action in [
         "kidnap",
         "kidnap:roll",

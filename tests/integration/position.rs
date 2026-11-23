@@ -4,7 +4,7 @@ use cuba_libre_unfolded::{Faction, Game};
 fn zero_and_positive_government_margins_do_not_satisfy_the_city_condition() {
     // R7.2/7.3 arithmetic challenge at the public model seam. These deliberately
     // altered boards are not admitted tactical saves or reachable slice states.
-    let mut record = serde_json::to_value(Game::prepared()).unwrap();
+    let mut record = serde_json::to_value(crate::terror_chosen(Game::opening())).unwrap();
     record["spaces"]
         .as_array_mut()
         .unwrap()
@@ -36,7 +36,7 @@ fn zero_and_positive_government_margins_do_not_satisfy_the_city_condition() {
 // Accepted handoff deacd635, prepared table and independently worked standings.
 #[test]
 fn prepared_position_exposes_complete_public_state_without_hidden_order() {
-    let game = Game::prepared();
+    let game = crate::terror_chosen(Game::opening());
     let view = game.observe();
     assert_eq!(view.resources, [6, 0, 5, 15]);
     assert_eq!(view.spaces.len(), 13);
@@ -128,23 +128,23 @@ fn prepared_position_exposes_complete_public_state_without_hidden_order() {
 
 #[test]
 fn zero_space_finish_has_no_pass_income_or_deck_advance_and_refuses_wrong_authority() {
-    let initial = Game::prepared();
+    let initial = crate::terror_chosen(Game::opening());
     for (owner, revision, choice) in [
-        (Faction::Government, 0, "0:end-terror"),
-        (Faction::M26, 1, "0:end-terror"),
-        (Faction::M26, 0, "1:end-terror"),
-        (Faction::M26, 0, "0:remove:santiago:police"),
+        (Faction::Government, 1, "1:end-terror"),
+        (Faction::M26, 2, "1:end-terror"),
+        (Faction::M26, 1, "2:end-terror"),
+        (Faction::M26, 1, "1:remove:santiago:police"),
     ] {
         let mut game = initial.clone();
         assert!(game.submit(owner, revision, choice).is_err());
         assert_eq!(game, initial);
     }
     let mut game = initial.clone();
-    game.submit(Faction::M26, 0, "0:end-terror").unwrap();
+    game.submit(Faction::M26, 1, "1:end-terror").unwrap();
     let view = game.observe();
     assert_eq!(view.resources, [6, 0, 5, 15]);
     assert_eq!(view.spaces, initial.observe().spaces);
-    assert_eq!(view.revision, 1);
+    assert_eq!(view.revision, 2);
     assert_eq!(view.owner, Faction::Directorio);
     assert_eq!(view.eligible, [true; 4]);
     assert_eq!(view.current_card, 17);
@@ -155,6 +155,6 @@ fn zero_space_finish_has_no_pass_income_or_deck_advance_and_refuses_wrong_author
     );
     assert_eq!(game.random_state(), initial.random_state());
     let finished = game.clone();
-    assert!(game.submit(Faction::M26, 0, "0:end-terror").is_err());
+    assert!(game.submit(Faction::M26, 1, "1:end-terror").is_err());
     assert_eq!(game, finished);
 }

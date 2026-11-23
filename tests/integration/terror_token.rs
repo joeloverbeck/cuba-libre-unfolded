@@ -98,7 +98,7 @@ fn terror_bell_is_one_clip_whose_last_key_repeats_its_first() {
 #[test]
 fn terror_bell_names_never_bind_as_map_spaces() {
     let (gltf, _) = chunks();
-    let spaces: Vec<_> = Game::prepared()
+    let spaces: Vec<_> = crate::terror_chosen(Game::opening())
         .observe()
         .spaces
         .into_iter()

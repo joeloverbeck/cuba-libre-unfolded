@@ -74,7 +74,7 @@ fn unavailable(preview: &Preview) -> Vec<&str> {
 }
 
 fn funded() -> Game {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     transfer(&mut game, Faction::Directorio, Faction::M26, 1);
     game
 }
@@ -144,7 +144,7 @@ fn oriente_terror_previews_a_shift_to_active_opposition_and_standing_plus_2() {
 
 #[test]
 fn removing_a_santiago_guerrilla_before_kidnap_previews_kidnap_becoming_unavailable() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     choose(&mut game, "remove");
     let p = preview(&game, "remove:santiago:underground:1");
     let removed: Vec<_> = p
@@ -179,7 +179,7 @@ fn removing_a_santiago_guerrilla_before_kidnap_previews_kidnap_becoming_unavaila
 
 #[test]
 fn removing_the_base_previews_standing_minus_1_and_sierra_maestra_uncontrolled() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     choose(&mut game, "remove");
     let p = preview(&game, "remove:sierra-maestra:base:1");
     assert_eq!(standing(&p, Faction::M26), Some([7, 6, -8, -9]));
@@ -199,7 +199,7 @@ fn target(game: &Game, space: &str) -> Choice {
 
 #[test]
 fn at_0_resources_both_targets_are_disabled_with_their_in_task_remedies() {
-    let game = Game::prepared();
+    let game = crate::terror_chosen(Game::opening());
     let santiago = target(&game, "santiago");
     assert!(!santiago.supported);
     assert!(
@@ -219,7 +219,7 @@ fn at_0_resources_both_targets_are_disabled_with_their_in_task_remedies() {
     // A disabled target is refused with its reason and changes nothing.
     let mut refused = game.clone();
     let error = refused
-        .submit(Faction::M26, 0, "0:terror:santiago")
+        .submit(Faction::M26, 1, "1:terror:santiago")
         .unwrap_err();
     assert_eq!(error, santiago.explanation);
     assert_eq!(refused, game);
@@ -252,7 +252,7 @@ fn after_a_transfer_funds_one_terror_the_other_target_is_disabled_again() {
 fn kidnap_is_no_remedy_when_government_has_nothing_to_take() {
     // Government gives 26July all 6, and 26July gives them on to Directorio: Kidnap
     // would take nothing and cannot guarantee Santiago's payment.
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     transfer(&mut game, Faction::Government, Faction::M26, 6);
     transfer(&mut game, Faction::M26, Faction::Directorio, 6);
     assert_eq!(game.observe().resources, [0, 0, 11, 15]);
@@ -264,7 +264,7 @@ fn kidnap_is_no_remedy_when_government_has_nothing_to_take() {
 
 #[test]
 fn a_target_lost_to_removal_has_no_remedy() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     remove(&mut game, "santiago:underground");
     remove(&mut game, "santiago:underground");
     remove(&mut game, "oriente:underground");
@@ -284,7 +284,7 @@ fn a_target_lost_to_removal_has_no_remedy() {
 
 #[test]
 fn while_santiago_terror_is_owed_oriente_is_disabled_by_the_reserve() {
-    let mut game = Game::prepared_with_seed(19); // actual shared roll 1: 26July 0 → 1
+    let mut game = crate::terror_chosen(Game::opening_with_seed(19)); // actual shared roll 1: 26July 0 → 1
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     assert_eq!(game.observe().resources[1], 1);
@@ -315,7 +315,7 @@ fn while_santiago_terror_is_owed_oriente_is_disabled_by_the_reserve() {
 #[test]
 fn while_santiago_terror_is_owed_end_terror_names_resolving_it_as_the_remedy() {
     for giver in [Faction::Government, Faction::Directorio, Faction::Syndicate] {
-        let mut game = Game::prepared_with_seed(19); // actual shared roll 1: 26July 0 → 1
+        let mut game = crate::terror_chosen(Game::opening_with_seed(19)); // actual shared roll 1: 26July 0 → 1
         choose(&mut game, "kidnap");
         choose(&mut game, "kidnap:roll");
         let end = choice(&game, "end-terror");
@@ -376,7 +376,7 @@ fn the_next_faction_and_its_role_come_with_its_options() {
     );
     assert_eq!(pass.next, Some(next));
 
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     assert_eq!(game.observe().next, None);
     let end = choice(&game, "end-terror").preview.unwrap();
     assert_eq!(end.m26_next_card, Some(false));
@@ -459,7 +459,7 @@ fn end_terror_records_operation_only_and_directorio_may_pass_or_take_a_limited_o
 
 #[test]
 fn end_terror_after_kidnap_records_the_special_activity_and_names_card_17_shaded() {
-    let mut game = Game::prepared_with_seed(5); // actual shared roll 3
+    let mut game = crate::terror_chosen(Game::opening_with_seed(5)); // actual shared roll 3
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     choose(&mut game, "terror:santiago");
@@ -479,7 +479,7 @@ fn end_terror_after_kidnap_records_the_special_activity_and_names_card_17_shaded
 
 #[test]
 fn zero_space_end_terror_warns_and_offers_going_back_only_before_an_effect() {
-    let game = Game::prepared();
+    let game = crate::terror_chosen(Game::opening());
     let p = preview(&game, "end-terror");
     assert_eq!(p.records, Some(SequenceBox::OperationOnly));
     let notes = p.notes.join(" ");
@@ -495,7 +495,7 @@ fn zero_space_end_terror_warns_and_offers_going_back_only_before_an_effect() {
     assert!(choice(&game, "back-to-choice").supported);
     assert!(p.resources.is_empty() && p.standings.is_empty() && p.terror.is_empty());
     // After a removal something has happened: the warning stays, going back does not.
-    let mut removed = Game::prepared();
+    let mut removed = crate::terror_chosen(Game::opening());
     remove(&mut removed, "oriente:underground");
     let notes = preview(&removed, "end-terror").notes.join(" ");
     assert!(notes.contains("No Terror resolved"), "{notes}");
@@ -530,7 +530,7 @@ fn pass_previews_one_resource_and_directorio_first_eligible() {
 
 #[test]
 fn no_old_finish_labels_remain() {
-    for game in [Game::prepared(), funded()] {
+    for game in [crate::terror_chosen(Game::opening()), funded()] {
         for c in game.observe().choices {
             assert!(!c.label.contains("Finish"), "{}", c.label);
             assert!(!c.label.contains("Full Terror"), "{}", c.label);
@@ -540,18 +540,18 @@ fn no_old_finish_labels_remain() {
 
 #[test]
 fn reading_every_preview_changes_neither_the_state_nor_the_randomness() {
-    let mut owed = Game::prepared_with_seed(19);
+    let mut owed = crate::terror_chosen(Game::opening_with_seed(19));
     choose(&mut owed, "kidnap");
     choose(&mut owed, "kidnap:roll");
-    let mut removing = Game::prepared();
+    let mut removing = crate::terror_chosen(Game::opening());
     choose(&mut removing, "remove");
     let mut confirming = removing.clone();
     choose(&mut confirming, "remove:santiago:underground:1");
-    let mut opened = Game::prepared();
+    let mut opened = crate::terror_chosen(Game::opening());
     choose(&mut opened, "kidnap");
     for game in [
         Game::opening(),
-        Game::prepared(),
+        crate::terror_chosen(Game::opening()),
         funded(),
         owed,
         removing,
@@ -600,7 +600,7 @@ fn committing_a_previewed_step_produces_the_previewed_resources_and_standings() 
 /// (local policy, #58).
 #[test]
 fn the_observation_reports_the_first_effect() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     assert!(!game.observe().effected);
     choose(&mut game, "kidnap");
     assert!(!game.observe().effected, "opening Kidnap rolls nothing");

@@ -64,7 +64,10 @@ fn the_task_opens_on_the_first_eligible_decision_with_every_26july_option_listed
     assert_eq!(view.executing, None);
     assert!(!view.finished);
     assert_eq!(view.resources, INITIAL);
-    assert_eq!(view.spaces, Game::prepared().observe().spaces);
+    assert_eq!(
+        view.spaces,
+        crate::terror_chosen(Game::opening()).observe().spaces
+    );
     assert!(!view.operation.contains("Full Terror"));
     let listed: Vec<_> = view
         .choices

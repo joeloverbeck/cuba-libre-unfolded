@@ -115,7 +115,7 @@ fn every_highlight_is_an_unchanged_hf_a_export_admitted_by_hash() {
 #[test]
 fn every_space_has_a_veil_and_only_targets_get_rules() {
     let manifest = manifest();
-    let game = Game::prepared().observe();
+    let game = crate::terror_chosen(Game::opening()).observe();
     let mut veiled = vec![];
     for graphic in manifest["graphics"].as_array().unwrap() {
         let spaces: Vec<&str> = graphic["spaces"]

@@ -61,7 +61,7 @@ fn choose(game: &mut Game, action: &str) {
 
 /// Card 17 played to its end and card 18 made current (R 2.3.8).
 fn advanced() -> Game {
-    let mut game = Game::prepared_with_seed(2);
+    let mut game = crate::terror_chosen(Game::opening_with_seed(2));
     for action in [
         "kidnap",
         "kidnap:roll",

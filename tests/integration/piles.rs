@@ -34,7 +34,7 @@ fn choose(game: &mut Game, action: &str) {
 
 /// Card 17 played to its end and card 18 made current (R 2.3.8).
 fn advanced() -> Game {
-    let mut game = Game::prepared_with_seed(2);
+    let mut game = crate::terror_chosen(Game::opening_with_seed(2));
     for action in ["kidnap", "kidnap:roll", "terror:santiago", "transfer"] {
         choose(&mut game, action);
     }
@@ -75,7 +75,7 @@ fn playing_card_18_moves_one_card_across() {
 
 #[test]
 fn the_counts_hold_at_every_step_of_card_17() {
-    let mut game = Game::prepared_with_seed(2);
+    let mut game = crate::terror_chosen(Game::opening_with_seed(2));
     let steps = [
         "kidnap",
         "kidnap:roll",
@@ -194,7 +194,7 @@ fn words_and_cards<'a>(
 /// is offered, and after it.
 #[test]
 fn the_card_under_the_preview_is_named_nowhere_in_the_observation() {
-    let mut offered = Game::prepared_with_seed(2);
+    let mut offered = crate::terror_chosen(Game::opening_with_seed(2));
     for action in [
         "kidnap",
         "kidnap:roll",

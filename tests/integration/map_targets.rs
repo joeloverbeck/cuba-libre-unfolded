@@ -94,7 +94,7 @@ fn at_0_resources_santiago_offers_kidnap_and_oriente_waits_for_a_transfer() {
 
 #[test]
 fn a_resource_transfer_makes_both_targets_selectable() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     give(&mut game, Faction::Syndicate, 2);
     assert_eq!(state(&game, "santiago").0, SpaceState::Selectable);
     assert_eq!(state(&game, "oriente").0, SpaceState::Selectable);
@@ -103,7 +103,7 @@ fn a_resource_transfer_makes_both_targets_selectable() {
 
 #[test]
 fn a_resolved_terror_leaves_its_space_not_involved() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     give(&mut game, Faction::Syndicate, 1);
     choose(&mut game, "terror:oriente");
     // Each space at most once (R 3.1); nothing in this task undoes that.
@@ -114,7 +114,7 @@ fn a_resolved_terror_leaves_its_space_not_involved() {
 
 #[test]
 fn removing_a_santiago_guerrilla_before_kidnap_leaves_only_the_transfer_remedy() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     choose(&mut game, "remove");
     choose(&mut game, "remove:santiago:underground:1");
     choose(&mut game, "done-removal");
@@ -138,7 +138,7 @@ fn removing_a_santiago_guerrilla_before_kidnap_leaves_only_the_transfer_remedy()
 
 #[test]
 fn removing_oriente_s_only_guerrilla_leaves_it_not_involved() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     choose(&mut game, "remove");
     choose(&mut game, "remove:oriente:underground:1");
     choose(&mut game, "done-removal");
@@ -148,7 +148,7 @@ fn removing_oriente_s_only_guerrilla_leaves_it_not_involved() {
 
 #[test]
 fn targeting_pauses_while_kidnap_is_open_a_transfer_is_under_way_or_removal_is_open() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     choose(&mut game, "kidnap");
     assert_eq!(space_targets(&game.observe()), None);
     choose(&mut game, "kidnap:cancel");
@@ -164,7 +164,7 @@ fn targeting_pauses_while_kidnap_is_open_a_transfer_is_under_way_or_removal_is_o
 
 #[test]
 fn after_the_kidnap_roll_santiago_offers_its_owed_terror() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     // The roll takes at least 1 of Government's 6 Resources, which pays Santiago.
@@ -177,7 +177,7 @@ fn after_the_kidnap_roll_santiago_offers_its_owed_terror() {
 
 #[test]
 fn ending_terror_ends_targeting() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     choose(&mut game, "end-terror");
     assert_eq!(space_targets(&game.observe()), None);
 }
@@ -186,7 +186,7 @@ fn ending_terror_ends_targeting() {
 /// Guerrilla and the Sierra Maestra Base, R 1.4.1) and dims every other space.
 #[test]
 fn removal_mode_marks_each_own_group_and_dims_the_spaces_without_one() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     assert_eq!(removal_targets(&game.observe()), None);
     choose(&mut game, "remove");
     let targets = removal_targets(&game.observe()).unwrap();
@@ -236,8 +236,8 @@ fn removal_mode_marks_each_own_group_and_dims_the_spaces_without_one() {
     assert_eq!(
         targets.pieces[0].choices,
         [
-            "1:remove:santiago:underground:1",
-            "1:remove:santiago:underground:2"
+            "2:remove:santiago:underground:1",
+            "2:remove:santiago:underground:2"
         ]
     );
     let view = game.observe();
@@ -261,7 +261,7 @@ fn removal_mode_marks_each_own_group_and_dims_the_spaces_without_one() {
 
 #[test]
 fn the_owed_terror_marks_santiago_s_last_underground_guerrilla_protected() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     choose(&mut game, "remove");
