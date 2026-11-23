@@ -4,13 +4,20 @@ use unfolded_random::SeededRandom;
 
 mod assault;
 mod cards;
+mod pile_facts;
 mod rally;
+mod titles;
 pub use assault::AssaultResolution;
 pub use cards::{
     CardFacts, CardWords, DECK_CARDS, EventKind, EventStatus, EventText, LastingEffect,
     PROPAGANDA_CARDS, Piles, Role, ShownCards, is_propaganda,
 };
+pub use pile_facts::{
+    DeckFacts, DeckWords, NextPropaganda, PlayedCard, PlayedPile, PlayedWords, next_propaganda,
+    next_propaganda_words,
+};
 pub use rally::{Rally, RallyAction, RallyResolution};
+pub use titles::title;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Faction {
@@ -548,6 +555,11 @@ pub struct Observation {
     /// played pile counts the current card and the draw deck the preview, so the two
     /// account for every card in the deck.
     pub piles: Piles,
+    /// Every card in the played pile, most recent first, as its tag lists them (R 2.2).
+    pub played_pile: PlayedPile,
+    /// The draw deck's public facts, among them how soon the next Propaganda card can
+    /// come, as its tag shows them. Derived without the face-down order.
+    pub deck: DeckFacts,
     pub eligible: [bool; 4],
     pub passed: [bool; 4],
     pub aid: u8,
@@ -1018,6 +1030,9 @@ impl Game {
         let eligibility = self.eligibility();
         let current_card = if self.card_18 { 18 } else { 17 };
         let piles = Piles::new(&played_cards, current_card, self.draw_deck.len());
+        let played_pile = pile_facts::played_pile(&played_cards, current_card);
+        // Only the deck's number and its face-up top card are public (R 2.2, 2.3.8).
+        let deck = pile_facts::deck_facts(&played_pile, piles.deck, self.draw_deck[0]);
         // No Capability or Momentum is in effect in this build.
         let capabilities: Vec<String> = vec![];
         Observation {
@@ -1046,6 +1061,8 @@ impl Game {
             draw_count: self.draw_deck.len(),
             cards: self.shown_cards(current_card, self.draw_deck[0], &capabilities),
             piles,
+            played_pile,
+            deck,
             passed: Faction::ALL.map(|f| match f {
                 Faction::M26 => self.action == ActionChoice::Pass,
                 Faction::Government => self.government_pass_from.is_some(),

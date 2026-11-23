@@ -258,7 +258,11 @@ pub(super) fn draw(
     offset.x += (window.width() - WIDTH * scale) / 2.;
     let standing = ui.hover.visible().and_then(|target| match target {
         Target::Standing(faction) => Some(faction),
-        Target::Top(_) | Target::Choice(_) | Target::Sequence(_) | Target::Card(_) => None,
+        Target::Top(_)
+        | Target::Choice(_)
+        | Target::Sequence(_)
+        | Target::Card(_)
+        | Target::Pile(_) => None,
     });
     let shown = standing.map(|faction| {
         let mut shown = content(&play.game().observe(), *faction);

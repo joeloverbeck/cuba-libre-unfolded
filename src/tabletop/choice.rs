@@ -866,11 +866,13 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
 
 /// The controls Tab moves through, in order, by their seat names, each with what
 /// Enter does to it: the panel's, then the current and the preview card, whose tags
-/// focus opens as hover does (#139).
+/// focus opens as hover does (#139), then the two piles, whose tags it opens too (#144).
 fn focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> {
     let mut controls = panel_focusable(view, ui);
     controls
         .extend(super::cards::Slot::ALL.map(|slot| (slot.name().to_owned(), Action::Card(slot))));
+    controls
+        .extend(super::piles::Pile::ALL.map(|pile| (pile.name().to_owned(), Action::Pile(pile))));
     controls
 }
 
@@ -1610,11 +1612,14 @@ mod tests {
         let view = Game::opening().observe();
         let ui = Interface::default();
         let order = names(&view, &ui);
-        assert_eq!(order.len(), 14);
+        assert_eq!(order.len(), 16);
         assert_eq!(order[0], "option:pass");
         assert_eq!(order[11], "choice-commit");
-        // Then both cards, whose tags focus opens (#139).
-        assert_eq!(order[12..], ["card:current", "card:preview"]);
+        // Then both cards and both piles, whose tags focus opens (#139, #144).
+        assert_eq!(
+            order[12..],
+            ["card:current", "card:preview", "pile:played", "pile:deck"]
+        );
         // During Terror (#84): every listed step, the commit, then the ribbon.
         let mut game = Game::opening();
         game.submit(Faction::M26, 0, "0:terror").unwrap();
@@ -1632,19 +1637,23 @@ mod tests {
                 "execution-commit",
                 "briefing-ribbon",
                 "card:current",
-                "card:preview"
+                "card:preview",
+                "pile:played",
+                "pile:deck"
             ]
         );
         ui.choice.ribbon = true;
         let order = names(&game.observe(), &ui);
         assert_eq!(
-            order[order.len() - 5..],
+            order[order.len() - 7..],
             [
                 "briefing-ribbon",
                 "briefing-tab:kidnap",
                 "briefing-tab:terror",
                 "card:current",
-                "card:preview"
+                "card:preview",
+                "pile:played",
+                "pile:deck"
             ]
         );
         ui.choice.pinned = Some("end-terror".into());

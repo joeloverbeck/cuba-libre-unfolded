@@ -216,9 +216,13 @@ fn native_card_tag_matches_layout_and_reads_the_model() {
     // Escape keeps the focused card's tag closed until focus moves.
     app.request(json!({"op":"advance","steps":60}), true);
     assert!(app.observe()["table"]["card"]["shown"].is_null());
-    // Tab wraps from the last card to the first option.
-    app.request(json!({"op":"key","revision":0,"key":"Tab"}), true);
-    assert_eq!(app.observe()["table"]["choice"]["focus"], "option:pass");
+    // Tab passes the two piles (#144) and wraps to the first option.
+    for next in ["pile:played", "pile:deck", "option:pass"] {
+        app.request(json!({"op":"key","revision":0,"key":"Tab"}), true);
+        // A focused pile's tag waits for the shared dwell, as a card's does.
+        app.request(json!({"op":"settle"}), true);
+        assert_eq!(app.observe()["table"]["choice"]["focus"], next);
+    }
 
     // A click pins the tag: it stays open after the pointer leaves, until Escape.
     app.activate("card:current", 0);

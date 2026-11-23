@@ -22,6 +22,7 @@ This layout is the authority for where every area of the main view sits ([founda
   - **Piles:** `played-pile` and `draw-deck` (300×430 each, 60 apart) are the top cards. Under each, `played-pile-base` and `deck-pile-base` are where the pile's foot shows on card 17, with the stack drawn between. `played-label` and `deck-label`, a count disc and its number on each pile, a caption under each, and `propaganda-label`, `propaganda-pip-0`…`3` and `propaganda-caption` lie over them. The cards are sheet A's placeholders; no private face or back is embedded.
   - **`card-tray`:** the unfilled rectangle the tray's camera draws, 60, 1480, 760×660. It is larger than the piles so that a card which lifts or turns stays inside it (#145).
   - **`card-tag`:** a hidden rectangle where the card tag opens: above the piles, its left edge on the played pile's and its foot 16 above the labels ([CARD-TAG.md](CARD-TAG.md)).
+  - **`played-pile-tag`, `deck-pile-tag`:** hidden rectangles where each pile's tag opens on card 17. The tags' own frames lie beside this one ([PILE-TAGS.md](PILE-TAGS.md)).
   - **`pile-shadow`:** outside the frame, a 300×430 rectangle in `ink` at 31%, blurred by 26: the soft shadow sheet A draws under each pile.
   - `atlas-main-view-layout.png` is the frame's export at full size.
 - **Layout record:** `atlas-main-view.layout.json` holds FigCraft's `absoluteBounds` in frame units.
@@ -66,7 +67,7 @@ The cards lie as the physical game lays them out (R 2.2, 2.3.8): the **played pi
 - **Faces.** The top card is the admitted private face of the model's current or preview card, drawn unlit so that it keeps its printed colours. The cards' corner radius is 5.6% of their width, which cuts away the black printed outside the faces' corners ([CARD-TAG.md](CARD-TAG.md), "Limits"). Only cards 17, 18 and 19 are admitted, and nothing here shows a card's back.
 - **Shadow.** `pile-shadow` lies on the table under each pile's foot, 12 toward the viewer, as sheet A draws it.
 - **Numbers.** Each pile's disc gives the rules model's count (`observation.piles`): the played pile counts the current card and the draw deck the preview, so the two account for all 52 cards. A filled pip stands for each Propaganda card played, of four, and the caption says "n of 4 played". The order of the cards under the preview is in neither the observation nor the tray.
-- **Targets.** Each top card is the hover, focus and click target of its card's tag. Each count disc is its pile's target (`pile:played`, `pile:deck`), which opens nothing until the pile tags of #144.
+- **Targets.** Each top card is the hover, focus and click target of its card's tag. Each count disc is its pile's target (`pile:played`, `pile:deck`), whose hover and focus open the [pile tag](PILE-TAGS.md).
 - **At rest.** The tray shows the saved match's cards at rest. Playing a card redraws both piles in their new state; the motion of the card is #145's.
 - **Fixed places.** The discs and captions stand where the layout draws them for card 17. Within this build's reach (18 or 19 and 33 or 34 cards) a pile's foot moves by under a unit, so they do not follow it.
 
