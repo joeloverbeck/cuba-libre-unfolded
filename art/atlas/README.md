@@ -49,7 +49,7 @@ The [main view layout](MAIN-VIEW.md) owns where every area sits: the 3D map fill
 | Sequence of Play | top left: x=60,y=178,w=232,h=384 | The eligibility track ([ELIGIBILITY.md](ELIGIBILITY.md)). |
 | Decision | top right: x=1380,y=280,w=500,h=660 | Current actor, operation, Resources, choices, cost, target, legal/refused explanation and actual roll/owed Terror. |
 | Primary action | x=1404,y=825,w=452,h=65, in the decision panel | Dynamic Finish/resolve label and enabled state; no example outcome remains baked. |
-| Card piles | bottom left: the tray x=35.6,y=1020.4,w=450.4,h=391.1 from the bottom-left corner of a 1280-high reference; top cards 177.8 wide | The played pile and the draw deck as solid cards, each with its top card's face, its count and its caption, and the Propaganda pips ([MAIN-VIEW.md](MAIN-VIEW.md#the-card-piles)). Each top card opens its [card tag](CARD-TAG.md). Never stretch or crop a face. |
+| Card piles | bottom left: the tray x=35.6,y=1020.4,w=450.4,h=391.1 from the bottom-left corner of a 1280-high reference; top cards 177.8 wide | The played pile and the draw deck as solid cards, each with its top card's face, its count and its caption, and the Propaganda pips ([MAIN-VIEW.md](MAIN-VIEW.md#the-card-piles)). Each top card opens its [card tag](CARD-TAG.md), and each count disc its [pile tag](PILE-TAGS.md). Never stretch or crop a face. |
 | Session | bottom right: x=1380,y=964,w=500,h=264 | Actual pending giver, durable-save/recovery/refusal status; save/quit and continuation. |
 
 Each area takes the pointer over its own rectangle, so a press or a scroll there never reaches the map.
