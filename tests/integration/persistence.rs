@@ -847,7 +847,7 @@ fn saves_this_build_cannot_continue_are_refused_with_every_file_unchanged() {
 /// such as a removed one, is refused as a save another build wrote, and the save and
 /// its previous record stay byte for byte as they were.
 #[test]
-fn a_position_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
+fn a_save_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("shape.json");
     // Seed 2 rolls 5, and 26July funds the Assault. The position ends inside the paid
@@ -922,14 +922,22 @@ fn a_position_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
         fields.insert(field.into(), 0.into());
         cases.push((format!("unknown field `{field}`"), altered));
     }
-    assert_eq!(cases.len(), position.as_object().unwrap().len() + 9);
+    // Outside the position: the save itself, not its position, is not in this
+    // build's shape.
+    let mut altered = valid.clone();
+    altered["payload"]
+        .as_object_mut()
+        .unwrap()
+        .insert("start".into(), position.clone());
+    cases.push(("unknown field `start`".to_owned(), altered));
+    assert_eq!(cases.len(), position.as_object().unwrap().len() + 10);
     for (expected, altered) in cases {
         let bytes = reseal(&altered);
         std::fs::write(&path, &bytes).unwrap();
         let refusal = format!("{:#}", Session::open(&path, None).err().expect(&expected));
         assert_another_build(&refusal);
         assert!(
-            refusal.contains("its position is not in this build's shape"),
+            refusal.contains("(the save is not in this build's shape: "),
             "{refusal}"
         );
         assert!(refusal.contains(&expected), "{expected}: {refusal}");
@@ -1141,19 +1149,29 @@ fn stale_writer_and_failed_replacement_do_not_publish_an_effect() {
     let path = dir.path().join("task.json");
     let mut first = Session::open(&path, None).unwrap();
     let mut stale = Session::open(&path, None).unwrap();
-    first.submit(Faction::M26, 0, "0:pass").unwrap();
+    let opening = stale.observe();
+    first.submit(Faction::M26, 0, "0:terror").unwrap();
     let valid = std::fs::read(&path).unwrap();
-    assert!(
+    assert_eq!(
         stale
-            .submit(Faction::M26, 0, "0:pass")
+            .submit(Faction::M26, 0, "0:terror")
             .unwrap_err()
-            .to_string()
-            .contains("another session")
+            .to_string(),
+        "Save changed in another session; reload before continuing"
     );
-    assert!(!stale.observe().finished);
+    assert_eq!(stale.observe(), opening);
     assert_eq!(std::fs::read(&path).unwrap(), valid);
     first.save().unwrap();
     assert_eq!(std::fs::read(&path).unwrap(), valid);
+    // Refused until it reloads: the reloaded session shows the decision the other
+    // session saved, and its next decision is saved after it.
+    drop(stale);
+    let mut reloaded = Session::open(&path, None).unwrap();
+    assert_eq!(reloaded.observe(), first.observe());
+    reloaded.submit(Faction::M26, 1, "1:end-terror").unwrap();
+    assert_eq!(decisions(&path), ["terror", "end-terror"]);
+    assert_eq!(std::fs::read(previous_path(&path)).unwrap(), valid);
+    assert!(Session::open(&path, None).unwrap().observe().finished);
     let blocked = dir.path().join("blocked.json");
     let mut session = Session::open(&blocked, None).unwrap();
     let initial = std::fs::read(&blocked).unwrap();
@@ -1224,10 +1242,46 @@ fn missing_main_with_recovery_history_is_not_a_fresh_task() {
     let previous = previous_path(&dir.path().join("task.json"));
     let recovery = std::fs::read(&previous).unwrap();
     std::fs::remove_file(&path).unwrap();
-    assert!(Session::open(&path, None).is_err());
+    assert_eq!(
+        Session::open(&path, None).err().unwrap().to_string(),
+        "Main save is missing but recovery history exists; recover explicitly to an unused path"
+    );
     assert!(!path.exists());
     assert_eq!(std::fs::read(&previous).unwrap(), recovery);
     assert!(Session::open(&dir.path().join("recovered.json"), Some(&path)).is_ok());
+}
+
+/// A write first admits the kept `.previous` before rotating it. When that record's
+/// decisions do not replay to its position, the write is refused in a save that
+/// opened, with the words for a save another build wrote, and neither record nor
+/// the published position changes.
+#[test]
+fn a_previous_record_that_does_not_replay_refuses_the_next_write_unchanged() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("task.json");
+    let mut session = Session::open(&path, None).unwrap();
+    act(&mut session, "terror");
+    let main = std::fs::read(&path).unwrap();
+    // The kept opening position, now claiming a decision it does not hold.
+    let mut previous = record(&previous_path(&path));
+    assert_eq!(previous["payload"]["decisions"], serde_json::json!([]));
+    previous["payload"]["decisions"] = serde_json::json!(["terror"]);
+    let previous = reseal(&previous);
+    std::fs::write(previous_path(&path), &previous).unwrap();
+    let published = session.observe();
+
+    let refusal = session
+        .submit(Faction::M26, 1, "1:end-terror")
+        .unwrap_err()
+        .to_string();
+    assert_another_build(&refusal);
+    assert!(
+        refusal.contains("(its 1 decisions do not reproduce its position)"),
+        "{refusal}"
+    );
+    assert_eq!(session.observe(), published);
+    assert_eq!(std::fs::read(&path).unwrap(), main);
+    assert_eq!(std::fs::read(previous_path(&path)).unwrap(), previous);
 }
 
 #[test]
