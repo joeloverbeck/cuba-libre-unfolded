@@ -295,14 +295,13 @@ impl Game {
         }
         let mut pieces = space.pieces.clone();
         let mut available = self.available.clone();
-        let delta = i16::from;
         let (active, underground, base) = match step.action {
-            RallyAction::Place(n) => (0, delta(n), 0),
-            RallyAction::FlipUnderground(n) => (-delta(n), delta(n), 0),
+            RallyAction::Place(n) => (0, i16::from(n), 0),
+            RallyAction::FlipUnderground(n) => (-i16::from(n), i16::from(n), 0),
             RallyAction::ReplaceWithBase {
                 active,
                 underground,
-            } => (-delta(active), -delta(underground), delta(1)),
+            } => (-i16::from(active), -i16::from(underground), 1),
         };
         for (kind, state, change) in [
             (Kind::Guerrilla, State::Active, active),

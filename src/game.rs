@@ -593,7 +593,11 @@ impl Choice {
     /// The action without its match revision: `terror:santiago` for the id
     /// `3:terror:santiago`.
     pub fn action(&self) -> &str {
-        self.id.split_once(':').map_or(self.id.as_str(), |(_, a)| a)
+        Self::action_of(&self.id)
+    }
+    /// The action in the choice id `id`, without its match revision.
+    pub(crate) fn action_of(id: &str) -> &str {
+        id.split_once(':').map_or(id, |(_, action)| action)
     }
     /// The map space this choice acts on, so the map can offer it there: a Terror
     /// target, or opening Kidnap in its space. Other choices act on no space.
