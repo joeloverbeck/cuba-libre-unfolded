@@ -23,7 +23,7 @@ The track lies over the sea west of the island, 60 reference px from the window'
 - **Changes from the proposal:** the proposal's other alternatives and its action-choice page are removed. Its hidden layers are deleted, and every part is named as the runtime names it. The after-Pass Directorio ribbon, which showed the 1st ribbon under a "tag-2nd" name, is renamed to its role.
 - **Graphics:** the six VectorCraft graphics are the proposal's exports from `../proposals/issue-64/briefing-eligibility-graphics.vectorcraft`, byte for byte (drawn at reference size, exported at 3×). `tests/integration/eligibility.rs` checks this.
 - **Layout record:** `atlas-eligibility.layout.json` records each part's FigCraft bounds in the 16:9 frame, for all four states and the tag. The native regression `native_eligibility_indicator_matches_layout_in_every_state` compares the running app with it at 3840×2160, within 2 px. The record was read from the saved document by an editor-side script kept with the #70 evidence.
-- **Manifest:** `eligibility.sha256` admits the nine runtime files at launch. A missing or changed file refuses launch. The indicator is stateless presentation, so it does not change the save-bound identity.
+- **Manifest:** `eligibility.sha256` admits the nine runtime files at launch. A missing or changed file refuses launch. Like all art, the indicator is not part of a save's identity.
 
 | Export | Source | PNG | Reference size |
 |---|---|---:|---|

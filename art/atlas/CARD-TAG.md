@@ -20,7 +20,7 @@ The owner selected card tag **T1 · Face and ledger** on 2026-11-22 ([decision r
 - **Reused components:** the hover tag plate, the briefing rule (`atlas-victory-rule.png`), the victory emblems (`atlas-victory-icon-*.png`, the same files T1 placed) and Lato.
 - **New exports:** the two mark plates, FigCraft exports of the frames' `mark` rectangles at 3 px per reference pixel (`atlas-card-tag-current.png` 481×82 in `ink`, `atlas-card-tag-preview.png` 338×82 in `ink-secondary`). Their text is runtime Lato Bold.
 - **Layout record:** `atlas-card-tag.layout.json` records each part relative to its frame. The native regression `native_card_tag_matches_layout_and_reads_the_model` compares the running app with it at 3840×2160, within 2 px: images on all four edges, text on left, top and right. The ledger column flows, so a value that wraps moves the captions below it; the record holds the line counts of its example state, which the regression reproduces.
-- **Manifest:** `card-tag.sha256` admits the two mark plates at launch. A missing or changed file refuses launch. The tag is stateless presentation, so it does not change a save's identity.
+- **Manifest:** `card-tag.sha256` admits the two mark plates at launch. A missing or changed file refuses launch. Like all art, the tag is not part of a save's identity.
 - **Palette:** `atlas-card-tag.variables.json` is the file's `Atlas` export.
 
 | Part | Frame rectangle (x, y, w, h) | Type |

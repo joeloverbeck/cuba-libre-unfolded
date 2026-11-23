@@ -64,7 +64,7 @@ The development seat drives the same scene, UI and input path without opening a 
 
 ## Saves and recovery
 
-Each successful save keeps the prior valid record beside it as `task.json.previous`. A save the app cannot admit is refused, and every file is left as it was: a damaged or oversized save, one changed by another session, a missing save with recovery history, and a save another build wrote that this build cannot continue. Saves are disposable across builds ([foundation 2](docs/foundation/02-rules-and-verification.md#engine-authority)); for a refused save from another build, start a match under an unused save name. [docs/agents/saves.md](docs/agents/saves.md#admission-and-refusal) lists what is refused and why.
+Each successful save keeps the prior valid record beside it as `task.json.previous`. A save the app cannot admit is refused, and every file is left as it was. Saves are disposable across builds ([foundation 2](docs/foundation/02-rules-and-verification.md#engine-authority)); for a refused save from another build, start a match under an unused save name. [docs/agents/saves.md](docs/agents/saves.md#admission-and-refusal) lists what is refused and why.
 
 To recover an original record's `.previous` into an **unused** destination:
 

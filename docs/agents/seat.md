@@ -246,7 +246,7 @@ Drawn-part names:
 - `native_havana_and_santiago_assault_in_either_order_restarts_and_finishes` commits the two spaces in both orders, restarts after the first, checks stale and repeat refusal, and ends with Syndicate's 2nd Eligible decision while Government retains 2 Resources. It funds the position through checked decisions in a seeded save. Evidence goes to `local/verification/issue-131/`.
 
 - `native_funded_santiago_assault_carries_each_event_and_restarts` plays both Event texts and the funded Santiago Assault. It checks the payment, removal, process restarts, duplicate refusal and Syndicate's 2nd Eligible options. It funds the match through checked decisions in a save seeded so the Kidnap die rolls 5. Evidence goes to `local/verification/issue-130/`.
-- `native_assault_resumes_giver_and_government_side_decisions` checks a transfer authorization and a voluntary Troop removal across restart, recalculated payment and removal capacity, and Syndicate's 2nd Eligible handoff. It accepts the same funded fixture and keeps evidence under `local/verification/issue-132/`.
+- `native_assault_resumes_giver_and_government_side_decisions` checks a transfer authorization and a voluntary Troop removal across restart, recalculated payment and removal capacity, and Syndicate's 2nd Eligible handoff. It funds the match through checked decisions in the same seeded save, and keeps evidence under `local/verification/issue-132/`.
 
 - `native_main_view_fills_the_window_and_matches_its_layout`: the main view at 3840×2160. Evidence: `local/verification/issue-142/main-view-*`.
   - The map camera draws the whole window, and the capture shows sea where the desk, the "CUBA" title, the terrain key and the adjacency line were.
@@ -299,7 +299,7 @@ CUBA_TEST_CARDS="/path/to/cards" scripts/heavy scripts/native
 - Each test keeps isolated saves, JSON observations and screenshots under its evidence directory, below. `CUBA_NATIVE_EVIDENCE` selects another evidence directory.
 - Inspect the images separately: passing assertions do not prove readability or owner acceptance.
 - Run native regressions serially (`--test-threads=1`).
-- A regression reaches its position by submitting decisions, through the seat or the save session, never from a save retained from an earlier build: such a save is disposable ([foundation 2](../foundation/02-rules-and-verification.md#engine-authority)). One that needs a known die roll first creates its save with `cuba_libre_unfolded::save::Session::create_seeded(path, seed)`, which writes a new save whose match opens with that seed at 26July's action choice and refuses a path already in use, and then launches the app on it. The app's own launch has no seed option and always draws OS entropy. Kidnap rolls by seed: 19 → 1, 0 → 2, 5 → 3, 3 → 4, 2 → 5, 1 → 6.
+- A regression reaches its position by submitting decisions, through the seat or the save session, never from a save retained from an earlier build: such a save is disposable ([foundation 2](../foundation/02-rules-and-verification.md#engine-authority)). One that needs a known die roll first creates its save from a chosen seed with `cuba_libre_unfolded::save::Session::create_seeded` ([saves, "A seeded save"](saves.md#the-record)), and then launches the app on it. Kidnap rolls by seed: 19 → 1, 0 → 2, 5 → 3, 3 → 4, 2 → 5, 1 → 6.
 - A user-selected `CARGO_TARGET_DIR` can reuse a compatible warm build cache; it is not a runtime dependency.
 
 The first five tests below (evidence under `issue-12` to `issue-15`) together exercise:
