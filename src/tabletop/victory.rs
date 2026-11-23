@@ -403,7 +403,7 @@ mod tests {
 
     #[test]
     fn footers_leave_resources_to_the_ledger_but_syndicate_keeps_its_condition() {
-        let view = crate::Game::prepared().observe();
+        let view = crate::terror_chosen(crate::Game::opening()).observe();
         for faction in Faction::ALL {
             let shown = content(&view, faction);
             assert!(shown.footer.starts_with("Available: "), "{}", shown.footer);

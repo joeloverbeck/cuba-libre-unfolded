@@ -2052,11 +2052,11 @@ mod tests {
 
     #[test]
     fn santiago_at_0_resources_previews_opening_kidnap_and_states_terror_s_remedies() {
-        let card = card(&Game::prepared(), "santiago", None);
+        let card = card(&crate::terror_chosen(Game::opening()), "santiago", None);
         assert_eq!(card.title, "Santiago de Cuba");
         assert_eq!(card.rows.len(), 2);
         let kidnap = &card.rows[0];
-        assert_eq!(kidnap.choice.as_deref(), Some("0:kidnap"));
+        assert_eq!(kidnap.choice.as_deref(), Some("1:kidnap"));
         assert!(kidnap.chosen);
         assert_eq!(
             kidnap.button.as_deref(),
@@ -2086,7 +2086,7 @@ mod tests {
 
     #[test]
     fn a_funded_santiago_terror_previews_its_cost_flip_shift_and_standing() {
-        let mut game = Game::prepared();
+        let mut game = crate::terror_chosen(Game::opening());
         for step in ["transfer", "ask:3:1", "authorize:1"] {
             choose(&mut game, step);
         }
@@ -2123,7 +2123,7 @@ mod tests {
 
     #[test]
     fn after_a_removal_santiago_s_kidnap_has_no_remedy() {
-        let mut game = Game::prepared();
+        let mut game = crate::terror_chosen(Game::opening());
         for step in ["remove", "remove:santiago:underground:1", "done-removal"] {
             choose(&mut game, step);
         }
@@ -2137,7 +2137,7 @@ mod tests {
 
     #[test]
     fn a_rolled_kidnap_stays_as_history_beside_the_owed_terror() {
-        let mut game = Game::prepared();
+        let mut game = crate::terror_chosen(Game::opening());
         choose(&mut game, "kidnap");
         choose(&mut game, "kidnap:roll");
         let view = game.observe();
@@ -2177,7 +2177,7 @@ mod tests {
     /// previews its own removal and acts through the authority's choice for it.
     #[test]
     fn a_santiago_stack_offers_each_quantity_with_its_own_preview() {
-        let mut game = Game::prepared();
+        let mut game = crate::terror_chosen(Game::opening());
         choose(&mut game, "remove");
         let one = piece(&game, "santiago:underground", 1);
         assert_eq!(one.kind, CardKind::Piece);
@@ -2197,7 +2197,7 @@ mod tests {
         let row = &one.rows[0];
         assert_eq!(
             row.choice.as_deref(),
-            Some("1:remove:santiago:underground:1")
+            Some("2:remove:santiago:underground:1")
         );
         assert_eq!(row.button.as_deref(), Some("Remove 1 Guerrilla"));
         let lines = text(row);
@@ -2215,7 +2215,7 @@ mod tests {
         let two = piece(&game, "santiago:underground", 2);
         assert_eq!(
             two.rows[0].choice.as_deref(),
-            Some("1:remove:santiago:underground:2")
+            Some("2:remove:santiago:underground:2")
         );
         assert_eq!(two.rows[0].button.as_deref(), Some("Remove 2 Guerrillas"));
         assert!(text(&two.rows[0]).contains("2 Underground Guerrillas return to Available."));
@@ -2226,7 +2226,7 @@ mod tests {
     /// A-P5 after the roll: at most 1, with the owed Terror's reason; then A-P6.
     #[test]
     fn the_owed_terror_limits_the_stack_then_protects_the_last_guerrilla() {
-        let mut game = Game::prepared();
+        let mut game = crate::terror_chosen(Game::opening());
         choose(&mut game, "kidnap");
         choose(&mut game, "kidnap:roll");
         choose(&mut game, "remove");
@@ -2259,7 +2259,7 @@ mod tests {
     /// A-P7: the Base, with Control and its standing (7 → 6, margin −8 → −9).
     #[test]
     fn the_base_previews_control_and_its_standing() {
-        let mut game = Game::prepared();
+        let mut game = crate::terror_chosen(Game::opening());
         choose(&mut game, "remove");
         let card = piece(&game, "sierra-maestra:base", 1);
         assert_eq!(card.title, "26July Base");
@@ -2281,7 +2281,7 @@ mod tests {
 
     #[test]
     fn spaces_without_an_action_have_no_popover() {
-        let view = Game::prepared().observe();
+        let view = crate::terror_chosen(Game::opening()).observe();
         assert!(content(&view, "sierra-maestra", None).is_none());
         assert!(content(&Game::opening().observe(), "santiago", None).is_none());
     }
