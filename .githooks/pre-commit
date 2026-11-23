@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Refuses a commit while the working tree's Rust source fails `cargo fmt --all --check`,
+# which scripts/check and CI also refuse. Enable once per clone:
+# git config core.hooksPath .githooks
+set -euo pipefail
+cd -- "$(git rev-parse --show-toplevel)"
+if ! output=$(cargo fmt --all --check 2>&1); then
+  echo "pre-commit: 'cargo fmt --all --check' failed. Run 'cargo fmt --all' if this is formatting:" >&2
+  head -20 <<<"$output" >&2
+  exit 1
+fi

@@ -17,6 +17,8 @@ Never copy an existing mechanism here as a temporary substitute. Discovery is re
 
 Name producer, affected consumers, preserved behavior, verification and rollback in the Cuba Libre issue, with links to each repository's own work. Read each repository's instructions. Implement the shared mechanism and consumer adapters, run each affected repository's checks and the real path the extraction changes, then create the necessary PRs. Follow each repository's review and merge rules. Merge the producer and consumer changes in dependency order, pin the merged producer revision, and pull their respective `main` branches before continuing the dependent Cuba Libre implementation.
 
+[docs/agents/extraction.md](../agents/extraction.md) gives the agents' steps for one extraction, role by role.
+
 Do not imply that a producer unit test verifies a consumer migration. Do not broaden an extraction into a framework project. A rollback must account for consumer pins and any changed persisted data, rather than assuming reverting a dependency always repairs saves.
 
 The [source survey](../research/founding-evidence.md) finds shared seat/socket infrastructure already present. Arkham's live partners and table talk are distinct from that windowless seat. Its artwork ZIP installation remains another concrete candidate. These are source pointers to refresh when selected, not authorization to extract all candidates now.
@@ -44,6 +46,8 @@ The existing mudsong/shared-library waiver ends when a consumer outside the thre
 | End | For that mechanism, a fifth game, crates.io publication or a general-framework promise, or loss of its second real consumer |
 
 Carry this accepted decision into each participating repository's own records before relying on it there. It does not waive verification or grant any claim of general framework fitness. This foundation publication changes no sibling repository; those records belong to the first relevant coordinated extraction.
+
+On 2026-11-22, during [#137](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/137#issuecomment-7086673254), the owner read the Scope row as covering a mechanism whose Cuba Libre consumer is already ticketed in an active, owner-approved spec, so its extraction may merge before Cuba Libre uses it. The extraction's issue names that ticket and an end condition: what happens to the mechanism if the spec ends without the ticket using it. The owner gave the reading for card motion (consumer #145; it would have moved back to Arkham). The orchestrator then applied it to the card shape's corner-fraction variants (consumer #143; they would have been removed) and [reported that](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/137#issuecomment-7088435004) to the owner. Both consumers were built.
 
 ## Minimal engineering start
 
