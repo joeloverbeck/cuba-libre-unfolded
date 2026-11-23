@@ -1,6 +1,6 @@
 # Spec #<SPEC> — brief for every subagent
 
-Template. The orchestrator copies it to `local/handoffs/spec-<SPEC>/brief.md` in the main checkout, fills in every `<…>`, deletes the sections the spec does not need, and gives each subagent that path with its own task. Beside it the orchestrator saves the files "Read first" names: the spec body, each ticket, the activation record, and corrections and exploration notes where there are any. The spec's durable state stays in issue comments.
+Template. The orchestrator copies it to `local/handoffs/spec-<SPEC>/brief.md` in the main checkout, fills in every `<…>`, deletes the sections the spec does not need, and gives each subagent that path with its own task. Beside it the orchestrator saves the files "Read first" names: the spec body, each ticket, the activation record, and corrections, exploration notes and the published inspection where there are any. The spec's durable state stays in issue comments.
 
 Main checkout: `<absolute path>` (stays on `main`; edit tracked files and switch branches only in your worktree).
 
@@ -10,7 +10,7 @@ Main checkout: `<absolute path>` (stays on `main`; edit tracked files and switch
 2. The spec: `local/handoffs/spec-<SPEC>/spec-body.md` (issue #<SPEC>). Your ticket: `ticket-<N>.md` beside it. The owner's decisions at activation: `activation.md`. Corrections to the spec's premises, if it exists: `corrections.md`.
 3. `docs/agents/parallel-work.md`: binding for every build, test run and worktree.
 4. The foundations, ADRs and agent documents this spec touches: <list>.
-5. `local/handoffs/spec-<SPEC>/exploration.md`, if it exists: the four-repository inspection and a code map. Verify a pointer before relying on it, since merged tickets move code.
+5. `local/handoffs/spec-<SPEC>/exploration.md`, if it exists: the explorer's notes on the four repositories and a code map. `inspection.md` beside it is the inspection as published. Verify a pointer before relying on it, since merged tickets move code.
 6. `done-<N>.md` of each ticket merged before yours.
 7. Implementers: step 4 of `.claude/skills/implement-spec/SKILL.md` is your working method, from confirming your base to merging the integration tip before you report.
 
@@ -19,7 +19,7 @@ Main checkout: `<absolute path>` (stays on `main`; edit tracked files and switch
 - Integration branch: `integration/spec-<SPEC>`, worktree `local/worktrees/integration/spec-<SPEC>`. Tickets reach it only by a merge.
 - Implementer for ticket N: from the main checkout, `git worktree add -b ticket/<N>-<slug> local/worktrees/ticket/<N>-<slug> integration/spec-<SPEC>`.
 - Commit on your own branch with `For #<N>` in the message, ending with `<attribution line>`. Pushing, pull requests and closing issues are the orchestrator's.
-- Build target: <each worktree's own, or the spec's one target as parallel-work.md, "One target for tickets in turn", describes, with the exact `CARGO_TARGET_DIR=…` prefix>.
+- Build target: <each worktree's own, or the spec's one target as parallel-work.md, "One target for tickets in turn", describes, with the exact `CARGO_TARGET_DIR=…` prefix; for a ticket handed a warm target, its exact branch name>.
 - Leave your worktree and target in place when you finish.
 
 ## Private inputs and evidence
@@ -27,6 +27,7 @@ Main checkout: `<absolute path>` (stays on `main`; edit tracked files and switch
 - Private card directory: `~/.local/share/cuba-libre-unfolded/cards`, read-only. Native runs: `CUBA_TEST_CARDS="$HOME/.local/share/cuba-libre-unfolded/cards" scripts/heavy scripts/native <filter>`.
 - The owner's saves in `~/.local/share/cuba-libre-unfolded/saves/` are read-only: copy one into your run directory and use the copy.
 - Evidence goes in a fresh run directory under `local/verification/issue-<N>/<run>/` in the main checkout. Existing evidence stays as it is.
+- `mudsong` is private and this repository is public: commits, issue comments and done notes give only its revision and disposition (foundation 3, "Before every feature"). `exploration.md` may hold its source pointers and stays local; `inspection.md` is the published inspection.
 - Card faces, the card back and unredacted captures stay out of Git.
 
 ## Limits

@@ -454,21 +454,9 @@ mod tests {
             .find(|group| group.faction == Faction::M26 && group.kind == Kind::Guerrilla)
             .unwrap();
         guerrillas.count -= 2;
-        // Every 26July piece is Available or on the map: 15 Guerrillas and 4 Bases.
-        let held = |game: &Game, kind| {
-            let groups = game
-                .available
-                .iter()
-                .chain(game.spaces.iter().flat_map(|space| &space.pieces));
-            groups
-                .filter(|group| group.faction == Faction::M26 && group.kind == kind)
-                .map(|group| group.count)
-                .sum::<u8>()
-        };
-        assert_eq!(
-            (held(&rally, Kind::Guerrilla), held(&rally, Kind::Base)),
-            (15, 4)
-        );
+        // Every piece is Available or on the map, here and after each Rally below.
+        let breaches = |game: &Game| crate::inventory_breaches(&game.available, &game.spaces);
+        assert_eq!(breaches(&rally), Vec::<String>::new());
         let explanation = |game: &Game, action: &str| {
             game.observe()
                 .choices
@@ -497,10 +485,7 @@ mod tests {
             ),
             (10, 3)
         );
-        assert_eq!(
-            (held(&flip, Kind::Guerrilla), held(&flip, Kind::Base)),
-            (15, 4)
-        );
+        assert_eq!(breaches(&flip), Vec::<String>::new());
         assert_eq!(
             count(
                 &sierra_maestra(&flip).pieces,
@@ -525,10 +510,7 @@ mod tests {
             ),
             (12, 2)
         );
-        assert_eq!(
-            (held(&base, Kind::Guerrilla), held(&base, Kind::Base)),
-            (15, 4)
-        );
+        assert_eq!(breaches(&base), Vec::<String>::new());
         let pieces = &sierra_maestra(&base).pieces;
         assert_eq!(count(pieces, Faction::M26, Kind::Base, None), 2);
         assert_eq!(count(pieces, Faction::M26, Kind::Guerrilla, None), 0);

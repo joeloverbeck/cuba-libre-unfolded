@@ -18,7 +18,7 @@ How agents run a ticket that changes `unfolded-tabletop` or another game. [Found
    - removes the sibling worktrees and their build output.
 
    The ticket then merges into the integration branch like any other.
-5. **Record** on the ticket: producer, consumers, preserved behaviour, verification, rollback, the merged pull requests with their revisions, and each evidence limit the owner accepted.
+5. **Record** on the ticket: producer, consumers, preserved behaviour, verification, rollback, the merged pull requests with their revisions, and each evidence limit the owner accepted. For `mudsong`, a private repository, the ticket names it and links its pull request, which holds its details (foundation 3, "Before every feature").
 
 Each attempt at step 1 or 3 has the waiver's two active hours.
 
