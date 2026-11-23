@@ -199,12 +199,17 @@ pub(super) fn draw(
     window: Single<&Window, With<PrimaryWindow>>,
     roots: Query<Entity, (With<Tag>, Without<ChildOf>)>,
     mut previous: Local<Option<Shown>>,
+    advance: Res<super::piles::Advance>,
+    time: Res<Time>,
 ) {
     let (s, left) = layout(&window);
     // The tags open above the piles, which lie against the window's bottom.
     let left = left + bottom(&window);
     let view = play.game().observe();
-    let shown = play.session.as_ref().and(shown_pile(&ui)).map(|pile| {
+    // A tag states the model's piles, which are a card ahead of the piles on the
+    // table while a played card is in the air (#145): none shows until it lands.
+    let open = shown_pile(&ui).filter(|_| !advance.in_the_air(&view, time.elapsed_secs_f64()));
+    let shown = play.session.as_ref().and(open).map(|pile| {
         let mut shown = content(&view, pile);
         let x = match pile {
             Pile::Played => fig::PLAYED_LEFT,

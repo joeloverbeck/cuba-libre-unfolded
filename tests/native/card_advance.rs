@@ -889,6 +889,72 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
         app.quit();
     }
 
+    // A pile's tag states the model's piles, which are a card ahead of the piles on
+    // the table while a card is in the air. An open tag closes for the motion and is
+    // back as the cards land, with the numbers their discs and the pips then read.
+    let (_socket, mut app) = advance_run(&root, "pile-tags", &saved, &prior);
+    app.launch_size("3840x2160");
+    app.request(json!({"op":"settle"}), true);
+    app.point("pile:deck");
+    let open = app.observe();
+    let tag = &open["table"]["pile_tag"]["shown"];
+    assert_eq!(tag["pile"], "pile:deck", "{tag}");
+    assert_eq!(
+        tag["ledger"][0][1],
+        open["observation"]["deck"]["words"]["cards"]
+    );
+    assert!(
+        tag["ledger"][0][1].as_str().unwrap().starts_with("34"),
+        "{tag}"
+    );
+    // The keyboard commits the advance while the pointer stays on the deck's disc.
+    let advance = format!("{revision}:advance-card");
+    app.request(json!({"op":"key","revision":revision,"key":"Tab"}), true);
+    app.request(json!({"op":"settle"}), true);
+    assert_eq!(app.observe()["table"]["choice"]["focus"], advance);
+    let pressed = app.request(
+        json!({"op":"key","revision":revision,"key":"Enter","focused":advance}),
+        true,
+    );
+    assert_eq!(pressed["status"], "pressed", "{pressed}");
+    let flying = app.observe();
+    assert_eq!(flying["observation"], after);
+    assert_eq!(flying["table"]["piles"]["advance"]["card"], 18);
+    assert_eq!(flying["table"]["pile_tag"]["shown"], Value::Null);
+    let held = advance_to(&mut app, 0.5);
+    assert_eq!(held["table"]["pile_tag"]["shown"], Value::Null);
+    app.capture("no-tag-in-the-air");
+    // Landed by Space: the deck's tag is back in the reply, counting 33.
+    app.request(
+        json!({"op":"key","revision":revision+1,"key":"Space","focused":"card-advance"}),
+        true,
+    );
+    let landed = app.observe();
+    let tag = &landed["table"]["pile_tag"]["shown"];
+    assert_eq!(tag["pile"], "pile:deck", "{tag}");
+    assert_eq!(tag["ledger"][0][1], after["deck"]["words"]["cards"]);
+    assert!(
+        tag["ledger"][0][1].as_str().unwrap().starts_with("33"),
+        "{tag}"
+    );
+    app.request(json!({"op":"settle"}), true);
+    let landed = app.observe();
+    card_piles::assert_piles(&landed, 19, 33, 18, 19);
+    assert_eq!(landed["observation"], after);
+    app.capture("deck-tag-landed");
+    // And the played pile's: 19 cards and one of four Propaganda cards played.
+    app.point("pile:played");
+    let shown = app.observe();
+    let tag = &shown["table"]["pile_tag"]["shown"];
+    assert_eq!(tag["pile"], "pile:played", "{tag}");
+    assert!(
+        tag["ledger"][0][1].as_str().unwrap().starts_with("19"),
+        "{tag}"
+    );
+    assert_eq!(tag["ledger"][1][1], "1 of 4 played", "{tag}");
+    assert_eq!(fs::read(&app.save).unwrap(), advanced);
+    app.quit();
+
     // A restart while the card is in the air: the cards at rest, one advance, and
     // the exact save from before it as the recovery record.
     let (_socket, mut app) = advance_run(&root, "restart", &saved, &prior);

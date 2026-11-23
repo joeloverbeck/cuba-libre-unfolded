@@ -542,10 +542,15 @@ impl Advance {
             },
         }
     }
+    /// Whether a played card is in the air at clock time `now`: the piles on the table
+    /// are then a card behind the model's.
+    pub(super) fn in_the_air(&self, view: &Observation, now: f64) -> bool {
+        self.scene(view, now).flying.is_some()
+    }
     /// Whether an input in frame `frame` lands the cards and so does nothing else: it
     /// does while a card is in the air, and for the rest of the frame that ended it.
     pub(super) fn lands(&mut self, view: &Observation, now: f64, frame: u32) -> bool {
-        if self.scene(view, now).flying.is_some() {
+        if self.in_the_air(view, now) {
             self.start = None;
             self.landed = Some(frame);
         }
@@ -1185,11 +1190,7 @@ const EDGE_ON: f32 = 0.05;
 pub(super) fn playing(world: &World) -> bool {
     let view = world.resource::<Play>().game().observe();
     let now = world.resource::<Time>().elapsed_secs_f64();
-    world
-        .resource::<Advance>()
-        .scene(&view, now)
-        .flying
-        .is_some()
+    world.resource::<Advance>().in_the_air(&view, now)
 }
 
 /// What holds the seat: an advance until its cards have landed, and then the tray

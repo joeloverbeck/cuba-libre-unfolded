@@ -4,7 +4,7 @@ The owner's selection for spec #137 includes a tag on each pile, drawn on sheet 
 
 ## What they show
 
-- **Opening:** hovering a pile's count disc on the main view ([MAIN-VIEW.md](MAIN-VIEW.md#the-card-piles)), or focusing it with Tab, opens its tag after the shared 400 ms dwell, as the other hover tags open. The tag closes when the pointer or focus leaves. There is no pin. Reading a pile changes nothing in the match.
+- **Opening:** hovering a pile's count disc on the main view ([MAIN-VIEW.md](MAIN-VIEW.md#the-card-piles)), or focusing it with Tab, opens its tag after the shared 400 ms dwell, as the other hover tags open. The tag closes when the pointer or focus leaves. There is no pin. Reading a pile changes nothing in the match. While a played card is in the air no pile tag shows ([the card advance](MAIN-VIEW.md#the-card-advance)).
 - **Played pile:** the title "Played pile"; the count with "current card on top"; Propaganda "n of 4 played"; under MOST RECENT FIRST every card in the pile, most recent first, as "number · title", the current card marked "· current" and each Propaganda card set in bold; and a note on why the pile is open (R 2.2).
 - **Draw deck:** the title "Draw deck"; the count with "counts the preview"; the cards face down; the Propaganda cards left, of 4; how soon the next Propaganda card can come; and a note on Deck Preparation that states the figure's assumption, labelled as local policy ([local rule policies](../../docs/local-rule-policies.md#next-propaganda-assumes-equal-piles)). Nothing on it, or anywhere, shows the order of the face-down cards.
 - **Words:** each line is the rules model's: `observation.played_pile` and `observation.deck`, with their `words`. The tags word nothing themselves.
