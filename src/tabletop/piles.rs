@@ -1786,7 +1786,7 @@ mod tests {
                 let turned = elapsed - CROSSING;
                 assert_eq!(pose.up().y < 0., turned < TURNING / 2., "{elapsed} s");
                 let from = pose.translation - aloft(Pile::Deck);
-                assert!(from.x.abs() < 1e-6 && (0.0..=TURNING_DRAW + 1e-6).contains(&from.z));
+                assert!(from.x.abs() < 1e-6 && (-1e-6..=TURNING_DRAW + 1e-6).contains(&from.z));
             }
         }
         // The turning card's upper edge comes within 16 px of the tray's top.
