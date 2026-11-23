@@ -60,11 +60,11 @@ The development seat drives the same scene, UI and input path without opening a 
 | The private card directory for `--cards` and `CUBA_TEST_CARDS` | `~/.local/share/cuba-libre-unfolded/cards/` |
 | Handoff notes | `local/handoffs/`; the durable state belongs in an issue comment |
 
-`local/` is ignored by Git and survives reboots, but not `git clean -x` or deleting the checkout; it is no backup. A test copies an owner save into its own run directory and uses the copy. Existing saves and retained evidence are never migrated, overwritten or cleaned up. Saves, imports and verification evidence stay outside Git.
+`local/` is ignored by Git and survives reboots, but not `git clean -x` or deleting the checkout; it is no backup. Existing saves and retained evidence are never migrated, overwritten or cleaned up. Saves, imports and verification evidence stay outside Git.
 
 ## Saves and recovery
 
-Each successful save keeps the prior valid record beside it as `task.json.previous`. A save the app cannot admit is refused, and every file is left as it was; [docs/agents/saves.md](docs/agents/saves.md#admission-and-refusal) lists what is refused and why.
+Each successful save keeps the prior valid record beside it as `task.json.previous`. A save the app cannot admit is refused, and every file is left as it was: a damaged or oversized save, one changed by another session, a missing save with recovery history, and a save another build wrote that this build cannot continue. Saves are disposable across builds ([foundation 2](docs/foundation/02-rules-and-verification.md#engine-authority)); for a refused save from another build, start a match under an unused save name. [docs/agents/saves.md](docs/agents/saves.md#admission-and-refusal) lists what is refused and why.
 
 To recover an original record's `.previous` into an **unused** destination:
 
