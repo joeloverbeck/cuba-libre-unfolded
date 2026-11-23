@@ -62,33 +62,8 @@ pub(super) fn prepared() -> Vec<(String, String, u64)> {
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
 fn native_available_forces_ledger_matches_layout_and_follows_a_removal() {
-    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
-        .map(PathBuf::from)
-        .unwrap_or_else(|| "local/verification/issue-159".into());
-    std::fs::create_dir_all(&evidence).unwrap();
-    let root = tempfile::Builder::new()
-        .prefix("available-forces-")
-        .tempdir_in(evidence)
-        .unwrap()
-        .keep()
-        .canonicalize()
-        .unwrap();
-    let socket = tempfile::tempdir().unwrap();
-    let mut app = NativeRun {
-        app: Native {
-            cards: std::env::var_os("CUBA_TEST_CARDS")
-                .expect("Set CUBA_TEST_CARDS")
-                .into(),
-            socket: socket.path().join("seat.sock"),
-            save: root.join("task.json"),
-            root,
-            step: 0,
-        },
-        _socket: socket,
-    };
-    eprintln!("Available Forces native evidence: {}", app.root.display());
     // 3840x2160 is the owner's display and the record's frame: one unit is one pixel.
-    app.launch_size("3840x2160");
+    let mut app = start("available-forces-", "issue-159", "3840x2160");
     let rest = app.observe();
     let layout: Value = serde_json::from_str(include_str!(
         "../../art/atlas/atlas-available-forces.layout.json"
@@ -285,13 +260,15 @@ fn assert_tag_covers_only_the_map(view: &Value, at: &str) -> Vec<String> {
         .collect()
 }
 
-fn start(size: &str) -> NativeRun {
+/// Launches the app at `size`, its evidence in a fresh `prefix` directory under
+/// `local/verification/<issue>` unless `CUBA_NATIVE_EVIDENCE` names another root.
+fn start(prefix: &str, issue: &str, size: &str) -> NativeRun {
     let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
         .map(PathBuf::from)
-        .unwrap_or_else(|| "local/verification/issue-160".into());
+        .unwrap_or_else(|| format!("local/verification/{issue}").into());
     std::fs::create_dir_all(&evidence).unwrap();
     let root = tempfile::Builder::new()
-        .prefix("available-tags-")
+        .prefix(prefix)
         .tempdir_in(evidence)
         .unwrap()
         .keep()
@@ -310,7 +287,7 @@ fn start(size: &str) -> NativeRun {
         },
         _socket: socket,
     };
-    eprintln!("Available Forces tag evidence: {}", app.root.display());
+    eprintln!("Available Forces native evidence: {}", app.root.display());
     app.launch_size(size);
     app
 }
@@ -334,7 +311,7 @@ fn focus(app: &mut Native, name: &str) -> Value {
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
 fn native_available_forces_tags_open_on_hover_and_focus_and_follow_a_removal() {
-    let mut app = start("3840x2160");
+    let mut app = start("available-tags-", "issue-160", "3840x2160");
     let layout: Value = serde_json::from_str(include_str!(
         "../../art/atlas/atlas-available-forces.layout.json"
     ))
@@ -403,13 +380,9 @@ fn native_available_forces_tags_open_on_hover_and_focus_and_follow_a_removal() {
                     );
                 }
             }
-            let notes = line(
-                RULE.split("\n")
-                    .take(3)
-                    .collect::<Vec<_>>()
-                    .join("\n")
-                    .as_str(),
-            );
+            // The rule is one drawn block, as the frame's one `notes` box sets it.
+            assert_eq!(shown["table"]["top"]["notes"], json!([RULE]));
+            let notes = line(RULE);
             let [px, py, pw, _] = rect_of(&layout["tag"]["text"]["notes"]);
             for (n, e) in notes.iter().zip([x + px, y + py, x + px + pw]) {
                 assert!((n - e).abs() <= tolerance, "notes: {notes:?}");

@@ -20,8 +20,13 @@ pub(super) enum Item {
     Available(Faction),
 }
 
+/// The Available Forces rows' seat names, `available:<faction>`, in `Faction::ALL`
+/// order.
+static AVAILABLE_NAMES: std::sync::LazyLock<[String; 4]> =
+    std::sync::LazyLock::new(|| Faction::ALL.map(|f| format!("available:{}", slug(f))));
+
 impl Item {
-    pub(super) const ALL: [Self; 8] = [
+    const ALL: [Self; 8] = [
         Self::Aid,
         Self::UsAlliance,
         Self::Resources,
@@ -37,10 +42,7 @@ impl Item {
             Self::UsAlliance => "us-alliance",
             Self::Resources => "resources",
             Self::Cash => "cash",
-            Self::Available(Faction::Government) => "available:government",
-            Self::Available(Faction::M26) => "available:26july",
-            Self::Available(Faction::Directorio) => "available:directorio",
-            Self::Available(Faction::Syndicate) => "available:syndicate",
+            Self::Available(faction) => &AVAILABLE_NAMES[faction.index()],
         }
     }
     /// The hover target in reference pixels, and whether it is anchored to the
@@ -288,7 +290,10 @@ pub(super) fn content(view: &crate::Observation, item: Item) -> Shown {
                 "After Operations without a Special Activity, its\nowner may remove it for a free Limited Operation.\nAt a Propaganda Round each becomes +6 Resources\nor an available Base there (Syndicate: Casino).",
             ],
         ),
-        Item::Available(faction) => available::tag(view, faction),
+        Item::Available(faction) => {
+            let tag = available::tag(view, faction);
+            (tag.title, tag.rows, tag.notes)
+        }
     };
     let mut notes: Vec<String> = notes.into_iter().map(String::from).collect();
     if item == Item::Resources {

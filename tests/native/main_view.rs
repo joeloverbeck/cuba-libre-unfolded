@@ -316,8 +316,6 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
     );
     assert_areas_and_island(&rest, &layout, 3840., 2160.);
 
-    // The accepted areas against the layout record: images on all four edges, text
-    // on left, top and right, since its line height is the renderer's.
     // #161: the session panel reports the save and the Terror/Sabotage supply; the
     // piece totals are the Available Forces ledger's.
     let status = rest["table"]["main_view"]["parts"]
@@ -337,6 +335,9 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
         "{status}"
     );
     assert!(!status.contains(" map / "), "{status}");
+
+    // The accepted areas against the layout record: images on all four edges, text
+    // on left, top and right, since its line height is the renderer's.
     let drawn: BTreeMap<String, [f64; 4]> = ["main_view", "eligibility"]
         .iter()
         .flat_map(|field| rest["table"][field]["parts"].as_array().unwrap())

@@ -1068,6 +1068,39 @@ fn assert_victory_geometry(view: &Value) {
             );
         }
     }
+    // #161: the tag closes up below its conditions. The lowest drawn line is the
+    // last condition, with no footer under it, and the plate's foot is that line's
+    // 27-pixel pitch and the 32 margin below its top (VICTORY.md), in window pixels.
+    let s = (view["table"]["viewport"][0].as_f64().unwrap() / 1920.)
+        .min(view["table"]["viewport"][1].as_f64().unwrap() / 1280.);
+    let conditions = view["table"]["victory"]["conditions"].as_array().unwrap();
+    let drawn = |line: &Value| {
+        view["table"]["victory_text"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|t| t["text"] == *line)
+            .map(|t| rect(&t["bounds"]))
+            .unwrap_or_else(|| panic!("no drawn condition {line}: {view}"))
+    };
+    let last = drawn(conditions.last().unwrap());
+    assert_eq!(
+        texts.last(),
+        Some(&last),
+        "a line below the conditions: {view}"
+    );
+    if let [.., before, _] = conditions.as_slice() {
+        assert!(
+            (last[1] - drawn(before)[1] - 27. * s).abs() <= 1.,
+            "condition pitch: {view}"
+        );
+    }
+    assert!(
+        (tag[3] - last[1] - (27. + 32.) * s).abs() <= 1.,
+        "the plate's foot {} against the last condition's top {}: {view}",
+        tag[3],
+        last[1]
+    );
 }
 
 #[test]

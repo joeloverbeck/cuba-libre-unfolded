@@ -396,9 +396,13 @@ mod tests {
             let reported = serde_json::to_value(&shown).unwrap();
             assert!(reported.get("footer").is_none(), "{reported}");
             assert!(!reported.to_string().contains("Available"), "{reported}");
-            // Closed up: the last condition line, then the tag's 32 margin.
-            let last = condition_top(&shown) + 28. + (shown.conditions.len() - 1) as f32 * 27.;
-            assert_eq!(height(&shown), last + 27. + 32.);
+            // Closed up: the height the tag had before #161, with its one-line footer
+            // (246, then 28 per row, 27 per condition and 23 per footer line), less
+            // the footer's line and the 26 gap above it. The native victory
+            // regression checks the drawn plate's foot against its last condition.
+            let before =
+                246. + shown.rows.len() as f32 * 28. + shown.conditions.len() as f32 * 27. + 23.;
+            assert_eq!(height(&shown), before - 49.);
         }
         assert!(
             content(&view, Faction::Syndicate)

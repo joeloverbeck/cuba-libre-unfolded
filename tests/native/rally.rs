@@ -495,7 +495,7 @@ fn native_free_rally_can_choose_zero_in_a_qualifying_base_space() {
     let place_zero = "rally:sierra-maestra:place:0";
     let preview = app.point(&format!("option:{place_zero}"));
     let contents = tag_text(&preview["table"]["briefing"]);
-    // The supply clause ends at "No pieces move."; the ledger shows the 12 (#161).
+    // The Available Forces clause ends at "No pieces move."; the ledger shows the 12 (#161).
     for text in [
         "Place up to 4. No pieces move. Rally treats",
         "0 Resources",
