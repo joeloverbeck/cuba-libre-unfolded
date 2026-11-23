@@ -495,14 +495,15 @@ fn native_free_rally_can_choose_zero_in_a_qualifying_base_space() {
     let place_zero = "rally:sierra-maestra:place:0";
     let preview = app.point(&format!("option:{place_zero}"));
     let contents = tag_text(&preview["table"]["briefing"]);
+    // The supply clause ends at "No pieces move."; the ledger shows the 12 (#161).
     for text in [
-        "No pieces move",
-        "12 Guerrillas stay",
+        "Place up to 4. No pieces move. Rally treats",
         "0 Resources",
         "Actual Active Opposition stays",
     ] {
         assert!(contents.contains(text), "{contents}");
     }
+    assert!(!contents.contains("Guerrillas stay"), "{contents}");
     app.capture("zero-placement-preview");
     choose_rally_option(&mut app, place_zero);
 
@@ -613,15 +614,17 @@ fn native_free_rally_hands_the_decision_to_the_beneficiary() {
     );
     let maximum = app.point("option:rally:sierra-maestra:place:4");
     let preview = tag_text(&maximum["table"]["briefing"]);
+    // 12 Available do not limit a ceiling of 4, so the explanation gives the ceiling
+    // alone (#161), and the change it makes: 12 − 4 = 8.
     for text in [
-        "2 × 1 Base + 2 × 1 Population = 4",
-        "12 Available Guerrillas",
-        "up to 4",
+        "2 × 1 Base + 2 × 1 Population = 4. Place up to 4.",
+        "This leaves 8 Guerrillas in Available Forces.",
         "0 Resources",
         "Active Opposition",
     ] {
         assert!(preview.contains(text), "{preview}");
     }
+    assert!(!preview.contains("Available Guerrillas"), "{preview}");
     app.capture("03-26july-rally-maximum");
     app.request(json!({"op":"activate","revision":revision,"choice":format!("{revision}:rally:sierra-maestra:place:5")}), false);
     assert_eq!(app.observe()["observation"], pending);

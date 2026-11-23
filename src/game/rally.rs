@@ -131,11 +131,18 @@ impl RallyTarget<'_> {
         } else {
             format!("{} Base + {} Population", self.bases, self.space.population)
         };
+        // The ledger shows the Available count; the explanation names it only where it
+        // is what limits the placement (#161).
+        let limit = if self.available < self.ceiling() {
+            format!(
+                "With {} Available Guerrillas, place up to {}.",
+                self.available, self.available
+            )
+        } else {
+            format!("Place up to {}.", self.ceiling())
+        };
         let supply = match action {
-            RallyAction::Place(0) => format!(
-                "No pieces move. {} Guerrillas stay in Available Forces.",
-                self.available
-            ),
+            RallyAction::Place(0) => "No pieces move.".into(),
             RallyAction::Place(count) => format!(
                 "This leaves {} Guerrillas in Available Forces.",
                 self.available - count
@@ -146,10 +153,8 @@ impl RallyTarget<'_> {
             }
         };
         format!(
-            "{arithmetic} = {}. With {} Available Guerrillas, place up to {}. {supply} Rally treats {} as Neutral. Actual {} stays. Cost: 0 Resources.",
+            "{arithmetic} = {}. {limit} {supply} Rally treats {} as Neutral. Actual {} stays. Cost: 0 Resources.",
             self.ceiling(),
-            self.available,
-            self.ceiling().min(self.available),
             self.space.name,
             support_level(self.space.support),
         )
@@ -356,4 +361,137 @@ fn adjust(
         });
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sierra_maestra(game: &Game) -> &Space {
+        game.spaces
+            .iter()
+            .find(|space| space.id == "sierra-maestra")
+            .unwrap()
+    }
+
+    /// R 3.3.1: 26July places up to 2 × (Bases + Population) in a Base space; R 1.4.1:
+    /// never more than its Available Guerrillas. Sierra Maestra has 1 Base and
+    /// Population 1, a ceiling of 4. The prepared scenario always has 12 Available, so
+    /// the binding case is a constructed target (#161).
+    #[test]
+    fn the_explanation_names_the_available_count_only_where_it_binds() {
+        let game = Game::opening();
+        let target = |available| RallyTarget {
+            space: sierra_maestra(&game),
+            beneficiary: Faction::M26,
+            available,
+            bases: 1,
+        };
+        // Below the ceiling, Available is the limit: 3 Guerrillas allow 3 of 4.
+        let short = target(3);
+        assert_eq!(short.actions(3).last(), Some(&RallyAction::Place(3)));
+        let text = short.explanation(RallyAction::Place(3));
+        assert!(
+            text.starts_with(
+                "2 × 1 Base + 2 × 1 Population = 4. With 3 Available Guerrillas, place up to 3. \
+                 This leaves 0 Guerrillas in Available Forces. "
+            ),
+            "{text}"
+        );
+        // At or above the ceiling, the ceiling alone.
+        for available in [4, 12] {
+            let text = target(available).explanation(RallyAction::Place(4));
+            assert!(
+                text.starts_with(&format!(
+                    "2 × 1 Base + 2 × 1 Population = 4. Place up to 4. \
+                     This leaves {} Guerrillas in Available Forces. ",
+                    available - 4
+                )),
+                "{text}"
+            );
+            assert!(!text.contains("Available Guerrillas"), "{text}");
+        }
+        // "Place 0" says no pieces move, then the space's other facts.
+        assert_eq!(
+            target(12).explanation(RallyAction::Place(0)),
+            "2 × 1 Base + 2 × 1 Population = 4. Place up to 4. No pieces move. \
+             Rally treats Sierra Maestra as Neutral. Actual Active Opposition stays. \
+             Cost: 0 Resources."
+        );
+    }
+
+    /// The flip and the Base replacement state their change to Available Forces, and
+    /// the rules make it (R 3.3.1). The prepared scenario has no Guerrilla in Sierra
+    /// Maestra at its Rally, so this position adds 2 Active 26July Guerrillas there.
+    #[test]
+    fn a_flip_and_a_base_state_and_make_their_change_to_available_forces() {
+        let mut rally = crate::terror_chosen(Game::opening_with_seed(5));
+        for action in [
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:unshaded",
+            "rally:beneficiary:26july",
+        ] {
+            rally.apply(action).unwrap();
+        }
+        let space = rally
+            .spaces
+            .iter_mut()
+            .find(|space| space.id == "sierra-maestra")
+            .unwrap();
+        space.pieces.push(Group {
+            faction: Faction::M26,
+            kind: Kind::Guerrilla,
+            state: State::Active,
+            count: 2,
+        });
+        let explanation = |game: &Game, action: &str| {
+            game.observe()
+                .choices
+                .into_iter()
+                .find(|choice| choice.action() == action)
+                .unwrap_or_else(|| panic!("{action} is offered"))
+                .explanation
+        };
+        let supply = |game: &Game, kind| count(&game.available, Faction::M26, kind, None);
+        assert_eq!(
+            (supply(&rally, Kind::Guerrilla), supply(&rally, Kind::Base)),
+            (12, 3)
+        );
+
+        let mut flip = rally.clone();
+        let text = explanation(&flip, "rally:sierra-maestra:flip");
+        assert!(text.contains("Available Forces stay the same."), "{text}");
+        flip.apply("rally:sierra-maestra:flip").unwrap();
+        assert_eq!(
+            (supply(&flip, Kind::Guerrilla), supply(&flip, Kind::Base)),
+            (12, 3)
+        );
+        assert_eq!(
+            count(
+                &sierra_maestra(&flip).pieces,
+                Faction::M26,
+                Kind::Guerrilla,
+                Some(State::Underground)
+            ),
+            2
+        );
+
+        let mut base = rally;
+        let text = explanation(&base, "rally:sierra-maestra:base:0");
+        assert!(
+            text.contains("Return 2 Guerrillas and take 1 Base from Available Forces."),
+            "{text}"
+        );
+        base.apply("rally:sierra-maestra:base:0").unwrap();
+        assert_eq!(
+            (supply(&base, Kind::Guerrilla), supply(&base, Kind::Base)),
+            (14, 2)
+        );
+        let pieces = &sierra_maestra(&base).pieces;
+        assert_eq!(count(pieces, Faction::M26, Kind::Base, None), 2);
+        assert_eq!(count(pieces, Faction::M26, Kind::Guerrilla, None), 0);
+    }
 }

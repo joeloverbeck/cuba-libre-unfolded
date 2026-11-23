@@ -318,6 +318,25 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
 
     // The accepted areas against the layout record: images on all four edges, text
     // on left, top and right, since its line height is the renderer's.
+    // #161: the session panel reports the save and the Terror/Sabotage supply; the
+    // piece totals are the Available Forces ledger's.
+    let status = rest["table"]["main_view"]["parts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|part| part["part"] == "session-status")
+        .and_then(|part| part["text"].as_str())
+        .expect("the session panel reports its status")
+        .to_owned();
+    let observation = &rest["observation"];
+    assert!(
+        status.starts_with(&format!(
+            "Saved revision {}\nTerror/Sabotage {} available\n",
+            observation["revision"], observation["terror_available"]
+        )),
+        "{status}"
+    );
+    assert!(!status.contains(" map / "), "{status}");
     let drawn: BTreeMap<String, [f64; 4]> = ["main_view", "eligibility"]
         .iter()
         .flat_map(|field| rest["table"][field]["parts"].as_array().unwrap())
