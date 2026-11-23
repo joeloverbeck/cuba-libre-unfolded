@@ -141,7 +141,7 @@ impl RallyTarget<'_> {
         } else {
             format!("Place up to {}.", self.ceiling())
         };
-        let supply = match action {
+        let available_clause = match action {
             RallyAction::Place(0) => "No pieces move.".into(),
             RallyAction::Place(count) => format!(
                 "This leaves {} Guerrillas in Available Forces.",
@@ -153,7 +153,7 @@ impl RallyTarget<'_> {
             }
         };
         format!(
-            "{arithmetic} = {}. {limit} {supply} Rally treats {} as Neutral. Actual {} stays. Cost: 0 Resources.",
+            "{arithmetic} = {}. {limit} {available_clause} Rally treats {} as Neutral. Actual {} stays. Cost: 0 Resources.",
             self.ceiling(),
             self.space.name,
             support_level(self.space.support),
@@ -477,9 +477,12 @@ mod tests {
                 .unwrap_or_else(|| panic!("{action} is offered"))
                 .explanation
         };
-        let supply = |game: &Game, kind| count(&game.available, Faction::M26, kind, None);
+        let available = |game: &Game, kind| count(&game.available, Faction::M26, kind, None);
         assert_eq!(
-            (supply(&rally, Kind::Guerrilla), supply(&rally, Kind::Base)),
+            (
+                available(&rally, Kind::Guerrilla),
+                available(&rally, Kind::Base)
+            ),
             (10, 3)
         );
 
@@ -488,7 +491,10 @@ mod tests {
         assert!(text.contains("Available Forces stay the same."), "{text}");
         flip.apply("rally:sierra-maestra:flip").unwrap();
         assert_eq!(
-            (supply(&flip, Kind::Guerrilla), supply(&flip, Kind::Base)),
+            (
+                available(&flip, Kind::Guerrilla),
+                available(&flip, Kind::Base)
+            ),
             (10, 3)
         );
         assert_eq!(
@@ -513,7 +519,10 @@ mod tests {
         );
         base.apply("rally:sierra-maestra:base:0").unwrap();
         assert_eq!(
-            (supply(&base, Kind::Guerrilla), supply(&base, Kind::Base)),
+            (
+                available(&base, Kind::Guerrilla),
+                available(&base, Kind::Base)
+            ),
             (12, 2)
         );
         assert_eq!(
