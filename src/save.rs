@@ -61,10 +61,10 @@ impl Payload {
             })?;
         }
         if game != self.position {
-            return Err(format!(
-                "its {} decisions do not reproduce its position",
-                self.decisions.len()
-            ));
+            return Err(match self.decisions.len() {
+                1 => "its 1 decision does not reproduce its position".to_owned(),
+                count => format!("its {count} decisions do not reproduce its position"),
+            });
         }
         Ok(())
     }
@@ -130,9 +130,10 @@ fn words(error: save::Error, action: Action) -> anyhow::Error {
         save::Error::Checksum => anyhow!("Save checksum mismatch; original file preserved"),
         save::Error::TooLarge => anyhow!("Save exceeds its size limit; original file preserved"),
         // A record with the identity accepted and the checksum intact: its recorded
-        // decisions do not replay to its position, or its payload does not decode,
-        // so a build whose rules state has another shape wrote it whole. On load it
-        // is the save; on a write it is the kept `.previous`, or a save another
+        // decisions do not replay to its position, or its payload does not decode
+        // in this build's shape, whether a field of the save or of its position is
+        // missing, unknown or of another type; so another build wrote it. On load
+        // it is the save; on a write it is the kept `.previous`, or a save another
         // session replaced, and these words do not tell which.
         save::Error::Unreproducible(detail) => match detail.strip_prefix(REPLAY) {
             Some(detail) => another_build(detail),

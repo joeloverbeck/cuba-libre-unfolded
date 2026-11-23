@@ -835,6 +835,17 @@ fn saves_this_build_cannot_continue_are_refused_with_every_file_unchanged() {
         refusal.contains("decision 2 of 3, kidnap:roll"),
         "{refusal}"
     );
+    let moved = {
+        let mut moved = valid.clone();
+        moved["payload"]["position"]["resources"][1] = 9.into();
+        reseal(&moved)
+    };
+    std::fs::write(&path, &moved).unwrap();
+    let refusal = format!("{:#}", Session::open(&path, None).err().unwrap());
+    assert!(
+        refusal.contains("(its 3 decisions do not reproduce its position)"),
+        "{refusal}"
+    );
 
     // The previous record still recovers into an unused path.
     let recovered = Session::open(&dir.path().join("recovered.json"), Some(&path)).unwrap();
@@ -842,10 +853,10 @@ fn saves_this_build_cannot_continue_are_refused_with_every_file_unchanged() {
     assert!(recovered.observe().kidnap_open);
 }
 
-/// A saved position decodes only in its current shape (#152): a position lacking any
-/// field, an absent `Option` included, or carrying a field this build does not know,
-/// such as a removed one, is refused as a save another build wrote, and the save and
-/// its previous record stay byte for byte as they were.
+/// A save decodes only in its current shape (#152): a save, or its position, lacking
+/// any field, an absent `Option` included, or carrying a field this build does not
+/// know, such as a removed one, is refused as a save another build wrote, and the
+/// save and its previous record stay byte for byte as they were.
 #[test]
 fn a_save_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
     let dir = tempfile::tempdir().unwrap();
@@ -930,7 +941,13 @@ fn a_save_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
         .unwrap()
         .insert("start".into(), position.clone());
     cases.push(("unknown field `start`".to_owned(), altered));
-    assert_eq!(cases.len(), position.as_object().unwrap().len() + 10);
+    let mut altered = valid.clone();
+    altered["payload"]
+        .as_object_mut()
+        .unwrap()
+        .remove("decisions");
+    cases.push(("missing field `decisions`".to_owned(), altered));
+    assert_eq!(cases.len(), position.as_object().unwrap().len() + 11);
     for (expected, altered) in cases {
         let bytes = reseal(&altered);
         std::fs::write(&path, &bytes).unwrap();
@@ -957,7 +974,11 @@ fn a_save_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
 /// saved decisions; and resubmitting the decision is refused with the bytes unchanged.
 fn restart_after_each(path: &Path, mut session: Session, actions: &[&str]) -> Session {
     for &action in actions {
-        let (owner, revision, id) = act(&mut session, action);
+        let Submitted {
+            owner,
+            revision,
+            id,
+        } = act(&mut session, action);
         let after = session.observe();
         let random = session.game().random_state();
         let bytes = std::fs::read(path).unwrap();
@@ -1276,7 +1297,7 @@ fn a_previous_record_that_does_not_replay_refuses_the_next_write_unchanged() {
         .to_string();
     assert_another_build(&refusal);
     assert!(
-        refusal.contains("(its 1 decisions do not reproduce its position)"),
+        refusal.contains("(its 1 decision does not reproduce its position)"),
         "{refusal}"
     );
     assert_eq!(session.observe(), published);
@@ -1337,9 +1358,15 @@ fn pending_giver_choice_and_accepted_transfer_resume_without_duplicate_or_failed
     assert_eq!(recovered.observe(), waited);
 }
 
-/// Submits the offered choice as the faction that owns it, and returns that
-/// owner, the match revision it was submitted at and the choice's id.
-fn act(session: &mut Session, action: &str) -> (Faction, u64, String) {
+/// A submitted decision, as the session received it.
+struct Submitted {
+    owner: Faction,
+    revision: u64,
+    id: String,
+}
+
+/// Submits the offered choice as the faction that owns it.
+fn act(session: &mut Session, action: &str) -> Submitted {
     let view = session.observe();
     let id = format!("{}:{action}", view.revision);
     let owner = view
@@ -1350,7 +1377,11 @@ fn act(session: &mut Session, action: &str) -> (Faction, u64, String) {
     session
         .submit(owner, view.revision, &id)
         .unwrap_or_else(|e| panic!("{id}: {e}"));
-    (owner, view.revision, id)
+    Submitted {
+        owner,
+        revision: view.revision,
+        id,
+    }
 }
 
 #[test]
