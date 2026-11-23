@@ -108,6 +108,18 @@ pub fn inventory(faction: Faction, kind: Kind) -> u8 {
         .find(|&&(f, k, _)| f == faction && k == kind)
         .map_or(0, |&(_, _, total)| total)
 }
+/// How many pieces of `kind` `faction` these groups hold, in any state.
+pub(crate) fn total<'a>(
+    groups: impl IntoIterator<Item = &'a Group>,
+    faction: Faction,
+    kind: Kind,
+) -> u8 {
+    groups
+        .into_iter()
+        .filter(|group| group.faction == faction && group.kind == kind)
+        .map(|group| group.count)
+        .sum()
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum State {
     Ordinary,
@@ -981,14 +993,9 @@ impl Game {
         // Every piece the opening does not set up on the map is Available (R 1.4.1).
         let available = INVENTORY
             .into_iter()
-            .map(|(faction, kind, total)| {
-                let on_map: u8 = spaces
-                    .iter()
-                    .flat_map(|space| &space.pieces)
-                    .filter(|group| group.faction == faction && group.kind == kind)
-                    .map(|group| group.count)
-                    .sum();
-                let left = total
+            .map(|(faction, kind, inventory)| {
+                let on_map = total(spaces.iter().flat_map(|space| &space.pieces), faction, kind);
+                let left = inventory
                     .checked_sub(on_map)
                     .expect("the opening sets up no more pieces than the chart holds");
                 group(faction, kind, left)

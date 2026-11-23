@@ -18,7 +18,7 @@
 //! exports of `atlas-available-forces.vectorcraft` (AVAILABLE.md).
 use super::palette::{INK, QUIET};
 use super::*;
-use crate::{Kind, Observation, inventory};
+use crate::{INVENTORY, Kind, Observation, inventory, total};
 use bevy::text::LetterSpacing;
 
 /// Node rectangles of the FigCraft frame, in frame units: the owner's 3840×2160
@@ -85,13 +85,13 @@ pub(super) struct Row {
     pub cells: Vec<Cell>,
 }
 
-/// The kinds a faction holds in Available Forces (the p. 20 chart), in column order.
-fn kinds(faction: Faction) -> &'static [Kind] {
-    match faction {
-        Faction::Government => &[Kind::Troops, Kind::Police, Kind::Base],
-        Faction::M26 | Faction::Directorio => &[Kind::Guerrilla, Kind::Base],
-        Faction::Syndicate => &[Kind::Guerrilla, Kind::Casino],
-    }
+/// The kinds a faction holds in Available Forces, in column order: the chart's
+/// (`INVENTORY`, p. 20).
+fn kinds(faction: Faction) -> impl Iterator<Item = Kind> {
+    INVENTORY
+        .into_iter()
+        .filter(move |&(f, _, _)| f == faction)
+        .map(|(_, kind, _)| kind)
 }
 
 /// The ledger's rows: each faction's Available pieces of each kind, whatever their
@@ -102,15 +102,9 @@ pub(super) fn rows(view: &Observation) -> Vec<Row> {
         .map(|faction| Row {
             faction,
             cells: kinds(faction)
-                .iter()
-                .map(|&kind| Cell {
+                .map(|kind| Cell {
                     kind,
-                    count: view
-                        .available
-                        .iter()
-                        .filter(|group| group.faction == faction && group.kind == kind)
-                        .map(|group| group.count)
-                        .sum(),
+                    count: total(&view.available, faction, kind),
                 })
                 .collect(),
         })
@@ -164,7 +158,7 @@ fn layout() -> (Placed, Placed) {
             format!("{}-emblem", slug(faction)),
             [fig::EMBLEM_X, top, fig::EMBLEM, fig::EMBLEM],
         ));
-        for &kind in kinds(faction) {
+        for kind in kinds(faction) {
             let (column, rect) = place(kind, top);
             images.push((part(faction, kind), rect));
             text.push((
@@ -309,8 +303,6 @@ pub(super) fn draw(commands: &mut Commands, art: &Art, view: &Observation, s: f3
                 .find(|f| name.starts_with(&format!("{}-", slug(*f))))
                 .expect("a cell names its faction");
             let kind = kinds(faction)
-                .iter()
-                .copied()
                 .find(|k| part(faction, *k) == name)
                 .expect("a cell names its kind");
             key(faction, kind)
@@ -563,7 +555,7 @@ mod tests {
         };
         assert!(admitted("atlas-available-forces-plate.png"));
         for faction in Faction::ALL {
-            for &kind in kinds(faction) {
+            for kind in kinds(faction) {
                 let file = key(faction, kind);
                 assert!(admitted(&file), "{file} is not admitted");
                 let size = &record["exports"][&file]["size"];
