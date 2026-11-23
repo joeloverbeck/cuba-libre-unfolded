@@ -254,7 +254,11 @@ fn block(image: &image::RgbImage, centre: [f64; 2], half: u32) -> [f64; 3] {
 /// How far the picture in `rect` of a capture is from a card's printed face: the mean
 /// difference of block colours over a grid, in levels. The grid keeps off the card's
 /// edge and off its bottom-right corner, where the count disc lies.
-pub(super) fn face_distance(capture: &image::RgbImage, rect: [f64; 4], face: &image::RgbImage) -> f64 {
+pub(super) fn face_distance(
+    capture: &image::RgbImage,
+    rect: [f64; 4],
+    face: &image::RgbImage,
+) -> f64 {
     let (width, height) = (rect[2] - rect[0], rect[3] - rect[1]);
     let mut total = 0.;
     let mut cells = 0.;

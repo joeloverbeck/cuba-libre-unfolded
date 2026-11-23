@@ -732,10 +732,7 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
     let again = app.observe();
     assert_eq!(again["table"]["piles"], leaving["table"]["piles"]);
     // Anything but the landing is refused while the card is in the air.
-    let tab = app.request(
-        json!({"op":"key","revision":revision+1,"key":"Tab"}),
-        false,
-    );
+    let tab = app.request(json!({"op":"key","revision":revision+1,"key":"Tab"}), false);
     assert!(
         tab["error"]
             .as_str()
@@ -819,7 +816,10 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
     // On its edge, and then past it with the face showing; never outside the tray.
     let upright = advance_to(&mut app, 0.8 + 0.35);
     let at = rect_of(&upright["table"]["piles"]["advance"]["bounds"]);
-    assert!(at[1] > tray[1] + 8. && at[3] < tray[3], "{at:?} in {tray:?}");
+    assert!(
+        at[1] > tray[1] + 8. && at[3] < tray[3],
+        "{at:?} in {tray:?}"
+    );
     app.capture("3-turning-on-edge");
     let facing = advance_to(&mut app, 1.3);
     let flying = &facing["table"]["piles"]["advance"];
@@ -974,7 +974,10 @@ fn assert_missing_or_changed_back_refuses(app: &Native, saved: &[u8], prior: &[u
                     .arg(r#"{"op":"quit"}"#)
                     .output();
             }
-            assert!(!output.status.success(), "a {problem} card back was accepted");
+            assert!(
+                !output.status.success(),
+                "a {problem} card back was accepted"
+            );
             assert!(
                 reason.contains(BACK) && reason.contains("--cards") && reason.contains("c905d7a7"),
                 "{reason}"

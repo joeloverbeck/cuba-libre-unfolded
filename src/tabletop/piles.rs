@@ -493,10 +493,7 @@ fn shown(before: &Lay, after: &Lay, elapsed: f32) -> Scene {
         },
         (_, Some(card)) if elapsed < CROSSING + TURNING => Scene {
             lay: Lay {
-                stacks: [
-                    after.stack(Pile::Played),
-                    face_down(after.numbers.deck - 1),
-                ],
+                stacks: [after.stack(Pile::Played), face_down(after.numbers.deck - 1)],
                 numbers: after.numbers,
             },
             flying: Some((
@@ -750,27 +747,29 @@ fn spawn_flying(
         });
     let reach = 2. * fig::SHADOW_REACH / PER_METRE;
     let (lies, strength) = shade(&pose);
+    let cast = materials.add(StandardMaterial {
+        base_color: Color::WHITE.with_alpha(strength),
+        base_color_texture: Some(art.images[SHADOW].clone()),
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        ..default()
+    });
     commands.spawn((
         Name::new("Shadow of the card in the air"),
-        Shade,
+        Shade(cast.clone()),
         ChildOf(tray),
         Mesh3d(meshes.add(Rectangle::new(CARD_WIDTH + reach, CARD_LENGTH + reach))),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::WHITE.with_alpha(strength),
-            base_color_texture: Some(art.images[SHADOW].clone()),
-            alpha_mode: AlphaMode::Blend,
-            unlit: true,
-            ..default()
-        })),
+        MeshMaterial3d(cast),
         lies,
         drawn,
     ));
 }
 
 /// The shadow of the card in the air: the pile's own blurred shadow (`pile-shadow`),
-/// cast straight down onto the cards beneath.
+/// cast straight down onto the cards beneath. It holds its material, whose strength
+/// follows the card's rise.
 #[derive(Component)]
-pub(super) struct Shade;
+pub(super) struct Shade(Handle<StandardMaterial>);
 
 /// Where the shadow of a card in the air lies and how dark it is, from the card's
 /// pose. It lies under the card, as wide as the card is seen from above, so a card on
@@ -890,10 +889,7 @@ pub(super) fn present(
     trays: Query<Entity, With<Tray>>,
     stacks: Query<(Entity, &Stack)>,
     mut cards: Query<(Entity, &Flying, &mut Transform), Without<Shade>>,
-    mut shades: Query<
-        (Entity, &mut Transform, &MeshMaterial3d<StandardMaterial>),
-        (With<Shade>, Without<Flying>),
-    >,
+    mut shades: Query<(Entity, &Shade, &mut Transform), Without<Flying>>,
     mut cameras: Query<&mut Camera, With<TrayCamera>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -913,12 +909,12 @@ pub(super) fn present(
             _ => commands.entity(entity).despawn(),
         }
     }
-    for (entity, mut lies, material) in &mut shades {
+    for (entity, shade_of, mut lies) in &mut shades {
         match scene.flying {
             Some((_, pose)) if aloft => {
                 let (under, strength) = shade(&pose);
                 *lies = under;
-                if let Some(mut material) = materials.get_mut(&material.0) {
+                if let Some(mut material) = materials.get_mut(&shade_of.0) {
                     material.base_color.set_alpha(strength);
                 }
             }
@@ -1643,10 +1639,7 @@ mod tests {
             start.lay.stacks,
             [before.stack(Pile::Played), face_down(33)]
         );
-        assert_eq!(
-            (start.lay.numbers.played, start.lay.numbers.deck),
-            (18, 33)
-        );
+        assert_eq!((start.lay.numbers.played, start.lay.numbers.deck), (18, 33));
         let (card, pose) = start.flying.unwrap();
         assert_eq!(
             card,
@@ -1822,7 +1815,11 @@ mod tests {
                 &format!("{}:{action}", previous.revision),
             )
             .unwrap();
-            assert_eq!(Played::between(&previous, &game.observe()), None, "{action}");
+            assert_eq!(
+                Played::between(&previous, &game.observe()),
+                None,
+                "{action}"
+            );
         }
         let previous = game.observe();
         game.submit(
