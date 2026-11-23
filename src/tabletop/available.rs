@@ -127,7 +127,7 @@ fn part(faction: Faction, kind: Kind) -> String {
 }
 
 /// The piece's export: the Government's cubes have no faction in their name.
-fn key(faction: Faction, kind: Kind) -> String {
+fn export_file(faction: Faction, kind: Kind) -> String {
     match kind {
         Kind::Troops | Kind::Police => format!("atlas-available-{}.png", kind_name(kind)),
         _ => format!("atlas-available-{}.png", part(faction, kind)),
@@ -145,24 +145,43 @@ fn place(kind: Kind, top: f32) -> (usize, [f32; 4]) {
     (column, [x, top + drop, w, h])
 }
 
-/// Drawn rectangles by their part names, in frame units.
-type Placed = Vec<(String, [f32; 4])>;
+/// What a drawn image shows.
+#[derive(Clone, Copy)]
+enum Image {
+    Plate,
+    Emblem(Faction),
+    Piece(Faction, Kind),
+}
+
+/// What a drawn text shows.
+#[derive(Clone, Copy)]
+enum Words {
+    Caption,
+    Count(Faction, Kind),
+}
+
+/// Drawn rectangles by their part names, with what each shows, in frame units. The
+/// name is the record's and the seat's; the drawing reads only what it shows, as
+/// the top display names its parts beside what it draws.
+type Placed<T> = Vec<(String, T, [f32; 4])>;
 
 /// Every drawn rectangle: images, then text.
-fn layout() -> (Placed, Placed) {
-    let mut images = vec![("plate".to_string(), fig::PLATE)];
-    let mut text = vec![("caption".to_string(), fig::CAPTION)];
+fn layout() -> (Placed<Image>, Placed<Words>) {
+    let mut images = vec![("plate".to_string(), Image::Plate, fig::PLATE)];
+    let mut text = vec![("caption".to_string(), Words::Caption, fig::CAPTION)];
     for faction in Faction::ALL {
         let top = fig::ROW_TOP + fig::ROW_STEP * faction.index() as f32;
         images.push((
             format!("{}-emblem", slug(faction)),
+            Image::Emblem(faction),
             [fig::EMBLEM_X, top, fig::EMBLEM, fig::EMBLEM],
         ));
         for kind in kinds(faction) {
             let (column, rect) = place(kind, top);
-            images.push((part(faction, kind), rect));
+            images.push((part(faction, kind), Image::Piece(faction, kind), rect));
             text.push((
                 format!("{}-count", part(faction, kind)),
+                Words::Count(faction, kind),
                 [
                     fig::COUNT_X[column],
                     top - fig::COUNT_RISE,
@@ -218,10 +237,7 @@ fn kind_label(kind: Kind) -> &'static str {
 /// Available count, its inventory, and the inventory less Available: every piece not
 /// Available is on the map, in any state, a closed Casino included), and the rule,
 /// broken into drawn lines. It reads nothing from the map (story 38).
-pub(super) fn tag(
-    view: &Observation,
-    faction: Faction,
-) -> (String, Vec<(String, String)>, Vec<&'static str>) {
+pub(super) fn tag(view: &Observation, faction: Faction) -> TagContent {
     let row = rows(view)
         .into_iter()
         .find(|row| row.faction == faction)
@@ -240,15 +256,23 @@ pub(super) fn tag(
             )
         })
         .collect();
-    (
-        format!("Available {} Forces", faction.name()),
+    TagContent {
+        title: format!("Available {} Forces", faction.name()),
         rows,
         // R 1.4.1's two bullets, as one block of five lines: the tag frame's `notes`
         // and the study's `hover-tag.png` set them so.
-        vec![
+        notes: vec![
             "Pieces are placed only from Available Forces.\nWith none of a kind left, a placement is skipped\nand a replacement only removes (R 1.4.1).\nWhile executing, a faction may return its own\npieces from the map to Available.",
         ],
-    )
+    }
+}
+
+/// What a faction's tag says, which the top display's tag draws: its title, its rows
+/// as label and value, and its notes, each broken into drawn lines.
+pub(super) struct TagContent {
+    pub title: String,
+    pub rows: Vec<(String, String)>,
+    pub notes: Vec<&'static str>,
 }
 
 /// The row that has keyboard focus, if one has: its tag opens as hover opens it.
@@ -274,7 +298,7 @@ pub(super) struct Part(pub String);
 
 /// The rows the ledger shows, kept on its plate for the seat.
 #[derive(Component)]
-pub(super) struct Shown(pub Vec<Row>);
+pub(super) struct LedgerRows(pub Vec<Row>);
 
 /// A piece drawn dimmed, because none of its kind is left.
 #[derive(Component)]
@@ -283,81 +307,76 @@ pub(super) struct Dimmed;
 /// Draws the ledger at rest from the committed position.
 pub(super) fn draw(commands: &mut Commands, art: &Art, view: &Observation, s: f32, right: Vec2) {
     let rows = rows(view);
-    let counts: BTreeMap<String, u8> = rows
-        .iter()
-        .flat_map(|row| {
-            row.cells
-                .iter()
-                .map(|cell| (part(row.faction, cell.kind), cell.count))
-        })
-        .collect();
+    let count = |faction: Faction, kind: Kind| {
+        rows.iter()
+            .filter(|row| row.faction == faction)
+            .flat_map(|row| &row.cells)
+            .find(|cell| cell.kind == kind)
+            .map_or(0, |cell| cell.count)
+    };
     let (images, text_parts) = layout();
-    for (name, rect) in images {
-        let key = if name == "plate" {
-            "atlas-available-forces-plate.png".to_string()
-        } else if let Some(faction) = name.strip_suffix("-emblem") {
-            format!("atlas-victory-icon-{faction}.png")
-        } else {
-            let faction = Faction::ALL
-                .into_iter()
-                .find(|f| name.starts_with(&format!("{}-", slug(*f))))
-                .expect("a cell names its faction");
-            let kind = kinds(faction)
-                .find(|k| part(faction, *k) == name)
-                .expect("a cell names its kind");
-            key(faction, kind)
+    for (name, shows, rect) in images {
+        let (key, z) = match shows {
+            Image::Plate => ("atlas-available-forces-plate.png".to_string(), 2),
+            Image::Emblem(faction) => (format!("atlas-victory-icon-{}.png", slug(faction)), 3),
+            Image::Piece(faction, kind) => (export_file(faction, kind), 3),
         };
-        let z = if name == "plate" { 2 } else { 3 };
         let entity = picture(commands, art, &key, reference(rect), s, right, z);
-        commands.entity(entity).insert(Part(name.clone()));
-        if let Some(&count) = counts.get(&name) {
-            let mut image = ImageNode::new(art.images[&key].clone())
-                .with_mode(bevy::ui::widget::NodeImageMode::Stretch);
-            image.color = tint(count);
-            commands.entity(entity).insert(image);
-            if count == 0 {
-                commands.entity(entity).insert(Dimmed);
+        commands.entity(entity).insert(Part(name));
+        match shows {
+            Image::Plate => {
+                commands.entity(entity).insert(LedgerRows(rows.clone()));
+            }
+            Image::Emblem(_) => {}
+            Image::Piece(faction, kind) => {
+                let count = count(faction, kind);
+                let mut image = ImageNode::new(art.images[&key].clone())
+                    .with_mode(bevy::ui::widget::NodeImageMode::Stretch);
+                image.color = tint(count);
+                commands.entity(entity).insert(image);
+                if count == 0 {
+                    commands.entity(entity).insert(Dimmed);
+                }
             }
         }
-        if name == "plate" {
-            commands.entity(entity).insert(Shown(rows.clone()));
-        }
     }
-    for (name, rect) in text_parts {
+    for (name, shows, rect) in text_parts {
         let [x, y, w, _] = reference(rect);
-        let entity = if name == "caption" {
-            let caption = styled(
-                commands,
-                art,
-                "AVAILABLE FORCES",
-                &art.bold,
-                QUIET,
-                [x, y, w, fig::CAPTION_SIZE / fig::SCALE],
-                s,
-                right,
-                3,
-            );
-            commands.entity(caption).insert((
-                TextLayout::justify(Justify::Center),
-                LetterSpacing::Px(fig::CAPTION_SPACING / fig::SCALE * s),
-            ));
-            caption
-        } else {
-            let cell = name.strip_suffix("-count").expect("a count names its cell");
-            let count = text(
-                commands,
-                art,
-                counts[cell].to_string(),
-                x,
-                y,
-                w,
-                fig::COUNT_SIZE / fig::SCALE,
-                s,
-                right,
-                3,
-            );
-            commands.entity(count).insert(TextColor(INK));
-            count
+        let entity = match shows {
+            Words::Caption => {
+                let caption = styled(
+                    commands,
+                    art,
+                    "AVAILABLE FORCES",
+                    &art.bold,
+                    QUIET,
+                    [x, y, w, fig::CAPTION_SIZE / fig::SCALE],
+                    s,
+                    right,
+                    3,
+                );
+                commands.entity(caption).insert((
+                    TextLayout::justify(Justify::Center),
+                    LetterSpacing::Px(fig::CAPTION_SPACING / fig::SCALE * s),
+                ));
+                caption
+            }
+            Words::Count(faction, kind) => {
+                let count = text(
+                    commands,
+                    art,
+                    count(faction, kind).to_string(),
+                    x,
+                    y,
+                    w,
+                    fig::COUNT_SIZE / fig::SCALE,
+                    s,
+                    right,
+                    3,
+                );
+                commands.entity(count).insert(TextColor(INK));
+                count
+            }
         };
         commands.entity(entity).insert(Part(name));
     }
@@ -368,7 +387,7 @@ pub(super) fn draw(commands: &mut Commands, art: &Art, view: &Observation, s: f3
 /// with a count's text and whether a piece is dimmed.
 pub(super) fn observe(world: &mut World) -> serde_json::Value {
     let rows = world
-        .query::<&Shown>()
+        .query::<&LedgerRows>()
         .iter(world)
         .next()
         .map(|shown| shown.0.clone());
@@ -506,6 +525,8 @@ mod tests {
         assert_eq!(record["frame"], serde_json::json!([3840, 2160]));
         assert_eq!(record["anchor"], "top-right");
         let (images, text) = layout();
+        let images: Vec<_> = images.into_iter().map(|(n, _, r)| (n, r)).collect();
+        let text: Vec<_> = text.into_iter().map(|(n, _, r)| (n, r)).collect();
         for (group, drawn) in [("parts", images), ("text", text)] {
             let recorded = record[group].as_object().unwrap();
             assert_eq!(recorded.len(), drawn.len(), "{group}");
@@ -556,7 +577,7 @@ mod tests {
         assert!(admitted("atlas-available-forces-plate.png"));
         for faction in Faction::ALL {
             for kind in kinds(faction) {
-                let file = key(faction, kind);
+                let file = export_file(faction, kind);
                 assert!(admitted(&file), "{file} is not admitted");
                 let size = &record["exports"][&file]["size"];
                 let png = [
@@ -570,7 +591,7 @@ mod tests {
     }
 
     fn tag_rows(view: &Observation, faction: Faction) -> Vec<(String, String)> {
-        tag(view, faction).1
+        tag(view, faction).rows
     }
 
     fn pairs(rows: &[(&str, &str)]) -> Vec<(String, String)> {
@@ -613,7 +634,7 @@ mod tests {
                 ("Casinos", "7 of 10 · 3 on the map"),
             ])
         );
-        let titles: Vec<String> = Faction::ALL.map(|f| tag(&view, f).0).into();
+        let titles: Vec<String> = Faction::ALL.map(|f| tag(&view, f).title).into();
         assert_eq!(
             titles,
             [
@@ -624,7 +645,7 @@ mod tests {
             ]
         );
         assert_eq!(
-            tag(&view, Faction::M26).2.join("\n"),
+            tag(&view, Faction::M26).notes.join("\n"),
             "Pieces are placed only from Available Forces.\n\
              With none of a kind left, a placement is skipped\n\
              and a replacement only removes (R 1.4.1).\n\
@@ -769,13 +790,13 @@ mod tests {
         assert_eq!(notes_boxes, 1);
         let view = Game::opening().observe();
         for faction in Faction::ALL {
-            let notes = tag(&view, faction).2;
+            let notes = tag(&view, faction).notes;
             assert_eq!(notes.len(), notes_boxes, "{faction:?}");
             assert_eq!(notes[0].lines().count(), 5, "{faction:?}");
         }
         // Every note line fits one drawn line.
         for faction in Faction::ALL {
-            for line in tag(&view, faction).2.iter().flat_map(|n| n.lines()) {
+            for line in tag(&view, faction).notes.iter().flat_map(|n| n.lines()) {
                 assert!(line.chars().count() <= 50, "{line}");
             }
         }

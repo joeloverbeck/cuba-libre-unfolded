@@ -290,7 +290,10 @@ pub(super) fn content(view: &crate::Observation, item: Item) -> Shown {
                 "After Operations without a Special Activity, its\nowner may remove it for a free Limited Operation.\nAt a Propaganda Round each becomes +6 Resources\nor an available Base there (Syndicate: Casino).",
             ],
         ),
-        Item::Available(faction) => available::tag(view, faction),
+        Item::Available(faction) => {
+            let tag = available::tag(view, faction);
+            (tag.title, tag.rows, tag.notes)
+        }
     };
     let mut notes: Vec<String> = notes.into_iter().map(String::from).collect();
     if item == Item::Resources {
