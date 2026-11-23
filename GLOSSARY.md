@@ -129,7 +129,7 @@ A marker on an economic center that blocks the Government's earnings from it. Pl
 _Avoid_: Terror marker
 
 **Marker supply**:
-The Terror and Sabotage markers not on the map, out of the 20 the two kinds share. A marker is placed only from it; with none left, the action that would place one still happens, and places no marker. Civic Action, Agitation and Reset return markers to it.
+The Terror and Sabotage markers not on the map, out of the 20 the two kinds share. A marker is placed only from it: with all 20 on the map, Terror places none (R 3.3.4). Civic Action, Agitation and Reset return markers to it.
 _Avoid_: Terror limit, marker pool, tokens, uses
 
 **Local policy**:

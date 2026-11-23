@@ -9,7 +9,7 @@ Decision-only alternatives from the owner's design interview of 2026-11-23 and 2
 **Marker supply**
 
 - The graphic shows the committed number of markers available and "of 20". At 0 the number is red and the marker dims. A hover tag gives the Terror and Sabotage markers on the map, the R 3.3.4 cap and what returns markers.
-- The Sabotage face's flame is provisional. Sabotage has no on-map design yet; the face follows that design when it exists.
+- The Sabotage face's flame is provisional. Sabotage has no on-map design yet; the face follows that design when it exists. The owner: "We don't know what the sabotage marker/3D asset will look like, although a fire could fit."
 - A sentence that only states the count is not written. A sentence that states a change stays, such as "no marker placed: all 20 are on the map". Enforcing the cap is rules work, outside this spec.
 - "Marker supply" joins the [glossary](../../../GLOSSARY.md).
 
@@ -21,14 +21,14 @@ Decision-only alternatives from the owner's design interview of 2026-11-23 and 2
 
 **Choosing spaces on the map**
 
-- A map space is chosen on the map and nowhere else, for every Operation, Special Activity and Event whose decision selects one. [Foundation 2, "Engine authority"](../../../docs/foundation/02-rules-and-verification.md#engine-authority) records this.
+- A map space is chosen on the map and nowhere else, for every Operation whose decision selects one. [Foundation 2, "Engine authority"](../../../docs/foundation/02-rules-and-verification.md#engine-authority) records this. Special Activities and Events are not bound.
 - Assault's states:
   - **Selectable:** Assault there would remove or close something, and Government can pay.
   - **Blocked** (dashed): it would, but Government cannot pay. The remedy is a Resource transfer.
   - **Veiled:** nothing would be removed, or the space was already assaulted. The hover tag says why.
-- A space where Assault would remove nothing stays choosable, shown quietly: it is veiled, and a click opens the popover with one row, "removes nothing", and a button that says so. "What the rules say" gives the reasons.
+- A space where Assault would remove nothing stays choosable, shown quietly: it is veiled like any uninvolved space, and its hover tag says why nothing would be removed. A click still opens the popover with one row, "removes nothing", and a button worded "Pay 2 · Assault removes nothing", where 2 is the space's cost at the current US Alliance. No local policy is recorded. "What the rules say" gives the reasons.
 - Clicking a space opens the accepted space popover, which lists the target plans with the authority's preview and a button that pays and resolves. Assault's three menu levels, its two Back choices and the browse position stored in the match go.
-- Terror's Santiago and Oriente rows leave the panel. "Owed" shows on the map and on End Terror's pill, and "done · paid 1" becomes a record line. Kidnap keeps its row: its stakes, Roll and Cancel live in the panel.
+- Terror's Santiago and Oriente rows leave the panel. "Owed" shows on the map and on End Terror's pill, and "done · paid 1" becomes a record line. Kidnap keeps its row: its stakes, Roll and Cancel live in the panel. The owner expects that Kidnap may need the map too, and will judge that as more of the game is implemented.
 - Tab cycles the selectable and blocked spaces, and Enter opens the popover.
 - The map highlights reuse the selected Survey ink design ([HIGHLIGHTS.md](../../atlas/HIGHLIGHTS.md)) with no new design round: selectable, blocked and veil are exported for each of the 13 spaces from the existing source.
 
@@ -40,8 +40,9 @@ Read from the March 2019 Living Rules and the third-printing playbook ([foundati
 
 **The marker supply**
 
-- **One supply of 20**, shared by Terror and Sabotage markers (R 3.3.4). With all 20 on the map no marker is placed, and the rest of the action still happens.
-- **Placed by:** Terror in a City or Province, several to a space (R 3.3.4); Terror in an economic center, one Sabotage marker at most, so never more than 3 (R 3.3.4); Reprisal (R 4.2.3); and Government Earnings, which sabotages each economic center where 26July and Directorio Guerrillas outnumber cubes (R 6.2.1).
+- **One supply of 20**, shared by Terror and Sabotage markers (R 3.3.4): "Do not place a Terror/Sabotage marker if all are already on the map."
+- **Two readings the rules work must settle.** That sentence stands under the Terror Operation. This round reads it plainly: only the marker is withheld, and the Operation's other effects still happen. The rules do not repeat the cap for Reprisal or Government Earnings.
+- **Placed by:** Terror in a City or Province, several to a space (R 3.3.4); Terror in an economic center, one Sabotage marker at most (R 3.3.4), so never more than the map's 3 economic centers (R 1.3.4; P p. 36); Reprisal (R 4.2.3); and Government Earnings, which sabotages each economic center where 26July and Directorio Guerrillas outnumber cubes (R 6.2.1).
 - **Returned by:** Civic Action and Agitation, one Terror marker at a time (R 6.3.2, 6.3.3), and Reset, which removes them all (R 6.5).
 - **No threshold.** No player rule rewards or penalises the count. It is only a cap.
 - **The physical marker** is one tile with a Terror face and a Sabotage face, both carrying the same red burst (`images/tokens/sabotage-terror-texture-atlas.jpg` in the Pictures collection, reference only).
@@ -51,11 +52,11 @@ Read from the March 2019 Living Rules and the third-printing playbook ([foundati
 - **Legal.** "Select any spaces" (R 3.2.4): the rule sets no condition on the space.
 - **It entitles a Special Activity.** A faction may add one only when it executes an Operation "in at least 1 space" (R 4.1). Transport, Air Strike and Reprisal are the Government's (R 4.2).
 - **The space can gain targets before it resolves.** A Special Activity may come before or during the Operation (R 4.1): Transport moves Troops in (R 4.2.1) and Reprisal relocates a Guerrilla to an adjacent space (R 4.2.3). Card 1, Armored Cars, as Government Momentum reads "before Assault, move Troops to Assault spaces from other spaces" (P p. 32).
-- **Not in today's build.** Its Assault is Operation Only, with no Special Activity and no Momentum, and each space resolves when it is paid. Such a payment achieves nothing yet.
+- **Not in today's build.** Read from the baseline's rules code, not from a run: its Assault is offered as "Assault · Operation Only", with no Special Activity and no Momentum, and each space resolves when it is paid. Such a payment achieves nothing yet.
 
 ## Sheets
 
-The layouts are a copy of the selected main view ([MAIN-VIEW.md](../../atlas/MAIN-VIEW.md)) at 3840×2160 with the session panel removed. Sizes and distances below are pixels of the owner's display, which are the sheets' frame units. The graphics sheets are drawn in reference pixels and exported at 3.375 px per unit, twice the owner's display.
+The layouts are a copy of the selected main view ([MAIN-VIEW.md](../../atlas/MAIN-VIEW.md)) at 3840×2160 with the session panel removed. Sizes and distances in the layouts table are pixels of the owner's display, which are the layout sheets' frame units. The graphics sheets are drawn in reference pixels, the unit of the two graphics tables, and exported at 3.375 px per unit, twice the owner's display.
 
 | Decision | Sheet | At the owner's display, 1:1 | Selected |
 |---|---|---|---|
@@ -69,13 +70,13 @@ Graphic and placement are independent choices. Each layout is drawn with a diffe
 
 ### Marker supply graphics
 
-Each is shown at 20 available, at 13 (5 Terror and 2 Sabotage on the map) and at 0 (17 and 3).
+Each is shown at 20 available, at 13 (5 Terror markers and 2 Sabotage markers on the map) and at 0 (17 and 3). The sheet's own captions shorten these to "5 Terror and 2 Sabotage".
 
 | | Idea | Suits the task because | Trade-off |
 |---|---|---|---|
 | **M1 · Ficha** | The two-faced marker, a bell face and a flame face, beside "13 of 20". 149 × 54 reference pixels. | It uses the idiom of the Aid crate beside it, is the smallest, and gives a rarely binding cap the weight it deserves. | It shows no breakdown without the hover tag. |
 | **M2 · Veinte** | Twenty pips in two rows: solid when available, hollow when on the map. 215 × 55. | The cap is visible as a quantity, in the idiom of the Propaganda pips. | It is wide, and the number is read from the caption or by counting. |
-| **M3 · Regla** | A gauge graduated 0 to 20. Terror and Sabotage segments fill from the left, beside "13 left". 242 × 55. | It shows the split between Terror and Sabotage at a glance. | It is the densest, has the smallest type, and asks the most attention for the least-used fact. |
+| **M3 · Regla** | A gauge graduated 0 to 20. A segment for the Terror markers and one for the Sabotage markers fill from the left, beside "13 left". 242 × 55. | It shows the split between the two kinds of marker at a glance. | It is the densest, has the smallest type, and asks the most attention for the least-used fact. |
 
 ### Save · quit graphics
 
