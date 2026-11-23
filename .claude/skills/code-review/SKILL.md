@@ -78,6 +78,10 @@ If the spec is missing, skip the Spec sub-agent and note this in the final repor
 
 **Single reviewer.** When the caller marks the change a small follow-up, spawn one fresh sub-agent instead of two. Give it both prompts' contents and have it report `## Standards` and `## Spec` as separate sections, in that order, each under its own word limit.
 
+**Large diffs.** When the diff is too large for 400 words to hold every finding, each sub-agent writes its full findings, most severe first, to a file under `local/handoffs/` and returns a summary within the limit. The summary keeps every hard violation (Standards) or every wrong implementation (Spec).
+
+**Fixes.** A commit made after a review is reviewed as a delta from the last reviewed commit. Resume the sub-agent that raised the finding where the harness allows; it confirms each fix against the code.
+
 ### 5. Aggregate
 
 Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_).

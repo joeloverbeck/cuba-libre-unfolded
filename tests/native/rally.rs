@@ -1,10 +1,10 @@
 use super::*;
 
-fn rally_app() -> (tempfile::TempDir, Native) {
+fn rally_app() -> NativeRun {
     event_app("free-rally-", "issue-120")
 }
 
-fn event_app(prefix: &str, issue: &str) -> (tempfile::TempDir, Native) {
+fn event_app(prefix: &str, issue: &str) -> NativeRun {
     let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("local/verification").join(issue));
@@ -25,8 +25,10 @@ fn event_app(prefix: &str, issue: &str) -> (tempfile::TempDir, Native) {
         step: 0,
     };
     eprintln!("Alberto Bayo evidence: {}", app.root.display());
-    // The client must drop first so it can still quit the detached seat on failure.
-    (socket, app)
+    NativeRun {
+        app,
+        _socket: socket,
+    }
 }
 
 fn ready_for_event(app: &mut Native, retain_base: bool) {
@@ -86,7 +88,7 @@ fn has_action(position: &Value, action: &str) -> bool {
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan"]
 fn native_shaded_panel_previews_multiple_spaces_and_no_flips() {
     for remove_underground in [false, true] {
-        let (_socket, mut app) = event_app("shaded-preview-", "issue-117");
+        let mut app = event_app("shaded-preview-", "issue-117");
         app.launch_size("3840x2160");
         app.choose("terror");
         app.choose("kidnap");
@@ -136,7 +138,7 @@ fn native_shaded_panel_previews_multiple_spaces_and_no_flips() {
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained side decision captures"]
 fn native_shaded_execution_preserves_directorios_side_decisions() {
-    let (_socket, mut app) = event_app("shaded-side-decisions-", "issue-121");
+    let mut app = event_app("shaded-side-decisions-", "issue-121");
     open_event_handoff(&mut app);
     let before = app.observe()["observation"].clone();
     choose_rally_option(&mut app, "event:shaded");
@@ -261,7 +263,7 @@ fn native_shaded_execution_preserves_directorios_side_decisions() {
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained side decision captures"]
 fn native_beneficiary_and_rally_preserve_side_decision_owners() {
-    let (_socket, mut app) = event_app("unshaded-side-decisions-", "issue-121");
+    let mut app = event_app("unshaded-side-decisions-", "issue-121");
     open_event_handoff(&mut app);
     let before = app.observe()["observation"].clone();
     choose_rally_option(&mut app, "event:unshaded");
@@ -333,7 +335,7 @@ fn native_beneficiary_and_rally_preserve_side_decision_owners() {
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained side decision captures"]
 fn native_rally_removing_the_last_base_closes_the_operation() {
-    let (_socket, mut app) = event_app("rally-removed-last-base-", "issue-121");
+    let mut app = event_app("rally-removed-last-base-", "issue-121");
     if let Some(input) = std::env::var_os("CUBA_TEST_PENDING_RALLY") {
         std::fs::copy(input, &app.save).unwrap();
         app.launch_size("3840x2160");
@@ -467,7 +469,7 @@ fn assert_unshaded_card_end(before: &Value, table: &Value) {
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained zero-placement captures"]
 fn native_free_rally_can_choose_zero_in_a_qualifying_base_space() {
-    let (_socket, mut app) = rally_app();
+    let mut app = rally_app();
     if let Some(input) = std::env::var_os("CUBA_TEST_RALLY_SAVE") {
         std::fs::copy(input, &app.save).unwrap();
         app.launch_size("3840x2160");
@@ -564,7 +566,7 @@ fn native_free_rally_can_choose_zero_in_a_qualifying_base_space() {
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained Rally captures"]
 fn native_free_rally_hands_the_decision_to_the_beneficiary() {
-    let (_socket, mut app) = rally_app();
+    let mut app = rally_app();
     let historical = std::env::var_os("CUBA_TEST_RALLY_SAVE").map(PathBuf::from);
     if let Some(historical) = &historical {
         std::fs::copy(historical, &app.save).unwrap();
@@ -724,7 +726,7 @@ fn native_free_rally_hands_the_decision_to_the_beneficiary() {
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained empty Rally captures"]
 fn native_free_rally_without_a_base_finishes_the_event() {
     for (beneficiary, retain_base) in [("26july", false), ("directorio", true)] {
-        let (_socket, mut app) = rally_app();
+        let mut app = rally_app();
         ready_for_event(&mut app, retain_base);
         let handoff = app.observe()["observation"].clone();
         assert_eq!(

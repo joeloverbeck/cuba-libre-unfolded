@@ -700,6 +700,26 @@ impl Drop for Native {
     }
 }
 
+/// A native app together with the directory its seat socket lies in, for a helper that
+/// makes both. The app is the first field, so it is dropped first and its `quit` still
+/// reaches the socket: an app that is never told to quit keeps the heavy lock its test
+/// inherited (docs/agents/parallel-work.md).
+struct NativeRun {
+    app: Native,
+    _socket: tempfile::TempDir,
+}
+impl std::ops::Deref for NativeRun {
+    type Target = Native;
+    fn deref(&self) -> &Native {
+        &self.app
+    }
+}
+impl std::ops::DerefMut for NativeRun {
+    fn deref_mut(&mut self) -> &mut Native {
+        &mut self.app
+    }
+}
+
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained aspect-ratio captures"]
 fn native_responsive_layout_uses_width_and_preserves_picks() {
@@ -5633,13 +5653,14 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
             step: 0,
         };
         std::fs::create_dir_all(&app.root).unwrap();
-        // The socket directory comes first so the app is dropped first and its quit
-        // still reaches the socket (docs/agents/parallel-work.md).
-        (socket_dir, app)
+        NativeRun {
+            app,
+            _socket: socket_dir,
+        }
     };
 
     // The opening, and all through Terror until End Terror.
-    let (_socket, mut app) = session("opening");
+    let mut app = session("opening");
     app.launch_size("3840x2160");
     let open = app.observe();
     assert_eq!(open["observation"]["action"], "Open");
@@ -5667,7 +5688,7 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
     app.quit();
 
     // After Pass: Directorio 1st, Government 2nd, 26July in the Pass box (R 2.3.3).
-    let (_socket, mut app) = session("pass");
+    let mut app = session("pass");
     app.launch_size("3840x2160");
     app.choose("pass");
     let pass = app.observe();
@@ -5689,7 +5710,7 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
     app.quit();
 
     // Operation with Special Activity: the layout's 16:9 frame, with its box's tag.
-    let (_socket, mut app) = session("special-activity");
+    let mut app = session("special-activity");
     app.launch_size("3840x2160");
     for action in [
         "terror",
@@ -5726,7 +5747,7 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
     // At 3:2, the seat's default, the camera frames Cuba wider and the track covers
     // Pinar del Río's pieces (foundation 4 requires only the 16:9 frame; #70 records
     // this as an open limit). The capture is retained for that record.
-    let (_socket, mut app) = session("three-two");
+    let mut app = session("three-two");
     app.launch();
     let view = app.observe();
     agree(&view);
