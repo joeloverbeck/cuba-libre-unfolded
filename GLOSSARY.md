@@ -125,8 +125,12 @@ A marker in a City or Province that hinders later efforts to build Support or Op
 _Avoid_: Terror (when meaning the marker rather than the Operation), Sabotage marker
 
 **Sabotage marker**:
-A marker on an economic center that blocks the Government's earnings from it. Placed by Terror in an economic center or during Government Earnings; at most one may occupy an economic center, and all are removed at Reset. It shares a single supply of 20 with Terror markers.
+A marker on an economic center that blocks the Government's earnings from it. Placed by Terror in an economic center or during Government Earnings; at most one may occupy an economic center, and all are removed at Reset. It comes from the marker supply, as a Terror marker does.
 _Avoid_: Terror marker
+
+**Marker supply**:
+The Terror and Sabotage markers not on the map, out of the 20 the two kinds share. A marker is placed only from it; with none left, the action that would place one still happens, and places no marker. Civic Action, Agitation and Reset return markers to it.
+_Avoid_: Terror limit, marker pool, tokens, uses
 
 **Local policy**:
 An interpretation this project applies where the rules are silent, or do not define how software should handle a case. It is not a publisher ruling, and is owner-accepted only where that acceptance is recorded.

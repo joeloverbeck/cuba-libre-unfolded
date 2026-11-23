@@ -1,6 +1,6 @@
 # Rules and verification
 
-This foundation specializes `WORK-2`, `EVID-3`, `EVID-4`, `REP-2`, `OPS-1`, `FID-1`–`FID-4`, `SIM-1`, `SIM-4`, and `INT-1` for a published board game. It defines the required source boundary; it does not certify an engine or substitute for the rules.
+This foundation specializes `PURP-2`, `WORK-2`, `EVID-3`, `EVID-4`, `REP-2`, `OPS-1`, `FID-1`–`FID-4`, `SIM-1`, `SIM-4`, and `INT-1` for a published board game. It defines the required source boundary; it does not certify an engine or substitute for the rules.
 
 ## Source authority
 
@@ -21,6 +21,8 @@ This is an initial reading map, not an accepted complete fidelity topology. The 
 Rust rules code owns legal actions and consequences. Human controls and agent sockets submit decisions through the same checked boundary. Presentation, narrative, and agents cannot move pieces, award resources, alter eligibility, or bind agreements by describing an outcome. Choice identities and the match revision must bind a submission to the state the player inspected; stale or unauthorized requests do not mutate it.
 
 Routine bookkeeping is automatic; actual player choices remain choices. Multi-step operations must expose the remaining choices, costs, restrictions, and deliberate completion/cancellation options that the rules allow. Legal-action discovery must remain complete for the supported decision, even if presented hierarchically; a short list of recommended moves is not the legal set.
+
+On 2026-11-24 the owner selected, as a binding constraint under `PURP-2`, where a player chooses a map space: on the map, and nowhere else. This binds every Operation, Special Activity and Event whose decision selects a space. The map shows each space's state for the open decision, read from the rules authority's own choices, and choosing a space there opens what the authority offers in it. The decision panel holds what is not a place: costs, steps that select no space, the ending, and the record of spaces already resolved. It lists no space as a control. The keyboard and the development seat reach the same spaces. Completeness, above, still holds: a space where a legal choice would change nothing stays choosable, and the map may show it as quietly as a space no choice acts on, which is the owner's ruling for Assault (R 3.2.4, 4.1). [HIGHLIGHTS.md](../../art/atlas/HIGHLIGHTS.md) owns the selected graphics and interaction, first used by the 26July Terror Operation.
 
 Save/resume must preserve unresolved decisions and randomness, so that restarting the same build continues honestly: no reroll, and no decision lost or applied twice. A save binds the accepted rules source. Art is admitted at launch, before any save opens, and is not part of a save's identity. Reuse existing mechanisms before choosing a new format. Diagnostic reproducibility is an engineering capability, not a commitment to a public replay product.
 
