@@ -549,9 +549,10 @@ impl SeatGame for Table {
     /// area or of one of its cards or piles, which then does nothing else (#145).
     fn interrupts(&self, world: &mut World, input: Interrupt<'_>) -> bool {
         let (skips, lands) = match input {
-            Interrupt::Activate(TargetName::Component(name)) => {
-                (name == die::TRAY, piles::LANDING.contains(&name.as_str()))
-            }
+            // The owner's click lands a card in the air wherever it falls, and does
+            // nothing else there (#145, #137's review); a choice named by its id asks
+            // for a decision instead, and waits.
+            Interrupt::Activate(TargetName::Component(name)) => (name == die::TRAY, true),
             Interrupt::Activate(TargetName::Choice(_)) => (false, false),
             Interrupt::Key(key) => {
                 let key = matches!(key, "Enter" | "Space");

@@ -236,7 +236,7 @@ fn assert_matches_layout(view: &Value) {
 }
 
 /// The mean colour of a block of an image around a point.
-fn block(image: &image::RgbImage, centre: [f64; 2], half: u32) -> [f64; 3] {
+pub(super) fn block(image: &image::RgbImage, centre: [f64; 2], half: u32) -> [f64; 3] {
     let (cx, cy) = (centre[0] as u32, centre[1] as u32);
     let mut sum = [0f64; 3];
     let mut count = 0.;

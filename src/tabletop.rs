@@ -1123,11 +1123,18 @@ fn map_click_closes_tag(
     nodes: Query<(), With<Node>>,
     play: Res<Play>,
     mut ui: ResMut<Interface>,
+    time: Res<Time>,
+    frame: Res<bevy::diagnostic::FrameCount>,
+    mut advance: ResMut<piles::Advance>,
 ) {
     if event.button != bevy::picking::pointer::PointerButton::Primary
         || play.session.is_none()
         || nodes.contains(event.entity)
     {
+        return;
+    }
+    // A click while a played card is in the air only lands it.
+    if advance.lands(&play.game().observe(), time.elapsed_secs_f64(), frame.0) {
         return;
     }
     let step = play.game().action == crate::ActionChoice::Terror && ui.choice.pinned.is_some();

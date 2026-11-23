@@ -346,6 +346,51 @@ fn native_pile_tags_match_layout_and_read_the_model() {
     app.request(json!({"op":"key","revision":revision,"key":"Tab"}), true);
     app.request(json!({"op":"settle"}), true);
     assert!(app.observe()["table"]["pile_tag"]["shown"].is_null());
+    // Story 35, "hover the played pile": a pile is what the owner sees of it, its
+    // visible side and its caption as well as its disc. The pointer comes to rest on
+    // each from the pile's top card, carried there by a middle-button drag, which
+    // clicks nothing; the top card's own tag does not open.
+    let main_parts = card_piles::parts(&rest);
+    for (index, (pile, card, caption)) in [
+        ("pile:played", "card:current", "played-caption"),
+        ("pile:deck", "card:preview", "deck-caption"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let drawn = &rest["table"]["piles"]["piles"][index];
+        let face = rect_of(&drawn["face"]);
+        let foot = rect_of(&drawn["foot"]);
+        let from = [(face[0] + face[2]) / 2., (face[1] + face[3]) / 2.];
+        let words = main_parts[caption].1;
+        // The side's left part (the disc lies on its right), and the caption's middle.
+        for (part, to) in [
+            ("side", [face[0] + 60., (face[3] + foot[3]) / 2.]),
+            ("caption", [(words[0] + words[2]) / 2., (words[1] + words[3]) / 2.]),
+        ] {
+            assert!(foot[3] - face[3] > 8., "{pile}'s side shows: {face:?} {foot:?}");
+            app.point("quit");
+            app.request(json!({"op":"settle"}), true);
+            assert!(app.observe()["table"]["pile_tag"]["shown"].is_null());
+            app.request(
+                json!({"op":"drag","revision":revision,"component":card,"button":"middle",
+                       "x":to[0] - from[0],"y":to[1] - from[1]}),
+                true,
+            );
+            app.request(json!({"op":"settle"}), true);
+            let shown = app.observe();
+            assert_eq!(shown["table"]["hover"], pile, "{pile} by its {part}");
+            assert_eq!(
+                shown["table"]["pile_tag"]["shown"]["pile"], pile,
+                "{pile} by its {part}"
+            );
+            assert!(shown["table"]["card"]["shown"].is_null(), "{pile} by its {part}");
+            assert_eq!(shown["observation"], rest["observation"]);
+            if part == "side" {
+                app.capture(&format!("card-17-{}-from-side", &pile[5..]));
+            }
+        }
+    }
     let untouched = std::fs::read(&app.save).unwrap();
     app.quit();
     assert_eq!(std::fs::read(&app.save).unwrap(), untouched);
