@@ -2,7 +2,7 @@
 
 How the app writes, admits and recovers a save. [README, "Saves and recovery"](../../README.md#saves-and-recovery) covers what a person does; this page covers the mechanism behind it, for work that touches `src/save.rs` or what a save records.
 
-On 2026-11-23 [foundation 2](../foundation/02-rules-and-verification.md#engine-authority) made saves from other builds disposable, and [ADR 0003](../adr/0003-a-save-opens-by-exact-replay.md) records the save model that replaces the one below. Until that model is implemented, this page describes the code as it stands. Do not add to the identity rules or to "Older saves": no new work keeps an earlier save opening.
+On 2026-11-23 [foundation 2](../foundation/02-rules-and-verification.md#engine-authority) made saves from other builds disposable, and [ADR 0003](../adr/0003-a-save-opens-by-exact-replay.md) records the save model that replaces the one below. Until that model is implemented, this page describes the code as it stands. Do not add to the identity rules or to "Older saves": no new work keeps a disposable save opening.
 
 ## The record
 

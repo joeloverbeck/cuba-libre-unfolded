@@ -129,16 +129,16 @@ An interpretation this project applies where the rules are silent, or do not def
 _Avoid_: House rule, local ruling
 
 **Save**:
-The record of one match on disk: its seed, every decision in order and the position they produce.
+The record of one match on disk, from which the match resumes.
 _Avoid_: Savegame, save state
 
 **Disposable save**:
-A save written by a build of another revision. No build promises to open it, and nothing is written or kept to make it open.
-_Avoid_: Legacy save, older save, existing save
+A save written by a build of another commit, which no build promises to open. A save the same build wrote is not disposable.
+_Avoid_: Legacy save, older save
 
 **Exact-replay admission**:
-Opening a save by replaying its decisions from the opening position through the rules, and requiring the result to equal the saved position. It is the only way a save opens.
-_Avoid_: Save validation, save migration
+Opening a save by replaying its decisions from the opening position through the rules, and requiring the result to equal the saved position. It converts nothing: a save of another format is refused, never migrated.
+_Avoid_: Replay check, replay validation
 
 **Layout**:
 The arrangement of interface areas on a screen or written document: which areas exist, where they sit, their sizes, grouping and spacing, and how they adapt to the display.

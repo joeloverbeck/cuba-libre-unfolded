@@ -24,7 +24,7 @@ Routine bookkeeping is automatic; actual player choices remain choices. Multi-st
 
 Save/resume must preserve unresolved decisions and randomness, so that restarting the same build continues honestly: no reroll, and no decision lost or applied twice. A save binds the accepted rules source. Art is admitted at launch, before any save opens, and is not part of a save's identity. Reuse existing mechanisms before choosing a new format. Diagnostic reproducibility is an engineering capability, not a commitment to a public replay product.
 
-On 2026-11-23 the owner made saves disposable across builds, specializing `WORK-2` and `REP-2`: until the owner records here that the standard four-faction rules are complete, a save written by a build of another revision carries no promise. No work may add or keep code, data or tests whose purpose is to open such a save. A build opens a save only when it can continue it honestly; otherwise it refuses the save visibly and leaves every file as it was. [ADR 0003](../adr/0003-a-save-opens-by-exact-replay.md) records the save model this permits.
+On 2026-11-23 the owner made saves disposable across builds, specializing `WORK-2` and `REP-2`: until the owner records here that this has ended, which is expected once the standard four-faction rules are complete, a save written by a build of another commit carries no promise. No work may add or keep code, data or tests whose purpose is to open such a save. A build opens a save only when it can continue it honestly; otherwise it refuses the save visibly and leaves every file as it was. [ADR 0003](../adr/0003-a-save-opens-by-exact-replay.md) records the save model this permits.
 
 ## Evidence for the claim
 
