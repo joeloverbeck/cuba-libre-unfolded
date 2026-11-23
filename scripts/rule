@@ -10,11 +10,11 @@ if (($# == 0)); then
   exit 2
 fi
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
-missing=0
+failed=0
 for id in "$@"; do
   if [[ ! $id =~ ^[A-Z]+-[0-9]+$ ]]; then
     echo "scripts/rule: '$id' is not a rule identifier such as PURP-3" >&2
-    missing=1
+    failed=1
     continue
   fi
   # A rule is a `### ID — title` heading and what follows it up to the next `##` or
@@ -26,7 +26,7 @@ for id in "$@"; do
     END { exit !found }
   ' docs/principles/*.md; then
     echo "scripts/rule: no rule $id in docs/principles/" >&2
-    missing=1
+    failed=1
   fi
 done
-exit "$missing"
+exit "$failed"

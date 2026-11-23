@@ -38,7 +38,7 @@ At activation, present one **role table** for the owner’s model and effort cho
 
 5. Once an **implementer subagent** completes, merge its work to the integration branch with a **merger subagent**, which then clears disk as `docs/agents/parallel-work.md`, "Disk", says.
 
-   A ticket branch that already contains the integration tip merges without changing content. Merge it yourself with `--no-ff`, confirm `git diff <ticket head> HEAD` prints nothing, so the ticket's own checks stand for the merged tree, then push and clear disk. The merger subagent is for a merge that combines work.
+   A ticket whose checks ran on a tree the merge leaves unchanged needs no merger. Merge it yourself with `--no-ff` and run `git diff <revision the ticket's checks ran on> HEAD`. When it prints nothing, those checks stand for the merged tree: push and clear disk. When it prints anything, the ticket took in work after its checks ran, so the merger subagent merges and checks it.
 
 6. If this changes the **frontier** of available tickets, kick off more **implementer subagents** to work on the new tickets. This allows for maximum concurrency.
 

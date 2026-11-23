@@ -35,10 +35,10 @@ Look for the originating spec, in this order:
 
 Search the repo for every file that documents how code should be written. When `CODING_STANDARDS.md` or `CONTRIBUTING.md` exists, it must be on the list.
 
-This repository has neither. Its standards live in these places, and the list starts from them:
+In this repository the list starts from:
 
-- `CLAUDE.md`, project section: "Documenting a change" (each fact has one home; README carries no per-feature behaviour), Rust-only code, and what stays out of Git.
-- `GLOSSARY.md` with `docs/agents/domain.md`: glossary terms in code and documents. The reviewer searches the diff's added lines for the `_Avoid_` terms of every concept the change touches.
+- `CLAUDE.md`, project section: "Documenting a change", Rust-only code, and what stays out of Git.
+- `GLOSSARY.md` with `docs/agents/domain.md`: glossary terms in code and documents, each concept's `_Avoid_` terms included.
 - The foundations (`docs/foundation/`) and ADRs (`docs/adr/`) the change touches, and the constitution rules the spec cites (`scripts/rule ID…` prints them).
 - The agent document that owns the changed area, under `docs/agents/`.
 
