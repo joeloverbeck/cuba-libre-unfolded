@@ -189,6 +189,30 @@ fn assert_areas_and_island(view: &Value, layout: &Value, width: f64, height: f64
             "area {name} leaves the {width}x{height} window: {native:?}"
         );
     }
+    // #159: no area overlaps another in any window, and the Available Forces ledger's
+    // plate fills its own area, so it keeps its size and its distance from the
+    // top-right corner as the area does.
+    for (name, rect) in &drawn {
+        for (other, against) in &drawn {
+            assert!(
+                name == other || disjoint(*rect, *against),
+                "area {name} {rect:?} overlaps {other} {against:?} at {width}x{height}"
+            );
+        }
+    }
+    let plate = view["table"]["available_forces"]["parts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|part| part["part"] == "plate")
+        .map(|part| rect_of(&part["bounds"]))
+        .expect("the Available Forces ledger draws its plate");
+    for (n, e) in plate.iter().zip(drawn["available-forces"]) {
+        assert!(
+            (n - e).abs() <= tolerance,
+            "the ledger's plate {plate:?} leaves its area at {width}x{height}"
+        );
+    }
     let [l, t, r, b] = edges(&layout["island"]["bounds"]);
     let island = [
         start(l),
@@ -291,6 +315,26 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
         "the map camera draws the whole window"
     );
     assert_areas_and_island(&rest, &layout, 3840., 2160.);
+
+    // #161: the session panel reports the save and the Terror/Sabotage supply; the
+    // piece totals are the Available Forces ledger's.
+    let status = rest["table"]["main_view"]["parts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|part| part["part"] == "session-status")
+        .and_then(|part| part["text"].as_str())
+        .expect("the session panel reports its status")
+        .to_owned();
+    let observation = &rest["observation"];
+    assert!(
+        status.starts_with(&format!(
+            "Saved revision {}\nTerror/Sabotage {} available\n",
+            observation["revision"], observation["terror_available"]
+        )),
+        "{status}"
+    );
+    assert!(!status.contains(" map / "), "{status}");
 
     // The accepted areas against the layout record: images on all four edges, text
     // on left, top and right, since its line height is the renderer's.

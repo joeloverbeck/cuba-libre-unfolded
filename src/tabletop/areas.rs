@@ -457,6 +457,13 @@ mod tests {
                 ),
                 ("standings", [728., 8., 464., 108.], centre, 0.),
                 ("resources", [1688., 20., 192., 246.], right, 0.),
+                // #159: Available Forces, directly left of the Resources ledger.
+                (
+                    "available-forces",
+                    [1380., 20., 494. / 1.6875, 190.],
+                    right,
+                    0.,
+                ),
                 ("decision", [1380., 280., 500., 660.], right, 0.),
                 ("session", [1380., 964., 500., 264.], right, bottom),
                 // #143: the two piles and the Propaganda pips took the card
@@ -503,6 +510,13 @@ mod tests {
                     island.intersect(area).is_empty(),
                     "{name} covers the island box at {width}x{height}"
                 );
+                // #159: no area overlaps another, whatever the window's shape.
+                for (other, rect) in layout.areas(&window) {
+                    assert!(
+                        name == other || area.intersect(rect).is_empty(),
+                        "{name} overlaps {other} at {width}x{height}"
+                    );
+                }
             }
         }
     }

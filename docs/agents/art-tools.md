@@ -22,6 +22,8 @@ FigCraft authors **layouts** and VectorCraft authors **graphics**; [the art foun
 
 On the founding machine all three CLI programs are already installed in `~/.cargo/bin`, which is on PATH: VectorCraft 0.24.1, EffectCraft 0.24.1, and PhotoCraft 0.23.1. Each answered a live MCP inspection on 2026-11-14, initially through the existing Netrunner-scoped servers. That proves startup, not Cuba Libre asset creation or visual acceptance. FigCraft 0.18.1 was rebuilt from `storytold/figcraft@559c952d` on 2026-11-16; the binary postdates that commit and the checkout was clean. That day, launched with the exact command and arguments from `.mcp.json` from this checkout root, it completed initialization and tool discovery (19 tools), refused an export and a save to the checkout root outside `art/`, saved a native document and a PNG export under `art/`, and a fresh process reopened the document with its frame intact. The same refusal/save/reopen probe passed against the user-level Codex command, run from an unrelated directory. The probe-owned files were removed afterwards.
 
+On 2026-11-22 the installed VectorCraft 0.24.1 and FigCraft 0.18.1 were rebuilt from local checkouts of `storytold/vectorcraft@88f5ece1` and `storytold/figcraft@5c2a3784`: `~/.cargo/.crates2.json` installs both from those checkouts, each checkout's reflog reached that commit minutes before its binary's modification time, and neither has moved since or is dirty. This is reflog and timestamp evidence, not a recorded build.
+
 If a binary is absent or the selected authoring task needs a newer command, inspect the editor checkout and its own instructions, then use its documented install command from that checkout:
 
 ```sh

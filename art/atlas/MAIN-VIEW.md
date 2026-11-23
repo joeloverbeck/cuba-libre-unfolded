@@ -7,7 +7,7 @@ This layout is the authority for where every area of the main view sits ([founda
 ## What it shows
 
 - **Map:** the 3D map is the whole window. The sea is the layout's `map` colour, which the authored water frames also have.
-- **Areas over the map:** the top display's two groups, the victory standings, the Sequence of Play track, the decision panel, the session panel and the card area. They are the accepted designs, moved and not redesigned: each has the size and the place on the owner's display that it had in the framed view. Their own specifications still own what is inside them ([TOP.md](TOP.md), [VICTORY.md](VICTORY.md), [ELIGIBILITY.md](ELIGIBILITY.md), [CHOICE.md](CHOICE.md), [EXECUTION.md](EXECUTION.md), [KIDNAP.md](KIDNAP.md), [TRANSFER.md](TRANSFER.md), [CARD-TAG.md](CARD-TAG.md)).
+- **Areas over the map:** the top display's two groups, the victory standings, the Sequence of Play track, the decision panel, the session panel and the card area, and since #159 the Available Forces ledger ([AVAILABLE.md](AVAILABLE.md)). The others are the accepted designs, moved and not redesigned: each has the size and the place on the owner's display that it had in the framed view. Their own specifications still own what is inside them ([TOP.md](TOP.md), [VICTORY.md](VICTORY.md), [ELIGIBILITY.md](ELIGIBILITY.md), [CHOICE.md](CHOICE.md), [EXECUTION.md](EXECUTION.md), [KIDNAP.md](KIDNAP.md), [TRANSFER.md](TRANSFER.md), [CARD-TAG.md](CARD-TAG.md)).
 - **Pointer:** an area takes the pointer over its own rectangle. A press, a scroll or a drag there neither moves the camera nor reaches the space or piece beneath. Everywhere else the window belongs to the map: orbit, zoom, pan and Home work over all of it.
 - **Home:** all thirteen spaces lie inside the layout's island box, as large as the box allows and centred in it, so no space starts under an area.
 - **Tags and popovers:** a space tag opens anywhere on the map and keeps off every area. A space or piece popover opens in the part of the window the areas at its edges leave clear: below the standings, left of the decision panel and above the card area.
@@ -17,7 +17,7 @@ This layout is the authority for where every area of the main view sits ([founda
 
 - **Layout source:** `atlas-main-view.figcraft`, authored in FigCraft CLI 0.18.1 from sheet A, whose frame it keeps. Its one frame, `16:9 main view`, is 3840×2160: the owner's display, where one reference pixel is 1.6875 frame units.
   - **Accepted areas:** the top display's and the standings' graphics are the runtime exports, placed at their runtime rectangles and named as the runtime names them. The Sequence of Play track, the decision panel and the session panel are locked crops of one native capture (card 17, Directorio's shaded Event pending), as on sheet A, with the parts the runtime draws at fixed places marked by named rectangles over them. No crop includes a card face.
-  - **`area/<name>`:** eight unfilled rectangles, one for each area: the rectangle that takes the pointer.
+  - **`area/<name>`:** nine unfilled rectangles, one for each area: the rectangle that takes the pointer.
   - **`island`:** the unfilled box the island fills at Home, drawn round the island of sheet A.
   - **Piles:** `played-pile` and `draw-deck` (300×430 each, 60 apart) are the top cards. Under each, `played-pile-base` and `deck-pile-base` are where the pile's foot shows on card 17, with the stack drawn between. `played-label` and `deck-label`, a count disc and its number on each pile, a caption under each, and `propaganda-label`, `propaganda-pip-0`…`3` and `propaganda-caption` lie over them. The cards are sheet A's placeholders; no private face or back is embedded.
   - **`card-tray`:** the unfilled rectangle the tray's camera draws, 60, 1480, 760×660. It is larger than the piles so that a card which lifts or turns stays inside it (#145).
@@ -48,6 +48,7 @@ Frame rectangles are x, y, width, height on the owner's display. The reference r
 | `outside-influence` | 67.5, 30.38, 624.38×108 | top left | 40, 18, 370×64 | Aid and the US Alliance track |
 | `standings` | 1528.5, 13.5, 783×182.25 | top, centred | 728, 8, 464×108 of a centred 1920 | The four victory emblems and margins |
 | `resources` | 3448.5, 33.75, 324×415.13 | top right | 1688, 20, 192×246 | The Resources ledger and the Cash supply |
+| `available-forces` | 2928.75, 33.75, 494×320.63 | top right | 1380, 20, 292.74×190 | The Available Forces ledger (#159) |
 | `sequence-of-play` | 101.25, 300, 391.5×647.94 | top left | 60, 177.8, 232×384 | The Sequence of Play track at its tallest |
 | `decision` | 2928.75, 472.5, 843.75×1113.75 | top right | 1380, 280, 500×660 | The decision panel, with the Kidnap die tray |
 | `session` | 2928.75, 1626.75, 843.75×445.5 | bottom right | 1380, 964, 500×264 | The session panel |
@@ -107,7 +108,7 @@ Each area is a transparent interface rectangle beneath its own controls. The sha
 
 ## Provenance and limits
 
-- **Tools:** FigCraft CLI 0.18.1, rebuilt from `storytold/figcraft@559c952d`, as [art-tools.md](../../docs/agents/art-tools.md) records. The source is sheet A's document with the other sheets removed, the top display's `Atlas` variables imported, and the parts placed at the runtime's rectangles and named.
+- **Tools:** FigCraft CLI 0.18.1, rebuilt from `storytold/figcraft@559c952d`, as [art-tools.md](../../docs/agents/art-tools.md) records. Its re-saves on 2026-11-23, the last for #159's `available-forces` area, used the build installed on 2026-11-22 from `storytold/figcraft@5c2a3784`; as for [AVAILABLE.md](AVAILABLE.md#provenance-and-limits), this is reflog and timestamp evidence, not a recorded build. The source is sheet A's document with the other sheets removed, the top display's `Atlas` variables imported, and the parts placed at the runtime's rectangles and named.
 - **Measured before the change:** on the build before #142, at 3840×2160, the seat reported every part named in the record within 1 px of the rectangle the record now holds; the difference is the renderer's rounding to whole pixels.
 - **Retired:** `atlas-layout-background.png`, `atlas-layout-map-fill.png`, `atlas-layout-map-header.png` and `atlas-layout-map-footer.png` are deleted, and `layout.sha256` with them; #143 deleted `atlas-layout-card.png`, the card panel's frame. Their artboards remain in `atlas-layout.vectorcraft` ([LAYOUT.md](LAYOUT.md)).
 - **3D look:** the frame is a flat drawing. The island in it is a capture of the map at its Home pose. The piles in it are flat rectangles stepped down to each pile's foot; in production they are solid cards, and the record holds only their top cards, their feet and what lies over them.

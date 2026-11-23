@@ -1,0 +1,79 @@
+{
+  "source": "atlas-available-forces.figcraft",
+  "note": "The Available Forces ledger (#159, spec #157), authored from study B · Libro. Rectangles are [x, y, width, height]: FigCraft absoluteBounds of the frame '16:9 available forces', in frame units, which are pixels of the owner's 3840x2160 display; one reference pixel is 1.6875 units. The ledger is anchored top right, as the main view's area 'available-forces' is: every part keeps its distance from the window's top and right edges. 'parts' are drawn images: the plate (panel and rules, exported from the group 'plate'), the victory emblems (atlas-victory-icon-*.png) and the nine G1 pieces (atlas-available-*.png, VectorCraft). 'text' are runtime Lato boxes with the frame's example values: the caption (Ledger/caption: Bold 24, 3 tracking, centred, ink-secondary) and the counts (Ledger/count: Regular 43.875, ink), each count a fixed 56-wide box left-aligned beside its piece. 'zero' is the frame 'zero state': a kind with none left keeps its cell and draws its piece at this opacity beside '0'.",
+  "frame": [
+    3840,
+    2160
+  ],
+  "tolerance": 2,
+  "anchor": "top-right",
+  "parts": {
+    "plate": [2928.75, 33.75, 494.0, 320.63],
+    "government-emblem": [2952.75, 128.25, 45.56, 45.56],
+    "26july-emblem": [2952.75, 180.56, 45.56, 45.56],
+    "directorio-emblem": [2952.75, 232.88, 45.56, 45.56],
+    "syndicate-emblem": [2952.75, 285.19, 45.56, 45.56],
+    "government-troops": [3027.25, 128.25, 43.31, 45.56],
+    "government-police": [3157.25, 128.25, 43.31, 45.56],
+    "government-base": [3280.75, 134.25, 56.25, 34.31],
+    "26july-guerrilla": [3034.25, 180.56, 29.25, 46.13],
+    "26july-base": [3280.75, 186.56, 56.25, 34.31],
+    "directorio-guerrilla": [3034.25, 232.88, 29.25, 46.13],
+    "directorio-base": [3280.75, 238.88, 56.25, 34.31],
+    "syndicate-guerrilla": [3034.25, 285.19, 29.25, 46.13],
+    "syndicate-casino": [3280.75, 291.19, 56.25, 34.31]
+  },
+  "text": {
+    "caption": [2928.75, 66.0, 494.0, 29.0],
+    "government-troops-count": [3082.75, 124.88, 56.0, 53.0],
+    "government-police-count": [3212.75, 124.88, 56.0, 53.0],
+    "government-base-count": [3346.75, 124.88, 56.0, 53.0],
+    "26july-guerrilla-count": [3082.75, 177.19, 56.0, 53.0],
+    "26july-base-count": [3346.75, 177.19, 56.0, 53.0],
+    "directorio-guerrilla-count": [3082.75, 229.5, 56.0, 53.0],
+    "directorio-base-count": [3346.75, 229.5, 56.0, 53.0],
+    "syndicate-guerrilla-count": [3082.75, 281.81, 56.0, 53.0],
+    "syndicate-casino-count": [3346.75, 281.81, 56.0, 53.0]
+  },
+  "zero": {
+    "opacity": 0.4
+  },
+  "exports": {
+    "atlas-available-forces-plate.png": {"node": "plate", "tool": "FigCraft", "size": [879, 571]},
+    "atlas-available-troops.png": {"artboard": "troops", "tool": "VectorCraft", "size": [77, 81]},
+    "atlas-available-police.png": {"artboard": "police", "tool": "VectorCraft", "size": [77, 81]},
+    "atlas-available-government-base.png": {"artboard": "government-base", "tool": "VectorCraft", "size": [100, 61]},
+    "atlas-available-26july-guerrilla.png": {"artboard": "26july-guerrilla", "tool": "VectorCraft", "size": [52, 82]},
+    "atlas-available-26july-base.png": {"artboard": "26july-base", "tool": "VectorCraft", "size": [100, 61]},
+    "atlas-available-directorio-guerrilla.png": {"artboard": "directorio-guerrilla", "tool": "VectorCraft", "size": [52, 82]},
+    "atlas-available-directorio-base.png": {"artboard": "directorio-base", "tool": "VectorCraft", "size": [100, 61]},
+    "atlas-available-syndicate-guerrilla.png": {"artboard": "syndicate-guerrilla", "tool": "VectorCraft", "size": [52, 82]},
+    "atlas-available-syndicate-casino.png": {"artboard": "syndicate-casino", "tool": "VectorCraft", "size": [100, 61]}
+  },
+  "tag": {
+    "note": "#160: a faction's tag. 'rows' are the hover and focus targets in the frame '16:9 available forces' (hidden rectangles '<faction>-row'): each row's band across the plate, between the rules around it. 'frame' is the FigCraft frame 'hover tag \u00b7 Government', the accepted top-display tag (TOP.md) at 1.6875 units per reference pixel: 'parts' and 'text' are relative to its top left; the plate is atlas-top-tag.png stretched to the tag and the rule atlas-victory-rule.png; text styles Tag/title (Lato 45.5625, ink), Tag/row (30.375; labels ink, values ink-secondary) and Tag/note (28.6875, 38.8125 per line, ink-secondary). The tag grows with its rows and note lines as the top-display tag does: rows from 128.25, 47.25 apart; notes 20.25 below the rows; 23.625 below the notes. 'open' is where every faction's tag opens (the hidden 'government-tag' in the 16:9 frame): 13.5 left of the ledger, its top 13.5 below the standings area's foot, anchored top right. 'export' is the frame's export, for review; it is not admitted.",
+    "rows": {
+      "government": [2928.75, 125.0, 494.0, 52.25],
+      "26july": [2928.75, 177.25, 494.0, 52.3],
+      "directorio": [2928.75, 229.55, 494.0, 52.3],
+      "syndicate": [2928.75, 281.85, 494.0, 72.53]
+    },
+    "frame": [789.75, 507.94],
+    "parts": {
+      "plate": [0.0, 0.0, 789.75, 507.94],
+      "rule": [40.5, 104.63, 708.75, 1.69]
+    },
+    "text": {
+      "title": [40.5, 30.38, 708.75, 55.0],
+      "row-0-label": [40.5, 128.25, 337.5, 36.0],
+      "row-0-value": [388.13, 128.25, 361.13, 36.0],
+      "row-1-label": [40.5, 175.5, 337.5, 36.0],
+      "row-1-value": [388.13, 175.5, 361.13, 36.0],
+      "row-2-label": [40.5, 222.75, 337.5, 36.0],
+      "row-2-value": [388.13, 222.75, 361.13, 36.0],
+      "notes": [40.5, 290.25, 708.75, 195.0]
+    },
+    "open": [2125.5, 209.25, 789.75, 507.94],
+    "export": {"file": "atlas-available-forces-tag.png", "node": "hover tag \u00b7 Government", "tool": "FigCraft", "size": [790, 508]}
+  }
+}

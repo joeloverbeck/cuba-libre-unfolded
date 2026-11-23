@@ -43,6 +43,7 @@ use unfolded_tabletop::{
     token,
 };
 mod areas;
+mod available;
 mod briefing;
 mod cards;
 mod choice;
@@ -1004,9 +1005,11 @@ fn hover_disclosures(
             }
         })
     });
-    // Keyboard focus on a card or a pile opens its tag as the pointer does, with the
-    // same dwell.
-    let target = target.or_else(|| pile_tags::focused(&ui).map(Target::Pile));
+    // Keyboard focus on a card, a pile or an Available Forces row opens its tag as
+    // the pointer does, with the same dwell.
+    let target = target
+        .or_else(|| pile_tags::focused(&ui).map(Target::Pile))
+        .or_else(|| available::focused(&ui).map(Target::Top));
     let target = cards::target(&mut ui, target);
     ui.hover
         .update(target, true, time.delta(), Duration::from_millis(400));
@@ -1623,6 +1626,9 @@ fn draw_ui(
         Vec2::ZERO,
         right,
     );
+    // #159: Available Forces stand left of the Resources ledger, from the committed
+    // position, so a preview never changes them.
+    available::draw(&mut commands, &art, &view, s, right);
     if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
         die::panel(&mut commands, &art, kidnap, roll.landed(), s, right);
     } else {
@@ -1637,13 +1643,7 @@ fn draw_ui(
         if play.session.is_none() {
             "Loading selected assets; no save created.".into()
         } else {
-            format!(
-                "Saved revision {} · {} map / {} available\nTerror/Sabotage {} available",
-                view.revision,
-                view.map_piece_count,
-                view.available_piece_count,
-                view.terror_available
-            )
+            session_status(&view)
         }
     });
     let status = text(
@@ -1678,10 +1678,84 @@ fn draw_ui(
         .insert(areas::Part("session-quit".into()));
 }
 
+/// The session panel's status: the saved revision, and the Terror/Sabotage supply,
+/// which no other surface shows. Piece totals are the Available Forces ledger's
+/// (#161).
+fn session_status(view: &Observation) -> String {
+    format!(
+        "Saved revision {}\nTerror/Sabotage {} available",
+        view.revision, view.terror_available
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use unfolded_tabletop::camera::Input;
+
+    /// After 26July chooses Terror the match is at revision 1, and all 20
+    /// Terror/Sabotage markers are still available (the accepted tactical handoff).
+    #[test]
+    fn the_session_status_reports_the_save_and_the_marker_supply() {
+        let view = crate::terror_chosen(Game::opening()).observe();
+        assert_eq!(
+            session_status(&view),
+            "Saved revision 1\nTerror/Sabotage 20 available"
+        );
+    }
+
+    /// #161: with the counts on the ledger, the removal texts still say where the
+    /// pieces go (R 1.4.1): the preview's map line, and the notices of a removal, of
+    /// Done, and of Government's removal before its card 18 Assault.
+    #[test]
+    fn removal_texts_say_the_pieces_return_to_available() {
+        let mut terror = crate::terror_chosen(Game::opening());
+        terror.apply("remove").unwrap();
+        let view = terror.observe();
+        let base = view
+            .choices
+            .iter()
+            .find(|c| c.action() == "remove:sierra-maestra:base:1")
+            .unwrap();
+        let (entries, _) =
+            execution::previewed(&view, base.action(), base.preview.as_ref().unwrap());
+        assert!(
+            entries.iter().any(|e| e
+                .text
+                .contains("Sierra Maestra: 1 26July Base returns to Available")),
+            "{entries:?}"
+        );
+        assert_eq!(
+            noticed(&mut terror, "remove:santiago:underground:2", |_, _| {}),
+            "Removed 2 own pieces to Available. Removal stays open until Done; earlier \
+             Terror, support shifts and Kidnap results remain. Saved."
+        );
+        assert_eq!(
+            noticed(&mut terror, "done-removal", |_, _| {}),
+            "Removal mode closed; removed pieces stay in Available. Saved."
+        );
+
+        let mut funded = crate::terror_chosen(Game::opening_with_seed(2));
+        for action in [
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "transfer",
+            "give:0:1",
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+            "advance-card",
+            "government:assault",
+            "remove",
+        ] {
+            funded.apply(action).unwrap();
+        }
+        assert_eq!(
+            noticed(&mut funded, "remove:santiago:troops:1", |_, _| {}),
+            "Returned 1 piece to Available Forces. Choose Done to review Assault. Saved."
+        );
+    }
 
     /// The notice for `action` submitted by its owner, with `tamper` applied to the
     /// observations before and after it: each fact the notice states must follow them.
@@ -1820,6 +1894,11 @@ mod tests {
         assert_eq!(
             serde_json::to_value(Target::Top(top::Item::UsAlliance)).unwrap(),
             "us-alliance"
+        );
+        // #160: an Available Forces row, by the name the seat points at.
+        assert_eq!(
+            serde_json::to_value(Target::Top(top::Item::Available(Faction::M26))).unwrap(),
+            "available:26july"
         );
     }
     /// One frame of the shared camera at this table, from plain input values.

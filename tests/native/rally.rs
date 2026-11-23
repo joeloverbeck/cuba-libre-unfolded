@@ -495,14 +495,15 @@ fn native_free_rally_can_choose_zero_in_a_qualifying_base_space() {
     let place_zero = "rally:sierra-maestra:place:0";
     let preview = app.point(&format!("option:{place_zero}"));
     let contents = tag_text(&preview["table"]["briefing"]);
+    // The Available Forces clause ends at "No pieces move."; the ledger shows the 12 (#161).
     for text in [
-        "No pieces move",
-        "12 Guerrillas stay",
+        "Place up to 4. No pieces move. Rally treats",
         "0 Resources",
         "Actual Active Opposition stays",
     ] {
         assert!(contents.contains(text), "{contents}");
     }
+    assert!(!contents.contains("Guerrillas stay"), "{contents}");
     app.capture("zero-placement-preview");
     choose_rally_option(&mut app, place_zero);
 
@@ -613,15 +614,17 @@ fn native_free_rally_hands_the_decision_to_the_beneficiary() {
     );
     let maximum = app.point("option:rally:sierra-maestra:place:4");
     let preview = tag_text(&maximum["table"]["briefing"]);
+    // 12 Available do not limit a ceiling of 4, so the explanation gives the ceiling
+    // alone (#161), and the change it makes: 12 − 4 = 8.
     for text in [
-        "2 × 1 Base + 2 × 1 Population = 4",
-        "12 Available Guerrillas",
-        "up to 4",
+        "2 × 1 Base + 2 × 1 Population = 4. Place up to 4.",
+        "This leaves 8 Guerrillas in Available Forces.",
         "0 Resources",
         "Active Opposition",
     ] {
         assert!(preview.contains(text), "{preview}");
     }
+    assert!(!preview.contains("Available Guerrillas"), "{preview}");
     app.capture("03-26july-rally-maximum");
     app.request(json!({"op":"activate","revision":revision,"choice":format!("{revision}:rally:sierra-maestra:place:5")}), false);
     assert_eq!(app.observe()["observation"], pending);
@@ -714,4 +717,43 @@ fn native_free_rally_without_a_base_finishes_the_event() {
         app.capture(&format!("no-base-{beneficiary}-card-end"));
         app.quit();
     }
+}
+
+/// #159: the Available Forces ledger shows the committed position. A hovered and a
+/// pinned Rally option leave it as it is; committing 26July's free Rally of three
+/// Guerrillas at Sierra Maestra takes them from Available Forces (R 1.4.1, R 3.3.1):
+/// 12 become 9, and nothing else changes.
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_available_forces_follow_a_rally_and_not_its_preview() {
+    use super::available_forces::{drawn_count, ledger, prepared};
+    let mut app = event_app("available-forces-rally-", "issue-159");
+    ready_for_event(&mut app, true);
+    choose_rally_option(&mut app, "event:unshaded");
+    choose_rally_option(&mut app, "rally:beneficiary:26july");
+    let pending = app.observe();
+    assert_eq!(pending["observation"]["owner"], "M26");
+    assert_eq!(ledger(&pending), prepared());
+    let place = "rally:sierra-maestra:place:3";
+    let hovered = app.point(&format!("option:{place}"));
+    assert!(tag_text(&hovered["table"]["briefing"]).contains("leaves 9 Guerrillas"));
+    assert_eq!(ledger(&hovered), prepared());
+    assert_eq!(drawn_count(&hovered, "26july-guerrilla"), "12");
+    let revision = pending["observation"]["revision"].as_u64().unwrap();
+    app.activate(&format!("option:{place}"), revision);
+    let pinned = app.observe();
+    assert_eq!(pinned["table"]["choice"]["pinned"], place);
+    assert_eq!(pinned["observation"], pending["observation"]);
+    assert_eq!(ledger(&pinned), prepared());
+    assert_eq!(drawn_count(&pinned, "26july-guerrilla"), "12");
+    app.capture("rally-pinned-ledger-unchanged");
+    app.choose(place);
+    let placed = app.observe();
+    assert_eq!(available_guerrillas(&placed["observation"]), 9);
+    let mut expected = prepared();
+    expected[3].2 = 9;
+    assert_eq!(ledger(&placed), expected);
+    assert_eq!(drawn_count(&placed, "26july-guerrilla"), "9");
+    app.capture("rally-placed-ledger");
+    app.quit();
 }

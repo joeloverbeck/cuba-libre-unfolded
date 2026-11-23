@@ -31,8 +31,10 @@ pub const POPOVER_MANIFEST: &str = include_str!("../art/atlas/popover.sha256");
 pub const EXECUTION_MANIFEST: &str = include_str!("../art/atlas/execution.sha256");
 /// The card tag's mark plates (#139): stateless presentation.
 pub const CARD_TAG_MANIFEST: &str = include_str!("../art/atlas/card-tag.sha256");
+/// The Available Forces ledger's plate and its nine pieces (#159): stateless presentation.
+pub const AVAILABLE_FORCES_MANIFEST: &str = include_str!("../art/atlas/available-forces.sha256");
 /// Every manifest admitted at launch, in the order `inspect` reads them.
-pub const MANIFESTS: [&str; 15] = [
+pub const MANIFESTS: [&str; 16] = [
     MANIFEST,
     STATUS_MANIFEST,
     VICTORY_MANIFEST,
@@ -48,6 +50,7 @@ pub const MANIFESTS: [&str; 15] = [
     POPOVER_MANIFEST,
     EXECUTION_MANIFEST,
     CARD_TAG_MANIFEST,
+    AVAILABLE_FORCES_MANIFEST,
 ];
 pub const SOURCE: &str = "deacd635db5f71f4d3f092bd9cc99a9d96bb7aab;R:8152cb0056e3690fdc01c7b4ff893369ad7eff288941abc540ceee2c9d606792;P:dcaa5afd6f01c0c9ed4746c18199c1b09058823d67b627384fd3184ed4015fe8";
 pub(crate) struct CardFace {

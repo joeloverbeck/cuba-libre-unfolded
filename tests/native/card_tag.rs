@@ -190,6 +190,9 @@ fn native_card_tag_matches_layout_and_reads_the_model() {
         if focus == "card:current" {
             break;
         }
+        // The Available Forces rows before the cards open their tags after the same
+        // dwell (#160), which holds the table until it settles.
+        app.request(json!({"op":"settle"}), true);
     }
     assert_eq!(focus, "card:current");
     let focused = app.request(json!({"op":"settle"}), true);
