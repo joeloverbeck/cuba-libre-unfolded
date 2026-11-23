@@ -184,22 +184,16 @@ fn native_shaded_event_activates_26july_and_adjusts_card_end_eligibility() {
         step: 0,
     };
     eprintln!("Shaded Event evidence: {}", app.root.display());
-    let historical = std::env::var_os("CUBA_TEST_COMPLETED_KIDNAP");
-    if let Some(input) = &historical {
-        std::fs::copy(input, &app.save).unwrap();
-    }
     app.launch_size("3840x2160");
-    if historical.is_none() {
-        app.choose("terror");
-        app.choose("transfer");
-        app.choose("ask:2:2");
-        app.choose("authorize:2");
-        app.choose("terror:santiago");
-        app.choose("terror:oriente");
-        app.choose("kidnap");
-        app.roll();
-        app.choose("end-terror");
-    }
+    app.choose("terror");
+    app.choose("transfer");
+    app.choose("ask:2:2");
+    app.choose("authorize:2");
+    app.choose("terror:santiago");
+    app.choose("terror:oriente");
+    app.choose("kidnap");
+    app.roll();
+    app.choose("end-terror");
 
     let guerrillas = |position: &Value, space: &str| {
         position["spaces"]
@@ -747,9 +741,6 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
             root,
             step: 0,
         };
-        if let Some(original) = std::env::var_os("CUBA_COMPAT_SAVE") {
-            std::fs::copy(original, &app.save).unwrap();
-        }
         eprintln!("Responsive native evidence: {}", app.root.display());
         app.launch_size(&format!("{width}x{height}"));
         let before = app.observe();
@@ -1436,7 +1427,8 @@ fn native_kidnap_opens_cancels_and_rolls_through_the_panel() {
     app.launch();
     app.choose("terror");
     let before = app.observe();
-    let random = saved(&app)["payload"]["random"].clone();
+    let random = saved(&app)["payload"]["position"]["random"].clone();
+    assert!(random.is_u64(), "{random}");
     let stakes = card(&mut app, "kidnap", "kidnap-open-preview");
     for fact in [
         "TARGET: Government in Santiago de Cuba, which has 6 Resources",
@@ -1462,7 +1454,7 @@ fn native_kidnap_opens_cancels_and_rolls_through_the_panel() {
             .contains("nothing rolled")
     );
     assert!(panel(&opened, "guaranteed minimum 1"), "{opened}");
-    assert_eq!(saved(&app)["payload"]["random"], random);
+    assert_eq!(saved(&app)["payload"]["position"]["random"], random);
     app.capture("kidnap-opened");
     // Opened, the Kidnap step holds the roll's stakes.
     assert_eq!(opened["table"]["choice"]["pinned"], "kidnap");
@@ -1486,7 +1478,7 @@ fn native_kidnap_opens_cancels_and_rolls_through_the_panel() {
         before["observation"]["spaces"]
     );
     assert!(ids(&cancelled).contains(&"back-to-choice".to_owned()));
-    assert_eq!(saved(&app)["payload"]["random"], random);
+    assert_eq!(saved(&app)["payload"]["position"]["random"], random);
     assert!(
         cancelled["table"]["notice"]
             .as_str()
@@ -1517,7 +1509,7 @@ fn native_kidnap_opens_cancels_and_rolls_through_the_panel() {
         json!([6 - die, die, 5, 15])
     );
     assert_eq!(rolled["observation"]["owed_terror"], "santiago");
-    assert_ne!(saved(&app)["payload"]["random"], random);
+    assert_ne!(saved(&app)["payload"]["position"]["random"], random);
     assert!(!ids(&rolled).contains(&"back-to-choice".to_owned()));
     assert!(
         rolled["table"]["notice"]
@@ -2473,36 +2465,6 @@ fn native_hover_status_is_transient_without_region_inspection() {
     }
     assert_eq!(app.observe()["observation"], final_state);
     app.quit();
-    if let Some(legacy) = std::env::var_os("CUBA_COMPAT_SAVE") {
-        let legacy = PathBuf::from(legacy);
-        let original = std::fs::read(&legacy).unwrap();
-        let record: Value = serde_json::from_slice(&original).unwrap();
-        // Read-only acquisition: the owner's record is never an app save path.
-        app.save = app.root.join("legacy-copy.json");
-        std::fs::write(&app.save, &original).unwrap();
-        app.launch();
-        let resumed = app.observe();
-        assert_eq!(
-            resumed["observation"]["revision"],
-            record["payload"]["revision"]
-        );
-        assert_eq!(
-            resumed["observation"]["resources"],
-            record["payload"]["resources"]
-        );
-        assert_eq!(
-            resumed["observation"]["spaces"],
-            record["payload"]["spaces"]
-        );
-        app.point("space:havana");
-        app.capture("legacy-save-resumed");
-        app.quit();
-        app.launch();
-        assert_eq!(app.observe()["observation"], resumed["observation"]);
-        app.quit();
-        assert_eq!(std::fs::read(&app.save).unwrap(), original);
-        assert_eq!(std::fs::read(&legacy).unwrap(), original);
-    }
 }
 
 fn assert_status_geometry(status: &Value) {
@@ -3667,18 +3629,9 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
     let rate = 0.5;
     let step = 1. / 60.;
     for (seed, die) in [(19u64, 1u64), (0, 2), (5, 3), (3, 4), (2, 5), (1, 6)] {
-        // A new save with this seed: created by the library as the app would, then
-        // resealed with the known random state.
+        // A new save with this seed, created through the save session's seeded entry.
         app.save = app.root.join(format!("face-{die}.json"));
-        drop(Session::open(&app.save, None).unwrap());
-        let mut record: Value = serde_json::from_slice(&std::fs::read(&app.save).unwrap()).unwrap();
-        record["payload"]["random"] = seed.into();
-        let identity = serde_json::from_value(record["identity"].clone()).unwrap();
-        std::fs::write(
-            &app.save,
-            unfolded_record_replacement::save::seal(&identity, &record["payload"]),
-        )
-        .unwrap();
+        drop(Session::create_seeded(&app.save, seed).unwrap());
         app.launch_size(size);
         app.choose("terror");
         app.choose("kidnap");
@@ -3692,8 +3645,11 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
         // The result is committed and saved before the die moves.
         let committed = std::fs::read(&app.save).unwrap();
         let saved: Value = serde_json::from_slice(&committed).unwrap();
-        assert_eq!(saved["payload"]["kidnap"]["die"], die);
-        assert_eq!(saved["payload"]["kidnap"]["revision"], revision + 1);
+        assert_eq!(saved["payload"]["position"]["kidnap"]["die"], die);
+        assert_eq!(
+            saved["payload"]["position"]["kidnap"]["revision"],
+            revision + 1
+        );
         let first = app.request(json!({"op":"settle","steps":16}), true);
         assert_eq!(first["status"], "unsettled", "{first}");
         let first = app.observe();
