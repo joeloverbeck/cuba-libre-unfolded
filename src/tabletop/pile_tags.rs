@@ -191,6 +191,7 @@ fn words(
 }
 
 /// Draws the open pile tag, if any, above the piles.
+#[allow(clippy::too_many_arguments)] // A Bevy system: its parameters are the resources it reads.
 pub(super) fn draw(
     mut commands: Commands,
     play: Res<Play>,
