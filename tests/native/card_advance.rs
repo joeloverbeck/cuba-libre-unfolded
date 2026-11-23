@@ -610,12 +610,11 @@ fn advance_to(app: &mut Native, seconds: f64) -> Value {
 }
 
 /// The piles as the tray draws them and the numbers over them, while a card is in
-/// the air: each pile's cards and what lies on top, and the two count discs' words.
+/// the air: each pile's cards and what lies on top. The count discs are not shown then.
 fn assert_cards_shown(
     view: &Value,
     played: (u64, Value),
     deck: (u64, Value),
-    counts: (&str, &str),
     faces: u64,
 ) {
     let piles = &view["table"]["piles"];
@@ -627,9 +626,21 @@ fn assert_cards_shown(
     }
     assert_eq!(piles["faces"], faces, "{piles}");
     assert_eq!(piles["pips"], json!([true, false, false, false]));
+    // No count disc is shown while a card is in the air: the cards pass where the discs
+    // lie, and looked as if they cut through them (the owner, 2026-11-23, #146).
     let parts = card_piles::parts(view);
-    assert_eq!(parts["played-count"].0, counts.0);
-    assert_eq!(parts["deck-count"].0, counts.1);
+    for part in [
+        "played-count-disc",
+        "played-count",
+        "deck-count-disc",
+        "deck-count",
+    ] {
+        assert!(
+            !parts.contains_key(part),
+            "{part} is shown while a card is in the air"
+        );
+    }
+    assert_eq!(piles["discs"], json!([]), "{piles}");
     assert_eq!(parts["propaganda-caption"].0, "1 of 4 played");
 }
 
@@ -783,7 +794,6 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
         &leaving,
         (18, json!(17)),
         (33, json!("back")),
-        ("18", "33"),
         1,
     );
     // A seat that connects now finds the same moment, not a new start: every request
@@ -826,7 +836,6 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
         &crossing,
         (18, json!(17)),
         (33, json!("back")),
-        ("18", "33"),
         1,
     );
     app.capture("2-crossing-halfway");
@@ -873,7 +882,6 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
         &turning,
         (19, json!(18)),
         (32, json!("back")),
-        ("19", "33"),
         1,
     );
     // It turns where it lies: its middle is the deck's, and it is narrower than a
