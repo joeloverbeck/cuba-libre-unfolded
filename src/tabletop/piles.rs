@@ -23,9 +23,11 @@
 //!   (ADR 0001): the preview lifts and crosses to the played pile, then the deck's
 //!   top card turns over where it lies, its back showing until it is past its edge.
 //!   Both are the shared card motion (`unfolded_tabletop::card_motion`), read at the
-//!   time since the commit on the shared clock. The numbers follow the cards: the
-//!   deck's goes down as the preview leaves it, and the played pile's and the
-//!   Propaganda pips change as it lands. A click, Space or Enter lands everything at
+//!   time since the commit on the shared clock. The piles and the Propaganda pips
+//!   follow the cards: the deck is a card thinner as the preview leaves it, and the
+//!   played pile is a card thicker and the pips change as it lands. The count discs
+//!   are not shown while a card is in the air, since it passes where they lie (the
+//!   owner's native review, #146). A click, Space or Enter lands everything at
 //!   once. [`Advance`] is never saved, so a restart, a resumed save and a seat that
 //!   connects later all find the cards at rest.
 use super::cards::Slot;
@@ -172,7 +174,7 @@ mod fig {
 /// The tray's render layer: only its camera and light see it. The Kidnap tray has 1.
 const LAYER: usize = 2;
 /// The layer of a card in the air, which its own camera draws over the interface: it
-/// is above the table, so above the labels, discs and captions printed over the tray.
+/// is above the table, so above the labels and captions printed over the tray.
 const AIR: usize = 3;
 /// Where the tray stands in the world: well below the map's sea and the Kidnap tray.
 const TRAY_AT: Vec3 = Vec3::new(0., -80., 0.);
@@ -481,10 +483,16 @@ pub(super) struct Scene {
     pub lay: Lay,
     flying: Option<(Flying, Transform)>,
 }
+impl Scene {
+    /// Whether a card is in the air: the count discs are not shown then.
+    pub(super) fn in_the_air(&self) -> bool {
+        self.flying.is_some()
+    }
+}
 
 /// The advance `elapsed` seconds after its commit, from the cards before it and
-/// after it. The deck's number goes down as the played card leaves it; the played
-/// pile's number and the Propaganda pips change as it lands. The deck shows the back
+/// after it. The deck is a card fewer as the played card leaves it; the played pile is
+/// a card more and the Propaganda pips change as it lands. The deck shows the back
 /// of its next card until that card has turned over, and the turning card is still
 /// one of the deck's.
 fn shown(before: &Lay, after: &Lay, elapsed: f32) -> Scene {
@@ -565,7 +573,7 @@ impl Advance {
     /// Whether a played card is in the air at clock time `now`: the piles on the table
     /// are then a card behind the model's.
     pub(super) fn in_the_air(&self, view: &Observation, now: f64) -> bool {
-        self.scene(view, now).flying.is_some()
+        self.scene(view, now).in_the_air()
     }
     /// Whether an input in frame `frame` lands the cards and so does nothing else: it
     /// does while a card is in the air, and for the rest of the frame that ended it.
@@ -909,21 +917,22 @@ pub(super) fn land_on_click(
 }
 
 /// Starts a just-saved advance from the shared clock, in the frame its decision was
-/// applied, and has the numbers over the tray redrawn when the cards they count
-/// leave or land.
+/// applied, and has what lies over the tray redrawn when the cards its numbers count
+/// leave or land, and when the last card comes to rest.
 pub(super) fn follow(
     play: Res<Play>,
     time: Res<Time>,
     mut ui: ResMut<Interface>,
     mut advance: ResMut<Advance>,
-    mut numbers: Local<Option<Piles>>,
+    mut drawn: Local<Option<(Piles, bool)>>,
 ) {
     let now = time.elapsed_secs_f64();
     if let Some(played) = ui.played.take() {
         advance.commit(played, now);
     }
-    let shown = advance.scene(&play.game().observe(), now).lay.numbers;
-    if numbers.replace(shown) != Some(shown) {
+    let scene = advance.scene(&play.game().observe(), now);
+    let shown = (scene.lay.numbers, scene.in_the_air());
+    if drawn.replace(shown) != Some(shown) {
         ui.dirty = true;
     }
 }
@@ -1012,7 +1021,7 @@ pub(super) fn present(
     }
     let wanted = viewport(&window);
     for (mut camera, air) in &mut cameras {
-        let in_the_air = scene.flying.is_some();
+        let in_the_air = scene.in_the_air();
         if air && camera.is_active != in_the_air {
             camera.is_active = in_the_air;
         }
@@ -1092,7 +1101,9 @@ fn node(window: &Window, rect: [f32; 4]) -> Node {
 
 /// What lies over the tray: each pile's label, count disc and caption, the Propaganda
 /// pips, and a target on each top card and each pile. Every number is the model's.
-pub(super) fn overlay(commands: &mut Commands, art: &Art, lay: &Lay, window: &Window) {
+/// While a card is in the air neither count disc nor its number is drawn.
+pub(super) fn overlay(commands: &mut Commands, art: &Art, scene: &Scene, window: &Window) {
+    let lay = &scene.lay;
     let unit = unit(window);
     let tracking = LetterSpacing::Px(fig::TRACKING * unit);
     for pile in Pile::ALL {
@@ -1139,39 +1150,42 @@ pub(super) fn overlay(commands: &mut Commands, art: &Art, lay: &Lay, window: &Wi
                 },
             ))
             .observe(click);
-        let (name, rect) = parts.disc;
-        let mut disc = node(window, rect);
-        disc.border_radius = BorderRadius::MAX;
-        commands
-            .spawn((
-                UiRoot,
-                areas::Part(name.into()),
-                Disc(pile),
-                ImageNode::new(art.images[DISC].clone())
-                    .with_mode(bevy::ui::widget::NodeImageMode::Stretch),
-                disc,
-                GlobalZIndex(3),
-                Control {
-                    name: pile.name().into(),
-                    choice: false,
-                    action: Action::Pile(pile),
-                },
-            ))
-            .observe(click);
-        let (name, at) = parts.count;
-        let count = words(
-            commands,
-            window,
-            &art.bold,
-            cards.to_string(),
-            at,
-            fig::COUNT_SIZE,
-            PAPER,
-            name,
-        );
-        commands
-            .entity(count)
-            .insert(TextLayout::justify(Justify::Center));
+        // A card in the air passes where the discs lie, so they wait for it to land.
+        if !scene.in_the_air() {
+            let (name, rect) = parts.disc;
+            let mut disc = node(window, rect);
+            disc.border_radius = BorderRadius::MAX;
+            commands
+                .spawn((
+                    UiRoot,
+                    areas::Part(name.into()),
+                    Disc(pile),
+                    ImageNode::new(art.images[DISC].clone())
+                        .with_mode(bevy::ui::widget::NodeImageMode::Stretch),
+                    disc,
+                    GlobalZIndex(3),
+                    Control {
+                        name: pile.name().into(),
+                        choice: false,
+                        action: Action::Pile(pile),
+                    },
+                ))
+                .observe(click);
+            let (name, at) = parts.count;
+            let count = words(
+                commands,
+                window,
+                &art.bold,
+                cards.to_string(),
+                at,
+                fig::COUNT_SIZE,
+                PAPER,
+                name,
+            );
+            commands
+                .entity(count)
+                .insert(TextLayout::justify(Justify::Center));
+        }
         let (name, text, at) = parts.caption;
         words(
             commands,
