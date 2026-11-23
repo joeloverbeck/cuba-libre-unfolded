@@ -1,6 +1,6 @@
 {
   "source": "atlas-main-view.figcraft",
-  "note": "absoluteBounds [x, y, width, height] read from FigCraft get_node on the frame '16:9 main view', in the frame's own units: the owner's 3840x2160 display, where one reference pixel is 1.6875 units. 'areas' are the frame's area/* rectangles: each lies over the full-window map and takes the pointer over its own rectangle; 'anchor' names the window edges it keeps its distance from in a window of another shape ('top' is the top edge and the horizontal centre). 'island' is the box the thirteen spaces fill at Home; each of its corners follows its own corner of the window. Image parts are compared on all four edges; text parts on left, top and right (line height is the renderer's). Parts whose place follows the match's state stay with their own layouts' records. 'interim' holds the card panel that stays until #143 builds the piles. 'planned' records where #143 puts the piles, their labels, count discs, captions and the Propaganda pips, and where the card tag opens; nothing draws them yet.",
+  "note": "absoluteBounds [x, y, width, height] read from FigCraft get_node on the frame '16:9 main view', in the frame's own units: the owner's 3840x2160 display, where one reference pixel is 1.6875 units. 'areas' are the frame's area/* rectangles: each lies over the full-window map and takes the pointer over its own rectangle; 'anchor' names the window edges it keeps its distance from in a window of another shape ('top' is the top edge and the horizontal centre). 'island' is the box the thirteen spaces fill at Home; each of its corners follows its own corner of the window. Image parts are compared on all four edges; text parts on left, top and right (line height is the renderer's). Parts whose place follows the match's state stay with their own layouts' records. 'tray' is the card tray (#143): 'bounds' is the frame's card-tray rectangle, the part of the window the tray's own camera draws; 'played-pile' and 'draw-deck' are the top cards' faces, which lie flat on their rectangles; 'played-pile-base' and 'deck-pile-base' are where the foot of each pile shows for the 18 and 34 cards of card 17, half its height below its top card (a card is 300/210 of a unit thick seen edge-on). The piles' labels, count discs, captions and the Propaganda pips are among 'parts' and 'text'. 'card-tag' is the hidden rectangle where the card tag opens. 'exports' are the frame's own nodes exported as images, with each file's size in pixels; 'pile-shadow' stands outside the frame.",
   "frame": [3840, 2160],
   "tolerance": 2,
   "island": {
@@ -33,7 +33,11 @@
       "anchor": "bottom-right"
     },
     "cards": {
-      "bounds": [67.5, 1626.75, 1012.5, 445.5],
+      "bounds": [67.5, 1594.0, 734.5, 536.0],
+      "anchor": "bottom-left"
+    },
+    "propaganda": {
+      "bounds": [834.0, 1920.0, 226.0, 160.0],
       "anchor": "bottom-left"
     }
   },
@@ -57,7 +61,13 @@
     "eligibility-header": [119.81, 315.19, 357.75, 50.63],
     "decision-frame": [2928.75, 472.5, 843.75, 1113.75],
     "session-frame": [2928.75, 1626.75, 843.75, 445.5],
-    "session-quit": [3451.88, 1923.75, 280.13, 74.25]
+    "session-quit": [3451.88, 1923.75, 280.13, 74.25],
+    "played-count-disc": [356.0, 1994.0, 80.0, 80.0],
+    "deck-count-disc": [716.0, 2008.0, 80.0, 80.0],
+    "propaganda-pip-0": [850.0, 1982.0, 34.0, 34.0],
+    "propaganda-pip-1": [898.0, 1982.0, 34.0, 34.0],
+    "propaganda-pip-2": [946.0, 1982.0, 34.0, 34.0],
+    "propaganda-pip-3": [994.0, 1982.0, 34.0, 34.0]
   },
   "text": {
     "aid-value": [155.25, 50.63, 84.38, 61.0],
@@ -70,28 +80,29 @@
     "ledger-row-2-value": [3620.63, 229.5, 124.88, 53.0],
     "ledger-row-3-value": [3620.63, 281.81, 124.88, 53.0],
     "eligibility-title": [119.81, 330.81, 354.38, 20.0],
-    "session-status": [2969.25, 1721.25, 759.38, 110.0]
-  },
-  "interim": {
-    "card-frame": [67.5, 1626.75, 1012.5, 445.5]
-  },
-  "planned": {
-    "played-pile": [110.0, 1610.0, 300.0, 430.0],
-    "draw-deck": [470.0, 1610.0, 300.0, 430.0],
+    "session-status": [2969.25, 1721.25, 759.38, 110.0],
     "played-label": [110.0, 1562.0, 231.0, 31.0],
     "deck-label": [470.0, 1562.0, 134.0, 31.0],
-    "played-count-disc": [356.0, 1994.0, 80.0, 80.0],
     "played-count": [356.0, 2011.0, 80.0, 46.0],
-    "deck-count-disc": [716.0, 2008.0, 80.0, 80.0],
     "deck-count": [716.0, 2025.0, 80.0, 46.0],
     "played-caption": [110.0, 2082.0, 132.0, 34.0],
     "deck-caption": [470.0, 2096.0, 127.0, 34.0],
     "propaganda-label": [850.0, 1936.0, 193.0, 29.0],
-    "propaganda-pip-0": [850.0, 1982.0, 34.0, 34.0],
-    "propaganda-pip-1": [898.0, 1982.0, 34.0, 34.0],
-    "propaganda-pip-2": [946.0, 1982.0, 34.0, 34.0],
-    "propaganda-pip-3": [994.0, 1982.0, 34.0, 34.0],
-    "propaganda-caption": [850.0, 2030.0, 160.0, 34.0],
-    "card-tag": [110.0, 456.0, 1250.0, 1090.0]
+    "propaganda-caption": [850.0, 2030.0, 160.0, 34.0]
+  },
+  "tray": {
+    "bounds": [60.0, 1480.0, 760.0, 660.0],
+    "anchor": "bottom-left",
+    "played-pile": [110.0, 1610.0, 300.0, 430.0],
+    "draw-deck": [470.0, 1610.0, 300.0, 430.0],
+    "played-pile-base": [110.0, 1622.86, 300.0, 430.0],
+    "deck-pile-base": [470.0, 1634.29, 300.0, 430.0]
+  },
+  "card-tag": [110.0, 456.0, 1250.0, 1090.0],
+  "exports": {
+    "played-count-disc": {"file": "atlas-main-view-count-disc.png", "size": [160, 160]},
+    "propaganda-pip-0": {"file": "atlas-main-view-pip-played.png", "size": [68, 68]},
+    "propaganda-pip-1": {"file": "atlas-main-view-pip.png", "size": [68, 68]},
+    "pile-shadow": {"file": "atlas-main-view-pile-shadow.png", "node": [4000.0, 1600.0, 300.0, 430.0], "size": [378, 508]}
   }
 }

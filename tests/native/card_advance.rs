@@ -72,7 +72,16 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
         assert_eq!(end["current_card"], 17);
         assert_eq!(end["preview_card"], 18);
         assert_eq!(end["draw_count"], 34);
+        // The piles at rest on card 17 (#143): 18 played with it, 34 in the deck.
+        let resting = app.request(json!({"op":"settle"}), true);
+        let resting = if resting["table"].is_null() {
+            app.observe()
+        } else {
+            resting
+        };
+        card_piles::assert_piles(&resting, 18, 34, 17, 18);
         app.capture("card-17-result");
+        card_piles::assert_piles_drawn(&app, "card-17-result", &resting);
         // Both cards read through their tags (#139).
         for (slot, number) in [("card:current", 17), ("card:preview", 18)] {
             app.activate(slot, revision);
@@ -86,8 +95,16 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
 
         app.launch_size("3840x2160");
         assert_eq!(app.observe()["observation"], end);
+        // A restart before the advance shows the same piles.
+        app.request(json!({"op":"settle"}), true);
+        let restarted = app.observe();
+        card_piles::assert_piles(&restarted, 18, 34, 17, 18);
+        assert_eq!(restarted["table"]["piles"], resting["table"]["piles"]);
         app.choose("advance-card");
+        app.request(json!({"op":"settle"}), true);
         let opening = app.observe();
+        // The advance shows the new resting state: 19 and 33.
+        card_piles::assert_piles(&opening, 19, 33, 18, 19);
         let after = &opening["observation"];
         assert_eq!(after["revision"], revision + 1);
         assert_eq!(after["current_card"], 18);
@@ -134,6 +151,7 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
         );
         assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
         app.capture("card-18-government-opening");
+        card_piles::assert_piles_drawn(&app, "card-18-government-opening", &opening);
         app.activate("option:government:assault", revision + 1);
         let briefing = app.observe();
         let briefing_text = tag_text(&briefing["table"]["briefing"]);
@@ -171,7 +189,13 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
         assert_eq!(app.observe()["observation"], *after);
         assert_eq!(fs::read(&app.save).unwrap(), advanced);
         assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
+        // A restart after the advance shows the saved cards at rest.
+        app.request(json!({"op":"settle"}), true);
+        let resumed = app.observe();
+        card_piles::assert_piles(&resumed, 19, 33, 18, 19);
+        assert_eq!(resumed["table"]["piles"], opening["table"]["piles"]);
         app.capture("card-18-restarted");
+        card_piles::assert_piles_drawn(&app, "card-18-restarted", &resumed);
         if retained.is_some() {
             for action in [
                 "government:assault",
@@ -463,7 +487,7 @@ fn preview_notes(reply: &Value, action: &str) -> String {
         .to_string()
 }
 
-fn finish_event(path: &Path, text: &str) {
+pub(super) fn finish_event(path: &Path, text: &str) {
     let mut session = Session::open(path, None).unwrap();
     let resolution = if text == "shaded" {
         "resolve-shaded"

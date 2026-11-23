@@ -7,7 +7,8 @@ mod cards;
 mod rally;
 pub use assault::AssaultResolution;
 pub use cards::{
-    CardFacts, CardWords, EventKind, EventStatus, EventText, LastingEffect, Role, ShownCards,
+    CardFacts, CardWords, DECK_CARDS, EventKind, EventStatus, EventText, LastingEffect,
+    PROPAGANDA_CARDS, Piles, Role, ShownCards, is_propaganda,
 };
 pub use rally::{Rally, RallyAction, RallyResolution};
 
@@ -543,6 +544,10 @@ pub struct Observation {
     /// The current and the preview card: their printed facts and where each Event
     /// stands, as the card tag shows them.
     pub cards: ShownCards,
+    /// The count on each pile and the Propaganda cards played (R 2.2, 2.4.1). The
+    /// played pile counts the current card and the draw deck the preview, so the two
+    /// account for every card in the deck.
+    pub piles: Piles,
     pub eligible: [bool; 4],
     pub passed: [bool; 4],
     pub aid: u8,
@@ -1012,6 +1017,7 @@ impl Game {
         }
         let eligibility = self.eligibility();
         let current_card = if self.card_18 { 18 } else { 17 };
+        let piles = Piles::new(&played_cards, current_card, self.draw_deck.len());
         // No Capability or Momentum is in effect in this build.
         let capabilities: Vec<String> = vec![];
         Observation {
@@ -1039,6 +1045,7 @@ impl Game {
             played_cards,
             draw_count: self.draw_deck.len(),
             cards: self.shown_cards(current_card, self.draw_deck[0], &capabilities),
+            piles,
             passed: Faction::ALL.map(|f| match f {
                 Faction::M26 => self.action == ActionChoice::Pass,
                 Faction::Government => self.government_pass_from.is_some(),

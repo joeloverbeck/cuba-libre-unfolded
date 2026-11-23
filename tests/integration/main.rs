@@ -25,6 +25,7 @@ mod kidnap_die;
 mod main_view;
 mod map_targets;
 mod persistence;
+mod piles;
 mod popover;
 mod position;
 mod previews;

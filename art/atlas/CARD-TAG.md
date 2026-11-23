@@ -4,10 +4,10 @@ The owner selected card tag **T1 · Face and ledger** on 2026-11-22 ([decision r
 
 ## What it shows
 
-- **Opening:** hovering the current or the preview card, or focusing it with Tab, opens its tag after the shared 400 ms dwell, as the other hover tags open. A click, or Enter on the focused card, pins it; a second click unpins it. Escape closes it, and a hovered or focused card's tag then stays closed until the pointer or focus moves on. Reading a card changes nothing in the match.
+- **Opening:** hovering the current or the preview card where it lies on its pile ([MAIN-VIEW.md](MAIN-VIEW.md#the-card-piles)), or focusing it with Tab, opens its tag after the shared 400 ms dwell, as the other hover tags open. A click, or Enter on the focused card, pins it; a second click unpins it. Escape closes it, and a hovered or focused card's tag then stays closed until the pointer or focus moves on. Reading a card changes nothing in the match.
 - **Left:** the card's face at reading size, 620 px wide on the owner's display, no smaller than the face's own 572–573 px. Its corners are rounded so the black printed outside the card's corners never shows.
 - **Right, from the rules model (`observation.cards`):** the number and title, a CURRENT CARD or PREVIEW mark, the faction order as the victory emblems, the kind of Event, where the Event stands, its lasting effect (Capability or Momentum) and the rule references. The tag words nothing itself; each line is the model's `words`.
-- **Placement:** the tag opens above the card panel, its left edge on the panel's and its bottom 8 reference px above it, so both cards stay visible beneath it. It fits inside the 1920×1280 reference, so it stays inside every window.
+- **Placement:** the tag opens above the piles, where the main view's layout records it (`card-tag` in `atlas-main-view.layout.json`: 110, 456 on the owner's display): its left edge on the played pile's and its foot 16 px above the piles' labels, so both piles stay visible beneath it. Like the piles it keeps its distance from the window's left and bottom edges, and it fits inside the 1920×1280 reference, so it stays inside every window. While it is open it lies over the Sequence of Play track and the west of the map, above every other area.
 - **Not shown:** Event text. The face carries it (T1's trade-off).
 
 ## Files
@@ -42,7 +42,7 @@ The game model (`src/game/cards.rs`) owns every fact for the three admitted face
 
 ## Limits
 
-- **Corner radius.** Every admitted face has black printed outside its rounded corners. Clearing every dark pixel needs a radius of 27.4 px on card 17 (572 px wide), 30.6 px on card 18 and 26.2 px on card 19 (573 px), measured on the private files; the shared card shape's 4.5% (25.8 px) leaves black on card 18. The tag and the panel's thumbnails therefore use 5.6% of the face's width: 35 px on the 620 px face.
+- **Corner radius.** Every admitted face has black printed outside its rounded corners. Clearing every dark pixel needs a radius of 27.4 px on card 17 (572 px wide), 30.6 px on card 18 and 26.2 px on card 19 (573 px), measured on the private files; the shared card shape's 4.5% (25.8 px) leaves black on card 18. The tag and the cards on the piles therefore use 5.6% of the face's width: 35 px on the tag's 620 px face, 16.8 px on a pile's 300 px card.
 - **Window sizes:** the frames are authored at 16:9 only, as foundation 4 requires. The tag scales with the window like every other area.
 - **Italic:** none in T1.
 - **Display:** legibility is judged at the owner's display, as [the seat reference](../../docs/agents/seat.md#the-owners-display) describes. The owner's native review is the final judgement.

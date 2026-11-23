@@ -12,6 +12,8 @@ mod assault;
 mod assault_side;
 #[path = "native/card_advance.rs"]
 mod card_advance;
+#[path = "native/card_piles.rs"]
+mod card_piles;
 #[path = "native/card_tag.rs"]
 mod card_tag;
 #[path = "native/main_view.rs"]
@@ -831,12 +833,29 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
         let after_pixels = image::open(app.root.join("after-card-tag.png"))
             .unwrap()
             .to_rgb8();
-        let panel_corner = ((45. * scale) as u32, (970. * scale) as u32);
-        assert_eq!(
-            after_pixels.get_pixel(panel_corner.0, panel_corner.1),
-            before_pixels.get_pixel(panel_corner.0, panel_corner.1),
-            "authored card panel must remain above the desk after UI redraw"
-        );
+        // The piles are drawn by the tray's own camera, under the interface: closing
+        // the tag, which redraws the interface, leaves the current card as it was.
+        let face = rect_of(&tag["table"]["piles"]["piles"][0]["face"]);
+        for (fx, fy) in [(0.25, 0.25), (0.5, 0.5), (0.75, 0.4)] {
+            let at = (
+                (face[0] + (face[2] - face[0]) * fx) as u32,
+                (face[1] + (face[3] - face[1]) * fy) as u32,
+            );
+            let pixel = after_pixels.get_pixel(at.0, at.1);
+            assert_eq!(
+                pixel,
+                before_pixels.get_pixel(at.0, at.1),
+                "the current card changed at {at:?} after the interface was redrawn"
+            );
+            assert!(
+                pixel
+                    .0
+                    .iter()
+                    .zip([216u8, 231, 227])
+                    .any(|(c, s)| c.abs_diff(s) > 12),
+                "the sea shows at {at:?}, where the current card lies"
+            );
+        }
         assert_eq!(app.observe()["observation"], before["observation"]);
         assert_eq!(std::fs::read(&app.save).unwrap(), saved);
         app.quit();
@@ -1823,7 +1842,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         "atlas-control-uncontrolled.png",
         "atlas-victory-icon-government.png",
         "atlas-victory-ui.png",
-        "atlas-layout-card.png",
+        "atlas-main-view-count-disc.png",
         "atlas-main-view.layout.json",
         "atlas-terrain-map.glb",
         "terrain-labels.json",
@@ -2830,7 +2849,7 @@ fn assert_counts_follow_the_window(view: &Value, expected: Option<f64>, scale: f
 }
 
 /// #139: the open card tag reads `slot`, lies inside the window, and leaves both cards
-/// visible: it overlaps neither card's thumbnail.
+/// visible: it overlaps neither card on its pile, nor any part of either pile.
 fn assert_card_tag_placed(view: &Value, slot: &str) {
     let card = &view["table"]["card"];
     assert_eq!(card["shown"]["card"], slot, "{card}");
@@ -2841,16 +2860,30 @@ fn assert_card_tag_placed(view: &Value, slot: &str) {
         plate[0] >= 0. && plate[1] >= 0. && plate[2] <= width && plate[3] <= height,
         "the tag {plate:?} leaves the {width}x{height} window"
     );
-    let thumbnails = card["cards"].as_array().unwrap();
-    assert_eq!(thumbnails.len(), 2, "{card}");
-    for thumbnail in thumbnails {
-        let bounds = rect_of(&thumbnail["bounds"]);
+    let cards = card["cards"].as_array().unwrap();
+    assert_eq!(cards.len(), 2, "{card}");
+    let piles = &view["table"]["piles"];
+    let drawn = piles["piles"].as_array().unwrap();
+    assert_eq!(drawn.len(), 2, "{piles}");
+    let covered = cards
+        .iter()
+        .map(|card| &card["bounds"])
+        .chain(drawn.iter().flat_map(|pile| [&pile["face"], &pile["foot"]]))
+        .chain(
+            piles["discs"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|disc| &disc["bounds"]),
+        );
+    for bounds in covered {
+        let bounds = rect_of(bounds);
         assert!(
             plate[2] <= bounds[0]
                 || bounds[2] <= plate[0]
                 || plate[3] <= bounds[1]
                 || bounds[3] <= plate[1],
-            "the tag {plate:?} covers {thumbnail}"
+            "the tag {plate:?} covers {bounds:?} of the piles"
         );
     }
     for part in card["parts"].as_array().unwrap() {
