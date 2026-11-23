@@ -1612,11 +1612,14 @@ mod tests {
         let view = Game::opening().observe();
         let ui = Interface::default();
         let order = names(&view, &ui);
-        assert_eq!(order.len(), 14);
+        assert_eq!(order.len(), 16);
         assert_eq!(order[0], "option:pass");
         assert_eq!(order[11], "choice-commit");
-        // Then both cards, whose tags focus opens (#139).
-        assert_eq!(order[12..], ["card:current", "card:preview"]);
+        // Then both cards and both piles, whose tags focus opens (#139, #144).
+        assert_eq!(
+            order[12..],
+            ["card:current", "card:preview", "pile:played", "pile:deck"]
+        );
         // During Terror (#84): every listed step, the commit, then the ribbon.
         let mut game = Game::opening();
         game.submit(Faction::M26, 0, "0:terror").unwrap();
