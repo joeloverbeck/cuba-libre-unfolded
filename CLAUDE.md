@@ -62,6 +62,7 @@ The Pictures resource collection is external reference material. Do not commit i
 ### Reading, output and waiting
 
 - Read a large file by section: find the heading with `grep -n`, then read that range. After a truncated read, narrow the range.
+- Constitution rules by identifier: `scripts/rule PURP-3 WORK-1` prints them, to read or to quote into a brief.
 - For discovery and status checks, aim for at most 2,000 tokens of output across the whole batch. Report each command’s outcome, errors, and truncation. Keep verbose output under `local/verification/` and return the relevant lines and log path. When a decision depends on source text, read the applicable section directly.
 - Wait for a subagent's or background command's completion notification; poll only state nothing will notify about, such as CI, at the pace it changes.
 - Branching, committing, builds, test runs, Blender jobs or editor work: `docs/agents/parallel-work.md`.

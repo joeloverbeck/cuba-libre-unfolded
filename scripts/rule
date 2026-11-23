@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+# Prints the named rules of the constitution and its adopted modules, each from its
+# heading to the next one: `scripts/rule PURP-3 WORK-1`. CLAUDE.md's "Mandatory reading"
+# names rules by these identifiers. An identifier with no rule fails after the others
+# have printed.
+set -euo pipefail
+
+if (($# == 0)); then
+  echo "usage: scripts/rule ID [ID ...]" >&2
+  exit 2
+fi
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+failed=0
+for id in "$@"; do
+  if [[ ! $id =~ ^[A-Z]+-[0-9]+$ ]]; then
+    echo "scripts/rule: '$id' is not a rule identifier such as PURP-3" >&2
+    failed=1
+    continue
+  fi
+  # A rule is a `### ID — title` heading and what follows it up to the next `##` or
+  # `###` heading or the end of its file.
+  if ! awk -v id="$id" '
+    FNR == 1 { printing = 0 }
+    /^###? / { printing = ($1 == "###" && $2 == id); if (printing) found = 1 }
+    printing
+    END { exit !found }
+  ' docs/principles/*.md; then
+    echo "scripts/rule: no rule $id in docs/principles/" >&2
+    failed=1
+  fi
+done
+exit "$failed"
