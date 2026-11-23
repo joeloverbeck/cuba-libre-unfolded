@@ -422,7 +422,8 @@ mod tests {
 
     /// The flip and the Base replacement state their change to Available Forces, and
     /// the rules make it (R 3.3.1). The prepared scenario has no Guerrilla in Sierra
-    /// Maestra at its Rally, so this position adds 2 Active 26July Guerrillas there.
+    /// Maestra at its Rally, so this position places 2 Active 26July Guerrillas there
+    /// from Available, which keeps 26July's 15 Guerrillas and 4 Bases (p. 20).
     #[test]
     fn a_flip_and_a_base_state_and_make_their_change_to_available_forces() {
         let mut rally = crate::terror_chosen(Game::opening_with_seed(5));
@@ -447,6 +448,27 @@ mod tests {
             state: State::Active,
             count: 2,
         });
+        let guerrillas = rally
+            .available
+            .iter_mut()
+            .find(|group| group.faction == Faction::M26 && group.kind == Kind::Guerrilla)
+            .unwrap();
+        guerrillas.count -= 2;
+        // Every 26July piece is Available or on the map: 15 Guerrillas and 4 Bases.
+        let held = |game: &Game, kind| {
+            let groups = game
+                .available
+                .iter()
+                .chain(game.spaces.iter().flat_map(|space| &space.pieces));
+            groups
+                .filter(|group| group.faction == Faction::M26 && group.kind == kind)
+                .map(|group| group.count)
+                .sum::<u8>()
+        };
+        assert_eq!(
+            (held(&rally, Kind::Guerrilla), held(&rally, Kind::Base)),
+            (15, 4)
+        );
         let explanation = |game: &Game, action: &str| {
             game.observe()
                 .choices
@@ -458,7 +480,7 @@ mod tests {
         let supply = |game: &Game, kind| count(&game.available, Faction::M26, kind, None);
         assert_eq!(
             (supply(&rally, Kind::Guerrilla), supply(&rally, Kind::Base)),
-            (12, 3)
+            (10, 3)
         );
 
         let mut flip = rally.clone();
@@ -467,7 +489,11 @@ mod tests {
         flip.apply("rally:sierra-maestra:flip").unwrap();
         assert_eq!(
             (supply(&flip, Kind::Guerrilla), supply(&flip, Kind::Base)),
-            (12, 3)
+            (10, 3)
+        );
+        assert_eq!(
+            (held(&flip, Kind::Guerrilla), held(&flip, Kind::Base)),
+            (15, 4)
         );
         assert_eq!(
             count(
@@ -488,7 +514,11 @@ mod tests {
         base.apply("rally:sierra-maestra:base:0").unwrap();
         assert_eq!(
             (supply(&base, Kind::Guerrilla), supply(&base, Kind::Base)),
-            (14, 2)
+            (12, 2)
+        );
+        assert_eq!(
+            (held(&base, Kind::Guerrilla), held(&base, Kind::Base)),
+            (15, 4)
         );
         let pieces = &sierra_maestra(&base).pieces;
         assert_eq!(count(pieces, Faction::M26, Kind::Base, None), 2);

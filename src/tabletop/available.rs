@@ -447,10 +447,23 @@ mod tests {
     }
 
     /// A kind with none left keeps its cell with "0", and Guerrillas returned Active
-    /// count with those still Underground.
+    /// count with those still Underground. The 2 returned come off the map, so 26July
+    /// still holds its 15 Guerrillas (p. 20).
     #[test]
     fn a_kind_with_none_left_keeps_its_cell_and_states_add_up() {
         let mut view = Game::opening().observe();
+        let mut returned = 0;
+        for group in view
+            .spaces
+            .iter_mut()
+            .flat_map(|space| &mut space.pieces)
+            .filter(|group| group.faction == Faction::M26 && group.kind == Kind::Guerrilla)
+        {
+            let taken = group.count.min(2 - returned);
+            group.count -= taken;
+            returned += taken;
+        }
+        assert_eq!(returned, 2);
         view.available.retain(|g| {
             !(g.faction == Faction::Government && g.kind == Kind::Base)
                 && !(g.faction == Faction::Syndicate && g.kind == Kind::Guerrilla)
