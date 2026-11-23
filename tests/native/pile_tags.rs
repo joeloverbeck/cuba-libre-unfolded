@@ -261,9 +261,12 @@ fn hover(app: &mut Native, pile: &str, before: &Value) -> Value {
 fn focus(app: &mut Native, pile: &str, before: &Value) -> Value {
     let revision = before["observation"]["revision"].as_u64().unwrap();
     app.point("quit");
+    app.request(json!({"op":"settle"}), true);
     let mut focus = Value::Null;
     for _ in 0..30 {
         app.request(json!({"op":"key","revision":revision,"key":"Tab"}), true);
+        // A focused card or pile waits for the shared dwell before its tag opens.
+        app.request(json!({"op":"settle"}), true);
         focus = app.observe()["table"]["choice"]["focus"].clone();
         if focus == pile {
             break;
