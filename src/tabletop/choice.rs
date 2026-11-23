@@ -1637,19 +1637,23 @@ mod tests {
                 "execution-commit",
                 "briefing-ribbon",
                 "card:current",
-                "card:preview"
+                "card:preview",
+                "pile:played",
+                "pile:deck"
             ]
         );
         ui.choice.ribbon = true;
         let order = names(&game.observe(), &ui);
         assert_eq!(
-            order[order.len() - 5..],
+            order[order.len() - 7..],
             [
                 "briefing-ribbon",
                 "briefing-tab:kidnap",
                 "briefing-tab:terror",
                 "card:current",
-                "card:preview"
+                "card:preview",
+                "pile:played",
+                "pile:deck"
             ]
         );
         ui.choice.pinned = Some("end-terror".into());
