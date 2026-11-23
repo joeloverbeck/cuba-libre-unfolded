@@ -567,7 +567,7 @@ fn setup(
         });
     }
     commands.spawn((WorldAssetRoot(art.scene.clone()), Transform::default()));
-    let game = Game::prepared();
+    let game = Game::opening();
     for label in &art.labels {
         let space = game.spaces.iter().find(|s| s.id == label.space).unwrap();
         let [x, y, w, h] = label.bounds;

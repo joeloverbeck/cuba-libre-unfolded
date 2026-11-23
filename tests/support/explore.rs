@@ -6,7 +6,7 @@
 //! From each start, offered decisions are explored with at most one Resource
 //! transfer on any path (every Terror remedy here needs at most one), of 1 or of
 //! the direction's limit. The Terror starts:
-//! - the prepared position under Kidnap roll 1 (#8's seed 19), which leaves the owed
+//! - the opening position under Kidnap roll 1 (#8's seed 19), which leaves the owed
 //!   Terror's reserve exactly paid, and under roll 3 (seed 5), which funds Oriente too;
 //! - Government and 26July both at 0 (Government gave 26July 6, which 26July gave
 //!   Directorio): Kidnap would take nothing, so only a transfer can fund Terror or
@@ -181,8 +181,8 @@ pub fn drained() -> Game {
 /// The explored starts, by name.
 pub fn starts() -> [(&'static str, Game); 3] {
     [
-        ("prepared, roll 1", Game::opening_with_seed(19)),
-        ("prepared, roll 3", Game::opening_with_seed(5)),
+        ("opening, roll 1", Game::opening_with_seed(19)),
+        ("opening, roll 3", Game::opening_with_seed(5)),
         ("Government and 26July at 0", drained()),
     ]
 }

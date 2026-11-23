@@ -266,6 +266,8 @@ const GOVERNMENT_PASS_INCOME: u8 = 3;
 pub const TERROR_COST: u8 = 1;
 /// The prepared position's Resources, indexed like `Faction::ALL`.
 const PREPARED_RESOURCES: [u8; 4] = [6, 0, 5, 15];
+/// The random state of `Game::opening`.
+const OPENING_SEED: u64 = 17;
 /// Card 17's order: 26July, Directorio, Government, Syndicate (rules baseline).
 pub const CARD_17_ORDER: [Faction; 4] = [
     Faction::M26,
@@ -801,9 +803,10 @@ fn group(faction: Faction, kind: Kind, count: u8) -> Group {
     }
 }
 impl Game {
-    /// The accepted prepared position with Terror already chosen, at revision 0. New
-    /// matches and every save start at `opening` instead.
-    pub fn prepared() -> Self {
+    /// The opening position: the accepted prepared position at 26July's 1st Eligible
+    /// action choice, at revision 0, with the given random state. Every match and
+    /// every save starts here, from a seed drawn once from the OS or a given one.
+    pub fn opening_with_seed(seed: u64) -> Self {
         use Faction::*;
         use Kind::*;
         use Terrain::*;
@@ -953,14 +956,14 @@ impl Game {
             resources: PREPARED_RESOURCES,
             spaces,
             m26_action_ended: false,
-            random: 17,
+            random: seed,
             draw_deck,
             card_18: false,
             government_pass_from: None,
             transfer: None,
             kidnap: None,
             removal: None,
-            action: ActionChoice::Terror,
+            action: ActionChoice::Open,
             effect: false,
             kidnap_open: false,
             event: None,
@@ -2455,22 +2458,10 @@ impl Game {
     pub fn random_state(&self) -> u64 {
         self.random
     }
-    /// Deterministic prepared task for a supplied random state. Ordinary saves
-    /// use OS entropy once; resumed saves always keep their consumed state.
-    pub fn prepared_with_seed(seed: u64) -> Self {
-        let mut game = Self::prepared();
-        game.random = seed;
-        game
-    }
-    /// A new task: the prepared position at 26July's 1st Eligible action choice.
+    /// The opening position with a fixed random state, for tests and for reading
+    /// fixed data such as terrain.
     pub fn opening() -> Self {
-        Self::opening_with_seed(Self::prepared().random)
-    }
-    /// A new task for a supplied random state; new saves use OS entropy once.
-    pub fn opening_with_seed(seed: u64) -> Self {
-        let mut game = Self::prepared_with_seed(seed);
-        game.action = ActionChoice::Open;
-        game
+        Self::opening_with_seed(OPENING_SEED)
     }
     fn owes_santiago(&self) -> bool {
         self.kidnap.is_some()
