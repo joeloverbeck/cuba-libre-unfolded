@@ -568,7 +568,7 @@ mod tests {
             - (fig::LIST_TOP + fig::ROW * fig::ROWS as f32 + fig::NOTE_GAP + 117. + fig::FOOT_PAD);
         assert!(top >= 2160. - HEIGHT * fig::SCALE, "{top}");
         assert!(fig::PLAYED_LEFT + played_width(3) <= WIDTH * fig::SCALE);
-        assert!(fig::DECK_LEFT + fig::DECK_WIDTH <= WIDTH * fig::SCALE);
+        const { assert!(fig::DECK_LEFT + fig::DECK_WIDTH <= WIDTH * fig::SCALE) };
     }
 
     #[test]
