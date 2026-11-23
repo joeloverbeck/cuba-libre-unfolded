@@ -64,7 +64,6 @@ fn twenty_six_july_s_own_resource_transfer_moves_at_once() {
     assert_eq!(view.resources, [6, 1, 7, 12]);
     assert_eq!(view.owner, M26);
     assert_eq!(view.transfer, None);
-    game.validate().unwrap();
 }
 
 /// A request moves nothing; the giver sets the actual amount, here more than asked.
@@ -117,7 +116,6 @@ fn ask_hands_the_amount_to_the_giver_who_may_choose_another() {
             .contributions
             .contains(&"Resources: 10".to_owned())
     );
-    game.validate().unwrap();
 }
 
 #[test]
@@ -134,7 +132,6 @@ fn decline_returns_to_26july_with_nothing_moved_and_no_effect() {
         actions(&game).contains(&"back-to-choice".to_owned()),
         "a declined request is no effect"
     );
-    game.validate().unwrap();
 }
 
 /// Wait keeps the request exactly and records that its decision was set aside, so a
@@ -176,7 +173,6 @@ fn wait_sets_the_request_aside_and_open_brings_it_back_both_saved() {
     // The record keeps it, once.
     let record = serde_json::to_vec(&game).unwrap();
     let restored: Game = serde_json::from_slice(&record).unwrap();
-    restored.validate().unwrap();
     assert_eq!(restored.observe(), waiting);
     // Open: the decision is shown again, the request unchanged.
     choose(&mut game, "reopen");
@@ -195,26 +191,6 @@ fn wait_sets_the_request_aside_and_open_brings_it_back_both_saved() {
     assert_eq!(restored.observe(), reopened);
     choose(&mut game, "authorize:3");
     assert_eq!(game.observe().resources, [6, 3, 2, 15]);
-    game.validate().unwrap();
-}
-
-/// A request saved before #75 has no Waited mark: it is admitted unchanged as the
-/// giver deciding, as it resumed before, and a request not set aside is written in
-/// that same form.
-#[test]
-fn a_request_saved_before_75_is_admitted_as_the_giver_deciding() {
-    let mut game = Game::prepared();
-    choose(&mut game, "transfer");
-    choose(&mut game, "ask:3:2");
-    let record = serde_json::to_value(&game).unwrap();
-    assert_eq!(
-        record["transfer"],
-        serde_json::json!({"Authorizing":{"giver":"Syndicate","recipient":"M26","amount":2}})
-    );
-    let admitted: Game = serde_json::from_value(record).unwrap();
-    admitted.validate().unwrap();
-    assert_eq!(admitted, game);
-    assert!(actions(&admitted).contains(&"wait".to_owned()));
 }
 
 #[test]
@@ -251,7 +227,6 @@ fn zero_and_repeated_transfers_are_allowed_and_zero_is_no_effect() {
             26
         );
         assert_eq!(game.random_state(), 17, "a transfer consumed randomness");
-        game.validate().unwrap();
     }
     assert!(
         !actions(&game).contains(&"back-to-choice".to_owned()),
@@ -354,7 +329,6 @@ fn the_owed_terror_reserve_bounds_26july_s_own_transfers_until_it_resolves() {
         .find(|t| t.giver == M26 && t.recipient == D)
         .unwrap();
     assert_eq!((give.balance, give.reserved, give.limit), (0, 0, 0));
-    game.validate().unwrap();
 }
 
 /// The recipient's 49 cap cannot bind in the 26-total position, so challenge its rule
@@ -366,7 +340,6 @@ fn the_recipient_s_49_cap_bounds_a_transfer_in_a_counterfactual_position() {
     let mut serialized = serde_json::to_value(&game).unwrap();
     serialized["resources"] = serde_json::json!([6, 47, 5, 15]);
     let mut counterfactual: Game = serde_json::from_value(serialized).unwrap();
-    assert!(counterfactual.validate().is_err());
     let view = counterfactual.observe();
     let ask = view
         .transfer_terms
@@ -433,7 +406,6 @@ fn a_pending_request_is_withdrawn_by_going_back_or_ending_terror() {
     assert_eq!(view.transfer, None);
     assert_eq!(view.resources, [6, 0, 5, 15]);
     assert_eq!(view.owner, M26);
-    game.validate().unwrap();
 
     let mut game = Game::prepared();
     choose(&mut game, "transfer");
@@ -450,7 +422,6 @@ fn a_pending_request_is_withdrawn_by_going_back_or_ending_terror() {
     assert!(view.finished);
     assert_eq!(view.transfer, None);
     assert_eq!(view.resources, [5, 1, 5, 15]);
-    game.validate().unwrap();
 }
 
 /// The reserved state: a request another faction starts, which 26July answers. Nothing
@@ -462,11 +433,9 @@ fn the_reserved_state_is_decided_by_26july_within_its_reserve() {
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     let mut record = serde_json::to_value(&game).unwrap();
-    record["transfer"] =
-        serde_json::json!({"Authorizing":{"giver":"M26","recipient":"Directorio","amount":2}});
+    record["transfer"] = serde_json::json!({"Authorizing":{"giver":"M26","recipient":"Directorio","amount":2,"waited":false}});
     record["revision"] = (game.observe().revision + 1).into();
     let mut reserved: Game = serde_json::from_value(record).unwrap();
-    reserved.validate().unwrap();
     let view = reserved.observe();
     assert_eq!(view.owner, M26);
     assert_eq!(view.transfer_terms[0].limit, 2);

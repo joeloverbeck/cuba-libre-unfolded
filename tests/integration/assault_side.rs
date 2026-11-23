@@ -52,7 +52,6 @@ fn santiago_target(game: &mut Game) -> Observation {
 
 fn reload(game: &Game) -> Game {
     let restored: Game = serde_json::from_slice(&serde_json::to_vec(game).unwrap()).unwrap();
-    restored.validate().unwrap();
     assert_eq!(restored.observe(), game.observe());
     restored
 }

@@ -129,10 +129,14 @@ fn words(error: save::Error, action: Action) -> anyhow::Error {
         }
         save::Error::Checksum => anyhow!("Save checksum mismatch; original file preserved"),
         save::Error::TooLarge => anyhow!("Save exceeds its size limit; original file preserved"),
-        // Load: the recorded decisions do not replay to the saved position.
+        // Load, with the identity accepted and the checksum intact: the recorded
+        // decisions do not replay to the saved position, or the payload does not
+        // decode, so a build whose rules state has another shape wrote it whole.
         save::Error::Unreproducible(detail) => match detail.strip_prefix(VALIDITY) {
             Some(detail) => another_build(detail),
-            None => anyhow::Error::msg(detail).context("Malformed save; original file preserved"),
+            None => another_build(&format!(
+                "its position is not in this build's shape: {detail}"
+            )),
         },
         // Before a write: this build's own candidate failed its check.
         save::Error::Invalid(detail) => match detail.strip_prefix(VALIDITY) {

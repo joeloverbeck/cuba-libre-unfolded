@@ -31,7 +31,6 @@ fn zero_and_positive_government_margins_do_not_satisfy_the_city_condition() {
         positive.standings()[0].extra,
         "Active Support cities 1/3 (not met)"
     );
-    assert!(zero.validate().is_err() && positive.validate().is_err());
 }
 
 // Accepted handoff deacd635, prepared table and independently worked standings.

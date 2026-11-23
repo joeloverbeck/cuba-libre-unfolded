@@ -616,3 +616,68 @@ fn the_observation_reports_the_first_effect() {
     choose(&mut game, "terror:santiago");
     assert!(game.observe().effected);
 }
+
+/// Whether `choice` is a real effect under local policy #58: a Pass's Resource, a
+/// Kidnap roll, a resolved Terror, a returned piece or a nonzero transfer. Opening a
+/// menu, asking, waiting, choosing Terror and going back are not.
+fn effect(choice: &Choice) -> bool {
+    let action = choice.action();
+    match action.split(':').collect::<Vec<_>>()[..] {
+        ["pass"] | ["kidnap", "roll"] => true,
+        ["terror", space] => space != "kidnap",
+        ["remove", _, _, n] => n != "0",
+        _ => crate::explore::transfers(choice),
+    }
+}
+
+/// #84 and #150: the observation reports the first effect exactly when a decision on
+/// the way made one, 26July's Pass included. Every supported decision is followed,
+/// at every amount, from the opening until a path's first effect; the position each
+/// first effect reaches and the positions one decision after it are checked too.
+#[test]
+fn every_position_up_to_the_first_effect_reports_whether_there_was_one() {
+    use std::collections::{HashMap, VecDeque};
+    let mut wrong = vec![];
+    let mut seen: HashMap<String, bool> = HashMap::new();
+    let mut after_effect = 0;
+    let opening = Game::opening_with_seed(5);
+    seen.insert(crate::explore::key(&opening), false);
+    let mut queue = VecDeque::from([(opening, false, 0)]);
+    while let Some((game, effected, since)) = queue.pop_front() {
+        let view = game.observe();
+        if view.effected != effected {
+            wrong.push(format!(
+                "revision {} action {:?} resources {:?}: observed {}, decisions say {effected}",
+                view.revision, view.action, view.resources, view.effected
+            ));
+        }
+        after_effect += usize::from(effected);
+        if since > 1 {
+            continue;
+        }
+        for choice in view.choices.iter().filter(|c| c.supported) {
+            let mut after = game.clone();
+            after
+                .submit(choice.owner, view.revision, &choice.id)
+                .unwrap_or_else(|e| panic!("{}: {e}", choice.id));
+            let made = effected || effect(choice);
+            let key = crate::explore::key(&after);
+            if let Some(&known) = seen.get(&key) {
+                assert_eq!(known, made, "two paths disagree at {key}");
+                continue;
+            }
+            seen.insert(key, made);
+            assert!(seen.len() < 20_000, "the explored task grew unexpectedly");
+            queue.push_back((after, made, since + usize::from(made)));
+        }
+    }
+    assert!(seen.len() > 100, "reached only {} positions", seen.len());
+    assert!(after_effect > 50, "only {after_effect} after an effect");
+    assert!(
+        wrong.is_empty(),
+        "{} of {} positions:\n{}",
+        wrong.len(),
+        seen.len(),
+        wrong.join("\n")
+    );
+}

@@ -102,7 +102,6 @@ fn opening_shows_the_stakes_and_cancelling_changes_neither_state_nor_randomness(
     assert_eq!(unrevised(&game), unrevised(&before));
     assert_eq!(game.random_state(), before.random_state());
     assert!(!game.observe().kidnap_open);
-    game.validate().unwrap();
 }
 
 #[test]
@@ -155,7 +154,6 @@ fn all_six_faces_from_8_hold_after_opening_and_cancelling_first() {
                 .iter()
                 .any(|id| id == "kidnap" || id.starts_with("kidnap:"))
         );
-        game.validate().unwrap();
     }
 }
 
@@ -184,7 +182,6 @@ fn the_range_follows_governments_current_resources_down_to_zero() {
     let rolled = view.kidnap.as_ref().unwrap();
     assert_eq!((rolled.die, rolled.proceeds), (6, 0));
     assert_eq!(view.resources, [0, 6, 5, 15]);
-    game.validate().unwrap();
 }
 
 #[test]
@@ -427,7 +424,7 @@ fn admission_refuses_an_impossible_opened_kidnap() {
     altered["payload"]["position"]["removal"] = "Selecting".into();
     cases.push(altered); // open beside a removal
     let mut altered = record;
-    altered["payload"]["position"]["finished"] = true.into();
+    altered["payload"]["position"]["m26_action_ended"] = true.into();
     cases.push(altered); // open after End Terror
     for altered in cases {
         let bytes = reseal(&altered);
@@ -463,17 +460,4 @@ fn the_roll_saves_the_revision_it_created_and_a_restart_keeps_it() {
     assert_eq!(rolled.kidnap.as_ref().unwrap().revision, 3);
     drop(session);
     assert_eq!(Session::open(&path, None).unwrap().observe(), rolled);
-}
-
-/// A saved roll cannot claim a revision the match has not reached.
-#[test]
-fn a_roll_from_a_later_revision_is_invalid() {
-    let mut game = Game::prepared_with_seed(5);
-    choose(&mut game, "kidnap");
-    choose(&mut game, "kidnap:roll");
-    game.validate().unwrap();
-    let mut forged = serde_json::to_value(&game).unwrap();
-    forged["kidnap"]["revision"] = 3.into();
-    let forged: Game = serde_json::from_value(forged).unwrap();
-    assert!(forged.validate().is_err());
 }

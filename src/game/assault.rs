@@ -4,146 +4,22 @@ use super::*;
 const OPEN: &str = "government:assault";
 const FINISH: &str = "end-assault";
 const BACK: &str = "assault:back";
-const LEGACY_SANTIAGO: &str = "assault:santiago:26july";
 const ENEMIES: [Faction; 3] = [Faction::M26, Faction::Directorio, Faction::Syndicate];
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Assault {
-    start: AssaultStart,
-    actions: RecordedChoices,
-    /// Choices in completed menu loops. Older records retain every choice.
-    #[serde(default, alias = "skipped_choices", skip_serializing_if = "is_zero")]
-    omitted: u64,
+    /// The spaces Government has paid to Assault, in order. A space may be selected
+    /// once (R 3.1), so the menus leave them out.
+    paid_spaces: Vec<String>,
+    #[serde(deserialize_with = "Option::deserialize")]
     resolution: Option<AssaultResolution>,
     pub(super) finished: bool,
-    #[serde(default)]
     browse: Browse,
 }
 
-fn is_zero(count: &u64) -> bool {
-    *count == 0
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(untagged)]
-enum RecordedChoices {
-    Legacy(Vec<String>),
-    Packed(
-        #[serde(serialize_with = "write_choices", deserialize_with = "read_choices")] Vec<String>,
-    ),
-}
-
-impl RecordedChoices {
-    fn choices(&self) -> &[String] {
-        match self {
-            Self::Legacy(choices) | Self::Packed(choices) => choices,
-        }
-    }
-}
-
-// Choice IDs contain no pipe. The one-byte exit token for a removal menu also
-// leaves room to close it on a legacy record already at the byte limit.
-fn write_choices<S: serde::Serializer>(
-    choices: &[String],
-    serializer: S,
-) -> Result<S::Ok, S::Error> {
-    let tokens: Vec<_> = choices
-        .iter()
-        .map(|choice| {
-            if choice == "done-removal" {
-                "!"
-            } else {
-                choice
-            }
-        })
-        .collect();
-    serializer.serialize_str(&tokens.join("|"))
-}
-
-fn read_choices<'de, D: serde::Deserializer<'de>>(
-    deserializer: D,
-) -> Result<Vec<String>, D::Error> {
-    let packed = String::deserialize(deserializer)?;
-    if packed.is_empty() {
-        return Ok(vec![]);
-    }
-    Ok(packed
-        .split('|')
-        .map(|token| if token == "!" { "done-removal" } else { token }.to_owned())
-        .collect())
-}
-
-impl Assault {
-    fn record_action(&mut self, action: &str) {
-        if let RecordedChoices::Legacy(choices) = &mut self.actions {
-            let choices = std::mem::take(choices);
-            self.actions = RecordedChoices::Packed(vec![]);
-            for earlier in choices {
-                self.retain_action(earlier);
-            }
-        }
-        // A packed record already represents Finish with its finished flag.
-        if action != FINISH {
-            self.retain_action(action.into());
-        }
-    }
-
-    /// Drop closed loops that return to the same decision, including waits that
-    /// have been reopened. Keep open menus and every committed effect in order.
-    fn retain_action(&mut self, action: String) {
-        let RecordedChoices::Packed(actions) = &mut self.actions else {
-            unreachable!("convert legacy choices before recording");
-        };
-        let remove = match (action.as_str(), actions.as_slice()) {
-            (BACK, [.., open])
-                if open.starts_with("assault:areas:") || open.starts_with("assault:space:") =>
-            {
-                1
-            }
-            ("back", [.., open]) if open == "transfer" => 1,
-            ("reopen", [.., wait]) if wait == "wait" => 1,
-            ("done-removal", [.., open]) if open == "remove" => 1,
-            (give, [.., open])
-                if open == "transfer" && give.starts_with("give:") && give.ends_with(":0") =>
-            {
-                1
-            }
-            ("decline" | "authorize:0", [.., open, ask, wait])
-                if open == "transfer" && ask.starts_with("ask:") && wait == "wait" =>
-            {
-                3
-            }
-            ("decline" | "authorize:0", [.., open, ask])
-                if open == "transfer" && ask.starts_with("ask:") =>
-            {
-                2
-            }
-            _ => 0,
-        };
-        if remove == 0 {
-            actions.push(action);
-        } else {
-            actions.truncate(actions.len() - remove);
-            self.omitted += remove as u64 + 1;
-        }
-    }
-}
-
-/// The card 18 position before the Operation. Admission checks it against the
-/// completed Event, then replays every Assault decision in order.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-struct AssaultStart {
-    revision: u64,
-    resources: [u8; 4],
-    pieces: Vec<Vec<Group>>,
-    available: Vec<Group>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 enum Browse {
-    #[default]
     Areas,
     Spaces(Area),
     Targets(String),
@@ -189,8 +65,7 @@ impl Area {
 pub struct AssaultResolution {
     pub paid: u8,
     pub returned: u8,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    detail: Option<AssaultDetail>,
+    detail: AssaultDetail,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -203,20 +78,11 @@ struct AssaultDetail {
 
 impl AssaultResolution {
     pub(crate) fn space_name(&self) -> &str {
-        self.detail.as_ref().map_or("Santiago", |d| &d.space)
+        &self.detail.space
     }
 
     pub(crate) fn removal_summary(&self) -> String {
-        self.detail.as_ref().map_or_else(
-            || {
-                format!(
-                    "Returned {} Active 26July {}",
-                    self.returned,
-                    plural(self.returned, "Guerrilla", "Guerrillas")
-                )
-            },
-            |detail| detail.effect(true),
-        )
+        self.detail.effect(true)
     }
 }
 
@@ -481,13 +347,7 @@ impl Game {
     }
 
     pub(super) fn assault_preview_effect(&self) -> Option<String> {
-        let detail = self
-            .assault
-            .as_ref()?
-            .resolution
-            .as_ref()?
-            .detail
-            .as_ref()?;
+        let detail = &self.assault.as_ref()?.resolution.as_ref()?.detail;
         Some(format!("R 3.2.4: {}.", detail.effect(false)))
     }
 
@@ -536,17 +396,7 @@ impl Game {
 
     fn assault_browse_choices(&self) -> Vec<Choice> {
         let assault = self.assault.as_ref().unwrap();
-        let paid: Vec<_> = if assault.resolution.is_some() {
-            assault
-                .actions
-                .choices()
-                .iter()
-                .filter_map(|action| payment_action(action))
-                .collect()
-        } else {
-            vec![]
-        };
-        let unselected = |space: &&Space| !paid.contains(&space.id.as_str());
+        let unselected = |space: &&Space| !assault.paid_spaces.contains(&space.id);
         let balance = self.resources[Faction::Government.index()];
         let cost = UsAlliance::Firm.coin_cost();
         let funded = balance >= cost;
@@ -678,19 +528,11 @@ impl Game {
         match action {
             OPEN => {
                 self.assault = Some(Assault {
-                    start: AssaultStart {
-                        revision: self.revision,
-                        resources: self.resources,
-                        pieces: self.spaces.iter().map(|s| s.pieces.clone()).collect(),
-                        available: self.available.clone(),
-                    },
-                    actions: RecordedChoices::Packed(vec![]),
-                    omitted: 0,
+                    paid_spaces: vec![],
                     resolution: None,
                     finished: false,
                     browse: Browse::Areas,
                 });
-                return Ok(());
             }
             FINISH => self.assault.as_mut().unwrap().finished = true,
             BACK => {
@@ -721,7 +563,6 @@ impl Game {
             }
             _ => self.resolve_assault(action)?,
         }
-        self.assault.as_mut().unwrap().record_action(action);
         Ok(())
     }
 
@@ -783,85 +624,10 @@ impl Game {
         assault.resolution = Some(AssaultResolution {
             paid,
             returned: plan.detail.removed.iter().map(|group| group.count).sum(),
-            detail: Some(plan.detail),
+            detail: plan.detail,
         });
+        assault.paid_spaces.push(id.to_owned());
         assault.browse = Browse::Areas;
-        Ok(())
-    }
-
-    pub(super) fn validate_assault(&self, assault: &Assault) -> Result<(), String> {
-        let start = &assault.start;
-        let choices = assault.actions.choices();
-        let legacy_log = matches!(assault.actions, RecordedChoices::Legacy(_));
-        let implicit_finish = assault.finished && !legacy_log;
-        if !self.card_18
-            || start.pieces.len() != self.spaces.len()
-            || assault.omitted == 1
-            || start
-                .revision
-                .checked_add(1)
-                .and_then(|rev| rev.checked_add(choices.len() as u64))
-                .and_then(|rev| rev.checked_add(u64::from(implicit_finish)))
-                .and_then(|rev| rev.checked_add(assault.omitted))
-                != Some(self.revision)
-        {
-            return Err("Unsupported Assault history.".into());
-        }
-        let mut before = self.clone();
-        before.assault = None;
-        before.transfer = None;
-        before.removal = None;
-        before.revision = start.revision;
-        before.resources = start.resources;
-        before.available.clone_from(&start.available);
-        for (space, pieces) in before.spaces.iter_mut().zip(&start.pieces) {
-            space.pieces.clone_from(pieces);
-        }
-        before.validate()?;
-        before.apply(OPEN)?;
-        for (index, action) in choices.iter().enumerate() {
-            // The Santiago-only build committed directly from the initial menu.
-            let legacy = index == 0 && action == LEGACY_SANTIAGO;
-            if legacy {
-                before.assault.as_mut().unwrap().browse = Browse::Targets("santiago".into());
-            }
-            before.apply(action)?;
-            if legacy
-                && assault
-                    .resolution
-                    .as_ref()
-                    .is_some_and(|resolution| resolution.detail.is_none())
-            {
-                before
-                    .assault
-                    .as_mut()
-                    .unwrap()
-                    .resolution
-                    .as_mut()
-                    .unwrap()
-                    .detail = None;
-            }
-        }
-        if implicit_finish {
-            before.apply(FINISH)?;
-        }
-        // From Areas, opening and cancelling a transfer takes two choices.
-        // Opening, asking for zero and declining takes three. Any omitted
-        // count of two or more has a witness without changing the position.
-        // Card 18 changes only the match revision for these choices.
-        before.revision += assault.omitted;
-        let replay = before.assault.as_mut().unwrap();
-        if legacy_log {
-            // Check every legacy choice without accumulating menu loops in the
-            // replay. Preserve the admitted record until the player acts again.
-            replay.actions.clone_from(&assault.actions);
-            replay.omitted = assault.omitted;
-        } else {
-            replay.omitted += assault.omitted;
-        }
-        if before != *self {
-            return Err("Unsupported Assault state.".into());
-        }
         Ok(())
     }
 }

@@ -19,10 +19,10 @@ A save is admitted by exact replay and by nothing else. Opening it builds the op
 
 These are refused, leaving the save and its `.previous` byte for byte as they were:
 
-- **A save another build wrote:** another format or rules source, or decisions that do not replay to the saved position, including a decision the rules do not offer at that point. The refusal says that another build wrote the save, that every file was left unchanged, and that a match can be started under an unused save name. A save from another commit is disposable ([foundation 2](../foundation/02-rules-and-verification.md#engine-authority)): it opens when replay still reproduces its position, and nothing is kept to make it open.
+- **A save another build wrote:** another format or rules source, or decisions that do not replay to the saved position, including a decision the rules do not offer at that point, or an intact record whose payload does not decode in this build's shape, such as a position that lacks a field or has an unknown one. The refusal says that another build wrote the save, that every file was left unchanged, and that a match can be started under an unused save name. A save from another commit is disposable ([foundation 2](../foundation/02-rules-and-verification.md#engine-authority)): it opens when replay still reproduces its position, and nothing is kept to make it open.
 - a failed checksum, as a checksum mismatch;
 - a record over the size limit;
-- a malformed record, or a payload that does not decode;
+- a malformed record: bytes that are not JSON, or an envelope with a missing or unknown field;
 - a save changed by another session since this one read it, until it reloads;
 - a missing main record that has recovery history, which is never taken as a fresh start;
 - a failed replacement, which publishes nothing.

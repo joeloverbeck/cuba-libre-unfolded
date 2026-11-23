@@ -14,21 +14,17 @@
 //!
 //! The Event's side decisions are explored from its two texts so the graph does
 //! not multiply their paths by every earlier Terror and transfer permutation.
-//! Card 18 opens a separate Operation with a replay history. Its seat documentation
-//! uses checked representative paths instead of folding that history into this graph.
+//! Card 18 opens a separate Operation. Its seat documentation uses checked
+//! representative paths instead of folding that Operation into this graph.
 #![allow(dead_code)]
 use super::{Choice, Faction, Game, TransferChoice};
 use std::collections::{HashMap, HashSet};
 
-/// The current decision without its revision or the Event's save replay history.
-/// Reopening and cancelling a side decision reaches the same choices.
+/// The current decision without its revision. Reopening and cancelling a side
+/// decision reaches the same choices.
 pub fn key(game: &Game) -> String {
     let mut value = serde_json::to_value(game).unwrap();
     value["revision"] = 0.into();
-    value
-        .as_object_mut()
-        .unwrap()
-        .remove("event_side_decisions");
     value.to_string()
 }
 

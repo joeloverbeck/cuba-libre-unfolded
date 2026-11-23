@@ -349,7 +349,6 @@ fn pact_of_caracas_lists_the_first_eligible_options_and_refuses_an_unfunded_assa
     let next = handoff.next.unwrap();
     assert_eq!(next.role, "2nd Eligible");
     assert_eq!(next.options, ["Pass", "Limited Operation"]);
-    game.validate().unwrap();
 }
 
 /// Menu steps are decisions: after Assault menu loops a restart shows the same match
@@ -619,9 +618,6 @@ fn removal_admission_refuses_foreign_changes_wrong_supply_and_impossible_obligat
     altered["payload"]["position"]["available"][3]["count"] = 14.into();
     cases.push(altered); // exact totals, but owed Terror lost its last Underground
     let mut altered = source.clone();
-    altered["payload"]["position"]["removal"] = serde_json::json!({"Confirming":{"space":"santiago","kind":"Guerrilla","state":"Underground"}});
-    cases.push(altered); // impossible pending confirmation
-    let mut altered = source.clone();
     altered["payload"]["position"]["removal"] = "Selecting".into();
     altered["payload"]["position"]["transfer"] = "Selecting".into();
     cases.push(altered); // mutually exclusive local decisions
@@ -846,6 +842,108 @@ fn saves_this_build_cannot_continue_are_refused_with_every_file_unchanged() {
     assert!(recovered.observe().kidnap_open);
 }
 
+/// A saved position decodes only in its current shape (#152): a position lacking any
+/// field, an absent `Option` included, or carrying a field this build does not know,
+/// such as a removed one, is refused as a save another build wrote, and the save and
+/// its previous record stay byte for byte as they were.
+#[test]
+fn a_position_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("shape.json");
+    // Seed 2 rolls 5, and 26July funds the Assault. The position ends inside the paid
+    // Assault with a request set aside, so it holds absent and present optional fields.
+    let mut session = Session::create_seeded(&path, 2).unwrap();
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "transfer",
+        "give:0:1",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:assault",
+        "assault:areas:cities",
+        "assault:space:santiago",
+        "assault:santiago:26july",
+        "transfer",
+        "ask:1:1",
+        "wait",
+    ] {
+        act(&mut session, action);
+    }
+    drop(session);
+    let valid = record(&path);
+    let position = &valid["payload"]["position"];
+    assert!(position["removal"].is_null() && position["government_pass_from"].is_null());
+    assert_eq!(position["transfer"]["Authorizing"]["waited"], true);
+    assert!(position["kidnap"].is_object() && position["assault"]["resolution"].is_object());
+    let previous = std::fs::read(previous_path(&path)).unwrap();
+
+    let mut cases = vec![];
+    for field in position.as_object().unwrap().keys() {
+        let mut altered = valid.clone();
+        altered["payload"]["position"]
+            .as_object_mut()
+            .unwrap()
+            .remove(field);
+        cases.push((format!("missing field `{field}`"), altered));
+    }
+    for (pointer, field) in [
+        ("/payload/position/kidnap", "revision"),
+        ("/payload/position/transfer/Authorizing", "waited"),
+        ("/payload/position/assault", "paid_spaces"),
+        ("/payload/position/assault", "resolution"),
+        ("/payload/position/assault/resolution", "detail"),
+    ] {
+        let mut altered = valid.clone();
+        let fields = altered
+            .pointer_mut(pointer)
+            .unwrap()
+            .as_object_mut()
+            .unwrap();
+        assert!(fields.remove(field).is_some(), "{pointer}/{field}");
+        cases.push((format!("missing field `{field}`"), altered));
+    }
+    for (pointer, field) in [
+        ("/payload/position", "finished"),
+        ("/payload/position", "event_side_decisions"),
+        ("/payload/position/assault", "omitted"),
+        ("/payload/position/kidnap", "unknown"),
+    ] {
+        let mut altered = valid.clone();
+        let fields = altered
+            .pointer_mut(pointer)
+            .unwrap()
+            .as_object_mut()
+            .unwrap();
+        fields.insert(field.into(), 0.into());
+        cases.push((format!("unknown field `{field}`"), altered));
+    }
+    assert_eq!(cases.len(), position.as_object().unwrap().len() + 9);
+    for (expected, altered) in cases {
+        let bytes = reseal(&altered);
+        std::fs::write(&path, &bytes).unwrap();
+        let refusal = format!("{:#}", Session::open(&path, None).err().expect(&expected));
+        assert_another_build(&refusal);
+        assert!(
+            refusal.contains("its position is not in this build's shape"),
+            "{refusal}"
+        );
+        assert!(refusal.contains(&expected), "{expected}: {refusal}");
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), previous);
+    }
+    // The save as written still opens.
+    std::fs::write(&path, reseal(&valid)).unwrap();
+    assert_eq!(
+        serde_json::to_value(Session::open(&path, None).unwrap().game()).unwrap(),
+        *position
+    );
+}
+
 /// Submits each action and restarts after it: the reopened save shows exactly what
 /// was published, with the same randomness; the match revision equals the number of
 /// saved decisions; and resubmitting the decision is refused with the bytes unchanged.
@@ -988,7 +1086,7 @@ fn admission_refuses_forged_roll_effects_and_impossible_revision_without_replaci
         cases.push(record);
     }
     let mut record = rolled.clone();
-    record["payload"]["position"]["finished"] = true.into();
+    record["payload"]["position"]["m26_action_ended"] = true.into();
     cases.push(record);
     let mut record = resolved.clone();
     record["payload"]["position"]["revision"] = 1.into();
@@ -1102,7 +1200,8 @@ fn corrupt_incompatible_and_semantically_wrong_records_preserve_recovery() {
     let mut wrong = record.clone();
     wrong["payload"]["position"]["resources"][1] = 9.into();
     cases.push(reseal(&wrong));
-    // A payload that does not decode as a record is malformed.
+    // An intact record whose position does not decode in this build's shape was
+    // written by another build.
     let mut undecodable = record.clone();
     undecodable["payload"]["position"]["resources"] = "not resources".into();
     cases.push(reseal(&undecodable));
@@ -1112,9 +1211,8 @@ fn corrupt_incompatible_and_semantically_wrong_records_preserve_recovery() {
         let expected = match index {
             0 => "Malformed save",
             1 => "Save exceeds its size limit",
-            2..=3 | 5..=6 => "Another build wrote this save",
+            2..=3 | 5..=7 => "Another build wrote this save",
             4 => "Save checksum mismatch",
-            7 => "Malformed save",
             _ => unreachable!(),
         };
         assert!(refusal.starts_with(expected), "{index}: {refusal}");
