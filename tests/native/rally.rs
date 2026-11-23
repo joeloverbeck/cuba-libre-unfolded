@@ -715,3 +715,42 @@ fn native_free_rally_without_a_base_finishes_the_event() {
         app.quit();
     }
 }
+
+/// #159: the Available Forces ledger shows the committed position. A hovered and a
+/// pinned Rally option leave it as it is; committing 26July's free Rally of three
+/// Guerrillas at Sierra Maestra takes them from Available Forces (R 1.4.1, R 3.3.1):
+/// 12 become 9, and nothing else changes.
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_available_forces_follow_a_rally_and_not_its_preview() {
+    use super::available_forces::{drawn_count, ledger, prepared};
+    let mut app = event_app("available-forces-rally-", "issue-159");
+    ready_for_event(&mut app, true);
+    choose_rally_option(&mut app, "event:unshaded");
+    choose_rally_option(&mut app, "rally:beneficiary:26july");
+    let pending = app.observe();
+    assert_eq!(pending["observation"]["owner"], "M26");
+    assert_eq!(ledger(&pending), prepared());
+    let place = "rally:sierra-maestra:place:3";
+    let hovered = app.point(&format!("option:{place}"));
+    assert!(tag_text(&hovered["table"]["briefing"]).contains("leaves 9 Guerrillas"));
+    assert_eq!(ledger(&hovered), prepared());
+    assert_eq!(drawn_count(&hovered, "26july-guerrilla"), "12");
+    let revision = pending["observation"]["revision"].as_u64().unwrap();
+    app.activate(&format!("option:{place}"), revision);
+    let pinned = app.observe();
+    assert_eq!(pinned["table"]["choice"]["pinned"], place);
+    assert_eq!(pinned["observation"], pending["observation"]);
+    assert_eq!(ledger(&pinned), prepared());
+    assert_eq!(drawn_count(&pinned, "26july-guerrilla"), "12");
+    app.capture("rally-pinned-ledger-unchanged");
+    app.choose(place);
+    let placed = app.observe();
+    assert_eq!(available_guerrillas(&placed["observation"]), 9);
+    let mut expected = prepared();
+    expected[3].2 = 9;
+    assert_eq!(ledger(&placed), expected);
+    assert_eq!(drawn_count(&placed, "26july-guerrilla"), "9");
+    app.capture("rally-placed-ledger");
+    app.quit();
+}

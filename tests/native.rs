@@ -10,6 +10,8 @@ use std::{
 mod assault;
 #[path = "native/assault_side.rs"]
 mod assault_side;
+#[path = "native/available_forces.rs"]
+mod available_forces;
 #[path = "native/card_advance.rs"]
 mod card_advance;
 #[path = "native/card_piles.rs"]

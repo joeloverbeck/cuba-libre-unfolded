@@ -43,6 +43,7 @@ use unfolded_tabletop::{
     token,
 };
 mod areas;
+mod available;
 mod briefing;
 mod cards;
 mod choice;
@@ -1623,6 +1624,9 @@ fn draw_ui(
         Vec2::ZERO,
         right,
     );
+    // #159: Available Forces stand left of the Resources ledger, from the committed
+    // position, so a preview never changes them.
+    available::draw(&mut commands, &art, &view, s, right);
     if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
         die::panel(&mut commands, &art, kidnap, roll.landed(), s, right);
     } else {

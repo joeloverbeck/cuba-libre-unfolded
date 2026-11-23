@@ -189,6 +189,30 @@ fn assert_areas_and_island(view: &Value, layout: &Value, width: f64, height: f64
             "area {name} leaves the {width}x{height} window: {native:?}"
         );
     }
+    // #159: no area overlaps another in any window, and the Available Forces ledger's
+    // plate fills its own area, so it keeps its size and its distance from the
+    // top-right corner as the area does.
+    for (name, rect) in &drawn {
+        for (other, against) in &drawn {
+            assert!(
+                name == other || disjoint(*rect, *against),
+                "area {name} {rect:?} overlaps {other} {against:?} at {width}x{height}"
+            );
+        }
+    }
+    let plate = view["table"]["available_forces"]["parts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|part| part["part"] == "plate")
+        .map(|part| rect_of(&part["bounds"]))
+        .expect("the Available Forces ledger draws its plate");
+    for (n, e) in plate.iter().zip(drawn["available-forces"]) {
+        assert!(
+            (n - e).abs() <= tolerance,
+            "the ledger's plate {plate:?} leaves its area at {width}x{height}"
+        );
+    }
     let [l, t, r, b] = edges(&layout["island"]["bounds"]);
     let island = [
         start(l),
