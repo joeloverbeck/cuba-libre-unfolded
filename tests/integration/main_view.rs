@@ -110,7 +110,7 @@ fn the_framed_map_s_chrome_is_retired() {
     }
 }
 
-/// The record places the eight areas apart from each other and from the island box,
+/// The record places the nine areas apart from each other and from the island box,
 /// all inside the 16:9 frame, and the card tray with its two piles, their labels,
 /// count discs, captions and the Propaganda pips, and says where the card tag opens.
 #[test]
@@ -128,6 +128,7 @@ fn the_record_places_the_areas_the_island_and_the_piles() {
     assert_eq!(
         anchors,
         [
+            ("available-forces", "top-right"),
             ("cards", "bottom-left"),
             ("decision", "top-right"),
             ("outside-influence", "top-left"),

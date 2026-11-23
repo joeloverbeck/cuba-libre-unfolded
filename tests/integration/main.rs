@@ -20,6 +20,7 @@ use terror_chosen::terror_chosen;
 mod action_choice;
 mod assault;
 mod assault_side;
+mod available_forces;
 mod card_facts;
 mod eligibility;
 mod highlights;

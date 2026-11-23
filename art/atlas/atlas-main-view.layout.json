@@ -20,6 +20,10 @@
       "bounds": [3448.5, 33.75, 324.0, 415.13],
       "anchor": "top-right"
     },
+    "available-forces": {
+      "bounds": [2928.75, 33.75, 494.0, 320.63],
+      "anchor": "top-right"
+    },
     "sequence-of-play": {
       "bounds": [101.25, 300.0, 391.5, 647.94],
       "anchor": "top-left"

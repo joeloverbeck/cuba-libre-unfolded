@@ -46,6 +46,7 @@ The [main view layout](MAIN-VIEW.md) owns where every area sits: the 3D map fill
 | Outside influence | top left | Aid and the US Alliance track ([TOP.md](TOP.md)). |
 | Standings | top, centred | Current margins under the four emblems; contributions in the hover tag. Always visible. |
 | Resources and Cash | top right | The Resources ledger and the Cash supply ([TOP.md](TOP.md)). |
+| Available Forces | top right | Each faction's Available Forces by kind, left of the Resources ledger ([AVAILABLE.md](AVAILABLE.md)). |
 | Sequence of Play | top left | The eligibility track ([ELIGIBILITY.md](ELIGIBILITY.md)). |
 | Decision | top right | Current actor, operation, Resources, choices, cost, target, legal/refused explanation and actual roll/owed Terror. |
 | Primary action | in the decision panel | Dynamic Finish/resolve label and enabled state; no example outcome remains baked. |
