@@ -1,5 +1,5 @@
 //! #72: the shipped map highlights are the selected HF-A exports, unchanged, each with
-//! its place on the map in a presentation manifest and admitted by hash at launch.
+//! its place on the map in a manifest and admitted by hash at launch.
 //! #73 adds the Santiago and Oriente veils, the removal-mode piece markers and the
 //! popover's four row marks, admitted the same way.
 use cuba_libre_unfolded::{Game, assets};
