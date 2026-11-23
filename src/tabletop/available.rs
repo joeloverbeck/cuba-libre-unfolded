@@ -452,8 +452,9 @@ mod tests {
     }
 
     /// A kind with none left keeps its cell with "0", and Guerrillas returned Active
-    /// count with those still Underground. The 2 returned come off the map, so 26July
-    /// still holds its 15 Guerrillas (p. 20).
+    /// count with those still Underground. Every inventory holds (p. 20): the 2
+    /// returned Guerrillas come off the map, and the Government's 2 Bases and the
+    /// Syndicate's 6 Guerrillas that leave Available go onto it.
     #[test]
     fn a_kind_with_none_left_keeps_its_cell_and_states_add_up() {
         let mut view = Game::opening().observe();
@@ -485,6 +486,24 @@ mod tests {
             state: State::Active,
             count: 2,
         });
+        view.spaces[0].pieces.extend([
+            Group {
+                faction: Faction::Government,
+                kind: Kind::Base,
+                state: State::Ordinary,
+                count: 2,
+            },
+            Group {
+                faction: Faction::Syndicate,
+                kind: Kind::Guerrilla,
+                state: State::Underground,
+                count: 6,
+            },
+        ]);
+        assert_eq!(
+            crate::inventory_breaches(&view.available, &view.spaces),
+            Vec::<String>::new()
+        );
         let rows = rows(&view);
         assert_eq!(
             counts(&rows),
@@ -651,7 +670,8 @@ mod tests {
     /// #157 story 38: the tag reads the rules authority's Available Forces and computes
     /// nothing of its own beyond inventory less Available, so "M on the map" is T − N
     /// and the tag reads nothing from the map. Here 2 26July Guerrillas are returned to
-    /// Available without the map changing, and then the map is emptied.
+    /// Available without the map changing, and then the map is emptied: an observation
+    /// that breaks the chart on purpose, which only a hand-edited one can.
     #[test]
     fn the_tag_derives_its_on_map_count_from_the_inventory_and_available() {
         let mut view = Game::opening().observe();

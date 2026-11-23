@@ -11,6 +11,8 @@ Inspect `arkham-unfolded`, `mudsong`, `netrunner-unfolded`, and `unfolded-tablet
 - Similar but game-specific: identify the actual semantic difference and retain that policy in its owning game.
 - Absent: implement the smallest Cuba Libre-specific path justified by the issue.
 
+`mudsong` is a private repository and this one is public. Its record in an issue, PR or commit is its inspected revision and its disposition; its source locations, names and descriptions stay in local notes under `local/handoffs/`.
+
 Never copy an existing mechanism here as a temporary substitute. Discovery is read-only until the extraction's bounded work is ready; do not disturb another task's uncommitted work. A sibling checkout helps investigation, but ordinary builds use versioned dependencies and a lockfile rather than a live `../` dependency.
 
 ## Coordinated extraction order

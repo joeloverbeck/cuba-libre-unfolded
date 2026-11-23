@@ -120,6 +120,37 @@ pub(crate) fn total<'a>(
         .map(|group| group.count)
         .sum()
 }
+/// The kinds a hand-built position holds in the wrong number, each as "26July
+/// Guerrilla: 12 Available + 5 on the map, of 15". Every piece of the chart is
+/// Available or on the map (R 1.4.1), and no other piece exists, so a position the
+/// rules reach has none. In unit tests `Game::observe` refuses a position that has
+/// one; a test that edits an observation by hand asserts this itself.
+#[cfg(test)]
+pub(crate) fn inventory_breaches(available: &[Group], spaces: &[Space]) -> Vec<String> {
+    let on_map = || spaces.iter().flat_map(|space| &space.pieces);
+    let mut kinds: Vec<(Faction, Kind)> = INVENTORY.iter().map(|&(f, k, _)| (f, k)).collect();
+    for group in available.iter().chain(on_map()) {
+        if !kinds.contains(&(group.faction, group.kind)) {
+            kinds.push((group.faction, group.kind));
+        }
+    }
+    kinds
+        .into_iter()
+        .filter_map(|(faction, kind)| {
+            let (free, placed) = (
+                total(available, faction, kind),
+                total(on_map(), faction, kind),
+            );
+            let chart = inventory(faction, kind);
+            (u16::from(free) + u16::from(placed) != u16::from(chart)).then(|| {
+                format!(
+                    "{} {kind:?}: {free} Available + {placed} on the map, of {chart}",
+                    faction.name()
+                )
+            })
+        })
+        .collect()
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum State {
     Ordinary,
@@ -1022,6 +1053,15 @@ impl Game {
         }
     }
     pub fn observe(&self) -> Observation {
+        // A unit test that builds its position by hand keeps the chart (p. 20).
+        #[cfg(test)]
+        {
+            let breaches = inventory_breaches(&self.available, &self.spaces);
+            assert!(
+                breaches.is_empty(),
+                "this position breaks the Available Forces chart: {breaches:?}"
+            );
+        }
         let mut played_cards: Vec<u8> = (1..=12).collect();
         played_cards.push(49);
         played_cards.extend(13..=16);
@@ -2896,5 +2936,82 @@ mod government_pass_tests {
             assert!(game.apply("government:pass").is_err());
             assert_eq!(game.observe(), after);
         }
+    }
+}
+#[cfg(test)]
+mod inventory_tests {
+    use super::{Faction, Game, Group, Kind, State, inventory_breaches};
+
+    /// 2 more 26July Guerrillas on the map, with or without leaving Available.
+    fn with_two_more_guerrillas(leave_available: bool) -> Game {
+        let mut game = Game::opening();
+        let space = game
+            .spaces
+            .iter_mut()
+            .find(|space| space.id == "sierra-maestra")
+            .unwrap();
+        space.pieces.push(Group {
+            faction: Faction::M26,
+            kind: Kind::Guerrilla,
+            state: State::Active,
+            count: 2,
+        });
+        if leave_available {
+            game.available
+                .iter_mut()
+                .find(|group| group.faction == Faction::M26 && group.kind == Kind::Guerrilla)
+                .unwrap()
+                .count -= 2;
+        }
+        game
+    }
+
+    /// The opening has 12 of 26July's 15 Guerrillas Available and 3 on the map
+    /// (p. 20 and the accepted handoff), and every other kind adds up too.
+    #[test]
+    fn a_position_that_keeps_the_chart_has_no_breach() {
+        let opening = Game::opening();
+        assert_eq!(
+            inventory_breaches(&opening.available, &opening.spaces),
+            Vec::<String>::new()
+        );
+        let moved = with_two_more_guerrillas(true);
+        assert_eq!(
+            inventory_breaches(&moved.available, &moved.spaces),
+            Vec::<String>::new()
+        );
+    }
+
+    /// 2 Guerrillas placed without leaving Available make 12 + 5 = 17 of 15.
+    #[test]
+    fn a_piece_placed_without_leaving_available_is_named() {
+        let added = with_two_more_guerrillas(false);
+        assert_eq!(
+            inventory_breaches(&added.available, &added.spaces),
+            ["26July Guerrilla: 12 Available + 5 on the map, of 15"]
+        );
+    }
+
+    /// A kind the chart does not give a faction is a breach wherever it lies.
+    #[test]
+    fn a_piece_outside_the_chart_is_named() {
+        let mut game = Game::opening();
+        game.available.push(Group {
+            faction: Faction::Government,
+            kind: Kind::Guerrilla,
+            state: State::Underground,
+            count: 1,
+        });
+        assert_eq!(
+            inventory_breaches(&game.available, &game.spaces),
+            ["Government Guerrilla: 1 Available + 0 on the map, of 0"]
+        );
+    }
+
+    /// A unit test cannot observe a position that breaks the chart.
+    #[test]
+    #[should_panic(expected = "breaks the Available Forces chart")]
+    fn observing_a_position_that_breaks_the_chart_panics_in_unit_tests() {
+        with_two_more_guerrillas(false).observe();
     }
 }
