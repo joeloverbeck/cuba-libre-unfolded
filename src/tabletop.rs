@@ -1005,9 +1005,11 @@ fn hover_disclosures(
             }
         })
     });
-    // Keyboard focus on a card or a pile opens its tag as the pointer does, with the
-    // same dwell.
-    let target = target.or_else(|| pile_tags::focused(&ui).map(Target::Pile));
+    // Keyboard focus on a card, a pile or an Available Forces row opens its tag as
+    // the pointer does, with the same dwell.
+    let target = target
+        .or_else(|| pile_tags::focused(&ui).map(Target::Pile))
+        .or_else(|| available::focused(&ui).map(Target::Top));
     let target = cards::target(&mut ui, target);
     ui.hover
         .update(target, true, time.delta(), Duration::from_millis(400));
@@ -1824,6 +1826,11 @@ mod tests {
         assert_eq!(
             serde_json::to_value(Target::Top(top::Item::UsAlliance)).unwrap(),
             "us-alliance"
+        );
+        // #160: an Available Forces row, by the name the seat points at.
+        assert_eq!(
+            serde_json::to_value(Target::Top(top::Item::Available(Faction::M26))).unwrap(),
+            "available:26july"
         );
     }
     /// One frame of the shared camera at this table, from plain input values.

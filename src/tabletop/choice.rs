@@ -865,10 +865,12 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
 }
 
 /// The controls Tab moves through, in order, by their seat names, each with what
-/// Enter does to it: the panel's, then the current and the preview card, whose tags
-/// focus opens as hover does (#139), then the two piles, whose tags it opens too (#144).
+/// Enter does to it: the panel's; the Available Forces ledger's four rows above it,
+/// whose tags focus opens as hover does (#160); then the current and the preview card
+/// (#139) and the two piles (#144), whose tags it opens too.
 fn focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> {
     let mut controls = panel_focusable(view, ui);
+    controls.extend(super::available::focusable());
     controls
         .extend(super::cards::Slot::ALL.map(|slot| (slot.name().to_owned(), Action::Card(slot))));
     controls
@@ -1612,13 +1614,23 @@ mod tests {
         let view = Game::opening().observe();
         let ui = Interface::default();
         let order = names(&view, &ui);
-        assert_eq!(order.len(), 16);
+        assert_eq!(order.len(), 20);
         assert_eq!(order[0], "option:pass");
         assert_eq!(order[11], "choice-commit");
-        // Then both cards and both piles, whose tags focus opens (#139, #144).
+        // Then the Available Forces rows above the panel (#160), both cards and both
+        // piles, whose tags focus opens (#139, #144).
         assert_eq!(
             order[12..],
-            ["card:current", "card:preview", "pile:played", "pile:deck"]
+            [
+                "available:government",
+                "available:26july",
+                "available:directorio",
+                "available:syndicate",
+                "card:current",
+                "card:preview",
+                "pile:played",
+                "pile:deck"
+            ]
         );
         // During Terror (#84): every listed step, the commit, then the ribbon.
         let mut game = Game::opening();
@@ -1636,6 +1648,10 @@ mod tests {
                 "step:back-to-choice",
                 "execution-commit",
                 "briefing-ribbon",
+                "available:government",
+                "available:26july",
+                "available:directorio",
+                "available:syndicate",
                 "card:current",
                 "card:preview",
                 "pile:played",
@@ -1645,11 +1661,15 @@ mod tests {
         ui.choice.ribbon = true;
         let order = names(&game.observe(), &ui);
         assert_eq!(
-            order[order.len() - 7..],
+            order[order.len() - 11..],
             [
                 "briefing-ribbon",
                 "briefing-tab:kidnap",
                 "briefing-tab:terror",
+                "available:government",
+                "available:26july",
+                "available:directorio",
+                "available:syndicate",
                 "card:current",
                 "card:preview",
                 "pile:played",
