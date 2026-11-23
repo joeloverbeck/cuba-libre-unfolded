@@ -1629,7 +1629,7 @@ fn draw_ui(
         execution::panel(&mut commands, &art, &view, &ui, s, right);
     }
     eligibility::indicator(&mut commands, &art, &view, s, Vec2::ZERO);
-    // The numbers over the piles follow the cards while an advance is shown.
+    // The pips follow the cards while an advance is shown, and the count discs wait.
     let scene = advance.scene(&view, time.elapsed_secs_f64());
     piles::overlay(&mut commands, &art, &scene, &window);
     let o = right + low;

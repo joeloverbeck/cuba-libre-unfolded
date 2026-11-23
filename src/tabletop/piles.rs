@@ -174,7 +174,7 @@ mod fig {
 /// The tray's render layer: only its camera and light see it. The Kidnap tray has 1.
 const LAYER: usize = 2;
 /// The layer of a card in the air, which its own camera draws over the interface: it
-/// is above the table, so above the labels, discs and captions printed over the tray.
+/// is above the table, so above the labels and captions printed over the tray.
 const AIR: usize = 3;
 /// Where the tray stands in the world: well below the map's sea and the Kidnap tray.
 const TRAY_AT: Vec3 = Vec3::new(0., -80., 0.);
@@ -491,8 +491,8 @@ impl Scene {
 }
 
 /// The advance `elapsed` seconds after its commit, from the cards before it and
-/// after it. The deck's number goes down as the played card leaves it; the played
-/// pile's number and the Propaganda pips change as it lands. The deck shows the back
+/// after it. The deck is a card fewer as the played card leaves it; the played pile is
+/// a card more and the Propaganda pips change as it lands. The deck shows the back
 /// of its next card until that card has turned over, and the turning card is still
 /// one of the deck's.
 fn shown(before: &Lay, after: &Lay, elapsed: f32) -> Scene {
@@ -1021,7 +1021,7 @@ pub(super) fn present(
     }
     let wanted = viewport(&window);
     for (mut camera, air) in &mut cameras {
-        let in_the_air = scene.flying.is_some();
+        let in_the_air = scene.in_the_air();
         if air && camera.is_active != in_the_air {
             camera.is_active = in_the_air;
         }

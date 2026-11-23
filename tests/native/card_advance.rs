@@ -699,8 +699,9 @@ fn inked_blocks(
 ///
 /// - the commit writes the save before a card has moved, and nothing writes it again;
 /// - the preview, card 18, lifts off the deck and crosses to the played pile while
-///   the deck shows the original back; the deck's number is 33 from the moment it
-///   leaves and the played pile's is 19 from the moment it lands;
+///   the deck shows the original back; the deck holds 33 cards from the moment it
+///   leaves and the played pile 19 from the moment it lands, and neither count disc
+///   is shown until the cards are at rest;
 /// - card 19 then turns over where it lies, its back showing until it is on edge;
 /// - settled, the piles are 19 with card 18 and 33 with card 19, in every run;
 /// - a click, Space and Enter each land that state at once and do nothing else;
@@ -784,7 +785,7 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
         "{at:?}"
     );
     assert_eq!(leaving["table"]["pending"], json!(["card advance"]));
-    // The deck's number went down as the card left it; the played pile's waits.
+    // The deck is a card thinner as the card leaves it; the played pile waits.
     assert_cards_shown(&leaving, (18, json!(17)), (33, json!("back")), 1);
     // A seat that connects now finds the same moment, not a new start: every request
     // here is its own connection, and only the seat's steps move the clock.
