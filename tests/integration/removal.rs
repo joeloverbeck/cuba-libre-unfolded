@@ -60,7 +60,7 @@ fn available(game: &Game, kind: Kind) -> u8 {
 #[test]
 fn removal_mode_removes_nothing_until_a_removal_and_defeats_kidnap_but_not_terror_after_a_resource_transfer()
  {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     let initial = game.observe();
     choose(&mut game, "remove");
     assert_eq!(game.observe().removal, Some(Removal::Selecting));
@@ -88,12 +88,11 @@ fn removal_mode_removes_nothing_until_a_removal_and_defeats_kidnap_but_not_terro
         game.observe().next.unwrap().options,
         ["Pass (+1 if executed later)", "Limited Operation"]
     );
-    game.validate().unwrap();
 }
 
 #[test]
 fn a_stack_returns_several_pieces_in_one_decision_and_the_mode_stays_open() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     choose(&mut game, "remove");
     let view = game.observe();
     // Every quantity of every own group is listed; nothing is protected yet.
@@ -133,7 +132,6 @@ fn a_stack_returns_several_pieces_in_one_decision_and_the_mode_stays_open() {
             .unwrap()
             .supported
     );
-    game.validate().unwrap();
     choose(&mut game, "remove:oriente:underground:1");
     choose(&mut game, "remove:sierra-maestra:base:1");
     // Nothing left but Done; it is never forced.
@@ -141,35 +139,33 @@ fn a_stack_returns_several_pieces_in_one_decision_and_the_mode_stays_open() {
     assert_eq!(view.choices.len(), 1);
     assert!(offered(&view, "done-removal").is_some());
     assert_eq!(view.standings[1].score, 6);
-    game.validate().unwrap();
     choose(&mut game, "done-removal");
     assert_eq!(game.observe().removal, None);
-    game.validate().unwrap();
 }
 
 #[test]
 fn quantities_out_of_bounds_and_stale_or_foreign_removals_change_nothing() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     choose(&mut game, "remove");
     let before = game.clone();
     for (owner, action) in [
-        (Faction::Government, "1:remove:santiago:underground:1"),
-        (Faction::M26, "1:remove:santiago:underground:3"),
-        (Faction::M26, "1:remove:santiago:underground:0"),
-        (Faction::M26, "1:remove:santiago:police:1"),
-        (Faction::M26, "1:remove:havana:underground:1"),
-        (Faction::M26, "1:remove:pinar-del-rio:casino:1"),
-        (Faction::M26, "1:remove:santiago:underground"),
-        (Faction::M26, "1:confirm-removal"),
-        (Faction::M26, "1:cancel-removal"),
+        (Faction::Government, "2:remove:santiago:underground:1"),
+        (Faction::M26, "2:remove:santiago:underground:3"),
+        (Faction::M26, "2:remove:santiago:underground:0"),
+        (Faction::M26, "2:remove:santiago:police:1"),
+        (Faction::M26, "2:remove:havana:underground:1"),
+        (Faction::M26, "2:remove:pinar-del-rio:casino:1"),
+        (Faction::M26, "2:remove:santiago:underground"),
+        (Faction::M26, "2:confirm-removal"),
+        (Faction::M26, "2:cancel-removal"),
     ] {
-        assert!(game.submit(owner, 1, action).is_err(), "{action}");
+        assert!(game.submit(owner, 2, action).is_err(), "{action}");
         assert_eq!(game, before);
     }
     choose(&mut game, "remove:santiago:underground:1");
     let after = game.clone();
     assert!(
-        game.submit(Faction::M26, 1, "1:remove:santiago:underground:1")
+        game.submit(Faction::M26, 2, "2:remove:santiago:underground:1")
             .is_err()
     );
     assert_eq!(game, after);
@@ -178,7 +174,7 @@ fn quantities_out_of_bounds_and_stale_or_foreign_removals_change_nothing() {
 
 #[test]
 fn owed_terror_protects_only_last_santiago_underground_and_nothing_once_it_resolves() {
-    let mut game = Game::prepared_with_seed(5); // actual roll 3, source witness
+    let mut game = crate::terror_chosen(Game::opening_with_seed(5)); // actual roll 3, source witness
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     let rng = game.random_state();
@@ -229,7 +225,6 @@ fn owed_terror_protects_only_last_santiago_underground_and_nothing_once_it_resol
     choose(&mut game, "remove:sierra-maestra:base:1");
     choose(&mut game, "remove:oriente:underground:1");
     choose(&mut game, "done-removal");
-    game.validate().unwrap();
     choose(&mut game, "terror:santiago");
     assert_eq!(game.observe().standings[1].score, 7);
     // After the owed Terror resolves, nothing is protected.
@@ -258,12 +253,11 @@ fn owed_terror_protects_only_last_santiago_underground_and_nothing_once_it_resol
             .contains(&"Event".into())
     );
     assert_eq!(game.random_state(), rng);
-    game.validate().unwrap();
 }
 
 #[test]
 fn removal_previews_control_kidnap_terror_and_the_standing() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     // Syndicate gives 26July 2 Resources first, so both Terror targets are offered
     // and their loss shows; this transfer is already the first effect.
     choose(&mut game, "transfer");
@@ -337,7 +331,7 @@ fn removal_previews_control_kidnap_terror_and_the_standing() {
     assert_eq!(game.observe(), view);
     assert_eq!(game.random_state(), 17);
     // Before any effect, the first removal also ends going back (local policy, #58).
-    let mut fresh = Game::prepared();
+    let mut fresh = crate::terror_chosen(Game::opening());
     choose(&mut fresh, "remove");
     let view = fresh.observe();
     let first = offered(&view, "remove:sierra-maestra:base:1")
@@ -351,7 +345,7 @@ fn removal_previews_control_kidnap_terror_and_the_standing() {
 
 #[test]
 fn removal_leaves_earlier_terror_support_and_the_kidnap_result_in_place() {
-    let mut game = Game::prepared_with_seed(5);
+    let mut game = crate::terror_chosen(Game::opening_with_seed(5));
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     choose(&mut game, "terror:santiago");
@@ -383,15 +377,13 @@ fn removal_leaves_earlier_terror_support_and_the_kidnap_result_in_place() {
     // Opposition still scores: 7 + 1 (Santiago) + 2 (Oriente) − 1 (the Base) = 9.
     assert_eq!(v.standings[1].score, 9);
     assert_eq!(v.terror_available, 18);
-    game.validate().unwrap();
     choose(&mut game, "done-removal");
     choose(&mut game, "end-terror");
-    game.validate().unwrap();
 }
 
 #[test]
 fn all_own_pieces_can_return_to_supply_and_zero_space_finish_remains_legal() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     remove(&mut game, "sierra-maestra:base");
     assert_eq!(game.observe().standings[1].score, 6);
     assert_eq!(game.observe().spaces[9].control(), None);
@@ -401,7 +393,6 @@ fn all_own_pieces_can_return_to_supply_and_zero_space_finish_remains_legal() {
         "oriente:underground",
     ] {
         remove(&mut game, target);
-        game.validate().unwrap();
     }
     let v = game.observe();
     assert_eq!((v.map_piece_count, v.available_piece_count), (25, 61));
@@ -424,23 +415,4 @@ fn all_own_pieces_can_return_to_supply_and_zero_space_finish_remains_legal() {
         game.observe().next.unwrap().options,
         ["Pass (+1 if executed later)", "Limited Operation"]
     );
-    game.validate().unwrap();
-}
-
-/// A #8 save may hold a group awaiting confirmation. It resumes in removal mode with
-/// the same choices, so it can be finished or left with Done.
-#[test]
-fn a_pending_confirmation_from_an_8_save_resumes_in_removal_mode() {
-    let mut game = Game::prepared();
-    choose(&mut game, "remove");
-    let mut record = serde_json::to_value(&game).unwrap();
-    record["removal"] = serde_json::json!({"Confirming":{"space":"santiago","kind":"Guerrilla","state":"Underground"}});
-    let resumed: Game = serde_json::from_value(record).unwrap();
-    resumed.validate().unwrap();
-    let ids = |g: &Game| -> Vec<String> { g.observe().choices.into_iter().map(|c| c.id).collect() };
-    assert_eq!(ids(&resumed), ids(&game));
-    let mut resumed = resumed;
-    choose(&mut resumed, "remove:santiago:underground:1");
-    assert_eq!(resumed.observe().removal, Some(Removal::Selecting));
-    resumed.validate().unwrap();
 }

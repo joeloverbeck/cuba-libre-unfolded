@@ -26,7 +26,7 @@ fn refuse(game: &mut Game, owner: Faction, action: &str) -> String {
 }
 
 fn funded_opening() -> Game {
-    let mut game = Game::prepared_with_seed(2);
+    let mut game = crate::terror_chosen(Game::opening_with_seed(2));
     for action in [
         "kidnap",
         "kidnap:roll",
@@ -52,7 +52,6 @@ fn santiago_target(game: &mut Game) -> Observation {
 
 fn reload(game: &Game) -> Game {
     let restored: Game = serde_json::from_slice(&serde_json::to_vec(game).unwrap()).unwrap();
-    restored.validate().unwrap();
     assert_eq!(restored.observe(), game.observe());
     restored
 }

@@ -10,8 +10,12 @@
 /// is loaded once here: Clippy refuses one file loaded as two modules of a binary.
 #[path = "../support/explore.rs"]
 mod explore;
-// Not unused: `explore` takes these from its includer, through `super::`.
+#[path = "../support/terror_chosen.rs"]
+mod terror_chosen;
+// Not unused: `explore` and `terror_chosen` take these from their includer,
+// through `super::`.
 use cuba_libre_unfolded::{Choice, Faction, Game, TransferChoice};
+use terror_chosen::terror_chosen;
 
 mod action_choice;
 mod assault;

@@ -1,5 +1,5 @@
 //! #72: the shipped map highlights are the selected HF-A exports, unchanged, each with
-//! its place on the map in a presentation manifest and admitted by hash at launch.
+//! its place on the map in a manifest and admitted by hash at launch.
 //! #73 adds the Santiago and Oriente veils, the removal-mode piece markers and the
 //! popover's four row marks, admitted the same way.
 use cuba_libre_unfolded::{Game, assets};
@@ -115,7 +115,7 @@ fn every_highlight_is_an_unchanged_hf_a_export_admitted_by_hash() {
 #[test]
 fn every_space_has_a_veil_and_only_targets_get_rules() {
     let manifest = manifest();
-    let game = Game::prepared().observe();
+    let game = crate::terror_chosen(Game::opening()).observe();
     let mut veiled = vec![];
     for graphic in manifest["graphics"].as_array().unwrap() {
         let spaces: Vec<&str> = graphic["spaces"]

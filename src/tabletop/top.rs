@@ -405,7 +405,7 @@ mod tests {
     use super::*;
 
     fn view() -> crate::Observation {
-        crate::Game::prepared().observe()
+        crate::terror_chosen(crate::Game::opening()).observe()
     }
 
     #[test]

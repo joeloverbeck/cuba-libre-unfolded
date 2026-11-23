@@ -1,28 +1,10 @@
 use super::*;
-use cuba_libre_unfolded::{assets, save::Session};
+use cuba_libre_unfolded::save::Session;
 use std::fs;
 use unfolded_record_replacement::previous_path;
 
-const OWNER_SAVES: [(&str, &str, u64); 2] = [
-    (
-        "shaded",
-        "9c1d99b46e5d9279ac24d9f8b0018556e58d03c48b7aa6d317fe502d49a213b7",
-        11,
-    ),
-    (
-        "unshaded",
-        "57f4b367566c1ca341a107b2527ba8612e4d29b6cf0eab0049f64bb5d5a5cf17",
-        16,
-    ),
-];
-
-fn copy_owner_save(dir: &Path, text: &str, hash: &str, path: &Path) {
-    let original = dir.join(format!("117-alberto-bayo-59e3c0f-{text}.json"));
-    let bytes = fs::read(&original).unwrap();
-    assert_eq!(assets::digest(&bytes), hash);
-    fs::write(path, bytes).unwrap();
-    fs::copy(previous_path(&original), previous_path(path)).unwrap();
-}
+/// Both texts of the Alberto Bayo Event, played to card end by `finish_event`.
+const TEXTS: [&str; 2] = ["shaded", "unshaded"];
 
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained card tags and table"]
@@ -32,8 +14,7 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
         .unwrap_or_else(|| PathBuf::from("local/verification/issue-128"));
     fs::create_dir_all(&evidence).unwrap();
     let evidence = evidence.canonicalize().unwrap();
-    let retained = std::env::var_os("CUBA_TEST_CARD_18_SAVES").map(PathBuf::from);
-    for (text, hash, revision) in OWNER_SAVES {
+    for text in TEXTS {
         let root = tempfile::Builder::new()
             .prefix(&format!("{text}-"))
             .tempdir_in(&evidence)
@@ -48,11 +29,7 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
             step: 0,
         };
         eprintln!("{text} card advance evidence: {}", app.root.display());
-        if let Some(dir) = &retained {
-            copy_owner_save(dir, text, hash, &app.save);
-        } else {
-            finish_event(&app.save, text);
-        }
+        finish_event(&app.save, text);
         let saved = fs::read(&app.save).unwrap();
         let prior = fs::read(previous_path(&app.save)).unwrap();
         let random = Session::open(&app.save, None)
@@ -63,11 +40,8 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
 
         app.launch_size("3840x2160");
         let end = app.observe()["observation"].clone();
-        if retained.is_some() {
-            assert_eq!(end["revision"], revision);
-            assert_eq!(end["kidnap"]["die"], 5);
-            assert_eq!(end["resources"][0], 1);
-        }
+        assert_eq!(end["kidnap"]["die"], 5);
+        assert_eq!(end["resources"][0], 1);
         let revision = end["revision"].as_u64().unwrap();
         assert_eq!(end["current_card"], 17);
         assert_eq!(end["preview_card"], 18);
@@ -159,13 +133,11 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
             briefing_text.contains("2 Resources per space"),
             "{briefing_text}"
         );
-        if retained.is_some() {
-            assert!(
-                briefing_text.contains("1 Resource and cannot pay"),
-                "{briefing_text}"
-            );
-            assert!(briefing_text.contains("A zero-space Assault earns no Resources"));
-        }
+        assert!(
+            briefing_text.contains("1 Resource and cannot pay"),
+            "{briefing_text}"
+        );
+        assert!(briefing_text.contains("A zero-space Assault earns no Resources"));
         app.capture("card-18-assault-briefing");
         for (slot, number) in [("card:current", 18), ("card:preview", 19)] {
             app.activate(slot, revision + 1);
@@ -196,66 +168,64 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
         assert_eq!(resumed["table"]["piles"], opening["table"]["piles"]);
         app.capture("card-18-restarted");
         card_piles::assert_piles_drawn(&app, "card-18-restarted", &resumed);
-        if retained.is_some() {
-            for action in [
-                "government:assault",
-                "assault:areas:cities",
-                "assault:space:santiago",
-            ] {
-                let current = app.observe()["observation"]["revision"].as_u64().unwrap();
-                app.activate(&format!("option:{action}"), current);
-                app.choose(action);
-            }
-            let pending = app.observe()["observation"].clone();
-            let payment_revision = pending["revision"].as_u64().unwrap();
-            let active = fs::read(&app.save).unwrap();
-            let previous = fs::read(previous_path(&app.save)).unwrap();
-            app.activate("option:assault:santiago:26july", payment_revision);
-            assert!(
-                tag_text(&app.observe()["table"]["briefing"])
-                    .contains("1 Resource and cannot pay 2 Resources")
-            );
-            app.activate("choice-commit", payment_revision);
-            let refused = app.observe();
-            assert!(
-                refused["table"]["notice"]
-                    .as_str()
-                    .unwrap()
-                    .contains("1 Resource and cannot pay 2 Resources")
-            );
-            assert_eq!(refused["observation"], pending);
-            assert_eq!(fs::read(&app.save).unwrap(), active);
-            assert_eq!(fs::read(previous_path(&app.save)).unwrap(), previous);
-            app.capture("unfunded-assault-payment-refused");
-
-            for action in ["assault:back", "assault:back", "end-assault"] {
-                let current = app.observe()["observation"]["revision"].as_u64().unwrap();
-                app.activate(&format!("option:{action}"), current);
-                if action == "end-assault" {
-                    let view = app.observe();
-                    let explanation = tag_text(&view["table"]["briefing"]);
-                    assert!(explanation.contains("earns no Pass Resources (local policy)"));
-                    let notes = preview_notes(&view, action);
-                    assert!(notes.contains("Records Operation Only"), "{notes}");
-                    assert!(!notes.contains("Available"), "{notes}");
-                    app.capture("zero-space-assault-preview");
-                }
-                app.choose(action);
-            }
-            let handoff = app.observe()["observation"].clone();
-            assert_eq!(handoff["current_card"], 18);
-            assert_eq!(handoff["resources"], after["resources"]);
-            assert_eq!(handoff["spaces"], after["spaces"]);
-            assert_eq!(handoff["available"], after["available"]);
-            assert_eq!(handoff["eligibility"]["government_box"], "OperationOnly");
-            assert_eq!(handoff["owner"], "Syndicate");
-            assert_eq!(handoff["next"]["role"], "2nd Eligible");
-            assert_eq!(
-                handoff["next"]["options"],
-                json!(["Pass", "Limited Operation"])
-            );
-            app.capture("zero-space-assault-handoff");
+        for action in [
+            "government:assault",
+            "assault:areas:cities",
+            "assault:space:santiago",
+        ] {
+            let current = app.observe()["observation"]["revision"].as_u64().unwrap();
+            app.activate(&format!("option:{action}"), current);
+            app.choose(action);
         }
+        let pending = app.observe()["observation"].clone();
+        let payment_revision = pending["revision"].as_u64().unwrap();
+        let active = fs::read(&app.save).unwrap();
+        let previous = fs::read(previous_path(&app.save)).unwrap();
+        app.activate("option:assault:santiago:26july", payment_revision);
+        assert!(
+            tag_text(&app.observe()["table"]["briefing"])
+                .contains("1 Resource and cannot pay 2 Resources")
+        );
+        app.activate("choice-commit", payment_revision);
+        let refused = app.observe();
+        assert!(
+            refused["table"]["notice"]
+                .as_str()
+                .unwrap()
+                .contains("1 Resource and cannot pay 2 Resources")
+        );
+        assert_eq!(refused["observation"], pending);
+        assert_eq!(fs::read(&app.save).unwrap(), active);
+        assert_eq!(fs::read(previous_path(&app.save)).unwrap(), previous);
+        app.capture("unfunded-assault-payment-refused");
+
+        for action in ["assault:back", "assault:back", "end-assault"] {
+            let current = app.observe()["observation"]["revision"].as_u64().unwrap();
+            app.activate(&format!("option:{action}"), current);
+            if action == "end-assault" {
+                let view = app.observe();
+                let explanation = tag_text(&view["table"]["briefing"]);
+                assert!(explanation.contains("earns no Pass Resources (local policy)"));
+                let notes = preview_notes(&view, action);
+                assert!(notes.contains("Records Operation Only"), "{notes}");
+                assert!(!notes.contains("Available"), "{notes}");
+                app.capture("zero-space-assault-preview");
+            }
+            app.choose(action);
+        }
+        let handoff = app.observe()["observation"].clone();
+        assert_eq!(handoff["current_card"], 18);
+        assert_eq!(handoff["resources"], after["resources"]);
+        assert_eq!(handoff["spaces"], after["spaces"]);
+        assert_eq!(handoff["available"], after["available"]);
+        assert_eq!(handoff["eligibility"]["government_box"], "OperationOnly");
+        assert_eq!(handoff["owner"], "Syndicate");
+        assert_eq!(handoff["next"]["role"], "2nd Eligible");
+        assert_eq!(
+            handoff["next"]["options"],
+            json!(["Pass", "Limited Operation"])
+        );
+        app.capture("zero-space-assault-handoff");
         app.quit();
     }
 }
@@ -268,8 +238,7 @@ fn native_government_pass_credits_once_and_hands_first_choice_to_syndicate() {
         .unwrap_or_else(|| PathBuf::from("local/verification/issue-129"));
     fs::create_dir_all(&evidence).unwrap();
     let evidence = evidence.canonicalize().unwrap();
-    let retained = std::env::var_os("CUBA_TEST_CARD_18_SAVES").map(PathBuf::from);
-    for (text, hash, _) in OWNER_SAVES {
+    for text in TEXTS {
         let root = tempfile::Builder::new()
             .prefix(&format!("{text}-"))
             .tempdir_in(&evidence)
@@ -284,21 +253,15 @@ fn native_government_pass_credits_once_and_hands_first_choice_to_syndicate() {
             step: 0,
         };
         eprintln!("{text} Government Pass evidence: {}", app.root.display());
-        if let Some(dir) = &retained {
-            copy_owner_save(dir, text, hash, &app.save);
-        } else {
-            finish_event(&app.save, text);
-        }
+        finish_event(&app.save, text);
 
         app.launch_size("3840x2160");
         app.choose("advance-card");
         let opening = app.observe()["observation"].clone();
         let revision = opening["revision"].as_u64().unwrap();
         let from = opening["resources"][0].as_u64().unwrap();
-        if retained.is_some() {
-            assert_eq!(opening["kidnap"]["die"], 5);
-            assert_eq!(from, 1);
-        }
+        assert_eq!(opening["kidnap"]["die"], 5);
+        assert_eq!(from, 1);
         let to = from + 3; // R 2.3.3: both worked saves are below the R 1.8 cap.
         let balances = json!([
             to,
@@ -487,8 +450,16 @@ fn preview_notes(reply: &Value, action: &str) -> String {
         .to_string()
 }
 
+/// Plays the Alberto Bayo Event's `text` to card end from the opening save at `path`,
+/// or from a new save there with seed 2. Seed 2 rolls the Kidnap die 5, which leaves
+/// Government 1 Resource (R 4.3.3), too few to pay for an Assault space on card 18.
 pub(super) fn finish_event(path: &Path, text: &str) {
-    let mut session = Session::open(path, None).unwrap();
+    let mut session = if path.exists() {
+        Session::open(path, None)
+    } else {
+        Session::create_seeded(path, 2)
+    }
+    .unwrap();
     let resolution = if text == "shaded" {
         "resolve-shaded"
     } else {
@@ -721,16 +692,9 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
         .unwrap()
         .keep();
     eprintln!("card advance evidence: {}", root.display());
-    // The position: an owner save on copies when they are supplied, else the same
-    // decisions played here.
+    // The position: the shaded Event played to card end.
     let source = root.join("card-17.json");
-    match std::env::var_os("CUBA_TEST_CARD_18_SAVES").map(PathBuf::from) {
-        Some(dir) => {
-            let (text, hash, _) = OWNER_SAVES[0];
-            copy_owner_save(&dir, text, hash, &source);
-        }
-        None => finish_event(&source, "shaded"),
-    }
+    finish_event(&source, "shaded");
     let saved = fs::read(&source).unwrap();
     let prior = fs::read(previous_path(&source)).unwrap();
     let back = image::open(

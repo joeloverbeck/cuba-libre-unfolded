@@ -64,7 +64,10 @@ fn the_task_opens_on_the_first_eligible_decision_with_every_26july_option_listed
     assert_eq!(view.executing, None);
     assert!(!view.finished);
     assert_eq!(view.resources, INITIAL);
-    assert_eq!(view.spaces, Game::prepared().observe().spaces);
+    assert_eq!(
+        view.spaces,
+        crate::terror_chosen(Game::opening()).observe().spaces
+    );
     assert!(!view.operation.contains("Full Terror"));
     let listed: Vec<_> = view
         .choices
@@ -201,7 +204,6 @@ fn pass_gains_one_resource_keeps_26july_eligible_and_makes_directorio_first_elig
         (Faction::Directorio, Some(Faction::Government))
     );
     assert_eq!(e.m26_box, Some(SequenceBox::Pass));
-    game.validate().unwrap();
     // The task has ended: nothing further, including transfers, is accepted.
     for owner in Faction::ALL {
         refused(
@@ -269,7 +271,6 @@ fn eligibility_shows_order_and_roles_at_the_choice_during_terror_and_after_each_
         view.next.as_ref().unwrap().options,
         ["Pass (+1 if executed later)", "Limited Operation", "Event"]
     );
-    special.validate().unwrap();
 }
 
 #[test]
@@ -341,11 +342,9 @@ fn going_back_is_allowed_before_the_first_effect_and_restores_the_choice() {
             .iter()
             .all(|c| c.id.starts_with(&format!("{}:", view.revision)))
     );
-    game.validate().unwrap();
     // The choice is open again: Pass is still possible after exploring Terror.
     choose(&mut game, "pass");
     assert_eq!(game.observe().resources, [6, 1, 5, 15]);
-    game.validate().unwrap();
 }
 
 #[test]
@@ -389,7 +388,6 @@ fn going_back_withdraws_a_pending_transfer_request_without_moving_resources() {
     assert_eq!(view.transfer, None);
     assert_eq!(view.resources, INITIAL);
     assert_eq!(view.owner, Faction::M26);
-    game.validate().unwrap();
 }
 
 #[test]
@@ -412,7 +410,6 @@ fn ending_the_operation_closes_transfers_and_withdraws_a_pending_request() {
     assert_eq!(view.resources, INITIAL);
     assert_eq!(view.executing, None);
     assert_eq!(view.eligibility.m26_box, Some(SequenceBox::OperationOnly));
-    game.validate().unwrap();
 }
 
 #[test]
@@ -464,83 +461,6 @@ fn going_back_is_refused_after_each_kind_of_effect() {
             .iter()
             .any(|c| c.id.ends_with(":back-to-choice"))
     );
-}
-
-/// A #8 save began with Terror already chosen at revision 0 and has neither new field.
-#[test]
-fn a_record_without_the_new_fields_resumes_with_terror_chosen() {
-    let mut legacy = serde_json::to_value(Game::prepared()).unwrap();
-    let fields = legacy.as_object_mut().unwrap();
-    fields.remove("action");
-    fields.remove("effect");
-    let game: Game = serde_json::from_value(legacy.clone()).unwrap();
-    game.validate().unwrap();
-    let view = game.observe();
-    assert_eq!(view.action, ActionChoice::Terror);
-    assert_eq!(view.executing, Some(Faction::M26));
-    assert_eq!(view.revision, 0);
-    assert!(offered(&game, "back-to-choice"));
-    assert!(offered(&game, "transfer"));
-    let mut back = game.clone();
-    choose(&mut back, "back-to-choice");
-    assert_eq!(back.observe().action, ActionChoice::Open);
-    back.validate().unwrap();
-    // A #8 record after an effect resumes without going back.
-    for steps in [
-        &["kidnap", "kidnap:roll"][..],
-        &["remove", "remove:oriente:underground:1", "done-removal"],
-        &["transfer", "ask:3:1", "authorize:1"],
-    ] {
-        let mut played = Game::prepared_with_seed(5);
-        for step in steps {
-            choose(&mut played, step);
-        }
-        let mut record = serde_json::to_value(&played).unwrap();
-        let fields = record.as_object_mut().unwrap();
-        fields.remove("action");
-        fields.remove("effect");
-        let resumed: Game = serde_json::from_value(record).unwrap();
-        resumed.validate().unwrap();
-        assert_eq!(resumed.observe().action, ActionChoice::Terror);
-        assert!(!offered(&resumed, "back-to-choice"), "{steps:?}");
-    }
-}
-
-#[test]
-fn admission_refuses_impossible_action_choice_records() {
-    let opening = serde_json::to_value(Game::opening()).unwrap();
-    let mut passed = Game::opening();
-    choose(&mut passed, "pass");
-    let passed = serde_json::to_value(passed).unwrap();
-    let mut cases = vec![];
-    let mut case = opening.clone();
-    case["resources"] = serde_json::json!([5, 1, 5, 15]);
-    cases.push(case); // a transfer before Terror was chosen
-    let mut case = opening.clone();
-    case["effect"] = true.into();
-    cases.push(case); // an effect at the action choice
-    let mut case = opening.clone();
-    case["transfer"] = "Selecting".into();
-    cases.push(case); // a transfer menu before execution
-    let mut case = opening.clone();
-    case["finished"] = true.into();
-    cases.push(case); // ended without an action
-    let mut case = opening;
-    case["action"] = "Pass".into();
-    cases.push(case); // Pass without its Resource or revision
-    let mut case = passed.clone();
-    case["resources"] = serde_json::json!([6, 0, 5, 15]);
-    cases.push(case); // Pass without its Resource
-    let mut case = passed.clone();
-    case["finished"] = false.into();
-    cases.push(case); // Pass still deciding
-    let mut case = passed;
-    case["resources"] = serde_json::json!([5, 2, 5, 15]);
-    cases.push(case); // a transfer around a Pass
-    for case in cases {
-        let game: Game = serde_json::from_value(case.clone()).unwrap();
-        assert!(game.validate().is_err(), "admitted {case}");
-    }
 }
 
 #[test]

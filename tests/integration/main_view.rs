@@ -22,7 +22,7 @@ fn disjoint(a: [f64; 4], b: [f64; 4]) -> bool {
 }
 
 /// Hash admission (`main-view.sha256`): a missing or changed layout record or area
-/// frame refuses launch before any save, like the other presentation manifests.
+/// frame refuses launch before any save, like every other manifest.
 #[test]
 fn launch_refuses_a_missing_or_changed_layout_record_or_frame() {
     let art = tempfile::tempdir().unwrap();

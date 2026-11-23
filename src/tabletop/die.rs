@@ -255,13 +255,13 @@ impl Roll {
 }
 
 /// The roll the tray presents: one made by the latest decision, until Continue closes
-/// it. A #8 roll records revision 0 and is never presented.
+/// it.
 pub(super) fn presented<'a>(
     revision: u64,
     kidnap: Option<&'a crate::Kidnap>,
     roll: &Roll,
 ) -> Option<&'a crate::Kidnap> {
-    kidnap.filter(|k| k.revision == revision && revision > 0 && roll.closed != Some(revision))
+    kidnap.filter(|k| k.revision == revision && roll.closed != Some(revision))
 }
 
 /// The tray's world, spawned for one presented roll.
@@ -825,9 +825,9 @@ mod tests {
     /// 6 → 2, 26July 0 → 4. The words never call the proceeds a transfer.
     #[test]
     fn the_landed_notice_says_government_pays_the_proceeds() {
-        let mut game = Game::prepared_with_seed(3);
-        game.submit(Faction::M26, 0, "0:kidnap").unwrap();
-        game.submit(Faction::M26, 1, "1:kidnap:roll").unwrap();
+        let mut game = crate::terror_chosen(Game::opening_with_seed(3));
+        game.submit(Faction::M26, 1, "1:kidnap").unwrap();
+        game.submit(Faction::M26, 2, "2:kidnap:roll").unwrap();
         let view = game.observe();
         let notice = landed_notice(&view, view.kidnap.as_ref().unwrap());
         assert_eq!(

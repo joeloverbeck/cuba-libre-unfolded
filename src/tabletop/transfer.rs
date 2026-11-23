@@ -2203,8 +2203,8 @@ mod tests {
     use super::*;
 
     fn opened() -> Game {
-        let mut game = Game::prepared();
-        game.submit(Faction::M26, 0, "0:transfer").unwrap();
+        let mut game = crate::terror_chosen(Game::opening());
+        game.submit(Faction::M26, 1, "1:transfer").unwrap();
         game
     }
 
@@ -2223,7 +2223,7 @@ mod tests {
         state.set(2);
         let shown = content(&view, &state);
         assert_eq!(shown.label, "Send request: 2 from Syndicate");
-        assert_eq!(shown.commit.unwrap().id, "1:ask:3:2");
+        assert_eq!(shown.commit.unwrap().id, "2:ask:3:2");
         state.direction = Some(Direction::Give);
         let shown = content(&view, &state);
         assert_eq!(shown.label, "Give 2 to Syndicate");
@@ -2239,7 +2239,7 @@ mod tests {
     #[test]
     fn the_giver_s_amount_starts_from_the_request() {
         let mut game = opened();
-        game.submit(Faction::M26, 1, "1:ask:3:2").unwrap();
+        game.submit(Faction::M26, 2, "2:ask:3:2").unwrap();
         let view = game.observe();
         let mut state = State::default();
         state.sync(view.revision, view.transfer.as_ref());
@@ -2293,10 +2293,10 @@ mod tests {
                 ("No Terror owed: nothing reserved".into(), false),
             ]
         );
-        let mut game = Game::prepared_with_seed(5); // shared roll 3
-        game.submit(Faction::M26, 0, "0:kidnap").unwrap();
-        game.submit(Faction::M26, 1, "1:kidnap:roll").unwrap();
-        game.submit(Faction::M26, 2, "2:transfer").unwrap();
+        let mut game = crate::terror_chosen(Game::opening_with_seed(5)); // shared roll 3
+        game.submit(Faction::M26, 1, "1:kidnap").unwrap();
+        game.submit(Faction::M26, 2, "2:kidnap:roll").unwrap();
+        game.submit(Faction::M26, 3, "3:transfer").unwrap();
         let view = game.observe();
         let give = view
             .transfer_terms

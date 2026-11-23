@@ -1762,7 +1762,7 @@ mod tests {
     /// commit asks for a step.
     #[test]
     fn terror_chosen_at_zero_lists_every_step() {
-        let view = Game::prepared().observe();
+        let view = crate::terror_chosen(Game::opening()).observe();
         let steps = steps(&view);
         assert_eq!(
             steps.iter().map(|s| s.action).collect::<Vec<_>>(),
@@ -1795,7 +1795,7 @@ mod tests {
     /// chips; its commit is disabled and names it (#62's honest hints).
     #[test]
     fn a_blocked_target_states_its_reason_and_remedies() {
-        let game = Game::prepared();
+        let game = crate::terror_chosen(Game::opening());
         let b = tag_of(&game, "terror:santiago");
         assert_eq!(b.title, "Terror · Santiago de Cuba");
         assert_eq!(b.entries[0].label, "NOT YET");
@@ -1831,9 +1831,9 @@ mod tests {
     /// authority's remedy, and never says nothing in this task can help.
     #[test]
     fn the_owed_end_terror_tag_names_resolving_santiago() {
-        let mut game = Game::prepared_with_seed(19);
-        game.submit(Faction::M26, 0, "0:kidnap").unwrap();
-        game.submit(Faction::M26, 1, "1:kidnap:roll").unwrap();
+        let mut game = crate::terror_chosen(Game::opening_with_seed(19));
+        game.submit(Faction::M26, 1, "1:kidnap").unwrap();
+        game.submit(Faction::M26, 2, "2:kidnap:roll").unwrap();
         let b = tag_of(&game, "end-terror");
         assert!(
             words(&b).contains("Santiago Terror is owed"),
@@ -1867,7 +1867,7 @@ mod tests {
     /// offered.
     #[test]
     fn the_zero_space_end_terror_tag_warns_and_names_directorio() {
-        let b = tag_of(&Game::prepared(), "end-terror");
+        let b = tag_of(&crate::terror_chosen(Game::opening()), "end-terror");
         let all = words(&b);
         for fact in [
             "RECORDS: Operation Only (R 2.3.4)",
@@ -1879,17 +1879,20 @@ mod tests {
         ] {
             assert!(all.contains(fact), "{fact}: {all}");
         }
-        let commit = commit(&Game::prepared().observe(), Some("end-terror"));
+        let commit = commit(
+            &crate::terror_chosen(Game::opening()).observe(),
+            Some("end-terror"),
+        );
         assert_eq!(commit.label, "End Terror · records Operation Only");
-        assert_eq!(commit.name, "0:end-terror");
+        assert_eq!(commit.name, "1:end-terror");
     }
 
     /// Kidnap opened (EX-A state 3): the stakes stay on the held Kidnap step; Roll
     /// commits at the foot and Cancel sits above it; the steps that wait are dimmed.
     #[test]
     fn an_opened_kidnap_holds_its_stakes_and_roll() {
-        let mut game = Game::prepared();
-        game.submit(Faction::M26, 0, "0:kidnap").unwrap();
+        let mut game = crate::terror_chosen(Game::opening());
+        game.submit(Faction::M26, 1, "1:kidnap").unwrap();
         let view = game.observe();
         assert_eq!(held(&view), Some("kidnap"));
         let b = tag_of(&game, "kidnap");
@@ -1907,9 +1910,9 @@ mod tests {
         let commit = commit(&view, None);
         assert_eq!(
             (commit.name.as_str(), commit.label.as_str()),
-            ("1:kidnap:roll", "Roll the Kidnap die · commits the result")
+            ("2:kidnap:roll", "Roll the Kidnap die · commits the result")
         );
-        assert_eq!(cancel(&view).unwrap().id, "1:kidnap:cancel");
+        assert_eq!(cancel(&view).unwrap().id, "2:kidnap:cancel");
         let steps = steps(&view);
         assert!(step(&steps, "kidnap").held);
         for waiting in ["transfer", "remove", "end-terror", "back-to-choice"] {
@@ -1921,17 +1924,17 @@ mod tests {
             Status::Pill(Pill::Unavailable, "AFTER ROLL OR CANCEL".into())
         );
         let order: Vec<String> = focusable(&view, None).into_iter().map(|c| c.0).collect();
-        assert_eq!(order, ["step:kidnap", "1:kidnap:cancel", "1:kidnap:roll"]);
+        assert_eq!(order, ["step:kidnap", "2:kidnap:cancel", "2:kidnap:roll"]);
     }
 
     /// A selectable Terror's tag is the authority's preview: cost, the map, the
     /// standing, then the procedure as its rules line; the commit names the space.
     #[test]
     fn a_selectable_target_previews_from_the_authority() {
-        let mut game = Game::prepared();
-        game.submit(Faction::M26, 0, "0:transfer").unwrap();
-        game.submit(Faction::M26, 1, "1:ask:2:1").unwrap();
-        game.submit(Faction::Directorio, 2, "2:authorize:1")
+        let mut game = crate::terror_chosen(Game::opening());
+        game.submit(Faction::M26, 1, "1:transfer").unwrap();
+        game.submit(Faction::M26, 2, "2:ask:2:1").unwrap();
+        game.submit(Faction::Directorio, 3, "3:authorize:1")
             .unwrap();
         let b = tag_of(&game, "terror:oriente");
         let all = words(&b);
@@ -1957,8 +1960,8 @@ mod tests {
     /// choices.
     #[test]
     fn transfer_and_removal_steps_use_the_glossary_terms() {
-        let mut game = Game::prepared();
-        game.submit(Faction::M26, 0, "0:remove").unwrap();
+        let mut game = crate::terror_chosen(Game::opening());
+        game.submit(Faction::M26, 1, "1:remove").unwrap();
         let view = game.observe();
         assert_eq!(held(&view), Some("remove"));
         let mut state = choice::State::default();
@@ -1967,8 +1970,8 @@ mod tests {
         let b = tag_of(&game, "remove");
         assert_eq!(b.title, "Voluntary removal");
         assert_eq!(commit(&view, None).label, "Done · leave removal mode");
-        let mut game = Game::prepared();
-        game.submit(Faction::M26, 0, "0:transfer").unwrap();
+        let mut game = crate::terror_chosen(Game::opening());
+        game.submit(Faction::M26, 1, "1:transfer").unwrap();
         let text = words(&tag_of(&game, "transfer")).to_lowercase();
         assert!(
             text.contains("a request is not a resource transfer"),
@@ -1991,10 +1994,10 @@ mod tests {
     /// Terror and Back withdraw it, and the commit opens it in the giver's colour.
     #[test]
     fn a_pending_request_holds_the_transfer_step() {
-        let mut game = Game::prepared();
-        game.submit(Faction::M26, 0, "0:transfer").unwrap();
-        game.submit(Faction::M26, 1, "1:ask:3:3").unwrap();
-        game.submit(Faction::Syndicate, 2, "2:wait").unwrap();
+        let mut game = crate::terror_chosen(Game::opening());
+        game.submit(Faction::M26, 1, "1:transfer").unwrap();
+        game.submit(Faction::M26, 2, "2:ask:3:3").unwrap();
+        game.submit(Faction::Syndicate, 3, "3:wait").unwrap();
         let view = game.observe();
         let steps = steps(&view);
         assert!(step(&steps, "transfer").held);
@@ -2013,9 +2016,9 @@ mod tests {
         assert_eq!(open.label, "Open the request · Syndicate decides");
         assert_eq!(open.plate, "atlas-transfer-primary-syndicate.png");
         assert_eq!(open.name, "execution-commit");
-        assert!(matches!(open.action, Action::Submit(_, 3, ref id) if id == "3:reopen"));
+        assert!(matches!(open.action, Action::Submit(_, 4, ref id) if id == "4:reopen"));
         let end = commit(&view, Some("end-terror"));
-        assert_eq!(end.name, "3:end-terror");
+        assert_eq!(end.name, "4:end-terror");
         let b = tag_of(&game, "transfer");
         assert!(
             words(&b).contains("26July asked Syndicate for 3"),
@@ -2042,8 +2045,8 @@ mod tests {
                 .text
                 .starts_with("Directorio, 1st Eligible, may: Pass")
         );
-        let mut game = Game::prepared();
-        game.submit(Faction::M26, 0, "0:end-terror").unwrap();
+        let mut game = crate::terror_chosen(Game::opening());
+        game.submit(Faction::M26, 1, "1:end-terror").unwrap();
         let (heading, subtitle, entries) = ending(&game.observe()).unwrap();
         assert_eq!(heading, "26July · Terror ended");
         assert!(subtitle.starts_with("Operation Only recorded (R 2.3.4)"));
@@ -2067,15 +2070,15 @@ mod tests {
         for giver in [Faction::Government, Faction::Directorio, Faction::Syndicate] {
             let g = giver.name();
             let remedy = format!("Resolve Santiago's Terror once {g} has decided");
-            let mut game = Game::prepared_with_seed(19);
-            game.submit(Faction::M26, 0, "0:kidnap").unwrap();
-            game.submit(Faction::M26, 1, "1:kidnap:roll").unwrap();
-            game.submit(Faction::M26, 2, "2:transfer").unwrap();
-            game.submit(Faction::M26, 3, &format!("3:ask:{}:1", giver.index()))
+            let mut game = crate::terror_chosen(Game::opening_with_seed(19));
+            game.submit(Faction::M26, 1, "1:kidnap").unwrap();
+            game.submit(Faction::M26, 2, "2:kidnap:roll").unwrap();
+            game.submit(Faction::M26, 3, "3:transfer").unwrap();
+            game.submit(Faction::M26, 4, &format!("4:ask:{}:1", giver.index()))
                 .unwrap();
             for waited in [false, true] {
                 if waited {
-                    game.submit(giver, 4, "4:wait").unwrap();
+                    game.submit(giver, 5, "5:wait").unwrap();
                 }
                 let view = game.observe();
                 assert_eq!(mode(&view), Mode::Transfer);
@@ -2158,8 +2161,8 @@ mod tests {
                 .starts_with("Directorio, 1st Eligible, may:")
         );
 
-        let mut game = Game::prepared();
-        game.submit(Faction::M26, 0, "0:end-terror").unwrap();
+        let mut game = crate::terror_chosen(Game::opening());
+        game.submit(Faction::M26, 1, "1:end-terror").unwrap();
         let mut view = game.observe();
         assert!(view.kidnap.is_none());
         assert_eq!(view.eligibility.m26_next_card, Some(false));
@@ -2230,12 +2233,12 @@ mod tests {
             entries[1].text
         );
         // Nothing recorded yet: no ended panel.
-        assert!(ending(&Game::prepared().observe()).is_none());
+        assert!(ending(&crate::terror_chosen(Game::opening()).observe()).is_none());
     }
 
     #[test]
     fn event_preview_names_the_next_faction() {
-        let mut game = Game::prepared_with_seed(5);
+        let mut game = crate::terror_chosen(Game::opening_with_seed(5));
         let mut view = game.observe();
         // Kidnap has yet to end the Operation. Its preview still knows which
         // faction is 2nd Eligible, through the current eligibility record.
@@ -2248,16 +2251,9 @@ mod tests {
                 .any(|e| e.label == "EVENT FOR SYNDICATE")
         );
 
-        for (revision, action) in ["kidnap", "kidnap:roll", "terror:santiago"]
-            .iter()
-            .enumerate()
-        {
-            game.submit(
-                Faction::M26,
-                revision as u64,
-                &format!("{revision}:{action}"),
-            )
-            .unwrap();
+        for (revision, action) in (1u64..).zip(["kidnap", "kidnap:roll", "terror:santiago"]) {
+            game.submit(Faction::M26, revision, &format!("{revision}:{action}"))
+                .unwrap();
         }
         let mut view = game.observe();
         let end = view
@@ -2279,10 +2275,10 @@ mod tests {
     /// commit, and the End Terror row, word the authority's cost and record.
     #[test]
     fn the_steps_word_the_authority_s_record_and_costs() {
-        let mut game = Game::prepared_with_seed(5);
-        game.submit(Faction::M26, 0, "0:kidnap").unwrap();
-        game.submit(Faction::M26, 1, "1:kidnap:roll").unwrap();
-        game.submit(Faction::M26, 2, "2:terror:santiago").unwrap();
+        let mut game = crate::terror_chosen(Game::opening_with_seed(5));
+        game.submit(Faction::M26, 1, "1:kidnap").unwrap();
+        game.submit(Faction::M26, 2, "2:kidnap:roll").unwrap();
+        game.submit(Faction::M26, 3, "3:terror:santiago").unwrap();
         let mut view = game.observe();
         assert_eq!(
             view.resolved,

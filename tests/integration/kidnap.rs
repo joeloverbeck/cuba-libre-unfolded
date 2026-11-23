@@ -71,7 +71,7 @@ fn unrevised(game: &Game) -> serde_json::Value {
 
 #[test]
 fn opening_shows_the_stakes_and_cancelling_changes_neither_state_nor_randomness() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     let before = game.clone();
     let (open, notes) = stakes(&game, "kidnap");
     assert_eq!(game, before, "reading the preview changed the match");
@@ -102,14 +102,13 @@ fn opening_shows_the_stakes_and_cancelling_changes_neither_state_nor_randomness(
     assert_eq!(unrevised(&game), unrevised(&before));
     assert_eq!(game.random_state(), before.random_state());
     assert!(!game.observe().kidnap_open);
-    game.validate().unwrap();
 }
 
 #[test]
 fn the_preview_never_shows_a_future_result() {
     // Seeds 19 and 1 roll 1 and 6 (#8): their previews must not differ.
-    let low = Game::prepared_with_seed(19);
-    let high = Game::prepared_with_seed(1);
+    let low = crate::terror_chosen(Game::opening_with_seed(19));
+    let high = crate::terror_chosen(Game::opening_with_seed(1));
     let preview = |game: &Game| {
         let view = game.observe();
         view.choices
@@ -138,7 +137,7 @@ fn the_preview_never_shows_a_future_result() {
 #[test]
 fn all_six_faces_from_8_hold_after_opening_and_cancelling_first() {
     for (seed, die) in [(19, 1), (0, 2), (5, 3), (3, 4), (2, 5), (1, 6)] {
-        let mut game = Game::prepared_with_seed(seed);
+        let mut game = crate::terror_chosen(Game::opening_with_seed(seed));
         choose(&mut game, "kidnap");
         choose(&mut game, "kidnap:cancel");
         choose(&mut game, "kidnap");
@@ -155,14 +154,13 @@ fn all_six_faces_from_8_hold_after_opening_and_cancelling_first() {
                 .iter()
                 .any(|id| id == "kidnap" || id.starts_with("kidnap:"))
         );
-        game.validate().unwrap();
     }
 }
 
 #[test]
 fn the_range_follows_governments_current_resources_down_to_zero() {
     // Government gives 4: 2 left, so a die takes 1 or 2 (R 4.3.3).
-    let mut game = Game::prepared_with_seed(1); // #8's face 6
+    let mut game = crate::terror_chosen(Game::opening_with_seed(1)); // #8's face 6
     transfer(&mut game, Faction::Government, Faction::M26, 4);
     let (two, _) = stakes(&game, "kidnap");
     assert_eq!(
@@ -171,7 +169,7 @@ fn the_range_follows_governments_current_resources_down_to_zero() {
     );
 
     // Government gives away its whole balance: nothing to take, minimum 0.
-    let mut game = Game::prepared_with_seed(1);
+    let mut game = crate::terror_chosen(Game::opening_with_seed(1));
     transfer(&mut game, Faction::Government, Faction::M26, 6);
     let (zero, _) = stakes(&game, "kidnap");
     assert_eq!(
@@ -184,12 +182,11 @@ fn the_range_follows_governments_current_resources_down_to_zero() {
     let rolled = view.kidnap.as_ref().unwrap();
     assert_eq!((rolled.die, rolled.proceeds), (6, 0));
     assert_eq!(view.resources, [0, 6, 5, 15]);
-    game.validate().unwrap();
 }
 
 #[test]
 fn after_santiago_terror_the_roll_commits_nothing_further() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     transfer(&mut game, Faction::Directorio, Faction::M26, 1);
     choose(&mut game, "terror:santiago");
     let (late, notes) = stakes(&game, "kidnap");
@@ -210,13 +207,13 @@ fn the_outnumbering_terms_count_guerrillas_by_their_state() {
             .unwrap()
             .explanation
     };
-    let game = Game::prepared();
+    let game = crate::terror_chosen(Game::opening());
     assert!(
         kidnap(&game).starts_with("2 Underground Guerrillas vs 1 Police; must outnumber."),
         "{}",
         kidnap(&game)
     );
-    let mut removed = Game::prepared();
+    let mut removed = crate::terror_chosen(Game::opening());
     choose(&mut removed, "remove");
     choose(&mut removed, "remove:santiago:underground:1");
     choose(&mut removed, "done-removal");
@@ -225,7 +222,7 @@ fn the_outnumbering_terms_count_guerrillas_by_their_state() {
         "{}",
         kidnap(&removed)
     );
-    let mut resolved = Game::prepared();
+    let mut resolved = crate::terror_chosen(Game::opening());
     transfer(&mut resolved, Faction::Government, Faction::M26, 1);
     choose(&mut resolved, "terror:santiago");
     assert!(
@@ -241,7 +238,7 @@ fn the_outnumbering_terms_count_guerrillas_by_their_state() {
 /// a Guerrilla removed, nothing here restores outnumbering, so there is none.
 #[test]
 fn kidnap_s_only_remedy_is_a_transfer_that_funds_its_commitment() {
-    let mut game = Game::prepared_with_seed(5);
+    let mut game = crate::terror_chosen(Game::opening_with_seed(5));
     transfer(&mut game, Faction::Government, Faction::M26, 6);
     transfer(&mut game, Faction::M26, Faction::Directorio, 6);
     let remedies = |game: &Game| {
@@ -259,7 +256,7 @@ fn kidnap_s_only_remedy_is_a_transfer_that_funds_its_commitment() {
     );
     transfer(&mut game, Faction::Directorio, Faction::M26, 1);
     assert_eq!(remedies(&game), (true, vec![]));
-    let mut removed = Game::prepared();
+    let mut removed = crate::terror_chosen(Game::opening());
     choose(&mut removed, "remove");
     choose(&mut removed, "remove:santiago:underground:1");
     choose(&mut removed, "done-removal");
@@ -269,7 +266,7 @@ fn kidnap_s_only_remedy_is_a_transfer_that_funds_its_commitment() {
 #[test]
 fn the_feasibility_and_outnumbering_refusals_are_unchanged_and_open_nothing() {
     // Government and 26July both at 0: an early roll could not pay Santiago.
-    let mut game = Game::prepared_with_seed(5);
+    let mut game = crate::terror_chosen(Game::opening_with_seed(5));
     transfer(&mut game, Faction::Government, Faction::M26, 6);
     transfer(&mut game, Faction::M26, Faction::Directorio, 6);
     let before = game.clone();
@@ -294,7 +291,7 @@ fn the_feasibility_and_outnumbering_refusals_are_unchanged_and_open_nothing() {
     assert_eq!(game, before);
 
     // One Santiago Guerrilla removed: 1 does not outnumber 1 Police.
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     choose(&mut game, "remove");
     choose(&mut game, "remove:santiago:underground:1");
     choose(&mut game, "done-removal");
@@ -318,7 +315,7 @@ fn the_feasibility_and_outnumbering_refusals_are_unchanged_and_open_nothing() {
 
 #[test]
 fn while_open_other_steps_and_stale_or_foreign_submissions_are_refused() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     choose(&mut game, "kidnap");
     let before = game.clone();
     let r = game.observe().revision;
@@ -411,23 +408,23 @@ fn admission_refuses_an_impossible_opened_kidnap() {
             .unwrap();
     }
     let record: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-    assert_eq!(record["payload"]["kidnap_open"], true);
+    assert_eq!(record["payload"]["position"]["kidnap_open"], true);
     let reseal = |record: &serde_json::Value| {
         let identity = serde_json::from_value(record["identity"].clone()).unwrap();
         unfolded_record_replacement::save::seal(&identity, &record["payload"])
     };
     let mut cases = vec![];
     let mut altered = record.clone();
-    altered["payload"]["action"] = "Open".into();
+    altered["payload"]["position"]["action"] = "Open".into();
     cases.push(altered); // open before Terror is chosen
     let mut altered = record.clone();
-    altered["payload"]["transfer"] = "Selecting".into();
+    altered["payload"]["position"]["transfer"] = "Selecting".into();
     cases.push(altered); // open beside a transfer
     let mut altered = record.clone();
-    altered["payload"]["removal"] = "Selecting".into();
+    altered["payload"]["position"]["removal"] = "Selecting".into();
     cases.push(altered); // open beside a removal
     let mut altered = record;
-    altered["payload"]["finished"] = true.into();
+    altered["payload"]["position"]["m26_action_ended"] = true.into();
     cases.push(altered); // open after End Terror
     for altered in cases {
         let bytes = reseal(&altered);
@@ -442,16 +439,16 @@ fn admission_refuses_an_impossible_opened_kidnap() {
 /// the roll's own revision is the one after the submitted `kidnap:roll`.
 #[test]
 fn the_roll_saves_the_revision_it_created_and_a_restart_keeps_it() {
-    let mut game = Game::prepared_with_seed(5);
-    choose(&mut game, "kidnap"); // revision 0 -> 1
-    choose(&mut game, "kidnap:cancel"); // 1 -> 2
-    choose(&mut game, "kidnap"); // 2 -> 3
-    choose(&mut game, "kidnap:roll"); // 3 -> 4
+    let mut game = crate::terror_chosen(Game::opening_with_seed(5));
+    choose(&mut game, "kidnap"); // revision 1 -> 2
+    choose(&mut game, "kidnap:cancel"); // 2 -> 3
+    choose(&mut game, "kidnap"); // 3 -> 4
+    choose(&mut game, "kidnap:roll"); // 4 -> 5
     let view = game.observe();
-    assert_eq!(view.revision, 4);
-    assert_eq!(view.kidnap.as_ref().unwrap().revision, 4);
+    assert_eq!(view.revision, 5);
+    assert_eq!(view.kidnap.as_ref().unwrap().revision, 5);
     choose(&mut game, "terror:santiago");
-    assert_eq!(game.observe().kidnap.as_ref().unwrap().revision, 4);
+    assert_eq!(game.observe().kidnap.as_ref().unwrap().revision, 5);
 
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("task.json");
@@ -463,17 +460,4 @@ fn the_roll_saves_the_revision_it_created_and_a_restart_keeps_it() {
     assert_eq!(rolled.kidnap.as_ref().unwrap().revision, 3);
     drop(session);
     assert_eq!(Session::open(&path, None).unwrap().observe(), rolled);
-}
-
-/// A saved roll cannot claim a revision the match has not reached.
-#[test]
-fn a_roll_from_a_later_revision_is_invalid() {
-    let mut game = Game::prepared_with_seed(5);
-    choose(&mut game, "kidnap");
-    choose(&mut game, "kidnap:roll");
-    game.validate().unwrap();
-    let mut forged = serde_json::to_value(&game).unwrap();
-    forged["kidnap"]["revision"] = 3.into();
-    let forged: Game = serde_json::from_value(forged).unwrap();
-    assert!(forged.validate().is_err());
 }

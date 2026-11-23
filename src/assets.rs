@@ -1,5 +1,5 @@
 //! Required selected art and the privately supplied card faces and card back,
-//! admitted before saves.
+//! admitted at launch before any save opens. No save's identity names any of it.
 use anyhow::{Context, Result, bail};
 use sha2::{Digest, Sha256};
 use std::{
@@ -8,8 +8,6 @@ use std::{
 };
 use unfolded_assets::{read_bounded, read_verified, regular_file};
 pub const MANIFEST: &str = include_str!("../art/atlas/runtime.sha256");
-// Stateless hover disclosures are required at launch, but do not redefine the
-// map/cards identity to which existing game records are bound.
 pub const STATUS_MANIFEST: &str = include_str!("../art/atlas/status.sha256");
 pub const VICTORY_MANIFEST: &str = include_str!("../art/atlas/victory.sha256");
 /// The main view's layout record and the area frames it places (#142): stateless
@@ -18,16 +16,14 @@ pub const MAIN_VIEW_MANIFEST: &str = include_str!("../art/atlas/main-view.sha256
 pub const TERRAIN_MANIFEST: &str = include_str!("../art/atlas/terrain.sha256");
 pub const TERROR_MANIFEST: &str = include_str!("../art/atlas/terror.sha256");
 pub const TOP_MANIFEST: &str = include_str!("../art/atlas/top.sha256");
-/// The selected map highlight family (HF-A, #72): stateless presentation, like the
-/// status tags, so it does not change the save-bound identity.
+/// The selected map highlight family (HF-A, #72): stateless presentation.
 pub const HIGHLIGHT_MANIFEST: &str = include_str!("../art/atlas/highlights.sha256");
 pub const CHOICE_MANIFEST: &str = include_str!("../art/atlas/choice.sha256");
 /// The selected EL-A eligibility indicator (#70): stateless presentation.
 pub const ELIGIBILITY_MANIFEST: &str = include_str!("../art/atlas/eligibility.sha256");
 /// The selected transfer modal (TM-B, #71): stateless presentation.
 pub const TRANSFER_MANIFEST: &str = include_str!("../art/atlas/transfer.sha256");
-/// The Kidnap die, its tray and its record (#74). Like the Terror bell, presentation
-/// art that does not change what a save records.
+/// The Kidnap die, its tray and its record (#74): presentation, like the Terror bell.
 pub const KIDNAP_MANIFEST: &str = include_str!("../art/atlas/kidnap.sha256");
 /// The selected HF-A popover's production plates (#58 review): stateless presentation.
 pub const POPOVER_MANIFEST: &str = include_str!("../art/atlas/popover.sha256");
@@ -87,9 +83,7 @@ const CARD_FACES: [CardFace; 3] = [
 ];
 
 /// The original shared card back (foundation 4's exception, #136): a private input
-/// beside the faces, shown while a card lies or turns face down (#145). It is
-/// presentation, like the manifests above: no save's identity names it, so a save
-/// made before it was admitted still opens.
+/// beside the faces, shown while a card lies or turns face down (#145).
 pub(crate) struct CardBack {
     pub(crate) name: &'static str,
     size: (u32, u32),
@@ -111,23 +105,6 @@ pub(crate) fn card_face(number: u8) -> &'static CardFace {
 
 pub fn digest(bytes: &[u8]) -> String {
     format!("{:x}", Sha256::digest(bytes))
-}
-pub fn identity() -> String {
-    card_identity(&CARD_FACES[..2])
-}
-
-pub(crate) fn continuation_identity() -> String {
-    card_identity(&CARD_FACES)
-}
-
-fn card_identity(faces: &[CardFace]) -> String {
-    use std::fmt::Write;
-
-    let mut source = MANIFEST.to_owned();
-    for face in faces {
-        write!(source, "\n{}:{}", face.name, face.hash).expect("writing to a String");
-    }
-    digest(source.as_bytes())
 }
 pub struct Verified {
     pub root: PathBuf,

@@ -6,8 +6,8 @@ The source scenario remains `deacd635db5f71f4d3f092bd9cc99a9d96bb7aab`. The orig
 
 ## Runtime files and editable custody
 
-- `atlas-ui.png` is the retired 1920×1280 main-view chrome, authored in VectorCraft, that framed the map in an opening with its title and legend outside it. #142 replaced it with the [main view](MAIN-VIEW.md), where the map fills the window; nothing draws this file, but `runtime.sha256` still admits it because that manifest enters every save's identity. Its SVG is a portable outlined-vector export; `atlas-ui.vectorcraft` retains editable text and shapes.
-- `atlas-reader.png` / `.svg` / `.vectorcraft` are the retired card reader's shell. #139 replaced the reader with the [card tag](CARD-TAG.md); nothing draws this file, but `runtime.sha256` still admits it because that manifest enters every save's identity. No imported card face or image link is embedded.
+- `atlas-ui.png` is the retired 1920×1280 main-view chrome, authored in VectorCraft, that framed the map in an opening with its title and legend outside it. #142 replaced it with the [main view](MAIN-VIEW.md), where the map fills the window; nothing draws this file, but `runtime.sha256` still admits it. Its SVG is a portable outlined-vector export; `atlas-ui.vectorcraft` retains editable text and shapes.
+- `atlas-reader.png` / `.svg` / `.vectorcraft` are the retired card reader's shell. #139 replaced the reader with the [card tag](CARD-TAG.md); nothing draws this file, but `runtime.sha256` still admits it. No imported card face or image link is embedded.
 - `atlas-components.vectorcraft` / `.svg` retain the selected blank contribution, transfer, removal, roll, space, recovery and completion panels and action backgrounds. `atlas-panel`, `atlas-button`, `atlas-button-primary` are cropped PNG/SVG component exports. Compose and size these authored components for each current decision; do not create replacement decorations in code.
 - `atlas-active-star` and `atlas-closed-slash` are transparent PNG/SVG exports of the selected state marks, from state-study objects 121 and 125. They are authored marks for solid piece faces, not pieces themselves.
 - Thirteen `atlas-label-*.png` files contain the selected static geography labels, terrain/population or EC economy. [labels.json](labels.json) records their source object IDs and current placement bounds. `atlas-labels.vectorcraft` contains their editable text after the owner-directed refinement. PNGs use twice the original coordinate resolution; positions and physical sizes use the recorded bounds, not PNG pixel dimensions.
@@ -79,7 +79,7 @@ The app admits these private original faces and the original shared card back fr
 
 The faces remain outside Git. Each pile's top card shows one face at 300 px on the owner's display, and the card tag shows one at reading size; both follow the saved cards' current and preview roles, preserve the faces' proportions, and round their corners so the black printed outside them never shows. The app checks all three before gameplay. [Build and launch](../../README.md#build-and-launch)
 
-The card back is the supplied collection's `images/card-backs/cuba-libre-card-back.png`, unchanged (1475×2110, 8,214,679 bytes), under the owner's exception in [foundation 4](../../docs/foundation/04-art-and-assets.md). It has the faces' custody: outside Git and outside any asset release. The app checks it at launch after the faces and refuses without it, naming the file, before any save is created or replaced. It is a presentation input, as the status and layout manifests are: no save's identity names it, so a save made before it was admitted opens unchanged. It shows only while a card is played ([MAIN-VIEW.md, "The card advance"](MAIN-VIEW.md#the-card-advance)).
+The card back is the supplied collection's `images/card-backs/cuba-libre-card-back.png`, unchanged (1475×2110, 8,214,679 bytes), under the owner's exception in [foundation 4](../../docs/foundation/04-art-and-assets.md). It has the faces' custody: outside Git and outside any asset release. The app checks it at launch after the faces and refuses without it, naming the file, before any save is created or replaced. It is a presentation input, as the manifests are. It shows only while a card is played ([MAIN-VIEW.md, "The card advance"](MAIN-VIEW.md#the-card-advance)).
 
 ## Interface palette
 
@@ -106,7 +106,7 @@ The hashes only prove which source an export was taken from, so always re-export
 
 Before it creates or replaces a save, the app checks every manifest that `src/assets.rs` lists in `MANIFESTS`, decodes the PNGs, registers the fonts and admits the real scene and render path. A missing or altered asset refuses at launch.
 
-Apart from `runtime.sha256`, which enters a save's identity until [ADR 0003](../../docs/adr/0003-a-save-opens-by-exact-replay.md) is implemented ([docs/agents/saves.md](../../docs/agents/saves.md)), there is one manifest per selected design, each named in `MANIFESTS`. These are presentation only: adding one does not change what a save records, and does not weaken source, checksum or state admission.
+`runtime.sha256` and one manifest per selected design are each named in `MANIFESTS`. Art is in no save's identity ([ADR 0003](../../docs/adr/0003-a-save-opens-by-exact-replay.md), [docs/agents/saves.md](../../docs/agents/saves.md)): adding or changing a manifest does not change what a save records or which saves open, and does not weaken source, checksum or replay admission.
 
 ## Evidence limits and native check
 

@@ -1,7 +1,7 @@
 use super::*;
-use cuba_libre_unfolded::{assets, save::Session};
+use cuba_libre_unfolded::save::Session;
 use std::fs;
-use unfolded_record_replacement::{previous_path, save};
+use unfolded_record_replacement::previous_path;
 
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained Assault frames"]
@@ -11,7 +11,6 @@ fn native_funded_santiago_assault_carries_each_event_and_restarts() {
         .unwrap_or_else(|| PathBuf::from("local/verification/issue-130"));
     fs::create_dir_all(&evidence).unwrap();
     let evidence = evidence.canonicalize().unwrap();
-    let funded = std::env::var_os("CUBA_TEST_SANTIAGO_FUNDED_SAVE").map(PathBuf::from);
 
     for (text, returned, left_underground) in [("shaded", 2, 0), ("unshaded", 1, 1)] {
         let root = tempfile::Builder::new()
@@ -28,17 +27,7 @@ fn native_funded_santiago_assault_carries_each_event_and_restarts() {
             step: 0,
         };
         eprintln!("{text} Assault evidence: {}", app.root.display());
-        if let Some(source) = &funded {
-            let bytes = fs::read(source).unwrap();
-            assert_eq!(
-                assets::digest(&bytes),
-                "95d929facb49d629ce582498c4cc9f9672560b6d764379f6eb4a7c2c368cd860"
-            );
-            fs::write(&app.save, bytes).unwrap();
-            fs::copy(previous_path(source), previous_path(&app.save)).unwrap();
-        } else {
-            fund_santiago(&app.save, 1);
-        }
+        fund_santiago(&app.save, 1);
         let random = Session::open(&app.save, None)
             .unwrap()
             .game()
@@ -189,14 +178,9 @@ fn pin(app: &mut Native, action: &str) {
 }
 
 pub(super) fn fund_santiago(path: &Path, amount: u8) {
-    // Seed 2 makes the shared Kidnap die roll 5. Every decision after the seed
-    // uses the same checked and durable Session submission as the native seat.
-    drop(Session::open(path, None).unwrap());
-    let mut record: Value = serde_json::from_slice(&fs::read(path).unwrap()).unwrap();
-    record["payload"]["random"] = 2.into();
-    let identity = serde_json::from_value(record["identity"].clone()).unwrap();
-    fs::write(path, save::seal(&identity, &record["payload"])).unwrap();
-    let mut session = Session::open(path, None).unwrap();
+    // A new save with seed 2, whose shared Kidnap die rolls 5. Every decision uses
+    // the same checked and durable Session submission as the native seat.
+    let mut session = Session::create_seeded(path, 2).unwrap();
     for action in [
         "terror",
         "kidnap",
@@ -225,7 +209,6 @@ fn native_havana_and_santiago_assault_in_either_order_restarts_and_finishes() {
         .unwrap_or_else(|| PathBuf::from("local/verification/issue-131"));
     fs::create_dir_all(&evidence).unwrap();
     let evidence = evidence.canonicalize().unwrap();
-    let funded = std::env::var_os("CUBA_TEST_MULTISPACE_FUNDED_SAVE").map(PathBuf::from);
 
     for [first, second] in [["havana", "santiago"], ["santiago", "havana"]] {
         let root = tempfile::Builder::new()
@@ -242,26 +225,14 @@ fn native_havana_and_santiago_assault_in_either_order_restarts_and_finishes() {
             step: 0,
         };
         eprintln!("{first} first Assault evidence: {}", app.root.display());
-        if let Some(source) = &funded {
-            let bytes = fs::read(source).unwrap();
-            assert_eq!(
-                assets::digest(&bytes),
-                "a5e6fdf9f43b857bab26d0e17e6152142be614b92d353e0ac4b1ab369bb27157"
-            );
-            fs::write(&app.save, bytes).unwrap();
-            fs::copy(previous_path(source), previous_path(&app.save)).unwrap();
-        } else {
-            fund_santiago(&app.save, 4);
-        }
+        fund_santiago(&app.save, 4);
 
         app.launch_size("3840x2160");
         pin(&mut app, "event:shaded");
         app.choose("event:shaded");
-        if funded.is_none() {
-            pin(&mut app, "transfer");
-            app.choose("transfer");
-            app.choose("give:0:1");
-        }
+        pin(&mut app, "transfer");
+        app.choose("transfer");
+        app.choose("give:0:1");
         pin(&mut app, "resolve-shaded");
         app.choose("resolve-shaded");
         app.choose("advance-card");

@@ -52,25 +52,20 @@ fn choose_rally_option(app: &mut Native, action: &str) {
 }
 
 fn open_event_handoff(app: &mut Native) {
-    if let Some(input) = std::env::var_os("CUBA_TEST_COMPLETED_KIDNAP") {
-        std::fs::copy(input, &app.save).unwrap();
-        app.launch_size("3840x2160");
-    } else {
-        app.launch_size("3840x2160");
-        for action in [
-            "terror",
-            "transfer",
-            "ask:2:2",
-            "authorize:2",
-            "terror:santiago",
-            "terror:oriente",
-            "kidnap",
-        ] {
-            app.choose(action);
-        }
-        app.roll();
-        app.choose("end-terror");
+    app.launch_size("3840x2160");
+    for action in [
+        "terror",
+        "transfer",
+        "ask:2:2",
+        "authorize:2",
+        "terror:santiago",
+        "terror:oriente",
+        "kidnap",
+    ] {
+        app.choose(action);
     }
+    app.roll();
+    app.choose("end-terror");
 }
 
 fn has_action(position: &Value, action: &str) -> bool {
@@ -336,14 +331,9 @@ fn native_beneficiary_and_rally_preserve_side_decision_owners() {
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained side decision captures"]
 fn native_rally_removing_the_last_base_closes_the_operation() {
     let mut app = event_app("rally-removed-last-base-", "issue-121");
-    if let Some(input) = std::env::var_os("CUBA_TEST_PENDING_RALLY") {
-        std::fs::copy(input, &app.save).unwrap();
-        app.launch_size("3840x2160");
-    } else {
-        open_event_handoff(&mut app);
-        choose_rally_option(&mut app, "event:unshaded");
-        choose_rally_option(&mut app, "rally:beneficiary:26july");
-    }
+    open_event_handoff(&mut app);
+    choose_rally_option(&mut app, "event:unshaded");
+    choose_rally_option(&mut app, "rally:beneficiary:26july");
     let rally = app.observe()["observation"].clone();
     assert!(has_action(&rally, "rally:sierra-maestra:place:4"));
     choose_rally_option(&mut app, "remove");
@@ -470,12 +460,7 @@ fn assert_unshaded_card_end(before: &Value, table: &Value) {
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained zero-placement captures"]
 fn native_free_rally_can_choose_zero_in_a_qualifying_base_space() {
     let mut app = rally_app();
-    if let Some(input) = std::env::var_os("CUBA_TEST_RALLY_SAVE") {
-        std::fs::copy(input, &app.save).unwrap();
-        app.launch_size("3840x2160");
-    } else {
-        ready_for_event(&mut app, true);
-    }
+    ready_for_event(&mut app, true);
     choose_rally_option(&mut app, "event:unshaded");
     choose_rally_option(&mut app, "rally:beneficiary:26july");
     let shown = app.point("space:sierra-maestra");
@@ -567,20 +552,9 @@ fn native_free_rally_can_choose_zero_in_a_qualifying_base_space() {
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained Rally captures"]
 fn native_free_rally_hands_the_decision_to_the_beneficiary() {
     let mut app = rally_app();
-    let historical = std::env::var_os("CUBA_TEST_RALLY_SAVE").map(PathBuf::from);
-    if let Some(historical) = &historical {
-        std::fs::copy(historical, &app.save).unwrap();
-        app.launch_size("3840x2160");
-    } else {
-        ready_for_event(&mut app, true);
-    }
+    ready_for_event(&mut app, true);
     let handoff = app.observe()["observation"].clone();
     assert_eq!(handoff["owner"], "Directorio");
-    if historical.is_some() {
-        assert_eq!(handoff["revision"], 9);
-        assert_eq!(handoff["kidnap"]["die"], 5);
-        assert_eq!(handoff["resources"], json!([1, 5, 3, 15]));
-    }
     let option = handoff["choices"]
         .as_array()
         .unwrap()
@@ -687,17 +661,6 @@ fn native_free_rally_hands_the_decision_to_the_beneficiary() {
         handoff["available_piece_count"].as_u64().unwrap() - 3
     );
     assert_eq!(final_position["standings"], handoff["standings"]);
-    if historical.is_some() {
-        assert_eq!(
-            final_position["standings"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .map(|standing| standing["score"].as_i64().unwrap())
-                .collect::<Vec<_>>(),
-            [16, 10, 1, 3]
-        );
-    }
     app.capture("05-unshaded-card-end");
     let target = app.point("space:sierra-maestra");
     assert_eq!(target["table"]["status"]["control"], "26July");
@@ -705,10 +668,9 @@ fn native_free_rally_hands_the_decision_to_the_beneficiary() {
     let before_record: Value = serde_json::from_slice(&pending_bytes).unwrap();
     let final_record: Value = serde_json::from_slice(&final_bytes).unwrap();
     for field in ["random", "draw_deck"] {
-        assert_eq!(
-            final_record["payload"][field],
-            before_record["payload"][field]
-        );
+        let position = |record: &Value| record["payload"]["position"][field].clone();
+        assert!(!position(&final_record).is_null(), "{field}");
+        assert_eq!(position(&final_record), position(&before_record));
     }
     for submitted_revision in [revision, revision + 1] {
         app.request(json!({"op":"activate","revision":submitted_revision,"choice":format!("{submitted_revision}:{place_three}")}), false);
