@@ -11,7 +11,7 @@ How agents run a ticket that changes `unfolded-tabletop` or another game. [Found
 2. **Review** the pull requests on both axes ([code-review](../../.claude/skills/code-review/SKILL.md)), each against its own repository's standards and against the ticket.
 3. **Repair** in one attempt, and have the delta reviewed as code-review's "Fixes" describes.
 4. **Merge, producer first.** A sibling merger:
-   - merges the producer once its CI has passed, with `gh pr merge <n> --merge --match-head-commit <sha>` (`unfolded-tabletop` documents no command of its own), and records the revision now on its `main`;
+   - merges the producer by its own procedure (`unfolded-tabletop`'s `.claude/skills/implement/SKILL.md`, which waits for the pull request's CI run and ends in `gh pr merge <n> --merge --match-head-commit <sha>`), and records the revision now on its `main`;
    - re-pins each consumer to that revision, waits for CI, and merges each by its own procedure (`unfolded-tabletop`'s `docs/agents/consumers.md` gives each game's command);
    - pulls `main` in each sibling's main checkout that is on `main` and clean, and updates only the local ref (`git fetch origin main:main`) where that checkout is on another branch or has uncommitted work;
    - re-pins the Cuba Libre ticket branch and runs `scripts/heavy scripts/check` on it;
@@ -29,8 +29,6 @@ In #137 three reviews in a row found a boundary row in `unfolded-tabletop`'s `do
 - the boundary that covers it: the two-consumer specialization for what both existing games call, the Cuba Libre extension for what Cuba Libre uses or is ticketed to use;
 - the owner decision that covers it, by date and link;
 - for an item Cuba Libre is ticketed to use, "not yet built", the ticket and the end condition.
-
-A consumer's pull request is named there after it merges, in the producer's retro.
 
 ## Merging before Cuba Libre uses the mechanism
 
