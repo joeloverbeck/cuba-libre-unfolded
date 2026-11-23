@@ -1247,8 +1247,8 @@ pub(super) fn draw(
     let Some(briefing) = content else {
         return;
     };
-    let (s, left) = layout(&window);
-    let o = left + Vec2::new(window.width() - WIDTH * s, 0.);
+    let s = reference_pixel(&window);
+    let o = Vec2::new(window.width() - WIDTH * s, 0.);
     let at = |x: f32, y: f32| o + Vec2::new(rx(x), ry(y)) * s;
     // The active row's outline: an option at the action choice, or a step during
     // Terror (the step a mode holds open is outlined by the panel itself).

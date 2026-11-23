@@ -633,6 +633,61 @@ fn assert_cards_shown(
     assert_eq!(parts["propaganda-caption"].0, "1 of 4 played");
 }
 
+/// Where two rectangles overlap, 4 px in from the overlap's edges, if they do.
+fn overlap(a: [f64; 4], b: [f64; 4]) -> Option<[f64; 4]> {
+    let both = [
+        a[0].max(b[0]) + 4.,
+        a[1].max(b[1]) + 4.,
+        a[2].min(b[2]) - 4.,
+        a[3].min(b[3]) - 4.,
+    ];
+    (both[2] > both[0] && both[3] > both[1]).then_some(both)
+}
+
+/// How many 6 px blocks of `region` in a capture differ from the card face drawn at
+/// `card` by more than a letter's ink would leave unnoticed: 40 levels in the mean of
+/// the block. The face drawn alone stays well within that.
+fn inked_blocks(
+    capture: &image::RgbImage,
+    region: [f64; 4],
+    card: [f64; 4],
+    face: &image::RgbImage,
+) -> usize {
+    let (width, height) = (card[2] - card[0], card[3] - card[1]);
+    let half = (3. * f64::from(face.width()) / width).max(1.) as u32;
+    let mut inked = 0;
+    let mut worst: f64 = 0.;
+    let mut y = region[1] + 3.;
+    while y <= region[3] - 3. {
+        let mut x = region[0] + 3.;
+        while x <= region[2] - 3. {
+            let shown = card_piles::block(capture, [x, y], 3);
+            let printed = card_piles::block(
+                face,
+                [
+                    (x - card[0]) / width * f64::from(face.width()),
+                    (y - card[1]) / height * f64::from(face.height()),
+                ],
+                half,
+            );
+            let apart = shown
+                .iter()
+                .zip(printed)
+                .map(|(s, p)| (s - p).abs())
+                .sum::<f64>()
+                / 3.;
+            worst = worst.max(apart);
+            if apart > 40. {
+                inked += 1;
+            }
+            x += 6.;
+        }
+        y += 6.;
+    }
+    eprintln!("region {region:?}: {inked} inked blocks, the worst {worst:.1} levels apart");
+    inked
+}
+
 /// The card advance is saved once and then shown (#145; ADR 0001; R 2.3.8). From the
 /// save as it stands on card 17, with 18 cards played and 34 in the deck:
 ///
@@ -775,6 +830,29 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
         1,
     );
     app.capture("2-crossing-halfway");
+    // The card in the air is above the table, so it draws over the labels it passes,
+    // as the advance sheet draws it: where it covers "CURRENT CARD" and "PREVIEW" the
+    // frame shows card 18's face and no letter (#137's review).
+    let shot = image::open(app.root.join("2-crossing-halfway.png"))
+        .unwrap()
+        .to_rgb8();
+    let face_18 = image::open(app.cards.join("card-18.png"))
+        .unwrap()
+        .to_rgb8();
+    let parts = card_piles::parts(&crossing);
+    let mut covered = 0;
+    for label in ["played-label", "deck-label"] {
+        let under = overlap(parts[label].1, at);
+        if let Some(under) = under {
+            covered += 1;
+            let inked = inked_blocks(&shot, under, at, &face_18);
+            assert_eq!(
+                inked, 0,
+                "{label} shows over the card in the air ({under:?})"
+            );
+        }
+    }
+    assert_eq!(covered, 2, "the card at halfway covers both labels: {at:?}");
     // Step 2, nearly there: the card is clear of the deck, which shows the back.
     let arriving = advance_to(&mut app, 0.7);
     app.capture("2-crossing-arriving");
@@ -844,7 +922,16 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
     app.quit();
 
     // A click, Space and Enter each land the same state at once and act on nothing.
-    for (by, at) in [("click", 0.3), ("space", 1.1), ("enter", 0.3)] {
+    // The owner's click lands the cards wherever it falls: on the card area, on a
+    // space of the map, which it does not pick, and on a decision's control, which it
+    // does not pin.
+    for (by, at) in [
+        ("click", 0.3),
+        ("map", 0.5),
+        ("decision", 1.2),
+        ("space", 1.1),
+        ("enter", 0.3),
+    ] {
         let (_socket, mut app) = advance_run(&root, &format!("skip-{by}"), &saved, &prior);
         app.launch_size("3840x2160");
         app.request(json!({"op":"settle"}), true);
@@ -852,11 +939,16 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
         let held = advance_to(&mut app, at);
         assert!(held["table"]["piles"]["advance"].is_object());
         app.capture("in-the-air");
-        let (skip, status) = match by {
-            "click" => (
-                json!({"op":"activate","revision":revision+1,"component":"area:cards"}),
+        let click = |component: &str| {
+            (
+                json!({"op":"activate","revision":revision+1,"component":component}),
                 "activated",
-            ),
+            )
+        };
+        let (skip, status) = match by {
+            "click" => click("area:cards"),
+            "map" => click("space:havana"),
+            "decision" => click("option:government:pass"),
             "space" => (
                 json!({"op":"key","revision":revision+1,"key":"Space","focused":"card-advance"}),
                 "pressed",
@@ -875,6 +967,14 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
             landed["table"]["piles"]["piles"], rest["table"]["piles"]["piles"],
             "{by}"
         );
+        // And nothing else: no space picked, no option pinned, no tag opened or closed.
+        for what in ["choice", "popover", "briefing", "card", "pile_tag"] {
+            assert_eq!(
+                landed["table"][what], held["table"][what],
+                "{by} changed table.{what}"
+            );
+        }
+        assert_eq!(landed["observation"], after, "{by}");
         app.request(json!({"op":"settle"}), true);
         let landed = app.observe();
         card_piles::assert_piles(&landed, 19, 33, 18, 19);
@@ -888,6 +988,46 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
         card_piles::assert_piles_drawn(&app, "landed", &landed);
         app.quit();
     }
+
+    // A card's tag follows the cards as the pile tags do (#137's review): the model is
+    // on card 18 from the commit, while the table shows card 17 current and the
+    // deck's back until card 19 has turned. A tag pinned before the advance closes for
+    // the motion and is back, still pinned, once the cards have landed, on the card
+    // that then lies there.
+    let (_socket, mut app) = advance_run(&root, "card-tags", &saved, &prior);
+    app.launch_size("3840x2160");
+    app.request(json!({"op":"settle"}), true);
+    app.activate("card:preview", revision);
+    app.point("quit");
+    let pinned = app.observe();
+    let tag = &pinned["table"]["card"]["shown"];
+    assert_eq!(
+        (tag["card"].clone(), tag["pinned"].clone()),
+        (json!("card:preview"), json!(true)),
+        "{tag}"
+    );
+    assert_eq!(tag["number"], 18, "{tag}");
+    commit_advance(&mut app, revision);
+    assert_eq!(app.observe()["table"]["card"]["shown"], Value::Null);
+    for at in [0.4, 1.0, 1.3] {
+        let held = advance_to(&mut app, at);
+        assert_eq!(held["table"]["card"]["shown"], Value::Null, "at {at} s");
+    }
+    app.capture("no-card-tag-in-the-air");
+    app.request(json!({"op":"settle"}), true);
+    let landed = app.observe();
+    card_piles::assert_piles(&landed, 19, 33, 18, 19);
+    let tag = &landed["table"]["card"]["shown"];
+    assert_eq!(
+        (tag["card"].clone(), tag["pinned"].clone()),
+        (json!("card:preview"), json!(true)),
+        "{tag}"
+    );
+    assert_eq!(tag["number"], 19, "{tag}");
+    assert_eq!(tag["title"], "19 · Sierra Maestra Manifesto", "{tag}");
+    app.capture("card-tag-landed");
+    assert_eq!(fs::read(&app.save).unwrap(), advanced);
+    app.quit();
 
     // A pile's tag states the model's piles, which are a card ahead of the piles on
     // the table while a card is in the air. An open tag closes for the motion and is

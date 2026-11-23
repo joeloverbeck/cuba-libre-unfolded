@@ -615,7 +615,7 @@ fn sync_pieces(
         return;
     }
     *previous = Some((executor, game.spaces.clone()));
-    counts.settling = 3;
+    counts.unsettle();
     for entity in &roots {
         commands.entity(entity).despawn();
     }
@@ -778,6 +778,14 @@ struct Count;
 struct Counts {
     settling: u8,
 }
+impl Counts {
+    /// The frames a count takes to be placed, measured and picked where it stands.
+    const SETTLING: u8 = 3;
+    /// Holds the seat while the counts follow a change of the pieces or the camera.
+    fn unsettle(&mut self) {
+        self.settling = Self::SETTLING;
+    }
+}
 
 /// A count's face. Its size is set in reference pixels; `scale_counts` scales it to the
 /// window before the interface is laid out.
@@ -795,7 +803,7 @@ fn scale_counts(
     window: Single<&Window, With<PrimaryWindow>>,
     mut counts: Query<&mut TextFont, With<Count>>,
 ) {
-    let size = FontSize::Px(COUNT_SIZE * layout(&window).0);
+    let size = FontSize::Px(COUNT_SIZE * reference_pixel(&window));
     for mut font in &mut counts {
         if font.font_size != size {
             font.font_size = size;
@@ -1123,11 +1131,18 @@ fn map_click_closes_tag(
     nodes: Query<(), With<Node>>,
     play: Res<Play>,
     mut ui: ResMut<Interface>,
+    time: Res<Time>,
+    frame: Res<bevy::diagnostic::FrameCount>,
+    mut advance: ResMut<piles::Advance>,
 ) {
     if event.button != bevy::picking::pointer::PointerButton::Primary
         || play.session.is_none()
         || nodes.contains(event.entity)
     {
+        return;
+    }
+    // A click while a played card is in the air only lands it.
+    if advance.lands(&play.game().observe(), time.elapsed_secs_f64(), frame.0) {
         return;
     }
     let step = play.game().action == crate::ActionChoice::Terror && ui.choice.pinned.is_some();
@@ -1341,19 +1356,22 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
         _ => "Decision saved.".into(),
     }
 }
-/// One reference pixel in logical window pixels, and where the reference's top-left
-/// corner goes for an area anchored to the window's top-left. An area keeps its
+/// One reference pixel in logical window pixels. The reference's top-left corner is
+/// the window's, so an area anchored there needs no offset. An area keeps its
 /// distance from the edge or centre its layout anchors it to (`areas::Anchor`): the
 /// callers add the window's spare width for the right edge, half of it for the
 /// centre, and [`bottom`] for the bottom edge. Nothing is letterboxed.
-fn layout(window: &Window) -> (f32, Vec2) {
-    let scale = (window.width() / WIDTH).min(window.height() / HEIGHT);
-    (scale, Vec2::ZERO)
+fn reference_pixel(window: &Window) -> f32 {
+    (window.width() / WIDTH).min(window.height() / HEIGHT)
+}
+/// The smallest rectangle holding `bounds`, if any, and the point `p`.
+fn grow(bounds: Option<Rect>, p: Vec2) -> Option<Rect> {
+    Some(bounds.map_or(Rect::from_corners(p, p), |b| b.union_point(p)))
 }
 /// How far a bottom-anchored area lies below its place in the reference: the
 /// window's spare height.
 fn bottom(window: &Window) -> Vec2 {
-    Vec2::new(0., window.height() - HEIGHT * layout(window).0)
+    Vec2::new(0., window.height() - HEIGHT * reference_pixel(window))
 }
 /// What the table says to the shared camera: an unopened session, the transfer modal
 /// and a presented Kidnap die block it. The whole window shows the scene; the
@@ -1567,18 +1585,16 @@ fn draw_ui(
     for entity in &roots {
         commands.entity(entity).despawn();
     }
-    let (s, left) = layout(&window);
+    let s = reference_pixel(&window);
     let extra = window.width() - WIDTH * s;
-    let right = left + Vec2::new(extra, 0.);
-    let centered = left + Vec2::new(extra / 2., 0.);
+    let right = Vec2::new(extra, 0.);
+    let centered = Vec2::new(extra / 2., 0.);
     let view = play.game().observe();
     // The map fills the window (#142). Each area keeps its distance from the edge
     // or centre the main view's layout anchors it to, and takes the pointer over
     // its own rectangle.
     let low = bottom(&window);
     areas::draw(&mut commands, &main_view, &window);
-    // The owner retired the "CUBA LIBRE" title in #46: its corner holds Aid and
-    // the US Alliance (top::header).
     for (key, part, rect, offset) in [
         (
             "atlas-layout-operation.png",
@@ -1597,12 +1613,14 @@ fn draw_ui(
         commands.entity(frame).insert(areas::Part(part.into()));
     }
     victory::header(&mut commands, &art, &view, s, centered);
+    // The owner retired the "CUBA LIBRE" title in #46: its corner, at the window's
+    // top left, holds Aid and the US Alliance.
     top::header(
         &mut commands,
         &art,
         &die::ledger(&view, &roll),
         s,
-        left,
+        Vec2::ZERO,
         right,
     );
     if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
@@ -1610,7 +1628,7 @@ fn draw_ui(
     } else {
         execution::panel(&mut commands, &art, &view, &ui, s, right);
     }
-    eligibility::indicator(&mut commands, &art, &view, s, left);
+    eligibility::indicator(&mut commands, &art, &view, s, Vec2::ZERO);
     // The numbers over the piles follow the cards while an advance is shown.
     let lay = advance.scene(&view, time.elapsed_secs_f64()).lay;
     piles::overlay(&mut commands, &art, &lay, &window);
@@ -1892,9 +1910,8 @@ mod tests {
                 resolution: (width, height).into(),
                 ..default()
             };
-            let (s, offset) = layout(&window);
+            let s = reference_pixel(&window);
             assert!((s - scale).abs() < 1e-6, "{width}x{height}");
-            assert_eq!(offset, Vec2::ZERO);
             assert!((bottom(&window).y - low).abs() < 1e-3, "{width}x{height}");
         }
     }

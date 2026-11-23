@@ -89,6 +89,16 @@ impl Pile {
             Self::Deck => fig::DECK,
         }
     }
+    /// The rest of what the owner sees as the pile below its top card, in the
+    /// layout's frame: its visible side, which grows down from the card's near edge
+    /// with the count, and its caption, to the caption's foot. With the count disc it
+    /// is the pile's target; the top card is the card's own.
+    fn body(self) -> [f32; 4] {
+        let [x, y, w, h] = self.face();
+        let (_, _, [_, caption, _]) = self.parts().caption;
+        let foot = caption + fig::CAPTION_SIZE * fig::LINE;
+        [x, y + h, w, foot - (y + h)]
+    }
     /// The parts the layout draws for this pile, by their names in it.
     fn parts(self) -> PileParts {
         match self {
@@ -145,6 +155,8 @@ mod fig {
     pub const PLAYED_CAPTION: [f32; 3] = [110., 2082., 132.];
     pub const DECK_CAPTION: [f32; 3] = [470., 2096., 127.];
     pub const CAPTION_SIZE: f32 = 28.;
+    /// A line of the card area's text, in type sizes: the renderer's default line height.
+    pub const LINE: f32 = 1.2;
     pub const PROPAGANDA_LABEL: [f32; 3] = [850., 1936., 193.];
     pub const PROPAGANDA_LABEL_SIZE: f32 = 24.;
     /// The first pip, and the step to the next.
@@ -159,6 +171,9 @@ mod fig {
 
 /// The tray's render layer: only its camera and light see it. The Kidnap tray has 1.
 const LAYER: usize = 2;
+/// The layer of a card in the air, which its own camera draws over the interface: it
+/// is above the table, so above the labels, discs and captions printed over the tray.
+const AIR: usize = 3;
 /// Where the tray stands in the world: well below the map's sea and the Kidnap tray.
 const TRAY_AT: Vec3 = Vec3::new(0., -80., 0.);
 /// A card in metres: 63 mm wide, as long as the layout draws it, 0.3 mm thick. At the
@@ -261,7 +276,7 @@ fn lens() -> (PerspectiveProjection, SubCameraView) {
 /// One frame unit in logical window pixels: like every interface size it follows
 /// the window alone (ADR 0002).
 fn unit(window: &Window) -> f32 {
-    layout(window).0 / fig::SCALE
+    reference_pixel(window) / fig::SCALE
 }
 
 /// A frame rectangle in logical window pixels. The card area keeps its distance from
@@ -301,6 +316,11 @@ fn viewport(window: &Window) -> Viewport {
 pub(super) struct Tray;
 #[derive(Component)]
 pub(super) struct TrayCamera;
+/// The camera that draws the card in the air over the interface.
+#[derive(Component)]
+pub(super) struct AirCamera;
+/// The tray's two cameras, which share its view and its viewport.
+type TrayCameras = Or<(With<TrayCamera>, With<AirCamera>)>;
 /// A pile as it is drawn: how many cards it holds and which card lies on top. It is
 /// the parent of the pile's solid, its shadow and its top card, and stands where that
 /// card rests.
@@ -578,7 +598,8 @@ fn spawn_tray(commands: &mut Commands, window: &Window) -> Entity {
                     shadow_maps_enabled: false,
                     ..default()
                 },
-                layer.clone(),
+                // It lights the card in the air too.
+                RenderLayers::from_layers(&[LAYER, AIR]),
                 Transform::default().looking_to(Vec3::new(0.25, -0.85, -0.45), Vec3::Y),
             ));
             tray.spawn((
@@ -600,7 +621,7 @@ fn spawn_tray(commands: &mut Commands, window: &Window) -> Entity {
                     sub_camera_view: Some(sub_view),
                     ..default()
                 },
-                Projection::Perspective(projection),
+                Projection::Perspective(projection.clone()),
                 AmbientLight {
                     color: Color::WHITE,
                     brightness: 420.,
@@ -608,6 +629,34 @@ fn spawn_tray(commands: &mut Commands, window: &Window) -> Entity {
                 },
                 layer,
                 // Straight down, with the top of the screen away from the viewer.
+                Transform::from_translation(eye).looking_to(Vec3::NEG_Y, Vec3::NEG_Z),
+            ));
+            // The same view of the card in the air alone, drawn after the interface
+            // (order 2) and only while a card is in the air. The Kidnap tray (3) is
+            // never shown then.
+            tray.spawn((
+                Name::new("Card in the air camera"),
+                Camera3d::default(),
+                AirCamera,
+                unfolded_tabletop::label_anchor::OtherView,
+                unfolded_tabletop::capture::OnSurface,
+                Tonemapping::None,
+                DebandDither::Disabled,
+                Camera {
+                    order: 4,
+                    is_active: false,
+                    clear_color: ClearColorConfig::None,
+                    viewport: Some(viewport(window)),
+                    sub_camera_view: Some(sub_view),
+                    ..default()
+                },
+                Projection::Perspective(projection),
+                AmbientLight {
+                    color: Color::WHITE,
+                    brightness: 420.,
+                    ..default()
+                },
+                RenderLayers::layer(AIR),
                 Transform::from_translation(eye).looking_to(Vec3::NEG_Y, Vec3::NEG_Z),
             ));
         })
@@ -706,11 +755,7 @@ fn spawn_flying(
     meshes: &mut Assets<Mesh>,
     materials: &mut Assets<StandardMaterial>,
 ) {
-    let drawn = (
-        RenderLayers::layer(LAYER),
-        Pickable::IGNORE,
-        NoFrustumCulling,
-    );
+    let drawn = (RenderLayers::layer(AIR), Pickable::IGNORE, NoFrustumCulling);
     let side = meshes.add(card::face_with_corners(CARD_WIDTH, CARD_LENGTH, CORNER));
     let above = CARD_THICKNESS / 2. + FACE_LIFT;
     commands
@@ -766,7 +811,10 @@ fn spawn_flying(
         Mesh3d(meshes.add(Rectangle::new(CARD_WIDTH + reach, CARD_LENGTH + reach))),
         MeshMaterial3d(cast),
         lies,
-        drawn,
+        // On the table, under the labels: the tray's own camera draws it.
+        RenderLayers::layer(LAYER),
+        Pickable::IGNORE,
+        NoFrustumCulling,
     ));
 }
 
@@ -895,7 +943,7 @@ pub(super) fn present(
     stacks: Query<(Entity, &Stack)>,
     mut cards: Query<(Entity, &Flying, &mut Transform), Without<Shade>>,
     mut shades: Query<(Entity, &Shade, &mut Transform), Without<Flying>>,
-    mut cameras: Query<&mut Camera, With<TrayCamera>>,
+    mut cameras: Query<(&mut Camera, Has<AirCamera>), TrayCameras>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -904,19 +952,20 @@ pub(super) fn present(
         .next()
         .unwrap_or_else(|| spawn_tray(&mut commands, &window));
     let scene = advance.scene(&play.game().observe(), time.elapsed_secs_f64());
-    let mut aloft = false;
+    // Whether the card in the air is already drawn, and so only moves.
+    let mut drawn_aloft = false;
     for (entity, flying, mut at) in &mut cards {
         match scene.flying {
-            Some((wanted, pose)) if wanted == *flying && !aloft => {
+            Some((wanted, pose)) if wanted == *flying && !drawn_aloft => {
                 *at = pose;
-                aloft = true;
+                drawn_aloft = true;
             }
             _ => commands.entity(entity).despawn(),
         }
     }
     for (entity, shade_of, mut lies) in &mut shades {
         match scene.flying {
-            Some((_, pose)) if aloft => {
+            Some((_, pose)) if drawn_aloft => {
                 let (under, strength) = shade(&pose);
                 *lies = under;
                 if let Some(mut material) = materials.get_mut(&shade_of.0) {
@@ -926,7 +975,7 @@ pub(super) fn present(
             _ => commands.entity(entity).despawn(),
         }
     }
-    if let (Some((flying, pose)), false) = (scene.flying, aloft) {
+    if let (Some((flying, pose)), false) = (scene.flying, drawn_aloft) {
         spawn_flying(
             &mut commands,
             tray,
@@ -962,7 +1011,11 @@ pub(super) fn present(
         }
     }
     let wanted = viewport(&window);
-    for mut camera in &mut cameras {
+    for (mut camera, air) in &mut cameras {
+        let in_the_air = scene.flying.is_some();
+        if air && camera.is_active != in_the_air {
+            camera.is_active = in_the_air;
+        }
         let unchanged = camera.viewport.as_ref().is_some_and(|v| {
             v.physical_position == wanted.physical_position
                 && v.physical_size == wanted.physical_size
@@ -973,7 +1026,8 @@ pub(super) fn present(
     }
 }
 
-/// A pile's count disc, which is the pile's target for the pointer and the seat.
+/// A pile's count disc, which with the pile's side and caption is the pile's target
+/// for the pointer and the seat; the seat rests on the disc first.
 #[derive(Component)]
 pub(super) struct Disc(Pile);
 /// A Propaganda pip, and whether it is filled.
@@ -1072,6 +1126,19 @@ pub(super) fn overlay(commands: &mut Commands, art: &Art, lay: &Lay, window: &Wi
             name,
         );
         commands.entity(label).insert(tracking);
+        // The pile's side and caption: its target, as its disc is.
+        commands
+            .spawn((
+                UiRoot,
+                node(window, pile.body()),
+                GlobalZIndex(2),
+                Control {
+                    name: pile.name().into(),
+                    choice: false,
+                    action: Action::Pile(pile),
+                },
+            ))
+            .observe(click);
         let (name, rect) = parts.disc;
         let mut disc = node(window, rect);
         disc.border_radius = BorderRadius::MAX;
@@ -1173,15 +1240,6 @@ pub(super) fn overlay(commands: &mut Commands, art: &Art, lay: &Lay, window: &Wi
 /// The seat's name for what holds the keyboard while an advance is shown: Enter or
 /// Space on it lands the cards.
 pub(super) const ADVANCE: &str = "card-advance";
-/// The components whose activation lands a playing advance for the seat: the card
-/// area, and the cards and piles in it. The owner's click lands it anywhere.
-pub(super) const LANDING: [&str; 5] = [
-    "area:cards",
-    "card:current",
-    "card:preview",
-    "pile:played",
-    "pile:deck",
-];
 /// How far a card's own up may lean from level before the tray's camera, which looks
 /// straight down, sees only its edge: about 3°.
 const EDGE_ON: f32 = 0.05;
@@ -1205,14 +1263,14 @@ pub(super) fn unsettled(world: &mut World) -> Vec<String> {
         .query_filtered::<(), With<TrayCamera>>()
         .iter(world)
         .count();
-    let aloft = world.query::<&Flying>().iter(world).count();
+    let flying = world.query::<&Flying>().iter(world).count();
     let current = Pile::ALL.iter().all(|pile| {
         drawn
             .iter()
             .filter(|s| s.pile == *pile)
             .eq([&pile.shown(&view)])
     });
-    if cameras == 1 && current && aloft == 0 {
+    if cameras == 1 && current && flying == 0 {
         vec![]
     } else {
         vec!["card piles".into()]
@@ -1259,10 +1317,7 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
                     .as_ref()
                     .and_then(|(camera, view)| camera.world_to_viewport(view, corner).ok());
                 if let Some(p) = seen {
-                    bounds = Some(bounds.map_or(Rect::from_corners(p, p), |b| Rect {
-                        min: b.min.min(p),
-                        max: b.max.max(p),
-                    }));
+                    bounds = super::grow(bounds, p);
                 }
             }
             // The tray's camera looks straight down, so the side that is up shows.
@@ -1301,10 +1356,7 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
                         z * CARD_LENGTH / 2.,
                     ));
                     let p = camera.world_to_viewport(view, corner).ok()?;
-                    bounds = Some(bounds.map_or(Rect::from_corners(p, p), |b| Rect {
-                        min: b.min.min(p),
-                        max: b.max.max(p),
-                    }));
+                    bounds = super::grow(bounds, p);
                 }
                 bounds.map(|b| [b.min.x, b.min.y, b.max.x, b.max.y])
             };

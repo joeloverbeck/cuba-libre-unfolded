@@ -139,10 +139,7 @@ fn body_points(world: &mut World, piece: Entity) -> Vec<Vec2> {
                         + Vec3::from(bounds.half_extents) * Vec3::new(x, y, z);
                     if let Ok(p) = camera.world_to_viewport(&camera_at, at.transform_point(corner))
                     {
-                        seen = Some(seen.map_or(Rect::from_corners(p, p), |r| Rect {
-                            min: r.min.min(p),
-                            max: r.max.max(p),
-                        }));
+                        seen = super::grow(seen, p);
                     }
                 }
             }
@@ -438,10 +435,22 @@ impl SeatGame for Table {
         world.resource::<Play>().game().observe().revision
     }
     fn resolve(&self, world: &mut World, name: &TargetName) -> Result<Vec<Vec2>, String> {
-        let found: Vec<_> = controls(world)
+        let mut found: Vec<_> = controls(world)
             .into_iter()
             .filter(|(_, c, _)| &named(c) == name)
             .collect();
+        // A pile is its count disc, its side and its caption: the seat rests on the
+        // disc first and on the others' middles after it.
+        if found.len() > 1
+            && found
+                .iter()
+                .all(|(_, c, _)| matches!(c.action, Action::Pile(_)))
+        {
+            found.sort_by_key(|(entity, _, _)| world.get::<piles::Disc>(*entity).is_none());
+            let mut points: Vec<Vec2> = found.iter().map(|(_, _, at)| *at).collect();
+            points.dedup();
+            return Ok(points);
+        }
         if found.len() != 1 {
             return Err(format!(
                 "Expected exactly one shown target {name:?}, found {}",
@@ -545,13 +554,15 @@ impl SeatGame for Table {
     /// The Kidnap die's skip, a click on its tray, Enter or Space, reaches the table
     /// while the die is in the air and holds it unsettled. It only ends the tumble: the roll was
     /// saved before the die moved (#74, #87). A card advance is landed the same way
-    /// while a card is in the air: by Enter or Space, or by an activation of the card
-    /// area or of one of its cards or piles, which then does nothing else (#145).
+    /// while a card is in the air: by Enter or Space, or by an activation of any shown
+    /// component, the owner's click, which then does nothing else (#145). An activation
+    /// naming a choice is refused as busy.
     fn interrupts(&self, world: &mut World, input: Interrupt<'_>) -> bool {
         let (skips, lands) = match input {
-            Interrupt::Activate(TargetName::Component(name)) => {
-                (name == die::TRAY, piles::LANDING.contains(&name.as_str()))
-            }
+            // The owner's click lands a card in the air wherever it falls, and does
+            // nothing else there (#145, #137's review); a choice named by its id asks
+            // for a decision instead, and waits.
+            Interrupt::Activate(TargetName::Component(name)) => (name == die::TRAY, true),
             Interrupt::Activate(TargetName::Choice(_)) => (false, false),
             Interrupt::Key(key) => {
                 let key = matches!(key, "Enter" | "Space");

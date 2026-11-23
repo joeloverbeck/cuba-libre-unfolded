@@ -1898,7 +1898,7 @@ impl Game {
                     "advance-card",
                     "Advance to Pact of Caracas",
                     true,
-                    "Make Pact of Caracas current and reveal Sierra Maestra Manifesto as preview (R 2.3.8).",
+                    "Make Pact of Caracas current and reveal the draw deck's top card as the new preview (R 2.3.8).",
                 )]
             } else {
                 vec![]

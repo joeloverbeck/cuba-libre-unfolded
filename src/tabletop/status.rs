@@ -117,7 +117,7 @@ pub(super) fn draw(
 ) {
     let game = play.game();
     let (camera, camera_at) = *camera;
-    let (scale, _) = layout(&window);
+    let scale = reference_pixel(&window);
     let shown = ui.status.visible().and_then(|id| {
         let space = game.spaces.iter().find(|s| &s.id == id)?;
         // The map camera draws the whole window (#142); the areas over it are

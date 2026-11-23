@@ -5633,11 +5633,13 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
             step: 0,
         };
         std::fs::create_dir_all(&app.root).unwrap();
-        (app, socket_dir)
+        // The socket directory comes first so the app is dropped first and its quit
+        // still reaches the socket (docs/agents/parallel-work.md).
+        (socket_dir, app)
     };
 
     // The opening, and all through Terror until End Terror.
-    let (mut app, _socket) = session("opening");
+    let (_socket, mut app) = session("opening");
     app.launch_size("3840x2160");
     let open = app.observe();
     assert_eq!(open["observation"]["action"], "Open");
@@ -5665,7 +5667,7 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
     app.quit();
 
     // After Pass: Directorio 1st, Government 2nd, 26July in the Pass box (R 2.3.3).
-    let (mut app, _socket) = session("pass");
+    let (_socket, mut app) = session("pass");
     app.launch_size("3840x2160");
     app.choose("pass");
     let pass = app.observe();
@@ -5687,7 +5689,7 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
     app.quit();
 
     // Operation with Special Activity: the layout's 16:9 frame, with its box's tag.
-    let (mut app, _socket) = session("special-activity");
+    let (_socket, mut app) = session("special-activity");
     app.launch_size("3840x2160");
     for action in [
         "terror",
@@ -5724,7 +5726,7 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
     // At 3:2, the seat's default, the camera frames Cuba wider and the track covers
     // Pinar del Río's pieces (foundation 4 requires only the 16:9 frame; #70 records
     // this as an open limit). The capture is retained for that record.
-    let (mut app, _socket) = session("three-two");
+    let (_socket, mut app) = session("three-two");
     app.launch();
     let view = app.observe();
     agree(&view);

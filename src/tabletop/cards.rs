@@ -287,6 +287,7 @@ fn image(
 }
 
 /// Draws the open card tag, if any, above the piles.
+#[allow(clippy::too_many_arguments)] // A Bevy system: its parameters are the resources it reads.
 pub(super) fn draw(
     mut commands: Commands,
     play: Res<Play>,
@@ -295,12 +296,18 @@ pub(super) fn draw(
     window: Single<&Window, With<PrimaryWindow>>,
     roots: Query<Entity, (With<Tag>, Without<ChildOf>)>,
     mut previous: Local<Option<Shown>>,
+    advance: Res<super::piles::Advance>,
+    time: Res<Time>,
 ) {
-    let (s, left) = layout(&window);
+    let s = reference_pixel(&window);
     // The tag opens above the piles, which lie against the window's bottom.
-    let left = left + bottom(&window);
+    let left = bottom(&window);
     let view = play.game().observe();
-    let shown = play.session.as_ref().and(shown(&ui)).map(|slot| {
+    // The tag states the model's cards, which are a card ahead of the table's while a
+    // played card is in the air: as a pile's tag, it shows again as the cards land, on
+    // the card that then lies there, and a pin holds through the motion.
+    let open = shown(&ui).filter(|_| !advance.in_the_air(&view, time.elapsed_secs_f64()));
+    let shown = play.session.as_ref().and(open).map(|slot| {
         let mut shown = content(&view, slot, ui.card.pinned == Some(slot));
         let [w, h] = fig::PLATE.map(r);
         let x = left.x + TAG_LEFT * s;

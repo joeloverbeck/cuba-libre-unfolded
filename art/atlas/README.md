@@ -6,7 +6,7 @@ The source scenario remains `deacd635db5f71f4d3f092bd9cc99a9d96bb7aab`. The orig
 
 ## Runtime files and editable custody
 
-- `atlas-ui.png` is the 1920×1280 authored main-view chrome, with every scenario value, map silhouette and repeated piece removed in VectorCraft. Its exact transparent opening is **x40,y320,w1300,h540**, made by subtracting the same rectangle from both authored backgrounds. Render the map Camera3d in this viewport beneath the UI camera; the map title and legend remain outside it. Its SVG is a portable outlined-vector export; `atlas-ui.vectorcraft` retains editable text and shapes.
+- `atlas-ui.png` is the retired 1920×1280 main-view chrome, authored in VectorCraft, that framed the map in an opening with its title and legend outside it. #142 replaced it with the [main view](MAIN-VIEW.md), where the map fills the window; nothing draws this file, but `runtime.sha256` still admits it because that manifest enters every save's identity. Its SVG is a portable outlined-vector export; `atlas-ui.vectorcraft` retains editable text and shapes.
 - `atlas-reader.png` / `.svg` / `.vectorcraft` are the retired card reader's shell. #139 replaced the reader with the [card tag](CARD-TAG.md); nothing draws this file, but `runtime.sha256` still admits it because that manifest enters every save's identity. No imported card face or image link is embedded.
 - `atlas-components.vectorcraft` / `.svg` retain the selected blank contribution, transfer, removal, roll, space, recovery and completion panels and action backgrounds. `atlas-panel`, `atlas-button`, `atlas-button-primary` are cropped PNG/SVG component exports. Compose and size these authored components for each current decision; do not create replacement decorations in code.
 - `atlas-active-star` and `atlas-closed-slash` are transparent PNG/SVG exports of the selected state marks, from state-study objects 121 and 125. They are authored marks for solid piece faces, not pieces themselves.
@@ -38,19 +38,19 @@ Current refinement checks: thirteen manifold meshes with positive signed volumes
 
 ## Main-view composition and dynamic content
 
-The [main view layout](MAIN-VIEW.md) owns where every area sits: the 3D map fills the window and the areas below lie over it. Coordinates are reference pixels, measured from the window edge or centre each area is anchored to; one reference pixel is the smaller of the window's width over 1920 and its height over 1280, and nothing is letterboxed. Keep native input targets and seat targets aligned with that same transform. A smaller window must preserve readable type by inspecting details in the panels and tags instead of shrinking all decision text indefinitely.
+The [main view layout](MAIN-VIEW.md) owns where every area sits: the 3D map fills the window and the areas below lie over it. Its [Areas](MAIN-VIEW.md#areas) table holds each area's rectangle and anchor. Coordinates are reference pixels, measured from the window edge or centre each area is anchored to; one reference pixel is the smaller of the window's width over 1920 and its height over 1280, and nothing is letterboxed. Keep native input targets and seat targets aligned with that same transform. A smaller window must preserve readable type by inspecting details in the panels and tags instead of shrinking all decision text indefinitely.
 
-| Surface | Authored placement | Runtime responsibility |
+| Surface | Anchored to | Runtime responsibility |
 |---|---|---|
 | Map | the whole window; Home fits all thirteen spaces into the layout's island box | Render the navigable 3D map beneath the UI camera. Orbit, zoom, pan and Home work wherever no area lies. |
-| Outside influence | top left: x=40,y=18,w=370,h=64 | Aid and the US Alliance track ([TOP.md](TOP.md)). |
-| Standings | top, centred: x=728,y=8,w=464,h=108 of a centred 1920 | Current margins under the four emblems; contributions in the hover tag. Always visible. |
-| Resources and Cash | top right: x=1688,y=20,w=192,h=246 | The Resources ledger and the Cash supply ([TOP.md](TOP.md)). |
-| Sequence of Play | top left: x=60,y=178,w=232,h=384 | The eligibility track ([ELIGIBILITY.md](ELIGIBILITY.md)). |
-| Decision | top right: x=1380,y=280,w=500,h=660 | Current actor, operation, Resources, choices, cost, target, legal/refused explanation and actual roll/owed Terror. |
-| Primary action | x=1404,y=825,w=452,h=65, in the decision panel | Dynamic Finish/resolve label and enabled state; no example outcome remains baked. |
-| Card piles | bottom left: the tray x=35.6,y=1020.4,w=450.4,h=391.1 from the bottom-left corner of a 1280-high reference; top cards 177.8 wide | The played pile and the draw deck as solid cards, each with its top card's face, its count and its caption, and the Propaganda pips ([MAIN-VIEW.md](MAIN-VIEW.md#the-card-piles)). Each top card opens its [card tag](CARD-TAG.md), and each count disc its [pile tag](PILE-TAGS.md). Never stretch or crop a face. |
-| Session | bottom right: x=1380,y=964,w=500,h=264 | Actual pending giver, durable-save/recovery/refusal status; save/quit and continuation. |
+| Outside influence | top left | Aid and the US Alliance track ([TOP.md](TOP.md)). |
+| Standings | top, centred | Current margins under the four emblems; contributions in the hover tag. Always visible. |
+| Resources and Cash | top right | The Resources ledger and the Cash supply ([TOP.md](TOP.md)). |
+| Sequence of Play | top left | The eligibility track ([ELIGIBILITY.md](ELIGIBILITY.md)). |
+| Decision | top right | Current actor, operation, Resources, choices, cost, target, legal/refused explanation and actual roll/owed Terror. |
+| Primary action | in the decision panel | Dynamic Finish/resolve label and enabled state; no example outcome remains baked. |
+| Card piles | bottom left | The played pile and the draw deck as solid cards, each with its top card's face, its count and its caption, and the Propaganda pips ([MAIN-VIEW.md](MAIN-VIEW.md#the-card-piles)). Each top card opens its [card tag](CARD-TAG.md), and each pile its [pile tag](PILE-TAGS.md). Never stretch or crop a face. |
+| Session | bottom right | Actual pending giver, durable-save/recovery/refusal status; save/quit and continuation. |
 
 Each area takes the pointer over its own rectangle, so a press or a scroll there never reaches the map.
 
@@ -85,13 +85,13 @@ The card back is the supplied collection's `images/card-backs/cuba-libre-card-ba
 
 The `Atlas` colour variables of the selected FigCraft layouts own the interface palette ([foundation 4](../../docs/foundation/04-art-and-assets.md), "Layout authority"). `palette-sources.sha256` lists the selected layouts' `.figcraft` files. Each layout keeps its own copy of the collection, so each has an export:
 
-- **Exports:** `atlas-<layout>.variables.json` is FigCraft's `variable.export` of the layout's `Atlas` collection, in the local variables JSON format that `variable.import` reads. No one edits it by hand. FigCraft CLI 0.18.1 (`storytold/figcraft@44d61a5a`) wrote the current exports in #53.
+- **Exports:** `atlas-<layout>.variables.json` is FigCraft's `variable.export` of the layout's `Atlas` collection, in the local variables JSON format that `variable.import` reads. No one edits it by hand. FigCraft CLI 0.18.1 (`storytold/figcraft@44d61a5a`) wrote #53's exports; a later layout's specification names the FigCraft build that wrote its own.
 - **Source hashes:** `palette-sources.sha256` records each `.figcraft` file's SHA-256 at the time of its export. It is a test record, not a launch manifest.
 - **Check:** the `palette` module of the tabletop declares each runtime colour together with the variable it stands for. Its unit tests fail when a colour differs from that variable in any layout that defines it, when no layout defines the variable, or when a `.figcraft` file no longer has its recorded hash. `scripts/check` refuses a colour literal anywhere else in `src/` unless its line says `// own colour: <reason>`.
 
 Older VectorCraft-authored components keep their own colours until a layout decision reopens them (foundation 4), so they are not declared there. The victory tag's text colours are an example (`victory.rs`). Piece colours are a separate palette, listed under "Counted solid pieces and shared camera"; two of them equal faction variables, but they do not stand for them.
 
-Some declared variables carry colours that VectorCraft art also paints: `map` is the sea of `atlas-ui.png`, which the viewport's clear colour continues, and `faction/government` and `faction/syndicate` are also the Government and Syndicate colours of `atlas-ui` and `atlas-reader` (their 26July and Directorio colours differ from the variables). Changing one of these in FigCraft therefore also reopens those VectorCraft sources.
+Some declared variables carry colours that VectorCraft art also paints: `map` is the sea the map camera clears the window to ([MAIN-VIEW.md](MAIN-VIEW.md)), which the authored [water frames](water/README.md) also paint, and `faction/government` and `faction/syndicate` are also the Government and Syndicate colours of the retired `atlas-ui` and `atlas-reader` (their 26July and Directorio colours differ from the variables). Changing one of these in FigCraft therefore also reopens those VectorCraft sources.
 
 **Refreshing after a layout changes.** For each changed `.figcraft`, open it with FigCraft's `file.open` ([art-tools.md, "FigCraft pitfalls"](../../docs/agents/art-tools.md#figcraft-pitfalls)). Then run `variable.export` with `{"collections": ["Atlas"], "format": "json", "path": "<main checkout>/art/atlas/atlas-<layout>.variables.json"}` and move the file into your worktree ([art-tools.md, "File boundaries"](../../docs/agents/art-tools.md#file-boundaries)). Rewrite the hashes from the checkout root:
 
@@ -106,7 +106,7 @@ The hashes only prove which source an export was taken from, so always re-export
 
 Before it creates or replaces a save, the app checks every manifest that `src/assets.rs` lists in `MANIFESTS`, decodes the PNGs, registers the fonts and admits the real scene and render path. A missing or altered asset refuses at launch.
 
-Apart from `runtime.sha256`, which enters a save's identity ([docs/agents/saves.md](../../docs/agents/saves.md)), there is one manifest per selected design: `status`, `victory`, `layout`, `terrain`, `terror`, `top`, `highlights`, `choice`, `eligibility`, `transfer`, `kidnap`, `popover`, `execution` and `card-tag`. These are presentation only: adding one does not change what a save records, and does not weaken source, checksum or state admission.
+Apart from `runtime.sha256`, which enters a save's identity ([docs/agents/saves.md](../../docs/agents/saves.md)), there is one manifest per selected design, each named in `MANIFESTS`. These are presentation only: adding one does not change what a save records, and does not weaken source, checksum or state admission.
 
 ## Evidence limits and native check
 

@@ -1770,7 +1770,7 @@ pub(super) fn draw(
         popover.pinned = None;
         popover.selected = None;
     }
-    let (s, _) = layout(&window);
+    let s = reference_pixel(&window);
     let pinned = popover.pinned.as_ref().map(|(space, _)| space.clone());
     // A space's popover opens on a click only; hover keeps the status tag.
     let space = pinned.clone();
@@ -1863,7 +1863,7 @@ pub(super) fn place(
     mut nodes: Query<(&mut Node, &ComputedNode)>,
 ) {
     let (camera, camera_at) = *camera;
-    let (s, _) = layout(&window);
+    let s = reference_pixel(&window);
     // Cards open in the part of the window the areas at its edges leave clear.
     let map = main_view.clear(&window);
     let panel_left = window.width() - 540. * s;
