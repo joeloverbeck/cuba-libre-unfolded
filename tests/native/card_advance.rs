@@ -699,9 +699,9 @@ fn inked_blocks(
 ///
 /// - the commit writes the save before a card has moved, and nothing writes it again;
 /// - the preview, card 18, lifts off the deck and crosses to the played pile while
-///   the deck shows the original back; the deck holds 33 cards from the moment it
-///   leaves and the played pile 19 from the moment it lands, and neither count disc
-///   is shown until the cards are at rest;
+///   the deck shows the original back; the deck lies at 33 cards from the moment it
+///   leaves, and at 32 under the card that then turns over, and the played pile at 19
+///   from the moment it lands; neither count disc is shown until the cards are at rest;
 /// - card 19 then turns over where it lies, its back showing until it is on edge;
 /// - settled, the piles are 19 with card 18 and 33 with card 19, in every run;
 /// - a click, Space and Enter each land that state at once and do nothing else;
