@@ -403,13 +403,9 @@ fn native_available_forces_tags_open_on_hover_and_focus_and_follow_a_removal() {
                     );
                 }
             }
-            let notes = line(
-                RULE.split("\n")
-                    .take(3)
-                    .collect::<Vec<_>>()
-                    .join("\n")
-                    .as_str(),
-            );
+            // The rule is one drawn block, as the frame's one `notes` box sets it.
+            assert_eq!(shown["table"]["top"]["notes"], json!([RULE]));
+            let notes = line(RULE);
             let [px, py, pw, _] = rect_of(&layout["tag"]["text"]["notes"]);
             for (n, e) in notes.iter().zip([x + px, y + py, x + px + pw]) {
                 assert!((n - e).abs() <= tolerance, "notes: {notes:?}");

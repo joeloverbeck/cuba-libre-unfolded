@@ -249,11 +249,10 @@ pub(super) fn tag(
     (
         format!("Available {} Forces", faction.name()),
         rows,
+        // R 1.4.1's two bullets, as one block of five lines: the tag frame's `notes`
+        // and the study's `hover-tag.png` set them so.
         vec![
-            // R 1.4.1, first bullet.
-            "Pieces are placed only from Available Forces.\nWith none of a kind left, a placement is skipped\nand a replacement only removes (R 1.4.1).",
-            // R 1.4.1, second bullet.
-            "While executing, a faction may return its own\npieces from the map to Available.",
+            "Pieces are placed only from Available Forces.\nWith none of a kind left, a placement is skipped\nand a replacement only removes (R 1.4.1).\nWhile executing, a faction may return its own\npieces from the map to Available.",
         ],
     )
 }
@@ -754,8 +753,22 @@ mod tests {
             [24. * k, top, 420. * k, 0.],
             "notes",
         );
-        // Every note line fits one drawn line.
+        // The frame, like the study's `hover-tag.png`, sets the rule as one block of
+        // five lines: the tag draws it as one note.
+        let notes_boxes = frame["text"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .filter(|name| name.starts_with("note"))
+            .count();
+        assert_eq!(notes_boxes, 1);
         let view = Game::opening().observe();
+        for faction in Faction::ALL {
+            let notes = tag(&view, faction).2;
+            assert_eq!(notes.len(), notes_boxes, "{faction:?}");
+            assert_eq!(notes[0].lines().count(), 5, "{faction:?}");
+        }
+        // Every note line fits one drawn line.
         for faction in Faction::ALL {
             for line in tag(&view, faction).2.iter().flat_map(|n| n.lines()) {
                 assert!(line.chars().count() <= 50, "{line}");
