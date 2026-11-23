@@ -1,4 +1,5 @@
-//! Required selected art and privately supplied card faces, admitted before saves.
+//! Required selected art and the privately supplied card faces and card back,
+//! admitted before saves.
 use anyhow::{Context, Result, bail};
 use sha2::{Digest, Sha256};
 use std::{
@@ -85,6 +86,24 @@ const CARD_FACES: [CardFace; 3] = [
     },
 ];
 
+/// The original shared card back (foundation 4's exception, #136): a private input
+/// beside the faces, shown while a card lies or turns face down (#145). It is
+/// presentation, like the manifests above: no save's identity names it, so a save
+/// made before it was admitted still opens.
+pub(crate) struct CardBack {
+    pub(crate) name: &'static str,
+    size: (u32, u32),
+    length: u64,
+    hash: &'static str,
+}
+
+pub(crate) const CARD_BACK: CardBack = CardBack {
+    name: "cuba-libre-card-back.png",
+    size: (1475, 2110),
+    length: 8214679,
+    hash: "c905d7a7313480b254e49dc70c56c41fe77e3039b037b238485e148cc82dbaa9",
+};
+
 #[cfg(feature = "tabletop")]
 pub(crate) fn card_face(number: u8) -> &'static CardFace {
     &CARD_FACES[usize::from(number - 17)]
@@ -149,6 +168,17 @@ pub fn inspect(root: &Path, cards: &Path) -> Result<Verified> {
         decode(&bytes, face.name, Some(face.size))?;
         files.insert(face.name.into(), bytes);
     }
+    let back = &CARD_BACK;
+    let bytes = read_verified(cards, back.name, back.length, back.hash).with_context(|| {
+        format!(
+            "Required private card back {} missing or incompatible. Restore {} (the original shared card back, SHA-256 {}) or set --cards to a directory with it and the selected faces.",
+            cards.join(back.name).display(),
+            back.name,
+            back.hash,
+        )
+    })?;
+    decode(&bytes, back.name, Some(back.size))?;
+    files.insert(back.name.into(), bytes);
     Ok(Verified {
         root: root.canonicalize()?,
         files,

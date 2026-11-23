@@ -542,16 +542,30 @@ impl SeatGame for Table {
     }
     /// The Kidnap die's skip, a click on its tray, Enter or Space, reaches the table
     /// while the die is in the air and holds it unsettled. It only ends the tumble: the roll was
-    /// saved before the die moved (#74, #87).
+    /// saved before the die moved (#74, #87). A card advance is landed the same way
+    /// while a card is in the air: by Enter or Space, or by an activation of the card
+    /// area or of one of its cards or piles, which then does nothing else (#145).
     fn interrupts(&self, world: &mut World, input: Interrupt<'_>) -> bool {
-        let skips = match input {
-            Interrupt::Activate(TargetName::Component(name)) => name == die::TRAY,
-            Interrupt::Activate(TargetName::Choice(_)) => false,
-            Interrupt::Key(key) => matches!(key, "Enter" | "Space"),
+        let (skips, lands) = match input {
+            Interrupt::Activate(TargetName::Component(name)) => {
+                (name == die::TRAY, piles::LANDING.contains(&name.as_str()))
+            }
+            Interrupt::Activate(TargetName::Choice(_)) => (false, false),
+            Interrupt::Key(key) => {
+                let key = matches!(key, "Enter" | "Space");
+                (key, key)
+            }
         };
-        skips && die::focus(world) == Some(die::TRAY)
+        (skips && die::focus(world) == Some(die::TRAY)) || (lands && piles::playing(world))
     }
     fn focus(&self, world: &mut World) -> Focus {
+        // A card in the air holds the keyboard: Enter or Space lands it (#145).
+        if piles::playing(world) {
+            return Focus::Control {
+                choice: None,
+                label: piles::ADVANCE.into(),
+            };
+        }
         // A presented Kidnap die holds the keyboard: Enter reaches the tray's skip while
         // the die is in the air, and Continue once it has landed (#74, #87).
         if die::shown(world) {
