@@ -128,6 +128,18 @@ _Avoid_: Terror marker
 An interpretation this project applies where the rules are silent, or do not define how software should handle a case. It is not a publisher ruling, and is owner-accepted only where that acceptance is recorded.
 _Avoid_: House rule, local ruling
 
+**Save**:
+The record of one match on disk, from which the match resumes.
+_Avoid_: Savegame, save state
+
+**Disposable save**:
+A save written by a build of another commit, which no build promises to open. A save the same build wrote is not disposable.
+_Avoid_: Legacy save, older save
+
+**Exact-replay admission**:
+Opening a save by replaying its decisions from the opening position through the rules, and requiring the result to equal the saved position. It converts nothing: a save of another format is refused, never migrated.
+_Avoid_: Replay check, replay validation
+
 **Layout**:
 The arrangement of interface areas on a screen or written document: which areas exist, where they sit, their sizes, grouping and spacing, and how they adapt to the display.
 _Avoid_: Graphic, mockup (when referring to the selected arrangement rather than a proposal)

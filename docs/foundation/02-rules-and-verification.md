@@ -1,6 +1,6 @@
 # Rules and verification
 
-This foundation specializes `EVID-3`, `EVID-4`, `REP-2`, `OPS-1`, `FID-1`–`FID-4`, `SIM-1`, `SIM-4`, and `INT-1` for a published board game. It defines the required source boundary; it does not certify an engine or substitute for the rules.
+This foundation specializes `WORK-2`, `EVID-3`, `EVID-4`, `REP-2`, `OPS-1`, `FID-1`–`FID-4`, `SIM-1`, `SIM-4`, and `INT-1` for a published board game. It defines the required source boundary; it does not certify an engine or substitute for the rules.
 
 ## Source authority
 
@@ -22,7 +22,9 @@ Rust rules code owns legal actions and consequences. Human controls and agent so
 
 Routine bookkeeping is automatic; actual player choices remain choices. Multi-step operations must expose the remaining choices, costs, restrictions, and deliberate completion/cancellation options that the rules allow. Legal-action discovery must remain complete for the supported decision, even if presented hierarchically; a short list of recommended moves is not the legal set.
 
-Save/resume must preserve unresolved decisions, randomness and source/asset compatibility needed to continue honestly. Reuse existing mechanisms before choosing a new format. Diagnostic reproducibility is an engineering capability, not a commitment to a public replay product.
+Save/resume must preserve unresolved decisions and randomness, so that restarting the same build continues honestly: no reroll, and no decision lost or applied twice. A save binds the accepted rules source. Art is admitted at launch, before any save opens, and is not part of a save's identity. Reuse existing mechanisms before choosing a new format. Diagnostic reproducibility is an engineering capability, not a commitment to a public replay product.
+
+On 2026-11-23 the owner made saves disposable across builds, specializing `WORK-2` and `REP-2`: until the owner records here that this has ended, which is expected once the standard four-faction rules are complete, a save written by a build of another commit carries no promise. No work may add or keep code, data or tests whose purpose is to open such a save. A build opens a save only when it can continue it honestly; otherwise it refuses the save visibly and leaves every file as it was. [ADR 0003](../adr/0003-a-save-opens-by-exact-replay.md) records the save model this permits.
 
 ## Evidence for the claim
 

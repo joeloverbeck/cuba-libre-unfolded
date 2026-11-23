@@ -106,7 +106,7 @@ The hashes only prove which source an export was taken from, so always re-export
 
 Before it creates or replaces a save, the app checks every manifest that `src/assets.rs` lists in `MANIFESTS`, decodes the PNGs, registers the fonts and admits the real scene and render path. A missing or altered asset refuses at launch.
 
-Apart from `runtime.sha256`, which enters a save's identity ([docs/agents/saves.md](../../docs/agents/saves.md)), there is one manifest per selected design, each named in `MANIFESTS`. These are presentation only: adding one does not change what a save records, and does not weaken source, checksum or state admission.
+Apart from `runtime.sha256`, which enters a save's identity until [ADR 0003](../../docs/adr/0003-a-save-opens-by-exact-replay.md) is implemented ([docs/agents/saves.md](../../docs/agents/saves.md)), there is one manifest per selected design, each named in `MANIFESTS`. These are presentation only: adding one does not change what a save records, and does not weaken source, checksum or state admission.
 
 ## Evidence limits and native check
 
