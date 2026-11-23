@@ -745,9 +745,49 @@ fn spawn_flying(
                 printed(materials, art, Top::Back),
                 Transform::from_xyz(0., -above, 0.)
                     .with_rotation(Quat::from_rotation_z(std::f32::consts::PI)),
-                drawn,
+                drawn.clone(),
             ));
         });
+    let reach = 2. * fig::SHADOW_REACH / PER_METRE;
+    let (lies, strength) = shade(&pose);
+    commands.spawn((
+        Name::new("Shadow of the card in the air"),
+        Shade,
+        ChildOf(tray),
+        Mesh3d(meshes.add(Rectangle::new(CARD_WIDTH + reach, CARD_LENGTH + reach))),
+        MeshMaterial3d(materials.add(StandardMaterial {
+            base_color: Color::WHITE.with_alpha(strength),
+            base_color_texture: Some(art.images[SHADOW].clone()),
+            alpha_mode: AlphaMode::Blend,
+            unlit: true,
+            ..default()
+        })),
+        lies,
+        drawn,
+    ));
+}
+
+/// The shadow of the card in the air: the pile's own blurred shadow (`pile-shadow`),
+/// cast straight down onto the cards beneath.
+#[derive(Component)]
+pub(super) struct Shade;
+
+/// Where the shadow of a card in the air lies and how dark it is, from the card's
+/// pose. It lies under the card, as wide as the card is seen from above, so a card on
+/// its edge casts none; and it darkens as the card rises, from nothing on the pile to
+/// the pile's own shadow at the crossing's full rise.
+fn shade(pose: &Transform) -> (Transform, f32) {
+    let rise = pose.translation.y - aloft(Pile::Deck).y;
+    (
+        Transform::from_xyz(
+            pose.translation.x,
+            1.5 * FACE_LIFT,
+            pose.translation.z + fig::SHADOW_DROP / PER_METRE,
+        )
+        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+        .with_scale(Vec3::new(pose.up().y.abs().max(0.001), 1., 1.)),
+        (rise / CROSSING_LIFT).clamp(0., 1.),
+    )
 }
 
 /// The cards' paper, as the light falls on a pile's side or a card's edge.
@@ -849,7 +889,11 @@ pub(super) fn present(
     window: Single<&Window, With<PrimaryWindow>>,
     trays: Query<Entity, With<Tray>>,
     stacks: Query<(Entity, &Stack)>,
-    mut cards: Query<(Entity, &Flying, &mut Transform)>,
+    mut cards: Query<(Entity, &Flying, &mut Transform), Without<Shade>>,
+    mut shades: Query<
+        (Entity, &mut Transform, &MeshMaterial3d<StandardMaterial>),
+        (With<Shade>, Without<Flying>),
+    >,
     mut cameras: Query<&mut Camera, With<TrayCamera>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -865,6 +909,18 @@ pub(super) fn present(
             Some((wanted, pose)) if wanted == *flying && !aloft => {
                 *at = pose;
                 aloft = true;
+            }
+            _ => commands.entity(entity).despawn(),
+        }
+    }
+    for (entity, mut lies, material) in &mut shades {
+        match scene.flying {
+            Some((_, pose)) if aloft => {
+                let (under, strength) = shade(&pose);
+                *lies = under;
+                if let Some(mut material) = materials.get_mut(&material.0) {
+                    material.base_color.set_alpha(strength);
+                }
             }
             _ => commands.entity(entity).despawn(),
         }
@@ -1847,5 +1903,29 @@ mod tests {
         let mut later = view.clone();
         later.revision += 1;
         assert_eq!(advance.scene(&later, 30.1).flying, None);
+    }
+
+    /// A card in the air casts the pile's shadow straight down, 12 px toward the
+    /// viewer as a pile's lies. Halfway across it is 30 mm up: the whole shadow, as
+    /// wide as the card. On a pile it casts none. A quarter through its turn the
+    /// card is 0.4714 of half its width up, 14.85 mm of the 30, and seen from above
+    /// it is cos 28.1° = 0.882 of its width; on its edge it has no width.
+    #[test]
+    fn a_card_in_the_air_casts_its_shadow_straight_down() {
+        let (_, pose) = in_the_air(CROSSING / 2.);
+        let (lies, strength) = shade(&pose);
+        assert_eq!(strength, 1.);
+        assert!((lies.translation.x - pose.translation.x).abs() < 1e-6);
+        assert!((lies.translation.z - pose.translation.z - 12. / PER_METRE).abs() < 1e-6);
+        assert!(lies.translation.y > FACE_LIFT && lies.translation.y < 2. * FACE_LIFT);
+        assert!((lies.scale.x - 1.).abs() < 1e-4);
+        for elapsed in [0., CROSSING] {
+            assert!(shade(&in_the_air(elapsed).1).1 < 1e-4, "{elapsed} s");
+        }
+        let (lies, strength) = shade(&in_the_air(CROSSING + TURNING / 4.).1);
+        assert!((strength - 0.4950).abs() < 1e-3, "{strength}");
+        assert!((lies.scale.x - 0.881_92).abs() < 1e-4);
+        let (lies, _) = shade(&in_the_air(CROSSING + TURNING / 2.).1);
+        assert!(lies.scale.x < 0.01);
     }
 }
