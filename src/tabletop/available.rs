@@ -134,8 +134,11 @@ fn place(kind: Kind, top: f32) -> (usize, [f32; 4]) {
     (column, [x, top + drop, w, h])
 }
 
-/// Every drawn rectangle by its part name, in frame units: images, then text.
-fn layout() -> (Vec<(String, [f32; 4])>, Vec<(String, [f32; 4])>) {
+/// Drawn rectangles by their part names, in frame units.
+type Placed = Vec<(String, [f32; 4])>;
+
+/// Every drawn rectangle: images, then text.
+fn layout() -> (Placed, Placed) {
     let mut images = vec![("plate".to_string(), fig::PLATE)];
     let mut text = vec![("caption".to_string(), fig::CAPTION)];
     for faction in Faction::ALL {
