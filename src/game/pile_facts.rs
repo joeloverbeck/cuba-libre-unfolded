@@ -163,9 +163,9 @@ pub fn next_propaganda_words(played: u8, propaganda: u8, preview: bool) -> (Stri
     let (figure, why) = if next_pile {
         (
             format!(
-                "within the next {}, not before the {}",
-                cards(next.latest),
-                ordinal(next.earliest)
+                "the {} to the {} card",
+                ordinal(next.earliest),
+                ordinal(next.latest)
             ),
             format!(
                 "so the current pile's Propaganda card is played, and the next is in the pile after its {} left",

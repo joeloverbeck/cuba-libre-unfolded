@@ -306,7 +306,11 @@ pub(super) fn draw(
         .visible()
         .and_then(|target| match target {
             Target::Top(item) => Some(*item),
-            Target::Standing(_) | Target::Choice(_) | Target::Sequence(_) | Target::Card(_) => None,
+            Target::Standing(_)
+            | Target::Choice(_)
+            | Target::Sequence(_)
+            | Target::Card(_)
+            | Target::Pile(_) => None,
         })
         .map(|item| {
             let mut shown = content(&play.game().observe(), item);

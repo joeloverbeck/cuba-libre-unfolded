@@ -268,7 +268,7 @@ fn the_figure_s_words_name_each_hand_worked_case() {
     assert_eq!(words(18, 1, false).0, "within the next 8 cards");
     // The current pile's Propaganda card already played: the whole of the next pile.
     let (figure, note) = words(15, 2, false);
-    assert_eq!(figure, "within the next 24 cards, not before the 12th");
+    assert_eq!(figure, "the 12th to the 24th card");
     assert!(
         note.contains("the current pile's Propaganda card is played"),
         "{note}"

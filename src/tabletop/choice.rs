@@ -866,11 +866,13 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
 
 /// The controls Tab moves through, in order, by their seat names, each with what
 /// Enter does to it: the panel's, then the current and the preview card, whose tags
-/// focus opens as hover does (#139).
+/// focus opens as hover does (#139), then the two piles, whose tags it opens too (#144).
 fn focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> {
     let mut controls = panel_focusable(view, ui);
     controls
         .extend(super::cards::Slot::ALL.map(|slot| (slot.name().to_owned(), Action::Card(slot))));
+    controls
+        .extend(super::piles::Pile::ALL.map(|pile| (pile.name().to_owned(), Action::Pile(pile))));
     controls
 }
 
