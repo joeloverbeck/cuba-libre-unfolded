@@ -137,14 +137,12 @@ pub(crate) fn inventory_breaches(available: &[Group], spaces: &[Space]) -> Vec<S
     kinds
         .into_iter()
         .filter_map(|(faction, kind)| {
-            let (free, placed) = (
-                total(available, faction, kind),
-                total(on_map(), faction, kind),
-            );
+            let in_available = total(available, faction, kind);
+            let on_the_map = total(on_map(), faction, kind);
             let chart = inventory(faction, kind);
-            (u16::from(free) + u16::from(placed) != u16::from(chart)).then(|| {
+            (u16::from(in_available) + u16::from(on_the_map) != u16::from(chart)).then(|| {
                 format!(
-                    "{} {kind:?}: {free} Available + {placed} on the map, of {chart}",
+                    "{} {kind:?}: {in_available} Available + {on_the_map} on the map, of {chart}",
                     faction.name()
                 )
             })

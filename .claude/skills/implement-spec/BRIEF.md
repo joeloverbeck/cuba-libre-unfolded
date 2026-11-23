@@ -1,6 +1,6 @@
 # Spec #<SPEC> — brief for every subagent
 
-Template. The orchestrator copies it to `local/handoffs/spec-<SPEC>/brief.md` in the main checkout, fills in every `<…>`, deletes the sections the spec does not need, and gives each subagent that path with its own task. Beside it the orchestrator saves the files "Read first" names: the spec body, each ticket, the activation record, and corrections and exploration notes where there are any. The spec's durable state stays in issue comments.
+Template. The orchestrator copies it to `local/handoffs/spec-<SPEC>/brief.md` in the main checkout, fills in every `<…>`, deletes the sections the spec does not need, and gives each subagent that path with its own task. Beside it the orchestrator saves the files "Read first" names: the spec body, each ticket, the activation record, and corrections, exploration notes and the published inspection where there are any. The spec's durable state stays in issue comments.
 
 Main checkout: `<absolute path>` (stays on `main`; edit tracked files and switch branches only in your worktree).
 
@@ -10,7 +10,7 @@ Main checkout: `<absolute path>` (stays on `main`; edit tracked files and switch
 2. The spec: `local/handoffs/spec-<SPEC>/spec-body.md` (issue #<SPEC>). Your ticket: `ticket-<N>.md` beside it. The owner's decisions at activation: `activation.md`. Corrections to the spec's premises, if it exists: `corrections.md`.
 3. `docs/agents/parallel-work.md`: binding for every build, test run and worktree.
 4. The foundations, ADRs and agent documents this spec touches: <list>.
-5. `local/handoffs/spec-<SPEC>/exploration.md`, if it exists: the four-repository inspection and a code map. Verify a pointer before relying on it, since merged tickets move code.
+5. `local/handoffs/spec-<SPEC>/exploration.md`, if it exists: the explorer's notes on the four repositories and a code map. `inspection.md` beside it is the inspection as published. Verify a pointer before relying on it, since merged tickets move code.
 6. `done-<N>.md` of each ticket merged before yours.
 7. Implementers: step 4 of `.claude/skills/implement-spec/SKILL.md` is your working method, from confirming your base to merging the integration tip before you report.
 
