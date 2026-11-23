@@ -518,6 +518,24 @@ fn native_card_piles_match_layout_and_follow_the_match() {
     app.capture("card-17");
     assert_piles_drawn(&app, "card-17", &rest);
 
+    // The tray's camera is a second 3D view that is always there. The piece counts
+    // still follow the map's camera: each stands over the island, not where an
+    // unplaced node lies, at the window's corner.
+    let island = rect_of(&rest["table"]["main_view"]["island"]);
+    let counts = rest["table"]["counts"].as_array().unwrap();
+    assert!(counts.len() >= 10, "{counts:?}");
+    for count in counts {
+        let bounds = rect_of(&count["bounds"]);
+        let centre = [(bounds[0] + bounds[2]) / 2., (bounds[1] + bounds[3]) / 2.];
+        assert!(
+            centre[0] > island[0] - 60.
+                && centre[0] < island[2] + 60.
+                && centre[1] > island[1] - 60.
+                && centre[1] < island[3] + 60.,
+            "{count} is not over the island {island:?}"
+        );
+    }
+
     // The tray is fixed to the screen: the map camera moves under it.
     app.request(json!({"op":"key","key":"KeyW","revision":revision}), true);
     app.request(json!({"op":"key","key":"KeyA","revision":revision}), true);

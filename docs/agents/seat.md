@@ -257,6 +257,7 @@ Drawn-part names:
   - The tray, both top cards, both piles' feet, the discs and the pips lie within the record's 2 px of [the FigCraft layout record](../../art/atlas/atlas-main-view.layout.json) on four edges, and the labels, counts and captions on left, top and right. The card panel and its line are gone.
   - In each capture every top card is its own private face and no other, no card corner shows black on a pile or in a tag, and each pile's side is paper as deep as its cards with one lit groove for each seam.
   - The piles do not move or change when the map camera pans, zooms and orbits.
+  - The piece counts stand over the island: the tray's camera, a second 3D view, does not take the shared label anchors from the map's.
   - Hover and focus open each card's tag from its pile, inside the window and off both piles. Each pile's target opens nothing and changes nothing.
   - A restart on either side of the advance shows the saved cards at rest.
 - `native_card_tag_matches_layout_and_reads_the_model`: the card tag at 3840×2160. Evidence: `local/verification/issue-139/card-tag-*`.

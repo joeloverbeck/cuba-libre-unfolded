@@ -331,6 +331,10 @@ fn spawn_tray(commands: &mut Commands, window: &Window) -> Entity {
                 Name::new("Card tray camera"),
                 Camera3d::default(),
                 TrayCamera,
+                // This camera is always there, and the shared label anchors follow
+                // one 3D camera only: marked as another view, it leaves the piece
+                // counts and the popovers to the map's camera.
+                unfolded_tabletop::label_anchor::OtherView,
                 // Renders the seat's image over the map and under the interface.
                 unfolded_tabletop::capture::OnSurface,
                 Tonemapping::None,
