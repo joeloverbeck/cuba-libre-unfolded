@@ -60,7 +60,7 @@ fn available(game: &Game, kind: Kind) -> u8 {
 #[test]
 fn removal_mode_removes_nothing_until_a_removal_and_defeats_kidnap_but_not_terror_after_a_resource_transfer()
  {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     let initial = game.observe();
     choose(&mut game, "remove");
     assert_eq!(game.observe().removal, Some(Removal::Selecting));
@@ -92,7 +92,7 @@ fn removal_mode_removes_nothing_until_a_removal_and_defeats_kidnap_but_not_terro
 
 #[test]
 fn a_stack_returns_several_pieces_in_one_decision_and_the_mode_stays_open() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     choose(&mut game, "remove");
     let view = game.observe();
     // Every quantity of every own group is listed; nothing is protected yet.
@@ -145,27 +145,27 @@ fn a_stack_returns_several_pieces_in_one_decision_and_the_mode_stays_open() {
 
 #[test]
 fn quantities_out_of_bounds_and_stale_or_foreign_removals_change_nothing() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     choose(&mut game, "remove");
     let before = game.clone();
     for (owner, action) in [
-        (Faction::Government, "1:remove:santiago:underground:1"),
-        (Faction::M26, "1:remove:santiago:underground:3"),
-        (Faction::M26, "1:remove:santiago:underground:0"),
-        (Faction::M26, "1:remove:santiago:police:1"),
-        (Faction::M26, "1:remove:havana:underground:1"),
-        (Faction::M26, "1:remove:pinar-del-rio:casino:1"),
-        (Faction::M26, "1:remove:santiago:underground"),
-        (Faction::M26, "1:confirm-removal"),
-        (Faction::M26, "1:cancel-removal"),
+        (Faction::Government, "2:remove:santiago:underground:1"),
+        (Faction::M26, "2:remove:santiago:underground:3"),
+        (Faction::M26, "2:remove:santiago:underground:0"),
+        (Faction::M26, "2:remove:santiago:police:1"),
+        (Faction::M26, "2:remove:havana:underground:1"),
+        (Faction::M26, "2:remove:pinar-del-rio:casino:1"),
+        (Faction::M26, "2:remove:santiago:underground"),
+        (Faction::M26, "2:confirm-removal"),
+        (Faction::M26, "2:cancel-removal"),
     ] {
-        assert!(game.submit(owner, 1, action).is_err(), "{action}");
+        assert!(game.submit(owner, 2, action).is_err(), "{action}");
         assert_eq!(game, before);
     }
     choose(&mut game, "remove:santiago:underground:1");
     let after = game.clone();
     assert!(
-        game.submit(Faction::M26, 1, "1:remove:santiago:underground:1")
+        game.submit(Faction::M26, 2, "2:remove:santiago:underground:1")
             .is_err()
     );
     assert_eq!(game, after);
@@ -174,7 +174,7 @@ fn quantities_out_of_bounds_and_stale_or_foreign_removals_change_nothing() {
 
 #[test]
 fn owed_terror_protects_only_last_santiago_underground_and_nothing_once_it_resolves() {
-    let mut game = Game::prepared_with_seed(5); // actual roll 3, source witness
+    let mut game = crate::terror_chosen(Game::opening_with_seed(5)); // actual roll 3, source witness
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     let rng = game.random_state();
@@ -257,7 +257,7 @@ fn owed_terror_protects_only_last_santiago_underground_and_nothing_once_it_resol
 
 #[test]
 fn removal_previews_control_kidnap_terror_and_the_standing() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     // Syndicate gives 26July 2 Resources first, so both Terror targets are offered
     // and their loss shows; this transfer is already the first effect.
     choose(&mut game, "transfer");
@@ -331,7 +331,7 @@ fn removal_previews_control_kidnap_terror_and_the_standing() {
     assert_eq!(game.observe(), view);
     assert_eq!(game.random_state(), 17);
     // Before any effect, the first removal also ends going back (local policy, #58).
-    let mut fresh = Game::prepared();
+    let mut fresh = crate::terror_chosen(Game::opening());
     choose(&mut fresh, "remove");
     let view = fresh.observe();
     let first = offered(&view, "remove:sierra-maestra:base:1")
@@ -345,7 +345,7 @@ fn removal_previews_control_kidnap_terror_and_the_standing() {
 
 #[test]
 fn removal_leaves_earlier_terror_support_and_the_kidnap_result_in_place() {
-    let mut game = Game::prepared_with_seed(5);
+    let mut game = crate::terror_chosen(Game::opening_with_seed(5));
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     choose(&mut game, "terror:santiago");
@@ -383,7 +383,7 @@ fn removal_leaves_earlier_terror_support_and_the_kidnap_result_in_place() {
 
 #[test]
 fn all_own_pieces_can_return_to_supply_and_zero_space_finish_remains_legal() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     remove(&mut game, "sierra-maestra:base");
     assert_eq!(game.observe().standings[1].score, 6);
     assert_eq!(game.observe().spaces[9].control(), None);

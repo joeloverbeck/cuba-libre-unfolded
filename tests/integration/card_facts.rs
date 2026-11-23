@@ -39,7 +39,7 @@ fn preview(game: &Game) -> CardFacts {
 /// 26July's Terror with Kidnap, funded as #130 funds it (seed 2), up to the moment
 /// Directorio decides as 2nd Eligible.
 fn handoff() -> Game {
-    let mut game = Game::prepared_with_seed(2);
+    let mut game = crate::terror_chosen(Game::opening_with_seed(2));
     for action in ["kidnap", "kidnap:roll", "terror:santiago", "transfer"] {
         choose(&mut game, action);
     }
@@ -138,7 +138,7 @@ fn during_terror_the_event_waits_on_26july_s_operation() {
         "Event not yet open: Directorio may execute it if 26July's Operation includes a Special Activity"
     );
 
-    let mut kidnapped = Game::prepared_with_seed(2);
+    let mut kidnapped = crate::terror_chosen(Game::opening_with_seed(2));
     choose(&mut kidnapped, "kidnap");
     choose(&mut kidnapped, "kidnap:roll");
     let card = current(&kidnapped);
@@ -158,7 +158,7 @@ fn during_terror_the_event_waits_on_26july_s_operation() {
 
 #[test]
 fn an_operation_only_closes_the_event_for_the_card() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     choose(&mut game, "end-terror");
     let card = current(&game);
     assert_eq!(

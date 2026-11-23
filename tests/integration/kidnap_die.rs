@@ -539,7 +539,7 @@ fn playback_seeks_the_clock_at_the_slowed_rate_and_holds_the_end() {
 /// No die or tray entity name could be claimed by region binding as a map space.
 #[test]
 fn die_and_tray_names_never_bind_as_map_spaces() {
-    let spaces: Vec<_> = cuba_libre_unfolded::Game::prepared()
+    let spaces: Vec<_> = crate::terror_chosen(cuba_libre_unfolded::Game::opening())
         .observe()
         .spaces
         .into_iter()

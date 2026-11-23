@@ -13,7 +13,7 @@ fn choose(game: &mut Game, action: &str) {
 
 #[test]
 fn funded_santiago_assault_returns_only_active_guerrillas_then_hands_off() {
-    let mut funded = Game::prepared_with_seed(2);
+    let mut funded = crate::terror_chosen(Game::opening_with_seed(2));
     for action in ["kidnap", "kidnap:roll", "terror:santiago", "transfer"] {
         choose(&mut funded, action);
     }
@@ -160,7 +160,7 @@ fn funded_santiago_assault_returns_only_active_guerrillas_then_hands_off() {
 
 #[test]
 fn havana_assault_closes_the_targeted_casino_without_returning_it() {
-    let mut game = Game::prepared_with_seed(2);
+    let mut game = crate::terror_chosen(Game::opening_with_seed(2));
     for action in [
         "kidnap",
         "kidnap:roll",
@@ -291,7 +291,7 @@ fn havana_assault_closes_the_targeted_casino_without_returning_it() {
 
 #[test]
 fn all_thirteen_spaces_allow_inspection_and_pay_once_even_when_no_pieces_can_be_affected() {
-    let mut game = Game::prepared_with_seed(2);
+    let mut game = crate::terror_chosen(Game::opening_with_seed(2));
     for action in [
         "kidnap",
         "kidnap:roll",

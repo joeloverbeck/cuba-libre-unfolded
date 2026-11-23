@@ -22,7 +22,7 @@ fn transfer_resources(game: &mut Game, giver: usize, amount: u8) {
 #[test]
 fn oriente_terror_after_a_resource_transfer_updates_pieces_resources_standing_and_next_permission()
 {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     transfer_resources(&mut game, 2, 1);
     choose(&mut game, "terror:oriente");
     let view = game.observe();
@@ -56,7 +56,7 @@ fn all_six_rolls_fund_the_owed_terror_and_change_affordable_continuations() {
         (1, 6, 0, 5, Some(4)),
     ] {
         // Diagnostic seed input, not a selected outcome or alternate roll API.
-        let mut fixture = serde_json::to_value(Game::prepared()).unwrap();
+        let mut fixture = serde_json::to_value(crate::terror_chosen(Game::opening())).unwrap();
         fixture["random"] = seed.into();
         let mut game: Game = serde_json::from_value(fixture).unwrap();
         choose(&mut game, "kidnap");
@@ -102,7 +102,7 @@ fn all_six_rolls_fund_the_owed_terror_and_change_affordable_continuations() {
 
 #[test]
 fn owed_santiago_limits_spending_only_until_its_terror_is_resolved() {
-    let mut game = Game::prepared_with_seed(0); // actual shared roll 2
+    let mut game = crate::terror_chosen(Game::opening_with_seed(0)); // actual shared roll 2
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     choose(&mut game, "transfer");
@@ -133,7 +133,7 @@ fn owed_santiago_limits_spending_only_until_its_terror_is_resolved() {
 fn actual_resource_transfers_allow_both_target_orders_and_early_during_late_or_no_kidnap() {
     for order in [["santiago", "oriente"], ["oriente", "santiago"]] {
         for timing in [Some(0), Some(1), Some(2), None] {
-            let mut game = Game::prepared_with_seed(5); // shared roll 3
+            let mut game = crate::terror_chosen(Game::opening_with_seed(5)); // shared roll 3
             transfer_resources(&mut game, 2, 2);
             for (index, target) in order.into_iter().enumerate() {
                 if timing == Some(index) {
@@ -184,7 +184,7 @@ fn actual_resource_transfers_allow_both_target_orders_and_early_during_late_or_n
         }
     }
     // The result-1 source witness: a real later Resource transfer restores Oriente.
-    let mut game = Game::prepared_with_seed(19);
+    let mut game = crate::terror_chosen(Game::opening_with_seed(19));
     choose(&mut game, "kidnap");
     choose(&mut game, "kidnap:roll");
     choose(&mut game, "terror:santiago");
@@ -196,7 +196,7 @@ fn actual_resource_transfers_allow_both_target_orders_and_early_during_late_or_n
 
 #[test]
 fn depleted_government_needs_real_funding_before_early_zero_proceeds_kidnap() {
-    let mut game = Game::prepared_with_seed(5);
+    let mut game = crate::terror_chosen(Game::opening_with_seed(5));
     transfer_resources(&mut game, 0, 6);
     choose(&mut game, "transfer");
     choose(&mut game, "give:2:6");
@@ -226,7 +226,7 @@ fn depleted_government_needs_real_funding_before_early_zero_proceeds_kidnap() {
 
 #[test]
 fn refused_targets_activities_funds_duplicates_and_stale_input_preserve_all_state() {
-    let mut game = Game::prepared();
+    let mut game = crate::terror_chosen(Game::opening());
     for action in [
         "terror:santiago",
         "terror:oriente",
@@ -241,7 +241,7 @@ fn refused_targets_activities_funds_duplicates_and_stale_input_preserve_all_stat
     ] {
         let before = game.clone();
         assert!(
-            game.submit(Faction::M26, 0, &format!("0:{action}"))
+            game.submit(Faction::M26, 1, &format!("1:{action}"))
                 .is_err()
         );
         assert_eq!(game, before);
@@ -250,21 +250,21 @@ fn refused_targets_activities_funds_duplicates_and_stale_input_preserve_all_stat
     choose(&mut game, "kidnap:roll");
     let before = game.clone();
     for (owner, revision, action) in [
-        (Faction::Government, 1, "1:terror:santiago"),
-        (Faction::M26, 0, "0:kidnap"),
+        (Faction::Government, 2, "2:terror:santiago"),
         (Faction::M26, 1, "1:kidnap"),
-        (Faction::M26, 1, "1:end-terror"),
+        (Faction::M26, 2, "2:kidnap"),
+        (Faction::M26, 2, "2:end-terror"),
     ] {
         assert!(game.submit(owner, revision, action).is_err());
         assert_eq!(game, before);
     }
     choose(&mut game, "terror:santiago");
     let before = game.clone();
-    assert!(game.submit(Faction::M26, 2, "2:terror:santiago").is_err());
+    assert!(game.submit(Faction::M26, 3, "3:terror:santiago").is_err());
     assert_eq!(game, before);
     choose(&mut game, "terror:oriente");
     let before = game.clone();
-    assert!(game.submit(Faction::M26, 3, "3:terror:oriente").is_err());
+    assert!(game.submit(Faction::M26, 4, "4:terror:oriente").is_err());
     assert_eq!(game, before);
 }
 
@@ -273,7 +273,7 @@ fn active_only_missing_guerrillas_and_failed_outnumbering_refuse_without_rng_con
     // Deliberately malformed counterfactual states test refusal. Actual supported
     // removals are covered in removal.rs.
     for variant in 0..3 {
-        let mut source = serde_json::to_value(Game::prepared()).unwrap();
+        let mut source = serde_json::to_value(crate::terror_chosen(Game::opening())).unwrap();
         source["resources"] = serde_json::json!([5, 1, 5, 15]);
         let guerrilla = &mut source["spaces"][2]["pieces"][2];
         if variant == 0 {
@@ -283,10 +283,10 @@ fn active_only_missing_guerrillas_and_failed_outnumbering_refuse_without_rng_con
         }
         let mut game: Game = serde_json::from_value(source).unwrap();
         let before = game.clone();
-        assert!(game.submit(Faction::M26, 0, "0:kidnap").is_err());
+        assert!(game.submit(Faction::M26, 1, "1:kidnap").is_err());
         assert_eq!(game, before);
         if variant != 2 {
-            assert!(game.submit(Faction::M26, 0, "0:terror:santiago").is_err());
+            assert!(game.submit(Faction::M26, 1, "1:terror:santiago").is_err());
             assert_eq!(game, before);
         }
     }
