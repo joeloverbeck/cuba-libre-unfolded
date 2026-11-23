@@ -24,7 +24,7 @@ After the merge, work from the main checkout: pull `main`, then `git worktree re
 
   It takes `<main checkout>/local/heavy.lock`, opens a `systemd-run` memory scope with the limits it names, and sets the worktree's private target. Run one command per call: waiting on the lock is expected, and the lock is released before editing or thinking.
 - **Native suite.** `CUBA_TEST_CARDS=… scripts/heavy scripts/native`.
-- **A native app holds the lock.** The `cuba-libre` a native test launches inherits the heavy lock and keeps it until it quits, or until its seat ends it after 30 minutes without a request. A test helper that makes both an app and its socket directory returns them as one `NativeRun` (`tests/native.rs`), which drops the app first so its `quit` still reaches the socket. In #145 a failing probe removed the socket first, and its app held the lock for half an hour. If a heavy command waits while no build runs, `pgrep -x cuba-libre` finds an app left running.
+- **A native app holds the lock.** The `cuba-libre` a native test launches inherits the heavy lock and keeps it until it quits, or until its seat ends it after 30 minutes without a request. So a test keeps its app's socket directory alive until the app is dropped, on a failing path too: build the directory before the app, and return the two from a helper as one `NativeRun` (`tests/native.rs`), which drops the app first so its `quit` still reaches the socket. In #145 a failing probe removed the socket first, and its app held the lock for half an hour. If a heavy command waits while no build runs, `pgrep -x cuba-libre` finds an app left running.
 
 ## Art editors and Blender
 

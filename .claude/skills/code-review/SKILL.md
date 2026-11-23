@@ -80,7 +80,7 @@ If the spec is missing, skip the Spec sub-agent and note this in the final repor
 
 **Large diffs.** When the diff is too large for 400 words to hold every finding, each sub-agent writes its full findings, most severe first, to a file under `local/handoffs/` and returns a summary within the limit. The summary keeps every hard violation (Standards) or every wrong implementation (Spec).
 
-**Fixes.** A commit made after a review is reviewed as a delta from the last reviewed commit. Resume the sub-agent that raised the finding where the harness allows; it confirms each fix against the code.
+**Fixes.** A commit made after a review, the caller's own fix included, is reviewed as a delta from the last reviewed commit, so that the head merged is a reviewed head (`docs/agents/issue-tracker.md`, "Merge"). Resume the sub-agent that raised the finding where the harness allows; it confirms each fix against the code.
 
 ### 5. Aggregate
 
