@@ -554,8 +554,9 @@ impl SeatGame for Table {
     /// The Kidnap die's skip, a click on its tray, Enter or Space, reaches the table
     /// while the die is in the air and holds it unsettled. It only ends the tumble: the roll was
     /// saved before the die moved (#74, #87). A card advance is landed the same way
-    /// while a card is in the air: by Enter or Space, or by an activation of the card
-    /// area or of one of its cards or piles, which then does nothing else (#145).
+    /// while a card is in the air: by Enter or Space, or by an activation of any shown
+    /// component, the owner's click, which then does nothing else (#145). An activation
+    /// naming a choice is refused as busy.
     fn interrupts(&self, world: &mut World, input: Interrupt<'_>) -> bool {
         let (skips, lands) = match input {
             // The owner's click lands a card in the air wherever it falls, and does
