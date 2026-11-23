@@ -14,7 +14,7 @@
 //! position exactly ([ADR 0003](../docs/adr/0003-a-save-opens-by-exact-replay.md)).
 //! The shared record runs that check on load, on each candidate before it is
 //! written and on the kept `.previous` before it is rotated.
-use crate::{Faction, Game, Observation, assets};
+use crate::{Choice, Faction, Game, Observation, assets};
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -23,13 +23,13 @@ use unfolded_record_replacement::save::{self, Baseline, Format, Identity, Write}
 const LIMIT: u64 = 4 * 1024 * 1024;
 /// The save's shape. It changes whenever what a save holds changes shape.
 const FORMAT: &str = "2";
-/// Marks a refusal from the replay check.
-const VALIDITY: &str = "cuba-validity:";
+/// Marks a refusal from exact-replay admission.
+const REPLAY: &str = "cuba-replay:";
 
-/// What a save holds.
+/// What a save holds inside the shared record's envelope.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-struct Record {
+struct Payload {
     /// The random state the match opened with.
     seed: u64,
     /// Every accepted decision in order, each as its choice's action without the
@@ -38,7 +38,7 @@ struct Record {
     /// The position the decisions produce.
     position: Game,
 }
-impl Record {
+impl Payload {
     fn opening(seed: u64) -> Self {
         Self {
             seed,
@@ -81,20 +81,20 @@ impl Cuba {
     }
 }
 impl Format for Cuba {
-    type Payload = Record;
+    type Payload = Payload;
     const LIMIT: u64 = LIMIT;
-    fn identity(&self, _: &Record) -> Identity {
+    fn identity(&self, _: &Payload) -> Identity {
         Self::accepted()
     }
     fn accepts(&self, identity: &Identity) -> bool {
         *identity == Self::accepted()
     }
-    // Marked, so a refusal can tell the replay check from a payload that does not
-    // decode as a record; `words` removes the mark.
-    fn validate(&self, record: &Record) -> Result<(), String> {
-        record
+    // Marked, so a refusal can tell exact-replay admission from a payload that
+    // does not decode; `words` removes the mark.
+    fn validate(&self, payload: &Payload) -> Result<(), String> {
+        payload
             .replay()
-            .map_err(|detail| format!("{VALIDITY}{detail}"))
+            .map_err(|detail| format!("{REPLAY}{detail}"))
     }
 }
 
@@ -132,14 +132,14 @@ fn words(error: save::Error, action: Action) -> anyhow::Error {
         // Load, with the identity accepted and the checksum intact: the recorded
         // decisions do not replay to the saved position, or the payload does not
         // decode, so a build whose rules state has another shape wrote it whole.
-        save::Error::Unreproducible(detail) => match detail.strip_prefix(VALIDITY) {
+        save::Error::Unreproducible(detail) => match detail.strip_prefix(REPLAY) {
             Some(detail) => another_build(detail),
             None => another_build(&format!(
                 "its position is not in this build's shape: {detail}"
             )),
         },
         // Before a write: this build's own candidate failed its check.
-        save::Error::Invalid(detail) => match detail.strip_prefix(VALIDITY) {
+        save::Error::Invalid(detail) => match detail.strip_prefix(REPLAY) {
             Some(detail) => anyhow!(detail.to_owned()),
             None => anyhow::Error::msg(detail).context("Malformed save; original file preserved"),
         },
@@ -164,13 +164,13 @@ fn words(error: save::Error, action: Action) -> anyhow::Error {
     }
 }
 
-/// The save session: the match's record on disk and in memory. It keeps the
-/// decision list beside the position and adds each accepted decision; the rules
-/// state carries no history of its own.
+/// The save session: the match's save on disk and its payload in memory. It keeps
+/// the decision list beside the position and adds each accepted decision; the
+/// rules state carries no history of its own.
 pub struct Session {
     path: PathBuf,
     baseline: Baseline,
-    record: Record,
+    payload: Payload,
 }
 impl Session {
     /// Opens the save at `path`, recovers `recover_from`'s previous record into it,
@@ -178,14 +178,14 @@ impl Session {
     /// only after art decoding and render admission.
     pub fn open(path: &Path, recover_from: Option<&Path>) -> Result<Self> {
         if let Some(source) = recover_from {
-            let (record, baseline) =
+            let (payload, baseline) =
                 save::recover(&Cuba, source, path, |_| Ok::<_, save::Error>(()))
                     .map_err(|error| words(error, Action::Recover))?;
-            return Ok(Self::new(path, baseline, record));
+            return Ok(Self::new(path, baseline, payload));
         }
         match save::load(&Cuba, path).map_err(|error| words(error, Action::Continue))? {
-            Some((record, baseline)) => Ok(Self::new(path, baseline, record)),
-            // Draw OS entropy once. Reopening any existing record never reseeds it.
+            Some((payload, baseline)) => Ok(Self::new(path, baseline, payload)),
+            // Draw OS entropy once. Reopening any existing save never reseeds it.
             None => Self::create_seeded(path, unfolded_random::fresh_seed()?),
         }
     }
@@ -194,46 +194,45 @@ impl Session {
     /// tests and verification runs that need a known die roll; the app's launch
     /// never calls it and always draws OS entropy.
     pub fn create_seeded(path: &Path, seed: u64) -> Result<Self> {
-        let record = Record::opening(seed);
+        let payload = Payload::opening(seed);
         let mut baseline = Baseline::default();
-        save::write(&Cuba, path, &mut baseline, &record, Write::Create)
+        save::write(&Cuba, path, &mut baseline, &payload, Write::Create)
             .map_err(|error| words(error, Action::Continue))?;
-        Ok(Self::new(path, baseline, record))
+        Ok(Self::new(path, baseline, payload))
     }
-    fn new(path: &Path, baseline: Baseline, record: Record) -> Self {
+    fn new(path: &Path, baseline: Baseline, payload: Payload) -> Self {
         Self {
             path: path.to_path_buf(),
             baseline,
-            record,
+            payload,
         }
     }
     pub fn game(&self) -> &Game {
-        &self.record.position
+        &self.payload.position
     }
     pub fn observe(&self) -> Observation {
-        self.record.position.observe()
+        self.payload.position.observe()
     }
     /// Submits a decision through the checked submission and saves it, with its
     /// place in the decision list, before the changed position is published.
     pub fn submit(&mut self, owner: Faction, revision: u64, choice: &str) -> Result<()> {
-        let mut candidate = self.record.clone();
+        let mut candidate = self.payload.clone();
         candidate
             .position
             .submit(owner, revision, choice)
             .map_err(anyhow::Error::msg)?;
-        // Accepted, so `choice` is the offered id `{revision}:{action}`.
-        let action = choice
-            .strip_prefix(&format!("{revision}:"))
-            .ok_or_else(|| anyhow!("An accepted choice names its match revision"))?;
-        candidate.decisions.push(action.to_owned());
+        // Accepted, so `choice` is an offered choice's id.
+        candidate
+            .decisions
+            .push(Choice::action_of(choice).to_owned());
         self.persist(&candidate)?;
-        self.record = candidate;
+        self.payload = candidate;
         Ok(())
     }
     pub fn save(&mut self) -> Result<()> {
-        self.persist(&self.record.clone())
+        self.persist(&self.payload.clone())
     }
-    fn persist(&mut self, candidate: &Record) -> Result<()> {
+    fn persist(&mut self, candidate: &Payload) -> Result<()> {
         save::write(
             &Cuba,
             &self.path,

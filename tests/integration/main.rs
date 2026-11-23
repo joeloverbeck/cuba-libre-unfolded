@@ -10,16 +10,12 @@
 /// is loaded once here: Clippy refuses one file loaded as two modules of a binary.
 #[path = "../support/explore.rs"]
 mod explore;
-// Not unused: `explore` takes these from its includer, through `super::`.
+#[path = "../support/terror_chosen.rs"]
+mod terror_chosen;
+// Not unused: `explore` and `terror_chosen` take these from their includer,
+// through `super::`.
 use cuba_libre_unfolded::{Choice, Faction, Game, TransferChoice};
-
-/// `game`, an opening position, after 26July chooses Terror (R 2.3.4) as a player
-/// does: submitted at match revision 0, so the position is at revision 1.
-fn terror_chosen(mut game: Game) -> Game {
-    game.submit(Faction::M26, 0, "0:terror")
-        .expect("Terror is offered at the opening position");
-    game
-}
+use terror_chosen::terror_chosen;
 
 mod action_choice;
 mod assault;

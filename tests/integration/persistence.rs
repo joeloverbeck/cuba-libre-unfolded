@@ -949,14 +949,7 @@ fn a_position_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
 /// saved decisions; and resubmitting the decision is refused with the bytes unchanged.
 fn restart_after_each(path: &Path, mut session: Session, actions: &[&str]) -> Session {
     for &action in actions {
-        let before = session.observe();
-        let id = format!("{}:{action}", before.revision);
-        let owner = before
-            .choices
-            .iter()
-            .find(|c| c.id == id)
-            .map_or(before.owner, |c| c.owner);
-        act(&mut session, action);
+        let (owner, revision, id) = act(&mut session, action);
         let after = session.observe();
         let random = session.game().random_state();
         let bytes = std::fs::read(path).unwrap();
@@ -965,10 +958,7 @@ fn restart_after_each(path: &Path, mut session: Session, actions: &[&str]) -> Se
         assert_eq!(session.observe(), after, "{action}");
         assert_eq!(session.game().random_state(), random, "{action}");
         assert_eq!(after.revision, decisions(path).len() as u64, "{action}");
-        assert!(
-            session.submit(owner, before.revision, &id).is_err(),
-            "{action}"
-        );
+        assert!(session.submit(owner, revision, &id).is_err(), "{action}");
         assert_eq!(session.observe(), after, "{action}");
         assert_eq!(std::fs::read(path).unwrap(), bytes, "{action}");
     }
@@ -1293,8 +1283,9 @@ fn pending_giver_choice_and_accepted_transfer_resume_without_duplicate_or_failed
     assert_eq!(recovered.observe(), waited);
 }
 
-/// Submits the offered choice as the faction that owns it.
-fn act(session: &mut Session, action: &str) {
+/// Submits the offered choice as the faction that owns it, and returns that
+/// owner, the match revision it was submitted at and the choice's id.
+fn act(session: &mut Session, action: &str) -> (Faction, u64, String) {
     let view = session.observe();
     let id = format!("{}:{action}", view.revision);
     let owner = view
@@ -1305,6 +1296,7 @@ fn act(session: &mut Session, action: &str) {
     session
         .submit(owner, view.revision, &id)
         .unwrap_or_else(|e| panic!("{id}: {e}"));
+    (owner, view.revision, id)
 }
 
 #[test]
