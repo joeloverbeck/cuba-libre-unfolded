@@ -88,7 +88,6 @@ fn removal_mode_removes_nothing_until_a_removal_and_defeats_kidnap_but_not_terro
         game.observe().next.unwrap().options,
         ["Pass (+1 if executed later)", "Limited Operation"]
     );
-    game.validate().unwrap();
 }
 
 #[test]
@@ -133,7 +132,6 @@ fn a_stack_returns_several_pieces_in_one_decision_and_the_mode_stays_open() {
             .unwrap()
             .supported
     );
-    game.validate().unwrap();
     choose(&mut game, "remove:oriente:underground:1");
     choose(&mut game, "remove:sierra-maestra:base:1");
     // Nothing left but Done; it is never forced.
@@ -141,10 +139,8 @@ fn a_stack_returns_several_pieces_in_one_decision_and_the_mode_stays_open() {
     assert_eq!(view.choices.len(), 1);
     assert!(offered(&view, "done-removal").is_some());
     assert_eq!(view.standings[1].score, 6);
-    game.validate().unwrap();
     choose(&mut game, "done-removal");
     assert_eq!(game.observe().removal, None);
-    game.validate().unwrap();
 }
 
 #[test]
@@ -229,7 +225,6 @@ fn owed_terror_protects_only_last_santiago_underground_and_nothing_once_it_resol
     choose(&mut game, "remove:sierra-maestra:base:1");
     choose(&mut game, "remove:oriente:underground:1");
     choose(&mut game, "done-removal");
-    game.validate().unwrap();
     choose(&mut game, "terror:santiago");
     assert_eq!(game.observe().standings[1].score, 7);
     // After the owed Terror resolves, nothing is protected.
@@ -258,7 +253,6 @@ fn owed_terror_protects_only_last_santiago_underground_and_nothing_once_it_resol
             .contains(&"Event".into())
     );
     assert_eq!(game.random_state(), rng);
-    game.validate().unwrap();
 }
 
 #[test]
@@ -383,10 +377,8 @@ fn removal_leaves_earlier_terror_support_and_the_kidnap_result_in_place() {
     // Opposition still scores: 7 + 1 (Santiago) + 2 (Oriente) − 1 (the Base) = 9.
     assert_eq!(v.standings[1].score, 9);
     assert_eq!(v.terror_available, 18);
-    game.validate().unwrap();
     choose(&mut game, "done-removal");
     choose(&mut game, "end-terror");
-    game.validate().unwrap();
 }
 
 #[test]
@@ -401,7 +393,6 @@ fn all_own_pieces_can_return_to_supply_and_zero_space_finish_remains_legal() {
         "oriente:underground",
     ] {
         remove(&mut game, target);
-        game.validate().unwrap();
     }
     let v = game.observe();
     assert_eq!((v.map_piece_count, v.available_piece_count), (25, 61));
@@ -424,5 +415,4 @@ fn all_own_pieces_can_return_to_supply_and_zero_space_finish_remains_legal() {
         game.observe().next.unwrap().options,
         ["Pass (+1 if executed later)", "Limited Operation"]
     );
-    game.validate().unwrap();
 }

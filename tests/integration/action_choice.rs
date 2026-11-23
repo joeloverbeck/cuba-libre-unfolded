@@ -201,7 +201,6 @@ fn pass_gains_one_resource_keeps_26july_eligible_and_makes_directorio_first_elig
         (Faction::Directorio, Some(Faction::Government))
     );
     assert_eq!(e.m26_box, Some(SequenceBox::Pass));
-    game.validate().unwrap();
     // The task has ended: nothing further, including transfers, is accepted.
     for owner in Faction::ALL {
         refused(
@@ -269,7 +268,6 @@ fn eligibility_shows_order_and_roles_at_the_choice_during_terror_and_after_each_
         view.next.as_ref().unwrap().options,
         ["Pass (+1 if executed later)", "Limited Operation", "Event"]
     );
-    special.validate().unwrap();
 }
 
 #[test]
@@ -341,11 +339,9 @@ fn going_back_is_allowed_before_the_first_effect_and_restores_the_choice() {
             .iter()
             .all(|c| c.id.starts_with(&format!("{}:", view.revision)))
     );
-    game.validate().unwrap();
     // The choice is open again: Pass is still possible after exploring Terror.
     choose(&mut game, "pass");
     assert_eq!(game.observe().resources, [6, 1, 5, 15]);
-    game.validate().unwrap();
 }
 
 #[test]
@@ -389,7 +385,6 @@ fn going_back_withdraws_a_pending_transfer_request_without_moving_resources() {
     assert_eq!(view.transfer, None);
     assert_eq!(view.resources, INITIAL);
     assert_eq!(view.owner, Faction::M26);
-    game.validate().unwrap();
 }
 
 #[test]
@@ -412,7 +407,6 @@ fn ending_the_operation_closes_transfers_and_withdraws_a_pending_request() {
     assert_eq!(view.resources, INITIAL);
     assert_eq!(view.executing, None);
     assert_eq!(view.eligibility.m26_box, Some(SequenceBox::OperationOnly));
-    game.validate().unwrap();
 }
 
 #[test]

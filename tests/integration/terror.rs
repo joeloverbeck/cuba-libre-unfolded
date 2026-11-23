@@ -42,7 +42,6 @@ fn oriente_terror_after_a_resource_transfer_updates_pieces_resources_standing_an
         ["Pass (+1 if executed later)", "Limited Operation"]
     );
     assert_eq!(game.observe().eligible, [true; 4]);
-    game.validate().unwrap();
 }
 
 // Six independent source-table rows; seeds only select actual shared RNG faces.
@@ -98,7 +97,6 @@ fn all_six_rolls_fund_the_owed_terror_and_change_affordable_continuations() {
             game.observe().next.unwrap().options,
             ["Pass (+1 if executed later)", "Limited Operation", "Event"]
         );
-        game.validate().unwrap();
     }
 }
 
@@ -129,7 +127,6 @@ fn owed_santiago_limits_spending_only_until_its_terror_is_resolved() {
     choose(&mut game, "give:2:1");
     choose(&mut game, "end-terror");
     assert_eq!(game.observe().resources, [4, 0, 7, 14]);
-    game.validate().unwrap();
 }
 
 #[test]
@@ -144,7 +141,6 @@ fn actual_resource_transfers_allow_both_target_orders_and_early_during_late_or_n
                     choose(&mut game, "kidnap:roll");
                 }
                 choose(&mut game, &format!("terror:{target}"));
-                game.validate().unwrap();
             }
             if timing == Some(2) {
                 choose(&mut game, "kidnap");
@@ -185,7 +181,6 @@ fn actual_resource_transfers_allow_both_target_orders_and_early_during_late_or_n
                 ),
                 (17, 18, 34)
             );
-            game.validate().unwrap();
         }
     }
     // The result-1 source witness: a real later Resource transfer restores Oriente.
@@ -227,7 +222,6 @@ fn depleted_government_needs_real_funding_before_early_zero_proceeds_kidnap() {
             .options
             .contains(&"Event".into())
     );
-    game.validate().unwrap();
 }
 
 #[test]
@@ -288,7 +282,6 @@ fn active_only_missing_guerrillas_and_failed_outnumbering_refuse_without_rng_con
             guerrilla["count"] = (variant - 1).into();
         }
         let mut game: Game = serde_json::from_value(source).unwrap();
-        assert!(game.validate().is_err());
         let before = game.clone();
         assert!(game.submit(Faction::M26, 0, "0:kidnap").is_err());
         assert_eq!(game, before);

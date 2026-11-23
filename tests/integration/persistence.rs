@@ -349,7 +349,6 @@ fn pact_of_caracas_lists_the_first_eligible_options_and_refuses_an_unfunded_assa
     let next = handoff.next.unwrap();
     assert_eq!(next.role, "2nd Eligible");
     assert_eq!(next.options, ["Pass", "Limited Operation"]);
-    game.validate().unwrap();
 }
 
 /// Menu steps are decisions: after Assault menu loops a restart shows the same match

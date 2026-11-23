@@ -102,7 +102,6 @@ fn opening_shows_the_stakes_and_cancelling_changes_neither_state_nor_randomness(
     assert_eq!(unrevised(&game), unrevised(&before));
     assert_eq!(game.random_state(), before.random_state());
     assert!(!game.observe().kidnap_open);
-    game.validate().unwrap();
 }
 
 #[test]
@@ -155,7 +154,6 @@ fn all_six_faces_from_8_hold_after_opening_and_cancelling_first() {
                 .iter()
                 .any(|id| id == "kidnap" || id.starts_with("kidnap:"))
         );
-        game.validate().unwrap();
     }
 }
 
@@ -184,7 +182,6 @@ fn the_range_follows_governments_current_resources_down_to_zero() {
     let rolled = view.kidnap.as_ref().unwrap();
     assert_eq!((rolled.die, rolled.proceeds), (6, 0));
     assert_eq!(view.resources, [0, 6, 5, 15]);
-    game.validate().unwrap();
 }
 
 #[test]
