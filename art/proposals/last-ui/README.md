@@ -96,7 +96,7 @@ Each is shown at rest and under the pointer.
 | **B · Caja** | Under Available Forces, in the Cash supply's row (M3). | Under the decision panel, right edges aligned (S3). | Left of the button. | The supply joins what else is left in the box, but sits 8 above the decision panel. |
 | **C · Pie** | Beside the Propaganda pips, under its own label (M2). | Top left, under Aid (S1). | Bottom centre. | The supply sits by the Reset that refills it, far from where Terror is decided. |
 
-The notice slip is 574 wide: the space popover's card, with its 1.7 `ink` stroke and 5 `action/primary` top rule, and Lato 22 text.
+In the same pixels, the notice slip is 574 wide: the space popover's card, with its 1.7 `ink` stroke and 5 `action/primary` top rule, and Lato 22 text.
 
 ## Files
 
