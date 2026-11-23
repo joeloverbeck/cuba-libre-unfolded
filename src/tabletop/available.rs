@@ -396,7 +396,8 @@ mod tests {
                 }
             }
         }
-        assert_eq!(tint(0).to_srgba().red, 1.);
+        // Only the opacity changes: the piece keeps its exported colours.
+        assert_eq!(tint(0).with_alpha(1.), Color::WHITE);
     }
 
     /// Every drawn part is where the FigCraft frame records it, within its rounding to
