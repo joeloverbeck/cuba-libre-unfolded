@@ -1,6 +1,6 @@
 //! Development seat adapter: resolves real controls and never executes rules directly.
 use super::*;
-use bevy::{input::keyboard::Key, time::TimeUpdateStrategy};
+use bevy::{camera::primitives::Aabb, input::keyboard::Key, time::TimeUpdateStrategy};
 use serde_json::json;
 use std::sync::LazyLock;
 use unfolded_tabletop::{
@@ -103,6 +103,56 @@ fn named(control: &Control) -> TargetName {
         TargetName::Component(control.name.clone())
     }
 }
+/// A grid of points across a piece's body as the map camera shows it: the bounds of
+/// its meshes on screen.
+fn body_points(world: &mut World, piece: Entity) -> Vec<Vec2> {
+    let Ok((camera, camera_at)) = world
+        .query_filtered::<(&Camera, &GlobalTransform), With<TableCamera>>()
+        .single(world)
+        .map(|(camera, at)| (camera.clone(), *at))
+    else {
+        return vec![];
+    };
+    let meshes: Vec<(Entity, Aabb, GlobalTransform)> = world
+        .query_filtered::<(Entity, &Aabb, &GlobalTransform), With<Mesh3d>>()
+        .iter(world)
+        .map(|(entity, bounds, at)| (entity, *bounds, *at))
+        .collect();
+    let mut seen: Option<Rect> = None;
+    for (entity, bounds, at) in meshes {
+        let mut current = Some(entity);
+        let mut belongs = false;
+        while let Some(e) = current {
+            if e == piece {
+                belongs = true;
+                break;
+            }
+            current = world.get::<ChildOf>(e).map(ChildOf::parent);
+        }
+        if !belongs {
+            continue;
+        }
+        for x in [-1., 1.] {
+            for y in [-1., 1.] {
+                for z in [-1., 1.] {
+                    let corner = Vec3::from(bounds.center)
+                        + Vec3::from(bounds.half_extents) * Vec3::new(x, y, z);
+                    if let Ok(p) = camera.world_to_viewport(&camera_at, at.transform_point(corner))
+                    {
+                        seen = super::grow(seen, p);
+                    }
+                }
+            }
+        }
+    }
+    let Some(seen) = seen else {
+        return vec![];
+    };
+    (1..8)
+        .flat_map(|x| (1..8).map(move |y| Vec2::new(x as f32, y as f32) / 8.))
+        .map(|at| seen.min + seen.size() * at)
+        .collect()
+}
 fn piece_name(world: &World, entity: Entity) -> Option<String> {
     if world.get::<Count>(entity).is_some()
         && let Some(LabelAnchor {
@@ -137,9 +187,6 @@ fn controls(world: &mut World) -> Vec<(Entity, Control, Vec2)> {
         let Action::Space(ref id) = c.action else {
             continue;
         };
-        if world.resource::<Interface>().reader {
-            continue;
-        }
         let Some(label) = world
             .resource::<Art>()
             .labels
@@ -158,7 +205,7 @@ fn controls(world: &mut World) -> Vec<(Entity, Control, Vec2)> {
             result.push((entity, c, point));
         }
     }
-    if !world.resource::<Interface>().reader {
+    {
         let targets = world
             .query::<(Entity, &status::SpaceTarget)>()
             .iter(world)
@@ -367,23 +414,43 @@ impl SeatGame for Table {
             .map(|(space, seek)| json!({"space":space,"seek":seek}))
             .collect::<Vec<_>>();
         let die = die::observe(world);
+        let card = cards::observe(world);
+        let piles = piles::observe(world);
+        let pile_tag = pile_tags::observe(world);
+        let main_view = areas::observe(world);
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
         let pose = world.resource::<Orbit>().pose();
         let water_frame = world.get_resource::<Water>().map(|water| water.frame);
+        // One more key would pass the macro's recursion limit, so the piles join after.
+        let mut table = json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"top":top,"briefing":briefing,"choice":choice::observe(ui),"choice_parts":choice_parts,"eligibility":eligibility,"map_targets":map_targets,"highlights":highlights,"removal":removal,"markers":markers,"popover":popover,"transfer":transfer,"top_text":top_text,"inline_text":inline_text,"counts":counts,"top_parts":top_parts,"water_frame":water_frame,"terror":terror,"die":die,"settled":pending.is_empty(),"pending":pending,"card":card,"main_view":main_view,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"});
+        table["piles"] = piles;
+        table["pile_tag"] = pile_tag;
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
-            table: json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"top":top,"briefing":briefing,"choice":choice::observe(ui),"choice_parts":choice_parts,"eligibility":eligibility,"map_targets":map_targets,"highlights":highlights,"removal":removal,"markers":markers,"popover":popover,"transfer":transfer,"top_text":top_text,"inline_text":inline_text,"counts":counts,"top_parts":top_parts,"water_frame":water_frame,"terror":terror,"die":die,"settled":pending.is_empty(),"pending":pending,"reader":ui.reader,"hover":ui.hover.visible(),"notice":ui.notice,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"}),
+            table,
         }
     }
     fn revision(&self, world: &mut World) -> u64 {
         world.resource::<Play>().game().observe().revision
     }
     fn resolve(&self, world: &mut World, name: &TargetName) -> Result<Vec<Vec2>, String> {
-        let found: Vec<_> = controls(world)
+        let mut found: Vec<_> = controls(world)
             .into_iter()
             .filter(|(_, c, _)| &named(c) == name)
             .collect();
+        // A pile is its count disc, its side and its caption: the seat rests on the
+        // disc first and on the others' middles after it.
+        if found.len() > 1
+            && found
+                .iter()
+                .all(|(_, c, _)| matches!(c.action, Action::Pile(_)))
+        {
+            found.sort_by_key(|(entity, _, _)| world.get::<piles::Disc>(*entity).is_none());
+            let mut points: Vec<Vec2> = found.iter().map(|(_, _, at)| *at).collect();
+            points.dedup();
+            return Ok(points);
+        }
         if found.len() != 1 {
             return Err(format!(
                 "Expected exactly one shown target {name:?}, found {}",
@@ -391,6 +458,13 @@ impl SeatGame for Table {
             ));
         }
         let mut points = vec![found[0].2];
+        // An area's own controls can cover its middle: its edges and corners are
+        // bare. The shared seat still verifies the actual picked name.
+        if found[0].1.name.starts_with("area:")
+            && let Some(node) = world.get::<ComputedNode>(found[0].0)
+        {
+            points = areas::bare_points(found[0].2, node.size() * node.inverse_scale_factor);
+        }
         // A count can cover the center of its solid piece. Try exposed body
         // points too; the shared seat still verifies the actual picked name.
         if found[0].1.name.starts_with("piece:") {
@@ -399,6 +473,9 @@ impl SeatGame for Table {
                     points.push(found[0].2 + Vec2::new(x, y));
                 }
             }
+            // A piece is as large on screen as the camera makes it, and its count may
+            // cover all of those: try points across its body too (#142).
+            points.extend(body_points(world, found[0].0));
         }
         Ok(points)
     }
@@ -440,6 +517,12 @@ impl SeatGame for Table {
         if ui.dirty {
             pending.push("control redraw".into());
         }
+        if play.session.is_some() && !world.resource::<areas::Island>().surveyed() {
+            pending.push("Home framing".into());
+        }
+        if world.resource::<Counts>().settling > 0 {
+            pending.push("piece counts".into());
+        }
         if world.resource::<Orbit>().is_moving() {
             pending.push("camera movement".into());
         }
@@ -452,6 +535,7 @@ impl SeatGame for Table {
         }
         pending.extend(popover::unsettled(world));
         pending.extend(die::unsettled(world));
+        pending.extend(piles::unsettled(world));
         pending
     }
     fn admission(&self, world: &World) -> shared::Admission {
@@ -469,16 +553,32 @@ impl SeatGame for Table {
     }
     /// The Kidnap die's skip, a click on its tray, Enter or Space, reaches the table
     /// while the die is in the air and holds it unsettled. It only ends the tumble: the roll was
-    /// saved before the die moved (#74, #87).
+    /// saved before the die moved (#74, #87). A card advance is landed the same way
+    /// while a card is in the air: by Enter or Space, or by an activation of any shown
+    /// component, the owner's click, which then does nothing else (#145). An activation
+    /// naming a choice is refused as busy.
     fn interrupts(&self, world: &mut World, input: Interrupt<'_>) -> bool {
-        let skips = match input {
-            Interrupt::Activate(TargetName::Component(name)) => name == die::TRAY,
-            Interrupt::Activate(TargetName::Choice(_)) => false,
-            Interrupt::Key(key) => matches!(key, "Enter" | "Space"),
+        let (skips, lands) = match input {
+            // The owner's click lands a card in the air wherever it falls, and does
+            // nothing else there (#145, #137's review); a choice named by its id asks
+            // for a decision instead, and waits.
+            Interrupt::Activate(TargetName::Component(name)) => (name == die::TRAY, true),
+            Interrupt::Activate(TargetName::Choice(_)) => (false, false),
+            Interrupt::Key(key) => {
+                let key = matches!(key, "Enter" | "Space");
+                (key, key)
+            }
         };
-        skips && die::focus(world) == Some(die::TRAY)
+        (skips && die::focus(world) == Some(die::TRAY)) || (lands && piles::playing(world))
     }
     fn focus(&self, world: &mut World) -> Focus {
+        // A card in the air holds the keyboard: Enter or Space lands it (#145).
+        if piles::playing(world) {
+            return Focus::Control {
+                choice: None,
+                label: piles::ADVANCE.into(),
+            };
+        }
         // A presented Kidnap die holds the keyboard: Enter reaches the tray's skip while
         // the die is in the air, and Continue once it has landed (#74, #87).
         if die::shown(world) {

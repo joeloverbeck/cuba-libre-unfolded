@@ -865,8 +865,19 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
 }
 
 /// The controls Tab moves through, in order, by their seat names, each with what
-/// Enter does to it.
+/// Enter does to it: the panel's, then the current and the preview card, whose tags
+/// focus opens as hover does (#139), then the two piles, whose tags it opens too (#144).
 fn focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> {
+    let mut controls = panel_focusable(view, ui);
+    controls
+        .extend(super::cards::Slot::ALL.map(|slot| (slot.name().to_owned(), Action::Card(slot))));
+    controls
+        .extend(super::piles::Pile::ALL.map(|pile| (pile.name().to_owned(), Action::Pile(pile))));
+    controls
+}
+
+/// The panel's controls Tab moves through.
+fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> {
     if let Some(advance) = view.choices.iter().find(|c| c.action() == "advance-card") {
         return vec![(
             advance.id.clone(),
@@ -936,7 +947,7 @@ pub(super) fn keys(
     let tab = keys.just_pressed(KeyCode::Tab);
     let enter = keys.any_just_pressed(activation_keys);
     let escape = keys.just_pressed(KeyCode::Escape);
-    if !(tab || enter || escape) || ui.reader || play.session.is_none() {
+    if !(tab || enter || escape) || play.session.is_none() {
         return;
     }
     // The transfer modal takes the keyboard while it is shown (`transfer::keys`), and so
@@ -949,6 +960,11 @@ pub(super) fn keys(
     }
     let view = play.game().observe();
     if escape {
+        // An open card tag closes first, and alone (#139).
+        if super::cards::escape(&mut ui) {
+            ui.dirty = true;
+            return;
+        }
         // An open space or piece popover closes as the tag does (#75); nothing is
         // decided.
         popover.close_all();
@@ -1014,6 +1030,11 @@ pub(super) fn keys(
             ui.notice = reason;
             ui.dirty = true;
         }
+        // Enter or Space on a focused card pins its tag, as a click does.
+        Action::Card(slot) => {
+            super::cards::activate(&mut ui, slot);
+            ui.dirty = true;
+        }
         _ => {}
     }
 }
@@ -1025,9 +1046,6 @@ pub(super) fn keys(
 /// it. Returns the option or step, whether it is pinned, and whether it is the
 /// ribbon's tag.
 fn wanted(game: &Game, ui: &Interface, popover: bool) -> Option<(String, bool, bool)> {
-    if ui.reader {
-        return None;
-    }
     let (prefix, ribbon) = match game.action {
         _ if game.card_18 => ("option:", false),
         ActionChoice::Open => ("option:", false),
@@ -1229,8 +1247,8 @@ pub(super) fn draw(
     let Some(briefing) = content else {
         return;
     };
-    let (s, left) = layout(&window);
-    let o = left + Vec2::new(window.width() - WIDTH * s, 0.);
+    let s = reference_pixel(&window);
+    let o = Vec2::new(window.width() - WIDTH * s, 0.);
     let at = |x: f32, y: f32| o + Vec2::new(rx(x), ry(y)) * s;
     // The active row's outline: an option at the action choice, or a step during
     // Terror (the step a mode holds open is outlined by the panel itself).
@@ -1594,9 +1612,14 @@ mod tests {
         let view = Game::opening().observe();
         let ui = Interface::default();
         let order = names(&view, &ui);
-        assert_eq!(order.len(), 12);
+        assert_eq!(order.len(), 16);
         assert_eq!(order[0], "option:pass");
         assert_eq!(order[11], "choice-commit");
+        // Then both cards and both piles, whose tags focus opens (#139, #144).
+        assert_eq!(
+            order[12..],
+            ["card:current", "card:preview", "pile:played", "pile:deck"]
+        );
         // During Terror (#84): every listed step, the commit, then the ribbon.
         let mut game = Game::opening();
         game.submit(Faction::M26, 0, "0:terror").unwrap();
@@ -1612,17 +1635,25 @@ mod tests {
                 "step:end-terror",
                 "step:back-to-choice",
                 "execution-commit",
-                "briefing-ribbon"
+                "briefing-ribbon",
+                "card:current",
+                "card:preview",
+                "pile:played",
+                "pile:deck"
             ]
         );
         ui.choice.ribbon = true;
         let order = names(&game.observe(), &ui);
         assert_eq!(
-            order[order.len() - 3..],
+            order[order.len() - 7..],
             [
                 "briefing-ribbon",
                 "briefing-tab:kidnap",
-                "briefing-tab:terror"
+                "briefing-tab:terror",
+                "card:current",
+                "card:preview",
+                "pile:played",
+                "pile:deck"
             ]
         );
         ui.choice.pinned = Some("end-terror".into());

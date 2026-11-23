@@ -35,6 +35,14 @@ The owner's [acceptance of the rules baseline and tactical scenario](https://git
 
 Syndicate becomes 2nd Eligible and may inspect Pass or Limited Operation under R 2.3.4.
 
+### Next Propaganda assumes equal piles
+
+**Rules:** Deck Preparation splits the Event cards "into 4 roughly (or, if desired, exactly) equal piles" and shuffles one Propaganda card into each. R 2.2 opens the played cards and the deck's number to inspection, not the order of the deck.
+
+**Policy:** The draw deck's tag says how soon the next Propaganda card can come assuming the deck was prepared with exactly equal piles of 12 Events, as this build's prepared deck was. The n-th Propaganda card then lies in the n-th pile of 13 cards, and the figure follows from the cards played, the Propaganda cards among them and the face-up preview alone. The tag states the assumption. With roughly equal piles the true place can lie outside the figure.
+
+**Decided:** the owner accepted the line "Next Propaganda within the next 8 cards" with this assumption stated when selecting the main view and card tags ([decision record](../art/proposals/main-view-cards/README.md), [#136](https://github.com/joeloverbeck/cuba-libre-unfolded/pull/136)); spec #137 and ticket #144 record it.
+
 ## Specified in a ticket, without a separate owner ruling
 
 These three were specified in [#61](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/61), part of #58, and merged in PR #76. #61's labelling criterion names the first two; the withdrawal is specified in its body. The app labels all three as local policy. No owner ruling on them as rules interpretations is recorded.

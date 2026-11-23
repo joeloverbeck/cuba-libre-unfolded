@@ -436,7 +436,7 @@ pub(super) fn keys(
     mut play: ResMut<Play>,
     mut ui: ResMut<Interface>,
 ) {
-    if ui.reader || play.session.is_none() || keys.get_just_pressed().next().is_none() {
+    if play.session.is_none() || keys.get_just_pressed().next().is_none() {
         return;
     }
     let view = play.game().observe();
@@ -540,7 +540,7 @@ pub(super) enum Live {
     RecipientAfter,
 }
 
-type Drawn = (u64, Option<Transfer>, String, [u32; 2], bool);
+type Drawn = (u64, Option<Transfer>, String, [u32; 2]);
 
 /// Draws the modal, or the pending tab after Wait, when what they show changes. A
 /// slider press or drag in progress only moves its live parts; the modal redraws on
@@ -561,7 +561,7 @@ pub(super) fn draw(
         return;
     };
     ui.transfer.sync(game.revision, game.transfer.as_ref());
-    let s = layout(&window).0;
+    let s = reference_pixel(&window);
     // A press or drag on the slider keeps its entity until release.
     if held.iter().any(|(d, pressed)| d.dragging || pressed) {
         let view = game.observe();
@@ -575,15 +575,10 @@ pub(super) fn draw(
         game.revision,
         game.transfer.clone(),
         format!(
-            "{:?}{:?}{}{:?}{}",
-            ui.transfer.counterpart,
-            ui.transfer.direction,
-            ui.transfer.entry,
-            ui.transfer.focus,
-            ui.reader
+            "{:?}{:?}{}{:?}",
+            ui.transfer.counterpart, ui.transfer.direction, ui.transfer.entry, ui.transfer.focus,
         ),
         [window.width().to_bits(), window.height().to_bits()],
-        ui.reader,
     );
     if previous.as_ref() == Some(&key) {
         return;
@@ -592,19 +587,20 @@ pub(super) fn draw(
     for root in &roots {
         commands.entity(root).despawn();
     }
-    if ui.reader || game.transfer.is_none() {
+    if game.transfer.is_none() {
         return;
     }
     let view = game.observe();
-    let (_, left) = layout(&window);
     let extra = window.width() - WIDTH * s;
-    let centered = left + Vec2::new(extra / 2., 0.);
+    let centered = Vec2::new(extra / 2., 0.);
     if !shown(view.transfer.as_ref()) {
         pending(&mut commands, &art, &view, s, centered);
         return;
     }
-    scrim(&mut commands, &art, &window, s, left);
-    modal(&mut commands, &art, &view, &ui, s, centered);
+    scrim(&mut commands, &art, &window, s, Vec2::ZERO);
+    // The modal sits in the middle of the window; its note above stays at the top.
+    let middle = centered + bottom(&window) / 2.;
+    modal(&mut commands, &art, &view, &ui, s, middle);
 }
 
 /// Moves the thumb and fill and rewrites the amount and balances during a drag.

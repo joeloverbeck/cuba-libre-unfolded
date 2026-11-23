@@ -8,7 +8,6 @@ use crate::{
 use bevy::{
     app::AnimationSystems,
     asset::RenderAssetUsages,
-    camera::Viewport,
     core_pipeline::tonemapping::{DebandDither, Tonemapping},
     image::{
         CompressedImageFormats, ImageAddressMode, ImageSampler, ImageSamplerDescriptor, ImageType,
@@ -43,7 +42,9 @@ use unfolded_tabletop::{
     label_anchor::{LabelAnchor, LabelAnchorPlugin},
     token,
 };
+mod areas;
 mod briefing;
+mod cards;
 mod choice;
 pub mod die;
 #[cfg(test)]
@@ -53,6 +54,8 @@ mod emblems;
 mod execution;
 mod highlights;
 mod palette;
+mod pile_tags;
+mod piles;
 mod popover;
 pub mod seat;
 mod status;
@@ -130,6 +133,10 @@ enum Target {
     Choice(String),
     /// An action box of the eligibility indicator, by its seat name.
     Sequence(eligibility::Slot),
+    /// The current or the preview card, by its seat name.
+    Card(cards::Slot),
+    /// The played pile or the draw deck, by its seat name (#144).
+    Pile(piles::Pile),
 }
 #[derive(Resource, Default)]
 struct Interface {
@@ -141,7 +148,8 @@ struct Interface {
     /// until the pointer moves, so the button that replaces the clicked one does not
     /// open a card under a pointer that has not left it.
     rested: Option<Vec2>,
-    reader: bool,
+    /// The card tag's pin and Escape state.
+    card: cards::State,
     notice: String,
     dirty: bool,
     /// The action choice's pinned option, keyboard focus and briefing ribbon.
@@ -151,6 +159,9 @@ struct Interface {
     /// The revision a Kidnap roll just created in this run, until the die's
     /// presentation starts it from the shared clock in the same frame (`die::present`).
     rolled: Option<u64>,
+    /// The card a decision just played in this run, until the tray starts showing its
+    /// advance from the shared clock in the same frame (`piles::follow`).
+    played: Option<piles::Played>,
 }
 #[derive(Component)]
 struct UiRoot;
@@ -176,8 +187,8 @@ struct Control {
 enum Action {
     Standing(Faction),
     Top(top::Item),
-    Close,
-    Reader,
+    /// The current or the preview card: hover opens its tag, a click pins it.
+    Card(cards::Slot),
     Space(String),
     Decision(Faction, u64),
     /// A commit at the panel's foot: the action choice's for its pinned option, or EX-A's
@@ -193,6 +204,12 @@ enum Action {
     /// An action box of the eligibility indicator: a hover disclosure only.
     Sequence(eligibility::Slot),
     Unsupported(String),
+    /// A pile's count disc: the pile's target. Hover and focus open its tag
+    /// (`pile_tags`); a click changes nothing.
+    Pile(piles::Pile),
+    /// An overlaid area's own rectangle (`areas::Area`): it takes the pointer and
+    /// does nothing.
+    Area,
     /// Lands the Kidnap die at once.
     SkipDie,
     /// Closes the landed Kidnap die and returns the panel to Terror.
@@ -291,15 +308,19 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
     let mut images = BTreeMap::new();
     for (key, bytes) in &verified.files {
         if key.ends_with(".png") {
-            let mut decoded = Image::from_buffer(
-                bytes,
-                ImageType::Extension("png"),
-                CompressedImageFormats::NONE,
-                true,
-                ImageSampler::linear(),
-                RenderAssetUsages::default(),
-            )
-            .map_err(|e| e.to_string())?;
+            let mut decoded = if key == assets::CARD_BACK.name {
+                piles::back(bytes)?
+            } else {
+                Image::from_buffer(
+                    bytes,
+                    ImageType::Extension("png"),
+                    CompressedImageFormats::NONE,
+                    true,
+                    ImageSampler::linear(),
+                    RenderAssetUsages::default(),
+                )
+                .map_err(|e| e.to_string())?
+            };
             if key.starts_with("water/") {
                 decoded.sampler = ImageSampler::Descriptor(ImageSamplerDescriptor {
                     address_mode_u: ImageAddressMode::Repeat,
@@ -322,6 +343,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .resource_mut::<Assets<Font>>()
         .add(Font::from_bytes(verified.files["Lato-Bold.ttf"].clone()));
     let die_art = die::DieArt::load(&mut app, &verified.files["kidnap-die.json"])?;
+    let main_view = areas::Layout::read(&verified.files["atlas-main-view.layout.json"])?;
     let server = app.world().resource::<AssetServer>();
     let scene = server.load("atlas-terrain-map.glb#Scene0");
     let terror = server.load("atlas-terror-token.glb#Scene0");
@@ -360,7 +382,11 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             labels: labels.labels,
         })
         .insert_resource(die_art)
+        .insert_resource(main_view)
+        .init_resource::<areas::Island>()
+        .init_resource::<Counts>()
         .init_resource::<die::Roll>()
+        .init_resource::<piles::Advance>()
         .insert_resource(TerrorLoop {
             clip: terror_clip,
             graph,
@@ -376,9 +402,12 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             dirty: true,
             ..default()
         })
-        // art/stage/preview-stage.blend mirrors this home framing; update it too.
+        // Where the camera waits while the map loads. `areas::home` then frames the
+        // island in the layout's box for the window; art/stage/preview-stage.blend
+        // mirrors that framing on the owner's display.
         .insert_resource(Orbit::new(Framing::new(Vec3::new(0.35, 0., 0.35), 9.6)))
-        // Atlas SVG map rim fill; the viewport continues the authored sea.
+        // The layout's `map` colour, which the authored sea also has: the window
+        // shows it beyond the sea's edge.
         .insert_resource(ClearColor(palette::MAP))
         .add_plugins((
             MeshPickingPlugin,
@@ -388,13 +417,14 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .configure_sets(
             Update,
             TableCameraSystems
-                .after(camera_facts_and_viewport)
+                .after(write_camera_facts)
                 .before(status::hover),
         )
         .init_resource::<highlights::Targeting>()
         .init_resource::<popover::Popover>()
         .add_systems(Startup, (setup, highlights::setup, popover::setup))
         .add_observer(map_click_closes_tag)
+        .add_observer(piles::land_on_click)
         .add_systems(
             Update,
             (
@@ -406,11 +436,20 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 popover::hover_piece,
                 bind_spaces,
                 hover_disclosures,
-                // The presented die takes Space and Enter, so the action choice and the
-                // modal read the keyboard first and stand aside while it is shown.
-                (choice::keys, transfer::keys, die::present).chain(),
+                // A playing card advance takes Space and Enter before anything else
+                // reads them. The presented die takes them too, so the action choice
+                // and the modal read the keyboard first and stand aside while it is
+                // shown. A decision any of them applied may have played a card.
+                (
+                    piles::keys,
+                    choice::keys,
+                    transfer::keys,
+                    die::present,
+                    piles::follow,
+                )
+                    .chain(),
                 draw_ui,
-                camera_facts_and_viewport,
+                (areas::home, write_camera_facts).chain(),
                 status::hover,
                 status::draw,
                 victory::draw,
@@ -423,6 +462,9 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                     eligibility::draw,
                     transfer::draw,
                     transfer::plates,
+                    cards::draw,
+                    pile_tags::draw,
+                    piles::present,
                 )
                     .chain(),
                 animate_water,
@@ -456,7 +498,7 @@ fn render_ready(
         queue.on_submitted_work_done(move || flag.store(true, Ordering::Release));
     }
 }
-/// art/stage/preview-stage.blend mirrors this viewport, light, sea and region
+/// art/stage/preview-stage.blend mirrors this light, sea and region
 /// tops, and `sync_pieces`' placement; update it when they change.
 fn setup(
     mut commands: Commands,
@@ -469,24 +511,18 @@ fn setup(
         TableCamera,
         // Renders the seat's image under the UI camera; nothing without one.
         unfolded_tabletop::capture::OnSurface,
-        // Preserve the authored unlit sea color against the UI's matching rim.
-        // Debanding needs tonemapping, so it is off too (#86).
+        // Preserve the authored unlit sea colour, which is the layout's `map`.
+        // Debanding needs tonemapping, so it is off too (#86). The camera has no
+        // viewport: the map fills the window (#142).
         Tonemapping::None,
         DebandDither::Disabled,
-        Camera {
-            viewport: Some(Viewport {
-                physical_position: UVec2::new(40, 176),
-                physical_size: UVec2::new(1300, 684),
-                ..default()
-            }),
-            ..default()
-        },
         Transform::from_xyz(-0.2, 8.84, 5.17).looking_at(Vec3::new(-0.2, 0., -0.5), Vec3::Y),
     ));
     commands.spawn((
         Camera2d,
         Camera {
-            order: 1,
+            // Over the map (0) and the card tray (1); the Kidnap tray (3) draws over it.
+            order: 2,
             clear_color: ClearColorConfig::None,
             ..default()
         },
@@ -556,6 +592,7 @@ fn setup(
         ));
     }
 }
+#[allow(clippy::too_many_arguments)] // A Bevy system: its parameters are the resources it reads.
 fn sync_pieces(
     mut commands: Commands,
     play: Res<Play>,
@@ -563,8 +600,12 @@ fn sync_pieces(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     roots: Query<Entity, With<PieceVisual>>,
+    mut counts: ResMut<Counts>,
     mut previous: Local<Option<(Faction, Vec<crate::Space>)>>,
 ) {
+    if counts.settling > 0 {
+        counts.settling -= 1;
+    }
     let game = play.game();
     let executor = game.executing().unwrap_or(Faction::M26);
     if previous
@@ -574,6 +615,7 @@ fn sync_pieces(
         return;
     }
     *previous = Some((executor, game.spaces.clone()));
+    counts.unsettle();
     for entity in &roots {
         commands.entity(entity).despawn();
     }
@@ -726,6 +768,25 @@ fn sync_pieces(
 #[derive(Component)]
 struct Count;
 
+/// How many frames the counts still need before they stand over their pieces. A
+/// count's node is placed in the frame it is spawned or the camera jumps, centred on
+/// its measured width in the next, and picked where it then stands from the one
+/// after. The development seat waits for that: with the map filling the window a
+/// count can settle over the middle of its piece, and a press that came a frame
+/// early would land on the count instead (#142).
+#[derive(Resource, Default)]
+struct Counts {
+    settling: u8,
+}
+impl Counts {
+    /// The frames a count takes to be placed, measured and picked where it stands.
+    const SETTLING: u8 = 3;
+    /// Holds the seat while the counts follow a change of the pieces or the camera.
+    fn unsettle(&mut self) {
+        self.settling = Self::SETTLING;
+    }
+}
+
 /// A count's face. Its size is set in reference pixels; `scale_counts` scales it to the
 /// window before the interface is laid out.
 fn count_font(art: &Art) -> TextFont {
@@ -742,7 +803,7 @@ fn scale_counts(
     window: Single<&Window, With<PrimaryWindow>>,
     mut counts: Query<&mut TextFont, With<Count>>,
 ) {
-    let size = FontSize::Px(COUNT_SIZE * layout(&window).0);
+    let size = FontSize::Px(COUNT_SIZE * reference_pixel(&window));
     for mut font in &mut counts {
         if font.font_size != size {
             font.font_size = size;
@@ -908,7 +969,8 @@ fn bind_spaces(
         }
     }
 }
-/// One dwell for every hover disclosure: victory standings and the top display.
+/// One dwell for every hover disclosure: victory standings, the top display and the
+/// card tag.
 fn hover_disclosures(
     hover: Res<HoverMap>,
     controls: Query<&Control>,
@@ -933,6 +995,8 @@ fn hover_disclosures(
                 Action::Standing(f) => Some(Target::Standing(f)),
                 Action::Top(item) => Some(Target::Top(item)),
                 Action::Sequence(slot) => Some(Target::Sequence(slot)),
+                Action::Card(slot) => Some(Target::Card(slot)),
+                Action::Pile(pile) => Some(Target::Pile(pile)),
                 Action::Decision(..) | Action::Unsupported(_) | Action::Pin(_) if !rested => {
                     Some(Target::Choice(control.name.clone()))
                 }
@@ -940,9 +1004,12 @@ fn hover_disclosures(
             }
         })
     });
-    let eligible = !ui.reader;
+    // Keyboard focus on a card or a pile opens its tag as the pointer does, with the
+    // same dwell.
+    let target = target.or_else(|| pile_tags::focused(&ui).map(Target::Pile));
+    let target = cards::target(&mut ui, target);
     ui.hover
-        .update(target, eligible, time.delta(), Duration::from_millis(400));
+        .update(target, true, time.delta(), Duration::from_millis(400));
 }
 
 #[allow(clippy::too_many_arguments)] // A Bevy observer: its parameters are the resources it reads.
@@ -955,9 +1022,17 @@ fn click(
     mut roll: ResMut<die::Roll>,
     targeting: Res<highlights::Targeting>,
     mut popover: ResMut<popover::Popover>,
+    time: Res<Time>,
+    frame: Res<bevy::diagnostic::FrameCount>,
+    mut advance: ResMut<piles::Advance>,
 ) {
     event.propagate(false);
     if event.button != bevy::picking::pointer::PointerButton::Primary || play.session.is_none() {
+        return;
+    }
+    // A click while a played card is in the air lands the cards and does nothing
+    // else (presentation only: the advance was saved before anything moved).
+    if advance.lands(&play.game().observe(), time.elapsed_secs_f64(), frame.0) {
         return;
     }
     let Ok(control) = controls.get(event.entity) else {
@@ -974,12 +1049,13 @@ fn click(
         _ => control.clone(),
     };
     ui.clicked = true;
-    if ui.reader && !matches!(control.action, Action::Close | Action::Quit) {
-        return;
-    }
     match &control.action {
         // Hover disclosures never change a decision.
-        Action::Standing(_) | Action::Top(_) | Action::Sequence(_) => return,
+        Action::Standing(_)
+        | Action::Top(_)
+        | Action::Sequence(_)
+        | Action::Pile(_)
+        | Action::Area => return,
         // A region click opens or closes a space popover while Terror targets are
         // chosen, and does nothing otherwise; it never decides anything itself. An
         // opened popover wins over the AC-B briefing tag, which reopens from the
@@ -1016,12 +1092,8 @@ fn click(
             return;
         }
         Action::Submit(..) => return,
-        Action::Close => {
-            ui.reader = false;
-        }
-        Action::Reader => {
-            ui.reader = true;
-        }
+        // Reading a card changes nothing in the match.
+        Action::Card(slot) => cards::activate(&mut ui, *slot),
         Action::Decision(owner, rev) | Action::Commit(owner, rev) => {
             decide(&mut play, &mut ui, *owner, *rev, &control.name);
         }
@@ -1059,11 +1131,18 @@ fn map_click_closes_tag(
     nodes: Query<(), With<Node>>,
     play: Res<Play>,
     mut ui: ResMut<Interface>,
+    time: Res<Time>,
+    frame: Res<bevy::diagnostic::FrameCount>,
+    mut advance: ResMut<piles::Advance>,
 ) {
     if event.button != bevy::picking::pointer::PointerButton::Primary
         || play.session.is_none()
         || nodes.contains(event.entity)
     {
+        return;
+    }
+    // A click while a played card is in the air only lands it.
+    if advance.lands(&play.game().observe(), time.elapsed_secs_f64(), frame.0) {
         return;
     }
     let step = play.game().action == crate::ActionChoice::Terror && ui.choice.pinned.is_some();
@@ -1085,6 +1164,9 @@ fn decide(play: &mut Play, ui: &mut Interface, owner: Faction, rev: u64, name: &
                 // (die::present), and the notice names it once the die lands.
                 ui.rolled = Some(after.revision);
             }
+            // A played card is saved before it moves; the tray shows it cross from
+            // this frame's clock (piles::follow).
+            ui.played = piles::Played::between(&previous, &after);
             ui.notice = notice(&previous, &after, owner, name);
         }
         Err(e) => ui.notice = e.to_string(),
@@ -1274,40 +1356,32 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
         _ => "Decision saved.".into(),
     }
 }
-fn layout(window: &Window) -> (f32, Vec2) {
-    let scale = (window.width() / WIDTH).min(window.height() / HEIGHT);
-    (
-        scale,
-        Vec2::new(0., (window.height() - HEIGHT * scale) / 2.),
-    )
+/// One reference pixel in logical window pixels. The reference's top-left corner is
+/// the window's, so an area anchored there needs no offset. An area keeps its
+/// distance from the edge or centre its layout anchors it to (`areas::Anchor`): the
+/// callers add the window's spare width for the right edge, half of it for the
+/// centre, and [`bottom`] for the bottom edge. Nothing is letterboxed.
+fn reference_pixel(window: &Window) -> f32 {
+    (window.width() / WIDTH).min(window.height() / HEIGHT)
 }
-/// The authored map rectangle, in logical window pixels: the only part of the window
-/// that shows the scene. Extra width on wide windows goes to the map.
-fn map_rect(window: &Window) -> Rect {
-    let (scale, offset) = layout(window);
-    let min = offset + Vec2::new(40., 176.) * scale;
-    let size = Vec2::new(window.width() - 620. * scale, 684. * scale);
-    Rect {
-        min,
-        max: min + size,
-    }
+/// The smallest rectangle holding `bounds`, if any, and the point `p`.
+fn grow(bounds: Option<Rect>, p: Vec2) -> Option<Rect> {
+    Some(bounds.map_or(Rect::from_corners(p, p), |b| b.union_point(p)))
 }
-/// The camera's viewport: the map rectangle, in physical pixels.
-fn map_viewport(window: &Window) -> Viewport {
-    let map = map_rect(window);
-    let physical_position = (map.min * window.scale_factor()).round().as_uvec2();
-    let physical_end = (map.max * window.scale_factor()).round().as_uvec2();
-    Viewport {
-        physical_position,
-        physical_size: physical_end - physical_position,
-        ..default()
-    }
+/// How far a bottom-anchored area lies below its place in the reference: the
+/// window's spare height.
+fn bottom(window: &Window) -> Vec2 {
+    Vec2::new(0., window.height() - HEIGHT * reference_pixel(window))
 }
-/// What the table says to the shared camera: the reader, an unopened session, the
-/// transfer modal and a presented Kidnap die block it, and only the map shows the
-/// scene. The die's camera is a second `Camera3d`, which the shared count anchors do
-/// not follow, so the map holds still under its counts while the die is shown.
-fn camera_facts(window: &Window, play: &Play, ui: &Interface, roll: &die::Roll) -> TableFacts {
+/// What the table says to the shared camera: an unopened session, the transfer modal
+/// and a presented Kidnap die block it. The whole window shows the scene; the
+/// camera itself leaves the pointer to any interface node it is over, and each
+/// overlaid area has one (`areas::Area`). The die's camera is a second `Camera3d`
+/// that the shared count anchors count beside the map's, and with two they place
+/// nothing, so the map holds still under its counts while the die is shown. The
+/// card tray's camera is always there and is marked as another view instead
+/// (`piles`).
+fn camera_facts(play: &Play, roll: &die::Roll) -> TableFacts {
     let (modal, die) = play.session.as_ref().map_or((false, false), |session| {
         let game = session.game();
         (
@@ -1316,23 +1390,13 @@ fn camera_facts(window: &Window, play: &Play, ui: &Interface, roll: &die::Roll) 
         )
     });
     TableFacts {
-        blocks_camera: ui.reader || play.session.is_none() || modal || die,
-        scene: Scene::Within(map_rect(window)),
+        blocks_camera: play.session.is_none() || modal || die,
+        scene: Scene::WholeWindow,
         ..default()
     }
 }
-fn camera_facts_and_viewport(
-    window: Single<&Window, With<PrimaryWindow>>,
-    play: Res<Play>,
-    ui: Res<Interface>,
-    roll: Res<die::Roll>,
-    mut table: ResMut<TableFacts>,
-    mut cameras: Query<&mut Camera, With<TableCamera>>,
-) {
-    *table = camera_facts(&window, &play, &ui, &roll);
-    for mut camera in &mut cameras {
-        camera.viewport = Some(map_viewport(&window));
-    }
+fn write_camera_facts(play: Res<Play>, roll: Res<die::Roll>, mut table: ResMut<TableFacts>) {
+    *table = camera_facts(&play, &roll);
 }
 #[allow(clippy::too_many_arguments)] // Authored rectangle, type size and letterboxing coordinates.
 fn text(
@@ -1444,26 +1508,6 @@ fn picture(
         .id()
 }
 
-fn card_picture(
-    commands: &mut Commands,
-    art: &Art,
-    face: &assets::CardFace,
-    [x, y, width]: [f32; 3],
-    scale: f32,
-    offset: Vec2,
-    z: i32,
-) {
-    let height = width * face.size.1 as f32 / face.size.0 as f32;
-    picture(
-        commands,
-        art,
-        face.name,
-        [x, y, width, height],
-        scale,
-        offset,
-        z,
-    );
-}
 #[allow(clippy::too_many_arguments)]
 fn control(
     commands: &mut Commands,
@@ -1476,7 +1520,7 @@ fn control(
     offset: Vec2,
     choice: bool,
     z: i32,
-) {
+) -> Entity {
     let node = picture(
         commands,
         art,
@@ -1516,6 +1560,7 @@ fn control(
     commands
         .entity(words)
         .insert(TextColor(Color::srgb(0.98, 0.97, 0.92))); // own colour: Atlas desk button label (foundation 4)
+    node
 }
 #[allow(clippy::too_many_arguments)]
 fn draw_ui(
@@ -1527,6 +1572,9 @@ fn draw_ui(
     window: Single<&Window, With<PrimaryWindow>>,
     mut previous_size: Local<Vec2>,
     roll: Res<die::Roll>,
+    main_view: Res<areas::Layout>,
+    advance: Res<piles::Advance>,
+    time: Res<Time>,
 ) {
     let size = Vec2::new(window.width(), window.height());
     if !ui.dirty && *previous_size == size {
@@ -1537,282 +1585,97 @@ fn draw_ui(
     for entity in &roots {
         commands.entity(entity).despawn();
     }
-    let (s, left) = layout(&window);
+    let s = reference_pixel(&window);
     let extra = window.width() - WIDTH * s;
-    let right = left + Vec2::new(extra, 0.);
-    let centered = left + Vec2::new(extra / 2., 0.);
-    let o = if ui.reader { centered } else { left };
+    let right = Vec2::new(extra, 0.);
+    let centered = Vec2::new(extra / 2., 0.);
     let view = play.game().observe();
-    // The desk surrounds the native viewport. It must not paint over the
-    // camera's pixels; all four strips consume the authored flat desk asset.
-    let map_top = left.y + 176. * s;
-    let map_bottom = left.y + 860. * s;
-    for rect in if ui.reader {
-        vec![[0., 0., window.width(), window.height()]]
-    } else {
-        vec![
-            [0., 0., window.width(), map_top],
-            [0., map_bottom, window.width(), window.height() - map_bottom],
-            [0., map_top, 40. * s, map_bottom - map_top],
-            [
-                window.width() - 580. * s,
-                map_top,
-                580. * s,
-                map_bottom - map_top,
-            ],
-        ]
-    } {
-        picture(
-            &mut commands,
-            &art,
-            "atlas-layout-background.png",
-            rect,
-            1.,
-            Vec2::ZERO,
-            0,
-        );
-    }
-    if !ui.reader {
-        // The owner retired the "CUBA LIBRE" title in #46: its corner holds Aid and
-        // the US Alliance (top::header).
-        for (key, rect, offset) in [
-            (
-                "atlas-layout-map-fill.png",
-                [40., 136., 1300. + extra / s, 40.],
-                left,
-            ),
-            (
-                "atlas-layout-map-fill.png",
-                [40., 860., 1300. + extra / s, 80.],
-                left,
-            ),
-            ("atlas-layout-map-header.png", [40., 136., 1300., 40.], left),
-            ("atlas-layout-map-footer.png", [40., 860., 1300., 80.], left),
-            (
-                "atlas-layout-operation.png",
-                [1380., 280., 500., 660.],
-                right,
-            ),
-            ("atlas-layout-card.png", [40., 964., 600., 264.], left),
-            ("atlas-layout-session.png", [1380., 964., 500., 264.], right),
-        ] {
-            let layer = if matches!(
-                key,
-                "atlas-layout-map-header.png" | "atlas-layout-map-footer.png"
-            ) {
-                2
-            } else {
-                1
-            };
-            picture(&mut commands, &art, key, rect, s, offset, layer);
-        }
-        victory::header(&mut commands, &art, &view, s, centered);
-        top::header(
-            &mut commands,
-            &art,
-            &die::ledger(&view, &roll),
-            s,
-            left,
+    // The map fills the window (#142). Each area keeps its distance from the edge
+    // or centre the main view's layout anchors it to, and takes the pointer over
+    // its own rectangle.
+    let low = bottom(&window);
+    areas::draw(&mut commands, &main_view, &window);
+    for (key, part, rect, offset) in [
+        (
+            "atlas-layout-operation.png",
+            "decision-frame",
+            [1380., 280., 500., 660.],
             right,
-        );
+        ),
+        (
+            "atlas-layout-session.png",
+            "session-frame",
+            [1380., 964., 500., 264.],
+            right + low,
+        ),
+    ] {
+        let frame = picture(&mut commands, &art, key, rect, s, offset, 1);
+        commands.entity(frame).insert(areas::Part(part.into()));
     }
-    let current = assets::card_face(view.current_card);
-    let preview = assets::card_face(view.preview_card);
-    if ui.reader {
-        picture(
-            &mut commands,
-            &art,
-            "atlas-victory-reader.png",
-            [0., 0., WIDTH, HEIGHT],
-            s,
-            o,
-            1,
-        );
-        let factions = |flags: [bool; 4]| {
-            let names = Faction::ALL
-                .into_iter()
-                .filter(|faction| flags[faction.index()])
-                .map(Faction::name)
-                .collect::<Vec<_>>();
-            if names.is_empty() {
-                "none".into()
-            } else {
-                names.join(", ")
-            }
-        };
-        let effects = |values: &[String]| {
-            if values.is_empty() {
-                "none".into()
-            } else {
-                values.join(", ")
-            }
-        };
-        text(
-            &mut commands,
-            &art,
-            format!(
-                "Capabilities: {} · Momentum: {}\nEligible: {}\nPassed: {}",
-                effects(&view.capabilities),
-                effects(&view.momentum),
-                factions(view.eligible),
-                factions(view.passed)
-            ),
-            320.,
-            290.,
-            1200.,
-            18.,
-            s,
-            o,
-            4,
-        );
-        card_picture(&mut commands, &art, current, [320., 380., 420.], s, o, 3);
-        card_picture(&mut commands, &art, preview, [1000., 380., 420.], s, o, 3);
-        control(
-            &mut commands,
-            &art,
-            "close",
-            "Close reader",
-            Action::Close,
-            [1400., 1110., 210., 48.],
-            s,
-            o,
-            false,
-            4,
-        );
-        let current_status = if view.current_card == 18 {
-            "current · Event inactive"
-        } else if view.eligibility.next_card.is_some() {
-            "Event resolved"
-        } else if view.event.is_some() {
-            "Event in progress"
-        } else if view.eligibility.directorio_handoff() {
-            "current · Event open to Directorio"
-        } else {
-            "current · Event inactive"
-        };
-        text(
-            &mut commands,
-            &art,
-            format!("{} {} — {current_status}", view.current_card, current.title),
-            320.,
-            1030.,
-            600.,
-            23.,
-            s,
-            o,
-            4,
-        );
-        text(
-            &mut commands,
-            &art,
-            format!(
-                "{} {} — preview · Event inactive",
-                view.preview_card, preview.title
-            ),
-            1000.,
-            1030.,
-            600.,
-            23.,
-            s,
-            o,
-            4,
-        );
-        text(
-            &mut commands,
-            &art,
-            format!(
-                "Played: {} · {} remain, including the preview",
-                view.played_cards
-                    .iter()
-                    .map(u8::to_string)
-                    .collect::<Vec<_>>()
-                    .join(", "),
-                view.draw_count
-            ),
-            320.,
-            1070.,
-            1250.,
-            18.,
-            s,
-            o,
-            4,
-        );
+    victory::header(&mut commands, &art, &view, s, centered);
+    // The owner retired the "CUBA LIBRE" title in #46: its corner, at the window's
+    // top left, holds Aid and the US Alliance.
+    top::header(
+        &mut commands,
+        &art,
+        &die::ledger(&view, &roll),
+        s,
+        Vec2::ZERO,
+        right,
+    );
+    if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
+        die::panel(&mut commands, &art, kidnap, roll.landed(), s, right);
     } else {
-        if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
-            die::panel(&mut commands, &art, kidnap, roll.landed(), s, right);
-        } else {
-            execution::panel(&mut commands, &art, &view, &ui, s, right);
-        }
-        eligibility::indicator(&mut commands, &art, &view, s, left);
-        let o = left;
-        card_picture(&mut commands, &art, current, [100., 1040., 108.], s, o, 2);
-        card_picture(&mut commands, &art, preview, [366., 1040., 108.], s, o, 2);
-        control(
-            &mut commands,
-            &art,
-            "reader",
-            "Read both cards",
-            Action::Reader,
-            [64., 1200., 500., 42.],
-            s,
-            o,
-            false,
-            2,
-        );
-        text(
-            &mut commands,
-            &art,
-            format!(
-                "{} current · {} preview · {} cards in draw deck",
-                view.current_card, view.preview_card, view.draw_count
-            ),
-            64.,
-            1003.,
-            560.,
-            16.,
-            s,
-            o,
-            2,
-        );
-        let o = right;
-        let status = play.error.clone().unwrap_or_else(|| {
-            if play.session.is_none() {
-                "Loading selected assets; no save created.".into()
-            } else {
-                format!(
-                    "Saved revision {} · {} map / {} available\nTerror/Sabotage {} available",
-                    view.revision,
-                    view.map_piece_count,
-                    view.available_piece_count,
-                    view.terror_available
-                )
-            }
-        });
-        text(
-            &mut commands,
-            &art,
-            format!("{status}\n{}", ui.notice),
-            1404.,
-            1020.,
-            450.,
-            18.,
-            s,
-            o,
-            2,
-        );
-        control(
-            &mut commands,
-            &art,
-            "quit",
-            "Save / quit",
-            Action::Quit,
-            [1690., 1140., 166., 44.],
-            s,
-            o,
-            false,
-            2,
-        );
+        execution::panel(&mut commands, &art, &view, &ui, s, right);
     }
+    eligibility::indicator(&mut commands, &art, &view, s, Vec2::ZERO);
+    // The pips follow the cards while an advance is shown, and the count discs wait.
+    let scene = advance.scene(&view, time.elapsed_secs_f64());
+    piles::overlay(&mut commands, &art, &scene, &window);
+    let o = right + low;
+    let status = play.error.clone().unwrap_or_else(|| {
+        if play.session.is_none() {
+            "Loading selected assets; no save created.".into()
+        } else {
+            format!(
+                "Saved revision {} · {} map / {} available\nTerror/Sabotage {} available",
+                view.revision,
+                view.map_piece_count,
+                view.available_piece_count,
+                view.terror_available
+            )
+        }
+    });
+    let status = text(
+        &mut commands,
+        &art,
+        format!("{status}\n{}", ui.notice),
+        1404.,
+        1020.,
+        450.,
+        18.,
+        s,
+        o,
+        2,
+    );
+    commands
+        .entity(status)
+        .insert(areas::Part("session-status".into()));
+    let quit = control(
+        &mut commands,
+        &art,
+        "quit",
+        "Save / quit",
+        Action::Quit,
+        [1690., 1140., 166., 44.],
+        s,
+        o,
+        false,
+        2,
+    );
+    commands
+        .entity(quit)
+        .insert(areas::Part("session-quit".into()));
 }
 
 #[cfg(test)]
@@ -1980,11 +1843,14 @@ mod tests {
             &table,
         );
     }
+    /// The map is the whole window: the wheel zooms wherever the pointer is, unless
+    /// the table blocks the camera. An area's own rectangle stops it natively (the
+    /// main view regression), through the interface node the shared camera finds.
     #[test]
-    fn camera_input_respects_authored_viewport_and_reader_capture() {
+    fn camera_takes_input_over_the_whole_window() {
         let dir = tempfile::tempdir().unwrap();
         let save = dir.path().join("task.json");
-        let play = Play {
+        let mut play = Play {
             session: Some(Session::open(&save, None).unwrap()),
             options: Options {
                 art: PathBuf::new(),
@@ -1998,61 +1864,55 @@ mod tests {
             error: None,
             ready_frames: 5,
         };
-        let mut ui = Interface::default();
         let mut window = Window {
             resolution: (1920, 1280).into(),
             focused: true,
             ..default()
         };
+        let roll = die::Roll::default();
+        assert_eq!(camera_facts(&play, &roll).scene, Scene::WholeWindow);
         let mut orbit = Orbit::new(Framing::new(Vec3::ZERO, 10.));
         let keys = ButtonInput::default();
-        window.set_cursor_position(Some(Vec2::new(700., 500.)));
-        drive(
-            &mut orbit,
-            &window,
-            &keys,
-            1.,
-            camera_facts(&window, &play, &ui, &die::Roll::default()),
-        );
-        assert!(orbit.pose().distance < 10.);
-        let inside = orbit.pose();
-        window.set_cursor_position(Some(Vec2::new(1500., 500.)));
-        drive(
-            &mut orbit,
-            &window,
-            &keys,
-            1.,
-            camera_facts(&window, &play, &ui, &die::Roll::default()),
-        );
-        assert_eq!(orbit.pose(), inside);
-        // Maximizing a 3:2 design onto wider screens must put the extra
-        // horizontal room into the map, retaining the 40 px outer inset.
-        for width in [2560, 3360] {
-            window.resolution.set(width as f32, 1440.);
-            let viewport = map_viewport(&window);
-            assert_eq!(
-                viewport.physical_position.x, 45,
-                "maximized map has a wide left gap"
-            );
-            assert!(
-                ((viewport.physical_position.x + viewport.physical_size.x) as f32
-                    - (width as f32 - 652.5))
-                    .abs()
-                    <= 1.,
-                "extra window width must extend the map toward its right-anchored panels"
-            );
+        let mut distance = 10.;
+        // Over the old map opening, the old right margin, the old desk under the
+        // map and the window's corner.
+        for at in [
+            Vec2::new(700., 500.),
+            Vec2::new(1360., 500.),
+            Vec2::new(1000., 1250.),
+            Vec2::new(2., 2.),
+        ] {
+            window.set_cursor_position(Some(at));
+            drive(&mut orbit, &window, &keys, 1., camera_facts(&play, &roll));
+            assert!(orbit.pose().distance < distance, "no zoom at {at}");
+            distance = orbit.pose().distance;
         }
-        ui.reader = true;
-        window.set_cursor_position(Some(Vec2::new(700., 500.)));
-        let mut keys = ButtonInput::default();
-        keys.press(KeyCode::KeyW);
-        drive(
-            &mut orbit,
-            &window,
-            &keys,
-            0.,
-            camera_facts(&window, &play, &ui, &die::Roll::default()),
+        play.session = None;
+        drive(&mut orbit, &window, &keys, 1., camera_facts(&play, &roll));
+        assert_eq!(
+            orbit.pose().distance,
+            distance,
+            "an unopened session blocks"
         );
-        assert_eq!(orbit.pose(), inside);
+    }
+
+    /// Areas scale with the smaller of the window's width over 1920 and height over
+    /// 1280, and the bottom row lies against the bottom edge in a taller window.
+    #[test]
+    fn nothing_is_letterboxed() {
+        for (width, height, scale, low) in [
+            (1920, 1280, 1., 0.),
+            (3840, 2160, 1.6875, 0.),
+            (2520, 1080, 0.84375, 0.),
+            (1600, 1280, 1600. / 1920., 1280. - 1280. * 1600. / 1920.),
+        ] {
+            let window = Window {
+                resolution: (width, height).into(),
+                ..default()
+            };
+            let s = reference_pixel(&window);
+            assert!((s - scale).abs() < 1e-6, "{width}x{height}");
+            assert!((bottom(&window).y - low).abs() < 1e-3, "{width}x{height}");
+        }
     }
 }

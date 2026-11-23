@@ -26,7 +26,10 @@
 //! [ADR 0001]: ../../../docs/adr/0001-baked-die-tumbles-land-on-the-committed-face.md
 use super::palette::{DESK, INK, QUIET};
 use super::*;
-use bevy::{camera::visibility::RenderLayers, light::CascadeShadowConfigBuilder};
+use bevy::{
+    camera::{Viewport, visibility::RenderLayers},
+    light::CascadeShadowConfigBuilder,
+};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use std::f32::consts::PI;
@@ -292,8 +295,8 @@ pub(super) fn ledger(view: &crate::Observation, roll: &Roll) -> crate::Observati
 
 /// The tray's rectangle in physical window pixels, inside the window.
 fn viewport(window: &Window) -> Viewport {
-    let (scale, left) = layout(window);
-    let right = left + Vec2::new(window.width() - WIDTH * scale, 0.);
+    let scale = reference_pixel(window);
+    let right = Vec2::new(window.width() - WIDTH * scale, 0.);
     let [x, y, w, h] = VIEWPORT;
     let factor = window.scale_factor();
     let limit = UVec2::new(window.physical_width(), window.physical_height());
@@ -426,7 +429,7 @@ fn spawn_stage(commands: &mut Commands, art: &DieArt, revision: u64, face: u8, w
                 Tonemapping::None,
                 DebandDither::Disabled,
                 Camera {
-                    order: 2,
+                    order: 3,
                     clear_color: ClearColorConfig::None,
                     viewport: Some(viewport(window)),
                     ..default()
@@ -501,7 +504,7 @@ pub(super) fn present(
     if !spawned {
         spawn_stage(&mut commands, &art, revision, kidnap.die, &window);
     }
-    if !ui.reader && keys.any_just_pressed([KeyCode::Space, KeyCode::Enter]) {
+    if keys.any_just_pressed([KeyCode::Space, KeyCode::Enter]) {
         if roll.landed {
             roll.close(revision);
             ui.dirty = true;
@@ -518,7 +521,6 @@ pub(super) fn present(
     roll.landed = landed;
     for mut camera in &mut cameras {
         camera.viewport = Some(viewport(&window));
-        camera.is_active = !ui.reader;
     }
 }
 
@@ -807,12 +809,11 @@ fn top_face(world: &mut World) -> Option<f32> {
 }
 
 /// What Enter reaches at the seat, by its control id: the tray's skip while the die is
-/// in the air, and Continue once it has landed. Nothing while the reader is open.
+/// in the air, and Continue once it has landed.
 pub(super) fn focus(world: &mut World) -> Option<&'static str> {
     let landed = world.resource::<Roll>().landed;
-    let reader = world.resource::<Interface>().reader;
     let shown = world.query::<&Stage>().iter(world).next().is_some();
-    (shown && !reader).then_some(if landed { CONTINUE } else { TRAY })
+    shown.then_some(if landed { CONTINUE } else { TRAY })
 }
 
 #[cfg(test)]

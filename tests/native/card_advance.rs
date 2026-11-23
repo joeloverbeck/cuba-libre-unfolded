@@ -25,7 +25,7 @@ fn copy_owner_save(dir: &Path, text: &str, hash: &str, path: &Path) {
 }
 
 #[test]
-#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained card reader and table"]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained card tags and table"]
 fn native_card_advance_reopens_both_event_results_and_commits_once() {
     let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
         .map(PathBuf::from)
@@ -72,15 +72,39 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
         assert_eq!(end["current_card"], 17);
         assert_eq!(end["preview_card"], 18);
         assert_eq!(end["draw_count"], 34);
+        // The piles at rest on card 17 (#143): 18 played with it, 34 in the deck.
+        let resting = app.request(json!({"op":"settle"}), true);
+        let resting = if resting["table"].is_null() {
+            app.observe()
+        } else {
+            resting
+        };
+        card_piles::assert_piles(&resting, 18, 34, 17, 18);
         app.capture("card-17-result");
-        app.activate("reader", revision);
-        app.capture("card-17-current-18-preview");
+        card_piles::assert_piles_drawn(&app, "card-17-result", &resting);
+        // Both cards read through their tags (#139).
+        for (slot, number) in [("card:current", 17), ("card:preview", 18)] {
+            app.activate(slot, revision);
+            let tag = app.observe();
+            assert_card_tag_placed(&tag, slot);
+            assert_eq!(tag["table"]["card"]["shown"]["number"], number);
+            app.capture(&format!("card-17-tag-{number}"));
+            close_card_tag(&mut app);
+        }
         app.quit();
 
         app.launch_size("3840x2160");
         assert_eq!(app.observe()["observation"], end);
+        // A restart before the advance shows the same piles.
+        app.request(json!({"op":"settle"}), true);
+        let restarted = app.observe();
+        card_piles::assert_piles(&restarted, 18, 34, 17, 18);
+        assert_eq!(restarted["table"]["piles"], resting["table"]["piles"]);
         app.choose("advance-card");
+        app.request(json!({"op":"settle"}), true);
         let opening = app.observe();
+        // The advance shows the new resting state: 19 and 33.
+        card_piles::assert_piles(&opening, 19, 33, 18, 19);
         let after = &opening["observation"];
         assert_eq!(after["revision"], revision + 1);
         assert_eq!(after["current_card"], 18);
@@ -127,6 +151,7 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
         );
         assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
         app.capture("card-18-government-opening");
+        card_piles::assert_piles_drawn(&app, "card-18-government-opening", &opening);
         app.activate("option:government:assault", revision + 1);
         let briefing = app.observe();
         let briefing_text = tag_text(&briefing["table"]["briefing"]);
@@ -142,8 +167,14 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
             assert!(briefing_text.contains("A zero-space Assault earns no Resources"));
         }
         app.capture("card-18-assault-briefing");
-        app.activate("reader", revision + 1);
-        app.capture("card-18-current-19-preview");
+        for (slot, number) in [("card:current", 18), ("card:preview", 19)] {
+            app.activate(slot, revision + 1);
+            let tag = app.observe();
+            assert_card_tag_placed(&tag, slot);
+            assert_eq!(tag["table"]["card"]["shown"]["number"], number);
+            app.capture(&format!("card-18-tag-{number}"));
+            close_card_tag(&mut app);
+        }
         app.quit();
 
         let advanced = fs::read(&app.save).unwrap();
@@ -158,7 +189,13 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
         assert_eq!(app.observe()["observation"], *after);
         assert_eq!(fs::read(&app.save).unwrap(), advanced);
         assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
+        // A restart after the advance shows the saved cards at rest.
+        app.request(json!({"op":"settle"}), true);
+        let resumed = app.observe();
+        card_piles::assert_piles(&resumed, 19, 33, 18, 19);
+        assert_eq!(resumed["table"]["piles"], opening["table"]["piles"]);
         app.capture("card-18-restarted");
+        card_piles::assert_piles_drawn(&app, "card-18-restarted", &resumed);
         if retained.is_some() {
             for action in [
                 "government:assault",
@@ -450,7 +487,7 @@ fn preview_notes(reply: &Value, action: &str) -> String {
         .to_string()
 }
 
-fn finish_event(path: &Path, text: &str) {
+pub(super) fn finish_event(path: &Path, text: &str) {
     let mut session = Session::open(path, None).unwrap();
     let resolution = if text == "shaded" {
         "resolve-shaded"
@@ -518,5 +555,635 @@ fn assert_missing_or_changed_face_is_recoverable(app: &Native, saved: &[u8], pri
         );
         assert_eq!(fs::read(&app.save).unwrap(), saved);
         assert_eq!(fs::read(previous_path(&app.save)).unwrap(), prior);
+    }
+}
+
+/// One run of the card advance regression: its own copy of the save as it stood on
+/// card 17 with its recovery record, launched at the owner's display size.
+///
+/// Bind the pair as `(_socket, app)`. The later binding drops first, so a failing run
+/// drops the app while its socket is still there and its quit arrives. An app left
+/// running keeps the heavy lock its test inherited until its session ends.
+fn advance_run(root: &Path, name: &str, saved: &[u8], prior: &[u8]) -> (tempfile::TempDir, Native) {
+    let socket = tempfile::tempdir().unwrap();
+    let app = Native {
+        cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
+        save: root.join(format!("{name}.json")),
+        socket: socket.path().join("seat.sock"),
+        root: root.join(name),
+        step: 0,
+    };
+    fs::create_dir_all(&app.root).unwrap();
+    fs::write(&app.save, saved).unwrap();
+    fs::write(previous_path(&app.save), prior).unwrap();
+    (socket, app)
+}
+
+/// Commits the advance and returns the reply, without waiting for the cards.
+fn commit_advance(app: &mut Native, revision: u64) -> Value {
+    let done = app.request(
+        json!({"op":"activate","revision":revision,"choice":format!("{revision}:advance-card")}),
+        true,
+    );
+    assert_eq!(done["status"], "activated", "{done}");
+    done
+}
+
+/// Steps the seat's clock until the advance is `seconds` old, to the nearest step,
+/// and returns what the table shows then. The table is still unsettled.
+fn advance_to(app: &mut Native, seconds: f64) -> Value {
+    let elapsed = app.observe()["table"]["piles"]["advance"]["elapsed"]
+        .as_f64()
+        .expect("a card is in the air");
+    let steps = ((seconds - elapsed) * 60.).round() as u32;
+    assert!(steps > 0, "the advance is already {elapsed} s old");
+    let held = app.request(json!({"op":"settle","steps":steps}), true);
+    assert_eq!(held["status"], "unsettled", "{held}");
+    let view = app.observe();
+    let now = view["table"]["piles"]["advance"]["elapsed"]
+        .as_f64()
+        .unwrap();
+    assert!((now - seconds).abs() < 0.009, "{now} s, not {seconds} s");
+    assert_eq!(view["table"]["settled"], false);
+    assert_eq!(view["table"]["pending"], json!(["card advance"]));
+    view
+}
+
+/// The piles as the tray draws them and the numbers over them, while a card is in
+/// the air: each pile's cards and what lies on top. The count discs are not shown then.
+fn assert_cards_shown(view: &Value, played: (u64, Value), deck: (u64, Value), faces: u64) {
+    let piles = &view["table"]["piles"];
+    let drawn = piles["piles"].as_array().unwrap();
+    assert_eq!(drawn.len(), 2, "{piles}");
+    for (pile, (cards, top)) in drawn.iter().zip([played, deck]) {
+        assert_eq!(pile["cards"], cards, "{pile}");
+        assert_eq!(pile["top"], top, "{pile}");
+    }
+    assert_eq!(piles["faces"], faces, "{piles}");
+    assert_eq!(piles["pips"], json!([true, false, false, false]));
+    // No count disc is shown while a card is in the air: the cards pass where the discs
+    // lie, and looked as if they cut through them (the owner, 2026-11-23, #146).
+    let parts = card_piles::parts(view);
+    for part in [
+        "played-count-disc",
+        "played-count",
+        "deck-count-disc",
+        "deck-count",
+    ] {
+        assert!(
+            !parts.contains_key(part),
+            "{part} is shown while a card is in the air"
+        );
+    }
+    assert_eq!(piles["discs"], json!([]), "{piles}");
+    assert_eq!(parts["propaganda-caption"].0, "1 of 4 played");
+}
+
+/// Where two rectangles overlap, 4 px in from the overlap's edges, if they do.
+fn overlap(a: [f64; 4], b: [f64; 4]) -> Option<[f64; 4]> {
+    let both = [
+        a[0].max(b[0]) + 4.,
+        a[1].max(b[1]) + 4.,
+        a[2].min(b[2]) - 4.,
+        a[3].min(b[3]) - 4.,
+    ];
+    (both[2] > both[0] && both[3] > both[1]).then_some(both)
+}
+
+/// How many 6 px blocks of `region` in a capture differ from the card face drawn at
+/// `card` by more than a letter's ink would leave unnoticed: 40 levels in the mean of
+/// the block. The face drawn alone stays well within that.
+fn inked_blocks(
+    capture: &image::RgbImage,
+    region: [f64; 4],
+    card: [f64; 4],
+    face: &image::RgbImage,
+) -> usize {
+    let (width, height) = (card[2] - card[0], card[3] - card[1]);
+    let half = (3. * f64::from(face.width()) / width).max(1.) as u32;
+    let mut inked = 0;
+    let mut worst: f64 = 0.;
+    let mut y = region[1] + 3.;
+    while y <= region[3] - 3. {
+        let mut x = region[0] + 3.;
+        while x <= region[2] - 3. {
+            let shown = card_piles::block(capture, [x, y], 3);
+            let printed = card_piles::block(
+                face,
+                [
+                    (x - card[0]) / width * f64::from(face.width()),
+                    (y - card[1]) / height * f64::from(face.height()),
+                ],
+                half,
+            );
+            let apart = shown
+                .iter()
+                .zip(printed)
+                .map(|(s, p)| (s - p).abs())
+                .sum::<f64>()
+                / 3.;
+            worst = worst.max(apart);
+            if apart > 40. {
+                inked += 1;
+            }
+            x += 6.;
+        }
+        y += 6.;
+    }
+    eprintln!("region {region:?}: {inked} inked blocks, the worst {worst:.1} levels apart");
+    inked
+}
+
+/// The card advance is saved once and then shown (#145; ADR 0001; R 2.3.8). From the
+/// save as it stands on card 17, with 18 cards played and 34 in the deck:
+///
+/// - the commit writes the save before a card has moved, and nothing writes it again;
+/// - the preview, card 18, lifts off the deck and crosses to the played pile while
+///   the deck shows the original back; the deck lies at 33 cards from the moment it
+///   leaves, and at 32 under the card that then turns over, and the played pile at 19
+///   from the moment it lands; neither count disc is shown until the cards are at rest;
+/// - card 19 then turns over where it lies, its back showing until it is on edge;
+/// - settled, the piles are 19 with card 18 and 33 with card 19, in every run;
+/// - a click, Space and Enter each land that state at once and do nothing else;
+/// - a restart during the motion shows the cards at rest with the advance made once,
+///   and the recovery record is the exact save from before it;
+/// - a missing or altered card back refuses launch, naming the file, and changes
+///   neither the save nor its recovery record.
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained frames of the four steps"]
+fn native_card_advance_moves_the_cards_and_lands_saved() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-145"));
+    fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("card-advance-")
+        .tempdir_in(evidence.canonicalize().unwrap())
+        .unwrap()
+        .keep();
+    eprintln!("card advance evidence: {}", root.display());
+    // The position: an owner save on copies when they are supplied, else the same
+    // decisions played here.
+    let source = root.join("card-17.json");
+    match std::env::var_os("CUBA_TEST_CARD_18_SAVES").map(PathBuf::from) {
+        Some(dir) => {
+            let (text, hash, _) = OWNER_SAVES[0];
+            copy_owner_save(&dir, text, hash, &source);
+        }
+        None => finish_event(&source, "shaded"),
+    }
+    let saved = fs::read(&source).unwrap();
+    let prior = fs::read(previous_path(&source)).unwrap();
+    let back = image::open(
+        PathBuf::from(std::env::var_os("CUBA_TEST_CARDS").unwrap())
+            .join("cuba-libre-card-back.png"),
+    )
+    .unwrap()
+    .to_rgb8();
+
+    let (_socket, mut app) = advance_run(&root, "shown", &saved, &prior);
+    assert_missing_or_changed_back_refuses(&app, &saved, &prior);
+
+    // Step 1: at rest on card 17.
+    app.launch_size("3840x2160");
+    app.request(json!({"op":"settle"}), true);
+    let before = app.observe();
+    let revision = before["observation"]["revision"].as_u64().unwrap();
+    card_piles::assert_piles(&before, 18, 34, 17, 18);
+    assert_eq!(before["table"]["piles"]["advance"], Value::Null);
+    app.capture("1-rest-card-17");
+    card_piles::assert_piles_drawn(&app, "1-rest-card-17", &before);
+    let faces: Vec<[f64; 4]> = before["table"]["piles"]["piles"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|pile| rect_of(&pile["face"]))
+        .collect();
+    let (played_face, deck_face) = (faces[0], faces[1]);
+
+    // The commit: saved before anything has moved.
+    commit_advance(&mut app, revision);
+    let advanced = fs::read(&app.save).unwrap();
+    assert_ne!(advanced, saved, "the advance is saved as it is applied");
+    assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
+    let committed = Session::open(&app.save, None).unwrap().observe();
+    assert_eq!(committed.revision, revision + 1);
+    assert_eq!((committed.current_card, committed.preview_card), (18, 19));
+    let leaving = app.observe();
+    let after = leaving["observation"].clone();
+    assert_eq!(after, serde_json::to_value(&committed).unwrap());
+    let flying = &leaving["table"]["piles"]["advance"];
+    assert_eq!(flying["card"], 18, "{flying}");
+    assert_eq!(flying["step"], "crossing", "{flying}");
+    assert_eq!(flying["showing"], "face", "{flying}");
+    let started = flying["elapsed"].as_f64().unwrap();
+    assert!(started < 0.1, "the motion starts at the commit: {flying}");
+    // Still over the deck: it has moved less than a tenth of the way in that time.
+    let at = rect_of(&flying["bounds"]);
+    assert!(
+        at[0] <= deck_face[0] + 1. && at[0] > deck_face[0] - 36. && at[2] > deck_face[2] - 36.,
+        "{at:?}"
+    );
+    assert_eq!(leaving["table"]["pending"], json!(["card advance"]));
+    // The deck is a card thinner as the card leaves it; the played pile waits.
+    assert_cards_shown(&leaving, (18, json!(17)), (33, json!("back")), 1);
+    // A seat that connects now finds the same moment, not a new start: every request
+    // here is its own connection, and only the seat's steps move the clock.
+    let again = app.observe();
+    assert_eq!(again["table"]["piles"], leaving["table"]["piles"]);
+    // Anything but the landing is refused while the card is in the air.
+    let tab = app.request(json!({"op":"key","revision":revision+1,"key":"Tab"}), false);
+    assert!(
+        tab["error"]
+            .as_str()
+            .unwrap()
+            .starts_with("The table is busy (card advance)"),
+        "{tab}"
+    );
+    let choice = format!("{}:government:pass", revision + 1);
+    let early = app.request(
+        json!({"op":"activate","revision":revision+1,"choice":choice}),
+        false,
+    );
+    assert!(
+        early["error"].as_str().unwrap().contains("card advance"),
+        "{early}"
+    );
+
+    // Step 2, halfway: the card is between the piles and 30 mm up, which the tray's
+    // view shows 73.6 px toward the top of the screen and 0.76% larger (#145's
+    // worked view: 4 m above the cards, the lens 2 m in front of their near edge).
+    let crossing = advance_to(&mut app, 0.4);
+    let flying = &crossing["table"]["piles"]["advance"];
+    assert_eq!(flying["card"], 18, "{flying}");
+    assert_eq!(flying["step"], "crossing", "{flying}");
+    let at = rect_of(&flying["bounds"]);
+    let middle = (played_face[0] + deck_face[2]) / 2.;
+    assert!(((at[0] + at[2]) / 2. - middle).abs() < 3., "{at:?}");
+    let rise = (played_face[1] + played_face[3]) / 2. - (at[1] + at[3]) / 2.;
+    assert!((rise - 73.6).abs() < 3., "the card shows {rise} px up");
+    assert!((at[2] - at[0] - 300. * 1.0076).abs() < 2.5, "{at:?}");
+    assert_cards_shown(&crossing, (18, json!(17)), (33, json!("back")), 1);
+    app.capture("2-crossing-halfway");
+    // The card in the air is above the table, so it draws over the labels it passes,
+    // as the advance sheet draws it: where it covers "CURRENT CARD" and "PREVIEW" the
+    // frame shows card 18's face and no letter (#137's review).
+    let shot = image::open(app.root.join("2-crossing-halfway.png"))
+        .unwrap()
+        .to_rgb8();
+    let face_18 = image::open(app.cards.join("card-18.png"))
+        .unwrap()
+        .to_rgb8();
+    let parts = card_piles::parts(&crossing);
+    let mut covered = 0;
+    for label in ["played-label", "deck-label"] {
+        let under = overlap(parts[label].1, at);
+        if let Some(under) = under {
+            covered += 1;
+            let inked = inked_blocks(&shot, under, at, &face_18);
+            assert_eq!(
+                inked, 0,
+                "{label} shows over the card in the air ({under:?})"
+            );
+        }
+    }
+    assert_eq!(covered, 2, "the card at halfway covers both labels: {at:?}");
+    // Step 2, nearly there: the card is clear of the deck, which shows the back.
+    let arriving = advance_to(&mut app, 0.7);
+    app.capture("2-crossing-arriving");
+    let shot = image::open(app.root.join("2-crossing-arriving.png"))
+        .unwrap()
+        .to_rgb8();
+    let own = card_piles::face_distance(&shot, deck_face, &back);
+    assert!(own < 8., "the deck is {own} levels from the card back");
+    assert_eq!(arriving["table"]["piles"]["advance"]["card"], 18);
+
+    // Step 3: card 18 has landed and counts; card 19 turns over, back first.
+    let turning = advance_to(&mut app, 1.0);
+    let flying = &turning["table"]["piles"]["advance"];
+    assert_eq!(flying["card"], 19, "{flying}");
+    assert_eq!(flying["step"], "turning", "{flying}");
+    assert_eq!(flying["showing"], "back", "{flying}");
+    assert_cards_shown(&turning, (19, json!(18)), (32, json!("back")), 1);
+    // It turns where it lies: its middle is the deck's, and it is narrower than a
+    // card lying flat.
+    let at = rect_of(&flying["bounds"]);
+    assert!(
+        ((at[0] + at[2]) / 2. - (deck_face[0] + deck_face[2]) / 2.).abs() < 4.,
+        "{at:?}"
+    );
+    assert!(at[2] - at[0] < 290., "{at:?}");
+    let tray = rect_of(&turning["table"]["piles"]["tray"]);
+    app.capture("3-turning-back");
+    let shot = image::open(app.root.join("3-turning-back.png"))
+        .unwrap()
+        .to_rgb8();
+    let own = card_piles::face_distance(&shot, played_face, &{
+        image::open(app.cards.join("card-18.png"))
+            .unwrap()
+            .to_rgb8()
+    });
+    assert!(own < 8., "the played pile is {own} levels from card 18");
+    // On its edge, and then past it with the face showing; never outside the tray.
+    let upright = advance_to(&mut app, 0.8 + 0.35);
+    let at = rect_of(&upright["table"]["piles"]["advance"]["bounds"]);
+    assert!(
+        at[1] > tray[1] + 8. && at[3] < tray[3],
+        "{at:?} in {tray:?}"
+    );
+    app.capture("3-turning-on-edge");
+    let facing = advance_to(&mut app, 1.3);
+    let flying = &facing["table"]["piles"]["advance"];
+    assert_eq!(flying["card"], 19, "{flying}");
+    assert_eq!(flying["showing"], "face", "{flying}");
+    app.capture("3-turning-face");
+
+    // Step 4: at rest on card 18. Nothing was saved after the commit.
+    app.request(json!({"op":"settle"}), true);
+    let rest = app.observe();
+    card_piles::assert_piles(&rest, 19, 33, 18, 19);
+    assert_eq!(rest["table"]["piles"]["advance"], Value::Null);
+    assert_eq!(rest["observation"], after);
+    app.capture("4-rest-card-18");
+    card_piles::assert_piles_drawn(&app, "4-rest-card-18", &rest);
+    assert_eq!(fs::read(&app.save).unwrap(), advanced);
+    assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
+    app.quit();
+
+    // A click, Space and Enter each land the same state at once and act on nothing.
+    // The owner's click lands the cards wherever it falls: on the card area, on a
+    // space of the map, which it does not pick, and on a decision's control, which it
+    // does not pin.
+    for (by, at) in [
+        ("click", 0.3),
+        ("map", 0.5),
+        ("decision", 1.2),
+        ("space", 1.1),
+        ("enter", 0.3),
+    ] {
+        let (_socket, mut app) = advance_run(&root, &format!("skip-{by}"), &saved, &prior);
+        app.launch_size("3840x2160");
+        app.request(json!({"op":"settle"}), true);
+        commit_advance(&mut app, revision);
+        let held = advance_to(&mut app, at);
+        assert!(held["table"]["piles"]["advance"].is_object());
+        app.capture("in-the-air");
+        let click = |component: &str| {
+            (
+                json!({"op":"activate","revision":revision+1,"component":component}),
+                "activated",
+            )
+        };
+        let (skip, status) = match by {
+            "click" => click("area:cards"),
+            "map" => click("space:havana"),
+            "decision" => click("option:government:pass"),
+            "space" => (
+                json!({"op":"key","revision":revision+1,"key":"Space","focused":"card-advance"}),
+                "pressed",
+            ),
+            _ => (
+                json!({"op":"key","revision":revision+1,"key":"Enter","focused":"card-advance"}),
+                "pressed",
+            ),
+        };
+        let skipped = app.request(skip, true);
+        assert_eq!(skipped["status"], status, "{by}: {skipped}");
+        // At once: the reply's own table has the cards down, before any settling.
+        let landed = app.observe();
+        assert_eq!(landed["table"]["piles"]["advance"], Value::Null, "{by}");
+        assert_eq!(
+            landed["table"]["piles"]["piles"], rest["table"]["piles"]["piles"],
+            "{by}"
+        );
+        // And nothing else: no space picked, no option pinned, no tag opened or closed.
+        for what in ["choice", "popover", "briefing", "card", "pile_tag"] {
+            assert_eq!(
+                landed["table"][what], held["table"][what],
+                "{by} changed table.{what}"
+            );
+        }
+        assert_eq!(landed["observation"], after, "{by}");
+        app.request(json!({"op":"settle"}), true);
+        let landed = app.observe();
+        card_piles::assert_piles(&landed, 19, 33, 18, 19);
+        assert_eq!(landed["table"]["piles"], rest["table"]["piles"], "{by}");
+        assert_eq!(landed["observation"], after, "{by}: a skip decides nothing");
+        assert_eq!(landed["table"]["choice"]["pinned"], Value::Null, "{by}");
+        assert_eq!(landed["table"]["card"]["shown"], Value::Null, "{by}");
+        assert_eq!(fs::read(&app.save).unwrap(), advanced, "{by}");
+        assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved, "{by}");
+        app.capture("landed");
+        card_piles::assert_piles_drawn(&app, "landed", &landed);
+        app.quit();
+    }
+
+    // A card's tag follows the cards as the pile tags do (#137's review): the model is
+    // on card 18 from the commit, while the table shows card 17 current and the
+    // deck's back until card 19 has turned. A tag pinned before the advance closes for
+    // the motion and is back, still pinned, once the cards have landed, on the card
+    // that then lies there.
+    let (_socket, mut app) = advance_run(&root, "card-tags", &saved, &prior);
+    app.launch_size("3840x2160");
+    app.request(json!({"op":"settle"}), true);
+    app.activate("card:preview", revision);
+    app.point("quit");
+    let pinned = app.observe();
+    let tag = &pinned["table"]["card"]["shown"];
+    assert_eq!(
+        (tag["card"].clone(), tag["pinned"].clone()),
+        (json!("card:preview"), json!(true)),
+        "{tag}"
+    );
+    assert_eq!(tag["number"], 18, "{tag}");
+    commit_advance(&mut app, revision);
+    assert_eq!(app.observe()["table"]["card"]["shown"], Value::Null);
+    for at in [0.4, 1.0, 1.3] {
+        let held = advance_to(&mut app, at);
+        assert_eq!(held["table"]["card"]["shown"], Value::Null, "at {at} s");
+    }
+    app.capture("no-card-tag-in-the-air");
+    app.request(json!({"op":"settle"}), true);
+    let landed = app.observe();
+    card_piles::assert_piles(&landed, 19, 33, 18, 19);
+    let tag = &landed["table"]["card"]["shown"];
+    assert_eq!(
+        (tag["card"].clone(), tag["pinned"].clone()),
+        (json!("card:preview"), json!(true)),
+        "{tag}"
+    );
+    assert_eq!(tag["number"], 19, "{tag}");
+    assert_eq!(tag["title"], "19 · Sierra Maestra Manifesto", "{tag}");
+    app.capture("card-tag-landed");
+    assert_eq!(fs::read(&app.save).unwrap(), advanced);
+    app.quit();
+
+    // A pile's tag states the model's piles, which are a card ahead of the piles on
+    // the table while a card is in the air. An open tag closes for the motion and is
+    // back as the cards land, with the numbers their discs and the pips then read.
+    let (_socket, mut app) = advance_run(&root, "pile-tags", &saved, &prior);
+    app.launch_size("3840x2160");
+    app.request(json!({"op":"settle"}), true);
+    app.point("pile:deck");
+    let open = app.observe();
+    let tag = &open["table"]["pile_tag"]["shown"];
+    assert_eq!(tag["pile"], "pile:deck", "{tag}");
+    assert_eq!(
+        tag["ledger"][0][1],
+        open["observation"]["deck"]["words"]["cards"]
+    );
+    assert!(
+        tag["ledger"][0][1].as_str().unwrap().starts_with("34"),
+        "{tag}"
+    );
+    // The keyboard commits the advance while the pointer stays on the deck's disc.
+    let advance = format!("{revision}:advance-card");
+    app.request(json!({"op":"key","revision":revision,"key":"Tab"}), true);
+    app.request(json!({"op":"settle"}), true);
+    assert_eq!(app.observe()["table"]["choice"]["focus"], advance);
+    let pressed = app.request(
+        json!({"op":"key","revision":revision,"key":"Enter","focused":advance}),
+        true,
+    );
+    assert_eq!(pressed["status"], "pressed", "{pressed}");
+    let flying = app.observe();
+    assert_eq!(flying["observation"], after);
+    assert_eq!(flying["table"]["piles"]["advance"]["card"], 18);
+    assert_eq!(flying["table"]["pile_tag"]["shown"], Value::Null);
+    let held = advance_to(&mut app, 0.5);
+    assert_eq!(held["table"]["pile_tag"]["shown"], Value::Null);
+    app.capture("no-tag-in-the-air");
+    // Landed by Space: the deck's tag is back in the reply, counting 33.
+    app.request(
+        json!({"op":"key","revision":revision+1,"key":"Space","focused":"card-advance"}),
+        true,
+    );
+    let landed = app.observe();
+    let tag = &landed["table"]["pile_tag"]["shown"];
+    assert_eq!(tag["pile"], "pile:deck", "{tag}");
+    assert_eq!(tag["ledger"][0][1], after["deck"]["words"]["cards"]);
+    assert!(
+        tag["ledger"][0][1].as_str().unwrap().starts_with("33"),
+        "{tag}"
+    );
+    app.request(json!({"op":"settle"}), true);
+    let landed = app.observe();
+    card_piles::assert_piles(&landed, 19, 33, 18, 19);
+    assert_eq!(landed["observation"], after);
+    app.capture("deck-tag-landed");
+    // And the played pile's: 19 cards and one of four Propaganda cards played.
+    app.point("pile:played");
+    let shown = app.observe();
+    let tag = &shown["table"]["pile_tag"]["shown"];
+    assert_eq!(tag["pile"], "pile:played", "{tag}");
+    assert!(
+        tag["ledger"][0][1].as_str().unwrap().starts_with("19"),
+        "{tag}"
+    );
+    assert_eq!(tag["ledger"][1][1], "1 of 4 played", "{tag}");
+    assert_eq!(fs::read(&app.save).unwrap(), advanced);
+    app.quit();
+
+    // A restart while the card is in the air: the cards at rest, one advance, and
+    // the exact save from before it as the recovery record.
+    let (_socket, mut app) = advance_run(&root, "restart", &saved, &prior);
+    app.launch_size("3840x2160");
+    app.request(json!({"op":"settle"}), true);
+    commit_advance(&mut app, revision);
+    advance_to(&mut app, 0.35);
+    app.capture("in-the-air");
+    app.quit();
+    assert_eq!(fs::read(&app.save).unwrap(), advanced);
+    assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
+    app.launch_size("3840x2160");
+    let resumed = app.observe();
+    assert_eq!(resumed["observation"], after);
+    assert_eq!(resumed["table"]["piles"]["advance"], Value::Null);
+    assert!(
+        !resumed["table"]["pending"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("card advance")),
+        "{}",
+        resumed["table"]["pending"]
+    );
+    app.request(json!({"op":"settle"}), true);
+    let resumed = app.observe();
+    card_piles::assert_piles(&resumed, 19, 33, 18, 19);
+    assert_eq!(resumed["table"]["piles"], rest["table"]["piles"]);
+    assert!(
+        resumed["observation"]["choices"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|choice| !choice["id"].as_str().unwrap().ends_with(":advance-card")),
+        "no second advance is offered"
+    );
+    for request in [
+        json!({"op":"activate","revision":revision,"choice":format!("{revision}:advance-card")}),
+        json!({"op":"activate","revision":revision+1,"choice":format!("{}:advance-card", revision+1)}),
+    ] {
+        app.request(request, false);
+    }
+    assert_eq!(app.observe()["observation"], after);
+    assert_eq!(fs::read(&app.save).unwrap(), advanced);
+    assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
+    app.capture("resumed-at-rest");
+    card_piles::assert_piles_drawn(&app, "resumed-at-rest", &resumed);
+    app.quit();
+}
+
+/// A card directory with every face but no card back, and then with a back one bit
+/// off, refuses launch. The refusal names the file and how to supply it; no save is
+/// created, and an existing save and its recovery record keep their bytes.
+fn assert_missing_or_changed_back_refuses(app: &Native, saved: &[u8], prior: &[u8]) {
+    const BACK: &str = "cuba-libre-card-back.png";
+    let wrong_cards = tempfile::tempdir().unwrap();
+    for name in ["card-17.png", "card-18.png", "card-19.png"] {
+        fs::copy(app.cards.join(name), wrong_cards.path().join(name)).unwrap();
+    }
+    let fresh = app.root.join("never-created.json");
+    for problem in ["missing", "changed"] {
+        if problem == "changed" {
+            let mut bytes = fs::read(app.cards.join(BACK)).unwrap();
+            bytes[100] ^= 1;
+            fs::write(wrong_cards.path().join(BACK), bytes).unwrap();
+        }
+        for save in [&app.save, &fresh] {
+            let output = Command::new(env!("CARGO_BIN_EXE_cuba-libre"))
+                .arg("--cards")
+                .arg(wrong_cards.path())
+                .arg("--save")
+                .arg(save)
+                .arg("--agent-seat")
+                .arg("--socket")
+                .arg(&app.socket)
+                .output()
+                .unwrap();
+            fs::write(
+                app.root.join(format!("{problem}-back.stderr")),
+                &output.stderr,
+            )
+            .unwrap();
+            let reason = String::from_utf8_lossy(&output.stderr);
+            if output.status.success() {
+                let _ = Command::new(env!("CARGO_BIN_EXE_cuba-tools"))
+                    .arg("seat")
+                    .arg(&app.socket)
+                    .arg(r#"{"op":"quit"}"#)
+                    .output();
+            }
+            assert!(
+                !output.status.success(),
+                "a {problem} card back was accepted"
+            );
+            assert!(
+                reason.contains(BACK) && reason.contains("--cards") && reason.contains("c905d7a7"),
+                "{reason}"
+            );
+        }
+        assert_eq!(fs::read(&app.save).unwrap(), saved);
+        assert_eq!(fs::read(previous_path(&app.save)).unwrap(), prior);
+        assert!(!fresh.exists() && !previous_path(&fresh).exists());
     }
 }

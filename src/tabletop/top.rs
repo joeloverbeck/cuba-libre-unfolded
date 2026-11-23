@@ -299,15 +299,18 @@ pub(super) fn draw(
     roots: Query<Entity, With<Tag>>,
     mut previous: Local<Option<Shown>>,
 ) {
-    let (scale, left) = layout(&window);
-    let right = left + Vec2::new(window.width() - WIDTH * scale, 0.);
+    let scale = reference_pixel(&window);
+    let right = Vec2::new(window.width() - WIDTH * scale, 0.);
     let shown = ui
         .hover
         .visible()
-        .filter(|_| !ui.reader)
         .and_then(|target| match target {
             Target::Top(item) => Some(*item),
-            Target::Standing(_) | Target::Choice(_) | Target::Sequence(_) => None,
+            Target::Standing(_)
+            | Target::Choice(_)
+            | Target::Sequence(_)
+            | Target::Card(_)
+            | Target::Pile(_) => None,
         })
         .map(|item| {
             let mut shown = content(&play.game().observe(), item);
@@ -323,7 +326,7 @@ pub(super) fn draw(
             let (origin, x, top) = match (item, anchored_right) {
                 (Item::Resources, _) => (right, x - tag::GAP - tag::WIDTH, y),
                 (_, true) => (right, 1880. - tag::WIDTH, y + h + tag::GAP),
-                (_, false) => (left, x.min(1880. - tag::WIDTH), y + h + tag::GAP),
+                (_, false) => (Vec2::ZERO, x.min(1880. - tag::WIDTH), y + h + tag::GAP),
             };
             shown.bounds = [
                 origin.x + x * scale,

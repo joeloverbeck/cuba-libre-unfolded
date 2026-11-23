@@ -12,6 +12,14 @@ mod assault;
 mod assault_side;
 #[path = "native/card_advance.rs"]
 mod card_advance;
+#[path = "native/card_piles.rs"]
+mod card_piles;
+#[path = "native/card_tag.rs"]
+mod card_tag;
+#[path = "native/main_view.rs"]
+mod main_view;
+#[path = "native/pile_tags.rs"]
+mod pile_tags;
 #[path = "native/rally.rs"]
 mod rally;
 #[test]
@@ -739,9 +747,11 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
             (size - first).abs() < 0.01,
             "count size {size} per reference pixel at {width}x{height}, {first} at first"
         );
-        let viewport = before["table"]["map_viewport"].as_array().unwrap();
-        assert!((viewport[0].as_f64().unwrap() - 40. * scale).abs() <= 1.);
-        assert!((viewport[2].as_f64().unwrap() - (width as f64 - 580. * scale)).abs() <= 1.);
+        // The map fills the window (#142).
+        assert_eq!(
+            before["table"]["map_viewport"],
+            json!([0., 0., width as f64, height as f64])
+        );
         let controls = before["table"]["controls"].as_array().unwrap();
         assert!(
             !controls
@@ -813,21 +823,41 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
         app.capture("region-hover");
         app.point("standing:0");
         app.capture("victory-hover");
-        app.activate("reader", revision);
-        assert!(app.observe()["table"]["status"].is_null());
-        app.capture("reader");
-        app.activate("close", revision);
-        app.capture("after-reader");
+        // The card tag opens inside every window and leaves both cards visible (#139).
+        app.activate("card:current", revision);
+        let tag = app.observe();
+        assert_card_tag_placed(&tag, "card:current");
+        assert!(tag["table"]["status"].is_null());
+        app.capture("card-tag");
+        close_card_tag(&mut app);
+        app.capture("after-card-tag");
         let before_pixels = image::open(app.root.join("home.png")).unwrap().to_rgb8();
-        let after_pixels = image::open(app.root.join("after-reader.png"))
+        let after_pixels = image::open(app.root.join("after-card-tag.png"))
             .unwrap()
             .to_rgb8();
-        let panel_corner = ((45. * scale) as u32, (970. * scale) as u32);
-        assert_eq!(
-            after_pixels.get_pixel(panel_corner.0, panel_corner.1),
-            before_pixels.get_pixel(panel_corner.0, panel_corner.1),
-            "authored card panel must remain above the desk after UI redraw"
-        );
+        // The piles are drawn by the tray's own camera, under the interface: closing
+        // the tag, which redraws the interface, leaves the current card as it was.
+        let face = rect_of(&tag["table"]["piles"]["piles"][0]["face"]);
+        for (fx, fy) in [(0.25, 0.25), (0.5, 0.5), (0.75, 0.4)] {
+            let at = (
+                (face[0] + (face[2] - face[0]) * fx) as u32,
+                (face[1] + (face[3] - face[1]) * fy) as u32,
+            );
+            let pixel = after_pixels.get_pixel(at.0, at.1);
+            assert_eq!(
+                pixel,
+                before_pixels.get_pixel(at.0, at.1),
+                "the current card changed at {at:?} after the interface was redrawn"
+            );
+            assert!(
+                pixel
+                    .0
+                    .iter()
+                    .zip([216u8, 231, 227])
+                    .any(|(c, s)| c.abs_diff(s) > 12),
+                "the sea shows at {at:?}, where the current card lies"
+            );
+        }
         assert_eq!(app.observe()["observation"], before["observation"]);
         assert_eq!(std::fs::read(&app.save).unwrap(), saved);
         app.quit();
@@ -935,21 +965,17 @@ fn native_victory_emblems_disclose_live_margins_without_inspection() {
         }
         app.capture(&format!("victory-{index}"));
     }
-    assert!(app.point("reader")["table"]["victory"].is_null());
+    // One tag at a time: the card tag replaces the victory tag (#139).
+    assert!(app.point("card:current")["table"]["victory"].is_null());
     app.point("standing:0");
-    app.activate("reader", 0);
-    let reader = app.observe();
-    assert!(reader["table"]["victory"].is_null());
-    assert!(reader["table"]["standings"].as_array().unwrap().is_empty());
-    assert!(
-        !reader["table"]["controls"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|c| c["name"].as_str().unwrap().starts_with("standing:"))
-    );
-    app.capture("reader-without-score-panels");
-    app.activate("close", 0);
+    app.activate("card:current", 0);
+    let reading = app.observe();
+    assert!(reading["table"]["victory"].is_null());
+    assert_eq!(reading["table"]["card"]["shown"]["card"], "card:current");
+    // The standings stay shown while a card is read.
+    assert_eq!(reading["table"]["standings"].as_array().unwrap().len(), 4);
+    app.capture("card-tag-with-score-panels");
+    close_card_tag(&mut app);
     // Real authorized transfers and Terror grow the contribution list and
     // update both factions' margins without reopening a stale disclosure.
     for action in [
@@ -1282,8 +1308,9 @@ fn native_kidnap_owed_terror_restart_and_next_permissions() {
     let refusal = app.refuse("end-terror");
     assert!(refusal.contains("owed"), "{refusal}");
     assert_eq!(std::fs::read(&app.save).unwrap(), saved_roll);
-    app.activate("reader", rev);
-    app.activate("close", rev);
+    // Reading a card changes nothing (#139).
+    app.activate("card:preview", rev);
+    close_card_tag(&mut app);
     assert_eq!(app.observe()["observation"], rolled["observation"]);
     app.choose("terror:santiago");
     let after = app.observe();
@@ -1688,7 +1715,8 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         assert_eq!(app.observe()["observation"]["revision"], 0);
     }
     app.capture("raised-ec-picking");
-    app.point("reader");
+    // Rest the pointer on interface chrome, off the map.
+    app.point("quit");
     let home = app.observe()["table"]["camera"].clone();
     for _ in 0..24 {
         app.request(json!({"op":"key","key":"ArrowLeft","revision":0}), true);
@@ -1709,15 +1737,12 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     );
     app.request(json!({"op":"key","key":"Home","revision":0}), true);
     assert_eq!(app.observe()["table"]["camera"], home);
-    app.activate("reader", 0);
+    // A pinned card tag leaves the standings shown (#139).
+    app.activate("card:current", 0);
     let reading = app.observe();
-    let standings = reading["table"]["standings"].as_array().unwrap();
-    assert!(standings.is_empty());
-    app.capture("reader");
-    let before = app.observe()["table"]["camera"].clone();
-    app.request(json!({"op":"key","key":"KeyW","revision":0}), true);
-    assert_eq!(app.observe()["table"]["camera"], before);
-    app.activate("close", 0);
+    assert_eq!(reading["table"]["standings"].as_array().unwrap().len(), 4);
+    app.capture("card-tag");
+    close_card_tag(&mut app);
     assert_eq!(
         std::fs::read(&app.save).unwrap(),
         original,
@@ -1780,7 +1805,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         .lines()
         .chain(cuba_libre_unfolded::assets::STATUS_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::VICTORY_MANIFEST.lines())
-        .chain(cuba_libre_unfolded::assets::LAYOUT_MANIFEST.lines())
+        .chain(cuba_libre_unfolded::assets::MAIN_VIEW_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::TERRAIN_MANIFEST.lines())
     {
         let (_, path) = line.split_once("  ").unwrap();
@@ -1819,7 +1844,8 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         "atlas-control-uncontrolled.png",
         "atlas-victory-icon-government.png",
         "atlas-victory-ui.png",
-        "atlas-layout-card.png",
+        "atlas-main-view-count-disc.png",
+        "atlas-main-view.layout.json",
         "atlas-terrain-map.glb",
         "terrain-labels.json",
         "atlas-terrain-label-havana.png",
@@ -2209,60 +2235,80 @@ fn native_hover_status_is_transient_without_region_inspection() {
     app.capture("matanzas-hover");
     app.activate("space:matanzas", 0);
     assert_eq!(app.observe()["observation"]["revision"], 0);
-    app.request(
-        json!({"op":"point","revision":0,"component":"reader"}),
-        true,
-    );
+    app.request(json!({"op":"point","revision":0,"component":"quit"}), true);
     assert!(app.observe()["table"]["status"].is_null());
     // Independent prepared-position expectations from R1.6/1.7 and the
-    // accepted tactical handoff, including mixed Control/opinion cases.
-    for (id, control, opinion, contribution) in [
+    // accepted tactical handoff, including mixed Control/opinion cases. The
+    // space types and terrains come from the third-printing playbook's Spaces
+    // List (p.36): three Cities; Forest Pinar del Río, Camagüey and Oriente;
+    // Grassland La Habana and Matanzas; Mountain Las Villas and Sierra Maestra.
+    for (id, terrain, control, opinion, contribution) in [
         (
             "havana",
+            "City",
             "Government",
             "Active Support",
             "×2 · Government +12",
         ),
         (
             "camaguey-city",
+            "City",
             "Government",
             "Passive Support",
             "×1 · Government +1",
         ),
-        ("santiago", "Government", "Neutral", "0 Support/Opposition"),
+        (
+            "santiago",
+            "City",
+            "Government",
+            "Neutral",
+            "0 Support/Opposition",
+        ),
         (
             "pinar-del-rio",
+            "Province · Forest",
             "Syndicate",
             "Active Support",
             "×2 · Government +2",
         ),
         (
             "la-habana",
+            "Province · Grassland",
             "Syndicate",
             "Passive Support",
             "×1 · Government +1",
         ),
         (
             "matanzas",
+            "Province · Grassland",
             "Uncontrolled",
             "Passive Opposition",
             "×1 · 26July +1",
         ),
         (
             "las-villas",
+            "Province · Mountain",
             "Government",
             "Neutral",
             "0 Support/Opposition",
         ),
         (
             "camaguey-province",
+            "Province · Forest",
             "Directorio",
             "Passive Opposition",
             "×1 · 26July +1",
         ),
-        ("oriente", "26July", "Passive Opposition", "×1 · 26July +2"),
+        (
+            "oriente",
+            "Province · Forest",
+            "26July",
+            "Passive Opposition",
+            "×1 · 26July +2",
+        ),
         (
             "sierra-maestra",
+            "Province · Mountain",
             "26July",
             "Active Opposition",
             "×2 · 26July +2",
@@ -2275,6 +2321,7 @@ fn native_hover_status_is_transient_without_region_inspection() {
         app.request(json!({"op":"settle"}), true);
         let status = app.observe()["table"]["status"].clone();
         assert_eq!(status["space"], id);
+        assert_eq!(status["terrain"], terrain, "{id}");
         assert_eq!(status["control"], control);
         assert_eq!(status["opinion"], opinion);
         assert_eq!(status["contribution"], contribution);
@@ -2294,6 +2341,9 @@ fn native_hover_status_is_transient_without_region_inspection() {
         }
         app.capture(&format!("status-{id}"));
     }
+    // An Economic Center's map label is only its gold value disc, which the
+    // removed terrain key explained (#138): its tag names it and has no Control
+    // or Support/Opposition rows, since neither applies (R 1.6, 1.7).
     for id in [
         "ec-pinar-la-habana",
         "ec-las-villas-camaguey",
@@ -2304,7 +2354,14 @@ fn native_hover_status_is_transient_without_region_inspection() {
             true,
         );
         app.request(json!({"op":"settle"}), true);
-        assert!(app.observe()["table"]["status"].is_null());
+        let status = app.observe()["table"]["status"].clone();
+        assert_eq!(status["space"], id);
+        assert_eq!(status["terrain"], "Economic center", "{id}");
+        for absent in ["control", "opinion", "contribution"] {
+            assert!(status[absent].is_null(), "{status}");
+        }
+        assert_status_geometry(&status);
+        app.capture(&format!("status-{id}"));
     }
     for prefix in ["piece:havana ", "count:havana "] {
         let view = app.observe();
@@ -2317,10 +2374,12 @@ fn native_hover_status_is_transient_without_region_inspection() {
             .unwrap();
         assert_eq!(app.point(target)["table"]["status"]["space"], "havana");
     }
-    app.activate("reader", 0);
+    // The card tag is a tag of its own: the region's closes when the pointer
+    // moves to a card (#139).
+    app.activate("card:current", 0);
     assert!(app.observe()["table"]["status"].is_null());
-    app.capture("reader-suppresses-status");
-    app.activate("close", 0);
+    app.capture("card-tag-over-map");
+    close_card_tag(&mut app);
     for key in ["ArrowLeft", "Equal", "Minus"] {
         for _ in 0..5 {
             app.request(json!({"op":"key","revision":0,"key":key}), true);
@@ -2367,6 +2426,31 @@ fn native_hover_status_is_transient_without_region_inspection() {
     let final_state = app.observe()["observation"].clone();
     app.quit();
     app.launch();
+    assert_eq!(app.observe()["observation"], final_state);
+    app.quit();
+    // Every tag at the owner's display, with its terrain row (#138).
+    app.launch_size("3840x2160");
+    for (id, terrain) in [
+        ("havana", "City"),
+        ("camaguey-city", "City"),
+        ("santiago", "City"),
+        ("pinar-del-rio", "Province · Forest"),
+        ("la-habana", "Province · Grassland"),
+        ("matanzas", "Province · Grassland"),
+        ("las-villas", "Province · Mountain"),
+        ("camaguey-province", "Province · Forest"),
+        ("oriente", "Province · Forest"),
+        ("sierra-maestra", "Province · Mountain"),
+        ("ec-pinar-la-habana", "Economic center"),
+        ("ec-las-villas-camaguey", "Economic center"),
+        ("ec-oriente-sierra", "Economic center"),
+    ] {
+        let status = app.point(&format!("space:{id}"))["table"]["status"].clone();
+        assert_eq!(status["space"], id);
+        assert_eq!(status["terrain"], terrain, "{id}");
+        assert_status_geometry(&status);
+        app.capture(&format!("status-3840-{id}"));
+    }
     assert_eq!(app.observe()["observation"], final_state);
     app.quit();
     if let Some(legacy) = std::env::var_os("CUBA_COMPAT_SAVE") {
@@ -2724,12 +2808,18 @@ fn native_top_display_matches_layout_and_follows_the_economy() {
     assert_ne!(resources[0], "6", "a Kidnap roll takes at least 1");
     assert_eq!(ledger(&roll), resources);
     app.capture("after-kidnap");
+    // The top display is always shown, a card tag open or not (#139).
     let revision = roll["observation"]["revision"].as_u64().unwrap();
-    app.activate("reader", revision);
-    let reader = app.observe();
-    assert!(reader["table"]["top"].is_null());
-    assert!(reader["table"]["top_parts"].as_array().unwrap().is_empty());
-    app.capture("reader-without-title");
+    app.activate("card:current", revision);
+    let reading = app.observe();
+    assert!(reading["table"]["top"].is_null());
+    assert_eq!(
+        reading["table"]["top_parts"].as_array().unwrap().len(),
+        parts.len()
+    );
+    assert_eq!(ledger(&reading), resources);
+    app.capture("card-tag-with-top-display");
+    close_card_tag(&mut app);
     app.quit();
 }
 
@@ -2758,6 +2848,70 @@ fn assert_counts_follow_the_window(view: &Value, expected: Option<f64>, scale: f
         );
     }
     size
+}
+
+/// #139: the open card tag reads `slot`, lies inside the window, and leaves both cards
+/// visible: it overlaps neither card on its pile, nor any part of either pile.
+fn assert_card_tag_placed(view: &Value, slot: &str) {
+    let card = &view["table"]["card"];
+    assert_eq!(card["shown"]["card"], slot, "{card}");
+    let plate = rect_of(&card["shown"]["bounds"]);
+    let viewport = view["table"]["viewport"].as_array().unwrap();
+    let (width, height) = (viewport[0].as_f64().unwrap(), viewport[1].as_f64().unwrap());
+    assert!(
+        plate[0] >= 0. && plate[1] >= 0. && plate[2] <= width && plate[3] <= height,
+        "the tag {plate:?} leaves the {width}x{height} window"
+    );
+    let cards = card["cards"].as_array().unwrap();
+    assert_eq!(cards.len(), 2, "{card}");
+    let piles = &view["table"]["piles"];
+    let drawn = piles["piles"].as_array().unwrap();
+    assert_eq!(drawn.len(), 2, "{piles}");
+    let covered = cards
+        .iter()
+        .map(|card| &card["bounds"])
+        .chain(drawn.iter().flat_map(|pile| [&pile["face"], &pile["foot"]]))
+        .chain(
+            piles["discs"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|disc| &disc["bounds"]),
+        );
+    for bounds in covered {
+        let bounds = rect_of(bounds);
+        assert!(
+            plate[2] <= bounds[0]
+                || bounds[2] <= plate[0]
+                || plate[3] <= bounds[1]
+                || bounds[3] <= plate[1],
+            "the tag {plate:?} covers {bounds:?} of the piles"
+        );
+    }
+    for part in card["parts"].as_array().unwrap() {
+        let bounds = rect_of(&part["bounds"]);
+        assert!(
+            bounds[0] >= plate[0] - 0.5
+                && bounds[1] >= plate[1] - 0.5
+                && bounds[2] <= plate[2] + 0.5
+                && bounds[3] <= plate[3] + 0.5,
+            "{part} leaves the plate {plate:?}"
+        );
+    }
+}
+
+/// Escape closes the open card tag; nothing in the match changes.
+fn close_card_tag(app: &mut Native) {
+    let before = app.observe();
+    let revision = before["observation"]["revision"].as_u64().unwrap();
+    app.request(json!({"op":"key","revision":revision,"key":"Escape"}), true);
+    let after = app.request(json!({"op":"settle"}), true);
+    assert!(
+        after["table"]["card"]["shown"].is_null(),
+        "{}",
+        after["table"]["card"]
+    );
+    assert_eq!(app.observe()["observation"], before["observation"]);
 }
 
 fn rect_of(value: &Value) -> [f64; 4] {
@@ -3100,24 +3254,6 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         );
         app.capture("kidnap");
 
-        // The reader's Eligibility line.
-        let revision = kidnap["observation"]["revision"].as_u64().unwrap();
-        app.activate("reader", revision);
-        let reader = app.observe();
-        checked += assert_inline_emblems(&reader);
-        assert!(
-            reader["table"]["inline_text"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|t| t["text"]
-                    .as_str()
-                    .unwrap()
-                    .contains("Eligible: Government, 26July")
-                    && t["emblems"].as_array().unwrap().len() >= 4)
-        );
-        app.capture("reader");
-        app.activate("close", revision);
         app.quit();
 
         // Pass, on a fresh save: its notice and Directorio's options name factions by emblem.
@@ -4081,7 +4217,7 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
         .lines()
         .chain(cuba_libre_unfolded::assets::STATUS_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::VICTORY_MANIFEST.lines())
-        .chain(cuba_libre_unfolded::assets::LAYOUT_MANIFEST.lines())
+        .chain(cuba_libre_unfolded::assets::MAIN_VIEW_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::TERRAIN_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::TERROR_MANIFEST.lines())
         .chain(cuba_libre_unfolded::assets::TOP_MANIFEST.lines())
@@ -4918,34 +5054,37 @@ fn native_space_popover_closes_the_briefing_tag() {
     assert_eq!(tag["table"]["briefing"]["option"], "terror");
     assert_eq!(tag["table"]["choice"]["ribbon"], true);
     app.capture("clash-tag-open");
-    // A click through the open tag reaches nothing on the map.
+    // A click through the open tag reaches nothing on the map. With the island filling
+    // the window to the decision panel (#142), the tag lies over Oriente and leaves
+    // Santiago's label clear; in the framed view it was the other way round.
     let covered = app.request(
-        json!({"op":"activate","revision":rev,"component":"space:santiago"}),
+        json!({"op":"activate","revision":rev,"component":"space:oriente"}),
         false,
     );
     assert!(
         covered["error"]
             .as_str()
             .unwrap()
-            .contains("not component space:santiago"),
+            .contains("not component space:oriente"),
         "{}",
         covered["error"]
     );
     let saved = std::fs::read(&app.save).unwrap();
-    app.activate("space:oriente", rev);
+    app.activate("space:santiago", rev);
     let popover = app.observe();
     assert_eq!(popover["table"]["popover"]["pinned"], true);
-    assert_eq!(popover["table"]["popover"]["space"], "oriente");
+    assert_eq!(popover["table"]["popover"]["space"], "santiago");
     assert_eq!(popover["table"]["briefing"], Value::Null);
     assert_eq!(popover["table"]["choice"]["ribbon"], false);
     assert_eq!(popover["observation"]["revision"], rev);
     assert_eq!(std::fs::read(&app.save).unwrap(), saved);
     app.capture("clash-popover-closes-tag");
-    // Clicking Oriente again closes its popover (#73 made it settle at this size).
-    app.activate("space:oriente", rev);
+    // Clicking the space again closes its popover. Oriente's opens below, once the
+    // tag is closed (#73 made it settle at this size).
+    app.activate("space:santiago", rev);
     assert_eq!(app.observe()["table"]["popover"], Value::Null);
-    app.activate("space:oriente", rev);
-    assert_eq!(app.observe()["table"]["popover"]["space"], "oriente");
+    app.activate("space:santiago", rev);
+    assert_eq!(app.observe()["table"]["popover"]["space"], "santiago");
 
     // Orchestrator implementation judgement (#58 carry-forward): whichever opened
     // last wins, and the tag closes by Escape or a click on the map outside it.
@@ -4961,8 +5100,8 @@ fn native_space_popover_closes_the_briefing_tag() {
     let escaped = app.observe();
     assert_eq!(escaped["table"]["choice"]["ribbon"], false);
     assert_eq!(escaped["table"]["briefing"], Value::Null);
-    app.activate("space:santiago", rev);
-    assert_eq!(app.observe()["table"]["popover"]["space"], "santiago");
+    app.activate("space:oriente", rev);
+    assert_eq!(app.observe()["table"]["popover"]["space"], "oriente");
     // A click on the map outside the tag closes it too, and changes nothing else.
     app.activate("briefing-ribbon", rev);
     assert_eq!(app.observe()["table"]["popover"], Value::Null);
@@ -4973,8 +5112,8 @@ fn native_space_popover_closes_the_briefing_tag() {
     assert_eq!(outside["table"]["popover"], Value::Null);
     assert_eq!(outside["observation"], popover["observation"]);
     assert_eq!(std::fs::read(&app.save).unwrap(), saved);
-    app.activate("space:santiago", rev);
-    assert_eq!(app.observe()["table"]["popover"]["space"], "santiago");
+    app.activate("space:oriente", rev);
+    assert_eq!(app.observe()["table"]["popover"]["space"], "oriente");
     app.capture("clash-map-click-closed-tag");
     // Escape closes an open space popover as it closes the tag (#75), deciding nothing.
     app.request(json!({"op":"key","revision":rev,"key":"Escape"}), true);
@@ -5470,7 +5609,7 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
             }
         }
         // The tag dismisses like the other hover tags when the pointer leaves.
-        let away = app.point("reader");
+        let away = app.point("quit");
         assert!(away["table"]["eligibility"]["tag"].is_null());
         assert_eq!(app.observe()["table"]["eligibility"]["tag"], Value::Null);
     };
@@ -5494,11 +5633,13 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
             step: 0,
         };
         std::fs::create_dir_all(&app.root).unwrap();
-        (app, socket_dir)
+        // The socket directory comes first so the app is dropped first and its quit
+        // still reaches the socket (docs/agents/parallel-work.md).
+        (socket_dir, app)
     };
 
     // The opening, and all through Terror until End Terror.
-    let (mut app, _socket) = session("opening");
+    let (_socket, mut app) = session("opening");
     app.launch_size("3840x2160");
     let open = app.observe();
     assert_eq!(open["observation"]["action"], "Open");
@@ -5526,7 +5667,7 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
     app.quit();
 
     // After Pass: Directorio 1st, Government 2nd, 26July in the Pass box (R 2.3.3).
-    let (mut app, _socket) = session("pass");
+    let (_socket, mut app) = session("pass");
     app.launch_size("3840x2160");
     app.choose("pass");
     let pass = app.observe();
@@ -5548,7 +5689,7 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
     app.quit();
 
     // Operation with Special Activity: the layout's 16:9 frame, with its box's tag.
-    let (mut app, _socket) = session("special-activity");
+    let (_socket, mut app) = session("special-activity");
     app.launch_size("3840x2160");
     for action in [
         "terror",
@@ -5585,7 +5726,7 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
     // At 3:2, the seat's default, the camera frames Cuba wider and the track covers
     // Pinar del Río's pieces (foundation 4 requires only the 16:9 frame; #70 records
     // this as an open limit). The capture is retained for that record.
-    let (mut app, _socket) = session("three-two");
+    let (_socket, mut app) = session("three-two");
     app.launch();
     let view = app.observe();
     agree(&view);
