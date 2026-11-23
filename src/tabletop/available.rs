@@ -236,7 +236,7 @@ fn kind_label(kind: Kind) -> &'static str {
 /// A faction's tag: its title, a row per kind reading "N of T · M on the map" (its
 /// Available count, its inventory, and the inventory less Available: every piece not
 /// Available is on the map, in any state, a closed Casino included), and the rule,
-/// broken into drawn lines. It reads nothing from the map (story 38).
+/// broken into drawn lines. It reads nothing from the map (#157 story 38).
 pub(super) fn tag(view: &Observation, faction: Faction) -> TagContent {
     let row = rows(view)
         .into_iter()
@@ -246,13 +246,13 @@ pub(super) fn tag(view: &Observation, faction: Faction) -> TagContent {
         .cells
         .iter()
         .map(|cell| {
-            let total = inventory(faction, cell.kind);
+            let chart = inventory(faction, cell.kind);
             // Available never exceeds the inventory (the integration test
             // `every_reached_position_keeps_each_inventory`).
-            let on_map = total.saturating_sub(cell.count);
+            let on_map = chart.saturating_sub(cell.count);
             (
                 kind_label(cell.kind).to_owned(),
-                format!("{} of {total} · {on_map} on the map", cell.count),
+                format!("{} of {chart} · {on_map} on the map", cell.count),
             )
         })
         .collect();
@@ -307,13 +307,7 @@ pub(super) struct Dimmed;
 /// Draws the ledger at rest from the committed position.
 pub(super) fn draw(commands: &mut Commands, art: &Art, view: &Observation, s: f32, right: Vec2) {
     let rows = rows(view);
-    let count = |faction: Faction, kind: Kind| {
-        rows.iter()
-            .filter(|row| row.faction == faction)
-            .flat_map(|row| &row.cells)
-            .find(|cell| cell.kind == kind)
-            .map_or(0, |cell| cell.count)
-    };
+    let count = |faction, kind| total(&view.available, faction, kind);
     let (images, text_parts) = layout();
     for (name, shows, rect) in images {
         let (key, z) = match shows {
@@ -654,7 +648,7 @@ mod tests {
         );
     }
 
-    /// Story 38: the tag reads the rules authority's Available Forces and computes
+    /// #157 story 38: the tag reads the rules authority's Available Forces and computes
     /// nothing of its own beyond inventory less Available, so "M on the map" is T − N
     /// and the tag reads nothing from the map. Here 2 26July Guerrillas are returned to
     /// Available without the map changing, and then the map is emptied.
@@ -680,23 +674,8 @@ mod tests {
         );
     }
 
-    /// A closed Casino is still on the map (R 1.4.5, R 3.2.4): closing one changes no
-    /// count in the Syndicate's tag.
-    #[test]
-    fn a_closed_casino_counts_on_the_map() {
-        let mut view = Game::opening().observe();
-        let casino = view
-            .spaces
-            .iter_mut()
-            .flat_map(|space| &mut space.pieces)
-            .find(|group| group.kind == Kind::Casino)
-            .unwrap();
-        casino.state = State::Closed;
-        assert_eq!(
-            tag_rows(&view, Faction::Syndicate)[1],
-            ("Casinos".into(), "7 of 10 · 3 on the map".into())
-        );
-    }
+    // A closed Casino stays on the map and is not Available (R 1.4.5, R 3.2.4): see the
+    // integration test `every_reached_position_keeps_each_inventory`, which closes one.
 
     fn rect(value: &serde_json::Value) -> [f32; 4] {
         let v: Vec<f32> = value
