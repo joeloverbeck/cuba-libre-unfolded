@@ -438,10 +438,18 @@ impl SeatGame for Table {
         world.resource::<Play>().game().observe().revision
     }
     fn resolve(&self, world: &mut World, name: &TargetName) -> Result<Vec<Vec2>, String> {
-        let found: Vec<_> = controls(world)
+        let mut found: Vec<_> = controls(world)
             .into_iter()
             .filter(|(_, c, _)| &named(c) == name)
             .collect();
+        // A pile is its count disc, its side and its caption: the seat rests on the
+        // disc first and on the others' middles after it.
+        if found.len() > 1 && found.iter().all(|(_, c, _)| matches!(c.action, Action::Pile(_))) {
+            found.sort_by_key(|(entity, _, _)| world.get::<piles::Disc>(*entity).is_none());
+            let mut points: Vec<Vec2> = found.iter().map(|(_, _, at)| *at).collect();
+            points.dedup();
+            return Ok(points);
+        }
         if found.len() != 1 {
             return Err(format!(
                 "Expected exactly one shown target {name:?}, found {}",

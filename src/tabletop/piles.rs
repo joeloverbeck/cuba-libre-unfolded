@@ -89,6 +89,16 @@ impl Pile {
             Self::Deck => fig::DECK,
         }
     }
+    /// The rest of what the owner sees as the pile below its top card, in the
+    /// layout's frame: its visible side, which grows down from the card's near edge
+    /// with the count, and its caption, to the caption's foot. With the count disc it
+    /// is the pile's target; the top card is the card's own.
+    fn body(self) -> [f32; 4] {
+        let [x, y, w, h] = self.face();
+        let (_, _, [_, caption, _]) = self.parts().caption;
+        let foot = caption + fig::CAPTION_SIZE * fig::LINE;
+        [x, y + h, w, foot - (y + h)]
+    }
     /// The parts the layout draws for this pile, by their names in it.
     fn parts(self) -> PileParts {
         match self {
@@ -145,6 +155,8 @@ mod fig {
     pub const PLAYED_CAPTION: [f32; 3] = [110., 2082., 132.];
     pub const DECK_CAPTION: [f32; 3] = [470., 2096., 127.];
     pub const CAPTION_SIZE: f32 = 28.;
+    /// A line of the card area's text, in type sizes: the renderer's default line height.
+    pub const LINE: f32 = 1.2;
     pub const PROPAGANDA_LABEL: [f32; 3] = [850., 1936., 193.];
     pub const PROPAGANDA_LABEL_SIZE: f32 = 24.;
     /// The first pip, and the step to the next.
@@ -1012,7 +1024,8 @@ pub(super) fn present(
     }
 }
 
-/// A pile's count disc, which is the pile's target for the pointer and the seat.
+/// A pile's count disc, which with the pile's side and caption is the pile's target
+/// for the pointer and the seat; the seat rests on the disc first.
 #[derive(Component)]
 pub(super) struct Disc(Pile);
 /// A Propaganda pip, and whether it is filled.
@@ -1111,6 +1124,19 @@ pub(super) fn overlay(commands: &mut Commands, art: &Art, lay: &Lay, window: &Wi
             name,
         );
         commands.entity(label).insert(tracking);
+        // The pile's side and caption: its target, as its disc is.
+        commands
+            .spawn((
+                UiRoot,
+                node(window, pile.body()),
+                GlobalZIndex(2),
+                Control {
+                    name: pile.name().into(),
+                    choice: false,
+                    action: Action::Pile(pile),
+                },
+            ))
+            .observe(click);
         let (name, rect) = parts.disc;
         let mut disc = node(window, rect);
         disc.border_radius = BorderRadius::MAX;

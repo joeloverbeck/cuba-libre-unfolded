@@ -348,20 +348,24 @@ fn native_pile_tags_match_layout_and_read_the_model() {
     assert!(app.observe()["table"]["pile_tag"]["shown"].is_null());
     // Story 35, "hover the played pile": a pile is what the owner sees of it, its
     // visible side and its caption as well as its disc. The pointer comes to rest on
-    // each from the pile's top card, carried there by a middle-button drag, which
-    // clicks nothing; the top card's own tag does not open.
+    // each from the session's Quit button, carried there by a middle-button drag,
+    // which clicks nothing (the seat presses only where no hover is waiting).
     let main_parts = card_piles::parts(&rest);
-    for (index, (pile, card, caption)) in [
-        ("pile:played", "card:current", "played-caption"),
-        ("pile:deck", "card:preview", "deck-caption"),
-    ]
-    .into_iter()
-    .enumerate()
+    let quit = rest["table"]["controls"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|control| control["name"] == "quit")
+        .unwrap()["position"]
+        .clone();
+    let from = [quit[0].as_f64().unwrap(), quit[1].as_f64().unwrap()];
+    for (index, (pile, caption)) in [("pile:played", "played-caption"), ("pile:deck", "deck-caption")]
+        .into_iter()
+        .enumerate()
     {
         let drawn = &rest["table"]["piles"]["piles"][index];
         let face = rect_of(&drawn["face"]);
         let foot = rect_of(&drawn["foot"]);
-        let from = [(face[0] + face[2]) / 2., (face[1] + face[3]) / 2.];
         let words = main_parts[caption].1;
         // The side's left part (the disc lies on its right), and the caption's middle.
         for (part, to) in [
@@ -373,7 +377,7 @@ fn native_pile_tags_match_layout_and_read_the_model() {
             app.request(json!({"op":"settle"}), true);
             assert!(app.observe()["table"]["pile_tag"]["shown"].is_null());
             app.request(
-                json!({"op":"drag","revision":revision,"component":card,"button":"middle",
+                json!({"op":"drag","revision":revision,"component":"quit","button":"middle",
                        "x":to[0] - from[0],"y":to[1] - from[1]}),
                 true,
             );
