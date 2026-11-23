@@ -12,7 +12,6 @@ pub(super) struct Shown {
     pub formula: String,
     pub rows: Vec<(String, String)>,
     pub conditions: Vec<String>,
-    pub footer: String,
     pub bounds: [f32; 4],
 }
 
@@ -211,37 +210,29 @@ fn content(view: &crate::Observation, faction: Faction) -> Shown {
             "Both conditions are required.".into(),
         ],
     };
-    let supplies = view
-        .available
-        .iter()
-        .filter(|p| p.faction == faction)
-        .map(|p| {
-            let kind = match p.kind {
-                Kind::Troops => "Troops",
-                Kind::Police => "Police",
-                Kind::Base if p.count == 1 => "Base",
-                Kind::Base => "Bases",
-                Kind::Guerrilla if p.count == 1 => "Guerrilla",
-                Kind::Guerrilla => "Guerrillas",
-                Kind::Casino if p.count == 1 => "Casino",
-                Kind::Casino => "Casinos",
-            };
-            format!("{} {kind}", p.count)
-        })
-        .collect::<Vec<_>>()
-        .join(" · ");
-    // Resources are on the top display's ledger (#46); Syndicate's stay in its
-    // calculation because they are a victory condition.
-    let footer = format!("Available: {supplies}");
+    // Resources are on the top display's ledger (#46) and Available Forces on theirs
+    // (#157); Syndicate's Resources stay in its calculation because they are a victory
+    // condition.
     Shown {
         faction,
         title: faction.name().into(),
         formula,
         rows,
         conditions,
-        footer,
         bounds: [0.; 4],
     }
+}
+
+/// The top of the conditions' caption, below the contribution rows, in reference
+/// pixels from the tag's top.
+fn condition_top(shown: &Shown) -> f32 {
+    160. + shown.rows.len() as f32 * 28.
+}
+
+/// The tag ends 32 below its last condition line, the margin the Available footer
+/// left below itself until the ledger took its counts (#161).
+fn height(shown: &Shown) -> f32 {
+    condition_top(shown) + 28. + shown.conditions.len() as f32 * 27. + 32.
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -266,10 +257,7 @@ pub(super) fn draw(
     });
     let shown = standing.map(|faction| {
         let mut shown = content(&play.game().observe(), *faction);
-        let height = 246.
-            + shown.rows.len() as f32 * 28.
-            + shown.conditions.len() as f32 * 27.
-            + shown.footer.lines().count() as f32 * 23.;
+        let height = height(&shown);
         let x = (center(*faction) - 234.).clamp(40., WIDTH - 508.);
         shown.bounds = [
             offset.x + x * scale,
@@ -361,7 +349,7 @@ pub(super) fn draw(
         words(label.into(), 24., top, 270., 18., ink);
         words(value.into(), 300., top, 144., 18., quiet);
     }
-    let condition_top = 160. + shown.rows.len() as f32 * 28.;
+    let condition_top = condition_top(&shown);
     words(
         "AT THE NEXT PROPAGANDA CHECK".into(),
         24.,
@@ -380,8 +368,6 @@ pub(super) fn draw(
             ink,
         );
     }
-    let footer_top = condition_top + 54. + shown.conditions.len() as f32 * 27.;
-    words((&shown.footer).into(), 24., footer_top, 420., 17., quiet);
     for top in [98., condition_top - 14.] {
         let rule = picture(
             &mut commands,
@@ -402,12 +388,17 @@ mod tests {
     use super::*;
 
     #[test]
-    fn footers_leave_resources_to_the_ledger_but_syndicate_keeps_its_condition() {
+    fn the_tag_leaves_counts_to_the_ledgers_but_syndicate_keeps_its_condition() {
         let view = crate::terror_chosen(crate::Game::opening()).observe();
         for faction in Faction::ALL {
             let shown = content(&view, faction);
-            assert!(shown.footer.starts_with("Available: "), "{}", shown.footer);
-            assert!(!shown.footer.contains("Resources"), "{}", shown.footer);
+            // What the seat reports of the tag: no footer, and no Available count.
+            let reported = serde_json::to_value(&shown).unwrap();
+            assert!(reported.get("footer").is_none(), "{reported}");
+            assert!(!reported.to_string().contains("Available"), "{reported}");
+            // Closed up: the last condition line, then the tag's 32 margin.
+            let last = condition_top(&shown) + 28. + (shown.conditions.len() - 1) as f32 * 27.;
+            assert_eq!(height(&shown), last + 27. + 32.);
         }
         assert!(
             content(&view, Faction::Syndicate)
