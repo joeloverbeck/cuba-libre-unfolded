@@ -1,5 +1,5 @@
 use super::*;
-use cuba_libre_unfolded::{Faction, assets, save::Session};
+use cuba_libre_unfolded::{Faction, save::Session};
 use std::fs;
 use unfolded_record_replacement::previous_path;
 
@@ -24,18 +24,7 @@ fn native_assault_resumes_giver_and_government_side_decisions() {
         step: 0,
     };
     eprintln!("Assault side decision evidence: {}", app.root.display());
-    let funded = std::env::var_os("CUBA_TEST_SANTIAGO_FUNDED_SAVE");
-    if let Some(source) = funded.as_deref().map(Path::new) {
-        let bytes = fs::read(source).unwrap();
-        assert_eq!(
-            assets::digest(&bytes),
-            "95d929facb49d629ce582498c4cc9f9672560b6d764379f6eb4a7c2c368cd860"
-        );
-        fs::write(&app.save, bytes).unwrap();
-        fs::copy(previous_path(source), previous_path(&app.save)).unwrap();
-    } else {
-        super::assault::fund_santiago(&app.save, 1);
-    }
+    super::assault::fund_santiago(&app.save, 1);
     let initial = Session::open(&app.save, None).unwrap().observe();
     let m26 = initial.resources[1];
     let directorio = initial.resources[2];
