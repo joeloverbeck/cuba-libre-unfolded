@@ -31,18 +31,16 @@ impl EventKind {
     }
 }
 
-/// A box on the face that makes the Event last beyond its execution (R 5.3, 5.4).
+/// A box on the face that makes the Event last beyond its execution (R 5.3). No
+/// admitted card has a Momentum box (R 5.4).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum LastingEffect {
     InsurgentCapability { in_effect: bool },
-    GovernmentMomentum { in_effect: bool },
 }
 impl LastingEffect {
     fn text(self) -> String {
-        let (name, in_effect) = match self {
-            Self::InsurgentCapability { in_effect } => ("Insurgent Capability", in_effect),
-            Self::GovernmentMomentum { in_effect } => ("Government Momentum", in_effect),
-        };
+        let Self::InsurgentCapability { in_effect } = self;
+        let name = "Insurgent Capability";
         if in_effect {
             format!("{name} · in effect")
         } else {
@@ -52,7 +50,6 @@ impl LastingEffect {
     fn rule(self) -> &'static str {
         match self {
             Self::InsurgentCapability { .. } => "R 5.3",
-            Self::GovernmentMomentum { .. } => "R 5.4",
         }
     }
 }
@@ -280,10 +277,6 @@ fn printed(number: u8) -> Printed {
 }
 
 impl CardFacts {
-    /// The title printed on a card.
-    pub fn title_of(number: u8) -> &'static str {
-        super::titles::title(number)
-    }
     fn new(number: u8, status: EventStatus, capabilities: &[String]) -> Self {
         let title = super::titles::title(number);
         let Printed {

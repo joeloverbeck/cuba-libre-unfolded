@@ -359,9 +359,12 @@ fn native_pile_tags_match_layout_and_read_the_model() {
         .unwrap()["position"]
         .clone();
     let from = [quit[0].as_f64().unwrap(), quit[1].as_f64().unwrap()];
-    for (index, (pile, caption)) in [("pile:played", "played-caption"), ("pile:deck", "deck-caption")]
-        .into_iter()
-        .enumerate()
+    for (index, (pile, caption)) in [
+        ("pile:played", "played-caption"),
+        ("pile:deck", "deck-caption"),
+    ]
+    .into_iter()
+    .enumerate()
     {
         let drawn = &rest["table"]["piles"]["piles"][index];
         let face = rect_of(&drawn["face"]);
@@ -370,9 +373,15 @@ fn native_pile_tags_match_layout_and_read_the_model() {
         // The side's left part (the disc lies on its right), and the caption's middle.
         for (part, to) in [
             ("side", [face[0] + 60., (face[3] + foot[3]) / 2.]),
-            ("caption", [(words[0] + words[2]) / 2., (words[1] + words[3]) / 2.]),
+            (
+                "caption",
+                [(words[0] + words[2]) / 2., (words[1] + words[3]) / 2.],
+            ),
         ] {
-            assert!(foot[3] - face[3] > 8., "{pile}'s side shows: {face:?} {foot:?}");
+            assert!(
+                foot[3] - face[3] > 8.,
+                "{pile}'s side shows: {face:?} {foot:?}"
+            );
             app.point("quit");
             app.request(json!({"op":"settle"}), true);
             assert!(app.observe()["table"]["pile_tag"]["shown"].is_null());
@@ -388,7 +397,10 @@ fn native_pile_tags_match_layout_and_read_the_model() {
                 shown["table"]["pile_tag"]["shown"]["pile"], pile,
                 "{pile} by its {part}"
             );
-            assert!(shown["table"]["card"]["shown"].is_null(), "{pile} by its {part}");
+            assert!(
+                shown["table"]["card"]["shown"].is_null(),
+                "{pile} by its {part}"
+            );
             assert_eq!(shown["observation"], rest["observation"]);
             if part == "side" {
                 app.capture(&format!("card-17-{}-from-side", &pile[5..]));

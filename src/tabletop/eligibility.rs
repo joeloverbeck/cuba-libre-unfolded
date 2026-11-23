@@ -796,9 +796,10 @@ pub(super) fn draw(
     let view = game.observe();
     let shown = content(&view, slot);
     let shift = rows(&track(&view)).shift;
-    let (s, o) = layout(&window);
+    let s = reference_pixel(&window);
     let box_top = fig::BOX_TOPS[slot.index()] + shift;
-    let at = |x: f32, y: f32| o + Vec2::new(r(fig::PANEL[0] + x), r(fig::PANEL[1] + y)) * s;
+    // The track is anchored to the window's top left, where the reference's corner is.
+    let at = |x: f32, y: f32| Vec2::new(r(fig::PANEL[0] + x), r(fig::PANEL[1] + y)) * s;
     let k = |v: f32| r(v) * s;
     let [lx, ly, lw, lh] = fig::LEADER;
     let leader_at = at(lx, box_top + ly);

@@ -162,7 +162,7 @@ pub fn inspect(root: &Path, cards: &Path) -> Result<Verified> {
         let bytes = read_verified(cards, face.name, face.length, face.hash).with_context(|| {
             format!(
                 "Required private card {} missing or incompatible. Restore {} ({}, SHA-256 {}) or set --cards to a directory with the selected faces.",
-                cards.join(face.name).display(), face.name, crate::CardFacts::title_of(face.number), face.hash,
+                cards.join(face.name).display(), face.name, crate::title(face.number), face.hash,
             )
         })?;
         decode(&bytes, face.name, Some(face.size))?;

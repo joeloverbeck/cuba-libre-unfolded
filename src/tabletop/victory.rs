@@ -254,8 +254,8 @@ pub(super) fn draw(
     roots: Query<Entity, With<Tag>>,
     mut previous: Local<Option<Shown>>,
 ) {
-    let (scale, mut offset) = layout(&window);
-    offset.x += (window.width() - WIDTH * scale) / 2.;
+    let scale = reference_pixel(&window);
+    let offset = Vec2::new((window.width() - WIDTH * scale) / 2., 0.);
     let standing = ui.hover.visible().and_then(|target| match target {
         Target::Standing(faction) => Some(faction),
         Target::Top(_)

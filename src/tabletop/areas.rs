@@ -56,7 +56,7 @@ impl Layout {
     /// A placed rectangle in logical window pixels. One frame unit is the same length
     /// in every window of a given scale: the frame is as tall as the reference.
     pub(super) fn place(&self, placed: Placed, window: &Window) -> Rect {
-        let unit = layout(window).0 * HEIGHT / self.frame[1];
+        let unit = reference_pixel(window) * HEIGHT / self.frame[1];
         let size = Vec2::new(window.width(), window.height());
         let frame = Vec2::from(self.frame);
         let [x, y, w, h] = placed.bounds;
@@ -209,10 +209,7 @@ fn projected(points: &[Vec3], framing: Framing, window: Vec2) -> Option<Rect> {
     let mut bounds: Option<Rect> = None;
     for point in points {
         let p = project(*point, framing, window)?;
-        bounds = Some(bounds.map_or(Rect::from_corners(p, p), |b| Rect {
-            min: b.min.min(p),
-            max: b.max.max(p),
-        }));
+        bounds = super::grow(bounds, p);
     }
     bounds
 }
@@ -310,7 +307,7 @@ pub(super) fn home(
     if resting {
         orbit.focus(framing);
         // The counts follow the camera's jump over the next frames.
-        counts.settling = 3;
+        counts.unsettle();
     }
     *framed = Some(size);
 }
@@ -373,10 +370,7 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
                     let mut bounds: Option<Rect> = None;
                     for point in points {
                         let p = camera.world_to_viewport(&at, *point).ok()?;
-                        bounds = Some(bounds.map_or(Rect::from_corners(p, p), |b| Rect {
-                            min: b.min.min(p),
-                            max: b.max.max(p),
-                        }));
+                        bounds = super::grow(bounds, p);
                     }
                     let b = bounds?;
                     Some((space.clone(), [b.min.x, b.min.y, b.max.x, b.max.y]))
@@ -449,7 +443,7 @@ mod tests {
             (1600., 1280.),
         ] {
             let window = window(width, height);
-            let s = super::super::layout(&window).0;
+            let s = super::super::reference_pixel(&window);
             let right = width - WIDTH * s;
             let centre = right / 2.;
             let bottom = height - HEIGHT * s;

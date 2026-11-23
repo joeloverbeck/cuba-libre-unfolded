@@ -635,14 +635,24 @@ fn assert_cards_shown(
 
 /// Where two rectangles overlap, 4 px in from the overlap's edges, if they do.
 fn overlap(a: [f64; 4], b: [f64; 4]) -> Option<[f64; 4]> {
-    let both = [a[0].max(b[0]) + 4., a[1].max(b[1]) + 4., a[2].min(b[2]) - 4., a[3].min(b[3]) - 4.];
+    let both = [
+        a[0].max(b[0]) + 4.,
+        a[1].max(b[1]) + 4.,
+        a[2].min(b[2]) - 4.,
+        a[3].min(b[3]) - 4.,
+    ];
     (both[2] > both[0] && both[3] > both[1]).then_some(both)
 }
 
 /// How many 6 px blocks of `region` in a capture differ from the card face drawn at
 /// `card` by more than a letter's ink would leave unnoticed: 40 levels in the mean of
 /// the block. The face drawn alone stays well within that.
-fn inked_blocks(capture: &image::RgbImage, region: [f64; 4], card: [f64; 4], face: &image::RgbImage) -> usize {
+fn inked_blocks(
+    capture: &image::RgbImage,
+    region: [f64; 4],
+    card: [f64; 4],
+    face: &image::RgbImage,
+) -> usize {
     let (width, height) = (card[2] - card[0], card[3] - card[1]);
     let half = (3. * f64::from(face.width()) / width).max(1.) as u32;
     let mut inked = 0;
@@ -660,7 +670,12 @@ fn inked_blocks(capture: &image::RgbImage, region: [f64; 4], card: [f64; 4], fac
                 ],
                 half,
             );
-            let apart = shown.iter().zip(printed).map(|(s, p)| (s - p).abs()).sum::<f64>() / 3.;
+            let apart = shown
+                .iter()
+                .zip(printed)
+                .map(|(s, p)| (s - p).abs())
+                .sum::<f64>()
+                / 3.;
             worst = worst.max(apart);
             if apart > 40. {
                 inked += 1;
@@ -831,7 +846,10 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
         if let Some(under) = under {
             covered += 1;
             let inked = inked_blocks(&shot, under, at, &face_18);
-            assert_eq!(inked, 0, "{label} shows over the card in the air ({under:?})");
+            assert_eq!(
+                inked, 0,
+                "{label} shows over the card in the air ({under:?})"
+            );
         }
     }
     assert_eq!(covered, 2, "the card at halfway covers both labels: {at:?}");
@@ -983,7 +1001,11 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
     app.point("quit");
     let pinned = app.observe();
     let tag = &pinned["table"]["card"]["shown"];
-    assert_eq!((tag["card"].clone(), tag["pinned"].clone()), (json!("card:preview"), json!(true)), "{tag}");
+    assert_eq!(
+        (tag["card"].clone(), tag["pinned"].clone()),
+        (json!("card:preview"), json!(true)),
+        "{tag}"
+    );
     assert_eq!(tag["number"], 18, "{tag}");
     commit_advance(&mut app, revision);
     assert_eq!(app.observe()["table"]["card"]["shown"], Value::Null);
@@ -996,7 +1018,11 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
     let landed = app.observe();
     card_piles::assert_piles(&landed, 19, 33, 18, 19);
     let tag = &landed["table"]["card"]["shown"];
-    assert_eq!((tag["card"].clone(), tag["pinned"].clone()), (json!("card:preview"), json!(true)), "{tag}");
+    assert_eq!(
+        (tag["card"].clone(), tag["pinned"].clone()),
+        (json!("card:preview"), json!(true)),
+        "{tag}"
+    );
     assert_eq!(tag["number"], 19, "{tag}");
     assert_eq!(tag["title"], "19 · Sierra Maestra Manifesto", "{tag}");
     app.capture("card-tag-landed");

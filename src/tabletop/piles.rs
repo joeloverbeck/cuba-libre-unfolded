@@ -276,7 +276,7 @@ fn lens() -> (PerspectiveProjection, SubCameraView) {
 /// One frame unit in logical window pixels: like every interface size it follows
 /// the window alone (ADR 0002).
 fn unit(window: &Window) -> f32 {
-    layout(window).0 / fig::SCALE
+    reference_pixel(window) / fig::SCALE
 }
 
 /// A frame rectangle in logical window pixels. The card area keeps its distance from
@@ -319,6 +319,8 @@ pub(super) struct TrayCamera;
 /// The camera that draws the card in the air over the interface.
 #[derive(Component)]
 pub(super) struct AirCamera;
+/// The tray's two cameras, which share its view and its viewport.
+type TrayCameras = Or<(With<TrayCamera>, With<AirCamera>)>;
 /// A pile as it is drawn: how many cards it holds and which card lies on top. It is
 /// the parent of the pile's solid, its shadow and its top card, and stands where that
 /// card rests.
@@ -616,7 +618,7 @@ fn spawn_tray(commands: &mut Commands, window: &Window) -> Entity {
                     order: 1,
                     clear_color: ClearColorConfig::None,
                     viewport: Some(viewport(window)),
-                    sub_camera_view: Some(sub_view.clone()),
+                    sub_camera_view: Some(sub_view),
                     ..default()
                 },
                 Projection::Perspective(projection.clone()),
@@ -941,7 +943,7 @@ pub(super) fn present(
     stacks: Query<(Entity, &Stack)>,
     mut cards: Query<(Entity, &Flying, &mut Transform), Without<Shade>>,
     mut shades: Query<(Entity, &Shade, &mut Transform), Without<Flying>>,
-    mut cameras: Query<(&mut Camera, Has<AirCamera>), Or<(With<TrayCamera>, With<AirCamera>)>>,
+    mut cameras: Query<(&mut Camera, Has<AirCamera>), TrayCameras>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
@@ -1315,10 +1317,7 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
                     .as_ref()
                     .and_then(|(camera, view)| camera.world_to_viewport(view, corner).ok());
                 if let Some(p) = seen {
-                    bounds = Some(bounds.map_or(Rect::from_corners(p, p), |b| Rect {
-                        min: b.min.min(p),
-                        max: b.max.max(p),
-                    }));
+                    bounds = super::grow(bounds, p);
                 }
             }
             // The tray's camera looks straight down, so the side that is up shows.
@@ -1357,10 +1356,7 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
                         z * CARD_LENGTH / 2.,
                     ));
                     let p = camera.world_to_viewport(view, corner).ok()?;
-                    bounds = Some(bounds.map_or(Rect::from_corners(p, p), |b| Rect {
-                        min: b.min.min(p),
-                        max: b.max.max(p),
-                    }));
+                    bounds = super::grow(bounds, p);
                 }
                 bounds.map(|b| [b.min.x, b.min.y, b.max.x, b.max.y])
             };

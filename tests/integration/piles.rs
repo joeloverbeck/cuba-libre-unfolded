@@ -167,11 +167,9 @@ fn words_and_cards<'a>(
 ) {
     match value {
         Value::String(text) => words.push(text),
-        Value::Number(n) => {
-            if key.contains("card") || key == "number" {
-                if let Some(n) = n.as_u64() {
-                    cards.push((key.to_owned(), n));
-                }
+        Value::Number(n) if key.contains("card") || key == "number" => {
+            if let Some(n) = n.as_u64() {
+                cards.push((key.to_owned(), n));
             }
         }
         Value::Array(items) => {

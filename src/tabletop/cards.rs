@@ -299,9 +299,9 @@ pub(super) fn draw(
     advance: Res<super::piles::Advance>,
     time: Res<Time>,
 ) {
-    let (s, left) = layout(&window);
+    let s = reference_pixel(&window);
     // The tag opens above the piles, which lie against the window's bottom.
-    let left = left + bottom(&window);
+    let left = bottom(&window);
     let view = play.game().observe();
     // The tag states the model's cards, which are a card ahead of the table's while a
     // played card is in the air: as a pile's tag, it shows again as the cards land, on

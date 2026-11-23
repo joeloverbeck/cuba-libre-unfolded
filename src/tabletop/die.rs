@@ -295,8 +295,8 @@ pub(super) fn ledger(view: &crate::Observation, roll: &Roll) -> crate::Observati
 
 /// The tray's rectangle in physical window pixels, inside the window.
 fn viewport(window: &Window) -> Viewport {
-    let (scale, left) = layout(window);
-    let right = left + Vec2::new(window.width() - WIDTH * scale, 0.);
+    let scale = reference_pixel(window);
+    let right = Vec2::new(window.width() - WIDTH * scale, 0.);
     let [x, y, w, h] = VIEWPORT;
     let factor = window.scale_factor();
     let limit = UVec2::new(window.physical_width(), window.physical_height());

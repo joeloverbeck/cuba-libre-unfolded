@@ -139,10 +139,7 @@ fn body_points(world: &mut World, piece: Entity) -> Vec<Vec2> {
                         + Vec3::from(bounds.half_extents) * Vec3::new(x, y, z);
                     if let Ok(p) = camera.world_to_viewport(&camera_at, at.transform_point(corner))
                     {
-                        seen = Some(seen.map_or(Rect::from_corners(p, p), |r| Rect {
-                            min: r.min.min(p),
-                            max: r.max.max(p),
-                        }));
+                        seen = super::grow(seen, p);
                     }
                 }
             }
@@ -444,7 +441,11 @@ impl SeatGame for Table {
             .collect();
         // A pile is its count disc, its side and its caption: the seat rests on the
         // disc first and on the others' middles after it.
-        if found.len() > 1 && found.iter().all(|(_, c, _)| matches!(c.action, Action::Pile(_))) {
+        if found.len() > 1
+            && found
+                .iter()
+                .all(|(_, c, _)| matches!(c.action, Action::Pile(_)))
+        {
             found.sort_by_key(|(entity, _, _)| world.get::<piles::Disc>(*entity).is_none());
             let mut points: Vec<Vec2> = found.iter().map(|(_, _, at)| *at).collect();
             points.dedup();

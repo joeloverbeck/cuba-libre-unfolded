@@ -561,7 +561,7 @@ pub(super) fn draw(
         return;
     };
     ui.transfer.sync(game.revision, game.transfer.as_ref());
-    let s = layout(&window).0;
+    let s = reference_pixel(&window);
     // A press or drag on the slider keeps its entity until release.
     if held.iter().any(|(d, pressed)| d.dragging || pressed) {
         let view = game.observe();
@@ -591,14 +591,13 @@ pub(super) fn draw(
         return;
     }
     let view = game.observe();
-    let (_, left) = layout(&window);
     let extra = window.width() - WIDTH * s;
-    let centered = left + Vec2::new(extra / 2., 0.);
+    let centered = Vec2::new(extra / 2., 0.);
     if !shown(view.transfer.as_ref()) {
         pending(&mut commands, &art, &view, s, centered);
         return;
     }
-    scrim(&mut commands, &art, &window, s, left);
+    scrim(&mut commands, &art, &window, s, Vec2::ZERO);
     // The modal sits in the middle of the window; its note above stays at the top.
     let middle = centered + bottom(&window) / 2.;
     modal(&mut commands, &art, &view, &ui, s, middle);
