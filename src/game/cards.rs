@@ -4,7 +4,7 @@
 //!
 //! The faces admitted in this build are cards 17, 18 and 19. Their titles, faction
 //! orders, Event layouts and lasting-effect boxes are transcribed from the supplied
-//! faces. #144 extends the titles to all 52 cards.
+//! faces. The titles of all 52 cards are in `titles`.
 use super::{ActionChoice, CARD_17_ORDER, EventOutcome, EventProgress, Faction, Game, SequenceBox};
 use serde::Serialize;
 
@@ -250,9 +250,8 @@ impl Piles {
     }
 }
 
-/// The printed facts of an admitted face: title, order, Event kind and lasting box.
+/// The printed facts of an admitted face: order, Event kind and lasting box.
 struct Printed {
-    title: &'static str,
     order: [Faction; 4],
     kind: EventKind,
     capability: bool,
@@ -262,19 +261,16 @@ fn printed(number: u8) -> Printed {
     use Faction::{Directorio, Government, M26, Syndicate};
     match number {
         17 => Printed {
-            title: "Alberto Bayo",
             order: CARD_17_ORDER,
             kind: EventKind::DualUse,
             capability: false,
         },
         18 => Printed {
-            title: "Pact of Caracas",
             order: CARD_17_ORDER,
             kind: EventKind::Single,
             capability: true,
         },
         19 => Printed {
-            title: "Sierra Maestra Manifesto",
             order: [M26, Directorio, Syndicate, Government],
             kind: EventKind::Single,
             capability: false,
@@ -284,13 +280,13 @@ fn printed(number: u8) -> Printed {
 }
 
 impl CardFacts {
-    /// The title printed on an admitted face (cards 17, 18 and 19).
+    /// The title printed on a card.
     pub fn title_of(number: u8) -> &'static str {
-        printed(number).title
+        super::titles::title(number)
     }
     fn new(number: u8, status: EventStatus, capabilities: &[String]) -> Self {
+        let title = super::titles::title(number);
         let Printed {
-            title,
             order,
             kind,
             capability,

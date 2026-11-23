@@ -1,0 +1,337 @@
+{
+  "source": "atlas-main-view.figcraft",
+  "note": "Frames of the two pile tags (#144), built on the accepted hover tag (plate atlas-top-tag.png stretched, rule atlas-victory-rule.png). Rectangles are [x, y, width, height] read from the FigCraft document, relative to each frame, in frame units: the owner's 3840x2160 display, where one reference pixel is 1.6875 units. 'open' holds the hidden rectangles 'played-pile-tag' and 'deck-pile-tag' of the frame '16:9 main view': where each tag opens on card 17, its left edge on its pile's and its foot 16 above the piles' labels. Text boxes are the frames' example words: values and the note flow at runtime, so a different value keeps the box's left and top. The played cards' columns follow one rule: at most 18 rows each, balanced (columns = ceil(n/18), rows = ceil(n/columns)), each column 600 wide every 660, rows every 47; the plate is max(800, 100 + 660 x columns) wide, the note starts 36 below the last row, and the plate ends 63 below the note. The deck's note starts at 370 and its plate ends 63 below it.",
+  "frame": [
+    3840,
+    2160
+  ],
+  "tolerance": 2,
+  "open": {
+    "played-pile-tag": [
+      110.0,
+      176.0,
+      800.0,
+      1370.0
+    ],
+    "deck-pile-tag": [
+      470.0,
+      957.0,
+      820.0,
+      589.0
+    ]
+  },
+  "frames": {
+    "played-card-17": {
+      "node": "played-pile tag · card 17 (18 cards, one column; owner display 3840x2160 = reference x1.6875)",
+      "size": [
+        800.0,
+        1370.0
+      ],
+      "parts": {
+        "plate": [
+          0,
+          0,
+          800.0,
+          1370.0
+        ],
+        "title": [
+          60.0,
+          34.0,
+          256.0,
+          65.0
+        ],
+        "rule": [
+          60.0,
+          120.0,
+          700.0,
+          2.0
+        ],
+        "label-cards": [
+          60.0,
+          146.0,
+          86.0,
+          41.0
+        ],
+        "cards": [
+          340.0,
+          146.0,
+          353.0,
+          41.0
+        ],
+        "label-propaganda": [
+          60.0,
+          193.0,
+          177.0,
+          41.0
+        ],
+        "propaganda": [
+          340.0,
+          193.0,
+          194.0,
+          41.0
+        ],
+        "label-list": [
+          60.0,
+          270.0,
+          248.0,
+          26.0
+        ],
+        "column-0": [
+          60.0,
+          308.0,
+          600.0,
+          846.0
+        ],
+        "note": [
+          60.0,
+          1190.0,
+          700.0,
+          117.0
+        ]
+      }
+    },
+    "played-card-18": {
+      "node": "played-pile tag · card 18 (19 cards, two columns)",
+      "size": [
+        1420.0,
+        994.0
+      ],
+      "parts": {
+        "plate": [
+          0,
+          0,
+          1420.0,
+          994.0
+        ],
+        "title": [
+          60.0,
+          34.0,
+          256.0,
+          65.0
+        ],
+        "rule": [
+          60.0,
+          120.0,
+          1320.0,
+          2.0
+        ],
+        "label-cards": [
+          60.0,
+          146.0,
+          86.0,
+          41.0
+        ],
+        "cards": [
+          340.0,
+          146.0,
+          353.0,
+          41.0
+        ],
+        "label-propaganda": [
+          60.0,
+          193.0,
+          177.0,
+          41.0
+        ],
+        "propaganda": [
+          340.0,
+          193.0,
+          194.0,
+          41.0
+        ],
+        "label-list": [
+          60.0,
+          270.0,
+          248.0,
+          26.0
+        ],
+        "column-0": [
+          60.0,
+          308.0,
+          600.0,
+          470.0
+        ],
+        "column-1": [
+          720.0,
+          308.0,
+          600.0,
+          423.0
+        ],
+        "note": [
+          60.0,
+          814.0,
+          700.0,
+          117.0
+        ]
+      }
+    },
+    "played-late": {
+      "node": "played-pile tag · late example (51 cards of the prepared deck, card 48 current, three columns)",
+      "size": [
+        2080.0,
+        1323.0
+      ],
+      "parts": {
+        "plate": [
+          0,
+          0,
+          2080.0,
+          1323.0
+        ],
+        "title": [
+          60.0,
+          34.0,
+          256.0,
+          65.0
+        ],
+        "rule": [
+          60.0,
+          120.0,
+          1980.0,
+          2.0
+        ],
+        "label-cards": [
+          60.0,
+          146.0,
+          86.0,
+          41.0
+        ],
+        "cards": [
+          340.0,
+          146.0,
+          353.0,
+          41.0
+        ],
+        "label-propaganda": [
+          60.0,
+          193.0,
+          177.0,
+          41.0
+        ],
+        "propaganda": [
+          340.0,
+          193.0,
+          194.0,
+          41.0
+        ],
+        "label-list": [
+          60.0,
+          270.0,
+          248.0,
+          26.0
+        ],
+        "column-0": [
+          60.0,
+          308.0,
+          600.0,
+          799.0
+        ],
+        "column-1": [
+          720.0,
+          308.0,
+          600.0,
+          799.0
+        ],
+        "column-2": [
+          1380.0,
+          308.0,
+          600.0,
+          799.0
+        ],
+        "note": [
+          60.0,
+          1143.0,
+          700.0,
+          117.0
+        ]
+      }
+    },
+    "deck-card-17": {
+      "node": "draw-deck tag · card 17",
+      "size": [
+        820.0,
+        589.0
+      ],
+      "parts": {
+        "plate": [
+          0,
+          0,
+          820.0,
+          589.0
+        ],
+        "title": [
+          60.0,
+          34.0,
+          254.0,
+          65.0
+        ],
+        "rule": [
+          60.0,
+          120.0,
+          720.0,
+          2.0
+        ],
+        "label-cards": [
+          60.0,
+          146.0,
+          86.0,
+          41.0
+        ],
+        "cards": [
+          360.0,
+          146.0,
+          351.0,
+          41.0
+        ],
+        "label-face-down": [
+          60.0,
+          193.0,
+          161.0,
+          41.0
+        ],
+        "face-down": [
+          360.0,
+          193.0,
+          40.0,
+          41.0
+        ],
+        "label-propaganda-left": [
+          60.0,
+          240.0,
+          235.0,
+          41.0
+        ],
+        "propaganda-left": [
+          360.0,
+          240.0,
+          88.0,
+          41.0
+        ],
+        "label-next-propaganda": [
+          60.0,
+          287.0,
+          258.0,
+          41.0
+        ],
+        "next-propaganda": [
+          360.0,
+          287.0,
+          342.0,
+          41.0
+        ],
+        "note": [
+          60.0,
+          370.0,
+          720.0,
+          156.0
+        ]
+      }
+    }
+  },
+  "rows": {
+    "line": 47,
+    "most": 18,
+    "column_width": 600,
+    "column_step": 660
+  }
+}

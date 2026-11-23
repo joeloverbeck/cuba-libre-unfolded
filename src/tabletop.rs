@@ -54,6 +54,7 @@ mod emblems;
 mod execution;
 mod highlights;
 mod palette;
+mod pile_tags;
 mod piles;
 mod popover;
 pub mod seat;
@@ -134,6 +135,8 @@ enum Target {
     Sequence(eligibility::Slot),
     /// The current or the preview card, by its seat name.
     Card(cards::Slot),
+    /// The played pile or the draw deck, by its seat name (#144).
+    Pile(piles::Pile),
 }
 #[derive(Resource, Default)]
 struct Interface {
@@ -201,9 +204,9 @@ enum Action {
     /// An action box of the eligibility indicator: a hover disclosure only.
     Sequence(eligibility::Slot),
     Unsupported(String),
-    /// A pile's count disc: the pile's target. Its tag is #144's; until then it
-    /// takes the pointer and does nothing.
-    Pile,
+    /// A pile's count disc: the pile's target. Hover and focus open its tag
+    /// (`pile_tags`); a click changes nothing.
+    Pile(piles::Pile),
     /// An overlaid area's own rectangle (`areas::Area`): it takes the pointer and
     /// does nothing.
     Area,
@@ -460,6 +463,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                     transfer::draw,
                     transfer::plates,
                     cards::draw,
+                    pile_tags::draw,
                     piles::present,
                 )
                     .chain(),
@@ -984,6 +988,7 @@ fn hover_disclosures(
                 Action::Top(item) => Some(Target::Top(item)),
                 Action::Sequence(slot) => Some(Target::Sequence(slot)),
                 Action::Card(slot) => Some(Target::Card(slot)),
+                Action::Pile(pile) => Some(Target::Pile(pile)),
                 Action::Decision(..) | Action::Unsupported(_) | Action::Pin(_) if !rested => {
                     Some(Target::Choice(control.name.clone()))
                 }
@@ -991,7 +996,9 @@ fn hover_disclosures(
             }
         })
     });
-    // Keyboard focus on a card opens its tag as the pointer does, with the same dwell.
+    // Keyboard focus on a card or a pile opens its tag as the pointer does, with the
+    // same dwell.
+    let target = target.or_else(|| pile_tags::focused(&ui).map(Target::Pile));
     let target = cards::target(&mut ui, target);
     ui.hover
         .update(target, true, time.delta(), Duration::from_millis(400));
@@ -1039,7 +1046,7 @@ fn click(
         Action::Standing(_)
         | Action::Top(_)
         | Action::Sequence(_)
-        | Action::Pile
+        | Action::Pile(_)
         | Action::Area => return,
         // A region click opens or closes a space popover while Terror targets are
         // chosen, and does nothing otherwise; it never decides anything itself. An

@@ -18,6 +18,8 @@ mod card_piles;
 mod card_tag;
 #[path = "native/main_view.rs"]
 mod main_view;
+#[path = "native/pile_tags.rs"]
+mod pile_tags;
 #[path = "native/rally.rs"]
 mod rally;
 #[test]

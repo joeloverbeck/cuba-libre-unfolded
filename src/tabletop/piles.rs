@@ -1082,7 +1082,7 @@ pub(super) fn overlay(commands: &mut Commands, art: &Art, lay: &Lay, window: &Wi
                 Control {
                     name: pile.name().into(),
                     choice: false,
-                    action: Action::Pile,
+                    action: Action::Pile(pile),
                 },
             ))
             .observe(click);

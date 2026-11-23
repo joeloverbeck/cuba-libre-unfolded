@@ -504,8 +504,10 @@ fn assert_tags_open(app: &mut Native, name: &str, before: &Value) {
     assert_card_tag_placed(&focused, "card:preview");
     assert_eq!(focused["observation"], before["observation"]);
     close_card_tag(app);
-    // Move focus off the card, so its tag can open again later.
+    // Move focus off the card, so its tag can open again later. It moves to the played
+    // pile, whose tag waits for the shared dwell (#144).
     app.request(json!({"op":"key","revision":revision,"key":"Tab"}), true);
+    app.request(json!({"op":"settle"}), true);
     app.point("quit");
 }
 
@@ -578,13 +580,14 @@ fn native_card_piles_match_layout_and_follow_the_match() {
     // Both cards read from their piles, by hover and by focus.
     assert_tags_open(&mut app, "card-17", &rest);
 
-    // Each pile is a target of its own. Its tag is #144's: until then resting on it
-    // or pressing it opens nothing and changes nothing.
+    // Each pile is a target of its own. Resting on it opens its tag, not a card's
+    // (#144, `pile_tags`); pressing it changes nothing.
     for pile in ["pile:played", "pile:deck"] {
         app.point(pile);
         let rested = app.observe();
         assert!(rested["table"]["card"]["shown"].is_null(), "{pile}");
-        assert!(rested["table"]["hover"].is_null(), "{pile}");
+        assert_eq!(rested["table"]["hover"], pile);
+        assert_eq!(rested["table"]["pile_tag"]["shown"]["pile"], pile);
         app.activate(pile, revision);
         let pressed = app.observe();
         assert_eq!(pressed["observation"], rest["observation"], "{pile}");

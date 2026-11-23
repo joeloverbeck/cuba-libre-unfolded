@@ -18,6 +18,7 @@ The native task begins with 26July's decision as 1st Eligible on card 17, *Alber
 - **Top display:** Aid and the US Alliance at top left; each faction's Resources and the Cash supply at top right. Hover any of them for what it does and what it costs ([TOP.md](../art/atlas/TOP.md)).
 - **Sequence of Play.** The track at the left, over the sea west of the island, records 26July's action on card 17. Hover a box to see what it allows the next faction. When the Event ends, the track shows each faction's adjusted Eligibility for card 18 (R 2.3.7). [Eligibility layout](../art/atlas/ELIGIBILITY.md)
 - **Cards:** the two piles at the bottom left are the played pile, with the current card face up on top, and the draw deck, with the preview card face up on top (R 2.2). Each pile is as thick as its cards, and the disc on it gives their number: the played pile's counts the current card and the draw deck's the preview, so the two always make 52. The pips beside them show how many of the four Propaganda cards have been played; the game ends at the fourth. The piles stay in place while the map moves ([main view](../art/atlas/MAIN-VIEW.md#the-card-piles)). Hover the current or the preview card on its pile, or focus it with Tab, for its tag: the face at reading size, its number and title, whether it is the current card or the preview, the faction order, the kind of Event, where the Event stands, any lasting Capability or Momentum, and the rule references ([CARD-TAG.md](../art/atlas/CARD-TAG.md)). Click the card (or press Enter on it) to keep the tag open; Escape closes it.
+- **Piles:** hover a pile's count disc, or focus it with Tab, for the pile's tag ([PILE-TAGS.md](../art/atlas/PILE-TAGS.md)). The played pile's tag lists every card played, most recent first, by number and title, with the current card marked and the Propaganda cards in bold, and counts the Propaganda cards played; a long list runs into columns. The draw deck's tag gives its count with the preview, the cards face down, the Propaganda cards left and how soon the next can come. That last figure assumes the deck was prepared with exactly equal piles of 12 Events ([local rule policies](local-rule-policies.md#next-propaganda-assumes-equal-piles)). The order of the face-down cards is never shown.
 - **Faction names:** running text names factions by their emblems, as in "[S] gave 1 to [26]. Saved." ([VICTORY.md, "Inline text emblems"](../art/atlas/VICTORY.md#inline-text-emblems)).
 
 ## Choosing an action
@@ -111,7 +112,7 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 | Wheel or `+`/`-` | Zoom |
 | `W` `A` `S` `D` | Pan |
 | `Home` | Restore the map framing; also brings back hover tags that extreme framing hid |
-| `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the current and the preview card |
+| `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the current and the preview card and the two piles |
 | `Enter`, `Space` | Activate the focused control. While a played card is moving, land the cards instead |
 | `Escape` | Close a card's tag, unpin a briefing, cancel an open transfer, or close a tag or popover |
 
