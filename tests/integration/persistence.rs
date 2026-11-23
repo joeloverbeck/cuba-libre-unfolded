@@ -1306,3 +1306,57 @@ fn a_retained_8_save_copy_resumes_with_terror_chosen_without_being_rewritten() {
     drop(session);
     assert_eq!(std::fs::read(&path).unwrap(), original);
 }
+
+/// A save's art identity is the runtime manifest and the faces of the cards it has
+/// reached, as `docs/agents/saves.md` records: cards 17 and 18, and card 19 once card
+/// 18 is current. The card back (#145) is checked at launch and is in neither, so a
+/// save made before the back was admitted has the identity this build writes and
+/// accepts. The hashes are the admission record's (`art/atlas/README.md`).
+#[test]
+fn the_card_back_is_in_no_save_s_identity() {
+    const FACES: [(&str, &str); 3] = [
+        (
+            "card-17.png",
+            "141f592b5dee5a8c7a6d26651410b0ee1171a7dcf2c2b5331a63b48407cec9ab",
+        ),
+        (
+            "card-18.png",
+            "50df7058e660bb4dc620096823945eeb095fe4123e0aead68fec6244ab097c4e",
+        ),
+        (
+            "card-19.png",
+            "10bf73402f7fbb79d14aad0b928bc8ea20949ea5bd888799a869a6f4e270bc3b",
+        ),
+    ];
+    const BACK: &str = "c905d7a7313480b254e49dc70c56c41fe77e3039b037b238485e148cc82dbaa9";
+    let identity = |faces: &[(&str, &str)]| {
+        let mut named = cuba_libre_unfolded::assets::MANIFEST.to_owned();
+        for (name, hash) in faces {
+            named += &format!("\n{name}:{hash}");
+        }
+        cuba_libre_unfolded::assets::digest(named.as_bytes())
+    };
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("task.json");
+    let mut session = Session::open(&path, None).unwrap();
+    let art = |path: &std::path::Path| {
+        let text = std::fs::read_to_string(path).unwrap();
+        assert!(!text.contains(BACK) && !text.contains("card-back"));
+        serde_json::from_str::<serde_json::Value>(&text).unwrap()["identity"]["art"].clone()
+    };
+    assert_eq!(art(&path), identity(&FACES[..2]));
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+    ] {
+        act(&mut session, action);
+    }
+    assert_eq!(art(&path), identity(&FACES));
+    assert_eq!(art(&previous_path(&path)), identity(&FACES[..2]));
+}

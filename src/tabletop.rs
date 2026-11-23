@@ -159,6 +159,9 @@ struct Interface {
     /// The revision a Kidnap roll just created in this run, until the die's
     /// presentation starts it from the shared clock in the same frame (`die::present`).
     rolled: Option<u64>,
+    /// The card a decision just played in this run, until the tray starts showing its
+    /// advance from the shared clock in the same frame (`piles::follow`).
+    played: Option<piles::Played>,
 }
 #[derive(Component)]
 struct UiRoot;
@@ -305,15 +308,19 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
     let mut images = BTreeMap::new();
     for (key, bytes) in &verified.files {
         if key.ends_with(".png") {
-            let mut decoded = Image::from_buffer(
-                bytes,
-                ImageType::Extension("png"),
-                CompressedImageFormats::NONE,
-                true,
-                ImageSampler::linear(),
-                RenderAssetUsages::default(),
-            )
-            .map_err(|e| e.to_string())?;
+            let mut decoded = if key == assets::CARD_BACK.name {
+                piles::back(bytes)?
+            } else {
+                Image::from_buffer(
+                    bytes,
+                    ImageType::Extension("png"),
+                    CompressedImageFormats::NONE,
+                    true,
+                    ImageSampler::linear(),
+                    RenderAssetUsages::default(),
+                )
+                .map_err(|e| e.to_string())?
+            };
             if key.starts_with("water/") {
                 decoded.sampler = ImageSampler::Descriptor(ImageSamplerDescriptor {
                     address_mode_u: ImageAddressMode::Repeat,
@@ -379,6 +386,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .init_resource::<areas::Island>()
         .init_resource::<Counts>()
         .init_resource::<die::Roll>()
+        .init_resource::<piles::Advance>()
         .insert_resource(TerrorLoop {
             clip: terror_clip,
             graph,
@@ -416,6 +424,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .init_resource::<popover::Popover>()
         .add_systems(Startup, (setup, highlights::setup, popover::setup))
         .add_observer(map_click_closes_tag)
+        .add_observer(piles::land_on_click)
         .add_systems(
             Update,
             (
@@ -427,9 +436,18 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 popover::hover_piece,
                 bind_spaces,
                 hover_disclosures,
-                // The presented die takes Space and Enter, so the action choice and the
-                // modal read the keyboard first and stand aside while it is shown.
-                (choice::keys, transfer::keys, die::present).chain(),
+                // A playing card advance takes Space and Enter before anything else
+                // reads them. The presented die takes them too, so the action choice
+                // and the modal read the keyboard first and stand aside while it is
+                // shown. A decision any of them applied may have played a card.
+                (
+                    piles::keys,
+                    choice::keys,
+                    transfer::keys,
+                    die::present,
+                    piles::follow,
+                )
+                    .chain(),
                 draw_ui,
                 (areas::home, write_camera_facts).chain(),
                 status::hover,
@@ -996,9 +1014,17 @@ fn click(
     mut roll: ResMut<die::Roll>,
     targeting: Res<highlights::Targeting>,
     mut popover: ResMut<popover::Popover>,
+    time: Res<Time>,
+    frame: Res<bevy::diagnostic::FrameCount>,
+    mut advance: ResMut<piles::Advance>,
 ) {
     event.propagate(false);
     if event.button != bevy::picking::pointer::PointerButton::Primary || play.session.is_none() {
+        return;
+    }
+    // A click while a played card is in the air lands the cards and does nothing
+    // else (presentation only: the advance was saved before anything moved).
+    if advance.lands(&play.game().observe(), time.elapsed_secs_f64(), frame.0) {
         return;
     }
     let Ok(control) = controls.get(event.entity) else {
@@ -1123,6 +1149,9 @@ fn decide(play: &mut Play, ui: &mut Interface, owner: Faction, rev: u64, name: &
                 // (die::present), and the notice names it once the die lands.
                 ui.rolled = Some(after.revision);
             }
+            // A played card is saved before it moves; the tray shows it cross from
+            // this frame's clock (piles::follow).
+            ui.played = piles::Played::between(&previous, &after);
             ui.notice = notice(&previous, &after, owner, name);
         }
         Err(e) => ui.notice = e.to_string(),
@@ -1526,6 +1555,8 @@ fn draw_ui(
     mut previous_size: Local<Vec2>,
     roll: Res<die::Roll>,
     main_view: Res<areas::Layout>,
+    advance: Res<piles::Advance>,
+    time: Res<Time>,
 ) {
     let size = Vec2::new(window.width(), window.height());
     if !ui.dirty && *previous_size == size {
@@ -1580,7 +1611,9 @@ fn draw_ui(
         execution::panel(&mut commands, &art, &view, &ui, s, right);
     }
     eligibility::indicator(&mut commands, &art, &view, s, left);
-    piles::overlay(&mut commands, &art, &view, &window);
+    // The numbers over the piles follow the cards while an advance is shown.
+    let lay = advance.scene(&view, time.elapsed_secs_f64()).lay;
+    piles::overlay(&mut commands, &art, &lay, &window);
     let o = right + low;
     let status = play.error.clone().unwrap_or_else(|| {
         if play.session.is_none() {

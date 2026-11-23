@@ -19,21 +19,31 @@
 //! - **The numbers** are the rules model's `piles`: the played pile counts the current
 //!   card and the draw deck the preview. Nothing here knows the order of the cards
 //!   under the preview.
-//!
-//! The cards at rest are all this module shows. The motion of a card being played is
-//! #145's: [`rest`] is where a card lies on top of a pile.
+//! - **The advance** (#145; R 2.3.8) is shown after it is saved, as the Kidnap die is
+//!   (ADR 0001): the preview lifts and crosses to the played pile, then the deck's
+//!   top card turns over where it lies, its back showing until it is past its edge.
+//!   Both are the shared card motion (`unfolded_tabletop::card_motion`), read at the
+//!   time since the commit on the shared clock. The numbers follow the cards: the
+//!   deck's goes down as the preview leaves it, and the played pile's and the
+//!   Propaganda pips change as it lands. A click, Space or Enter lands everything at
+//!   once. [`Advance`] is never saved, so a restart, a resumed save and a seat that
+//!   connects later all find the cards at rest.
 use super::cards::Slot;
 use super::palette::{INK, PAPER, QUIET};
 use super::*;
-use crate::Observation;
+use crate::{Observation, Piles};
 use bevy::{
     camera::{
         SubCameraView, Viewport,
         visibility::{NoFrustumCulling, RenderLayers},
     },
+    diagnostic::FrameCount,
     text::{Justify, LetterSpacing},
 };
-use unfolded_tabletop::card;
+use unfolded_tabletop::{
+    card,
+    card_motion::{CardMove, Departure, Lift, Turn},
+};
 
 /// One of the two piles, named for the development seat as `pile:played` and
 /// `pile:deck`.
@@ -63,12 +73,12 @@ impl Pile {
             Self::Played => Stack {
                 pile: self,
                 cards: view.piles.played,
-                top: view.current_card,
+                top: Top::Face(view.current_card),
             },
             Self::Deck => Stack {
                 pile: self,
                 cards: view.piles.deck,
-                top: view.preview_card,
+                top: Top::Face(view.preview_card),
             },
         }
     }
@@ -298,11 +308,255 @@ pub(super) struct TrayCamera;
 pub(super) struct Stack {
     pub pile: Pile,
     pub cards: u8,
-    pub top: u8,
+    pub top: Top,
 }
-/// The card lying face up on a pile. #145 lifts and turns these.
+/// What lies uppermost on a pile. The seat reads a face as its card's number and a
+/// face-down card as `"back"`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Top {
+    Face(u8),
+    /// A card lying face down, as the deck's next card does while the advance is
+    /// shown: the original shared back, whichever card it is.
+    Back,
+}
+impl Top {
+    /// The admitted image that shows it.
+    fn image(self) -> &'static str {
+        match self {
+            Self::Face(card) => assets::card_face(card).name,
+            Self::Back => assets::CARD_BACK.name,
+        }
+    }
+}
+impl serde::Serialize for Top {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::Face(card) => serializer.serialize_u8(*card),
+            Self::Back => serializer.serialize_str("back"),
+        }
+    }
+}
+/// The card lying face up on a pile.
 #[derive(Component)]
 pub(super) struct TopCard;
+
+/// The cards at one moment: both piles as they are drawn, the played pile first, and
+/// the numbers over them. At rest they are the model's.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct Lay {
+    stacks: [Stack; 2],
+    pub numbers: Piles,
+}
+impl Lay {
+    pub(super) fn of(view: &Observation) -> Self {
+        Self {
+            stacks: Pile::ALL.map(|pile| pile.shown(view)),
+            numbers: view.piles,
+        }
+    }
+    fn stack(&self, pile: Pile) -> Stack {
+        self.stacks[pile as usize]
+    }
+    /// The card face up on a pile, if one is.
+    fn face(&self, pile: Pile) -> Option<u8> {
+        match self.stack(pile) {
+            Stack {
+                cards: 1..,
+                top: Top::Face(card),
+                ..
+            } => Some(card),
+            _ => None,
+        }
+    }
+}
+
+/// A card the running app has just played (R 2.3.8): the revision that playing it
+/// made and the cards as they lay before. `decide` records it once the advance is
+/// saved, and [`follow`] starts the motion from the shared clock in the same frame.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct Played {
+    revision: u64,
+    before: Lay,
+}
+impl Played {
+    /// The card a decision played, if it played one: the preview before it is the
+    /// current card after it, and the played pile holds one card more.
+    pub(super) fn between(previous: &Observation, after: &Observation) -> Option<Self> {
+        let (before, now) = (Lay::of(previous), Lay::of(after));
+        (before.face(Pile::Deck).is_some()
+            && now.face(Pile::Played) == before.face(Pile::Deck)
+            && now.numbers.played == before.numbers.played + 1)
+            .then_some(Self {
+                revision: after.revision,
+                before,
+            })
+    }
+}
+
+/// Seconds the played card takes to cross to the played pile, and the deck's top card
+/// to turn over.
+const CROSSING: f32 = 0.8;
+const TURNING: f32 = 0.7;
+/// The crossing card's rise at the middle of its way, in metres: the tray's view
+/// shows 30 mm as 74 px toward the top of the screen.
+const CROSSING_LIFT: f32 = 0.03;
+/// The turning card's rise: half its width, so the long edge it turns on stays on the
+/// pile and never dips into it.
+const TURNING_LIFT: f32 = CARD_WIDTH / 2.;
+/// How far the turning card is drawn toward the viewer at the middle of its turn, in
+/// metres. Upright, its upper edge stands a card's width above the pile, which the
+/// tray's view shows 160 px higher than the pile's top: 30 px above the tray. Drawn
+/// 45 px nearer, as a hand turning a deck's top card draws it, it stays inside.
+const TURNING_DRAW: f32 = 0.0095;
+
+/// Where the middle of a card in the air rests over a pile: clear of the pile's top
+/// face, whichever of its own sides is down.
+fn aloft(pile: Pile) -> Vec3 {
+    rest(pile) + Vec3::Y * (2. * FACE_LIFT + CARD_THICKNESS / 2.)
+}
+
+/// Step 2 of the advance: the played card lifts off the deck and crosses to the
+/// played pile.
+fn crossing() -> CardMove {
+    CardMove::new(
+        aloft(Pile::Deck),
+        Transform::from_translation(aloft(Pile::Played)),
+        CROSSING,
+    )
+    .lifted(Lift::arc(CROSSING_LIFT))
+}
+
+/// Step 3: the deck's top card turns over about its length where it lies, back up
+/// until it stands on its edge and face up after.
+fn turning() -> CardMove {
+    let at = aloft(Pile::Deck);
+    CardMove::new(at, Transform::from_translation(at), TURNING)
+        .lifted(Lift::arc(TURNING_LIFT))
+        .departing(Departure {
+            offset: Vec3::Z * TURNING_DRAW,
+            share: 0.5,
+        })
+        .turned(Turn::over(Vec3::Z))
+}
+
+/// Which step of the advance a card in the air is in.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "lowercase")]
+pub(super) enum Step {
+    Crossing,
+    Turning,
+}
+
+/// A card in the air: neither pile's solid holds it.
+#[derive(Component, Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) struct Flying {
+    card: u8,
+    step: Step,
+}
+
+/// What the tray shows at one moment: the cards lying on it, and the card in the air
+/// with its pose in the tray's coordinates.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct Scene {
+    pub lay: Lay,
+    flying: Option<(Flying, Transform)>,
+}
+
+/// The advance `elapsed` seconds after its commit, from the cards before it and
+/// after it. The deck's number goes down as the played card leaves it; the played
+/// pile's number and the Propaganda pips change as it lands. The deck shows the back
+/// of its next card until that card has turned over, and the turning card is still
+/// one of the deck's.
+fn shown(before: &Lay, after: &Lay, elapsed: f32) -> Scene {
+    let face_down = |cards: u8| Stack {
+        pile: Pile::Deck,
+        cards,
+        top: Top::Back,
+    };
+    let turns = after.face(Pile::Deck);
+    match (before.face(Pile::Deck), turns) {
+        (Some(card), _) if elapsed < CROSSING => Scene {
+            lay: Lay {
+                stacks: [before.stack(Pile::Played), face_down(after.numbers.deck)],
+                numbers: Piles {
+                    deck: after.numbers.deck,
+                    ..before.numbers
+                },
+            },
+            flying: Some((
+                Flying {
+                    card,
+                    step: Step::Crossing,
+                },
+                crossing().pose(elapsed),
+            )),
+        },
+        (_, Some(card)) if elapsed < CROSSING + TURNING => Scene {
+            lay: Lay {
+                stacks: [after.stack(Pile::Played), face_down(after.numbers.deck - 1)],
+                numbers: after.numbers,
+            },
+            flying: Some((
+                Flying {
+                    card,
+                    step: Step::Turning,
+                },
+                turning().pose(elapsed - CROSSING),
+            )),
+        },
+        _ => Scene {
+            lay: *after,
+            flying: None,
+        },
+    }
+}
+
+/// The advance's presentation, which is never saved (ADR 0001): the card the running
+/// app just played and the clock time when its commit was applied. A loaded save has
+/// none and a skipped motion drops it, so the cards lie at rest.
+#[derive(Resource, Default)]
+pub(super) struct Advance {
+    start: Option<(Played, f64)>,
+    /// The frame in which an input landed the cards. That input does nothing else.
+    landed: Option<u32>,
+}
+impl Advance {
+    fn commit(&mut self, played: Played, now: f64) {
+        self.start = Some((played, now));
+    }
+    /// The card whose playing made the match's present revision, and the seconds
+    /// since its commit at clock time `now`. Any later decision ends its showing.
+    fn elapsed(&self, view: &Observation, now: f64) -> Option<(Played, f32)> {
+        self.start
+            .filter(|(played, _)| played.revision == view.revision)
+            .map(|(played, start)| (played, (now - start).max(0.) as f32))
+    }
+    /// What the tray shows at clock time `now` for the match as `view` observes it.
+    pub(super) fn scene(&self, view: &Observation, now: f64) -> Scene {
+        let after = Lay::of(view);
+        match self.elapsed(view, now) {
+            Some((played, elapsed)) => shown(&played.before, &after, elapsed),
+            None => Scene {
+                lay: after,
+                flying: None,
+            },
+        }
+    }
+    /// Whether a played card is in the air at clock time `now`: the piles on the table
+    /// are then a card behind the model's.
+    pub(super) fn in_the_air(&self, view: &Observation, now: f64) -> bool {
+        self.scene(view, now).flying.is_some()
+    }
+    /// Whether an input in frame `frame` lands the cards and so does nothing else: it
+    /// does while a card is in the air, and for the rest of the frame that ended it.
+    pub(super) fn lands(&mut self, view: &Observation, now: f64, frame: u32) -> bool {
+        if self.in_the_air(view, now) {
+            self.start = None;
+            self.landed = Some(frame);
+        }
+        self.landed == Some(frame)
+    }
+}
 
 fn spawn_tray(commands: &mut Commands, window: &Window) -> Entity {
     let layer = RenderLayers::layer(LAYER);
@@ -410,29 +664,159 @@ fn spawn_stack(
                     tall / seams as f32,
                     seams,
                 ))),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: EDGE,
-                    perceptual_roughness: 1.,
-                    reflectance: 0.,
-                    ..default()
-                })),
+                MeshMaterial3d(materials.add(paper())),
                 Transform::from_xyz(0., -tall / 2., 0.),
                 drawn.clone(),
             ));
-            pile.spawn((
+            let mut top = pile.spawn((
                 Name::new("Top card"),
-                TopCard,
                 Mesh3d(meshes.add(card::face_with_corners(CARD_WIDTH, CARD_LENGTH, CORNER))),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color_texture: Some(art.images[assets::card_face(stack.top).name].clone()),
-                    // The face keeps its printed colours whatever the light.
-                    unlit: true,
-                    ..default()
-                })),
+                printed(materials, art, stack.top),
                 Transform::from_xyz(0., FACE_LIFT, 0.),
                 drawn,
             ));
+            if matches!(stack.top, Top::Face(_)) {
+                top.insert(TopCard);
+            }
         });
+}
+
+/// A card's printed side, which keeps its colours whatever the light.
+fn printed(
+    materials: &mut Assets<StandardMaterial>,
+    art: &Art,
+    side: Top,
+) -> MeshMaterial3d<StandardMaterial> {
+    MeshMaterial3d(materials.add(StandardMaterial {
+        base_color_texture: Some(art.images[side.image()].clone()),
+        unlit: true,
+        ..default()
+    }))
+}
+
+/// The card in the air: one card of the shared solid with its face on one side and
+/// the back on the other, about the middle of its thickness. The back is turned about
+/// the card's length, as the card itself turns, so it reads upright when it is up.
+fn spawn_flying(
+    commands: &mut Commands,
+    tray: Entity,
+    flying: Flying,
+    pose: Transform,
+    art: &Art,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+) {
+    let drawn = (
+        RenderLayers::layer(LAYER),
+        Pickable::IGNORE,
+        NoFrustumCulling,
+    );
+    let side = meshes.add(card::face_with_corners(CARD_WIDTH, CARD_LENGTH, CORNER));
+    let above = CARD_THICKNESS / 2. + FACE_LIFT;
+    commands
+        .spawn((
+            Name::new("Card in the air"),
+            flying,
+            ChildOf(tray),
+            pose,
+            Visibility::default(),
+        ))
+        .with_children(|card| {
+            card.spawn((
+                Name::new("Card"),
+                Mesh3d(meshes.add(card::pile_with_corners(
+                    CARD_WIDTH,
+                    CARD_LENGTH,
+                    CORNER,
+                    CARD_THICKNESS,
+                    1,
+                ))),
+                MeshMaterial3d(materials.add(paper())),
+                drawn.clone(),
+            ));
+            card.spawn((
+                Name::new("Face"),
+                Mesh3d(side.clone()),
+                printed(materials, art, Top::Face(flying.card)),
+                Transform::from_xyz(0., above, 0.),
+                drawn.clone(),
+            ));
+            card.spawn((
+                Name::new("Back"),
+                Mesh3d(side),
+                printed(materials, art, Top::Back),
+                Transform::from_xyz(0., -above, 0.)
+                    .with_rotation(Quat::from_rotation_z(std::f32::consts::PI)),
+                drawn.clone(),
+            ));
+        });
+    let reach = 2. * fig::SHADOW_REACH / PER_METRE;
+    let (lies, strength) = shade(&pose);
+    let cast = materials.add(StandardMaterial {
+        base_color: Color::WHITE.with_alpha(strength),
+        base_color_texture: Some(art.images[SHADOW].clone()),
+        alpha_mode: AlphaMode::Blend,
+        unlit: true,
+        ..default()
+    });
+    commands.spawn((
+        Name::new("Shadow of the card in the air"),
+        Shade(cast.clone()),
+        ChildOf(tray),
+        Mesh3d(meshes.add(Rectangle::new(CARD_WIDTH + reach, CARD_LENGTH + reach))),
+        MeshMaterial3d(cast),
+        lies,
+        drawn,
+    ));
+}
+
+/// The shadow of the card in the air: the pile's own blurred shadow (`pile-shadow`),
+/// cast straight down onto the cards beneath. It holds its material, whose strength
+/// follows the card's rise.
+#[derive(Component)]
+pub(super) struct Shade(Handle<StandardMaterial>);
+
+/// Where the shadow of a card in the air lies and how dark it is, from the card's
+/// pose. It lies under the card, as wide as the card is seen from above, so a card on
+/// its edge casts none; and it darkens as the card rises, from nothing on the pile to
+/// the pile's own shadow at the crossing's full rise.
+fn shade(pose: &Transform) -> (Transform, f32) {
+    let rise = pose.translation.y - aloft(Pile::Deck).y;
+    (
+        Transform::from_xyz(
+            pose.translation.x,
+            1.5 * FACE_LIFT,
+            pose.translation.z + fig::SHADOW_DROP / PER_METRE,
+        )
+        .with_rotation(Quat::from_rotation_x(-std::f32::consts::FRAC_PI_2))
+        .with_scale(Vec3::new(pose.up().y.abs().max(0.001), 1., 1.)),
+        (rise / CROSSING_LIFT).clamp(0., 1.),
+    )
+}
+
+/// The cards' paper, as the light falls on a pile's side or a card's edge.
+fn paper() -> StandardMaterial {
+    StandardMaterial {
+        base_color: EDGE,
+        perceptual_roughness: 1.,
+        reflectance: 0.,
+        ..default()
+    }
+}
+
+/// The back as the tray draws it: the admitted scan made smaller once, to twice the
+/// card's size in the layout, so that drawing it does not skip four of every five of
+/// its printed dots. The same picture, not another one: only its size changes.
+pub(super) fn back(scan: &[u8]) -> Result<Image, String> {
+    let scan = image::load_from_memory_with_format(scan, image::ImageFormat::Png)
+        .map_err(|e| e.to_string())?;
+    let size = (2. * Vec2::new(fig::PLAYED[2], fig::PLAYED[3])).as_uvec2();
+    let small = scan.resize_exact(size.x, size.y, image::imageops::FilterType::Lanczos3);
+    Ok(Image::from_dynamic(
+        small,
+        true,
+        bevy::asset::RenderAssetUsages::default(),
+    ))
 }
 
 /// The pile shadow's export (`pile-shadow` in `atlas-main-view.figcraft`).
@@ -441,16 +825,76 @@ const DISC: &str = "atlas-main-view-count-disc.png";
 const PIP_PLAYED: &str = "atlas-main-view-pip-played.png";
 const PIP: &str = "atlas-main-view-pip.png";
 
+/// The keys that land a playing advance.
+const LANDING_KEYS: [KeyCode; 3] = [KeyCode::Space, KeyCode::Enter, KeyCode::NumpadEnter];
+
+/// Space or Enter lands a playing advance at once and does nothing else: the systems
+/// after this one never see that press, so it commits no focused choice.
+pub(super) fn keys(
+    mut keys: ResMut<ButtonInput<KeyCode>>,
+    play: Res<Play>,
+    time: Res<Time>,
+    frame: Res<FrameCount>,
+    mut advance: ResMut<Advance>,
+) {
+    if keys.any_just_pressed(LANDING_KEYS)
+        && advance.lands(&play.game().observe(), time.elapsed_secs_f64(), frame.0)
+    {
+        for key in LANDING_KEYS {
+            keys.clear_just_pressed(key);
+        }
+    }
+}
+
+/// A primary click anywhere lands a playing advance at once. A click on a control
+/// asks [`Advance::lands`] too, and then does nothing else.
+pub(super) fn land_on_click(
+    event: On<PointerClick>,
+    play: Res<Play>,
+    time: Res<Time>,
+    frame: Res<FrameCount>,
+    mut advance: ResMut<Advance>,
+) {
+    if event.button == bevy::picking::pointer::PointerButton::Primary && play.session.is_some() {
+        advance.lands(&play.game().observe(), time.elapsed_secs_f64(), frame.0);
+    }
+}
+
+/// Starts a just-saved advance from the shared clock, in the frame its decision was
+/// applied, and has the numbers over the tray redrawn when the cards they count
+/// leave or land.
+pub(super) fn follow(
+    play: Res<Play>,
+    time: Res<Time>,
+    mut ui: ResMut<Interface>,
+    mut advance: ResMut<Advance>,
+    mut numbers: Local<Option<Piles>>,
+) {
+    let now = time.elapsed_secs_f64();
+    if let Some(played) = ui.played.take() {
+        advance.commit(played, now);
+    }
+    let shown = advance.scene(&play.game().observe(), now).lay.numbers;
+    if numbers.replace(shown) != Some(shown) {
+        ui.dirty = true;
+    }
+}
+
 /// Keeps the tray in step with the match: each pile holds the cards the model counts
-/// and shows the model's card on top. A change redraws that pile at rest.
+/// and shows the model's card on top, and while an advance is shown the cards lie and
+/// fly as [`shown`] has them at this frame's time. A change redraws that pile.
 #[allow(clippy::too_many_arguments)] // A Bevy system: its parameters are the resources it reads.
 pub(super) fn present(
     mut commands: Commands,
     play: Res<Play>,
     art: Res<Art>,
+    time: Res<Time>,
+    advance: Res<Advance>,
     window: Single<&Window, With<PrimaryWindow>>,
     trays: Query<Entity, With<Tray>>,
     stacks: Query<(Entity, &Stack)>,
+    mut cards: Query<(Entity, &Flying, &mut Transform), Without<Shade>>,
+    mut shades: Query<(Entity, &Shade, &mut Transform), Without<Flying>>,
     mut cameras: Query<&mut Camera, With<TrayCamera>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
@@ -459,9 +903,42 @@ pub(super) fn present(
         .iter()
         .next()
         .unwrap_or_else(|| spawn_tray(&mut commands, &window));
-    let view = play.game().observe();
+    let scene = advance.scene(&play.game().observe(), time.elapsed_secs_f64());
+    let mut aloft = false;
+    for (entity, flying, mut at) in &mut cards {
+        match scene.flying {
+            Some((wanted, pose)) if wanted == *flying && !aloft => {
+                *at = pose;
+                aloft = true;
+            }
+            _ => commands.entity(entity).despawn(),
+        }
+    }
+    for (entity, shade_of, mut lies) in &mut shades {
+        match scene.flying {
+            Some((_, pose)) if aloft => {
+                let (under, strength) = shade(&pose);
+                *lies = under;
+                if let Some(mut material) = materials.get_mut(&shade_of.0) {
+                    material.base_color.set_alpha(strength);
+                }
+            }
+            _ => commands.entity(entity).despawn(),
+        }
+    }
+    if let (Some((flying, pose)), false) = (scene.flying, aloft) {
+        spawn_flying(
+            &mut commands,
+            tray,
+            flying,
+            pose,
+            &art,
+            &mut meshes,
+            &mut materials,
+        );
+    }
     for pile in Pile::ALL {
-        let wanted = pile.shown(&view);
+        let wanted = scene.lay.stack(pile);
         let mut drawn = false;
         for (entity, stack) in &stacks {
             if stack.pile != pile {
@@ -561,12 +1038,12 @@ fn node(window: &Window, rect: [f32; 4]) -> Node {
 
 /// What lies over the tray: each pile's label, count disc and caption, the Propaganda
 /// pips, and a target on each top card and each pile. Every number is the model's.
-pub(super) fn overlay(commands: &mut Commands, art: &Art, view: &Observation, window: &Window) {
+pub(super) fn overlay(commands: &mut Commands, art: &Art, lay: &Lay, window: &Window) {
     let unit = unit(window);
     let tracking = LetterSpacing::Px(fig::TRACKING * unit);
     for pile in Pile::ALL {
         let parts = pile.parts();
-        let stack = pile.shown(view);
+        let cards = [lay.numbers.played, lay.numbers.deck][pile as usize];
         let slot = pile.slot();
         // The top card: hovering or focusing it opens its tag, a click pins it.
         let mut face = node(window, pile.face());
@@ -619,7 +1096,7 @@ pub(super) fn overlay(commands: &mut Commands, art: &Art, view: &Observation, wi
             commands,
             window,
             &art.bold,
-            stack.cards.to_string(),
+            cards.to_string(),
             at,
             fig::COUNT_SIZE,
             PAPER,
@@ -660,9 +1137,9 @@ pub(super) fn overlay(commands: &mut Commands, art: &Art, view: &Observation, wi
     for (index, name) in PIPS
         .into_iter()
         .enumerate()
-        .take(usize::from(view.piles.propaganda_cards))
+        .take(usize::from(lay.numbers.propaganda_cards))
     {
-        let played = index < usize::from(view.piles.propaganda_played);
+        let played = index < usize::from(lay.numbers.propaganda_played);
         let [x, y, w, h] = fig::PIP;
         commands.spawn((
             UiRoot,
@@ -684,7 +1161,7 @@ pub(super) fn overlay(commands: &mut Commands, art: &Art, view: &Observation, wi
         &art.font,
         format!(
             "{} of {} played",
-            view.piles.propaganda_played, view.piles.propaganda_cards
+            lay.numbers.propaganda_played, lay.numbers.propaganda_cards
         ),
         fig::PROPAGANDA_CAPTION,
         fig::CAPTION_SIZE,
@@ -693,22 +1170,49 @@ pub(super) fn overlay(commands: &mut Commands, art: &Art, view: &Observation, wi
     );
 }
 
-/// What holds the seat until the tray shows the match: a pile that is not drawn yet
-/// or still shows another count or card.
+/// The seat's name for what holds the keyboard while an advance is shown: Enter or
+/// Space on it lands the cards.
+pub(super) const ADVANCE: &str = "card-advance";
+/// The components whose activation lands a playing advance for the seat: the card
+/// area, and the cards and piles in it. The owner's click lands it anywhere.
+pub(super) const LANDING: [&str; 5] = [
+    "area:cards",
+    "card:current",
+    "card:preview",
+    "pile:played",
+    "pile:deck",
+];
+/// How far a card's own up may lean from level before the tray's camera, which looks
+/// straight down, sees only its edge: about 3°.
+const EDGE_ON: f32 = 0.05;
+
+/// Whether a card is in the air at the clock's present time.
+pub(super) fn playing(world: &World) -> bool {
+    let view = world.resource::<Play>().game().observe();
+    let now = world.resource::<Time>().elapsed_secs_f64();
+    world.resource::<Advance>().in_the_air(&view, now)
+}
+
+/// What holds the seat: an advance until its cards have landed, and then the tray
+/// until it shows the match, with no pile undrawn or showing another count or card.
 pub(super) fn unsettled(world: &mut World) -> Vec<String> {
+    if playing(world) {
+        return vec!["card advance".into()];
+    }
     let view = world.resource::<Play>().game().observe();
     let drawn: Vec<Stack> = world.query::<&Stack>().iter(world).copied().collect();
     let cameras = world
         .query_filtered::<(), With<TrayCamera>>()
         .iter(world)
         .count();
+    let aloft = world.query::<&Flying>().iter(world).count();
     let current = Pile::ALL.iter().all(|pile| {
         drawn
             .iter()
             .filter(|s| s.pile == *pile)
             .eq([&pile.shown(&view)])
     });
-    if cameras == 1 && current {
+    if cameras == 1 && current && aloft == 0 {
         vec![]
     } else {
         vec!["card piles".into()]
@@ -718,13 +1222,66 @@ pub(super) fn unsettled(world: &mut World) -> Vec<String> {
 /// What the tray shows, for the development seat (`table.piles`): the tray's
 /// rectangle, and for each pile its cards, its seams' layers, the card on top, and
 /// where the tray's own camera puts the top card's face and the pile's foot. Bounds
-/// are [left, top, right, bottom] in logical window pixels.
+/// are [left, top, right, bottom] in logical window pixels. While an advance is shown,
+/// `advance` is the card in the air: its number, its step, the seconds since the
+/// commit, which side the camera sees and the card's bounds; at rest it is null.
 pub(super) fn observe(world: &mut World) -> serde_json::Value {
     let camera = world
         .query_filtered::<(&Camera, &GlobalTransform), With<TrayCamera>>()
         .iter(world)
         .next()
         .map(|(camera, at)| (camera.clone(), *at));
+    let view = world.resource::<Play>().game().observe();
+    let now = world.resource::<Time>().elapsed_secs_f64();
+    let elapsed = world
+        .resource::<Advance>()
+        .elapsed(&view, now)
+        .map(|(_, elapsed)| elapsed);
+    let advance = world
+        .query::<(&Flying, &GlobalTransform)>()
+        .iter(world)
+        .next()
+        .map(|(flying, at)| {
+            let mut bounds: Option<Rect> = None;
+            for corner in [
+                (-1., -1., -1.),
+                (1., -1., -1.),
+                (1., -1., 1.),
+                (-1., -1., 1.),
+                (-1., 1., -1.),
+                (1., 1., -1.),
+                (1., 1., 1.),
+                (-1., 1., 1.),
+            ] {
+                let half = Vec3::new(CARD_WIDTH, CARD_THICKNESS, CARD_LENGTH) / 2.;
+                let corner = at.transform_point(Vec3::from(corner) * half);
+                let seen = camera
+                    .as_ref()
+                    .and_then(|(camera, view)| camera.world_to_viewport(view, corner).ok());
+                if let Some(p) = seen {
+                    bounds = Some(bounds.map_or(Rect::from_corners(p, p), |b| Rect {
+                        min: b.min.min(p),
+                        max: b.max.max(p),
+                    }));
+                }
+            }
+            // The tray's camera looks straight down, so the side that is up shows.
+            let up = at.up().y;
+            let showing = if up > EDGE_ON {
+                "face"
+            } else if up < -EDGE_ON {
+                "back"
+            } else {
+                "edge"
+            };
+            serde_json::json!({
+                "card": flying.card,
+                "step": flying.step,
+                "elapsed": elapsed,
+                "showing": showing,
+                "bounds": bounds.map(|b| [b.min.x, b.min.y, b.max.x, b.max.y]),
+            })
+        });
     let tray = camera
         .as_ref()
         .and_then(|(camera, _)| camera.logical_viewport_rect())
@@ -793,6 +1350,7 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
         "faces": faces,
         "discs": discs.into_iter().map(|(_, disc)| disc).collect::<Vec<_>>(),
         "pips": pips.into_iter().map(|(_, played)| played).collect::<Vec<_>>(),
+        "advance": advance,
     })
 }
 
@@ -996,7 +1554,7 @@ mod tests {
             Stack {
                 pile: Pile::Played,
                 cards: 18,
-                top: 17
+                top: Top::Face(17),
             }
         );
         assert_eq!(
@@ -1004,7 +1562,7 @@ mod tests {
             Stack {
                 pile: Pile::Deck,
                 cards: 34,
-                top: 18
+                top: Top::Face(18),
             }
         );
     }
@@ -1019,5 +1577,353 @@ mod tests {
                 "{key} is not admitted"
             );
         }
+    }
+
+    /// The cards on card 17 and after card 18 is played, as #143 worked them from
+    /// the prepared deck: 18 and 34 with one Propaganda card played, then 19 and 33.
+    fn card_17() -> Lay {
+        Lay::of(&crate::Game::opening().observe())
+    }
+    fn card_18(propaganda_played: u8) -> Lay {
+        Lay {
+            stacks: [
+                Stack {
+                    pile: Pile::Played,
+                    cards: 19,
+                    top: Top::Face(18),
+                },
+                Stack {
+                    pile: Pile::Deck,
+                    cards: 33,
+                    top: Top::Face(19),
+                },
+            ],
+            numbers: Piles {
+                played: 19,
+                deck: 33,
+                propaganda_played,
+                propaganda_cards: 4,
+            },
+        }
+    }
+    fn face_down(cards: u8) -> Stack {
+        Stack {
+            pile: Pile::Deck,
+            cards,
+            top: Top::Back,
+        }
+    }
+    /// The card in the air at a moment of the advance from card 17 to card 18.
+    fn in_the_air(elapsed: f32) -> (Flying, Transform) {
+        shown(&card_17(), &card_18(1), elapsed)
+            .flying
+            .unwrap_or_else(|| panic!("no card is in the air at {elapsed} s"))
+    }
+
+    /// The four steps of the advance sheet, with the shared motion's own curves
+    /// worked by hand: the path eases with smoothstep, 3v² − 2v³, and the lift is the
+    /// half sine of that. A quarter of the way through a move the path is at
+    /// 3/16 − 2/64 = 0.15625 and the lift at sin(0.15625 π) = 0.4714; halfway they
+    /// are at 0.5 and 1. The piles' middles are 620 px and 260 px from the frame's
+    /// left, 180 px either side of the tray's, which is 0.0378 m at 300 px to 63 mm.
+    #[test]
+    fn the_played_card_crosses_and_then_the_deck_s_top_card_turns_over() {
+        let (before, after) = (card_17(), card_18(1));
+        let apart = 180. / PER_METRE;
+        let low = 2. * FACE_LIFT + CARD_THICKNESS / 2.;
+        let near = |a: Vec3, b: Vec3| a.abs_diff_eq(b, 1e-5);
+
+        // Step 1 is the cards at rest before the commit. As the commit is applied
+        // the played card is still on the deck, face up, and already counted off it.
+        let start = shown(&before, &after, 0.);
+        assert_eq!(
+            start.lay.stacks,
+            [before.stack(Pile::Played), face_down(33)]
+        );
+        assert_eq!((start.lay.numbers.played, start.lay.numbers.deck), (18, 33));
+        let (card, pose) = start.flying.unwrap();
+        assert_eq!(
+            card,
+            Flying {
+                card: 18,
+                step: Step::Crossing
+            }
+        );
+        assert!(near(pose.translation, rest(Pile::Deck) + Vec3::Y * low));
+        assert!(pose.up().y > 0.999);
+
+        // Step 2: a quarter of the way it has left the deck by 0.15625 of the way
+        // and risen 0.4714 of 30 mm; halfway it is between the piles, 30 mm up.
+        let (_, quarter) = in_the_air(CROSSING / 4.);
+        assert!(near(
+            quarter.translation,
+            Vec3::new(
+                apart * (1. - 2. * 0.15625),
+                low + 0.03 * 0.471_397,
+                rest(Pile::Deck).z
+            )
+        ));
+        let (card, half) = in_the_air(CROSSING / 2.);
+        assert_eq!(card.card, 18);
+        assert!(near(
+            half.translation,
+            Vec3::new(0., low + 0.03, rest(Pile::Deck).z)
+        ));
+        // It stays level and face up, and the deck shows a back all the way.
+        assert!(half.up().y > 0.999);
+        let crossing = shown(&before, &after, CROSSING - 0.001);
+        assert_eq!(crossing.lay, start.lay);
+
+        // It lands: the played pile holds it and counts it, and step 3 begins with
+        // the deck's top card, 19, lying back up over the 32 cards under it.
+        let landed = shown(&before, &after, CROSSING);
+        assert_eq!(
+            landed.lay.stacks,
+            [after.stack(Pile::Played), face_down(32)]
+        );
+        assert_eq!(landed.lay.numbers, after.numbers);
+        let (card, pose) = landed.flying.unwrap();
+        assert_eq!(
+            card,
+            Flying {
+                card: 19,
+                step: Step::Turning
+            }
+        );
+        assert!(near(pose.translation, rest(Pile::Deck) + Vec3::Y * low));
+        assert!(pose.up().y < -0.999, "the back is up");
+
+        // A quarter of the way through the turn it has turned 0.15625 of a half
+        // turn, 28.1°, so its back still shows: its own up points down at
+        // −cos 28.1° = −0.882. It has risen 0.4714 of half its width.
+        let (_, quarter) = in_the_air(CROSSING + TURNING / 4.);
+        assert!((quarter.up().y + 0.881_92).abs() < 1e-4);
+        assert!(
+            (quarter.translation.y - (low + CARD_WIDTH / 2. * 0.471_397)).abs() < 1e-5,
+            "{quarter:?}"
+        );
+        // Halfway it stands on its edge, half its width up, drawn toward the viewer.
+        let (_, half) = in_the_air(CROSSING + TURNING / 2.);
+        assert!(half.up().y.abs() < 1e-4);
+        assert!(near(
+            half.translation,
+            rest(Pile::Deck) + Vec3::new(0., low + CARD_WIDTH / 2., TURNING_DRAW)
+        ));
+        // Past its edge the face shows, and the back never does again.
+        let (_, late) = in_the_air(CROSSING + 0.75 * TURNING);
+        assert!((late.up().y - 0.881_92).abs() < 1e-4);
+
+        // Step 4: the cards at rest, as the model has them.
+        for elapsed in [CROSSING + TURNING, 2., 3600.] {
+            assert_eq!(
+                shown(&before, &after, elapsed),
+                Scene {
+                    lay: after,
+                    flying: None
+                }
+            );
+        }
+    }
+
+    /// The Propaganda pips change as the played card lands, not before: worked for a
+    /// played card that is a Propaganda card, the second of the four.
+    #[test]
+    fn the_propaganda_pips_change_as_the_card_lands() {
+        let (before, after) = (card_17(), card_18(2));
+        for (elapsed, played) in [
+            (0., 1),
+            (CROSSING / 2., 1),
+            (CROSSING - 0.001, 1),
+            (CROSSING, 2),
+            (CROSSING + TURNING / 2., 2),
+            (CROSSING + TURNING, 2),
+        ] {
+            assert_eq!(
+                shown(&before, &after, elapsed)
+                    .lay
+                    .numbers
+                    .propaganda_played,
+                played,
+                "{elapsed} s"
+            );
+        }
+    }
+
+    /// At every 240th of a second of the advance the card in the air is clear of
+    /// both piles' top faces and wholly inside the tray's part of the window, and the
+    /// turning card shows its back until it stands on its edge and never moves
+    /// further from where it lies than it is drawn toward the viewer.
+    #[test]
+    fn a_card_in_the_air_stays_over_the_piles_and_inside_the_tray() {
+        let [left, top, width, height] = fig::TRAY;
+        let half = Vec3::new(CARD_WIDTH, CARD_THICKNESS, CARD_LENGTH) / 2.;
+        let mut highest = f32::MAX;
+        for step in 0..(240. * (CROSSING + TURNING)) as u32 {
+            let elapsed = step as f32 / 240.;
+            let (card, pose) = in_the_air(elapsed);
+            for corner in 0..8 {
+                let sign = Vec3::new(
+                    if corner & 1 == 0 { -1. } else { 1. },
+                    if corner & 2 == 0 { -1. } else { 1. },
+                    if corner & 4 == 0 { -1. } else { 1. },
+                );
+                let point = pose.transform_point(sign * half);
+                assert!(
+                    point.y > 1.5 * FACE_LIFT,
+                    "{card:?} dips to {} at {elapsed} s",
+                    point.y
+                );
+                let at = seen(point);
+                highest = highest.min(at.y);
+                assert!(
+                    at.x > left + 8.
+                        && at.x < left + width - 8.
+                        && at.y > top + 8.
+                        && at.y < top + height - 8.,
+                    "{card:?} is drawn at {at} at {elapsed} s"
+                );
+            }
+            if card.step == Step::Turning {
+                let turned = elapsed - CROSSING;
+                assert_eq!(pose.up().y < 0., turned < TURNING / 2., "{elapsed} s");
+                let from = pose.translation - aloft(Pile::Deck);
+                assert!(from.x.abs() < 1e-6 && (-1e-6..=TURNING_DRAW + 1e-6).contains(&from.z));
+            }
+        }
+        // The turning card's upper edge comes within 16 px of the tray's top.
+        assert!((highest - top - 15.8).abs() < 1., "{highest}");
+    }
+
+    /// Only the decision that plays a card starts an advance: through card 17's
+    /// Terror, Kidnap and Event nothing does, and the advance to card 18 does, with
+    /// the cards as they lay on card 17.
+    #[test]
+    fn only_a_played_card_starts_an_advance() {
+        let mut game = crate::Game::opening();
+        for action in [
+            "terror",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+        ] {
+            let previous = game.observe();
+            game.submit(
+                previous.owner,
+                previous.revision,
+                &format!("{}:{action}", previous.revision),
+            )
+            .unwrap();
+            assert_eq!(
+                Played::between(&previous, &game.observe()),
+                None,
+                "{action}"
+            );
+        }
+        let previous = game.observe();
+        game.submit(
+            previous.owner,
+            previous.revision,
+            &format!("{}:advance-card", previous.revision),
+        )
+        .unwrap();
+        let after = game.observe();
+        assert_eq!(
+            Played::between(&previous, &after),
+            Some(Played {
+                revision: after.revision,
+                before: card_17()
+            })
+        );
+        assert_eq!(Lay::of(&after), card_18(1));
+    }
+
+    /// The advance's showing is the running app's alone. Nothing loaded has one; a
+    /// skip lands it and takes that frame's input; it ends by itself after its two
+    /// moves; and any later decision ends it.
+    #[test]
+    fn a_loaded_skipped_finished_or_superseded_advance_lies_at_rest() {
+        let mut game = crate::Game::opening();
+        for action in [
+            "terror",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+        ] {
+            let view = game.observe();
+            game.submit(
+                view.owner,
+                view.revision,
+                &format!("{}:{action}", view.revision),
+            )
+            .unwrap();
+        }
+        let previous = game.observe();
+        game.submit(
+            previous.owner,
+            previous.revision,
+            &format!("{}:advance-card", previous.revision),
+        )
+        .unwrap();
+        let view = game.observe();
+        let rest = Scene {
+            lay: Lay::of(&view),
+            flying: None,
+        };
+        let played = Played::between(&previous, &view).unwrap();
+
+        // A save opened on card 18 was advanced in another run.
+        let mut advance = Advance::default();
+        assert_eq!(advance.scene(&view, 0.), rest);
+        assert!(!advance.lands(&view, 0., 1));
+
+        // Applied at 10 s on the shared clock, it plays for 1.5 s.
+        advance.commit(played, 10.);
+        assert!(advance.scene(&view, 10.).flying.is_some());
+        assert!(advance.scene(&view, 11.49).flying.is_some());
+        assert_eq!(advance.scene(&view, 11.5), rest);
+        assert!(!advance.lands(&view, 11.5, 2), "nothing is left to land");
+
+        // A skip in frame 7 lands it, takes every input of that frame and no later.
+        advance.commit(played, 20.);
+        assert!(advance.lands(&view, 20.4, 7));
+        assert_eq!(advance.scene(&view, 20.4), rest);
+        assert!(advance.lands(&view, 20.4, 7));
+        assert!(!advance.lands(&view, 20.42, 8));
+
+        // The next decision shows its own result at rest.
+        advance.commit(played, 30.);
+        let mut later = view.clone();
+        later.revision += 1;
+        assert_eq!(advance.scene(&later, 30.1).flying, None);
+    }
+
+    /// A card in the air casts the pile's shadow straight down, 12 px toward the
+    /// viewer as a pile's lies. Halfway across it is 30 mm up: the whole shadow, as
+    /// wide as the card. On a pile it casts none. A quarter through its turn the
+    /// card is 0.4714 of half its width up, 14.85 mm of the 30, and seen from above
+    /// it is cos 28.1° = 0.882 of its width; on its edge it has no width.
+    #[test]
+    fn a_card_in_the_air_casts_its_shadow_straight_down() {
+        let (_, pose) = in_the_air(CROSSING / 2.);
+        let (lies, strength) = shade(&pose);
+        assert_eq!(strength, 1.);
+        assert!((lies.translation.x - pose.translation.x).abs() < 1e-6);
+        assert!((lies.translation.z - pose.translation.z - 12. / PER_METRE).abs() < 1e-6);
+        assert!(lies.translation.y > FACE_LIFT && lies.translation.y < 2. * FACE_LIFT);
+        assert!((lies.scale.x - 1.).abs() < 1e-4);
+        for elapsed in [0., CROSSING] {
+            assert!(shade(&in_the_air(elapsed).1).1 < 1e-4, "{elapsed} s");
+        }
+        let (lies, strength) = shade(&in_the_air(CROSSING + TURNING / 4.).1);
+        assert!((strength - 0.4950).abs() < 1e-3, "{strength}");
+        assert!((lies.scale.x - 0.881_92).abs() < 1e-4);
+        let (lies, _) = shade(&in_the_air(CROSSING + TURNING / 2.).1);
+        assert!(lies.scale.x < 0.01);
     }
 }
