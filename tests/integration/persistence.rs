@@ -844,8 +844,8 @@ fn saves_this_build_cannot_continue_are_refused_with_every_file_unchanged() {
 
 /// A saved position decodes only in its current shape (#152): a position lacking any
 /// field, an absent `Option` included, or carrying a field this build does not know,
-/// such as a removed one, is refused, and the save and its previous record stay byte
-/// for byte as they were.
+/// such as a removed one, is refused as a save another build wrote, and the save and
+/// its previous record stay byte for byte as they were.
 #[test]
 fn a_position_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
     let dir = tempfile::tempdir().unwrap();
@@ -927,8 +927,9 @@ fn a_position_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
         let bytes = reseal(&altered);
         std::fs::write(&path, &bytes).unwrap();
         let refusal = format!("{:#}", Session::open(&path, None).err().expect(&expected));
+        assert_another_build(&refusal);
         assert!(
-            refusal.starts_with("Malformed save; original file preserved"),
+            refusal.contains("its position is not in this build's shape"),
             "{refusal}"
         );
         assert!(refusal.contains(&expected), "{expected}: {refusal}");
@@ -1199,7 +1200,8 @@ fn corrupt_incompatible_and_semantically_wrong_records_preserve_recovery() {
     let mut wrong = record.clone();
     wrong["payload"]["position"]["resources"][1] = 9.into();
     cases.push(reseal(&wrong));
-    // A payload that does not decode as a record is malformed.
+    // An intact record whose position does not decode in this build's shape was
+    // written by another build.
     let mut undecodable = record.clone();
     undecodable["payload"]["position"]["resources"] = "not resources".into();
     cases.push(reseal(&undecodable));
@@ -1209,9 +1211,8 @@ fn corrupt_incompatible_and_semantically_wrong_records_preserve_recovery() {
         let expected = match index {
             0 => "Malformed save",
             1 => "Save exceeds its size limit",
-            2..=3 | 5..=6 => "Another build wrote this save",
+            2..=3 | 5..=7 => "Another build wrote this save",
             4 => "Save checksum mismatch",
-            7 => "Malformed save",
             _ => unreachable!(),
         };
         assert!(refusal.starts_with(expected), "{index}: {refusal}");
