@@ -156,3 +156,85 @@ fn the_order_of_the_face_down_cards_is_not_observed() {
         );
     }
 }
+
+/// Every string anywhere in a value, and every whole number held by a field whose name
+/// says it holds a card, with the field's name.
+fn words_and_cards<'a>(
+    value: &'a Value,
+    key: &str,
+    words: &mut Vec<&'a str>,
+    cards: &mut Vec<(String, u64)>,
+) {
+    match value {
+        Value::String(text) => words.push(text),
+        Value::Number(n) => {
+            if key.contains("card") || key == "number" {
+                if let Some(n) = n.as_u64() {
+                    cards.push((key.to_owned(), n));
+                }
+            }
+        }
+        Value::Array(items) => {
+            for item in items {
+                words_and_cards(item, key, words, cards);
+            }
+        }
+        Value::Object(fields) => {
+            for (name, field) in fields {
+                words_and_cards(field, name, words, cards);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Story 40 and the spec's "Counts after the advance": the face-down order appears
+/// nowhere in the observation. By the prepared deck the card under the preview is
+/// 19, *Sierra Maestra Manifesto*, on card 17 and 20, *The Twelve*, on card 18 (the
+/// playbook's card list, p. 36). Neither may be named or numbered anywhere, also not
+/// in a choice's label or explanation; checked at the opening, when the advance itself
+/// is offered, and after it.
+#[test]
+fn the_card_under_the_preview_is_named_nowhere_in_the_observation() {
+    let mut offered = Game::prepared_with_seed(2);
+    for action in [
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "transfer",
+        "give:0:1",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+    ] {
+        choose(&mut offered, action);
+    }
+    let advance = format!("{}:advance-card", offered.observe().revision);
+    assert!(
+        offered.observe().choices.iter().any(|c| c.id == advance),
+        "the advance is offered"
+    );
+    for (game, hidden, title) in [
+        (Game::opening(), 19, "Sierra Maestra Manifesto"),
+        (offered, 19, "Sierra Maestra Manifesto"),
+        (advanced(), 20, "The Twelve"),
+    ] {
+        let view = serde_json::to_value(game.observe()).unwrap();
+        let (mut words, mut cards) = (Vec::new(), Vec::new());
+        words_and_cards(&view, "", &mut words, &mut cards);
+        assert!(!words.is_empty() && !cards.is_empty());
+        let number = hidden.to_string();
+        for text in words {
+            assert!(!text.contains(title), "{text:?} names card {hidden}");
+            assert!(
+                !text
+                    .split(|c: char| !c.is_ascii_digit())
+                    .any(|digits| digits == number),
+                "{text:?} numbers card {hidden}"
+            );
+        }
+        for (name, card) in cards {
+            assert_ne!(card, hidden, "{name} holds card {hidden}");
+        }
+    }
+}
