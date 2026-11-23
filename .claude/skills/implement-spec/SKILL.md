@@ -40,7 +40,7 @@ At activation, present one **role table** for the owner’s model and effort cho
 
    A ticket needs no merger when its checks already cover the tree the merge will produce. Before merging, confirm both: its branch contains the integration tip (`git merge-base --is-ancestor integration/spec-<N> <ticket head>` succeeds), and `git diff <revision the ticket's checks ran on> <ticket head>` prints nothing. Then merge it yourself with `--no-ff`, push and clear disk. Otherwise the merger subagent merges and checks it.
 
-6. If this changes the **frontier** of available tickets, kick off more **implementer subagents** to work on the new tickets. This allows for maximum concurrency. Give each a warm target before its first build, as `docs/agents/parallel-work.md`, "Disk", describes.
+6. If this changes the **frontier** of available tickets, kick off more **implementer subagents** to work on the new tickets. This allows for maximum concurrency. Give each a warm target before its first build, as `docs/agents/parallel-work.md`, "Warm targets", describes.
 
 7. Once the changes to be delivered are integrated, run the standards and spec reviews on the integration branch as described in [code-review](../code-review/SKILL.md). For native work, supply focused runs, frames and saved positions from implementation. If a ticket includes the final owner package, leave that part pending during review. Fix review findings in a single fresh **implementer subagent** and review the repair against the previously reviewed revision. Have every later commit, your own fixes included, reviewed as code-review’s "Fixes" describes before anything builds on it.
 
