@@ -2,6 +2,8 @@
 
 How the app writes, admits and recovers a save. [README, "Saves and recovery"](../../README.md#saves-and-recovery) covers what a person does; this page covers the mechanism behind it, for work that touches `src/save.rs` or what a save records.
 
+On 2026-11-23 [foundation 2](../foundation/02-rules-and-verification.md#engine-authority) made saves from other builds disposable, and [ADR 0003](../adr/0003-a-save-opens-by-exact-replay.md) records the save model that replaces the one below. Until that model is implemented, this page describes the code as it stands. Do not add to the identity rules or to "Older saves": no new work keeps an earlier save opening.
+
 ## The record
 
 - **Format.** Saves use the shared save record of `unfolded-record-replacement`, which owns the envelope, its checksum, replacement and recovery. `src/save.rs` adapts it: the identity, the game's validity check, the 256 KiB size limit and the wording of refusals.
