@@ -2,29 +2,45 @@
 //! the faction economy (Resources ledger, Cash supply) at the top right. Placement,
 //! including the hover tags, follows `art/atlas/atlas-top-display.figcraft`; every
 //! drawn element is a VectorCraft export from `atlas-top-display.vectorcraft`. The
-//! game owns the values and the rules they follow.
+//! game owns the values and the rules they follow. The Available Forces ledger's rows
+//! open this tag too (#160); their targets, words and place are `available`'s.
 use super::palette::{INK, QUIET};
 use super::*;
 use crate::{CASH_MARKERS, UsAlliance};
 
-/// One hoverable element of the top display, named for the development seat.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
-#[serde(rename_all = "kebab-case")]
+/// One hoverable element of the top display, named for the development seat. It is
+/// reported (`table.hover`, `table.top.item`) by its seat name.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Item {
     Aid,
     UsAlliance,
     Resources,
     Cash,
+    /// A faction's row of the Available Forces ledger (#160).
+    Available(Faction),
 }
 
 impl Item {
-    const ALL: [Self; 4] = [Self::Aid, Self::UsAlliance, Self::Resources, Self::Cash];
-    fn name(self) -> &'static str {
+    pub(super) const ALL: [Self; 8] = [
+        Self::Aid,
+        Self::UsAlliance,
+        Self::Resources,
+        Self::Cash,
+        Self::Available(Faction::Government),
+        Self::Available(Faction::M26),
+        Self::Available(Faction::Directorio),
+        Self::Available(Faction::Syndicate),
+    ];
+    pub(super) fn name(self) -> &'static str {
         match self {
             Self::Aid => "aid",
             Self::UsAlliance => "us-alliance",
             Self::Resources => "resources",
             Self::Cash => "cash",
+            Self::Available(Faction::Government) => "available:government",
+            Self::Available(Faction::M26) => "available:26july",
+            Self::Available(Faction::Directorio) => "available:directorio",
+            Self::Available(Faction::Syndicate) => "available:syndicate",
         }
     }
     /// The hover target in reference pixels, and whether it is anchored to the
@@ -35,7 +51,14 @@ impl Item {
             Self::UsAlliance => (TRACK, false),
             Self::Resources => (LEDGER, true),
             Self::Cash => ([1702., 222., 178., 44.], true),
+            Self::Available(faction) => (available::row(faction), true),
         }
+    }
+}
+
+impl serde::Serialize for Item {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.name())
     }
 }
 
@@ -44,7 +67,7 @@ const TRACK: [f32; 4] = [150., 18., 260., 64.];
 const LEDGER: [f32; 4] = [1688., 20., 192., 190.];
 
 /// Hover-tag geometry from the FigCraft `hover tag` frame, in reference pixels.
-mod tag {
+pub(super) mod tag {
     pub const WIDTH: f32 = 468.;
     pub const GAP: f32 = 8.;
     pub const ROWS_TOP: f32 = 76.;
@@ -200,10 +223,10 @@ pub(super) fn header(
 
 /// What a tag explains. Values come from the observation and the game model; the
 /// notes restate the rules cited beside them, broken into drawn lines.
-fn content(view: &crate::Observation, item: Item) -> Shown {
-    let (title, rows, notes): (&str, Vec<(String, String)>, Vec<&str>) = match item {
+pub(super) fn content(view: &crate::Observation, item: Item) -> Shown {
+    let (title, rows, notes): (String, Vec<(String, String)>, Vec<&str>) = match item {
         Item::Aid => (
-            "Aid",
+            "Aid".into(),
             vec![("Level".into(), view.aid.to_string())],
             vec![
                 // R 1.8, R 3.1
@@ -213,7 +236,7 @@ fn content(view: &crate::Observation, item: Item) -> Shown {
             ],
         ),
         Item::UsAlliance => (
-            "US Alliance",
+            "US Alliance".into(),
             UsAlliance::ALL
                 .into_iter()
                 .map(|level| {
@@ -236,7 +259,7 @@ fn content(view: &crate::Observation, item: Item) -> Shown {
             ],
         ),
         Item::Resources => (
-            "Resources",
+            "Resources".into(),
             Faction::ALL
                 .into_iter()
                 .map(|f| (f.name().to_string(), view.resources[f.index()].to_string()))
@@ -248,7 +271,7 @@ fn content(view: &crate::Observation, item: Item) -> Shown {
             ],
         ),
         Item::Cash => (
-            "Cash",
+            "Cash".into(),
             vec![
                 (
                     "Available".into(),
@@ -265,6 +288,7 @@ fn content(view: &crate::Observation, item: Item) -> Shown {
                 "After Operations without a Special Activity, its\nowner may remove it for a free Limited Operation.\nAt a Propaganda Round each becomes +6 Resources\nor an available Base there (Syndicate: Casino).",
             ],
         ),
+        Item::Available(faction) => available::tag(view, faction),
     };
     let mut notes: Vec<String> = notes.into_iter().map(String::from).collect();
     if item == Item::Resources {
@@ -278,7 +302,7 @@ fn content(view: &crate::Observation, item: Item) -> Shown {
     }
     Shown {
         item,
-        title: title.into(),
+        title,
         rows,
         notes,
         bounds: [0.; 4],
@@ -287,6 +311,39 @@ fn content(view: &crate::Observation, item: Item) -> Shown {
 
 fn note_lines(note: &str) -> usize {
     note.lines().count()
+}
+
+/// Where a tag opens, in logical window pixels as [left, top, right, bottom], for a
+/// window of this reference pixel whose right-anchored elements are offset by `right`.
+/// Its height follows its rows and note lines.
+pub(super) fn bounds(shown: &Shown, scale: f32, right: Vec2) -> [f32; 4] {
+    let item = shown.item;
+    let lines: usize = shown.notes.iter().map(|note| note_lines(note)).sum();
+    let height = tag::ROWS_TOP
+        + shown.rows.len() as f32 * tag::ROW_HEIGHT
+        + tag::NOTES_GAP
+        + lines as f32 * tag::NOTE_LINE
+        + tag::BOTTOM;
+    let ([x, y, _, h], anchored_right) = item.target();
+    // Tags open just below their element, except the Resources tag, which opens
+    // beside the ledger so the Cash supply beneath stays visible, and a faction's
+    // Available Forces tag, which opens left of both ledgers below the standings
+    // (#160).
+    let (origin, x, top) = match (item, anchored_right) {
+        (Item::Resources, _) => (right, x - tag::GAP - tag::WIDTH, y),
+        (Item::Available(_), _) => {
+            let [x, y] = available::opens();
+            (right, x, y)
+        }
+        (_, true) => (right, 1880. - tag::WIDTH, y + h + tag::GAP),
+        (_, false) => (Vec2::ZERO, x.min(1880. - tag::WIDTH), y + h + tag::GAP),
+    };
+    [
+        origin.x + x * scale,
+        origin.y + top * scale,
+        origin.x + (x + tag::WIDTH) * scale,
+        origin.y + (top + height) * scale,
+    ]
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -314,26 +371,7 @@ pub(super) fn draw(
         })
         .map(|item| {
             let mut shown = content(&play.game().observe(), item);
-            let lines: usize = shown.notes.iter().map(|note| note_lines(note)).sum();
-            let height = tag::ROWS_TOP
-                + shown.rows.len() as f32 * tag::ROW_HEIGHT
-                + tag::NOTES_GAP
-                + lines as f32 * tag::NOTE_LINE
-                + tag::BOTTOM;
-            let ([x, y, _, h], anchored_right) = item.target();
-            // Tags open just below their element, except the Resources tag, which opens
-            // beside the ledger so the Cash supply beneath stays visible.
-            let (origin, x, top) = match (item, anchored_right) {
-                (Item::Resources, _) => (right, x - tag::GAP - tag::WIDTH, y),
-                (_, true) => (right, 1880. - tag::WIDTH, y + h + tag::GAP),
-                (_, false) => (Vec2::ZERO, x.min(1880. - tag::WIDTH), y + h + tag::GAP),
-            };
-            shown.bounds = [
-                origin.x + x * scale,
-                origin.y + top * scale,
-                origin.x + (x + tag::WIDTH) * scale,
-                origin.y + (top + height) * scale,
-            ];
+            shown.bounds = bounds(&shown, scale, right);
             shown
         });
     if *previous == shown {
@@ -375,7 +413,8 @@ pub(super) fn draw(
             .remove::<UiRoot>()
             .insert((Tag, TextColor(ink)));
     };
-    words((&shown.title).into(), 24., 18., 420., 27., INK);
+    // A title that names a faction introduces it and keeps its name.
+    words(Prose::named(&shown.title), 24., 18., 420., 27., INK);
     for (index, (label, value)) in shown.rows.iter().enumerate() {
         let top = tag::ROWS_TOP + index as f32 * tag::ROW_HEIGHT;
         // Row labels introduce what their value belongs to; faction rows keep names.

@@ -85,6 +85,29 @@ pub enum Kind {
     Base,
     Casino,
 }
+/// The Available Forces chart (rules, p. 20): every piece of each kind a faction
+/// has, on the map or Available, before setup. It limits the pieces in play (R 1.4.1);
+/// the Syndicate's Bases are its Casinos. The opening's Available Forces are these
+/// less the pieces it sets up on the map.
+pub const INVENTORY: [(Faction, Kind, u8); 9] = [
+    (Faction::Government, Kind::Troops, 15),
+    (Faction::Government, Kind::Police, 15),
+    (Faction::Government, Kind::Base, 2),
+    (Faction::M26, Kind::Guerrilla, 15),
+    (Faction::M26, Kind::Base, 4),
+    (Faction::Directorio, Kind::Guerrilla, 15),
+    (Faction::Directorio, Kind::Base, 4),
+    (Faction::Syndicate, Kind::Guerrilla, 6),
+    (Faction::Syndicate, Kind::Casino, 10),
+];
+/// How many pieces of `kind` `faction` has in all (`INVENTORY`): 0 for a kind the
+/// chart does not give it.
+pub fn inventory(faction: Faction, kind: Kind) -> u8 {
+    INVENTORY
+        .iter()
+        .find(|&&(f, k, _)| f == faction && k == kind)
+        .map_or(0, |&(_, _, total)| total)
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum State {
     Ordinary,
@@ -934,7 +957,7 @@ impl Game {
                 vec![],
             ),
         ];
-        let spaces = rows
+        let spaces: Vec<Space> = rows
             .into_iter()
             .map(
                 |(id, name, terrain, population, economy, support, pieces)| Space {
@@ -955,6 +978,22 @@ impl Game {
         draw_deck.push(51);
         draw_deck.extend(37..=48);
         draw_deck.push(52);
+        // Every piece the opening does not set up on the map is Available (R 1.4.1).
+        let available = INVENTORY
+            .into_iter()
+            .map(|(faction, kind, total)| {
+                let on_map: u8 = spaces
+                    .iter()
+                    .flat_map(|space| &space.pieces)
+                    .filter(|group| group.faction == faction && group.kind == kind)
+                    .map(|group| group.count)
+                    .sum();
+                let left = total
+                    .checked_sub(on_map)
+                    .expect("the opening sets up no more pieces than the chart holds");
+                group(faction, kind, left)
+            })
+            .collect();
         Self {
             revision: 0,
             resources: PREPARED_RESOURCES,
@@ -972,17 +1011,7 @@ impl Game {
             kidnap_open: false,
             event: None,
             assault: None,
-            available: vec![
-                group(Government, Troops, 3),
-                group(Government, Police, 8),
-                group(Government, Base, 2),
-                group(M26, Guerrilla, 12),
-                group(M26, Base, 3),
-                group(Directorio, Guerrilla, 12),
-                group(Directorio, Base, 4),
-                group(Syndicate, Guerrilla, 6),
-                group(Syndicate, Casino, 7),
-            ],
+            available,
         }
     }
     pub fn observe(&self) -> Observation {

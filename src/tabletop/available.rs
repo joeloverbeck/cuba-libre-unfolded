@@ -6,13 +6,19 @@
 //! piece dimmed beside "0".
 //!
 //! The ledger reads the committed position's `available` groups and computes nothing
-//! else, so a hovered or pinned preview never changes it. Placement is the FigCraft
+//! else, so a hovered or pinned preview never changes it.
+//!
+//! Hovering or focusing a row opens that faction's tag (#160), the accepted top-display
+//! tag (`top`): each kind's count of its inventory (`crate::INVENTORY`, the p. 20
+//! chart) and its number on the map, then the rule (R 1.4.1). Its frame is `hover tag
+//! · Government` in the same FigCraft file; it opens left of both ledgers, below the
+//! standings. Placement is the FigCraft
 //! frame `16:9 available forces` of `art/atlas/atlas-available-forces.figcraft`,
 //! recorded in `atlas-available-forces.layout.json`; the pieces are the VectorCraft
 //! exports of `atlas-available-forces.vectorcraft` (AVAILABLE.md).
 use super::palette::{INK, QUIET};
 use super::*;
-use crate::{Kind, Observation};
+use crate::{Kind, Observation, inventory};
 use bevy::text::LetterSpacing;
 
 /// Node rectangles of the FigCraft frame, in frame units: the owner's 3840×2160
@@ -44,6 +50,17 @@ mod fig {
     pub const COUNT_SIZE: f32 = 43.875;
     /// The frame `zero state`: a kind with none left draws its piece at this opacity.
     pub const ZERO_OPACITY: f32 = 0.4;
+    /// Each faction's row as its hover and focus target: the band across the plate
+    /// between the rules around it (hidden rectangles `<faction>-row`).
+    pub const ROWS: [[f32; 4]; 4] = [
+        [2928.75, 125., 494., 52.25],
+        [2928.75, 177.25, 494., 52.3],
+        [2928.75, 229.55, 494., 52.3],
+        [2928.75, 281.85, 494., 72.53],
+    ];
+    /// Where a faction's tag opens (hidden rectangle `government-tag`): 13.5 (8 at
+    /// the reference) left of the plate, its top 13.5 below the standings area's foot.
+    pub const TAG_OPEN: [f32; 2] = [2125.5, 209.25];
 }
 
 /// A piece's size in frame units: its VectorCraft export is drawn at 3× the reference.
@@ -179,6 +196,89 @@ fn tint(count: u8) -> Color {
     } else {
         Color::WHITE
     }
+}
+
+/// A faction's row, its hover and focus target, in reference pixels, anchored right.
+pub(super) fn row(faction: Faction) -> [f32; 4] {
+    reference(fig::ROWS[faction.index()])
+}
+
+/// Where a faction's tag opens, its top left in reference pixels, anchored right.
+pub(super) fn opens() -> [f32; 2] {
+    let [x, y, _, _] = reference([fig::TAG_OPEN[0], fig::TAG_OPEN[1], 0., 0.]);
+    [x, y]
+}
+
+/// A kind as the tag's row names it.
+fn kind_label(kind: Kind) -> &'static str {
+    match kind {
+        Kind::Troops => "Troops",
+        Kind::Police => "Police",
+        Kind::Guerrilla => "Guerrillas",
+        Kind::Base => "Bases",
+        Kind::Casino => "Casinos",
+    }
+}
+
+/// A faction's tag: its title, a row per kind reading "N of T · M on the map" (its
+/// Available count, its inventory and its pieces on the map in any state, a closed
+/// Casino included), and the rule, broken into drawn lines.
+pub(super) fn tag(
+    view: &Observation,
+    faction: Faction,
+) -> (String, Vec<(String, String)>, Vec<&'static str>) {
+    let row = rows(view)
+        .into_iter()
+        .find(|row| row.faction == faction)
+        .expect("every faction has a row");
+    let rows = row
+        .cells
+        .iter()
+        .map(|cell| {
+            let on_map: u32 = view
+                .spaces
+                .iter()
+                .flat_map(|space| &space.pieces)
+                .filter(|group| group.faction == faction && group.kind == cell.kind)
+                .map(|group| u32::from(group.count))
+                .sum();
+            (
+                kind_label(cell.kind).to_owned(),
+                format!(
+                    "{} of {} · {on_map} on the map",
+                    cell.count,
+                    inventory(faction, cell.kind)
+                ),
+            )
+        })
+        .collect();
+    (
+        format!("Available {} Forces", faction.name()),
+        rows,
+        vec![
+            // R 1.4.1, first bullet.
+            "Pieces are placed only from Available Forces.\nWith none of a kind left, a placement is skipped\nand a replacement only removes (R 1.4.1).",
+            // R 1.4.1, second bullet.
+            "While executing, a faction may return its own\npieces from the map to Available.",
+        ],
+    )
+}
+
+/// The row that has keyboard focus, if one has: its tag opens as hover opens it.
+pub(super) fn focused(ui: &Interface) -> Option<top::Item> {
+    let name = ui.choice.focus.as_deref()?;
+    Faction::ALL
+        .into_iter()
+        .map(top::Item::Available)
+        .find(|item| item.name() == name)
+}
+
+/// The rows Tab moves through, after the panel's controls, by their seat names.
+pub(super) fn focusable() -> impl Iterator<Item = (String, Action)> {
+    Faction::ALL.into_iter().map(|faction| {
+        let item = top::Item::Available(faction);
+        (item.name().to_owned(), Action::Top(item))
+    })
 }
 
 /// Names a drawn part of the ledger by its node name in the FigCraft frame.
@@ -467,6 +567,254 @@ mod tests {
                 ];
                 let (_, [_, _, w, h]) = place(kind, 0.);
                 assert_eq!([w, h], piece(png), "{file}");
+            }
+        }
+    }
+
+    fn tag_rows(view: &Observation, faction: Faction) -> Vec<(String, String)> {
+        tag(view, faction).1
+    }
+
+    fn pairs(rows: &[(&str, &str)]) -> Vec<(String, String)> {
+        rows.iter()
+            .map(|(l, v)| ((*l).to_owned(), (*v).to_owned()))
+            .collect()
+    }
+
+    /// #160: the prepared scenario's tags, from the p. 20 chart and the accepted
+    /// tactical handoff (the chart less the pieces it sets up), not from the ledger.
+    #[test]
+    fn every_faction_s_tag_states_its_counts_and_the_rule() {
+        let view = Game::opening().observe();
+        assert_eq!(
+            tag_rows(&view, Faction::Government),
+            pairs(&[
+                ("Troops", "3 of 15 · 12 on the map"),
+                ("Police", "8 of 15 · 7 on the map"),
+                ("Bases", "2 of 2 · 0 on the map"),
+            ])
+        );
+        assert_eq!(
+            tag_rows(&view, Faction::M26),
+            pairs(&[
+                ("Guerrillas", "12 of 15 · 3 on the map"),
+                ("Bases", "3 of 4 · 1 on the map"),
+            ])
+        );
+        assert_eq!(
+            tag_rows(&view, Faction::Directorio),
+            pairs(&[
+                ("Guerrillas", "12 of 15 · 3 on the map"),
+                ("Bases", "4 of 4 · 0 on the map"),
+            ])
+        );
+        assert_eq!(
+            tag_rows(&view, Faction::Syndicate),
+            pairs(&[
+                ("Guerrillas", "6 of 6 · 0 on the map"),
+                ("Casinos", "7 of 10 · 3 on the map"),
+            ])
+        );
+        let titles: Vec<String> = Faction::ALL.map(|f| tag(&view, f).0).into();
+        assert_eq!(
+            titles,
+            [
+                "Available Government Forces",
+                "Available 26July Forces",
+                "Available Directorio Forces",
+                "Available Syndicate Forces"
+            ]
+        );
+        assert_eq!(
+            tag(&view, Faction::M26).2.join("\n"),
+            "Pieces are placed only from Available Forces.\n\
+             With none of a kind left, a placement is skipped\n\
+             and a replacement only removes (R 1.4.1).\n\
+             While executing, a faction may return its own\n\
+             pieces from the map to Available."
+        );
+    }
+
+    /// A closed Casino is still on the map (R 1.4.5, R 3.2.4): closing one changes no
+    /// count in the Syndicate's tag.
+    #[test]
+    fn a_closed_casino_counts_on_the_map() {
+        let mut view = Game::opening().observe();
+        let casino = view
+            .spaces
+            .iter_mut()
+            .flat_map(|space| &mut space.pieces)
+            .find(|group| group.kind == Kind::Casino)
+            .unwrap();
+        casino.state = State::Closed;
+        assert_eq!(
+            tag_rows(&view, Faction::Syndicate)[1],
+            ("Casinos".into(), "7 of 10 · 3 on the map".into())
+        );
+    }
+
+    fn rect(value: &serde_json::Value) -> [f32; 4] {
+        let v: Vec<f32> = value
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|n| n.as_f64().unwrap() as f32)
+            .collect();
+        [
+            v[0],
+            v[1],
+            v.get(2).copied().unwrap_or(0.),
+            v.get(3).copied().unwrap_or(0.),
+        ]
+    }
+
+    fn near(a: [f32; 4], b: [f32; 4], what: &str) {
+        for i in 0..4 {
+            assert!((a[i] - b[i]).abs() <= 0.01, "{what}: {a:?} against {b:?}");
+        }
+    }
+
+    /// The FigCraft frame `hover tag · Government` is the accepted top-display tag at
+    /// 1.6875 units per reference pixel: the runtime draws the ledger's tags with
+    /// `top`'s geometry, so the frame must hold that geometry.
+    #[test]
+    fn the_tag_frame_is_the_top_display_tag() {
+        use super::super::top::tag as geometry;
+        let record = record();
+        let frame = &record["tag"];
+        let k = fig::SCALE;
+        // Three rows and five note lines: the Government's tag.
+        let height = geometry::ROWS_TOP
+            + 3. * geometry::ROW_HEIGHT
+            + geometry::NOTES_GAP
+            + 5. * geometry::NOTE_LINE
+            + geometry::BOTTOM;
+        let [w, h, _, _] = rect(&frame["frame"]);
+        near(
+            [w, h, 0., 0.],
+            [geometry::WIDTH * k, height * k, 0., 0.],
+            "frame",
+        );
+        near(
+            rect(&frame["parts"]["plate"]),
+            [0., 0., geometry::WIDTH * k, height * k],
+            "plate",
+        );
+        // The title at 24, 18, 420 wide; the rule at 24, 62, 420 by 1 (top.rs, TOP.md).
+        let title = rect(&frame["text"]["title"]);
+        near(
+            [title[0], title[1], title[2], 0.],
+            [24. * k, 18. * k, 420. * k, 0.],
+            "title",
+        );
+        near(
+            rect(&frame["parts"]["rule"]),
+            [24. * k, 62. * k, 420. * k, k],
+            "rule",
+        );
+        for row in 0..3 {
+            let top = (geometry::ROWS_TOP + row as f32 * geometry::ROW_HEIGHT) * k;
+            let label = rect(&frame["text"][format!("row-{row}-label")]);
+            let value = rect(&frame["text"][format!("row-{row}-value")]);
+            near(
+                [label[0], label[1], label[2], 0.],
+                [24. * k, top, 200. * k, 0.],
+                "label",
+            );
+            near(
+                [value[0], value[1], value[2], 0.],
+                [230. * k, top, 214. * k, 0.],
+                "value",
+            );
+        }
+        let notes = rect(&frame["text"]["notes"]);
+        let top = (geometry::ROWS_TOP + 3. * geometry::ROW_HEIGHT + geometry::NOTES_GAP) * k;
+        near(
+            [notes[0], notes[1], notes[2], 0.],
+            [24. * k, top, 420. * k, 0.],
+            "notes",
+        );
+        // Every note line fits one drawn line.
+        let view = Game::opening().observe();
+        for faction in Faction::ALL {
+            for line in tag(&view, faction).2.iter().flat_map(|n| n.lines()) {
+                assert!(line.chars().count() <= 50, "{line}");
+            }
+        }
+    }
+
+    /// Each row's target and the tag's place are the record's.
+    #[test]
+    fn rows_and_the_tag_s_place_match_the_record() {
+        let record = record();
+        for faction in Faction::ALL {
+            near(
+                rect(&record["tag"]["rows"][slug(faction)]),
+                fig::ROWS[faction.index()],
+                slug(faction),
+            );
+        }
+        let open = rect(&record["tag"]["open"]);
+        near(
+            [open[0], open[1], 0., 0.],
+            [fig::TAG_OPEN[0], fig::TAG_OPEN[1], 0., 0.],
+            "open",
+        );
+        // The rows tile the plate below its header rule, top to bottom.
+        let mut top = fig::ROWS[0][1];
+        for [x, y, w, h] in fig::ROWS {
+            assert_eq!([x, w], [fig::PLATE[0], fig::PLATE[2]]);
+            assert!((y - top).abs() < 0.01);
+            top = y + h;
+        }
+        assert!((top - (fig::PLATE[1] + fig::PLATE[3])).abs() < 0.01);
+        // 8 reference pixels left of the plate, and 8 below the standings area's foot.
+        let main: serde_json::Value =
+            serde_json::from_str(include_str!("../../art/atlas/atlas-main-view.layout.json"))
+                .unwrap();
+        let [_, sy, _, sh] = rect(&main["areas"]["standings"]["bounds"]);
+        let gap = super::super::top::tag::GAP * fig::SCALE;
+        let width = super::super::top::tag::WIDTH * fig::SCALE;
+        assert!((fig::TAG_OPEN[0] - (fig::PLATE[0] - gap - width)).abs() < 0.01);
+        assert!((fig::TAG_OPEN[1] - (sy + sh + gap)).abs() < 0.01);
+    }
+
+    /// #160: every faction's tag, where `top` places it, covers no area of the main
+    /// view (the two ledgers, the Cash supply, the standings, the decision panel and
+    /// the rest) and stays inside the window, at 3:2, 16:9 and 21:9.
+    #[test]
+    fn the_tag_covers_no_area_and_stays_inside_the_window() {
+        let layout = super::super::areas::Layout::read(include_bytes!(
+            "../../art/atlas/atlas-main-view.layout.json"
+        ))
+        .unwrap();
+        let view = Game::opening().observe();
+        for (width, height) in [
+            (1920., 1280.),
+            (2160., 1440.),
+            (1920., 1080.),
+            (3840., 2160.),
+            (2520., 1080.),
+            (3440., 1440.),
+        ] {
+            let window = Window {
+                resolution: (width as u32, height as u32).into(),
+                ..default()
+            };
+            let s = super::super::reference_pixel(&window);
+            let right = Vec2::new(width - WIDTH * s, 0.);
+            for faction in Faction::ALL {
+                let shown = super::super::top::content(&view, top::Item::Available(faction));
+                let [l, t, r, b] = super::super::top::bounds(&shown, s, right);
+                let at = format!("{faction:?} at {width}x{height}");
+                assert!(l >= 0. && t >= 0. && r <= width && b <= height, "{at}");
+                let tag = Rect::new(l, t, r, b);
+                for (name, area) in layout.areas(&window) {
+                    assert!(
+                        tag.intersect(area).is_empty(),
+                        "{at}: covers {name} {area:?} with {tag:?}"
+                    );
+                }
             }
         }
     }
