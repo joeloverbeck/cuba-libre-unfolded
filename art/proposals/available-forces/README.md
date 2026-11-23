@@ -6,7 +6,7 @@ Decision-only alternatives from the owner's 2026-11-23 design interview. Spec [#
 
 ## Decided in the interview
 
-- All four factions' Available Forces are always shown, and a faction's group opens the hover tag below.
+- All four factions' Available Forces are always shown, and a faction's row opens the hover tag described under "Hover tag".
 - Four texts that only state a count go: the victory tag's "Available: …" footer, the session panel's "29 map / 57 available", Rally's "12 Guerrillas stay in Available Forces" after "No pieces move.", and Rally's "With 12 Available Guerrillas" wherever Available is not the binding limit. Text that states a change stays, such as "This leaves 10 Guerrillas in Available Forces" and the removal messages.
 - The session panel's "Terror/Sabotage 19 available" stays as text. That supply gets its own design round later, with the Cash supply.
 - "Available Forces" joins the [glossary](../../../GLOSSARY.md). No ADR: the display is cheap to change.
@@ -18,17 +18,17 @@ Two statements are the agent's proposals, which the owner read and did not chang
 Read from the March 2019 Living Rules ([foundation 2](../../../docs/foundation/02-rules-and-verification.md)), not from the implementation.
 
 - **Nine inventories** (Available Forces chart, p. 20): Government 15 Troops, 15 Police and 2 Bases; 26July 15 Guerrillas and 4 Bases; Directorio 15 Guerrillas and 4 Bases; Syndicate 6 Guerrillas and 10 Casinos.
-- **A hard limit on placing** (R 1.4.1): a piece is placed or replaced only from Available. With none of a kind left, an instruction to place is ignored and a replacement only removes. This binds Train (R 3.2.1), Rally (R 3.3.1), an Attack's or Ambush's captured Guerrilla (R 3.3.3, 4.3.2), Infiltrate (R 4.3.1), Construct (R 3.3.5), every Event (R 5.1.1) and a Cash Deposit taken as a Base (R 6.2.4).
-- **Removal returns pieces** (R 1.4.1): every removed piece goes back to Available, and the executing faction may return its own pieces to place them again.
+- **A hard limit on placing** (R 1.4.1): a piece is placed or replaced only from Available. With none of a kind left, an instruction to place is ignored and a replacement only removes; where a Base would be removed or replaced, an open Casino is closed instead (R 1.4.5). This binds Train (R 3.2.1), Rally (R 3.3.1), an Attack's or Ambush's captured Guerrilla (R 3.3.3, 4.3.2), Infiltrate (R 4.3.1), Construct (R 3.3.5), every Event (R 5.1.1) and a Cash Deposit taken as a Base or Casino (R 6.2.4).
+- **Removal returns pieces** (R 1.4.1): a removed piece goes back to Available. While executing, a faction may return its own pieces, Casinos included; the rule's example is a Rally that returns Active Guerrillas in order to place them Underground.
 - **No threshold.** No player rule rewards or penalises a count of Available pieces. The Non-Player flowcharts (R 8) test such counts, and the mission excludes them.
-- **Bases on the map** are a victory input for 26July and Directorio, and open Casinos for the Syndicate (R 7.2). The physical board shows them through the holding box: Bases sit on the highest-numbered circles, so the highest uncovered number is the number on the map.
-- **Public.** The holding boxes lie open on the board, so every faction sees every other's.
+- **Bases on the map** are a victory input for 26July and Directorio, and open Casinos for the Syndicate (R 7.2). The physical board shows them through the holding box (R 1.4.1): Bases sit on the highest-numbered circles, so the highest uncovered number is the number on the map.
+- **Public.** Forces not on the map are kept in the holding boxes (R 1.4.1), which are printed on the board. That every faction sees every other's is the board's arrangement, not a stated rule.
 
 Terror and Sabotage markers share a supply of 20 (R 3.3.4) and Cash has 4 markers (R 4.5.2). They are markers, not forces, and are outside these studies.
 
 ## Sheets
 
-All layouts are the selected main view ([MAIN-VIEW.md](../../atlas/MAIN-VIEW.md)) at 3840×2160 with one area added. The counts are the prepared scenario's: 3 Troops, 8 Police, 2 Bases; 12 Guerrillas, 3 Bases; 12 Guerrillas, 4 Bases; 6 Guerrillas, 7 Casinos.
+All layouts are the selected main view ([MAIN-VIEW.md](../../atlas/MAIN-VIEW.md)) at 3840×2160 with one area added. The counts are the prepared scenario's: 3 Troops, 8 Police, 2 Bases; 12 Guerrillas, 3 Bases; 12 Guerrillas, 4 Bases; 6 Guerrillas, 7 Casinos. Sizes and distances below are pixels of the owner's display, which are the sheets' frame units. The sheets show today's session panel, with the "29 map / 57 available" line that the interview removes.
 
 | Decision | Sheet | At the owner's display, 1:1 | Selected |
 |---|---|---|---|
@@ -53,15 +53,15 @@ All three show every faction's nine counts at once. The alternative of showing t
 
 ### Piece graphics
 
-| | Idea | Trade-off |
-|---|---|---|
-| **G1 · Sólido** | Shaded solids in the map pieces' colours: cube, upright cylinder, low disc; the Casino carries a ring | Matches the pieces on the map, so nothing new is learned. Kind is told by shape alone |
-| **G2 · Sello** | Flat stamps with an initial, like the victory emblems | Reads at the smallest size and without colour. Looks least like the pieces |
-| **G3 · Tinta** | The same solids as inked line drawings with flat colour | Sits with the drawn Aid crate and Cash. The outline thickens at small sizes |
+| | Idea | Suits the task because | Trade-off |
+|---|---|---|---|
+| **G1 · Sólido** | Shaded solids in the map pieces' colours: cube, upright cylinder, low disc; the Casino carries a ring | The owner already reads these shapes and colours on the map, so the ledger needs no key | Kind is told by shape alone, and Troops from Police by their blue. The pale Police cube and the yellow pieces have the least contrast on the panel. Each cell carries the shape and nothing more |
+| **G2 · Sello** | Flat stamps with an initial, like the victory emblems | The initial names the kind outright, so it reads at the smallest size and without colour | Looks least like the pieces. The letter is a second thing to read beside every count, which makes it the densest of the three |
+| **G3 · Tinta** | The same solids as inked line drawings with flat colour | The ink outline holds each piece's edge on the pale panel, in the manner of the drawn Aid crate and the strongbox | The outline thickens at small sizes and darkens the row. No face is shaded, so the solids read flatter than the map's |
 
 ### Hover tag
 
-[hover-tag.png](hover-tag.png) shows what a faction's group opens: each kind's count of its inventory, the number on the map, and the rule. It reuses the accepted top-display tag ([TOP.md](../../atlas/TOP.md)), so it is not a new design and carries no choice.
+[hover-tag.png](hover-tag.png) shows what a faction's row opens: each kind's count of its inventory, the number on the map, and the rule. It reuses the accepted top-display tag ([TOP.md](../../atlas/TOP.md)), so it is not a new design and carries no choice.
 
 ## Files and provenance
 
