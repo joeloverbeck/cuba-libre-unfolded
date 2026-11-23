@@ -109,6 +109,28 @@ fn assert_matches_layout(view: &Value, frame: &str, open: Option<&str>) {
     }
 }
 
+/// The plate is drawn to its foot: paper just above its bottom edge and its right
+/// edge, where an image drawn short of its node would leave the sea.
+fn assert_plate_drawn(app: &Native, capture: &str, view: &Value) {
+    let shot = image::open(app.root.join(format!("{capture}.png")))
+        .unwrap()
+        .to_rgb8();
+    let plate = rect_of(&view["table"]["pile_tag"]["shown"]["bounds"]);
+    let middle = ((plate[0] + plate[2]) / 2.) as u32;
+    for (x, y) in [
+        (middle, plate[3] as u32 - 12),
+        (plate[2] as u32 - 12, ((plate[1] + plate[3]) / 2.) as u32),
+        (middle, plate[1] as u32 + 12),
+    ] {
+        let p = shot.get_pixel(x, y).0;
+        let paper = [248u8, 244, 232];
+        assert!(
+            p.iter().zip(paper).all(|(a, b)| a.abs_diff(b) <= 6),
+            "{capture}: {p:?} at {x},{y} is not the plate's paper"
+        );
+    }
+}
+
 /// The tag lies inside the window, off both piles, their labels and discs.
 fn assert_placed(view: &Value) {
     let plate = rect_of(&view["table"]["pile_tag"]["shown"]["bounds"]);
@@ -298,6 +320,7 @@ fn native_pile_tags_match_layout_and_read_the_model() {
     assert_eq!(rows[5], "49 · Propaganda!");
     assert_matches_layout(&played, "played-card-17", Some("played-pile-tag"));
     app.capture("card-17-played");
+    assert_plate_drawn(&app, "card-17-played", &played);
     let deck = hover(&mut app, "pile:deck", &rest);
     assert_deck_states_the_model(&deck);
     assert_eq!(
@@ -311,6 +334,7 @@ fn native_pile_tags_match_layout_and_read_the_model() {
     assert_eq!(deck["observation"]["deck"]["face_down"], 33);
     assert_matches_layout(&deck, "deck-card-17", Some("deck-pile-tag"));
     app.capture("card-17-deck");
+    assert_plate_drawn(&app, "card-17-deck", &deck);
 
     // By keyboard focus, with the same dwell.
     let focused = focus(&mut app, "pile:played", &rest);
@@ -341,6 +365,7 @@ fn native_pile_tags_match_layout_and_read_the_model() {
     assert_eq!(rows[1], "17 · Alberto Bayo");
     assert_matches_layout(&played, "played-card-18", None);
     app.capture("card-18-played");
+    assert_plate_drawn(&app, "card-18-played", &played);
     let deck = hover(&mut app, "pile:deck", &advanced);
     assert_deck_states_the_model(&deck);
     assert_eq!(
@@ -358,5 +383,6 @@ fn native_pile_tags_match_layout_and_read_the_model() {
     // The deck's frame is card 17's; on card 18 only its words differ.
     assert_matches_layout(&deck, "deck-card-17", Some("deck-pile-tag"));
     app.capture("card-18-deck");
+    assert_plate_drawn(&app, "card-18-deck", &deck);
     app.quit();
 }

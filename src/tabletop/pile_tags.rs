@@ -251,7 +251,8 @@ pub(super) fn draw(
         ),
     };
     // The plate stands on the tag's foot and grows upward with its note, the only part
-    // whose height follows its words: it is the plate's one child in the flow.
+    // whose height follows its words: it is the plate's one child in the flow, and its
+    // margins set the plate's height.
     let plate = commands
         .spawn((
             Tag,
@@ -265,7 +266,6 @@ pub(super) fn draw(
                 bottom: px(window.height() - foot),
                 width: px(r(width) * s),
                 flex_direction: FlexDirection::Column,
-                padding: UiRect::bottom(px(r(fig::FOOT_PAD) * s)),
                 ..default()
             },
             GlobalZIndex(24),
@@ -381,9 +381,12 @@ pub(super) fn draw(
         QUIET,
         s,
         Node {
+            // A margin, not the plate's padding: an image fills only its node's
+            // content box, so padding would leave the plate's foot undrawn.
             margin: UiRect {
                 left: px(r(fig::LABEL_X) * s),
                 top: px(r(note_top) * s),
+                bottom: px(r(fig::FOOT_PAD) * s),
                 ..default()
             },
             width: px(r(note_w) * s),
