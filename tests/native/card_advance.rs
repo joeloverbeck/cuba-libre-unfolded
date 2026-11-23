@@ -611,12 +611,7 @@ fn advance_to(app: &mut Native, seconds: f64) -> Value {
 
 /// The piles as the tray draws them and the numbers over them, while a card is in
 /// the air: each pile's cards and what lies on top. The count discs are not shown then.
-fn assert_cards_shown(
-    view: &Value,
-    played: (u64, Value),
-    deck: (u64, Value),
-    faces: u64,
-) {
+fn assert_cards_shown(view: &Value, played: (u64, Value), deck: (u64, Value), faces: u64) {
     let piles = &view["table"]["piles"];
     let drawn = piles["piles"].as_array().unwrap();
     assert_eq!(drawn.len(), 2, "{piles}");
@@ -790,12 +785,7 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
     );
     assert_eq!(leaving["table"]["pending"], json!(["card advance"]));
     // The deck's number went down as the card left it; the played pile's waits.
-    assert_cards_shown(
-        &leaving,
-        (18, json!(17)),
-        (33, json!("back")),
-        1,
-    );
+    assert_cards_shown(&leaving, (18, json!(17)), (33, json!("back")), 1);
     // A seat that connects now finds the same moment, not a new start: every request
     // here is its own connection, and only the seat's steps move the clock.
     let again = app.observe();
@@ -832,12 +822,7 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
     let rise = (played_face[1] + played_face[3]) / 2. - (at[1] + at[3]) / 2.;
     assert!((rise - 73.6).abs() < 3., "the card shows {rise} px up");
     assert!((at[2] - at[0] - 300. * 1.0076).abs() < 2.5, "{at:?}");
-    assert_cards_shown(
-        &crossing,
-        (18, json!(17)),
-        (33, json!("back")),
-        1,
-    );
+    assert_cards_shown(&crossing, (18, json!(17)), (33, json!("back")), 1);
     app.capture("2-crossing-halfway");
     // The card in the air is above the table, so it draws over the labels it passes,
     // as the advance sheet draws it: where it covers "CURRENT CARD" and "PREVIEW" the
@@ -878,12 +863,7 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
     assert_eq!(flying["card"], 19, "{flying}");
     assert_eq!(flying["step"], "turning", "{flying}");
     assert_eq!(flying["showing"], "back", "{flying}");
-    assert_cards_shown(
-        &turning,
-        (19, json!(18)),
-        (32, json!("back")),
-        1,
-    );
+    assert_cards_shown(&turning, (19, json!(18)), (32, json!("back")), 1);
     // It turns where it lies: its middle is the deck's, and it is narrower than a
     // card lying flat.
     let at = rect_of(&flying["bounds"]);
