@@ -429,7 +429,7 @@ fn spawn_stage(commands: &mut Commands, art: &DieArt, revision: u64, face: u8, w
                 Tonemapping::None,
                 DebandDither::Disabled,
                 Camera {
-                    order: 2,
+                    order: 3,
                     clear_color: ClearColorConfig::None,
                     viewport: Some(viewport(window)),
                     ..default()

@@ -54,6 +54,7 @@ mod emblems;
 mod execution;
 mod highlights;
 mod palette;
+mod piles;
 mod popover;
 pub mod seat;
 mod status;
@@ -197,6 +198,9 @@ enum Action {
     /// An action box of the eligibility indicator: a hover disclosure only.
     Sequence(eligibility::Slot),
     Unsupported(String),
+    /// A pile's count disc: the pile's target. Its tag is #144's; until then it
+    /// takes the pointer and does nothing.
+    Pile,
     /// An overlaid area's own rectangle (`areas::Area`): it takes the pointer and
     /// does nothing.
     Area,
@@ -438,6 +442,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                     transfer::draw,
                     transfer::plates,
                     cards::draw,
+                    piles::present,
                 )
                     .chain(),
                 animate_water,
@@ -494,7 +499,8 @@ fn setup(
     commands.spawn((
         Camera2d,
         Camera {
-            order: 1,
+            // Over the map (0) and the card tray (1); the Kidnap tray (3) draws over it.
+            order: 2,
             clear_color: ClearColorConfig::None,
             ..default()
         },
@@ -1004,7 +1010,11 @@ fn click(
     ui.clicked = true;
     match &control.action {
         // Hover disclosures never change a decision.
-        Action::Standing(_) | Action::Top(_) | Action::Sequence(_) | Action::Area => return,
+        Action::Standing(_)
+        | Action::Top(_)
+        | Action::Sequence(_)
+        | Action::Pile
+        | Action::Area => return,
         // A region click opens or closes a space popover while Terror targets are
         // chosen, and does nothing otherwise; it never decides anything itself. An
         // opened popover wins over the AC-B briefing tag, which reopens from the
@@ -1312,9 +1322,11 @@ fn bottom(window: &Window) -> Vec2 {
 /// What the table says to the shared camera: an unopened session, the transfer modal
 /// and a presented Kidnap die block it. The whole window shows the scene; the
 /// camera itself leaves the pointer to any interface node it is over, and each
-/// overlaid area has one (`areas::Area`). The die's camera is a second `Camera3d`,
-/// which the shared count anchors do not follow, so the map holds still under its
-/// counts while the die is shown.
+/// overlaid area has one (`areas::Area`). The die's camera is a second `Camera3d`
+/// that the shared count anchors count beside the map's, and with two they place
+/// nothing, so the map holds still under its counts while the die is shown. The
+/// card tray's camera is always there and is marked as another view instead
+/// (`piles`).
 fn camera_facts(play: &Play, roll: &die::Roll) -> TableFacts {
     let (modal, die) = play.session.as_ref().map_or((false, false), |session| {
         let game = session.game();
@@ -1537,12 +1549,6 @@ fn draw_ui(
             right,
         ),
         (
-            "atlas-layout-card.png",
-            "card-frame",
-            [40., 964., 600., 264.],
-            left + low,
-        ),
-        (
             "atlas-layout-session.png",
             "session-frame",
             [1380., 964., 500., 264.],
@@ -1567,7 +1573,7 @@ fn draw_ui(
         execution::panel(&mut commands, &art, &view, &ui, s, right);
     }
     eligibility::indicator(&mut commands, &art, &view, s, left);
-    cards::panel(&mut commands, &art, &view, s, left + low);
+    piles::overlay(&mut commands, &art, &view, &window);
     let o = right + low;
     let status = play.error.clone().unwrap_or_else(|| {
         if play.session.is_none() {

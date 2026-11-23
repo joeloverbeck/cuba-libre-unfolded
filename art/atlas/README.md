@@ -49,7 +49,7 @@ The [main view layout](MAIN-VIEW.md) owns where every area sits: the 3D map fill
 | Sequence of Play | top left: x=60,y=178,w=232,h=384 | The eligibility track ([ELIGIBILITY.md](ELIGIBILITY.md)). |
 | Decision | top right: x=1380,y=280,w=500,h=660 | Current actor, operation, Resources, choices, cost, target, legal/refused explanation and actual roll/owed Terror. |
 | Primary action | x=1404,y=825,w=452,h=65, in the decision panel | Dynamic Finish/resolve label and enabled state; no example outcome remains baked. |
-| Current/preview cards | bottom left: x=40,y=964,w=600,h=264 | Until #143 builds the card piles: both faces fitted proportionally, each opening its [card tag](CARD-TAG.md). Never stretch or crop a face. |
+| Card piles | bottom left: the tray x=35.6,y=1020.4,w=450.4,h=391.1 from the bottom-left corner of a 1280-high reference; top cards 177.8 wide | The played pile and the draw deck as solid cards, each with its top card's face, its count and its caption, and the Propaganda pips ([MAIN-VIEW.md](MAIN-VIEW.md#the-card-piles)). Each top card opens its [card tag](CARD-TAG.md). Never stretch or crop a face. |
 | Session | bottom right: x=1380,y=964,w=500,h=264 | Actual pending giver, durable-save/recovery/refusal status; save/quit and continuation. |
 
 Each area takes the pointer over its own rectangle, so a press or a scroll there never reaches the map.
@@ -76,7 +76,7 @@ The app admits these private original faces from the directory supplied to `--ca
 | `card-18.png` | `50df7058e660bb4dc620096823945eeb095fe4123e0aead68fec6244ab097c4e` |
 | `card-19.png` | `10bf73402f7fbb79d14aad0b928bc8ea20949ea5bd888799a869a6f4e270bc3b` |
 
-The faces remain outside Git. The card panel uses the same portrait slots as the original Atlas selection, and the card tag shows one face at reading size; both follow the saved cards' current and preview roles, preserve the faces' proportions, and round their corners so the black printed outside them never shows. The app checks all three before gameplay. [Build and launch](../../README.md#build-and-launch)
+The faces remain outside Git. Each pile's top card shows one face at 300 px on the owner's display, and the card tag shows one at reading size; both follow the saved cards' current and preview roles, preserve the faces' proportions, and round their corners so the black printed outside them never shows. The app checks all three before gameplay. [Build and launch](../../README.md#build-and-launch)
 
 ## Interface palette
 

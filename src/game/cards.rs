@@ -210,6 +210,46 @@ pub struct ShownCards {
     pub preview: CardFacts,
 }
 
+/// The cards in a deck: 48 Events and 4 Propaganda cards (Deck Preparation).
+pub const DECK_CARDS: u8 = 52;
+/// The Propaganda cards in a deck; the game ends at the fourth (R 2.4.1).
+pub const PROPAGANDA_CARDS: u8 = 4;
+
+/// Whether a card is one of the four Propaganda cards, which the playbook's card list
+/// numbers 49 to 52.
+pub fn is_propaganda(card: u8) -> bool {
+    (49..=DECK_CARDS).contains(&card)
+}
+
+/// What the two piles show without opening them (R 2.2): how many cards each holds
+/// and how many Propaganda cards have been played. The order of the cards under the
+/// preview is not among them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct Piles {
+    /// Cards in the played pile, counting the current card on top of it.
+    pub played: u8,
+    /// Cards in the draw deck, counting the preview on top of it.
+    pub deck: u8,
+    /// Propaganda cards played so far, the current card among them if it is one.
+    pub propaganda_played: u8,
+    /// The Propaganda cards in the deck.
+    pub propaganda_cards: u8,
+}
+
+impl Piles {
+    /// The piles for the cards played before the current one, the current card and
+    /// the number of cards in the draw deck.
+    pub(crate) fn new(played_before: &[u8], current: u8, deck: usize) -> Self {
+        let played = played_before.iter().chain([&current]);
+        Self {
+            played: played_before.len() as u8 + 1,
+            deck: deck as u8,
+            propaganda_played: played.filter(|card| is_propaganda(**card)).count() as u8,
+            propaganda_cards: PROPAGANDA_CARDS,
+        }
+    }
+}
+
 /// The printed facts of an admitted face: title, order, Event kind and lasting box.
 struct Printed {
     title: &'static str,

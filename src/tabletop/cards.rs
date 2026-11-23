@@ -1,6 +1,6 @@
-//! The card area: the current and the preview card, and the card tag that reads one of
-//! them (#139). Hovering or focusing a card opens its tag with the shared dwell; a click
-//! pins it and Escape closes it. The tag's geometry is the FigCraft frame
+//! The card tag that reads the current or the preview card (#139). The cards lie on
+//! top of the two piles (`piles`, #143). Hovering or focusing a card opens its tag with
+//! the shared dwell; a click pins it and Escape closes it. The tag's geometry is the FigCraft frame
 //! `art/atlas/atlas-card-tag.figcraft`, authored from the owner's selected sheet T1 at
 //! the owner's display (`atlas-card-tag.layout.json`). Every fact it shows comes from
 //! the observation's `cards`; the tag only places them. Reading a card changes
@@ -39,13 +39,6 @@ impl Slot {
         match self {
             Self::Current => ("CURRENT CARD", "atlas-card-tag-current.png"),
             Self::Preview => ("PREVIEW", "atlas-card-tag-preview.png"),
-        }
-    }
-    /// The thumbnail in the card panel, in reference pixels: left, top, width.
-    fn thumbnail(self) -> [f32; 3] {
-        match self {
-            Self::Current => [100., 1040., 108.],
-            Self::Preview => [366., 1040., 108.],
         }
     }
 }
@@ -105,65 +98,16 @@ mod fig {
     pub const HINT_SIZE: f32 = 26.;
 }
 
-/// Where the tag opens, in reference pixels: its left edge on the card panel's, its
-/// bottom 8 px above the panel, so both cards stay visible beneath it.
-const TAG_LEFT: f32 = 40.;
-const TAG_BOTTOM: f32 = 956.;
+/// Where the tag opens, as the main view's layout records it (`card-tag` in
+/// `atlas-main-view.layout.json`): above the piles, its left edge on the played pile's
+/// and its foot 16 px above the piles' labels on the owner's display, so both piles
+/// stay visible beneath it. These are reference pixels, measured from the window's
+/// left edge and from the top of a reference that lies against the window's bottom.
+const TAG_LEFT: f32 = 110. / fig::SCALE;
+const TAG_BOTTOM: f32 = HEIGHT - (2160. - 1546.) / fig::SCALE;
 
 fn r(v: f32) -> f32 {
     v / fig::SCALE
-}
-
-/// The thumbnails and the panel's line, and a hover and click target on each card.
-pub(super) fn panel(commands: &mut Commands, art: &Art, view: &Observation, s: f32, o: Vec2) {
-    for (slot, number) in [
-        (Slot::Current, view.current_card),
-        (Slot::Preview, view.preview_card),
-    ] {
-        let face = assets::card_face(number);
-        let [x, y, width] = slot.thumbnail();
-        let height = width * face.size.1 as f32 / face.size.0 as f32;
-        commands
-            .spawn((
-                UiRoot,
-                ImageNode::new(art.images[face.name].clone())
-                    .with_mode(bevy::ui::widget::NodeImageMode::Stretch),
-                Node {
-                    position_type: PositionType::Absolute,
-                    left: px(o.x + x * s),
-                    top: px(o.y + y * s),
-                    width: px(width * s),
-                    height: px(height * s),
-                    // Rounded like the card itself, so no printed corner shows.
-                    border_radius: BorderRadius::all(px(
-                        width * fig::FACE_RADIUS / fig::FACE[2] * s
-                    )),
-                    ..default()
-                },
-                GlobalZIndex(2),
-                Control {
-                    name: slot.name().into(),
-                    choice: false,
-                    action: Action::Card(slot),
-                },
-            ))
-            .observe(click);
-    }
-    text(
-        commands,
-        art,
-        format!(
-            "{} current · {} preview · {} cards in draw deck",
-            view.current_card, view.preview_card, view.draw_count
-        ),
-        64.,
-        1003.,
-        560.,
-        16.,
-        s,
-        o,
-        2,
-    );
 }
 
 /// A click on a card pins its tag, or unpins it.
@@ -342,7 +286,7 @@ fn image(
         .id()
 }
 
-/// Draws the open card tag, if any, above the card panel.
+/// Draws the open card tag, if any, above the piles.
 pub(super) fn draw(
     mut commands: Commands,
     play: Res<Play>,
@@ -353,7 +297,7 @@ pub(super) fn draw(
     mut previous: Local<Option<Shown>>,
 ) {
     let (s, left) = layout(&window);
-    // The tag opens above the card area, which lies against the window's bottom.
+    // The tag opens above the piles, which lie against the window's bottom.
     let left = left + bottom(&window);
     let view = play.game().observe();
     let shown = play.session.as_ref().and(shown(&ui)).map(|slot| {
@@ -618,14 +562,29 @@ mod tests {
     }
 
     #[test]
-    fn the_tag_opens_inside_the_reference_window_above_both_cards() {
+    fn the_tag_opens_where_the_main_view_s_layout_records_it() {
+        let layout: serde_json::Value =
+            serde_json::from_str(include_str!("../../art/atlas/atlas-main-view.layout.json"))
+                .unwrap();
+        let rect = |value: &serde_json::Value| -> [f32; 4] {
+            std::array::from_fn(|i| value[i].as_f64().unwrap() as f32)
+        };
+        let [x, y, w, h] = rect(&layout["card-tag"]);
+        assert_eq!([w, h], fig::PLATE);
+        // On the owner's display the reference is drawn at the frame's own scale.
+        let on_display = |v: f32| v * fig::SCALE;
+        assert!((on_display(TAG_LEFT) - x).abs() < 0.01);
+        let low = 2160. - on_display(HEIGHT);
+        assert!((on_display(TAG_BOTTOM) + low - (y + h)).abs() < 0.01);
+        // Inside the reference window, so inside every window.
         let [w, h] = fig::PLATE.map(r);
-        let top = TAG_BOTTOM - h;
-        assert!(top >= 0. && TAG_LEFT >= 0. && TAG_LEFT + w <= WIDTH);
-        for slot in Slot::ALL {
-            let [x, y, width] = slot.thumbnail();
-            assert!(TAG_BOTTOM < y, "{slot:?}");
-            assert!(x + width <= WIDTH);
+        assert!(TAG_BOTTOM - h >= 0. && TAG_LEFT >= 0. && TAG_LEFT + w <= WIDTH);
+        // Above both piles and their labels, which stay visible beneath it.
+        for name in ["played-pile", "draw-deck"] {
+            assert!(y + h <= rect(&layout["tray"][name])[1], "{name}");
+        }
+        for name in ["played-label", "deck-label"] {
+            assert!(y + h <= rect(&layout["text"][name])[1], "{name}");
         }
     }
 

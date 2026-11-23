@@ -1,4 +1,4 @@
-//! #142: the main view's layout record and its admission, without a GPU.
+//! #142 and #143: the main view's layout record and its admission, without a GPU.
 use cuba_libre_unfolded::assets;
 use serde_json::Value;
 
@@ -58,7 +58,10 @@ fn launch_refuses_a_missing_or_changed_layout_record_or_frame() {
             "atlas-main-view.layout.json",
             "atlas-layout-operation.png",
             "atlas-layout-session.png",
-            "atlas-layout-card.png",
+            "atlas-main-view-count-disc.png",
+            "atlas-main-view-pip-played.png",
+            "atlas-main-view-pip.png",
+            "atlas-main-view-pile-shadow.png",
         ]
     );
     for name in admitted {
@@ -93,6 +96,8 @@ fn the_framed_map_s_chrome_is_retired() {
         "atlas-layout-map-fill.png",
         "atlas-layout-map-header.png",
         "atlas-layout-map-footer.png",
+        // #143: the card panel's frame went with the panel.
+        "atlas-layout-card.png",
     ] {
         assert!(
             assets::MANIFESTS.iter().all(|m| !m.contains(name)),
@@ -105,11 +110,11 @@ fn the_framed_map_s_chrome_is_retired() {
     }
 }
 
-/// The record places the seven areas apart from each other and from the island box,
-/// all inside the 16:9 frame, and says where #143's piles, labels, count discs,
-/// captions and Propaganda pips go and where the card tag opens.
+/// The record places the eight areas apart from each other and from the island box,
+/// all inside the 16:9 frame, and the card tray with its two piles, their labels,
+/// count discs, captions and the Propaganda pips, and says where the card tag opens.
 #[test]
-fn the_record_places_the_areas_the_island_and_the_planned_piles() {
+fn the_record_places_the_areas_the_island_and_the_piles() {
     let layout = record();
     assert_eq!(layout["frame"], serde_json::json!([3840, 2160]));
     let frame = [0., 0., 3840., 2160.];
@@ -126,6 +131,7 @@ fn the_record_places_the_areas_the_island_and_the_planned_piles() {
             ("cards", "bottom-left"),
             ("decision", "top-right"),
             ("outside-influence", "top-left"),
+            ("propaganda", "bottom-left"),
             ("resources", "top-right"),
             ("sequence-of-play", "top-left"),
             ("session", "bottom-right"),
@@ -147,54 +153,124 @@ fn the_record_places_the_areas_the_island_and_the_planned_piles() {
         }
     }
     // Every accepted part lies inside the frame.
-    for group in ["parts", "text", "interim"] {
+    for group in ["parts", "text"] {
         for (name, rect) in layout[group].as_object().unwrap() {
             assert!(inside(edges(rect)), "{name}");
         }
     }
-    let planned = layout["planned"].as_object().unwrap();
-    for name in [
-        "played-pile",
-        "draw-deck",
-        "played-label",
-        "deck-label",
-        "played-count-disc",
-        "played-count",
-        "deck-count-disc",
-        "deck-count",
-        "played-caption",
-        "deck-caption",
-        "propaganda-label",
-        "propaganda-pip-0",
-        "propaganda-pip-1",
-        "propaganda-pip-2",
-        "propaganda-pip-3",
-        "propaganda-caption",
-        "card-tag",
+    // The card panel's frame is no longer placed, and nothing is left as a plan.
+    assert!(layout.get("interim").is_none() && layout.get("planned").is_none());
+
+    // The card tray (#143): the part of the window its own camera draws.
+    let tray = edges(&layout["tray"]["bounds"]);
+    assert_eq!(layout["tray"]["anchor"], "bottom-left");
+    assert!(inside(tray));
+    let (played, deck) = (
+        edges(&layout["tray"]["played-pile"]),
+        edges(&layout["tray"]["draw-deck"]),
+    );
+    // The two piles are square to each other and apart (#137, user story 14): the
+    // played pile on the left, the draw deck on the right, equal cards on one line.
+    assert_eq!((played[1], played[3]), (deck[1], deck[3]));
+    assert_eq!(played[2] - played[0], deck[2] - deck[0]);
+    assert!(played[2] < deck[0]);
+    let within = |inner: [f64; 4], outer: [f64; 4]| {
+        inner[0] >= outer[0] && inner[1] >= outer[1] && inner[2] <= outer[2] && inner[3] <= outer[3]
+    };
+    let cards = edges(&areas["cards"]["bounds"]);
+    let propaganda = edges(&areas["propaganda"]["bounds"]);
+    for (pile, face, base, cards_in_it) in [
+        ("played", played, "played-pile-base", 18.),
+        ("deck", deck, "deck-pile-base", 34.),
+    ] {
+        // A pile's foot shows half its height below its top card. A card is 0.3 mm
+        // of 63 mm: 300 / 210 of a frame unit seen edge-on.
+        let foot = edges(&layout["tray"][base]);
+        assert_eq!((foot[0], foot[2]), (face[0], face[2]), "{pile}");
+        let shown = foot[3] - face[3];
+        assert!(
+            (shown - cards_in_it * (300. / 210.) / 2.).abs() < 0.01,
+            "{pile}'s side shows {shown}"
+        );
+        // The whole pile lies in the tray and takes the pointer in the card area.
+        for rect in [face, foot] {
+            assert!(within(rect, tray), "{pile} leaves the tray");
+            assert!(within(rect, cards), "{pile} leaves the card area");
+            assert!(disjoint(rect, island), "{pile} covers the island box");
+        }
+    }
+    // What lies over the tray: on the open sea at the bottom left, clear of the
+    // island and of every area but its own.
+    for (group, name, area) in [
+        ("text", "played-label", None),
+        ("text", "deck-label", None),
+        ("parts", "played-count-disc", Some(cards)),
+        ("text", "played-count", Some(cards)),
+        ("parts", "deck-count-disc", Some(cards)),
+        ("text", "deck-count", Some(cards)),
+        ("text", "played-caption", Some(cards)),
+        ("text", "deck-caption", Some(cards)),
+        ("text", "propaganda-label", Some(propaganda)),
+        ("parts", "propaganda-pip-0", Some(propaganda)),
+        ("parts", "propaganda-pip-1", Some(propaganda)),
+        ("parts", "propaganda-pip-2", Some(propaganda)),
+        ("parts", "propaganda-pip-3", Some(propaganda)),
+        ("text", "propaganda-caption", Some(propaganda)),
     ] {
         let rect = edges(
-            planned
+            layout[group]
                 .get(name)
-                .unwrap_or_else(|| panic!("the layout plans no {name}")),
+                .unwrap_or_else(|| panic!("the layout places no {name}")),
         );
-        assert!(inside(rect), "{name}");
-        if name != "card-tag" {
-            // The piles lie on the open sea at the bottom left, clear of the island
-            // and of every area but the card area they replace.
-            assert!(disjoint(rect, island), "{name} covers the island box");
-            for (area, placed) in areas {
-                assert!(
-                    area == "cards" || disjoint(rect, edges(&placed["bounds"])),
-                    "{name} overlaps {area}"
-                );
+        assert!(disjoint(rect, island), "{name} covers the island box");
+        match area {
+            Some(area) => assert!(within(rect, area), "{name} leaves its area"),
+            // The labels stand just above the card area, on open sea.
+            None => {
+                for (area, placed) in areas {
+                    assert!(
+                        disjoint(rect, edges(&placed["bounds"])),
+                        "{name} overlaps {area}"
+                    );
+                }
             }
         }
     }
-    // The two piles are square to each other and apart (#137, user story 14).
-    let (played, deck) = (edges(&planned["played-pile"]), edges(&planned["draw-deck"]));
-    assert_eq!((played[1], played[3]), (deck[1], deck[3]));
-    assert!(played[2] < deck[0]);
-    // The card tag leaves both piles visible.
-    let tag = edges(&planned["card-tag"]);
-    assert!(disjoint(tag, played) && disjoint(tag, deck));
+    // Each count's number lies on its disc, and each disc on its pile's near corner.
+    for (disc, count, face) in [
+        ("played-count-disc", "played-count", played),
+        ("deck-count-disc", "deck-count", deck),
+    ] {
+        let disc = edges(&layout["parts"][disc]);
+        assert!(within(edges(&layout["text"][count]), disc));
+        assert!(
+            disc[0] < face[2] && face[2] < disc[2],
+            "the disc is off the corner"
+        );
+    }
+    // The card tag leaves both piles and their labels visible.
+    let tag = edges(&layout["card-tag"]);
+    assert!(inside(tag));
+    for rect in [played, deck] {
+        assert!(disjoint(tag, rect));
+    }
+    for name in ["played-label", "deck-label"] {
+        assert!(disjoint(tag, edges(&layout["text"][name])), "{name}");
+    }
+    // Each export names a file the manifest admits, at the size the record states.
+    for (node, export) in layout["exports"].as_object().unwrap() {
+        let file = export["file"].as_str().unwrap();
+        assert!(
+            assets::MAIN_VIEW_MANIFEST
+                .lines()
+                .any(|line| line.ends_with(&format!("art/atlas/{file}"))),
+            "{node}: {file} is not admitted"
+        );
+        let image = image::open(std::path::Path::new("art/atlas").join(file)).unwrap();
+        assert_eq!(
+            serde_json::json!([image.width(), image.height()]),
+            export["size"],
+            "{file}"
+        );
+    }
 }

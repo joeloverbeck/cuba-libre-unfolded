@@ -1,6 +1,6 @@
 # Main view
 
-The owner selected main view layout **A · Mesa** on 2026-11-22 ([decision record](../proposals/main-view-cards/README.md), sheet [`layout-a-mesa.png`](../proposals/main-view-cards/layout-a-mesa.png); owner's words in [#136](https://github.com/joeloverbeck/cuba-libre-unfolded/pull/136)). #142 built its first part for spec #137: the map fills the window and the accepted areas lie over it. #143 builds the card piles it also places.
+The owner selected main view layout **A · Mesa** on 2026-11-22 ([decision record](../proposals/main-view-cards/README.md), sheet [`layout-a-mesa.png`](../proposals/main-view-cards/layout-a-mesa.png); owner's words in [#136](https://github.com/joeloverbeck/cuba-libre-unfolded/pull/136)). #142 built its first part for spec #137: the map fills the window and the accepted areas lie over it. #143 built the card piles it also places.
 
 This layout is the authority for where every area of the main view sits ([foundation 4](../../docs/foundation/04-art-and-assets.md), "Layout authority"). It replaces the VectorCraft-authored Atlas chrome around the map: the desk strips, the map's header and footer, and with them the "CUBA" title, the terrain key and the line "Borders carry adjacency; Terror needs no movement". The space hover tag names the terrain instead ([STATUS.md](STATUS.md)).
 
@@ -11,28 +11,32 @@ This layout is the authority for where every area of the main view sits ([founda
 - **Pointer:** an area takes the pointer over its own rectangle. A press, a scroll or a drag there neither moves the camera nor reaches the space or piece beneath. Everywhere else the window belongs to the map: orbit, zoom, pan and Home work over all of it.
 - **Home:** all thirteen spaces lie inside the layout's island box, as large as the box allows and centred in it, so no space starts under an area.
 - **Tags and popovers:** a space tag opens anywhere on the map and keeps off every area. A space or piece popover opens in the part of the window the areas at its edges leave clear: below the standings, left of the decision panel and above the card area.
-- **Cards:** until #143, the card panel stays where it was, over the sea at the bottom left. The layout already draws what replaces it: the played pile and the draw deck with their labels, count discs and captions, and four Propaganda pips.
+- **Cards:** two piles lie bare on the sea at the bottom left, as the physical game lays them out (R 2.2, 2.3.8). ["The card piles"](#the-card-piles) describes them. The card panel, its frame and its line "17 current · 18 preview · 34 cards in draw deck" are gone.
 
 ## Files
 
 - **Layout source:** `atlas-main-view.figcraft`, authored in FigCraft CLI 0.18.1 from sheet A, whose frame it keeps. Its one frame, `16:9 main view`, is 3840×2160: the owner's display, where one reference pixel is 1.6875 frame units.
   - **Accepted areas:** the top display's and the standings' graphics are the runtime exports, placed at their runtime rectangles and named as the runtime names them. The Sequence of Play track, the decision panel and the session panel are locked crops of one native capture (card 17, Directorio's shaded Event pending), as on sheet A, with the parts the runtime draws at fixed places marked by named rectangles over them. No crop includes a card face.
-  - **`area/<name>`:** seven unfilled rectangles, one for each area: the rectangle that takes the pointer.
+  - **`area/<name>`:** eight unfilled rectangles, one for each area: the rectangle that takes the pointer.
   - **`island`:** the unfilled box the island fills at Home, drawn round the island of sheet A.
-  - **Piles:** `played-pile` and `draw-deck` (300×430 each, 60 apart), `played-label` and `deck-label`, a count disc and its number on each pile, a caption under each, and `propaganda-label`, `propaganda-pip-0`…`3` and `propaganda-caption`. The cards are sheet A's placeholders; no private face or back is embedded.
-  - **Hidden layers:** `card-frame`, the interim card panel, and `card-tag`, where the card tag opens once the piles replace the panel: above the piles, its left edge on the played pile's and its foot 16 above the labels. #143 places the tag and may move it.
+  - **Piles:** `played-pile` and `draw-deck` (300×430 each, 60 apart) are the top cards. Under each, `played-pile-base` and `deck-pile-base` are where the pile's foot shows on card 17, with the stack drawn between. `played-label` and `deck-label`, a count disc and its number on each pile, a caption under each, and `propaganda-label`, `propaganda-pip-0`…`3` and `propaganda-caption` lie over them. The cards are sheet A's placeholders; no private face or back is embedded.
+  - **`card-tray`:** the unfilled rectangle the tray's camera draws, 60, 1480, 760×660. It is larger than the piles so that a card which lifts or turns stays inside it (#145).
+  - **`card-tag`:** a hidden rectangle where the card tag opens: above the piles, its left edge on the played pile's and its foot 16 above the labels ([CARD-TAG.md](CARD-TAG.md)).
+  - **`pile-shadow`:** outside the frame, a 300×430 rectangle in `ink` at 31%, blurred by 26: the soft shadow sheet A draws under each pile.
   - `atlas-main-view-layout.png` is the frame's export at full size.
 - **Layout record:** `atlas-main-view.layout.json` holds FigCraft's `absoluteBounds` in frame units.
   - `areas`: each area's rectangle and its `anchor`.
   - `island`: the Home box.
   - `parts` and `text`: the accepted areas' images and text whose places do not follow the match's state.
-  - `interim`: the card panel's frame.
-  - `planned`: the piles, labels, discs, captions and pips, and the card tag. Nothing draws them yet.
+  - `tray`: the card tray's rectangle and anchor, both top cards, and both piles' feet on card 17.
+  - `card-tag`: where the card tag opens.
+  - `exports`: each node exported as an image, its file and its size in pixels.
   - `tolerance`: 2 frame units, which are pixels on the owner's display.
-- **Manifest:** `main-view.sha256` admits the layout record and the three area frames the layout places (`atlas-layout-operation.png`, `atlas-layout-session.png` and, until #143, `atlas-layout-card.png`). A missing or changed file refuses launch before any save is created or replaced, like the other presentation manifests. The layout is stateless presentation, so it does not change a save's identity. It replaces `layout.sha256`.
+- **Exports:** FigCraft exports of the frame's own nodes: `atlas-main-view-count-disc.png` (`played-count-disc`, at 2 px per unit), `atlas-main-view-pip-played.png` and `atlas-main-view-pip.png` (`propaganda-pip-0` and `-1`, at 2 px per unit), and `atlas-main-view-pile-shadow.png` (`pile-shadow`, 378×508 with its blur). The numbers and words are runtime Lato.
+- **Manifest:** `main-view.sha256` admits the layout record, the two area frames the layout places (`atlas-layout-operation.png`, `atlas-layout-session.png`) and the four exports above. A missing or changed file refuses launch before any save is created or replaced, like the other presentation manifests. The layout is stateless presentation, so it does not change a save's identity. It replaces `layout.sha256`.
 - **Palette:** `atlas-main-view.variables.json` is the file's `Atlas` export ([README.md, "Interface palette"](README.md#interface-palette)).
 
-The application loads the record: the areas' rectangles and the island box come from it at launch. What each area draws inside its rectangle is implemented against its own layout, and the native regression holds both to this record.
+The application loads the record: the areas' rectangles and the island box come from it at launch. What each area draws inside its rectangle is implemented against its own layout, and the native regression holds both to this record. The card tray's rectangles are constants in `src/tabletop/piles.rs`, which a unit test holds equal to the record.
 
 ## Areas
 
@@ -46,9 +50,25 @@ Frame rectangles are x, y, width, height on the owner's display. The reference r
 | `sequence-of-play` | 101.25, 300, 391.5×647.94 | top left | 60, 177.8, 232×384 | The Sequence of Play track at its tallest |
 | `decision` | 2928.75, 472.5, 843.75×1113.75 | top right | 1380, 280, 500×660 | The decision panel, with the Kidnap die tray |
 | `session` | 2928.75, 1626.75, 843.75×445.5 | bottom right | 1380, 964, 500×264 | The session panel |
-| `cards` | 67.5, 1626.75, 1012.5×445.5 | bottom left | 40, 964, 600×264 | The card panel until #143, then the piles |
+| `cards` | 67.5, 1594, 734.5×536 | bottom left | 40, 944.6, 435.3×317.6 | The two piles, their count discs and captions |
+| `propaganda` | 834, 1920, 226×160 | bottom left | 494.2, 1137.8, 133.9×94.8 | The Propaganda pips |
 
-The island box is 620, 470, 2230×1104. The transfer modal stays in the middle of the window, over its scrim.
+The island box is 620, 470, 2230×1104. The transfer modal stays in the middle of the window, over its scrim. The piles' two labels stand just above the `cards` area, on open sea beside the island box.
+
+## The card piles
+
+The cards lie as the physical game lays them out (R 2.2, 2.3.8): the **played pile** on the left with the current card face up on top, and the **draw deck** on the right with the preview card face up on top. They are square to each other and 60 apart.
+
+- **Solid cards.** Each pile is the shared round-cornered card solid (`unfolded_tabletop::card`), drawn in a tray of its own: a camera on its own render layer, as the Kidnap die's tray has. The tray is fixed to the screen. It draws after the map and before the interface, so the count discs and every tag lie over the cards, and the map camera moves beneath it. Its camera is marked as another view (`unfolded_tabletop::label_anchor::OtherView`), so the piece counts and the popovers keep following the map's camera.
+- **The view** is the layout's: a top card lies flat on its 300×430 rectangle, and its pile's side shows below it. The camera looks straight down from in front of the piles and draws only the part of its picture that holds them, as a shifted lens does. A face parallel to the table keeps its shape, and half of a pile's height shows as its near side, as it did in the frames the owner selected the pile edge from (#140), which looked from 60° above the table.
+- **Height.** A pile is as tall as its cards at a real card's proportions: 0.3 mm of a 63 mm card, 300 / 210 of a unit for each card seen edge-on, half of which shows. On card 17 the played pile's 18 cards show 12.86 of side and the draw deck's 34 show 24.29; a card played moves 0.71 from one to the other.
+- **Seams.** A pile's side shows a seam every six to seven cards, the owner's selection in #140: the solid is drawn in as many layers as the count divided by 7, rounded, and at least 2 (3 for 18 or 19 cards, 5 for 33 or 34, 7 for 48 or 52). The seams are the shared solid's grooves, lit from above and in front; no texture draws them. A pile of one card is drawn in one layer: a seam marks where two cards meet, and one card has none. An empty pile draws nothing.
+- **Faces.** The top card is the admitted private face of the model's current or preview card, drawn unlit so that it keeps its printed colours. The cards' corner radius is 5.6% of their width, which cuts away the black printed outside the faces' corners ([CARD-TAG.md](CARD-TAG.md), "Limits"). Only cards 17, 18 and 19 are admitted, and nothing here shows a card's back.
+- **Shadow.** `pile-shadow` lies on the table under each pile's foot, 12 toward the viewer, as sheet A draws it.
+- **Numbers.** Each pile's disc gives the rules model's count (`observation.piles`): the played pile counts the current card and the draw deck the preview, so the two account for all 52 cards. A filled pip stands for each Propaganda card played, of four, and the caption says "n of 4 played". The order of the cards under the preview is in neither the observation nor the tray.
+- **Targets.** Each top card is the hover, focus and click target of its card's tag. Each count disc is its pile's target (`pile:played`, `pile:deck`), which opens nothing until the pile tags of #144.
+- **At rest.** The tray shows the saved match's cards at rest. Playing a card redraws both piles in their new state; the motion of the card is #145's.
+- **Fixed places.** The discs and captions stand where the layout draws them for card 17. Within this build's reach (18 or 19 and 33 or 34 cards) a pile's foot moves by under a unit, so they do not follow it.
 
 ## Other window sizes
 
@@ -67,7 +87,7 @@ Each area is a transparent interface rectangle beneath its own controls. The sha
 
 - **Tools:** FigCraft CLI 0.18.1, rebuilt from `storytold/figcraft@559c952d`, as [art-tools.md](../../docs/agents/art-tools.md) records. The source is sheet A's document with the other sheets removed, the top display's `Atlas` variables imported, and the parts placed at the runtime's rectangles and named.
 - **Measured before the change:** on the build before #142, at 3840×2160, the seat reported every part named in the record within 1 px of the rectangle the record now holds; the difference is the renderer's rounding to whole pixels.
-- **Retired:** `atlas-layout-background.png`, `atlas-layout-map-fill.png`, `atlas-layout-map-header.png` and `atlas-layout-map-footer.png` are deleted, and `layout.sha256` with them. Their artboards remain in `atlas-layout.vectorcraft` ([LAYOUT.md](LAYOUT.md)).
-- **3D look:** the frame is a flat drawing. The island in it is a capture of the map at its Home pose; the piles' perspective, thickness and shadow are 3D in production (#143).
+- **Retired:** `atlas-layout-background.png`, `atlas-layout-map-fill.png`, `atlas-layout-map-header.png` and `atlas-layout-map-footer.png` are deleted, and `layout.sha256` with them; #143 deleted `atlas-layout-card.png`, the card panel's frame. Their artboards remain in `atlas-layout.vectorcraft` ([LAYOUT.md](LAYOUT.md)).
+- **3D look:** the frame is a flat drawing. The island in it is a capture of the map at its Home pose. The piles in it are flat rectangles stepped down to each pile's foot; in production they are solid cards, and the record holds only their top cards, their feet and what lies over them.
 - **Stage:** [`art/stage/preview-stage.blend`](../stage/README.md) mirrors Home on the owner's display.
-- **What this establishes:** placement evidence and the native regressions `native_main_view_fills_the_window_and_matches_its_layout` and `native_main_view_keeps_areas_and_picks_in_other_windows`. It is not owner play acceptance: the owner judges the main view on the display at spec #137's review.
+- **What this establishes:** placement evidence and the native regressions `native_main_view_fills_the_window_and_matches_its_layout`, `native_main_view_keeps_areas_and_picks_in_other_windows` and `native_card_piles_match_layout_and_follow_the_match`. It is not owner play acceptance: the owner judges the main view on the display at spec #137's review.

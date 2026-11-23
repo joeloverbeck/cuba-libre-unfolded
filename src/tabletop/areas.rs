@@ -465,7 +465,31 @@ mod tests {
                 ("resources", [1688., 20., 192., 246.], right, 0.),
                 ("decision", [1380., 280., 500., 660.], right, 0.),
                 ("session", [1380., 964., 500., 264.], right, bottom),
-                ("cards", [40., 964., 600., 264.], 0., bottom),
+                // #143: the two piles and the Propaganda pips took the card
+                // panel's place. These are the layout's own rectangles, in
+                // reference pixels from the bottom of a 1280-high reference.
+                (
+                    "cards",
+                    [
+                        67.5 / 1.6875,
+                        HEIGHT - (2160. - 1594.) / 1.6875,
+                        734.5 / 1.6875,
+                        536. / 1.6875,
+                    ],
+                    0.,
+                    bottom,
+                ),
+                (
+                    "propaganda",
+                    [
+                        834. / 1.6875,
+                        HEIGHT - (2160. - 1920.) / 1.6875,
+                        226. / 1.6875,
+                        160. / 1.6875,
+                    ],
+                    0.,
+                    bottom,
+                ),
             ] {
                 let area = layout.area(name, &window);
                 assert!(

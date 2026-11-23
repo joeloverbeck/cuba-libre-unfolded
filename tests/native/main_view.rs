@@ -305,7 +305,7 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
             )
         })
         .collect();
-    for (group, compared) in [("parts", 4), ("text", 3), ("interim", 4)] {
+    for (group, compared) in [("parts", 4), ("text", 3)] {
         for (name, rect) in layout[group].as_object().unwrap() {
             let expected = edges(rect);
             let native = drawn
@@ -319,12 +319,11 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
             }
         }
     }
-    // Nothing of #143's is drawn yet, and its places are inside the window.
-    for (name, rect) in layout["planned"].as_object().unwrap() {
-        assert!(!drawn.contains_key(name), "{name} is drawn");
-        let [l, t, r, b] = edges(rect);
-        assert!(l >= 0. && t >= 0. && r <= 3840. && b <= 2160., "{name}");
-    }
+    // The card panel is gone (#143): the piles lie bare on the sea.
+    assert!(
+        !drawn.contains_key("card-frame"),
+        "the card panel's frame is drawn"
+    );
 
     // The capture: sea where the desk, the "CUBA" title, the terrain key and the
     // adjacency line were. The sea is the layout's `map` colour with pale strokes.
