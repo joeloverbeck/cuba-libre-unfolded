@@ -1028,12 +1028,15 @@ fn native_victory_emblems_disclose_live_margins_without_inspection() {
         removed["table"]["victory"]["formula"],
         "9 Opposition + 0 Bases − 15 = -6"
     );
+    // The returned Base is counted on the Available Forces ledger (R 1.4.1: 3 become
+    // 4), not in the tag, which has no Available footer since #161.
     assert!(
-        removed["table"]["victory"]["footer"]
-            .as_str()
-            .unwrap()
-            .contains("4 Base")
+        available_forces::ledger(&removed).contains(&("M26".into(), "Base".into(), 4)),
+        "{:?}",
+        available_forces::ledger(&removed)
     );
+    assert_eq!(available_forces::drawn_count(&removed, "26july-base"), "4");
+    assert!(removed["table"]["victory"].get("footer").is_none());
     assert_victory_geometry(&removed);
     app.capture("removal-updates-victory-and-supply");
     app.quit();
