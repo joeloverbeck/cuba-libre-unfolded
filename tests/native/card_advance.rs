@@ -560,7 +560,11 @@ fn assert_missing_or_changed_face_is_recoverable(app: &Native, saved: &[u8], pri
 
 /// One run of the card advance regression: its own copy of the save as it stood on
 /// card 17 with its recovery record, launched at the owner's display size.
-fn advance_run(root: &Path, name: &str, saved: &[u8], prior: &[u8]) -> (Native, tempfile::TempDir) {
+///
+/// Bind the pair as `(_socket, app)`. The later binding drops first, so a failing run
+/// drops the app while its socket is still there and its quit arrives. An app left
+/// running keeps the heavy lock its test inherited until its session ends.
+fn advance_run(root: &Path, name: &str, saved: &[u8], prior: &[u8]) -> (tempfile::TempDir, Native) {
     let socket = tempfile::tempdir().unwrap();
     let app = Native {
         cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
@@ -572,7 +576,7 @@ fn advance_run(root: &Path, name: &str, saved: &[u8], prior: &[u8]) -> (Native, 
     fs::create_dir_all(&app.root).unwrap();
     fs::write(&app.save, saved).unwrap();
     fs::write(previous_path(&app.save), prior).unwrap();
-    (app, socket)
+    (socket, app)
 }
 
 /// Commits the advance and returns the reply, without waiting for the cards.
@@ -675,7 +679,7 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
     .unwrap()
     .to_rgb8();
 
-    let (mut app, _socket) = advance_run(&root, "shown", &saved, &prior);
+    let (_socket, mut app) = advance_run(&root, "shown", &saved, &prior);
     assert_missing_or_changed_back_refuses(&app, &saved, &prior);
 
     // Step 1: at rest on card 17.
@@ -841,7 +845,7 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
 
     // A click, Space and Enter each land the same state at once and act on nothing.
     for (by, at) in [("click", 0.3), ("space", 1.1), ("enter", 0.3)] {
-        let (mut app, _socket) = advance_run(&root, &format!("skip-{by}"), &saved, &prior);
+        let (_socket, mut app) = advance_run(&root, &format!("skip-{by}"), &saved, &prior);
         app.launch_size("3840x2160");
         app.request(json!({"op":"settle"}), true);
         commit_advance(&mut app, revision);
@@ -887,7 +891,7 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
 
     // A restart while the card is in the air: the cards at rest, one advance, and
     // the exact save from before it as the recovery record.
-    let (mut app, _socket) = advance_run(&root, "restart", &saved, &prior);
+    let (_socket, mut app) = advance_run(&root, "restart", &saved, &prior);
     app.launch_size("3840x2160");
     app.request(json!({"op":"settle"}), true);
     commit_advance(&mut app, revision);
