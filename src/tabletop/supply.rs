@@ -440,7 +440,7 @@ mod tests {
     /// outside-influence area, where the US Alliance track is, nor the standings, at
     /// 3:2, 16:9 and 21:9. Of the other areas it may cover only the Sequence of Play
     /// track's right edge, as the Aid and US Alliance tags cover that track while open:
-    /// kept left of the standings, it reaches over it where the window is narrow.
+    /// kept left of the standings, it reaches over it at 3:2, where they stand closest.
     #[test]
     fn the_tag_opens_below_the_graphic_clear_of_the_track_and_the_standings() {
         let layout = areas::Layout::read(include_bytes!(
