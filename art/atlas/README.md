@@ -47,11 +47,12 @@ The [main view layout](MAIN-VIEW.md) owns where every area sits: the 3D map fill
 | Standings | top, centred | Current margins under the four emblems; contributions in the hover tag. Always visible. |
 | Resources and Cash | top right | The Resources ledger and the Cash supply ([TOP.md](TOP.md)). |
 | Available Forces | top right | Each faction's Available Forces by kind, left of the Resources ledger ([AVAILABLE.md](AVAILABLE.md)). |
+| Marker supply | top, between outside influence and the standings | The Terror and Sabotage markers not on the map, of 20 ([TOP.md](TOP.md#the-marker-supply)). |
 | Sequence of Play | top left | The eligibility track ([ELIGIBILITY.md](ELIGIBILITY.md)). |
 | Decision | top right | Current actor, operation, Resources, choices, cost, target, legal/refused explanation and actual roll/owed Terror. |
 | Primary action | in the decision panel | Dynamic Finish/resolve label and enabled state; no example outcome remains baked. |
 | Card piles | bottom left | The played pile and the draw deck as solid cards, each with its top card's face, its count and its caption, and the Propaganda pips ([MAIN-VIEW.md](MAIN-VIEW.md#the-card-piles)). Each top card opens its [card tag](CARD-TAG.md), and each pile its [pile tag](PILE-TAGS.md). Never stretch or crop a face. |
-| Session | bottom right | Actual pending giver, durable-save/recovery/refusal status; save/quit and continuation. |
+| Save · quit and notice slip | bottom right | Save · quit, which closes the game, and above it the slip that shows a refusal, an error or the loading state ([MAIN-VIEW.md](MAIN-VIEW.md#save--quit-and-the-notice-slip)). The session panel is retired (#174). |
 
 Each area takes the pointer over its own rectangle, so a press or a scroll there never reaches the map.
 

@@ -1,6 +1,6 @@
 {
   "source": "atlas-execution.figcraft",
-  "note": "absoluteBounds [x, y, width, height] read from FigCraft get_node in the 16:9 frame 'EX-A Pinned step tag (selected in #83's round)' (node 2266), minus the frame's page origin (0, 12000). The frame shows revision 14 of #75's run: Oriente's Terror resolved, Kidnap rolled 4, Santiago's Terror owed and pinned, End Terror refused while it is owed, Back no longer offered. 'images' are compared on all four edges; 'stretched' on left, top and right (the tag plate is stretched to its content); 'pills' on top, right and bottom (a pill hugs its words, so its left edge follows the renderer's text width); 'text' on left and top; 'right_text' on top and right; 'centered_text' on top and horizontal centre (line height is the renderer's). 'kidnap' comes from the states frame panel 'EX-A panel · Kidnap opened' (node 2489), translated from (6985.2, 16120) to the 16:9 panel (4686, 756). 'ended' comes from 'EX-A panel · Terror ended' (node 4093), translated from (700, 20400) to the 16:9 panel.",
+  "note": "absoluteBounds [x, y, width, height] read from FigCraft get_node in the 16:9 frame 'EX-A Pinned step tag (selected in #83's round)' (node 2266), minus the frame's page origin (0, 12000). The frame shows revision 14 of #75's run as #171 revised it: Oriente's Terror resolved (its record line under the map line), Kidnap rolled 4, Santiago's Terror owed, End Terror pinned and refused while it is owed (its tag and the disabled commit), Back no longer offered. Terror's targets are no rows: they are chosen on the map. 'images' are compared on all four edges; 'stretched' on left, top and right (the tag plate is stretched to its content); 'pills' on top, right and bottom (a pill hugs its words, so its left edge follows the renderer's text width); 'text' on left and top; 'right_text' on top and right; 'centered_text' on top and horizontal centre (line height is the renderer's). 'kidnap' comes from the states frame panel 'EX-A panel · Kidnap opened' (node 2489), translated from (6985.2, 16120) to the 16:9 panel (4686, 756). 'ended' comes from 'EX-A panel · Terror ended' (node 4093), translated from (700, 20400) to the 16:9 panel.",
   "frame": [
     6144,
     3456
@@ -11,18 +11,6 @@
       821.2,
       59.4,
       59.4
-    ],
-    "step:terror:santiago": [
-      4750.8,
-      1058.4,
-      1220.4,
-      86.4
-    ],
-    "step:terror:oriente": [
-      4750.8,
-      1155.6,
-      1220.4,
-      86.4
     ],
     "step:kidnap": [
       4750.8,
@@ -86,18 +74,6 @@
     ]
   },
   "pills": {
-    "step:terror:santiago-pill": [
-      5614.95,
-      1074.6,
-      325.2,
-      54.0
-    ],
-    "step:terror:oriente-pill": [
-      5711.4,
-      1171.8,
-      232.8,
-      54.0
-    ],
     "step:kidnap-pill": [
       5775.4,
       1269.0,
@@ -105,7 +81,7 @@
       54.0
     ],
     "step:end-terror-pill": [
-      5521.0,
+      5516.95,
       1650.2,
       423.2,
       54.0
@@ -122,7 +98,7 @@
       3400.8,
       756.0,
       1263.6,
-      945.0
+      566.9
     ]
   },
   "text": {
@@ -155,18 +131,6 @@
       1589.2,
       457.0,
       34.0
-    ],
-    "step:terror:santiago-label": [
-      4792.65,
-      1075.6,
-      800.7,
-      52.0
-    ],
-    "step:terror:oriente-label": [
-      4788.6,
-      1174.3,
-      901.2,
-      49.0
     ],
     "step:kidnap-label": [
       4837.2,
@@ -204,59 +168,47 @@
       994.4,
       71.0
     ],
-    "briefing-label:COST": [
+    "briefing-rules": [
+      3471.0,
+      1233.3,
+      1134.0,
+      41.0
+    ],
+    "terror-map-line": [
+      4750.8,
+      1058.4,
+      935.0,
+      44.0
+    ],
+    "terror-record:oriente": [
+      4750.8,
+      1113.2,
+      609.0,
+      54.0
+    ],
+    "briefing-label:NOT YET": [
       3471.0,
       926.9,
-      81.0,
+      131.0,
       34.0
     ],
-    "briefing-value:COST": [
+    "briefing-value:NOT YET": [
       3471.0,
       966.3,
       1134.0,
-      54.0
-    ],
-    "briefing-label:ON THE MAP": [
-      3471.0,
-      1047.3,
-      197.0,
-      34.0
-    ],
-    "briefing-value:ON THE MAP": [
-      3471.0,
-      1086.7,
-      1134.0,
-      162.0
-    ],
-    "briefing-label:STANDING": [
-      3471.0,
-      1275.7,
-      160.0,
-      34.0
-    ],
-    "briefing-value:STANDING": [
-      3471.0,
-      1315.1,
-      1134.0,
-      54.0
-    ],
-    "briefing-label:OWED": [
-      3471.0,
-      1396.1,
-      97.0,
-      34.0
-    ],
-    "briefing-value:OWED": [
-      3471.0,
-      1435.5,
-      1134.0,
       108.0
     ],
-    "briefing-rules": [
+    "briefing-label:IN THIS TASK": [
       3471.0,
-      1570.5,
-      1134.0,
-      82.0
+      1101.3,
+      199.0,
+      34.0
+    ],
+    "briefing-chip:Resolve Santiago's Terror": [
+      3471.0,
+      1140.7,
+      440.2,
+      65.6
     ]
   },
   "right_text": {
@@ -278,18 +230,6 @@
       118.0,
       45.0
     ],
-    "step:terror:santiago-pill-label": [
-      5636.55,
-      1086.1,
-      282.0,
-      31.0
-    ],
-    "step:terror:oriente-pill-label": [
-      5730.3,
-      1183.3,
-      195.0,
-      31.0
-    ],
     "step:kidnap-pill-label": [
       5794.3,
       1280.5,
@@ -297,7 +237,7 @@
       31.0
     ],
     "step:end-terror-pill-label": [
-      5542.6,
+      5538.55,
       1661.7,
       380.0,
       31.0
@@ -311,9 +251,9 @@
   },
   "centered_text": {
     "execution-commit-label": [
-      4989.0,
+      5044.5,
       2395.6,
-      744.0,
+      633.0,
       58.0
     ]
   },

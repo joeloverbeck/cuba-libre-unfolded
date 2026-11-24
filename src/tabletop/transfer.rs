@@ -417,8 +417,7 @@ fn activate(play: &mut Play, ui: &mut Interface, view: &Observation, name: &str)
         return self::input(ui, view, input);
     }
     if name == "transfer:primary" {
-        ui.notice = content(view, &ui.transfer).blocked.unwrap_or_default();
-        ui.dirty = true;
+        super::notice::refuse(ui, content(view, &ui.transfer).blocked.unwrap_or_default());
         return;
     }
     if let Some(choice) = view.choices.iter().find(|c| c.id == name) {
@@ -786,7 +785,7 @@ fn part(commands: &mut Commands, entity: Entity, name: &str) {
     commands.entity(entity).insert(Part(name.into()));
 }
 
-/// The scrim over the map, panels and session area. The top band stays clear, and so
+/// The scrim over the map, the panels, Save · quit and the notice slip. The top band stays clear, and so
 /// does the Resources ledger's column to its foot.
 fn scrim(commands: &mut Commands, art: &Art, window: &Window, s: f32, left: Vec2) {
     let top = left.y + fig::SCRIM_TOP * s;
@@ -2206,6 +2205,23 @@ mod tests {
         let mut game = crate::terror_chosen(Game::opening());
         game.submit(Faction::M26, 1, "1:transfer").unwrap();
         game
+    }
+
+    /// #174: activating the primary button while it is blocked writes its reason as a
+    /// refusal, which the notice slip draws; nothing is decided.
+    #[test]
+    fn the_blocked_primary_button_writes_a_refusal() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut play = super::super::test_play(dir.path().join("task.json"));
+        let mut ui = Interface::default();
+        let view = play.game().observe();
+        activate(&mut play, &mut ui, &view, "transfer:primary");
+        assert_eq!(ui.notice.kind, super::super::notice::Kind::Refusal);
+        assert_eq!(
+            ui.notice.text,
+            "Choose the other faction by its emblem first."
+        );
+        assert_eq!(play.game().observe().revision, view.revision);
     }
 
     /// The primary button submits only an offered choice, and words a refusal

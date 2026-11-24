@@ -1,6 +1,6 @@
 # Last interface studies before the rules work
 
-Decision-only alternatives from the owner's design interview of 2026-11-23 and 2026-11-24. The spec written from that interview owns the work; this folder is its evidence, not a queue. The baseline is `9002cf6`. No runtime code or admission manifest consumes these files, and selection is not native play acceptance. Foundation [4](../../../docs/foundation/04-art-and-assets.md) governs the round.
+Decision-only alternatives from the owner's design interview of 2026-11-23 and 2026-11-24. The spec written from that interview, [#166](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/166), owns the work; this folder is its evidence, not a queue. The baseline is `9002cf6`. No runtime code or admission manifest consumes these files, and selection is not native play acceptance. Foundation [4](../../../docs/foundation/04-art-and-assets.md) governs the round.
 
 **Selected on 2026-11-24:** marker supply graphic **M1 · Ficha**, layout **A · Franja**, and button **S2 · Etiqueta**. Nothing here is production art yet.
 

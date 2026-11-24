@@ -859,11 +859,9 @@ mod tests {
                 resolution: (width as u32, height as u32).into(),
                 ..default()
             };
-            let s = super::super::reference_pixel(&window);
-            let right = Vec2::new(width - WIDTH * s, 0.);
             for faction in Faction::ALL {
                 let shown = super::super::top::content(&view, top::Item::Available(faction));
-                let [l, t, r, b] = super::super::top::bounds(&shown, s, right);
+                let [l, t, r, b] = super::super::top::bounds(&shown, &layout, &window);
                 let at = format!("{faction:?} at {width}x{height}");
                 assert!(l >= 0. && t >= 0. && r <= width && b <= height, "{at}");
                 let tag = Rect::new(l, t, r, b);

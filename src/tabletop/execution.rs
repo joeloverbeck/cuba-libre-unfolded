@@ -4,6 +4,8 @@
 //! a fixed list of steps in AC-B's option rows, each with its state as a pill or a
 //! note; hovering or focusing a step opens its preview on the AC-B tag, a click pins
 //! it, and the full-width action at the panel's foot commits only the pinned step.
+//! Terror's targets are map spaces, so they are no steps (#171): the first section
+//! sends the player to the map and lists each resolved Terror with what it paid.
 //! After Pass or Operation Only, the panel states what was recorded and what
 //! Directorio may do next. Kidnap hands the panel back to the action choices.
 //!
@@ -25,9 +27,7 @@ use super::choice::{self, Part, fig as acb, rect, rs, rx, ry, style};
 use super::emblems::{self, Prose};
 use super::palette::{INK, PAPER, PRIMARY, QUIET};
 use super::*;
-use crate::{
-    ActionChoice, Choice, Observation, Preview, SequenceBox, TERROR_COST, Transfer, resources,
-};
+use crate::{ActionChoice, Choice, Observation, Preview, SequenceBox, Transfer, resources};
 use bevy::text::{Justify, LetterSpacing, LineHeight};
 use bevy::ui::widget::NodeImageMode;
 
@@ -49,16 +49,21 @@ pub(super) mod fig {
         ("section:end", "END THE OPERATION · R 2.3.4", 1589.2),
     ];
     /// Each step's row top and section, in the panel's fixed order
-    /// ([`StepId::ALL`](super::StepId::ALL)).
-    pub const ROWS: [(f32, usize); 7] = [
-        (1058.4, 0),
-        (1155.6, 0),
+    /// ([`StepId::ALL`](super::StepId::ALL)). Kidnap keeps the row it had under the
+    /// two target rows, which left the list in #171.
+    pub const ROWS: [(f32, usize); 5] = [
         (1252.8, 0),
         (1394.8, 1),
         (1492., 1),
         (1634., 2),
         (1731.2, 2),
     ];
+    /// The first section's lines where the two target rows were (#171), at the
+    /// section label's left: the line that sends the player to the map, in a step
+    /// note's quiet type (top and size), then each resolved Terror in the ended
+    /// panel's value type (first top, pitch, size and line height).
+    pub const MAP_LINE: [f32; 2] = [1058.4, 36.45];
+    pub const RECORD: [f32; 4] = [1113.2, 64.8, 40.5, 54.];
     /// A step offered now: bold label, left and top inside its row.
     pub const LABEL: [f32; 2] = [40.5, 17.2];
     /// A step not offered now: quiet label.
@@ -93,11 +98,11 @@ pub(super) mod fig {
 }
 
 /// The panel's steps during Terror, in its fixed order: one table for each step's
-/// action, row, name and rule.
+/// action, row, name and rule. A Terror target is a map space, so it is no step: it
+/// is chosen on the map and committed by its space's popover (foundation 2, "Engine
+/// authority"; #171).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum StepId {
-    TerrorSantiago,
-    TerrorOriente,
     Kidnap,
     Transfer,
     Remove,
@@ -105,37 +110,25 @@ pub(super) enum StepId {
     BackToChoice,
 }
 impl StepId {
-    pub const ALL: [Self; 7] = [
-        Self::TerrorSantiago,
-        Self::TerrorOriente,
+    pub const ALL: [Self; 5] = [
         Self::Kidnap,
         Self::Transfer,
         Self::Remove,
         Self::EndTerror,
         Self::BackToChoice,
     ];
-    /// The step for the authority's action, such as `terror:santiago`.
+    /// The step for the authority's action, such as `end-terror`.
     pub fn of(action: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|s| s.action() == action)
     }
     /// The authority's action the step lists.
     pub fn action(self) -> &'static str {
         match self {
-            Self::TerrorSantiago => "terror:santiago",
-            Self::TerrorOriente => "terror:oriente",
             Self::Kidnap => "kidnap",
             Self::Transfer => "transfer",
             Self::Remove => "remove",
             Self::EndTerror => "end-terror",
             Self::BackToChoice => "back-to-choice",
-        }
-    }
-    /// A Terror target's space id.
-    pub fn space(self) -> Option<&'static str> {
-        match self {
-            Self::TerrorSantiago => Some("santiago"),
-            Self::TerrorOriente => Some("oriente"),
-            _ => None,
         }
     }
     /// The row's top and section in the frame.
@@ -145,7 +138,6 @@ impl StepId {
     /// The rule the step's tag cites.
     fn citation(self) -> &'static str {
         match self {
-            Self::TerrorSantiago | Self::TerrorOriente => "R 3.3.4",
             Self::Kidnap => "R 4.3.3",
             Self::Transfer => "R 1.5.1",
             Self::Remove => "R 1.4.1",
@@ -154,21 +146,44 @@ impl StepId {
         }
     }
     /// The step's name as its row lists it.
-    fn label(self, view: &Observation) -> String {
+    fn label(self) -> &'static str {
         match self {
-            Self::Kidnap => "Kidnap · Santiago · Special Activity".into(),
-            Self::Transfer => "Resource transfer".into(),
-            Self::Remove => "Remove own pieces".into(),
-            Self::EndTerror => "End Terror".into(),
-            Self::BackToChoice => "Back to the action choice".into(),
-            Self::TerrorSantiago | Self::TerrorOriente => {
-                format!(
-                    "Terror · {}",
-                    space_name(view, self.space().unwrap_or_default())
-                )
-            }
+            Self::Kidnap => "Kidnap · Santiago · Special Activity",
+            Self::Transfer => "Resource transfer",
+            Self::Remove => "Remove own pieces",
+            Self::EndTerror => "End Terror",
+            Self::BackToChoice => "Back to the action choice",
         }
     }
+}
+
+/// The line under the first section's label that sends the player to the map, where
+/// each target space's popover holds the one button that pays and resolves its Terror.
+pub(super) const MAP_LINE: &str = "Choose a space on the map; its popover pays and resolves.";
+
+/// The first section's lines under its label (#171): the line that sends the player
+/// to the map, then each resolved Terror with what the authority recorded it paid, in
+/// the order resolved. Each is `(part name, words)`.
+pub(super) fn lines(view: &Observation) -> Vec<(String, String)> {
+    std::iter::once(("terror-map-line".to_owned(), MAP_LINE.to_owned()))
+        .chain(view.resolved.iter().map(|r| {
+            (
+                format!("terror-record:{}", r.space),
+                format!(
+                    "Terror in {} · paid {}",
+                    space_name(view, &r.space),
+                    resources(r.paid)
+                ),
+            )
+        }))
+        .collect()
+}
+
+/// Whether the first section's lines wait, dimmed with the steps, as the two target
+/// rows did: while removal mode or a transfer holds the panel. Kidnap's section stays
+/// lit while Kidnap is open.
+pub(super) fn lines_wait(mode: Mode) -> bool {
+    matches!(mode, Mode::Removal | Mode::Transfer)
 }
 
 /// What the panel is doing during Terror: listing the steps, or holding one open.
@@ -284,35 +299,6 @@ fn waits(mode: Mode) -> &'static str {
     }
 }
 
-/// A Terror target that cannot be paid now: the pill names the observed fact that
-/// blocks it (R 3.1, 3.3.4). Its tag gives the rules authority's own reason.
-fn blocked_target(view: &Observation, id: &str, remedies: bool, mode: Mode) -> Status {
-    let m26 = view.resources[Faction::M26.index()];
-    let underground = view.spaces.iter().find(|s| s.id == id).is_some_and(|s| {
-        s.pieces.iter().any(|p| {
-            p.faction == Faction::M26
-                && p.kind == Kind::Guerrilla
-                && p.state == State::Underground
-                && p.count > 0
-        })
-    });
-    let reserved = view.owed_terror.as_deref().is_some_and(|owed| owed != id) && m26 <= 1;
-    let short = if !underground {
-        "NO UNDERGROUND GUERRILLA".to_owned()
-    } else if reserved {
-        "1 RESOURCE RESERVED".to_owned()
-    } else if m26 == 0 {
-        "26JULY HAS 0".to_owned()
-    } else {
-        return Status::Pill(Pill::Unavailable, waits(mode).into());
-    };
-    if remedies {
-        Status::Pill(Pill::NotYet, format!("NOT YET · {short}"))
-    } else {
-        Status::Pill(Pill::Unavailable, short)
-    }
-}
-
 /// Every step of the panel during Terror, in its fixed order, with its state now.
 pub(super) fn steps(view: &Observation) -> Vec<Step> {
     let mode = mode(view);
@@ -376,40 +362,17 @@ pub(super) fn steps(view: &Observation) -> Vec<Step> {
                     }
                     None => Status::Pill(Pill::Unavailable, waits(mode).into()),
                 },
-                StepId::TerrorSantiago | StepId::TerrorOriente => {
-                    let space = id.space().unwrap_or_default();
-                    let resolved = view.resolved.iter().find(|r| r.space == space);
-                    let owed_pill = || {
-                        Status::Pill(
-                            Pill::Owed,
-                            format!("OWED · {}", resources(TERROR_COST).to_uppercase()),
-                        )
-                    };
-                    match choice {
-                        _ if resolved.is_some() => Status::Pill(
-                            Pill::Done,
-                            format!("DONE · PAID {}", resolved.map_or(0, |r| r.paid)),
-                        ),
-                        Some(c) if c.supported && owed == Some(space) => owed_pill(),
-                        Some(c) if c.supported => note(&format!("pay {}", resources(TERROR_COST))),
-                        Some(c) => blocked_target(view, space, !c.remedies.is_empty(), mode),
-                        None if owed == Some(space) => owed_pill(),
-                        None => blocked_target(view, space, true, mode),
-                    }
-                }
             };
             // Resource transfer and removal are offered whenever no step is open, so
             // their plates stay while they wait.
             let always = matches!(id, StepId::Transfer | StepId::Remove);
             let bold = choice.is_some_and(|c| c.supported) || is_held || always;
             let interactive = choice.is_some() || is_held;
-            let dim = mode != Mode::Steps
-                && !interactive
-                && !(mode == Mode::Kidnap && (id.space().is_some() || id == StepId::Kidnap));
+            let dim = mode != Mode::Steps && !interactive;
             Step {
                 id,
                 action,
-                label: id.label(view),
+                label: id.label().into(),
                 status,
                 bold,
                 interactive,
@@ -469,14 +432,10 @@ fn disabled(label: impl Into<String>, reason: impl Into<String>) -> Commit {
 
 /// The disabled commit for a pinned step the authority refuses: its name, and the
 /// authority's reason and in-task remedies.
-fn refused(view: &Observation, id: StepId, choice: &Choice) -> Commit {
+fn refused(id: StepId, choice: &Choice) -> Commit {
     let what = match id {
-        StepId::TerrorSantiago | StepId::TerrorOriente => format!(
-            "Terror in {}",
-            space_name(view, id.space().unwrap_or_default())
-        ),
-        StepId::Kidnap => "Kidnap".into(),
-        _ => id.label(view),
+        StepId::Kidnap => "Kidnap",
+        _ => id.label(),
     };
     disabled(format!("{what} is not available yet"), refusal(choice))
 }
@@ -513,7 +472,7 @@ pub(super) fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                 return if c.supported {
                     enabled(c, c.label.clone(), view)
                 } else {
-                    refused(view, id, c)
+                    refused(id, c)
                 };
             }
             match (listed(view, "reopen"), &view.transfer) {
@@ -540,14 +499,9 @@ pub(super) fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                 return none();
             };
             if !c.supported {
-                return refused(view, id, c);
+                return refused(id, c);
             }
             let words = match id {
-                StepId::TerrorSantiago | StepId::TerrorOriente => format!(
-                    "Terror in {} · pay {}",
-                    space_name(view, id.space().unwrap_or_default()),
-                    resources(TERROR_COST)
-                ),
                 StepId::Kidnap => "Open Kidnap · nothing rolled yet".into(),
                 StepId::Transfer => "Open the Resource transfer".into(),
                 StepId::Remove => "Remove own pieces · removal mode".into(),
@@ -558,7 +512,7 @@ pub(super) fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                     Some(record) => format!("End Terror · records {}", record.name()),
                     None => "End Terror".into(),
                 },
-                StepId::BackToChoice => id.label(view),
+                StepId::BackToChoice => id.label().into(),
             };
             enabled(c, words, view)
         }
@@ -882,6 +836,37 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
         );
         fade(commands, label, QUIET, dim, true);
         commands.entity(label).insert(Part((*name).into()));
+    }
+    // The first section's lines: the map line in a note's quiet type, then each
+    // resolved Terror in the ended panel's value type. They wait with the other steps
+    // while removal mode or a transfer holds the panel.
+    let wait = lines_wait(mode);
+    let [map_top, map_size] = fig::MAP_LINE;
+    let [record_top, pitch, record_size, record_line] = fig::RECORD;
+    for (i, (name, content)) in lines(view).into_iter().enumerate() {
+        let (top, size, ink) = match i {
+            0 => (map_top, map_size, QUIET),
+            n => (record_top + pitch * (n - 1) as f32, record_size, INK),
+        };
+        let line = words(
+            commands,
+            art,
+            Prose::named(content),
+            [acb::ROW_X, top, acb::ROW_W, size],
+            ink,
+            false,
+            0.,
+            s,
+            o,
+            5,
+        );
+        if i > 0 {
+            commands
+                .entity(line)
+                .insert(LineHeight::Px(rs(record_line) * s));
+        }
+        fade(commands, line, ink, wait, true);
+        commands.entity(line).insert(Part(name));
     }
     for step in &steps {
         let top = step.id.row().0;
@@ -1348,11 +1333,7 @@ fn reason(explanation: &str) -> String {
 
 /// A preview's lines under their labels: the authority's computed changes, then its
 /// notes. Notes that cite a rule's procedure become the tag's rules line.
-pub(super) fn previewed(
-    view: &Observation,
-    action: &str,
-    preview: &Preview,
-) -> (Vec<Entry>, Vec<String>) {
+pub(super) fn previewed(view: &Observation, preview: &Preview) -> (Vec<Entry>, Vec<String>) {
     let mut entries = vec![];
     let mut rules = vec![];
     let name = |id: &str| space_name(view, id).to_owned();
@@ -1487,17 +1468,6 @@ pub(super) fn previewed(
                 .join(" · "),
         ));
     }
-    if action.starts_with("terror:")
-        && let Some(owed) = &view.owed_terror
-    {
-        entries.push(entry(
-            "OWED",
-            format!(
-                "{} Terror owed (accepted commitment policy): keep 1 Resource and 1 Underground Guerrilla there.",
-                name(owed).split(' ').next().unwrap_or_default()
-            ),
-        ));
-    }
     for note in &preview.notes {
         let label = if note.starts_with("R ") {
             rules.push(note.clone());
@@ -1540,7 +1510,7 @@ pub(super) fn tag(view: &Observation, action: &str) -> Option<Briefing> {
     let id = StepId::of(action)?;
     let mode = mode(view);
     let held = held(view) == Some(action);
-    let title = id.label(view);
+    let title = id.label().to_owned();
     let briefing = |title: String, entries: Vec<Entry>, rules: String| Briefing {
         option: action.into(),
         title,
@@ -1558,7 +1528,7 @@ pub(super) fn tag(view: &Observation, action: &str) -> Option<Briefing> {
                     String::new(),
                 ));
             };
-            let (entries, rules) = previewed(view, "kidnap", preview);
+            let (entries, rules) = previewed(view, preview);
             return Some(briefing(
                 "Kidnap · Santiago de Cuba".into(),
                 entries,
@@ -1598,7 +1568,7 @@ pub(super) fn tag(view: &Observation, action: &str) -> Option<Briefing> {
                     let offered = |id: StepId| {
                         listed(view, id.action())
                             .filter(|c| c.supported)
-                            .map(|_| id.label(view))
+                            .map(|_| id.label())
                     };
                     let end = listed(view, StepId::EndTerror.action());
                     let withdraw = match (offered(StepId::BackToChoice), offered(StepId::EndTerror))
@@ -1636,7 +1606,7 @@ pub(super) fn tag(view: &Observation, action: &str) -> Option<Briefing> {
                         ],
                         if *waited {
                             format!(
-                                "Waiting for {g}. The request stays pending; Save / quit keeps it."
+                                "Waiting for {g}. The request stays pending; Save · quit keeps it."
                             )
                         } else {
                             format!("{g} decides the actual amount, from 0 to its limit (R 1.5.1).")
@@ -1657,13 +1627,8 @@ pub(super) fn tag(view: &Observation, action: &str) -> Option<Briefing> {
     }
     let choice = listed(view, action)?;
     if !choice.supported {
-        let resolved = id
-            .space()
-            .is_some_and(|space| view.resolved.iter().any(|r| r.space == space));
         let mut entries = vec![entry(
-            if resolved {
-                "DONE"
-            } else if choice.remedies.is_empty() {
+            if choice.remedies.is_empty() {
                 "UNAVAILABLE"
             } else {
                 "NOT YET"
@@ -1671,11 +1636,7 @@ pub(super) fn tag(view: &Observation, action: &str) -> Option<Briefing> {
             reason(&choice.explanation),
         )];
         let rules = if choice.remedies.is_empty() {
-            if resolved {
-                String::new()
-            } else {
-                "Nothing in this task can make it available.".into()
-            }
+            "Nothing in this task can make it available.".into()
         } else {
             entries.push(Entry {
                 chips: choice.remedies.clone(),
@@ -1687,7 +1648,7 @@ pub(super) fn tag(view: &Observation, action: &str) -> Option<Briefing> {
     }
     match &choice.preview {
         Some(preview) => {
-            let (entries, rules) = previewed(view, action, preview);
+            let (entries, rules) = previewed(view, preview);
             let rules = if rules.is_empty() {
                 choice.explanation.clone()
             } else {
@@ -1753,29 +1714,46 @@ mod tests {
             }
         }
         const { assert!(fig::ROWS[0].0 > acb::SUBTITLE[1]) };
-        const { assert!(fig::ROWS[6].0 + acb::ROW_H < fig::CANCEL[1]) };
+        const { assert!(fig::ROWS[4].0 + acb::ROW_H < fig::CANCEL[1]) };
+        // The first section's lines sit between its label and Kidnap's row: the map
+        // line, then room for both resolved Terrors at the record pitch.
+        let [map_top, map_size] = fig::MAP_LINE;
+        let [record_top, pitch, _, record_line] = fig::RECORD;
+        assert!(map_top > fig::SECTIONS[0].2);
+        assert!(map_top + map_size * 1.2 <= record_top);
+        assert!(record_top + pitch + record_line <= fig::ROWS[0].0);
         const { assert!(fig::CANCEL[1] + fig::CANCEL[3] < acb::COMMIT[1]) };
     }
 
-    /// Terror chosen at 0 Resources (EX-A state 1): both targets are blocked with
-    /// their in-task remedies, Kidnap and Back are offered, nothing is pinned and the
-    /// commit asks for a step.
+    /// Terror chosen at 0 Resources (EX-A state 1): the fixed list has no step for
+    /// either target (#171); the first section sends the player to the map and lists
+    /// nothing resolved; Kidnap and Back are offered, nothing is pinned and the commit
+    /// asks for a step.
     #[test]
     fn terror_chosen_at_zero_lists_every_step() {
         let view = crate::terror_chosen(Game::opening()).observe();
         let steps = steps(&view);
         assert_eq!(
             steps.iter().map(|s| s.action).collect::<Vec<_>>(),
-            StepId::ALL.map(StepId::action)
+            [
+                "kidnap",
+                "transfer",
+                "remove",
+                "end-terror",
+                "back-to-choice"
+            ]
         );
+        // Both targets are still offered, on the map only.
         for target in ["terror:santiago", "terror:oriente"] {
-            assert_eq!(
-                step(&steps, target).status,
-                Status::Pill(Pill::NotYet, "NOT YET · 26JULY HAS 0".into()),
-                "{target}"
-            );
-            assert!(step(&steps, target).interactive && !step(&steps, target).bold);
+            assert!(listed(&view, target).is_some(), "{target}");
+            assert_eq!(StepId::of(target), None, "{target}");
+            assert!(tag(&view, target).is_none(), "{target}");
         }
+        assert_eq!(
+            lines(&view),
+            [("terror-map-line".to_owned(), MAP_LINE.to_owned())]
+        );
+        assert!(!lines_wait(mode(&view)));
         assert_eq!(
             step(&steps, "kidnap").status,
             Status::Note("opens its stakes".into(), false)
@@ -1789,41 +1767,71 @@ mod tests {
         assert!(!none.enabled);
         assert_eq!(none.name, "execution-commit");
         assert_eq!(none.label, "Click a step to choose it");
+        let order: Vec<String> = focusable(&view, None).into_iter().map(|c| c.0).collect();
+        assert_eq!(
+            order,
+            [
+                "step:kidnap",
+                "step:transfer",
+                "step:remove",
+                "step:end-terror",
+                "step:back-to-choice",
+                "execution-commit"
+            ]
+        );
     }
 
-    /// A blocked target's tag states the authority's reason and its remedies as
-    /// chips; its commit is disabled and names it (#62's honest hints).
+    /// The panel's commit acts only on the steps that remain (#171): a Terror target
+    /// pinned by name commits nothing and asks for a step, even where the authority
+    /// supports it. Its space's popover holds its one button, and a blocked target's
+    /// popover states the authority's reason and remedies (#62's honest hints).
     #[test]
-    fn a_blocked_target_states_its_reason_and_remedies() {
+    fn a_terror_is_committed_only_by_its_space_s_popover() {
         let game = crate::terror_chosen(Game::opening());
-        let b = tag_of(&game, "terror:santiago");
-        assert_eq!(b.title, "Terror · Santiago de Cuba");
-        assert_eq!(b.entries[0].label, "NOT YET");
+        let view = game.observe();
+        let blocked = commit(&view, Some("terror:santiago"));
+        assert!(!blocked.enabled);
+        assert_eq!(blocked.label, "Click a step to choose it");
+        let card = super::super::popover::content(&view, "santiago", None).unwrap();
+        let terror = card.rows.iter().find(|r| r.head == "Terror").unwrap();
+        assert_eq!(terror.mark, super::super::popover::Mark::NotYet);
+        assert!(terror.button.is_none());
         assert!(
-            b.entries[0]
-                .text
+            terror.lines[0]
+                .1
                 .contains("Cost: 1 Resource per space (26July has 0)"),
-            "{}",
-            words(&b)
+            "{:?}",
+            terror.lines
         );
-        assert_eq!(b.entries[1].label, "IN THIS TASK");
         assert_eq!(
-            b.entries[1].chips,
+            terror.remedies,
             ["Kidnap here first", "Request a Resource transfer"]
         );
-        assert!(!words(&b).contains("Nothing in this task"));
-        let commit = commit(&game.observe(), Some("terror:santiago"));
-        assert!(!commit.enabled);
-        assert_eq!(
-            commit.label,
-            "Terror in Santiago de Cuba is not available yet"
-        );
-        let Action::Unsupported(reason) = commit.action else {
-            panic!("a blocked step commits nothing")
-        };
+
+        let mut game = crate::terror_chosen(Game::opening());
+        game.submit(Faction::M26, 1, "1:transfer").unwrap();
+        game.submit(Faction::M26, 2, "2:ask:2:1").unwrap();
+        game.submit(Faction::Directorio, 3, "3:authorize:1")
+            .unwrap();
+        let view = game.observe();
+        assert!(listed(&view, "terror:oriente").unwrap().supported);
+        for pinned in [Some("terror:oriente"), None] {
+            let panel = commit(&view, pinned);
+            assert!(!panel.enabled, "{pinned:?}");
+            assert_eq!(panel.label, "Click a step to choose it");
+        }
         assert!(
-            reason.contains("In this task: Kidnap here first"),
-            "{reason}"
+            focusable(&view, None)
+                .iter()
+                .all(|(name, _)| !name.contains("terror:"))
+        );
+        let card = super::super::popover::content(&view, "oriente", None).unwrap();
+        let terror = card.rows.iter().find(|r| r.head == "Terror").unwrap();
+        assert!(terror.chosen);
+        assert_eq!(terror.choice.as_deref(), Some("4:terror:oriente"));
+        assert_eq!(
+            terror.button.as_deref(),
+            Some("Terror in Oriente · pay 1 Resource")
         );
     }
 
@@ -1847,9 +1855,17 @@ mod tests {
             step(&steps, "end-terror").status,
             Status::Pill(Pill::NotYet, "NOT YET · SANTIAGO OWED".into())
         );
+        // The owed Terror is named on Santiago's popover, whose button pays it.
+        let card = super::super::popover::content(&game.observe(), "santiago", None).unwrap();
+        assert!(
+            card.subtitle.ends_with("Santiago de Cuba Terror is owed"),
+            "{}",
+            card.subtitle
+        );
+        let terror = card.rows.iter().find(|r| r.head == "Terror").unwrap();
         assert_eq!(
-            step(&steps, "terror:santiago").status,
-            Status::Pill(Pill::Owed, "OWED · 1 RESOURCE".into())
+            terror.button.as_deref(),
+            Some("Terror in Santiago de Cuba · pay 1 Resource")
         );
         let roll = game.observe().kidnap.unwrap();
         assert_eq!(
@@ -1925,34 +1941,6 @@ mod tests {
         );
         let order: Vec<String> = focusable(&view, None).into_iter().map(|c| c.0).collect();
         assert_eq!(order, ["step:kidnap", "2:kidnap:cancel", "2:kidnap:roll"]);
-    }
-
-    /// A selectable Terror's tag is the authority's preview: cost, the map, the
-    /// standing, then the procedure as its rules line; the commit names the space.
-    #[test]
-    fn a_selectable_target_previews_from_the_authority() {
-        let mut game = crate::terror_chosen(Game::opening());
-        game.submit(Faction::M26, 1, "1:transfer").unwrap();
-        game.submit(Faction::M26, 2, "2:ask:2:1").unwrap();
-        game.submit(Faction::Directorio, 3, "3:authorize:1")
-            .unwrap();
-        let b = tag_of(&game, "terror:oriente");
-        let all = words(&b);
-        // Oriente: Pop 2, Passive → Active Opposition, two levels of opposition
-        // population: 26July's standing 7 → 9, margin −8 → −6 (handoff arithmetic).
-        for fact in [
-            "COST: 26July Resources: 1 → 0",
-            "Oriente: flip 1 Underground Guerrilla to Active",
-            "Oriente: Terror marker placed",
-            "Oriente: Passive Opposition → Active Opposition",
-            "26July victory standing 7 → 9 (margin -8 → -6)",
-            "R 3.3.4: pay 1 Resource",
-        ] {
-            assert!(all.contains(fact), "{fact}: {all}");
-        }
-        let commit = commit(&game.observe(), Some("terror:oriente"));
-        assert_eq!(commit.label, "Terror in Oriente · pay 1 Resource");
-        assert!(commit.enabled);
     }
 
     /// GLOSSARY.md: "Voluntary removal" and "Resource transfer", never "donation",
@@ -2270,11 +2258,11 @@ mod tests {
         );
     }
 
-    /// A resolved target's pill states what the authority recorded it paid, and a
-    /// Terror marker alone does not make it done; an offered target's note and
-    /// commit, and the End Terror row, word the authority's cost and record.
+    /// Each resolved Terror is a record line in the first section, in the order
+    /// resolved, with what the authority recorded it paid (#171); a Terror marker alone
+    /// makes no record. The End Terror row words the authority's record.
     #[test]
-    fn the_steps_word_the_authority_s_record_and_costs() {
+    fn the_first_section_records_each_resolved_terror_and_what_it_paid() {
         let mut game = crate::terror_chosen(Game::opening_with_seed(5));
         game.submit(Faction::M26, 1, "1:kidnap").unwrap();
         game.submit(Faction::M26, 2, "2:kidnap:roll").unwrap();
@@ -2287,64 +2275,73 @@ mod tests {
                 paid: 1
             }]
         );
-        let row = |view: &Observation, action: &str| {
-            steps(view)
-                .into_iter()
-                .find(|s| s.action == action)
-                .unwrap()
-                .status
-        };
+        let record = |view: &Observation| lines(view).into_iter().skip(1).collect::<Vec<_>>();
+        assert_eq!(lines(&view)[0].1, MAP_LINE);
         assert_eq!(
-            row(&view, "terror:santiago"),
-            Status::Pill(Pill::Done, "DONE · PAID 1".into())
+            record(&view),
+            [(
+                "terror-record:santiago".to_owned(),
+                "Terror in Santiago de Cuba · paid 1 Resource".to_owned()
+            )]
         );
         assert_eq!(
-            row(&view, "terror:oriente"),
-            Status::Note("pay 1 Resource".into(), false)
-        );
-        assert_eq!(
-            row(&view, "end-terror"),
+            step(&steps(&view), "end-terror").status,
             Status::Note("records Operation with Special Activity".into(), false)
         );
-        assert_eq!(
-            commit(&view, Some("terror:oriente")).label,
-            "Terror in Oriente · pay 1 Resource"
-        );
+        // What it paid is the authority's record, not the cost of a Terror.
         view.resolved[0].paid = 2;
         assert_eq!(
-            row(&view, "terror:santiago"),
-            Status::Pill(Pill::Done, "DONE · PAID 2".into())
+            record(&view)[0].1,
+            "Terror in Santiago de Cuba · paid 2 Resources"
         );
-        let target_status = |view: &Observation| {
-            let tag = tag(view, "terror:santiago").unwrap();
-            let card = super::super::popover::content(view, "santiago", None).unwrap();
-            let terror = card.rows.iter().find(|r| r.head == "Terror").unwrap();
-            (tag.entries[0].label.to_string(), terror.mark)
-        };
+        // In the order resolved, not the map's order.
+        view.resolved.insert(
+            0,
+            crate::Resolved {
+                space: "oriente".into(),
+                paid: 1,
+            },
+        );
+        assert_eq!(
+            record(&view)
+                .iter()
+                .map(|(_, w)| w.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "Terror in Oriente · paid 1 Resource",
+                "Terror in Santiago de Cuba · paid 2 Resources"
+            ]
+        );
+        // A marker on the map is not a record; the popover keeps the resolution as
+        // history even without its marker.
         use super::super::popover::Mark;
-        // The matching resolution still counts without a marker.
-        let mut no_marker = view.clone();
+        let santiago = |view: &Observation| {
+            let card = super::super::popover::content(view, "santiago", None).unwrap();
+            card.rows.iter().find(|r| r.head == "Terror").unwrap().mark
+        };
+        let mut no_marker = game.observe();
         no_marker
             .spaces
             .iter_mut()
             .find(|s| s.id == "santiago")
             .unwrap()
             .terror = 0;
-        assert_eq!(target_status(&no_marker), ("DONE".into(), Mark::Done));
+        assert_eq!(santiago(&no_marker), Mark::Done);
+        let mut unrecorded = game.observe();
+        unrecorded.resolved.clear();
+        assert!(record(&unrecorded).is_empty());
+        assert_eq!(santiago(&unrecorded), Mark::Unavailable);
+    }
 
-        view.resolved[0].space = "oriente".into();
-        assert_eq!(
-            target_status(&view),
-            ("UNAVAILABLE".into(), Mark::Unavailable)
-        );
-        view.resolved.clear();
-        assert_eq!(
-            target_status(&view),
-            ("UNAVAILABLE".into(), Mark::Unavailable)
-        );
-        assert_ne!(
-            row(&view, "terror:santiago"),
-            Status::Pill(Pill::Done, "DONE · PAID 1".into())
-        );
+    /// The first section's lines wait with the steps while removal mode or a transfer
+    /// holds the panel, and stay lit while Kidnap is open, as the target rows did.
+    #[test]
+    fn the_first_section_s_lines_wait_with_removal_and_the_transfer() {
+        for (action, wait) in [("kidnap", false), ("remove", true), ("transfer", true)] {
+            let mut game = crate::terror_chosen(Game::opening());
+            game.submit(Faction::M26, 1, &format!("1:{action}"))
+                .unwrap();
+            assert_eq!(lines_wait(mode(&game.observe())), wait, "{action}");
+        }
     }
 }

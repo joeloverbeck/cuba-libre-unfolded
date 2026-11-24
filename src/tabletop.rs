@@ -54,12 +54,15 @@ mod eligibility;
 mod emblems;
 mod execution;
 mod highlights;
+mod notice;
 mod palette;
 mod pile_tags;
 mod piles;
 mod popover;
+mod save_quit;
 pub mod seat;
 mod status;
+mod supply;
 mod top;
 mod transfer;
 mod victory;
@@ -151,7 +154,9 @@ struct Interface {
     rested: Option<Vec2>,
     /// The card tag's pin and Escape state.
     card: cards::State,
-    notice: String,
+    /// The latest notice and its kind (#174): the seat reads every one, the slip
+    /// draws a refusal or an error.
+    notice: notice::Notice,
     dirty: bool,
     /// The action choice's pinned option, keyboard focus and briefing ribbon.
     choice: choice::State,
@@ -215,7 +220,10 @@ enum Action {
     SkipDie,
     /// Closes the landed Kidnap die and returns the panel to Terror.
     ContinueDie,
+    /// Save · quit: closes the game. Every decision is already saved.
     Quit,
+    /// A click on the notice slip dismisses it (#174).
+    DismissNotice,
     /// A space popover row: shows that action's preview, and decides nothing.
     Row(String),
     /// A control named apart from the choice it submits, as the panel's `Decision`
@@ -466,6 +474,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                     cards::draw,
                     pile_tags::draw,
                     piles::present,
+                    save_quit::hover,
                 )
                     .chain(),
                 animate_water,
@@ -998,6 +1007,7 @@ fn hover_disclosures(
                 Action::Sequence(slot) => Some(Target::Sequence(slot)),
                 Action::Card(slot) => Some(Target::Card(slot)),
                 Action::Pile(pile) => Some(Target::Pile(pile)),
+                Action::Quit => Some(Target::Top(top::Item::SaveQuit)),
                 Action::Decision(..) | Action::Unsupported(_) | Action::Pin(_) if !rested => {
                     Some(Target::Choice(control.name.clone()))
                 }
@@ -1005,11 +1015,16 @@ fn hover_disclosures(
             }
         })
     });
-    // Keyboard focus on a card, a pile or an Available Forces row opens its tag as
-    // the pointer does, with the same dwell.
+    // Keyboard focus on a card, a pile, the marker supply, an Available Forces row or
+    // Save · quit opens its tag as the pointer does, with the same dwell.
     let target = target
         .or_else(|| pile_tags::focused(&ui).map(Target::Pile))
-        .or_else(|| available::focused(&ui).map(Target::Top));
+        .or_else(|| supply::focused(&ui).map(Target::Top))
+        .or_else(|| available::focused(&ui).map(Target::Top))
+        .or_else(|| {
+            (ui.choice.focus.as_deref() == Some(save_quit::NAME))
+                .then_some(Target::Top(top::Item::SaveQuit))
+        });
     let target = cards::target(&mut ui, target);
     ui.hover
         .update(target, true, time.delta(), Duration::from_millis(400));
@@ -1113,7 +1128,8 @@ fn click(
                 popover.close_all();
             }
         }
-        Action::Unsupported(reason) => ui.notice = reason.clone(),
+        Action::Unsupported(reason) => notice::refuse(&mut ui, reason.clone()),
+        Action::DismissNotice => ui.notice.dismiss(),
         Action::Transfer(input) => transfer::input(&mut ui, &play.game().observe(), *input),
         // Presentation only: the roll was saved before the die moved.
         Action::SkipDie => roll.skip(),
@@ -1170,9 +1186,9 @@ fn decide(play: &mut Play, ui: &mut Interface, owner: Faction, rev: u64, name: &
             // A played card is saved before it moves; the tray shows it cross from
             // this frame's clock (piles::follow).
             ui.played = piles::Played::between(&previous, &after);
-            ui.notice = notice(&previous, &after, owner, name);
+            ui.notice = notice::Notice::success(notice(&previous, &after, owner, name));
         }
-        Err(e) => ui.notice = e.to_string(),
+        Err(failure) => ui.notice = notice::Notice::failed(&failure),
     };
     // A committed decision leaves its step; its pin and focus go with it, and a step
     // the decision opened holds the panel with its tag pinned (EX-A, #84).
@@ -1186,10 +1202,11 @@ fn listing(parts: &[String]) -> String {
         [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
     }
 }
-/// The session notice for the committed decision `name`. Every rules fact it states
-/// is the authority's (foundation 2, "Engine authority"): the decision's own id, read
-/// through `Choice`'s accessors; the preview the authority showed for it, from
-/// `previous`; or the record in `after`, the observation once it was committed.
+/// The notice for the committed decision `name`, a success: the seat reads it and no
+/// slip draws it (#174). Every rules fact it states is the authority's (foundation 2,
+/// "Engine authority"): the decision's own id, read through `Choice`'s accessors; the
+/// preview the authority showed for it, from `previous`; or the record in `after`, the
+/// observation once it was committed.
 fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &str) -> String {
     let choice = previous.choices.iter().find(|c| c.id == name);
     let action = name.split_once(':').map_or(name, |(_, a)| a);
@@ -1344,10 +1361,10 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
         "resolve-shaded" => "Shaded Event resolved. Eligibility for card 18 recorded. Saved.".into(),
         "event:unshaded" => "Directorio chooses who will Rally. Saved.".into(),
         "advance-card" => "Pact of Caracas is current. Government is 1st Eligible. Saved.".into(),
-        "government:assault" => "Assault chosen. Select a space to inspect its targets. Saved.".into(),
+        "government:assault" => "Assault chosen. Choose a space on the map. Saved.".into(),
         "end-assault" => "Operation Only recorded. Syndicate is 2nd Eligible. Saved.".into(),
         _ if crate::Game::assault_payment_space(action).is_some() => {
-            let result = after.assault_result.as_ref().expect("Assault payment has a result");
+            let result = after.assault_paid.last().expect("Assault payment has a record");
             format!("Assault resolved in {}. Saved.", result.space_name())
         }
         _ if action.starts_with("rally:") => match &after.event {
@@ -1512,60 +1529,6 @@ fn picture(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn control(
-    commands: &mut Commands,
-    art: &Art,
-    name: &str,
-    label: &str,
-    action: Action,
-    rect: [f32; 4],
-    scale: f32,
-    offset: Vec2,
-    choice: bool,
-    z: i32,
-) -> Entity {
-    let node = picture(
-        commands,
-        art,
-        if choice {
-            "atlas-button-primary.png"
-        } else {
-            "atlas-button.png"
-        },
-        rect,
-        scale,
-        offset,
-        z,
-    );
-    commands
-        .entity(node)
-        .remove::<Pickable>()
-        .insert(Control {
-            name: name.into(),
-            choice,
-            action,
-        })
-        .observe(click);
-    // The primary button is red: 26July keeps its name there (emblems::Prose::red).
-    let label = Prose::from(label);
-    let words = text(
-        commands,
-        art,
-        if choice { label.on_red() } else { label },
-        rect[0] + 12.,
-        rect[1] + 10.,
-        rect[2] - 24.,
-        19.,
-        scale,
-        offset,
-        z + 1,
-    );
-    commands
-        .entity(words)
-        .insert(TextColor(Color::srgb(0.98, 0.97, 0.92))); // own colour: Atlas desk button label (foundation 4)
-    node
-}
-#[allow(clippy::too_many_arguments)]
 fn draw_ui(
     mut commands: Commands,
     art: Res<Art>,
@@ -1596,25 +1559,19 @@ fn draw_ui(
     // The map fills the window (#142). Each area keeps its distance from the edge
     // or centre the main view's layout anchors it to, and takes the pointer over
     // its own rectangle.
-    let low = bottom(&window);
     areas::draw(&mut commands, &main_view, &window);
-    for (key, part, rect, offset) in [
-        (
-            "atlas-layout-operation.png",
-            "decision-frame",
-            [1380., 280., 500., 660.],
-            right,
-        ),
-        (
-            "atlas-layout-session.png",
-            "session-frame",
-            [1380., 964., 500., 264.],
-            right + low,
-        ),
-    ] {
-        let frame = picture(&mut commands, &art, key, rect, s, offset, 1);
-        commands.entity(frame).insert(areas::Part(part.into()));
-    }
+    let frame = picture(
+        &mut commands,
+        &art,
+        "atlas-layout-operation.png",
+        [1380., 280., 500., 660.],
+        s,
+        right,
+        1,
+    );
+    commands
+        .entity(frame)
+        .insert(areas::Part("decision-frame".into()));
     victory::header(&mut commands, &art, &view, s, centered);
     // The owner retired the "CUBA LIBRE" title in #46: its corner, at the window's
     // top left, holds Aid and the US Alliance.
@@ -1629,6 +1586,9 @@ fn draw_ui(
     // #159: Available Forces stand left of the Resources ledger, from the committed
     // position, so a preview never changes them.
     available::draw(&mut commands, &art, &view, s, right);
+    // #172: the marker supply stands between the US Alliance track and the standings,
+    // from the committed position.
+    supply::draw(&mut commands, &art, &view, &main_view, &window);
     if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
         die::panel(&mut commands, &art, kidnap, roll.landed(), s, right);
     } else {
@@ -1638,71 +1598,42 @@ fn draw_ui(
     // The pips follow the cards while an advance is shown, and the count discs wait.
     let scene = advance.scene(&view, time.elapsed_secs_f64());
     piles::overlay(&mut commands, &art, &scene, &window);
-    let o = right + low;
-    let status = play.error.clone().unwrap_or_else(|| {
-        if play.session.is_none() {
-            "Loading selected assets; no save created.".into()
-        } else {
-            session_status(&view)
-        }
-    });
-    let status = text(
+    // #174: Save · quit in the bottom-right corner, and above it the notice slip when
+    // a refusal, an error or the loading state is shown.
+    save_quit::draw(&mut commands, &art, &main_view, &window);
+    notice::draw(
         &mut commands,
         &art,
-        format!("{status}\n{}", ui.notice),
-        1404.,
-        1020.,
-        450.,
-        18.,
-        s,
-        o,
-        2,
+        notice::slip(&play, &ui),
+        &main_view,
+        &window,
     );
-    commands
-        .entity(status)
-        .insert(areas::Part("session-status".into()));
-    let quit = control(
-        &mut commands,
-        &art,
-        "quit",
-        "Save / quit",
-        Action::Quit,
-        [1690., 1140., 166., 44.],
-        s,
-        o,
-        false,
-        2,
-    );
-    commands
-        .entity(quit)
-        .insert(areas::Part("session-quit".into()));
 }
 
-/// The session panel's status: the saved revision, and the Terror/Sabotage supply,
-/// which no other surface shows. Piece totals are the Available Forces ledger's
-/// (#161).
-fn session_status(view: &Observation) -> String {
-    format!(
-        "Saved revision {}\nTerror/Sabotage {} available",
-        view.revision, view.terror_available
-    )
+/// A table whose match is open on a fresh save at `save`, for unit tests of what a
+/// decision writes.
+#[cfg(test)]
+fn test_play(save: PathBuf) -> Play {
+    Play {
+        session: Some(Session::open(&save, None).unwrap()),
+        options: Options {
+            art: PathBuf::new(),
+            cards: PathBuf::new(),
+            save,
+            recover: None,
+            socket: None,
+            agent: false,
+            seat_size: UVec2::new(1920, 1280),
+        },
+        error: None,
+        ready_frames: 5,
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use unfolded_tabletop::camera::Input;
-
-    /// After 26July chooses Terror the match is at revision 1, and all 20
-    /// Terror/Sabotage markers are still available (the accepted tactical handoff).
-    #[test]
-    fn the_session_status_reports_the_save_and_the_marker_supply() {
-        let view = crate::terror_chosen(Game::opening()).observe();
-        assert_eq!(
-            session_status(&view),
-            "Saved revision 1\nTerror/Sabotage 20 available"
-        );
-    }
 
     /// #161: with the counts on the ledger, the removal texts still say where the
     /// pieces go (R 1.4.1): the preview's map line, and the notices of a removal, of
@@ -1717,8 +1648,7 @@ mod tests {
             .iter()
             .find(|c| c.action() == "remove:sierra-maestra:base:1")
             .unwrap();
-        let (entries, _) =
-            execution::previewed(&view, base.action(), base.preview.as_ref().unwrap());
+        let (entries, _) = execution::previewed(&view, base.preview.as_ref().unwrap());
         assert!(
             entries.iter().any(|e| e
                 .text
@@ -1929,20 +1859,7 @@ mod tests {
     fn camera_takes_input_over_the_whole_window() {
         let dir = tempfile::tempdir().unwrap();
         let save = dir.path().join("task.json");
-        let mut play = Play {
-            session: Some(Session::open(&save, None).unwrap()),
-            options: Options {
-                art: PathBuf::new(),
-                cards: PathBuf::new(),
-                save,
-                recover: None,
-                socket: None,
-                agent: false,
-                seat_size: UVec2::new(1920, 1280),
-            },
-            error: None,
-            ready_frames: 5,
-        };
+        let mut play = test_play(save);
         let mut window = Window {
             resolution: (1920, 1280).into(),
             focused: true,

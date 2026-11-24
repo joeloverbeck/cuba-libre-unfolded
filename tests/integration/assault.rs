@@ -1,5 +1,16 @@
 //! Matched Santiago positions worked from R 3.1, 3.2.4, 6.3.1 and #130.
-use cuba_libre_unfolded::{Faction, Game, Kind, State};
+use cuba_libre_unfolded::{
+    AssaultPreview, Choice, Faction, Game, Kind, Observation, State,
+    targets::{SpaceState, space_targets},
+};
+
+/// The plans the open Assault offers in `space`, as the authority states their space.
+fn plans<'a>(view: &'a Observation, space: &str) -> Vec<&'a Choice> {
+    view.choices
+        .iter()
+        .filter(|c| c.site.as_ref().is_some_and(|site| site.space == space))
+        .collect()
+}
 
 fn choose(game: &mut Game, action: &str) {
     let view = game.observe();
@@ -41,8 +52,6 @@ fn funded_santiago_assault_returns_only_active_guerrillas_then_hands_off() {
         }
         choose(&mut game, "advance-card");
         choose(&mut game, "government:assault");
-        choose(&mut game, "assault:areas:cities");
-        choose(&mut game, "assault:space:santiago");
         let pending = game.observe();
         assert_eq!(pending.executing, Some(Faction::Government));
         assert_eq!(pending.resources, [2, 3, 5, 15]);
@@ -172,52 +181,42 @@ fn havana_assault_closes_the_targeted_casino_without_returning_it() {
         "resolve-shaded",
         "advance-card",
         "government:assault",
-        "assault:areas:cities",
-        "assault:space:havana",
     ] {
         choose(&mut game, action);
     }
     let before = game.observe();
     assert_eq!(before.resources, [5, 0, 5, 15]);
+    // #169: Havana's plans are offered with every other space's. Directorio's two
+    // Guerrillas are Underground, so no plan targets it (#166's playtest): a row that
+    // named it would say Assault affects it. Every row says why its pieces stay.
+    let havana = plans(&before, "havana");
     assert_eq!(
-        before
-            .choices
-            .iter()
-            .map(|c| c.action())
-            .collect::<Vec<_>>(),
-        [
-            "assault:havana:directorio",
-            "assault:havana:syndicate",
-            "assault:havana:directorio+syndicate",
-            "assault:back",
-        ]
+        havana.iter().map(|c| c.action()).collect::<Vec<_>>(),
+        ["assault:havana:syndicate", "assault:havana:none",]
     );
-    let directorio = &before.choices[0];
+    let reason = "Directorio: 0 Active, 2 Underground. Assault cannot remove its Underground Guerrillas until they are Activated.";
+    for row in &havana {
+        assert!(row.explanation.contains(reason), "{}", row.explanation);
+    }
+    let gone = format!("{}:assault:havana:directorio+syndicate", before.revision);
     assert!(
-        directorio
-            .explanation
-            .contains("Underground Guerrillas survive")
+        game.clone()
+            .submit(before.owner, before.revision, &gone)
+            .is_err()
     );
-    let zero = directorio.preview.as_ref().unwrap();
+    let nothing = havana[1];
+    let zero = nothing.preview.as_ref().unwrap();
     assert!(zero.flips.is_empty() && zero.removed.is_empty());
     assert_eq!(zero.resources[0].to, 3);
-    let target = before
-        .choices
-        .iter()
-        .find(|choice| choice.action() == "assault:havana:syndicate")
-        .unwrap();
+    let target = havana[0];
     assert!(target.explanation.contains("6 Troops + 4 Police = 10"));
     let preview = target.preview.as_ref().unwrap();
-    assert_eq!(&before.choices[2].preview, &target.preview);
     assert_eq!(preview.resources[0].from, 5);
     assert_eq!(preview.resources[0].to, 3);
     assert!(preview.removed.is_empty());
-    assert!(
-        preview
-            .notes
-            .iter()
-            .any(|note| note.contains("Close 1 Casino in place"))
-    );
+    let effect = &preview.assault.as_ref().unwrap().effect;
+    assert!(effect.contains("Close 1 Casino in place"), "{effect}");
+    assert!(!effect.contains("to Available"), "{effect}");
     assert!(
         preview
             .notes
@@ -245,7 +244,7 @@ fn havana_assault_closes_the_targeted_casino_without_returning_it() {
     );
 
     for action in [
-        "assault:havana:none",
+        "assault:havana:directorio",
         "assault:havana:syndicate:0",
         "assault:havana:syndicate:2",
     ] {
@@ -315,76 +314,33 @@ fn all_thirteen_spaces_allow_inspection_and_pay_once_even_when_no_pieces_can_be_
             .any(|c| c.action() == "end-assault" && c.supported)
     );
 
-    for (area, expected) in [
-        ("cities", &["havana", "camaguey-city", "santiago"][..]),
-        (
-            "provinces",
-            &[
-                "pinar-del-rio",
-                "la-habana",
-                "matanzas",
-                "las-villas",
-                "camaguey-province",
-                "oriente",
-                "sierra-maestra",
-            ][..],
-        ),
-        (
-            "economic-centers",
-            &[
-                "ec-pinar-la-habana",
-                "ec-las-villas-camaguey",
-                "ec-oriente-sierra",
-            ][..],
-        ),
-    ] {
-        choose(&mut game, &format!("assault:areas:{area}"));
-        let spaces = game.observe();
-        let offered = spaces
-            .choices
-            .iter()
-            .filter_map(|c| c.action().strip_prefix("assault:space:"))
-            .collect::<Vec<_>>();
-        assert_eq!(offered, expected);
-        for space in offered {
-            choose(&mut game, &format!("assault:space:{space}"));
-            let targets = game.observe();
-            assert!(targets.choices.iter().any(|c| c.preview.is_some()));
-            match space {
-                "las-villas" => {
-                    assert!(targets.choices[0].explanation.contains("3 Troops ÷ 2 = 1"))
-                }
-                "pinar-del-rio" => {
-                    assert!(targets.choices[0].explanation.contains("= 0 in Forest"))
-                }
-                "la-habana" => assert!(targets.choices[0].explanation.contains("= 0 in Grassland")),
-                "ec-pinar-la-habana" => assert!(
-                    targets.choices[0]
-                        .explanation
-                        .contains("= 0 in an Economic Center")
-                ),
-                _ => {}
-            }
-            choose(&mut game, "assault:back");
-        }
-        choose(&mut game, "assault:back");
-        assert_eq!(game.observe().resources, original.resources);
-        assert_eq!(game.observe().spaces, original.spaces);
+    // Every space's plans are offered at once (#169): looking at one costs no
+    // decision, and each plan carries the authority's preview.
+    for space in &original.spaces {
+        let offered = plans(&original, &space.id);
+        assert!(!offered.is_empty(), "{}", space.id);
+        assert!(offered.iter().all(|c| c.preview.is_some()), "{}", space.id);
+        let arithmetic = match space.id.as_str() {
+            "las-villas" => "3 Troops ÷ 2 = 1",
+            "pinar-del-rio" => "= 0 in Forest",
+            "la-habana" => "= 0 in Grassland",
+            "ec-pinar-la-habana" => "= 0 in an Economic Center",
+            _ => "",
+        };
+        assert!(offered[0].explanation.contains(arithmetic), "{}", space.id);
     }
 
-    for (area, space, target, balance) in [
-        ("provinces", "sierra-maestra", "26july", 3),
-        ("economic-centers", "ec-oriente-sierra", "none", 1),
-    ] {
-        choose(&mut game, &format!("assault:areas:{area}"));
-        choose(&mut game, &format!("assault:space:{space}"));
+    for (space, balance) in [("sierra-maestra", 3), ("ec-oriente-sierra", 1)] {
         let pending = game.observe();
-        let action = format!("assault:{space}:{target}");
-        let choice = pending
-            .choices
-            .iter()
-            .find(|c| c.action() == action)
-            .unwrap();
+        // Sierra Maestra's Base stands behind 4 Underground Guerrillas, so no plan
+        // there removes anything: the space has the one plan that removes nothing.
+        let offered = plans(&pending, space);
+        let action = format!("assault:{space}:none");
+        assert_eq!(
+            offered.iter().map(|c| c.action()).collect::<Vec<_>>(),
+            [action.as_str()]
+        );
+        let choice = offered[0];
         let preview = choice.preview.as_ref().unwrap();
         assert_eq!(preview.resources[0].to, balance);
         assert!(preview.removed.is_empty() && preview.flips.is_empty());
@@ -392,30 +348,21 @@ fn all_thirteen_spaces_allow_inspection_and_pay_once_even_when_no_pieces_can_be_
             assert!(choice.explanation.contains("4 Underground"));
             assert!(choice.explanation.contains("protect their faction's Bases"));
         }
-        let illegal = format!("{}:{action}:1", pending.revision);
-        assert!(
-            game.submit(pending.owner, pending.revision, &illegal)
-                .is_err()
-        );
+        for illegal in [format!("{action}:1"), format!("assault:{space}:26july")] {
+            let illegal = format!("{}:{illegal}", pending.revision);
+            assert!(
+                game.submit(pending.owner, pending.revision, &illegal)
+                    .is_err()
+            );
+        }
         choose(&mut game, &action);
         let settled = game.observe();
         assert_eq!(settled.resources[0], balance);
         assert_eq!(settled.spaces, original.spaces);
         assert_eq!(settled.available, original.available);
-
-        choose(&mut game, &format!("assault:areas:{area}"));
-        let updated = game.observe();
-        assert!(
-            updated
-                .choices
-                .iter()
-                .all(|c| c.action() != format!("assault:space:{space}"))
-        );
-        choose(&mut game, "assault:back");
+        assert!(plans(&settled, space).is_empty());
     }
 
-    choose(&mut game, "assault:areas:cities");
-    choose(&mut game, "assault:space:havana");
     let pending = game.observe();
     let payment = pending
         .choices
@@ -429,9 +376,582 @@ fn all_thirteen_spaces_allow_inspection_and_pay_once_even_when_no_pieces_can_be_
         .unwrap_err();
     assert!(error.contains("Government has 1 Resource and cannot pay 2 Resources"));
     assert_eq!(game.observe(), pending);
-    for action in ["assault:back", "assault:back", "end-assault"] {
-        choose(&mut game, action);
-    }
+    choose(&mut game, "end-assault");
     assert_eq!(game.observe().resources[0], 1);
     assert_eq!(game.observe().owner, Faction::Syndicate);
+}
+
+// ---- #169: Assault's space is chosen on the map ----------------------------------
+//
+// Expected values are worked by hand from R 3.2.4 on the accepted tactical handoff's
+// position (`docs/research/tactical-slice-handoff.md`, "Starting position and
+// boundary") and the decisions each path takes, not read from the implementation:
+// - **Capacity:** 1 piece for each Troops cube; in a City or economic center also 1
+//   for each Police; in Mountain 1 for every 2 Troops, rounded down.
+// - **What it can affect:** Active Guerrillas; a targeted faction's Bases (Casinos
+//   close, R 1.4.5) only once that faction has no Guerrillas in the space.
+// - **Cost:** 2 Resources a space at a Firm US Alliance (R 6.3.1).
+
+/// Seed 2's Kidnap roll is 5 (Government 6 → 1, 26July 0 → 5); Santiago's Terror then
+/// costs 26July 1 and flips one of its two Underground Guerrillas there to Active.
+const TERROR: [&str; 3] = ["kidnap", "kidnap:roll", "terror:santiago"];
+
+/// A space's pieces in the handoff's notation: T Troops, P Police, U Underground and
+/// A Active Guerrillas, B Base, C open Casino, X closed Casino, by faction.
+fn pieces(view: &Observation, space: &str) -> String {
+    let space = view.spaces.iter().find(|s| s.id == space).unwrap();
+    let mut factions = vec![];
+    for (faction, letter) in [
+        (Faction::Government, "G"),
+        (Faction::M26, "M"),
+        (Faction::Directorio, "D"),
+        (Faction::Syndicate, "S"),
+    ] {
+        let mut groups = vec![];
+        for (kind, state, mark) in [
+            (Kind::Troops, State::Ordinary, "T"),
+            (Kind::Police, State::Ordinary, "P"),
+            (Kind::Guerrilla, State::Active, "A"),
+            (Kind::Guerrilla, State::Underground, "U"),
+            (Kind::Base, State::Ordinary, "B"),
+            (Kind::Casino, State::Open, "C"),
+            (Kind::Casino, State::Closed, "X"),
+        ] {
+            let count: u8 = space
+                .pieces
+                .iter()
+                .filter(|p| p.faction == faction && p.kind == kind && p.state == state)
+                .map(|p| p.count)
+                .sum();
+            if count > 0 {
+                groups.push(format!("{count}{mark}"));
+            }
+        }
+        if !groups.is_empty() {
+            factions.push(format!("{letter}:{}", groups.join(",")));
+        }
+    }
+    factions.join(" ")
+}
+
+/// One space of a worked position: its pieces, the state R 3.2.4 gives it, and the
+/// plans that remove or closes something there (the plan that removes nothing is
+/// offered besides, in every unpaid space).
+type Worked = (
+    &'static str,
+    &'static str,
+    SpaceState,
+    &'static [&'static str],
+);
+
+/// Checks every space of `view` against its worked row: the pieces the row was worked
+/// from, the map state, and the plans offered.
+fn assert_worked(view: &Observation, worked: &[Worked; 13], supported: bool) {
+    let targets = space_targets(view).expect("an open Assault targets the map");
+    assert_eq!(targets.len(), 13);
+    for ((id, expected_pieces, state, effective), target) in worked.iter().zip(&targets) {
+        assert_eq!(target.space, *id);
+        assert_eq!(pieces(view, id), *expected_pieces, "{id}");
+        assert_eq!(target.state, *state, "{id}");
+        let offered = plans(view, id);
+        let mut expected: Vec<String> = effective
+            .iter()
+            .map(|plan| format!("assault:{id}:{plan}"))
+            .collect();
+        if *state != SpaceState::NotInvolved {
+            expected.push(format!("assault:{id}:none"));
+        }
+        assert_eq!(
+            offered.iter().map(|c| c.action()).collect::<Vec<_>>(),
+            expected,
+            "{id}"
+        );
+        assert_eq!(
+            target.choices,
+            offered.iter().map(|c| c.id.clone()).collect::<Vec<_>>()
+        );
+        for choice in &offered {
+            let site = choice.site.as_ref().unwrap();
+            // The authority states whether each plan removes or closes a piece.
+            assert_eq!(
+                site.effect,
+                !choice.action().ends_with(":none"),
+                "{}",
+                choice.id
+            );
+            assert_eq!(choice.supported, supported, "{}", choice.id);
+            assert_eq!(choice.preview.is_some(), supported, "{}", choice.id);
+        }
+    }
+}
+
+const NO_EFFECT: SpaceState = SpaceState::NoEffect;
+
+/// The 11 spaces where no handoff continuation lets Assault affect a piece, with the
+/// arithmetic for each. `oriente` and `sierra` are 26July's pieces there on this path.
+fn quiet(oriente: &'static str, sierra: &'static str) -> [Worked; 11] {
+    [
+        // City: 1 Troops + 2 Police = 3, and no enemy piece.
+        ("camaguey-city", "G:1T,2P", NO_EFFECT, &[]),
+        // Forest: 0 Troops = 0.
+        ("pinar-del-rio", "S:1C", NO_EFFECT, &[]),
+        // Grassland: 0 Troops = 0.
+        ("la-habana", "S:1C", NO_EFFECT, &[]),
+        ("matanzas", "", NO_EFFECT, &[]),
+        // Mountain: 3 Troops ÷ 2 = 1, and no enemy piece.
+        ("las-villas", "G:3T", NO_EFFECT, &[]),
+        // Forest: 0 Troops = 0.
+        ("camaguey-province", "D:1U", NO_EFFECT, &[]),
+        ("oriente", oriente, NO_EFFECT, &[]),
+        // Mountain: 0 Troops ÷ 2 = 0.
+        ("sierra-maestra", sierra, NO_EFFECT, &[]),
+        ("ec-pinar-la-habana", "", NO_EFFECT, &[]),
+        ("ec-las-villas-camaguey", "", NO_EFFECT, &[]),
+        ("ec-oriente-sierra", "", NO_EFFECT, &[]),
+    ]
+}
+
+/// A worked position: Havana, Santiago and the 11 quiet spaces, in the map's order.
+fn worked(
+    havana: Worked,
+    santiago: Worked,
+    oriente: &'static str,
+    sierra: &'static str,
+) -> [Worked; 13] {
+    let quiet = quiet(oriente, sierra);
+    let mut all = vec![havana, quiet[0], santiago];
+    all.extend_from_slice(&quiet[1..]);
+    all.try_into().unwrap()
+}
+
+/// Card 18 with Assault opened, after `event` on card 17 and `give` Resources from
+/// 26July to Government during Terror.
+fn assault_after(give: u8, event: &[&str]) -> Game {
+    let mut game = crate::terror_chosen(Game::opening_with_seed(2));
+    for action in TERROR {
+        choose(&mut game, action);
+    }
+    if give > 0 {
+        choose(&mut game, "transfer");
+        choose(&mut game, &format!("give:0:{give}"));
+    }
+    choose(&mut game, "end-terror");
+    for action in event {
+        choose(&mut game, action);
+    }
+    choose(&mut game, "advance-card");
+    choose(&mut game, "government:assault");
+    game
+}
+
+const SHADED: [&str; 2] = ["event:shaded", "resolve-shaded"];
+const RALLY: [&str; 3] = [
+    "event:unshaded",
+    "rally:beneficiary:26july",
+    "rally:sierra-maestra:place:4",
+];
+
+#[test]
+fn an_open_assault_offers_every_unpaid_space_s_plans_at_once_and_no_menu() {
+    let game = assault_after(4, &RALLY);
+    let view = game.observe();
+    assert_eq!(view.resources, [5, 0, 5, 15]);
+    assert_eq!(
+        view.choices.iter().map(|c| c.action()).collect::<Vec<_>>(),
+        [
+            "assault:havana:syndicate",
+            "assault:havana:none",
+            "assault:camaguey-city:none",
+            "assault:santiago:26july",
+            "assault:santiago:none",
+            "assault:pinar-del-rio:none",
+            "assault:la-habana:none",
+            "assault:matanzas:none",
+            "assault:las-villas:none",
+            "assault:camaguey-province:none",
+            "assault:oriente:none",
+            "assault:sierra-maestra:none",
+            "assault:ec-pinar-la-habana:none",
+            "assault:ec-las-villas-camaguey:none",
+            "assault:ec-oriente-sierra:none",
+            "end-assault",
+            "transfer",
+            "remove",
+        ]
+    );
+    // No area, space-list or Back choice exists, and none is accepted.
+    for gone in [
+        "assault:areas:cities",
+        "assault:areas:provinces",
+        "assault:areas:economic-centers",
+        "assault:space:santiago",
+        "assault:back",
+    ] {
+        let mut probe = game.clone();
+        assert!(
+            probe
+                .submit(
+                    view.owner,
+                    view.revision,
+                    &format!("{}:{gone}", view.revision)
+                )
+                .is_err(),
+            "{gone}"
+        );
+        assert_eq!(probe, game);
+    }
+    // The match stores no browse position: an open Assault records only what was
+    // paid and whether it finished.
+    let saved = serde_json::to_value(&game).unwrap();
+    assert_eq!(
+        saved["assault"],
+        serde_json::json!({ "paid": [], "finished": false })
+    );
+}
+
+#[test]
+fn each_of_the_thirteen_spaces_has_the_state_r_3_2_4_gives_its_pieces() {
+    // After the unshaded Event's free Rally (4 Guerrillas placed in Sierra Maestra),
+    // Government has 5 Resources: 6 − 5 (Kidnap) + 4 (given).
+    // - Havana, City: 6 Troops + 4 Police = 10. Directorio's 2 Guerrillas are
+    //   Underground; Syndicate has no Guerrillas there, so its open Casino closes.
+    // - Santiago, City: 2 Troops + 1 Police = 3. 26July has 1 Active Guerrilla (the
+    //   one Terror flipped) and 1 Underground: the Active one is removed.
+    let havana: Worked = (
+        "havana",
+        "G:6T,4P D:2U S:1C",
+        SpaceState::Selectable,
+        &["syndicate"],
+    );
+    let rally = assault_after(4, &RALLY);
+    assert_eq!(rally.observe().resources, [5, 0, 5, 15]);
+    assert_worked(
+        &rally.observe(),
+        &worked(
+            havana,
+            (
+                "santiago",
+                "G:2T,1P M:1A,1U",
+                SpaceState::Selectable,
+                &["26july"],
+            ),
+            "M:1U",
+            "M:4U,1B",
+        ),
+        true,
+    );
+
+    // After the shaded Event every 26July Guerrilla is Active. Santiago's 2 are both
+    // removed (capacity 3). Oriente's is Active too, but Oriente holds no Troops:
+    // 0 Troops = 0 in Forest.
+    let shaded = assault_after(4, &SHADED);
+    let santiago: Worked = (
+        "santiago",
+        "G:2T,1P M:2A",
+        SpaceState::Selectable,
+        &["26july"],
+    );
+    assert_worked(
+        &shaded.observe(),
+        &worked(havana, santiago, "M:1A", "M:1B"),
+        true,
+    );
+
+    // With nothing given, Government has 1 Resource and a space costs 2: Havana and
+    // Santiago are blocked, and a Resource transfer is the remedy. The other 11 would
+    // remove nothing, so they stay no effect.
+    let mut short = assault_after(0, &SHADED);
+    let view = short.observe();
+    assert_eq!(view.resources, [1, 4, 5, 15]);
+    let blocked = |space: Worked| (space.0, space.1, SpaceState::Blocked, space.3);
+    assert_worked(
+        &view,
+        &worked(blocked(havana), blocked(santiago), "M:1A", "M:1B"),
+        false,
+    );
+    for choice in view.choices.iter().filter(|c| c.site.is_some()) {
+        assert!(
+            choice
+                .explanation
+                .starts_with("Government has 1 Resource and cannot pay 2 Resources (R 6.3.1)."),
+            "{}",
+            choice.explanation
+        );
+        assert_eq!(choice.remedies, ["Request a Resource transfer"]);
+    }
+
+    // A Resource transfer under way suspends the targeting, and the transfer turns
+    // the blocked spaces selectable at once: 26July gives 1, Government has 2.
+    choose(&mut short, "transfer");
+    assert_eq!(space_targets(&short.observe()), None);
+    choose(&mut short, "ask:1:1");
+    assert_eq!(space_targets(&short.observe()), None);
+    choose(&mut short, "authorize:1");
+    let funded = short.observe();
+    assert_eq!(funded.resources, [2, 3, 5, 15]);
+    assert_worked(&funded, &worked(havana, santiago, "M:1A", "M:1B"), true);
+
+    // Paying resolves Santiago at once and takes its choices: the space is not
+    // involved for the rest of the Operation (R 3.1). Government is at 0 again, so
+    // Havana is blocked.
+    choose(&mut short, "assault:santiago:26july");
+    let paid = short.observe();
+    assert_eq!(paid.resources, [0, 3, 5, 15]);
+    assert_worked(
+        &paid,
+        &worked(
+            blocked(havana),
+            ("santiago", "G:2T,1P", SpaceState::NotInvolved, &[]),
+            "M:1A",
+            "M:1B",
+        ),
+        false,
+    );
+}
+
+#[test]
+fn the_map_states_follow_a_voluntary_removal_at_once() {
+    let mut game = assault_after(4, &SHADED);
+    // Removal mode suspends the targeting, as it does during Terror.
+    choose(&mut game, "remove");
+    assert_eq!(space_targets(&game.observe()), None);
+    // Santiago, City: 2 Troops + 1 Police = 3. Without them, 0 + 0 = 0, and the 2
+    // Active Guerrillas stay.
+    choose(&mut game, "remove:santiago:troops:2");
+    choose(&mut game, "remove:santiago:police:1");
+    choose(&mut game, "done-removal");
+    let view = game.observe();
+    let santiago = space_targets(&view)
+        .unwrap()
+        .into_iter()
+        .find(|t| t.space == "santiago")
+        .unwrap();
+    assert_eq!(pieces(&view, "santiago"), "M:2A");
+    assert_eq!(santiago.state, SpaceState::NoEffect);
+    let only = plans(&view, "santiago");
+    assert_eq!(only.len(), 1);
+    assert_eq!(only[0].action(), "assault:santiago:none");
+    assert!(
+        only[0]
+            .explanation
+            .contains("0 Troops + 0 Police = 0 in a City")
+    );
+}
+
+#[test]
+fn the_plan_that_removes_nothing_costs_the_space_s_price_and_changes_nothing_else() {
+    let mut game = assault_after(4, &SHADED);
+    let before = game.observe();
+    assert_eq!(before.resources, [5, 0, 5, 15]);
+    // Santiago holds 2 Active 26July Guerrillas that another plan would remove; the
+    // plan that removes nothing leaves them. Matanzas is empty.
+    for (space, balance) in [("santiago", 3), ("matanzas", 1)] {
+        let pending = game.observe();
+        let action = format!("assault:{space}:none");
+        let choice = pending
+            .choices
+            .iter()
+            .find(|c| c.action() == action)
+            .unwrap();
+        assert_eq!(choice.label, "Removes nothing");
+        assert_eq!(
+            choice.site,
+            Some(cuba_libre_unfolded::Site {
+                space: space.into(),
+                effect: false
+            })
+        );
+        let preview = choice.preview.as_ref().unwrap();
+        assert_eq!(preview.resources.len(), 1);
+        assert_eq!(
+            (preview.resources[0].faction, preview.resources[0].to),
+            (Faction::Government, balance)
+        );
+        assert!(preview.removed.is_empty() && preview.flips.is_empty());
+        assert!(preview.control.is_empty() && preview.standings.is_empty());
+        assert_eq!(
+            preview.assault.as_ref().unwrap().effect,
+            "R 3.2.4: No pieces affected."
+        );
+        choose(&mut game, &action);
+        let after = game.observe();
+        assert_eq!(after.resources, [balance, 0, 5, 15]);
+        assert_eq!(after.spaces, before.spaces);
+        assert_eq!(after.available, before.available);
+        assert_eq!(after.standings, before.standings);
+        assert_eq!(after.executing, Some(Faction::Government));
+        // The paid space is not involved, whatever stands there (R 3.1).
+        let target = space_targets(&after)
+            .unwrap()
+            .into_iter()
+            .find(|t| t.space == space)
+            .unwrap();
+        assert_eq!(target.state, SpaceState::NotInvolved);
+        assert!(target.choices.is_empty());
+    }
+}
+
+#[test]
+fn each_paid_space_is_recorded_in_the_order_paid_with_what_it_removed_or_closed() {
+    let mut game = assault_after(4, &SHADED);
+    assert!(game.observe().assault_paid.is_empty());
+    // Santiago first, though Havana comes first on the map: 2 Active 26July
+    // Guerrillas return. Then Havana: Syndicate's Casino closes (R 1.4.5).
+    choose(&mut game, "assault:santiago:26july");
+    choose(&mut game, "assault:havana:syndicate");
+    let view = game.observe();
+    assert_eq!(view.resources, [1, 0, 5, 15]);
+    assert_eq!(
+        view.assault_paid
+            .iter()
+            .map(|paid| (
+                paid.space.as_str(),
+                paid.paid,
+                paid.returned,
+                paid.summary()
+            ))
+            .collect::<Vec<_>>(),
+        [
+            (
+                "santiago",
+                2,
+                2,
+                "Santiago de Cuba · paid 2 Resources · returned 2 26July Guerrillas".to_owned()
+            ),
+            (
+                "havana",
+                2,
+                0,
+                "Havana · paid 2 Resources · closed 1 Casino".to_owned()
+            ),
+        ]
+    );
+    // A third space cannot be paid with 1 Resource; the record keeps both.
+    let matanzas = view
+        .choices
+        .iter()
+        .find(|c| c.action() == "assault:matanzas:none")
+        .unwrap();
+    assert!(!matanzas.supported);
+    // The preview of the second payment said that no other space could be paid after it.
+    let mut again = assault_after(4, &SHADED);
+    choose(&mut again, "assault:santiago:26july");
+    let havana = again.observe();
+    let preview = havana
+        .choices
+        .iter()
+        .find(|c| c.action() == "assault:havana:syndicate")
+        .unwrap()
+        .preview
+        .clone()
+        .unwrap();
+    // Each part is stated by name, so none depends on the notes' order.
+    assert_eq!(
+        preview.assault,
+        Some(AssaultPreview {
+            arithmetic: "6 Troops + 4 Police = 10 in a City (R 3.2.4).".into(),
+            affects: "Syndicate: 0 Active, 0 Underground, 1 open Casino. Directorio: 0 Active, 2 Underground. Assault cannot remove its Underground Guerrillas until they are Activated.".into(),
+            effect: "R 3.2.4: Close 1 Casino in place (R 1.4.5).".into(),
+        })
+    );
+    assert_eq!(
+        preview.notes,
+        [
+            "Government would have 1 Resource: another space would need a Resource transfer first (R 6.3.1)."
+        ]
+    );
+    assert!(preview.unavailable.is_empty());
+    // The record survives the ending.
+    choose(&mut game, "end-assault");
+    assert_eq!(game.observe().assault_paid, view.assault_paid);
+}
+
+/// The reason the rules authority gives for each space, in the map's order, or `None`.
+fn reasons(view: &Observation) -> Vec<(String, Option<String>)> {
+    view.spaces
+        .iter()
+        .map(|space| {
+            let reason = view
+                .space_reasons
+                .iter()
+                .find(|r| r.space == space.id)
+                .map(|r| r.reason.clone());
+            (space.id.clone(), reason)
+        })
+        .collect()
+}
+
+/// The 13 spaces' expected reasons, in the map's order: Havana and Santiago, then the
+/// 11 spaces where Assault would remove nothing.
+fn expected_reasons(havana: Option<&str>, santiago: Option<&str>) -> Vec<(String, Option<String>)> {
+    // Worked from R 3.2.4 on the pieces `quiet` lists, independently of the plans:
+    // - no enemy piece in Camagüey City (1 Troops, 2 Police), Matanzas, Las Villas
+    //   (3 Troops) or any of the three Economic Centers;
+    // - no Troops in Pinar del Río (Syndicate's open Casino) and La Habana (Forest and
+    //   Grassland count Troops only, and no Police stands there either), Camagüey
+    //   (Directorio's Underground Guerrilla), Oriente and Sierra Maestra (26July's
+    //   pieces; Sierra Maestra is Mountain, where 0 Troops ÷ 2 = 0).
+    let enemy = Some("No enemy pieces (R 3.2.4)");
+    let troops = Some("No Troops (R 3.2.4)");
+    [
+        ("havana", havana),
+        ("camaguey-city", enemy),
+        ("santiago", santiago),
+        ("pinar-del-rio", troops),
+        ("la-habana", troops),
+        ("matanzas", enemy),
+        ("las-villas", enemy),
+        ("camaguey-province", troops),
+        ("oriente", troops),
+        ("sierra-maestra", troops),
+        ("ec-pinar-la-habana", enemy),
+        ("ec-las-villas-camaguey", enemy),
+        ("ec-oriente-sierra", enemy),
+    ]
+    .into_iter()
+    .map(|(space, reason)| (space.to_owned(), reason.map(str::to_owned)))
+    .collect()
+}
+
+/// #170: the space tag's line is the rules authority's reason for each space's state,
+/// checked for all 13 spaces in each of the handoff's Assault positions. A selectable
+/// space needs none; a blocked one names the Resource transfer that would open it
+/// (R 6.3.1, 1.5.1); a paid one says what it paid (R 3.1); every other one says why
+/// R 3.2.4 would remove nothing there.
+#[test]
+fn each_of_the_thirteen_spaces_has_the_reason_r_3_2_4_gives_its_state() {
+    // The unshaded Event's free Rally and the shaded Event leave the same reasons:
+    // only 26July's pieces in Oriente and Sierra Maestra differ, and neither holds a
+    // Troop. Government has 5 Resources, so Havana and Santiago are selectable.
+    for event in [&RALLY[..], &SHADED[..]] {
+        let view = assault_after(4, event).observe();
+        assert_eq!(reasons(&view), expected_reasons(None, None), "{event:?}");
+    }
+    // With 1 Resource Government cannot pay 2, and 26July, Directorio and Syndicate
+    // have Resources to give.
+    let transfer = Some("A Resource transfer opens it");
+    let mut short = assault_after(0, &SHADED);
+    assert_eq!(
+        reasons(&short.observe()),
+        expected_reasons(transfer, transfer)
+    );
+    // No targeting while the transfer is under way, so no reason either.
+    choose(&mut short, "transfer");
+    assert!(short.observe().space_reasons.is_empty());
+    choose(&mut short, "ask:1:1");
+    choose(&mut short, "authorize:1");
+    assert_eq!(reasons(&short.observe()), expected_reasons(None, None));
+    // Santiago paid 2 (Firm, R 6.3.1); Government is at 0 again.
+    choose(&mut short, "assault:santiago:26july");
+    assert_eq!(
+        reasons(&short.observe()),
+        expected_reasons(transfer, Some("Assaulted · paid 2 Resources"))
+    );
+    // Once the Assault is finished, no choice acts on a space.
+    choose(&mut short, "end-assault");
+    assert!(short.observe().space_reasons.is_empty());
+    // Every line fits the tag's one line (#170's measured budget).
+    for (_, reason) in reasons(&assault_after(0, &SHADED).observe()) {
+        assert!(reason.is_none_or(|r| r.chars().count() <= 33));
+    }
 }

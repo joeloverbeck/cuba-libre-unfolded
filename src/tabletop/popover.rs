@@ -35,7 +35,7 @@ use emblems::Naming;
 use highlights::Targeting;
 
 /// Layout values in reference pixels, from the A-P1/A-P3/A-P4 masters.
-mod frame {
+pub(super) mod frame {
     pub const WIDTH: f32 = 340.;
     /// The protected hover tag, A-P6.
     pub const TAG_WIDTH: f32 = 300.;
@@ -52,17 +52,32 @@ mod frame {
     /// rule notes, Regular 11 (`art/atlas/HIGHLIGHTS.md`, A-P1 rows).
     pub const LINE_SIZE: f32 = 12.5;
     pub const NOTE_SIZE: f32 = 11.;
+    /// The text's inset from the card's sides, and the header's space below the rule.
+    pub const INSET: f32 = 14.;
+    pub const TOP: f32 = 9.;
+    /// The rule's height.
+    pub const RULE: f32 = 3.;
 }
 
 /// The production plates of `art/atlas/atlas-popover.figcraft` (frame "Production
 /// plates"), drawn at reference size in the `Atlas` variables and exported at 3x. The
 /// numbers are `atlas-popover.layout.json`'s `plates` (a unit test holds them equal).
-mod plate {
+pub(super) mod plate {
     /// The card: `paper`, a 1 px `ink` stroke, radius 2 and its drop shadow (`ink` at
     /// 20%, 0/3, blur 10). The export reaches past the card's box by this much (left,
     /// top, right, bottom), and it is nine-sliced 40 px in, clear of the shadow's corners.
     pub const CARD: (&str, Option<f32>, [f32; 4]) =
         ("atlas-popover-card.png", Some(40.), [15., 12., 15., 18.]);
+    /// The notice slip's card (#174): the same plate on a 36 px box, nine-sliced 30 px
+    /// in. Bevy scales a nine-slice's corners by at most its node's size over its image's,
+    /// so `CARD`'s 130 px canvas would shrink the corners of a card shorter than 100 px
+    /// and draw its stroke outside the card; this canvas is 66 px, under a one-line
+    /// slip's 70. Its corner slices are `CARD`'s, pixel for pixel.
+    pub const SLIP_CARD: (&str, Option<f32>, [f32; 4]) = (
+        "atlas-popover-card-slip.png",
+        Some(30.),
+        [15., 12., 15., 18.],
+    );
     /// The committing button: `action/primary`, radius 2.
     pub const PRIMARY: (&str, Option<f32>, [f32; 4]) =
         ("atlas-popover-primary.png", Some(6.), [0.; 4]);
@@ -93,7 +108,7 @@ pub(super) struct Part(pub String);
 /// Draws a plate as the first child of `parent`, over its whole box (and past it by
 /// the plate's outset) and beneath its content. A sliced plate keeps its corners at
 /// reference size: the exports are 3x, so the corner scale is `s / 3`.
-fn plate(
+pub(super) fn plate(
     commands: &mut Commands,
     art: &Art,
     parent: Entity,
@@ -164,7 +179,9 @@ impl Popover {
         }
         match targeting.state(space) {
             None => {}
-            Some(SpaceState::Selectable | SpaceState::Blocked) => {
+            // A no-effect space stays choosable (#169): its popover holds the one
+            // plan that removes nothing.
+            Some(state) if state.choosable() => {
                 if self.pinned.as_ref().is_some_and(|(s, _)| s == space) {
                     self.pinned = None;
                 } else {
@@ -173,7 +190,7 @@ impl Popover {
                 self.selected = None;
             }
             // Closing the popover is the only effect a not-involved space has.
-            Some(SpaceState::NotInvolved) => {
+            Some(_) => {
                 self.pinned = None;
                 self.selected = None;
             }
@@ -182,6 +199,13 @@ impl Popover {
     }
     pub fn choose_row(&mut self, action: &str) {
         self.selected = Some(action.into());
+    }
+    /// The space whose popover is open at `revision`, and its chosen row's action.
+    pub fn space(&self, revision: u64) -> Option<(&str, Option<&str>)> {
+        self.pinned
+            .as_ref()
+            .filter(|(_, at)| *at == revision)
+            .map(|(space, _)| (space.as_str(), self.selected.as_deref()))
     }
     /// A click on a 26July piece in removal mode: a removable group's popover opens,
     /// or closes when it is the open one; a protected piece opens nothing.
@@ -331,6 +355,66 @@ fn plural(n: u8, one: &str) -> String {
     }
 }
 
+/// Whether Government executes Assault: the space popover then lists a space's plans.
+fn assault(view: &Observation) -> bool {
+    view.current_card == 18 && view.executing == Some(Faction::Government)
+}
+
+/// An Assault plan's preview (#169), from the authority: the capacity arithmetic,
+/// the payment, whom the plan can affect, what it removes or closes, the Control and
+/// standings that change, and whether another space could still be paid. Each part is
+/// read by name: the payment from `resources`, the three Assault statements from
+/// `assault`, and the remaining notes, which are quiet.
+fn assault_lines(preview: &crate::Preview) -> Vec<(Tone, String)> {
+    let mut lines = vec![];
+    let assault = preview.assault.as_ref();
+    if let Some(assault) = assault {
+        lines.push((Tone::Plain, assault.arithmetic.clone()));
+    }
+    for r in &preview.resources {
+        lines.push((
+            Tone::Plain,
+            format!(
+                "Pay {}: {} {} → {}.",
+                plural(r.from.saturating_sub(r.to), "Resource"),
+                r.faction.name(),
+                r.from,
+                r.to
+            ),
+        ));
+    }
+    if let Some(assault) = assault {
+        lines.push((Tone::Plain, assault.affects.clone()));
+        lines.push((Tone::Strong, assault.effect.clone()));
+    }
+    let mut outcome: Vec<String> = preview
+        .control
+        .iter()
+        .map(|c| {
+            format!(
+                "Control: {} → {}",
+                c.from.map_or("none", Faction::name),
+                c.to.map_or("none", Faction::name)
+            )
+        })
+        .collect();
+    outcome.extend(preview.standings.iter().map(|s| {
+        format!(
+            "{} {} → {} (margin {} → {})",
+            s.faction.name(),
+            s.score_from,
+            s.score_to,
+            s.margin_from,
+            s.margin_to
+        )
+    }));
+    if !outcome.is_empty() {
+        lines.push((Tone::Strong, format!("{}.", outcome.join("; "))));
+    }
+    lines.extend(preview.notes.iter().map(|note| (Tone::Quiet, note.clone())));
+    lines
+}
+
 /// The chosen row's preview: the authority's computed consequences as sentences.
 fn preview_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
     let mut lines = vec![];
@@ -338,6 +422,9 @@ fn preview_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
         lines.push((Tone::Plain, choice.explanation.clone()));
         return lines;
     };
+    if assault(view) {
+        return assault_lines(preview);
+    }
     let name = |id: &str| {
         view.spaces
             .iter()
@@ -475,11 +562,26 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
         .and_then(|a| here.iter().find(|c| c.supported && c.action() == a))
         .or_else(|| here.iter().find(|c| c.supported))
         .map(|c| c.id.clone());
+    let assault = assault(view);
     let head = |choice: &Choice| -> (String, String) {
-        if choice.action() == "kidnap" {
+        if assault {
+            // The plan's own label: the factions targeted and a short capacity's
+            // split, or "Removes nothing".
+            (choice.label.clone(), "Assault".into())
+        } else if choice.action() == "kidnap" {
             ("Kidnap · from Government".into(), "Special Activity".into())
         } else {
             ("Terror".into(), "Operation".into())
+        }
+    };
+    // What the one button that pays reads (#169): the cost per space, and the space
+    // or, for the plan that changes nothing there, that it removes nothing.
+    let pay = |choice: &Choice| -> String {
+        let cost = view.alliance.coin_cost();
+        if choice.site.as_ref().is_some_and(|site| site.effect) {
+            format!("Pay {cost} · Assault in {}", place.name)
+        } else {
+            format!("Pay {cost} · Assault removes nothing")
         }
     };
     let mut rows = vec![];
@@ -501,7 +603,9 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
             remedies: vec![],
             no_remedy: None,
             button: is_chosen.then(|| {
-                if choice.action() == "kidnap" {
+                if assault {
+                    pay(choice)
+                } else if choice.action() == "kidnap" {
                     "Open Kidnap · nothing rolled yet".into()
                 } else {
                     format!(
@@ -555,7 +659,9 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
             button: None,
         });
     }
-    if space == KIDNAP_SPACE
+    // The rolled Kidnap is history of 26July's Terror: Assault's popover lists plans only.
+    if !assault
+        && space == KIDNAP_SPACE
         && let Some(kidnap) = &view.kidnap
     {
         rows.push(Row {
@@ -582,10 +688,17 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
     }
     let terrain = super::status::kind(place.terrain);
     let m26 = view.resources[Faction::M26.index()];
-    let mut subtitle = format!(
-        "{terrain} · 26July executing Terror · 26July has {}",
-        plural(m26, "Resource")
-    );
+    let mut subtitle = if assault {
+        format!(
+            "{terrain} · Government executing Assault · Government has {}",
+            plural(view.resources[Faction::Government.index()], "Resource")
+        )
+    } else {
+        format!(
+            "{terrain} · 26July executing Terror · 26July has {}",
+            plural(m26, "Resource")
+        )
+    };
     if view.owed_terror.as_deref() == Some(space) {
         subtitle.push_str(&format!(" · {} Terror is owed", place.name));
     }
@@ -601,6 +714,38 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
         cancel: false,
         footer: FOOTER.into(),
     })
+}
+
+/// An open space popover's Tab stops, by their seat names (#168): each row that can be
+/// chosen, which Enter chooses as a click does, then the button, which submits the
+/// chosen row's choice as a click on it does.
+pub(super) fn focusable(
+    view: &Observation,
+    space: &str,
+    selected: Option<&str>,
+) -> Vec<(String, Action)> {
+    let Some(card) = content(view, space, selected) else {
+        return vec![];
+    };
+    let mut stops: Vec<(String, Action)> = card
+        .rows
+        .iter()
+        .filter(|row| row.mark == Mark::Selectable)
+        .filter_map(|row| row.choice.as_ref()?.split_once(':'))
+        .map(|(_, action)| (format!("popover:row:{action}"), Action::Row(action.into())))
+        .collect();
+    if let Some((row, choice)) = card.rows.iter().find_map(|row| {
+        row.button
+            .as_ref()
+            .and(row.choice.as_ref())
+            .map(|c| (row, c))
+    }) {
+        stops.push((
+            "popover:commit".into(),
+            Action::Submit(row.owner, card.revision, choice.clone()),
+        ));
+    }
+    stops
 }
 
 const PIECE_FOOTER: &str = "Removal stays open for more pieces until Done.";
@@ -910,15 +1055,15 @@ fn region_ends(
 }
 
 /// The drawing context every popover text shares: the admitted art for emblems.
-struct Ink<'a> {
-    art: &'a Art,
+pub(super) struct Ink<'a> {
+    pub art: &'a Art,
 }
 
 /// Spawns a line of popover text in the card's flow. Faction names become #60's inline
 /// emblems by `naming` (story 60), except 26July on a red button; the words keep every
 /// name for the seat (`emblems::Plain`).
 #[allow(clippy::too_many_arguments)]
-fn words(
+pub(super) fn words(
     commands: &mut Commands,
     ink: &Ink,
     parent: Entity,
@@ -968,7 +1113,14 @@ fn words(
 }
 
 /// A rule or divider: its plate, stretched across the card.
-fn rule(commands: &mut Commands, art: &Art, parent: Entity, height: f32, file: &str, part: String) {
+pub(super) fn rule(
+    commands: &mut Commands,
+    art: &Art,
+    parent: Entity,
+    height: f32,
+    file: &str,
+    part: String,
+) {
     commands.spawn((
         ImageNode::new(art.images[file].clone()).with_mode(NodeImageMode::Stretch),
         Node {
@@ -1091,7 +1243,7 @@ fn spawn(
         commands,
         art,
         body,
-        3. * s,
+        frame::RULE * s,
         if card.kind == CardKind::Protected {
             plate::RULE_INK
         } else {
@@ -1104,7 +1256,12 @@ fn spawn(
             Node {
                 flex_direction: FlexDirection::Column,
                 row_gap: px(2. * s),
-                padding: UiRect::new(px(14. * s), px(14. * s), px(9. * s), px(8. * s)),
+                padding: UiRect::new(
+                    px(frame::INSET * s),
+                    px(frame::INSET * s),
+                    px(frame::TOP * s),
+                    px(8. * s),
+                ),
                 ..default()
             },
             Part("popover-header".into()),
@@ -1303,8 +1460,10 @@ fn space_rows(
             .and_then(|c| c.split_once(':'))
             .map(|(_, a)| a.to_owned());
         match &action {
-            // Choosing a selectable row only shows its preview.
-            Some(action) if row.mark == Mark::Selectable && !row.chosen => {
+            // Choosing a selectable row only shows its preview. The chosen row keeps
+            // its name, so keyboard focus stays on it once Enter has chosen it (#168);
+            // choosing it again changes nothing.
+            Some(action) if row.mark == Mark::Selectable => {
                 commands
                     .entity(node)
                     .insert(Control {
@@ -1756,12 +1915,7 @@ pub(super) fn draw(
     {
         popover.piece = None;
     }
-    let offered = |space: &str| {
-        matches!(
-            targeting.state(space),
-            Some(SpaceState::Selectable | SpaceState::Blocked)
-        )
-    };
+    let offered = |space: &str| targeting.state(space).is_some_and(SpaceState::choosable);
     if popover
         .pinned
         .as_ref()
@@ -2000,6 +2154,7 @@ mod tests {
                 .unwrap();
         let sliced = [
             plate::CARD,
+            plate::SLIP_CARD,
             plate::PRIMARY,
             plate::CANCEL,
             plate::CHIP,
@@ -2284,5 +2439,177 @@ mod tests {
         let view = crate::terror_chosen(Game::opening()).observe();
         assert!(content(&view, "sierra-maestra", None).is_none());
         assert!(content(&Game::opening().observe(), "santiago", None).is_none());
+    }
+
+    /// Card 18 with Government's Assault opened (#169): seed 2's Kidnap roll takes 5
+    /// of Government's 6, 26July gives `give` back, and the shaded Event makes every
+    /// 26July Guerrilla Active.
+    fn assault(give: u8) -> Game {
+        let mut game = crate::terror_chosen(Game::opening_with_seed(2));
+        for action in ["kidnap", "kidnap:roll", "terror:santiago"] {
+            choose(&mut game, action);
+        }
+        if give > 0 {
+            choose(&mut game, "transfer");
+            choose(&mut game, &format!("give:0:{give}"));
+        }
+        for action in [
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+            "advance-card",
+            "government:assault",
+        ] {
+            choose(&mut game, action);
+        }
+        game
+    }
+
+    /// #169: Havana's popover lists its plans, those that close the Casino first and
+    /// the plan that removes nothing last. The chosen row shows the authority's
+    /// preview and the one button that pays. Worked from R 3.2.4 on the handoff's
+    /// position: a City, 6 Troops + 4 Police = 10; Directorio's 2 Guerrillas are
+    /// Underground; Syndicate has no Guerrillas, so its open Casino closes (R 1.4.5),
+    /// which takes Syndicate's open Casinos from 3 to 2; its margin stays −15, the
+    /// lesser of 2 − 7 and its 15 Resources − 30 (R 7.2). A space costs 2 (R 6.3.1).
+    #[test]
+    fn havana_s_assault_popover_lists_its_plans_and_previews_the_chosen_one() {
+        let game = assault(4);
+        let card = card(&game, "havana", None);
+        assert_eq!(card.title, "Havana");
+        assert_eq!(
+            card.subtitle,
+            "City · Government executing Assault · Government has 5 Resources"
+        );
+        assert_eq!(
+            card.rows
+                .iter()
+                .map(|r| (r.head.as_str(), r.kind.as_str(), r.mark, r.chosen))
+                .collect::<Vec<_>>(),
+            [
+                ("Target Syndicate", "Assault", Mark::Selectable, true),
+                ("Removes nothing", "Assault", Mark::Selectable, false),
+            ]
+        );
+        let chosen = &card.rows[0];
+        assert_eq!(chosen.button.as_deref(), Some("Pay 2 · Assault in Havana"));
+        assert_eq!(
+            chosen.lines,
+            [
+                (
+                    Tone::Plain,
+                    "6 Troops + 4 Police = 10 in a City (R 3.2.4).".to_owned()
+                ),
+                (Tone::Plain, "Pay 2 Resources: Government 5 → 3.".into()),
+                (
+                    Tone::Plain,
+                    "Syndicate: 0 Active, 0 Underground, 1 open Casino. Directorio: 0 Active, 2 Underground. Assault cannot remove its Underground Guerrillas until they are Activated."
+                        .into()
+                ),
+                (
+                    Tone::Strong,
+                    "R 3.2.4: Close 1 Casino in place (R 1.4.5).".into()
+                ),
+                (Tone::Strong, "Syndicate 3 → 2 (margin -15 → -15).".into()),
+            ]
+        );
+        assert!(card.rows[1].button.is_none() && card.rows[1].lines.is_empty());
+
+        // The plan that removes nothing, once chosen, says so on its button.
+        let card = super::content(&game.observe(), "havana", Some("assault:havana:none")).unwrap();
+        let nothing = &card.rows[1];
+        assert!(nothing.chosen && !card.rows[0].chosen);
+        assert_eq!(
+            nothing.button.as_deref(),
+            Some("Pay 2 · Assault removes nothing")
+        );
+        let lines = text(nothing);
+        for fact in [
+            "6 Troops + 4 Police = 10 in a City (R 3.2.4).",
+            "Pay 2 Resources: Government 5 → 3.",
+            "R 3.2.4: No pieces affected.",
+        ] {
+            assert!(lines.contains(fact), "{fact}: {lines}");
+        }
+    }
+
+    /// A no-effect space's popover holds the one plan that removes nothing, chosen,
+    /// with the button that says so. Matanzas is empty Grassland: 0 Troops = 0.
+    #[test]
+    fn a_no_effect_space_s_popover_holds_the_one_plan_that_removes_nothing() {
+        let game = assault(4);
+        let card = card(&game, "matanzas", None);
+        assert_eq!(card.rows.len(), 1);
+        let row = &card.rows[0];
+        assert_eq!((row.head.as_str(), row.chosen), ("Removes nothing", true));
+        assert_eq!(
+            row.button.as_deref(),
+            Some("Pay 2 · Assault removes nothing")
+        );
+        let lines = text(row);
+        for fact in [
+            "0 Troops = 0 in Grassland. 0 Police do not count (R 3.2.4).",
+            "Pay 2 Resources: Government 5 → 3.",
+            "No enemy pieces are there.",
+            "R 3.2.4: No pieces affected.",
+        ] {
+            assert!(lines.contains(fact), "{fact}: {lines}");
+        }
+        // A paid space has no popover.
+        let mut paid = game.clone();
+        choose(&mut paid, "assault:matanzas:none");
+        assert!(content(&paid.observe(), "matanzas", None).is_none());
+    }
+
+    /// With 1 Resource Government cannot pay 2: Santiago's rows are not yet, each with
+    /// the authority's reason and the Resource transfer that would open it, and no
+    /// button is offered.
+    #[test]
+    fn a_blocked_assault_space_states_the_cost_and_the_transfer_that_opens_it() {
+        let game = assault(0);
+        assert_eq!(game.observe().resources, [1, 4, 5, 15]);
+        let card = card(&game, "santiago", None);
+        assert_eq!(
+            card.rows
+                .iter()
+                .map(|r| (r.head.as_str(), r.kind.as_str(), r.mark))
+                .collect::<Vec<_>>(),
+            [
+                ("Target 26July", "not yet", Mark::NotYet),
+                ("Removes nothing", "not yet", Mark::NotYet),
+            ]
+        );
+        for row in &card.rows {
+            assert!(row.button.is_none() && !row.chosen);
+            assert_eq!(row.remedies, ["Request a Resource transfer"]);
+            assert!(
+                text(row)
+                    .starts_with("Government has 1 Resource and cannot pay 2 Resources (R 6.3.1)."),
+                "{}",
+                text(row)
+            );
+        }
+        assert!(
+            text(&card.rows[0]).contains("Return 2 26July Active Guerrillas to Available Forces")
+        );
+    }
+
+    /// A click opens a no-effect space's popover, as it does a selectable or blocked
+    /// one; a click on a paid space, which is not involved, opens nothing.
+    #[test]
+    fn a_click_opens_a_no_effect_space_and_not_a_paid_one() {
+        let mut game = assault(4);
+        choose(&mut game, "assault:santiago:26july");
+        let view = game.observe();
+        let mut targeting = Targeting::default();
+        targeting.targets = crate::targets::space_targets(&view);
+        targeting.view = Some(view.clone());
+        assert_eq!(targeting.state("matanzas"), Some(SpaceState::NoEffect));
+        assert_eq!(targeting.state("santiago"), Some(SpaceState::NotInvolved));
+        let mut popover = Popover::default();
+        assert!(popover.click_space("matanzas", &targeting));
+        assert_eq!(popover.space(view.revision), Some(("matanzas", None)));
+        assert!(!popover.click_space("santiago", &targeting));
+        assert!(popover.space(view.revision).is_none());
     }
 }

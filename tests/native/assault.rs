@@ -61,22 +61,20 @@ fn native_funded_santiago_assault_carries_each_event_and_restarts() {
         assert_eq!(pending["executing"], "Government");
         assert_eq!(pending["resources"], handoff["resources"]);
 
+        // Santiago is chosen on the map (#169): its popover previews the plan.
         const ATTACK: &str = "assault:santiago:26july";
-        for action in ["assault:areas:cities", "assault:space:santiago"] {
-            pin(&mut app, action);
-            app.choose(action);
-        }
-        let pending = app.observe()["observation"].clone();
         let before = fs::read(&app.save).unwrap();
         app.quit();
         app.launch_size("3840x2160");
         assert_eq!(app.observe()["observation"], pending);
-        pin(&mut app, ATTACK);
-        let pinned = app.observe();
-        let preview = tag_text(&pinned["table"]["briefing"]);
+        let revision = pending["revision"].as_u64().unwrap();
+        app.activate("space:santiago", revision);
+        let opened = app.observe();
+        assert_eq!(opened["observation"], pending, "a look decides nothing");
+        let preview = popover_text(&opened);
         for required in [
             "2 Troops + 1 Police = 3",
-            "2 Resources (2 → 0)",
+            "Pay 2 Resources: Government 2 → 0.",
             &format!("{returned} Active, {left_underground} Underground"),
         ] {
             assert!(
@@ -240,32 +238,30 @@ fn native_havana_and_santiago_assault_in_either_order_restarts_and_finishes() {
         app.choose("government:assault");
         let opening = app.observe();
         assert_eq!(opening["observation"]["resources"][0], 6);
-        app.capture("assault-areas");
+        app.capture("assault-opened");
 
         for (index, space) in [first, second].into_iter().enumerate() {
-            pin(&mut app, "assault:areas:cities");
-            app.choose("assault:areas:cities");
-            let cities = app.observe();
+            let map = app.observe();
             if index == 1 {
+                // The space paid first is not involved: no plan is offered there.
+                assert_eq!(target_state(&map, first), "not-involved");
                 assert!(
-                    cities["observation"]["choices"]
+                    map["observation"]["choices"]
                         .as_array()
                         .unwrap()
                         .iter()
-                        .all(|c| c["id"].as_str().unwrap().split_once(':').unwrap().1
-                            != format!("assault:space:{first}"))
+                        .all(|c| c["site"]["space"] != first)
                 );
             }
-            let inspect = format!("assault:space:{space}");
-            pin(&mut app, &inspect);
-            app.choose(&inspect);
+            assert_eq!(target_state(&map, space), "selectable");
             let target = if space == "havana" {
                 "syndicate"
             } else {
                 "26july"
             };
             let action = format!("assault:{space}:{target}");
-            pin(&mut app, &action);
+            let at = map["observation"]["revision"].as_u64().unwrap();
+            app.activate(&format!("space:{space}"), at);
             let pinned = app.observe();
             let before = &pinned["observation"];
             let revision = before["revision"].as_u64().unwrap();
@@ -280,24 +276,24 @@ fn native_havana_and_santiago_assault_in_either_order_restarts_and_finishes() {
             let balances = [6, 4, 2];
             assert_eq!(preview["resources"][0]["from"], balances[index]);
             assert_eq!(preview["resources"][0]["to"], balances[index + 1]);
-            let briefing = tag_text(&pinned["table"]["briefing"]);
+            let briefing = popover_text(&pinned);
             if space == "havana" {
                 assert!(briefing.contains("6 Troops + 4 Police = 10"));
                 assert!(briefing.contains("Close 1 Casino in place"));
-                assert!(briefing.contains("open Casinos: 3 → 2"));
+                assert!(briefing.contains("Syndicate 3 → 2"), "{briefing}");
                 assert_eq!(
                     preview["flips"],
                     json!([{"space":"havana","faction":"Syndicate",
                     "kind":"Casino","from":"Open","to":"Closed","count":1}])
                 );
                 assert_eq!(preview["removed"], json!([]));
-                let notes = preview["notes"].to_string();
-                assert!(notes.contains("Close 1 Casino in place"), "{notes}");
-                assert!(!notes.contains("to Available"), "{notes}");
+                let effect = preview["assault"]["effect"].to_string();
+                assert!(effect.contains("Close 1 Casino in place"), "{effect}");
+                assert!(!effect.contains("to Available"), "{effect}");
             } else {
                 assert!(briefing.contains("2 Troops + 1 Police = 3"));
                 assert!(
-                    preview["notes"]
+                    preview["assault"]["effect"]
                         .to_string()
                         .contains("Return 2 26July Active Guerrillas to Available Forces")
                 );
@@ -371,12 +367,13 @@ fn native_havana_and_santiago_assault_in_either_order_restarts_and_finishes() {
         }
         let before_finish = app.observe()["observation"].clone();
         assert_eq!(before_finish["resources"][0], 2);
+        // Every other space stays choosable: its plan that removes nothing is offered.
         assert!(
             before_finish["choices"]
                 .as_array()
                 .unwrap()
                 .iter()
-                .any(|c| c["label"] == "Provinces" && c["supported"] == true)
+                .any(|c| c["site"]["space"] == "matanzas" && c["supported"] == true)
         );
         pin(&mut app, "end-assault");
         app.choose("end-assault");

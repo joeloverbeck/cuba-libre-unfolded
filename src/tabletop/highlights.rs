@@ -1,8 +1,10 @@
 //! The selected map highlight family, HF-A Survey ink (#68), applied to the map while
-//! 26July executes Terror (#72) and in removal mode (#73). Every graphic is an
+//! a decision offers choices on its spaces, 26July's Terror (#72) and Government's
+//! Assault (#169), and in removal mode (#73). Every graphic is an
 //! unchanged VectorCraft export of `art/proposals/issue-66/map-highlights.vectorcraft`;
-//! `art/atlas/highlights.json` places each on the region tops it covers and names the
-//! state it shows, and places the piece markers under the pieces. Runtime only decides
+//! `art/atlas/highlights.json` places each on the top of the one space it covers
+//! (#167: every space has its own rule, dashed rule and veil) and names the state it
+//! shows, and places the piece markers under the pieces. Runtime only decides
 //! which admitted graphics are visible, from the rules authority's choices
 //! (`crate::targets`): it draws nothing of its own.
 use super::*;
@@ -43,6 +45,18 @@ impl Targeting {
                 .any(|s| s == space)
                 .then_some(SpaceState::NotInvolved)
         })
+    }
+    /// The rules authority's reason for `space`'s state, while the map shows the open
+    /// decision's states (#170): the space tag's last line. `None` where the authority
+    /// gives none, and whenever the targeting is suspended.
+    pub fn reason(&self, space: &str) -> Option<&str> {
+        self.targets.as_ref()?;
+        self.view
+            .as_ref()?
+            .space_reasons
+            .iter()
+            .find(|r| r.space == space)
+            .map(|r| r.reason.as_str())
     }
     /// An executing faction's group in removal mode, by its `space:group` key.
     pub fn piece(&self, key: &str) -> Option<&crate::targets::PieceTarget> {
@@ -111,18 +125,18 @@ pub(super) struct Marker {
 struct Graphic {
     file: String,
     state: SpaceState,
-    spaces: Vec<String>,
+    space: String,
     /// Atlas units: left, top, width, height.
     rect: [f32; 4],
     height: f32,
 }
 
-/// A placed highlight: shown while every space it covers is in its state.
+/// A placed highlight: shown while its space is in its state.
 #[derive(Component)]
 pub(super) struct Decal {
     pub file: String,
     state: SpaceState,
-    spaces: Vec<String>,
+    space: String,
 }
 
 pub(super) fn setup(
@@ -157,7 +171,7 @@ pub(super) fn setup(
             Decal {
                 file: graphic.file,
                 state: graphic.state,
-                spaces: graphic.spaces,
+                space: graphic.space,
             },
         ));
     }
@@ -247,10 +261,8 @@ pub(super) fn markers(
 
 pub(super) fn show(targeting: Res<Targeting>, mut decals: Query<(&Decal, &mut Visibility)>) {
     for (decal, mut visibility) in &mut decals {
-        let shown = decal
-            .spaces
-            .iter()
-            .all(|space| targeting.shown(space) == Some(decal.state));
+        // A no-effect space draws the veil of a space no choice acts on (#169).
+        let shown = targeting.shown(&decal.space).map(SpaceState::drawn) == Some(decal.state);
         visibility.set_if_neq(if shown {
             Visibility::Inherited
         } else {

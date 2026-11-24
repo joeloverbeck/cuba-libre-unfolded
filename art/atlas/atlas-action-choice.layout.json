@@ -1,6 +1,6 @@
 {
   "source": "atlas-action-choice.figcraft",
-  "note": "absoluteBounds [x, y, width, height] read from FigCraft get_node in the 16:9 frame 'AC-B Briefing tag (selected in #68)' (node 147), minus the frame's page origin (6244, 0). Images are compared on all four edges; 'stretched' on left, top and right (the runtime stretches the tag plate to its content, as the top display's tags); 'text' on left and top; 'right_text' on top and right; 'centered_text' on top and horizontal centre (line height is the renderer's). 'execution' parts come from the states frame (node 917), translated from the 'AC-B panel · during Terror' panel (13080.4, 3997) and the Kidnap tag (11795.2, 3997) to the 16:9 panel (4686, 756) and tag (3400.8, 756). The 16:9 frame shows Terror pinned at the action choice.",
+  "note": "absoluteBounds [x, y, width, height] read from FigCraft get_node in the 16:9 frame 'AC-B Briefing tag (selected in #68)' (node 147), minus the frame's page origin (6244, 0). Images are compared on all four edges; 'stretched' on left, top and right (the runtime stretches the tag plate to its content, as the top display's tags); 'text' on left and top; 'right_text' on top and right; 'centered_text' on top and horizontal centre (line height is the renderer's). 'execution' parts come from the states frame (node 917), translated from the 'AC-B panel · during Terror' panel (13080.4, 3997) and the Kidnap tag (11795.2, 3997) to the 16:9 panel (4686, 756) and tag (3400.8, 756). The 16:9 frame shows Terror pinned at the action choice. 'assault' parts (#169) come from the frame 'AC-B panel · Assault (#169)' (node 2266), translated from its panels 'Assault, two spaces paid' (6308.8, 10897) and, under 'opened', 'Assault, nothing paid' (7723.6, 10897) to the 16:9 panel; 'record_line' is a record's line height.",
   "frame": [
     6144,
     3456
@@ -301,6 +301,139 @@
         994.4,
         71.0
       ]
+    }
+  },
+  "assault": {
+    "parts": {
+      "choice-heading-emblem": [
+        4750.8,
+        821.2,
+        59.4,
+        59.4
+      ],
+      "option:end-assault": [
+        4750.8,
+        1175.2,
+        1220.4,
+        86.4
+      ],
+      "option:transfer": [
+        4750.8,
+        1272.4,
+        1220.4,
+        86.4
+      ],
+      "option:remove": [
+        4750.8,
+        1369.6,
+        1220.4,
+        86.4
+      ],
+      "choice-commit": [
+        4750.8,
+        2354.4,
+        1220.4,
+        140.4
+      ]
+    },
+    "text": {
+      "choice-heading": [
+        4831.8,
+        815.4,
+        1139.4,
+        71.0
+      ],
+      "choice-subtitle": [
+        4750.8,
+        897.2,
+        1220.4,
+        84.0
+      ],
+      "assault-map-line": [
+        4750.8,
+        1013.6,
+        1220.4,
+        42.0
+      ],
+      "assault-record:santiago": [
+        4750.8,
+        1066.4,
+        1220.4,
+        49.0
+      ],
+      "assault-record:matanzas": [
+        4750.8,
+        1115.4,
+        1220.4,
+        49.0
+      ],
+      "option:end-assault-label": [
+        4791.3,
+        1192.4,
+        1150.2,
+        52.0
+      ],
+      "option:transfer-label": [
+        4791.3,
+        1289.6,
+        1150.2,
+        52.0
+      ],
+      "option:remove-label": [
+        4791.3,
+        1386.8,
+        1150.2,
+        52.0
+      ]
+    },
+    "record_line": 49.0,
+    "opened": {
+      "parts": {
+        "option:end-assault": [
+          4750.8,
+          1066.4,
+          1220.4,
+          86.4
+        ],
+        "option:transfer": [
+          4750.8,
+          1163.6,
+          1220.4,
+          86.4
+        ],
+        "option:remove": [
+          4750.8,
+          1260.8,
+          1220.4,
+          86.4
+        ],
+        "choice-commit": [
+          4750.8,
+          2354.4,
+          1220.4,
+          140.4
+        ]
+      },
+      "text": {
+        "choice-subtitle": [
+          4750.8,
+          897.2,
+          1220.4,
+          84.0
+        ],
+        "assault-map-line": [
+          4750.8,
+          1013.6,
+          1220.4,
+          42.0
+        ],
+        "option:end-assault-label": [
+          4791.3,
+          1083.6,
+          1150.2,
+          52.0
+        ]
+      }
     }
   }
 }

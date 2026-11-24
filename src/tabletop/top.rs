@@ -3,10 +3,12 @@
 //! including the hover tags, follows `art/atlas/atlas-top-display.figcraft`; every
 //! drawn element is a VectorCraft export from `atlas-top-display.vectorcraft`. The
 //! game owns the values and the rules they follow. The Available Forces ledger's rows
-//! open this tag too (#160); their targets, words and place are `available`'s.
+//! open this tag too (#160); their targets, words and place are `available`'s. So
+//! does the marker supply (#173), whose target is `supply`'s and whose tag opens below
+//! it, as the main view's layout places it.
 use super::palette::{INK, QUIET};
 use super::*;
-use crate::{CASH_MARKERS, UsAlliance};
+use crate::{CASH_MARKERS, MARKER_SUPPLY, UsAlliance};
 
 /// One hoverable element of the top display, named for the development seat. It is
 /// reported (`table.hover`, `table.top.item`) by its seat name.
@@ -18,6 +20,11 @@ pub(super) enum Item {
     Cash,
     /// A faction's row of the Available Forces ledger (#160).
     Available(Faction),
+    /// Save · quit in the bottom-right corner (#174), which opens the same tag. It is
+    /// not a top-band target: the plate is its own control (`save_quit`).
+    SaveQuit,
+    /// The marker supply between the US Alliance track and the standings (#173).
+    MarkerSupply,
 }
 
 /// The Available Forces rows' seat names, `available:<faction>`, in `Faction::ALL`
@@ -26,7 +33,7 @@ static AVAILABLE_NAMES: std::sync::LazyLock<[String; 4]> =
     std::sync::LazyLock::new(|| Faction::ALL.map(|f| format!("available:{}", slug(f))));
 
 impl Item {
-    const ALL: [Self; 8] = [
+    const ALL: [Self; 9] = [
         Self::Aid,
         Self::UsAlliance,
         Self::Resources,
@@ -35,6 +42,7 @@ impl Item {
         Self::Available(Faction::M26),
         Self::Available(Faction::Directorio),
         Self::Available(Faction::Syndicate),
+        Self::MarkerSupply,
     ];
     pub(super) fn name(self) -> &'static str {
         match self {
@@ -43,18 +51,23 @@ impl Item {
             Self::Resources => "resources",
             Self::Cash => "cash",
             Self::Available(faction) => &AVAILABLE_NAMES[faction.index()],
+            Self::SaveQuit => "save-quit",
+            Self::MarkerSupply => "marker-supply",
         }
     }
     /// The hover target in reference pixels, and whether it is anchored to the
-    /// right edge (else the left), as the layout's anchors are.
-    fn target(self) -> ([f32; 4], bool) {
-        match self {
+    /// right edge (else the left), as the layout's anchors are. The marker supply and
+    /// Save · quit have none: the main view's layout places them, and `supply` and
+    /// `save_quit` draw their targets.
+    fn target(self) -> Option<([f32; 4], bool)> {
+        Some(match self {
             Self::Aid => ([36., 24., 108., 50.], false),
             Self::UsAlliance => (TRACK, false),
             Self::Resources => (LEDGER, true),
             Self::Cash => ([1702., 222., 178., 44.], true),
             Self::Available(faction) => (available::row(faction), true),
-        }
+            Self::SaveQuit | Self::MarkerSupply => return None,
+        })
     }
 }
 
@@ -199,7 +212,9 @@ pub(super) fn header(
         ));
     }
     for item in Item::ALL {
-        let ([x, y, w, h], anchored_right) = item.target();
+        let Some(([x, y, w, h], anchored_right)) = item.target() else {
+            continue;
+        };
         let offset = if anchored_right { right } else { left };
         commands
             .spawn((
@@ -226,6 +241,8 @@ pub(super) fn header(
 /// What a tag explains. Values come from the observation and the game model; the
 /// notes restate the rules cited beside them, broken into drawn lines.
 pub(super) fn content(view: &crate::Observation, item: Item) -> Shown {
+    // The marker supply's notes state its cap, which the rules model declares once.
+    let marker_notes: [String; 2];
     let (title, rows, notes): (String, Vec<(String, String)>, Vec<&str>) = match item {
         Item::Aid => (
             "Aid".into(),
@@ -294,6 +311,40 @@ pub(super) fn content(view: &crate::Observation, item: Item) -> Shown {
             let tag = available::tag(view, faction);
             (tag.title, tag.rows, tag.notes)
         }
+        Item::SaveQuit => (
+            "Save · quit".into(),
+            Vec::new(),
+            vec!["Every decision is saved as it is made, and this\nbutton closes the game."],
+        ),
+        Item::MarkerSupply => {
+            let supply = view.marker_supply;
+            (
+                "Marker supply".into(),
+                vec![
+                    ("Terror on the map".into(), supply.terror_on_map.to_string()),
+                    (
+                        "Sabotage on the map".into(),
+                        supply.sabotage_on_map.to_string(),
+                    ),
+                    (
+                        "Available".into(),
+                        format!("{} of {MARKER_SUPPLY}", supply.available),
+                    ),
+                ],
+                // R 3.3.4's cap, and what returns markers (R 6.3.2, 6.3.3, 6.5). Only
+                // what the rules state: nothing on Terror's other effects at 0, nor on
+                // Reprisal or Government Earnings, which the rules leave open (#166).
+                {
+                    marker_notes = [
+                        format!(
+                            "Terror and Sabotage share {MARKER_SUPPLY} markers. Terror\nplaces no marker when all {MARKER_SUPPLY} are on the map\n(R 3.3.4)."
+                        ),
+                        "Civic Action and Agitation return Terror markers\nto the marker supply (R 6.3.2, 6.3.3); the Reset\nPhase returns the Terror and Sabotage markers\n(R 6.5).".into(),
+                    ];
+                    marker_notes.iter().map(String::as_str).collect()
+                },
+            )
+        }
     };
     let mut notes: Vec<String> = notes.into_iter().map(String::from).collect();
     if item == Item::Resources {
@@ -318,10 +369,11 @@ fn note_lines(note: &str) -> usize {
     note.lines().count()
 }
 
-/// Where a tag opens, in logical window pixels as [left, top, right, bottom], for a
-/// window of this reference pixel whose right-anchored elements are offset by `right`.
-/// Its height follows its rows and note lines.
-pub(super) fn bounds(shown: &Shown, scale: f32, right: Vec2) -> [f32; 4] {
+/// Where a tag opens in this window, in logical window pixels as [left, top, right,
+/// bottom]. Its height follows its rows and note lines.
+pub(super) fn bounds(shown: &Shown, layout: &areas::Layout, window: &Window) -> [f32; 4] {
+    let scale = reference_pixel(window);
+    let right = Vec2::new(window.width() - WIDTH * scale, 0.);
     let item = shown.item;
     let lines: usize = shown.notes.iter().map(|note| note_lines(note)).sum();
     let height = tag::ROWS_TOP
@@ -329,7 +381,28 @@ pub(super) fn bounds(shown: &Shown, scale: f32, right: Vec2) -> [f32; 4] {
         + tag::NOTES_GAP
         + lines as f32 * tag::NOTE_LINE
         + tag::BOTTOM;
-    let ([x, y, _, h], anchored_right) = item.target();
+    if item == Item::SaveQuit {
+        // Save · quit's tag opens above the plate: its right edge and foot are the main
+        // view's `save-quit-tag` (#174), and it grows upward with its lines.
+        let place = layout.save_quit_tag(window);
+        return [
+            place.max.x - tag::WIDTH * scale,
+            place.max.y - height * scale,
+            place.max.x,
+            place.max.y,
+        ];
+    }
+    let Some(([x, y, _, h], anchored_right)) = item.target() else {
+        // The marker supply's tag opens just below its area, centred under the graphic,
+        // but kept left of the standings by the tags' gap: below the US Alliance track
+        // and clear of the standings in every window (#173).
+        let area = layout.area("marker-supply", window);
+        let standings = layout.area("standings", window);
+        let width = tag::WIDTH * scale;
+        let left = (area.center().x - width / 2.).min(standings.min.x - tag::GAP * scale - width);
+        let top = area.max.y + tag::GAP * scale;
+        return [left, top, left + width, top + height * scale];
+    };
     // Tags open just below their element, except the Resources tag, which opens
     // beside the ledger so the Cash supply beneath stays visible, and a faction's
     // Available Forces tag, which opens left of both ledgers below the standings
@@ -357,12 +430,12 @@ pub(super) fn draw(
     play: Res<Play>,
     ui: Res<Interface>,
     art: Res<Art>,
+    layout: Res<areas::Layout>,
     window: Single<&Window, With<PrimaryWindow>>,
     roots: Query<Entity, With<Tag>>,
     mut previous: Local<Option<Shown>>,
 ) {
     let scale = reference_pixel(&window);
-    let right = Vec2::new(window.width() - WIDTH * scale, 0.);
     let shown = ui
         .hover
         .visible()
@@ -376,7 +449,7 @@ pub(super) fn draw(
         })
         .map(|item| {
             let mut shown = content(&play.game().observe(), item);
-            shown.bounds = bounds(&shown, scale, right);
+            shown.bounds = bounds(&shown, &layout, &window);
             shown
         });
     if *previous == shown {
@@ -529,6 +602,64 @@ mod tests {
                     assert!(line.chars().count() <= tag::NOTE_CHARS, "{line}");
                 }
             }
+        }
+    }
+
+    /// #174: Save · quit's tag is the top display's tag with one sentence, which says
+    /// that every decision is already saved and that the button closes the game. On
+    /// the owner's display it opens where the main view's `save-quit-tag` is.
+    #[test]
+    fn save_quit_s_tag_says_decisions_are_saved_and_opens_above_the_plate() {
+        let shown = content(&view(), Item::SaveQuit);
+        assert_eq!(shown.title, "Save · quit");
+        assert!(shown.rows.is_empty());
+        assert_eq!(
+            shown.notes.join(" ").replace('\n', " "),
+            "Every decision is saved as it is made, and this button closes the game."
+        );
+        for line in shown.notes.iter().flat_map(|note| note.lines()) {
+            assert!(line.chars().count() <= tag::NOTE_CHARS, "{line}");
+        }
+        let record: serde_json::Value =
+            serde_json::from_str(include_str!("../../art/atlas/atlas-main-view.layout.json"))
+                .unwrap();
+        let [x, y, w, h]: [f32; 4] =
+            serde_json::from_value(record["save-quit-tag"]["bounds"].clone()).unwrap();
+        // 3840×2160: one reference pixel is 1.6875, and the right edge is 600 further.
+        let layout = areas::Layout::read(include_bytes!(
+            "../../art/atlas/atlas-main-view.layout.json"
+        ))
+        .unwrap();
+        let window = Window {
+            resolution: (3840, 2160).into(),
+            ..default()
+        };
+        let at = bounds(&shown, &layout, &window);
+        for (drawn, recorded) in at.into_iter().zip([x, y, x + w, y + h]) {
+            assert!(
+                (drawn - recorded).abs() <= 0.02,
+                "{at:?} against {x} {y} {w} {h}"
+            );
+        }
+        // In every window `bounds` alone places it, the drawn tag's one placement. Held
+        // to layout A's geometry, not to the layout call `bounds` makes: Save · quit's
+        // plate is 152×42 reference pixels, 40 from the window's right and bottom edges,
+        // and the tag's right edge is the plate's, its foot 8 above the plate's top.
+        for (width, height) in [(1920, 1280), (2520, 1080), (1600, 1280), (3440, 1440)] {
+            let window = Window {
+                resolution: (width, height).into(),
+                ..default()
+            };
+            let s = reference_pixel(&window);
+            let [left, top, right, foot] = bounds(&shown, &layout, &window);
+            let at = format!("{width}x{height}");
+            assert!((right - (width as f32 - 40. * s)).abs() <= 0.02, "{at}");
+            assert!(
+                (foot - (height as f32 - (40. + 42. + 8.) * s)).abs() <= 0.02,
+                "{at}"
+            );
+            assert!((right - left - tag::WIDTH * s).abs() <= 0.02, "{at}");
+            assert!(top < foot, "{at}");
         }
     }
 

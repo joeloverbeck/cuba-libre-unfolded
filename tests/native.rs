@@ -8,6 +8,8 @@ use std::{
 
 #[path = "native/assault.rs"]
 mod assault;
+#[path = "native/assault_map.rs"]
+mod assault_map;
 #[path = "native/assault_side.rs"]
 mod assault_side;
 #[path = "native/available_forces.rs"]
@@ -20,10 +22,18 @@ mod card_piles;
 mod card_tag;
 #[path = "native/main_view.rs"]
 mod main_view;
+#[path = "native/map_keys.rs"]
+mod map_keys;
+#[path = "native/marker_supply.rs"]
+mod marker_supply;
 #[path = "native/pile_tags.rs"]
 mod pile_tags;
 #[path = "native/rally.rs"]
 mod rally;
+#[path = "native/save_quit.rs"]
+mod save_quit;
+#[path = "native/space_reason.rs"]
+mod space_reason;
 #[test]
 fn session_log_rejects_the_historical_dither_warning() {
     let line = "\x1b[2m2026-11-17T08:00:15.950912Z\x1b[0m \x1b[33m WARN\x1b[0m \x1b[2mbevy_core_pipeline::tonemapping\x1b[0m\x1b[2m:\x1b[0m Camera 406v0 has `Tonemapping::None` with `DebandDither::Enabled`, so dithering has no effect. Use `Tonemapping::Linear` to keep dithering, or set `DebandDither::Disabled`.";
@@ -48,6 +58,34 @@ fn choice_part<'a>(view: &'a Value, name: &str) -> &'a Value {
         .iter()
         .find(|part| part["part"] == name)
         .unwrap_or_else(|| panic!("missing choice panel part: {name}"))
+}
+
+/// No value of the open AC-B briefing is drawn on more lines than it was broken into:
+/// a line too wide for its box would wrap again and strand a word (#166's playtest).
+/// A line of plain text is 20 reference pixels and one with emblems 18 (the emblem
+/// spans do not carry the text's line height), so fewer than nine broken lines cannot
+/// take as much height as one more drawn line.
+fn assert_briefing_lines_fit(view: &Value) {
+    let reference = view["table"]["viewport"][1].as_f64().unwrap() / 1280.;
+    let values: Vec<_> = view["table"]["choice_parts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|p| p["part"].as_str().unwrap().starts_with("briefing-value:"))
+        .collect();
+    assert!(!values.is_empty(), "no briefing is open");
+    for value in values {
+        let bounds = rect_of(&value["bounds"]);
+        let text = value["text"].as_str().unwrap();
+        let height = (bounds[3] - bounds[1]) / reference;
+        let broken = text.lines().count() as f64;
+        assert!(broken < 9.);
+        assert!(
+            (18. * broken - 1.0..=20. * broken + 1.0).contains(&height),
+            "{}: {broken} lines drawn {height:.1} reference px high: {text:?}",
+            value["part"]
+        );
+    }
 }
 
 fn unexpected_record(line: &str) -> bool {
@@ -472,6 +510,20 @@ impl Native {
         // is the commit's default, so a pinned withdrawal is unpinned first.
         let terror =
             view["observation"]["action"] == "Terror" && view["observation"]["finished"] == false;
+        // A Terror target is a map space, chosen on the map only (#171).
+        if terror && let Some(space) = action.strip_prefix("terror:") {
+            self.pick(space, action);
+            return;
+        }
+        // So is the space of an Assault plan (#169): `assault:<space>:<plan>`.
+        if view["observation"]["executing"] == "Government"
+            && let Some((space, _)) = action
+                .strip_prefix("assault:")
+                .and_then(|rest| rest.split_once(':'))
+        {
+            self.pick(space, action);
+            return;
+        }
         let pinned = view["table"]["choice"]["pinned"].clone();
         if terror && is_step(action) && pinned != action {
             self.activate(&format!("step:{action}"), revision);
@@ -503,6 +555,62 @@ impl Native {
         );
         self.request(json!({"op":"settle"}), true);
     }
+    /// Commits `action` in `space` as a player does on the map (#171, #169): a click
+    /// on the space opens its popover, a click on the row chooses it when another row
+    /// is chosen, and the popover's one button commits it. An open tag over the map, or
+    /// another space's popover, is closed first with Escape, and a pointer resting on
+    /// a step moves to the panel's commit, so no step's tag covers the space.
+    fn pick(&mut self, space: &str, action: &str) {
+        let view = self.observe();
+        let revision = view["observation"]["revision"].as_u64().unwrap();
+        let other =
+            view["table"]["popover"].is_object() && view["table"]["popover"]["space"] != space;
+        if !view["table"]["briefing"].is_null() || other {
+            self.request(json!({"op":"key","revision":revision,"key":"Escape"}), true);
+            self.request(json!({"op":"settle"}), true);
+        }
+        if !self.observe()["table"]["briefing"].is_null() {
+            // Assault's panel is the action-choice panel, whose commit has its name.
+            self.point(if view["observation"]["executing"] == "Government" {
+                "choice-commit"
+            } else {
+                "execution-commit"
+            });
+        }
+        let view = self.observe();
+        assert!(
+            view["table"]["briefing"].is_null(),
+            "{}",
+            view["table"]["briefing"]
+        );
+        if view["table"]["popover"]["space"] != space {
+            self.activate(&format!("space:{space}"), revision);
+        }
+        let id = format!("{revision}:{action}");
+        let row = |view: &Value| -> Value {
+            view["table"]["popover"]["card"]["rows"]
+                .as_array()
+                .unwrap_or_else(|| panic!("no popover on {space}: {}", view["table"]))
+                .iter()
+                .find(|r| r["choice"] == id.as_str())
+                .unwrap_or_else(|| panic!("{space}'s popover lists no {id}: {}", view["table"]))
+                .clone()
+        };
+        if row(&self.observe())["chosen"] != true {
+            self.activate(&format!("popover:row:{action}"), revision);
+        }
+        let chosen = row(&self.observe());
+        assert_eq!(chosen["chosen"], true, "{chosen}");
+        assert!(chosen["button"].is_string(), "{chosen}");
+        self.activate("popover:commit", revision);
+        // The pointer rests on the map where the card was; let its hover dwell end.
+        self.request(json!({"op":"settle"}), true);
+        assert_eq!(
+            self.observe()["observation"]["revision"].as_u64().unwrap(),
+            revision + 1,
+            "{action} committed by {space}'s popover"
+        );
+    }
     /// Rests the pointer on a step's row during Terror and returns the tag it opens
     /// (EX-A, #84): its title, each entry with its remedy chips, and its rules line.
     fn tag(&mut self, step: &str, capture: &str) -> String {
@@ -522,10 +630,12 @@ impl Native {
             self.activate(&format!("step:{step}"), revision);
         }
         self.activate("execution-commit", revision);
-        self.observe()["table"]["notice"]
-            .as_str()
-            .unwrap()
-            .to_owned()
+        let view = self.observe();
+        let notice = view["table"]["notice"].as_str().unwrap().to_owned();
+        // #174: a refusal is drawn on the notice slip, word for word.
+        assert_eq!(view["table"]["slip"]["kind"], "refusal");
+        assert_eq!(view["table"]["slip"]["text"], notice.as_str());
+        notice
     }
     /// Types an amount into the transfer modal's field: clears it, then the digits.
     fn type_amount(&mut self, digits: &str) {
@@ -648,11 +758,10 @@ impl Native {
 }
 /// A step of the EX-A execution panel, which commits only after its row is pinned.
 fn is_step(action: &str) -> bool {
-    action.starts_with("terror:")
-        || matches!(
-            action,
-            "kidnap" | "transfer" | "remove" | "end-terror" | "back-to-choice"
-        )
+    matches!(
+        action,
+        "kidnap" | "transfer" | "remove" | "end-terror" | "back-to-choice"
+    )
 }
 /// A shown tag's words: title, entries (with their chips) and rules line.
 fn tag_text(shown: &Value) -> String {
@@ -773,9 +882,14 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
         );
         assert!(before["table"].get("inspected").is_none());
         assert!(before["table"].get("details").is_none());
+        // #174: Save · quit, 152×42 and 40 from the right and bottom edges, so its
+        // middle is 116 from the right and 61 from the bottom.
         let quit = controls.iter().find(|c| c["name"] == "quit").unwrap();
         assert!(
-            (quit["position"][0].as_f64().unwrap() - (width as f64 - 147. * scale)).abs() <= 1.
+            (quit["position"][0].as_f64().unwrap() - (width as f64 - 116. * scale)).abs() <= 1.
+        );
+        assert!(
+            (quit["position"][1].as_f64().unwrap() - (height as f64 - 61. * scale)).abs() <= 1.
         );
         let centers: Vec<_> = controls
             .iter()
@@ -1766,7 +1880,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     }
     app.capture("raised-ec-picking");
     // Rest the pointer on interface chrome, off the map.
-    app.point("quit");
+    app.point("area:propaganda");
     let home = app.observe()["table"]["camera"].clone();
     for _ in 0..24 {
         app.request(json!({"op":"key","key":"ArrowLeft","revision":0}), true);
@@ -2285,7 +2399,10 @@ fn native_hover_status_is_transient_without_region_inspection() {
     app.capture("matanzas-hover");
     app.activate("space:matanzas", 0);
     assert_eq!(app.observe()["observation"]["revision"], 0);
-    app.request(json!({"op":"point","revision":0,"component":"quit"}), true);
+    app.request(
+        json!({"op":"point","revision":0,"component":"area:propaganda"}),
+        true,
+    );
     assert!(app.observe()["table"]["status"].is_null());
     // Independent prepared-position expectations from R1.6/1.7 and the
     // accepted tactical handoff, including mixed Control/opinion cases. The
@@ -2619,7 +2736,6 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
         position(&start, "piece:santiago Terror"),
         position(&start, "piece:oriente Terror"),
     ];
-    app.capture("loop-start");
     // The authored loop is 3.6 s: 216 steps of 16,666,667 ns. Advance 2 steps at a
     // time (and an odd step alone), so each request shows the loop never holds the
     // table.
@@ -2631,15 +2747,43 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
             app.advance(1);
         }
     };
-    step(&mut app, 216);
-    app.capture("loop-whole");
-    let whole = seeks(&app.observe());
-    for (a, b) in initial.iter().zip(&whole) {
+    // The captures start at one fixed phase, where one loop returns both f32 seeks bit
+    // for bit; art/atlas/TERROR.md, "In the app", says why (#166). A model of the seek
+    // predicts the same for the step before and the step after, which no capture has
+    // shown. `advance` lands on the phase exactly from any start before it. A start past
+    // it fails here. A start so late that Oriente's seek has wrapped lands one loop on,
+    // where the seeks do not come back exactly and the equality below fails.
+    let pinned = 2.166_045_7;
+    let ahead = ((pinned - initial[0]) * 60.).round();
+    assert!(
+        ahead >= 0.,
+        "the table settled after the pinned phase, Oriente at {pinned} s: {initial:?}"
+    );
+    let ahead = ahead as usize;
+    step(&mut app, ahead);
+    let start_seeks = seeks(&app.observe());
+    assert!(
+        (start_seeks[0] - pinned).abs() < 1e-4,
+        "Oriente's bell starts at the pinned {pinned} s: {start_seeks:?}"
+    );
+    app.capture("loop-start");
+    // On the way, one loop after the table settled: the seeks return at the phase the
+    // launch happened to reach too, not only at the pinned one.
+    step(&mut app, 216 - ahead);
+    let settled_again = seeks(&app.observe());
+    for (a, b) in initial.iter().zip(&settled_again) {
         assert!(
             (a - b).abs() < 1e-4,
-            "one loop returns each bell: {initial:?} {whole:?}"
+            "one loop returns each bell to its settled phase: {initial:?} {settled_again:?}"
         );
     }
+    step(&mut app, ahead);
+    app.capture("loop-whole");
+    let whole = seeks(&app.observe());
+    assert_eq!(
+        start_seeks, whole,
+        "at the pinned phase one loop returns each seek exactly"
+    );
     for at in bells {
         let seam = token_changes(
             &app.root.join("loop-start.png"),
@@ -3034,8 +3178,8 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         let mut checked = 0;
 
         // The action choice (#69): a briefing names each faction in full at its first
-        // mention, then by emblem, and an unsupported option's explanation shows in
-        // the session notice.
+        // mention, then by emblem, and an unsupported option's explanation shows on
+        // the notice slip (#174).
         app.activate("option:rally", 0);
         let open = app.observe();
         checked += assert_inline_emblems(&open);
@@ -3058,17 +3202,13 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         checked += assert_inline_emblems(&refused);
         let notice = refused["table"]["notice"].as_str().unwrap().to_owned();
         assert!(notice.contains("26July Guerrillas"));
-        let session = |view: &Value, words: &str| -> Vec<String> {
+        let slip = |view: &Value, words: &str| -> Vec<String> {
             let texts = view["table"]["inline_text"].as_array().unwrap();
             let found: Vec<_> = texts
                 .iter()
                 .filter(|t| t["text"].as_str().unwrap().ends_with(words))
                 .collect();
-            assert_eq!(
-                found.len(),
-                1,
-                "one session text ending {words:?}: {texts:?}"
-            );
+            assert_eq!(found.len(), 1, "one slip text ending {words:?}: {texts:?}");
             found[0]["emblems"]
                 .as_array()
                 .unwrap()
@@ -3076,7 +3216,8 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
                 .map(|e| e["faction"].as_str().unwrap().to_owned())
                 .collect()
         };
-        assert!(session(&refused, &notice).contains(&"26July".to_owned()));
+        assert_eq!(refused["table"]["slip"]["text"], notice.as_str());
+        assert!(slip(&refused, &notice).contains(&"26July".to_owned()));
         app.capture("rally-explanation");
         app.activate("option:rally", 0);
         app.choose("terror");
@@ -3249,7 +3390,8 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         );
         app.capture("transfer-authorization");
 
-        // The session notice: "[S] gave 1 to [26]. Saved." keeps its full stop.
+        // The reported notice: "[S] gave 1 to [26]. Saved." keeps its full stop. A
+        // success is not drawn (#174).
         app.choose("authorize:1");
         let given = app.observe();
         checked += assert_inline_emblems(&given);
@@ -3257,21 +3399,24 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
             given["table"]["notice"],
             "Syndicate gave 1 to 26July. Saved."
         );
+        assert_eq!(given["table"]["slip"]["shown"], false);
         app.capture("after-authorize");
 
-        // Kidnap's record and notice.
+        // Kidnap's record, and its notice as the seat reads it: the roll succeeded,
+        // so no slip draws it (#174).
         app.choose("kidnap");
         app.roll();
         let kidnap = app.observe();
         checked += assert_inline_emblems(&kidnap);
         assert!(
-            kidnap["table"]["inline_text"]
-                .as_array()
+            kidnap["table"]["notice"]
+                .as_str()
                 .unwrap()
-                .iter()
-                .any(|t| t["text"].as_str().unwrap().contains("Government pays")
-                    && t["emblems"].as_array().unwrap().len() >= 2)
+                .contains("Government pays"),
+            "{}",
+            kidnap["table"]["notice"]
         );
+        assert_eq!(kidnap["table"]["slip"]["shown"], false);
         app.capture("kidnap");
 
         app.quit();
@@ -3284,7 +3429,7 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         checked += assert_inline_emblems(&passed);
         let notice = passed["table"]["notice"].as_str().unwrap().to_owned();
         assert!(notice.starts_with("26July passed"), "{notice}");
-        assert_eq!(session(&passed, &notice), ["26July", "Directorio"]);
+        assert_eq!(passed["table"]["slip"]["shown"], false);
         assert!(
             passed["table"]["inline_text"]
                 .as_array()
@@ -3466,10 +3611,10 @@ fn native_action_choice_pass_and_back_before_the_first_effect() {
     app.quit();
 }
 
-/// #62: each irreversible step's preview and each disabled Terror target's reason and
-/// remedies, as the real panel shows them while the pointer rests on a button. The
-/// captures cover the panel before and after Terror and End Terror's preview with no
-/// Terror, after Terror, and after Kidnap.
+/// #62: each irreversible step's preview, as the real panel shows it while the pointer
+/// rests on a step, and each disabled Terror target's reason and remedies, as its
+/// space's popover shows them (#171). The captures cover the panel before and after
+/// Terror and End Terror's preview with no Terror, after Terror, and after Kidnap.
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained preview captures"]
 fn native_previews_disabled_targets_and_end_terror() {
@@ -3506,18 +3651,20 @@ fn native_previews_disabled_targets_and_end_terror() {
     app.choose("terror");
     app.capture("panel-before-terror");
     let before = app.observe();
+    // Every listed choice, the disabled targets included, has a real control: a step
+    // of the panel, or for a Terror target its space on the map (#171).
     let names: Vec<_> = before["observation"]["choices"]
         .as_array()
         .unwrap()
         .iter()
         .map(|c| {
-            format!(
-                "step:{}",
-                c["id"].as_str().unwrap().split_once(':').unwrap().1
-            )
+            let action = c["id"].as_str().unwrap().split_once(':').unwrap().1;
+            match action.strip_prefix("terror:") {
+                Some(space) => format!("space:{space}"),
+                None => format!("step:{action}"),
+            }
         })
         .collect();
-    // Every listed step, the disabled targets included, is a real control.
     for name in &names {
         assert!(
             before["table"]["controls"]
@@ -3528,11 +3675,20 @@ fn native_previews_disabled_targets_and_end_terror() {
             "{name}"
         );
     }
-    let santiago = card(&mut app, "terror:santiago", "santiago-disabled");
-    assert!(
-        santiago.contains("IN THIS TASK: Kidnap here first · Request a Resource transfer"),
-        "{santiago}"
+    // Santiago's Terror is blocked at 0: its popover row gives the reason and both
+    // remedies, and has no button; looking decides nothing.
+    let saved = std::fs::read(&app.save).unwrap();
+    app.activate("space:santiago", 1);
+    let santiago = app.observe();
+    let terror = popover_row(&santiago, "Terror");
+    assert_eq!(terror["mark"], "not-yet", "{terror}");
+    assert!(terror["button"].is_null(), "{terror}");
+    assert_eq!(
+        terror["remedies"],
+        json!(["Kidnap here first", "Request a Resource transfer"])
     );
+    app.capture("santiago-disabled");
+    app.activate("space:santiago", 1);
     let zero = card(&mut app, "end-terror", "end-terror-zero-space");
     for fact in [
         "No Terror resolved",
@@ -3541,20 +3697,22 @@ fn native_previews_disabled_targets_and_end_terror() {
     ] {
         assert!(zero.contains(fact), "{fact}: {zero}");
     }
-    let saved = std::fs::read(&app.save).unwrap();
-    let refusal = app.refuse("terror:santiago");
-    assert!(refusal.contains("Kidnap here first"), "{refusal}");
     assert_eq!(std::fs::read(&app.save).unwrap(), saved);
     for step in ["transfer", "ask:2:1", "authorize:1"] {
         app.choose(step);
     }
-    let funded = card(&mut app, "terror:santiago", "santiago-preview");
-    assert!(funded.contains("26July Resources: 1 → 0"), "{funded}");
-    assert!(
-        funded.contains("26July victory standing 7 → 8 (margin -8 → -7)"),
-        "{funded}"
-    );
-    assert!(funded.contains("Neutral → Passive Opposition"), "{funded}");
+    let rev = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.point("execution-commit");
+    app.activate("space:santiago", rev);
+    app.activate("popover:row:terror:santiago", rev);
+    let funded = popover_row(&app.observe(), "Terror")["lines"].to_string();
+    app.capture("santiago-preview");
+    for fact in [
+        "Pay 1 Resource: 26July 1 → 0.",
+        "Neutral → Passive Opposition: 26July 7 → 8 (margin -8 → -7)",
+    ] {
+        assert!(funded.contains(fact), "{fact}: {funded}");
+    }
     app.choose("terror:santiago");
     app.capture("panel-after-terror");
     let after = app.observe();
@@ -3911,8 +4069,8 @@ fn target_state(view: &Value, space: &str) -> String {
 
 /// The map states agree with the observation: a space is selectable when one of its
 /// actions is supported, blocked when none is but one names a remedy, else not
-/// involved; and the visible highlights are exactly the selected graphics for those
-/// states, a veil applying only when all of its spaces are not involved.
+/// involved; and the visible highlights are exactly each space's own graphic for its
+/// state (#167).
 fn assert_map_agrees(view: &Value) {
     let choices = view["observation"]["choices"].as_array().unwrap();
     let revision = view["observation"]["revision"].as_u64().unwrap();
@@ -3937,28 +4095,23 @@ fn assert_map_agrees(view: &Value) {
             "not-involved"
         };
         assert_eq!(target_state(view, space), state, "{space}: {view}");
-        // #73's veils dim Santiago and Oriente too once nothing is left there.
+    }
+    // Since #167 every space shows its own graphic for its state: the veil when not
+    // involved (Santiago and Oriente too once nothing is left there, #73), else its rule.
+    let targets = view["table"]["map_targets"].as_array().unwrap();
+    assert_eq!(targets.len(), 13, "{targets:?}");
+    for target in targets {
+        let space = target["space"].as_str().unwrap();
+        let state = target["state"].as_str().unwrap();
+        if space != "santiago" && space != "oriente" {
+            assert_eq!(state, "not-involved", "{space}");
+        }
         expected_files.push(if state == "not-involved" {
             format!("atlas-highlight-veil-{space}.png")
         } else {
             format!("atlas-highlight-{state}-{space}.png")
         });
     }
-    for target in view["table"]["map_targets"].as_array().unwrap() {
-        let space = target["space"].as_str().unwrap();
-        if space != "santiago" && space != "oriente" {
-            assert_eq!(target["state"], "not-involved", "{space}");
-        }
-    }
-    expected_files.extend(
-        [
-            "atlas-highlight-veil-cities.png",
-            "atlas-highlight-veil-ecs.png",
-            "atlas-highlight-veil-provinces.png",
-            "atlas-highlight-veil-sierra-maestra.png",
-        ]
-        .map(String::from),
-    );
     expected_files.sort();
     let shown: Vec<String> = view["table"]["highlights"]
         .as_array()
@@ -4196,7 +4349,7 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
     app.activate("space:santiago", revision);
     assert_eq!(app.observe()["table"]["popover"], Value::Null);
 
-    // Terror from the panel after another Resource transfer.
+    // Oriente's Terror from its popover after another Resource transfer (#171).
     for step in ["transfer", "ask:3:1", "authorize:1"] {
         app.choose(step);
     }
@@ -4205,7 +4358,7 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
     assert_eq!(panel["observation"]["standings"][1]["score"], 10);
     assert_map_agrees(&panel);
     assert_eq!(target_state(&panel, "oriente"), "not-involved");
-    app.capture("after-oriente-terror-from-panel");
+    app.capture("after-oriente-terror-from-popover");
 
     // Removal mode pauses space targeting; a removal can leave a space with no remedy.
     app.choose("remove");
@@ -4562,6 +4715,7 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
             "{option}"
         );
         assert_eq!(view["table"]["briefing"]["pinned"], false);
+        assert_briefing_lines_fit(&view);
         let words = briefing(&view);
         assert!(words.contains("26July has 0"), "{option}: {words}");
         no_advice(&words);
@@ -4750,9 +4904,10 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
 }
 /// #84: the EX-A execution panel against its FigCraft layout record at 3840×2160,
 /// within the 2 px the other layout comparisons use, and every step's tag before its
-/// committing click: Terror targets from the panel, Kidnap opened (Roll and Cancel),
-/// End Terror's previews, the clash rule with a space popover, Escape and an outside
-/// click, the keyboard, and the ended panel.
+/// committing click: Terror's targets by space picks and their record lines (#171),
+/// Kidnap opened (Roll and Cancel), End Terror's previews and its owed pill, the clash
+/// rule with a space popover, Escape and an outside click, the keyboard, and the
+/// ended panel.
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained execution-panel captures"]
 fn native_execution_panel_matches_layout_and_previews_every_step() {
@@ -4830,11 +4985,18 @@ fn native_execution_panel_matches_layout_and_previews_every_step() {
     app.choose("terror");
 
     // Terror chosen at 0 Resources (EX-A state 1): every step is listed and named for
-    // the seat; both targets are blocked with remedies; nothing is pinned.
+    // the seat; Terror's targets are no steps (#171), and the first section sends the
+    // player to the map; nothing is pinned.
     let chosen = app.observe();
+    let controls = |view: &Value| -> Vec<String> {
+        view["table"]["controls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|c| c["name"].as_str().unwrap_or_default().to_owned())
+            .collect()
+    };
     for step in [
-        "terror:santiago",
-        "terror:oriente",
         "kidnap",
         "transfer",
         "remove",
@@ -4842,55 +5004,92 @@ fn native_execution_panel_matches_layout_and_previews_every_step() {
         "back-to-choice",
     ] {
         assert!(
-            chosen["table"]["controls"]
-                .as_array()
-                .unwrap()
-                .iter()
-                .any(|c| c["name"] == format!("step:{step}")),
+            controls(&chosen).contains(&format!("step:{step}")),
             "step:{step}"
         );
     }
-    assert_eq!(
-        words(&chosen, "step:terror:santiago-pill-label"),
-        "NOT YET · 26JULY HAS 0"
+    assert!(
+        controls(&chosen)
+            .iter()
+            .all(|c| !c.starts_with("step:terror")),
+        "{:?}",
+        controls(&chosen)
     );
+    let map_line = "Choose a space on the map; its popover pays and resolves.";
+    assert_eq!(words(&chosen, "terror-map-line"), map_line);
+    // The record lines as drawn, top to bottom.
+    let records = |view: &Value| -> Vec<String> {
+        let mut lines: Vec<(f64, String)> = parts(view)
+            .into_iter()
+            .filter(|p| p["part"].as_str().unwrap().starts_with("terror-record:"))
+            .map(|p| {
+                (
+                    rect_of(&p["bounds"])[1],
+                    p["text"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect();
+        lines.sort_by(|a, b| a.0.total_cmp(&b.0));
+        lines.into_iter().map(|(_, text)| text).collect()
+    };
+    assert!(records(&chosen).is_empty());
     assert_eq!(
         words(&chosen, "execution-commit-label"),
         "Click a step to choose it"
     );
     assert_eq!(chosen["table"]["briefing"], Value::Null);
     app.capture("terror-chosen");
-    let blocked = app.tag("terror:oriente", "oriente-blocked-tag");
+    // Oriente's Terror is blocked on the map: its popover gives the authority's reason
+    // and remedy, and no button.
+    app.activate("space:oriente", rev(&chosen));
+    let blocked = app.observe();
+    let terror = popover_row(&blocked, "Terror");
+    assert_eq!(terror["mark"], "not-yet", "{terror}");
+    assert!(terror["button"].is_null(), "{terror}");
     assert!(
-        blocked.contains("NOT YET: Cost: 1 Resource per space (26July has 0)."),
-        "{blocked}"
+        terror["lines"]
+            .to_string()
+            .contains("Cost: 1 Resource per space (26July has 0)."),
+        "{terror}"
     );
     assert!(
-        blocked.contains("IN THIS TASK: Request a Resource transfer"),
-        "{blocked}"
+        terror["remedies"]
+            .to_string()
+            .contains("Request a Resource transfer"),
+        "{terror}"
     );
+    app.capture("oriente-blocked-popover");
+    app.activate("space:oriente", rev(&chosen));
+    assert_eq!(app.observe()["table"]["popover"], Value::Null);
 
-    // Funded by a Syndicate transfer, Oriente's Terror from the panel: its tag shows
-    // the authority's preview before the commit (Oriente Pop 2, Passive → Active
-    // Opposition: standing 7 → 9, margin −8 → −6).
+    // Funded by a Syndicate transfer, Oriente's Terror on the map: its popover shows
+    // the authority's preview before its button commits it (Oriente Pop 2, Passive →
+    // Active Opposition: standing 7 → 9, margin −8 → −6).
     for action in ["transfer", "ask:3:1", "authorize:1"] {
         app.choose(action);
     }
-    let oriente = app.tag("terror:oriente", "oriente-preview");
+    let funded = app.observe();
+    app.activate("space:oriente", rev(&funded));
+    let preview = app.observe();
+    let terror = popover_row(&preview, "Terror");
+    assert_eq!(terror["chosen"], true, "{terror}");
+    assert_eq!(terror["button"], "Terror in Oriente · pay 1 Resource");
     for fact in [
-        "COST: 26July Resources: 1 → 0",
-        "Oriente: Passive Opposition → Active Opposition",
-        "26July victory standing 7 → 9 (margin -8 → -6)",
+        "Pay 1 Resource: 26July 1 → 0.",
+        "Passive Opposition → Active Opposition",
+        "26July 7 → 9 (margin -8 → -6)",
     ] {
-        assert!(oriente.contains(fact), "{fact}: {oriente}");
+        assert!(
+            terror["lines"].to_string().contains(fact),
+            "{fact}: {terror}"
+        );
     }
+    app.capture("oriente-preview-popover");
     app.choose("terror:oriente");
     let paid = app.observe();
     assert_eq!(paid["observation"]["resources"], json!([6, 0, 5, 14]));
-    assert_eq!(
-        words(&paid, "step:terror:oriente-pill-label"),
-        "DONE · PAID 1"
-    );
+    assert_eq!(records(&paid), ["Terror in Oriente · paid 1 Resource"]);
+    app.capture("oriente-recorded");
 
     // Kidnap opened (EX-A state 3): its stakes stay pinned on the held step; Cancel
     // and Roll take the foot; the steps that wait are dimmed.
@@ -4914,7 +5113,8 @@ fn native_execution_panel_matches_layout_and_previews_every_step() {
     assert_eq!(app.observe()["table"]["briefing"]["option"], "kidnap");
     app.roll();
 
-    // Santiago owed and pinned: the layout's 16:9 frame (revision 14 of #75's run).
+    // Santiago owed, End Terror pinned and refused: the layout's 16:9 frame (revision
+    // 14 of #75's run, revised in #171). The owed Terror stays on End Terror's pill.
     let rolled = app.observe();
     let die = rolled["observation"]["kidnap"]["die"].as_u64().unwrap();
     assert_eq!(
@@ -4929,29 +5129,23 @@ fn native_execution_panel_matches_layout_and_previews_every_step() {
         words(&rolled, "step:end-terror-pill-label"),
         "NOT YET · SANTIAGO OWED"
     );
+    assert_eq!(records(&rolled), ["Terror in Oriente · paid 1 Resource"]);
     let refusal = app.refuse("end-terror");
     assert!(refusal.contains("Resolve Santiago's Terror"), "{refusal}");
-    app.activate("step:terror:santiago", rev(&rolled));
     let pinned = app.observe();
-    assert_eq!(pinned["table"]["briefing"]["option"], "terror:santiago");
+    assert_eq!(pinned["table"]["briefing"]["option"], "end-terror");
     assert_eq!(pinned["table"]["briefing"]["pinned"], true);
     assert_eq!(
         words(&pinned, "execution-commit-label"),
-        "Terror in Santiago de Cuba · pay 1 Resource"
+        "End Terror is not available yet"
     );
-    assert_eq!(
-        words(&pinned, "step:terror:santiago-pill-label"),
-        "OWED · 1 RESOURCE"
-    );
-    let santiago = tag_text(&pinned["table"]["briefing"]);
-    let cost = format!("COST: 26July Resources: {die} → {}", die - 1);
+    let end = tag_text(&pinned["table"]["briefing"]);
     for fact in [
-        cost.as_str(),
-        "Santiago de Cuba: Neutral → Passive Opposition",
-        "26July victory standing 9 → 10 (margin -6 → -5)",
-        "OWED: Santiago Terror owed",
+        "NOT YET: ",
+        "Santiago Terror is owed",
+        "IN THIS TASK: Resolve Santiago's Terror",
     ] {
-        assert!(santiago.contains(fact), "{fact}: {santiago}");
+        assert!(end.contains(fact), "{fact}: {end}");
     }
     compare(&pinned, &layout["parts"], &[0, 1, 2, 3]);
     compare(&pinned, &layout["pills"], &[1, 2, 3]);
@@ -4959,10 +5153,11 @@ fn native_execution_panel_matches_layout_and_previews_every_step() {
     compare(&pinned, &layout["text"], &[0, 1]);
     compare(&pinned, &layout["right_text"], &[1, 2]);
     compare(&pinned, &layout["centered_text"], &[1, 4]);
-    app.capture("santiago-pinned-16x9");
+    app.capture("end-terror-owed-pinned-16x9");
 
     // The clash rule: a space popover wins over the step's tag, and the tag reopens
-    // from its row, which closes the popover.
+    // from its row, which closes the popover. Santiago's popover names what is owed
+    // and holds the one button that pays it.
     app.activate("space:santiago", rev(&pinned));
     let popover = app.observe();
     assert_eq!(
@@ -4972,40 +5167,73 @@ fn native_execution_panel_matches_layout_and_previews_every_step() {
     );
     assert_eq!(popover["table"]["briefing"], Value::Null);
     assert_eq!(popover["table"]["choice"]["pinned"], Value::Null);
-    app.capture("popover-wins");
-    app.activate("step:terror:santiago", rev(&pinned));
+    let subtitle = popover["table"]["popover"]["card"]["subtitle"]
+        .as_str()
+        .unwrap();
+    assert!(
+        subtitle.ends_with("Santiago de Cuba Terror is owed"),
+        "{subtitle}"
+    );
+    let terror = popover_row(&popover, "Terror");
+    assert_eq!(terror["chosen"], true, "{terror}");
+    assert_eq!(
+        terror["button"],
+        "Terror in Santiago de Cuba · pay 1 Resource"
+    );
+    let cost = format!("Pay 1 Resource: 26July {die} → {}.", die - 1);
+    for fact in [
+        cost.as_str(),
+        "Neutral → Passive Opposition: 26July 9 → 10 (margin -6 → -5)",
+    ] {
+        assert!(
+            terror["lines"].to_string().contains(fact),
+            "{fact}: {terror}"
+        );
+    }
+    app.capture("popover-wins-santiago-owed");
+    app.activate("step:end-terror", rev(&pinned));
     let reopened = app.observe();
     assert_eq!(reopened["table"]["popover"], Value::Null);
-    assert_eq!(reopened["table"]["briefing"]["option"], "terror:santiago");
+    assert_eq!(reopened["table"]["briefing"]["option"], "end-terror");
     // A click on the map outside the tag closes it.
     app.activate("space:havana", rev(&pinned));
     let outside = app.observe();
     assert_eq!(outside["table"]["briefing"], Value::Null);
     assert_eq!(outside["observation"], pinned["observation"]);
 
-    // The keyboard: Tab focuses the first step and shows its tag; Enter pins it; Tab
-    // reaches the commit, which Enter presses.
-    let focused = key(&mut app, "Tab", None);
-    assert_eq!(focused["table"]["choice"]["focus"], "step:terror:santiago");
-    assert_eq!(focused["table"]["briefing"]["option"], "terror:santiago");
-    let pinned_key = key(&mut app, "Enter", Some("step:terror:santiago"));
-    assert_eq!(pinned_key["table"]["choice"]["pinned"], "terror:santiago");
-    let commit = format!("{}:terror:santiago", rev(&pinned_key));
-    let mut view = pinned_key;
-    for _ in 0..10 {
-        if view["table"]["choice"]["focus"] == commit.as_str() {
+    // The keyboard (#168): Tab passes the panel's steps to Santiago, Enter opens its
+    // popover, Tab reaches its button, which Enter presses.
+    let mut view = outside;
+    for _ in 0..12 {
+        if view["table"]["choice"]["focus"] == "space:santiago" {
             break;
         }
         view = key(&mut app, "Tab", None);
     }
-    assert_eq!(view["table"]["choice"]["focus"], commit.as_str());
-    let paid = key(&mut app, "Enter", Some(&commit));
+    assert_eq!(view["table"]["choice"]["focus"], "space:santiago");
+    let open = key(&mut app, "Enter", Some("space:santiago"));
+    assert_eq!(open["table"]["popover"]["space"], "santiago");
+    let mut view = open;
+    for _ in 0..6 {
+        if view["table"]["choice"]["focus"] == "popover:commit" {
+            break;
+        }
+        view = key(&mut app, "Tab", None);
+    }
+    assert_eq!(view["table"]["choice"]["focus"], "popover:commit");
+    let paid = key(&mut app, "Enter", Some("popover:commit"));
     assert_eq!(paid["observation"]["owed_terror"], Value::Null);
     assert_eq!(paid["observation"]["resources"][1], die - 1);
+    // Each resolved Terror with what it paid, in the order resolved.
     assert_eq!(
-        words(&paid, "step:terror:santiago-pill-label"),
-        "DONE · PAID 1"
+        records(&paid),
+        [
+            "Terror in Oriente · paid 1 Resource",
+            "Terror in Santiago de Cuba · paid 1 Resource"
+        ]
     );
+    assert_eq!(words(&paid, "terror-map-line"), map_line);
+    app.capture("both-recorded");
 
     // End Terror after Kidnap, then inspect the recorded result from Directorio's
     // action panel.
@@ -5191,22 +5419,15 @@ fn assert_removal_map_agrees(view: &Value) {
         .iter()
         .map(|h| h.as_str().unwrap())
         .collect();
-    assert!(
-        highlights.iter().all(|h| h.contains("-veil-")),
-        "{highlights:?}"
-    );
-    let dimmed = removal["dimmed"].as_array().unwrap();
-    for (space, file) in [
-        ("santiago", "atlas-highlight-veil-santiago.png"),
-        ("oriente", "atlas-highlight-veil-oriente.png"),
-        ("sierra-maestra", "atlas-highlight-veil-sierra-maestra.png"),
-    ] {
-        assert_eq!(
-            highlights.contains(&file),
-            dimmed.iter().any(|d| d == space),
-            "{space}: {highlights:?}"
-        );
-    }
+    // Since #167 each dimmed space shows its own veil, and nothing else shows.
+    let mut veils: Vec<String> = removal["dimmed"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|d| format!("atlas-highlight-veil-{}.png", d.as_str().unwrap()))
+        .collect();
+    veils.sort();
+    assert_eq!(highlights, veils);
 }
 
 #[test]
@@ -5623,7 +5844,7 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
             }
         }
         // The tag dismisses like the other hover tags when the pointer leaves.
-        let away = app.point("quit");
+        let away = app.point("area:propaganda");
         assert!(away["table"]["eligibility"]["tag"].is_null());
         assert_eq!(app.observe()["table"]["eligibility"]["tag"], Value::Null);
     };

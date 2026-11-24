@@ -8,16 +8,18 @@
 //! no province and compute no space's result, which the map popover previews (#72).
 //! Pass keeps its exact numbers, from the rules authority's preview, since it involves
 //! no space. Current Resources come from the observation; the wording only places them.
+use super::emblems::{self, Naming, Segment};
 use crate::game::CARD_17_UNSHADED;
 use crate::{
     CARD_17_SHADED, Choice, Faction, Flip, KidnapStakes, Observation, Preview, TERROR_COST,
     resources,
 };
 
-/// Value lines are broken by hand at this many characters, which the 420 px column
-/// holds at 15 px with margin (Lato averages about 6.5 px a character there), so each
-/// authored line is one drawn line and the tag's height follows its content.
-pub(super) const CHARS: usize = 58;
+/// Value lines are broken by hand at this many drawn characters ([`drawn_lines`]). The
+/// 420 px column at 15 px held 59 of them and not 61 in the native frames of #166's
+/// playtest, so a line is very likely one drawn line; the native regressions check the
+/// briefings they open.
+pub(super) const CHARS: usize = 60;
 /// The same for the 12.5 px rules line.
 pub(super) const RULES_CHARS: usize = 70;
 
@@ -418,48 +420,14 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
         if view.executing == Some(Faction::Government) {
             let (rule, label) = match option {
                 "end-assault" => ("R 2.3.4", "RESULT"),
-                "assault:back" => ("", "NAVIGATION"),
                 "transfer" => ("R 1.5.1, 1.8", "GIVER'S DECISION"),
                 "remove" | "done-removal" => ("R 1.4.1", "VOLUNTARY REMOVAL"),
                 _ if view.transfer.is_some() => ("R 1.5.1, 1.8", "GIVER'S DECISION"),
                 _ if option.starts_with("remove:") => ("R 1.4.1", "VOLUNTARY REMOVAL"),
-                _ => ("R 3.1, 3.2.4, 6.3.1", "TARGET AND COST"),
+                _ => ("R 3.1, 3.2.4, 6.3.1", "ASSAULT"),
             };
-            let mut entries = vec![entry(label, &choice.explanation)];
-            if crate::Game::assault_payment_space(option).is_some()
-                && let Some(preview) = &choice.preview
-            {
-                let control = |f: Option<Faction>| {
-                    f.map_or("Uncontrolled".into(), |f| format!("{} Control", f.name()))
-                };
-                for change in &preview.control {
-                    entries.push(entry(
-                        "CONTROL",
-                        format!("{} → {}", control(change.from), control(change.to),),
-                    ));
-                }
-                for change in &preview.standings {
-                    let input = if change.faction == Faction::Syndicate {
-                        "open Casinos"
-                    } else {
-                        "victory score"
-                    };
-                    entries.push(entry(
-                        "STANDING",
-                        format!(
-                            "{} {input}: {} → {}. Margin: {} → {}.",
-                            change.faction.name(),
-                            change.score_from,
-                            change.score_to,
-                            change.margin_from,
-                            change.margin_to,
-                        ),
-                    ));
-                }
-                if preview.control.is_empty() && preview.standings.is_empty() {
-                    entries.push(entry("CONTROL AND STANDINGS", "Unchanged."));
-                }
-            }
+            // An Assault plan is no panel option: its space's popover previews it (#169).
+            let entries = vec![entry(label, &choice.explanation)];
             return Some(Briefing {
                 option: option.into(),
                 title: choice.label.clone(),
@@ -518,7 +486,7 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
         let mut entries = vec![entry(label, &choice.explanation)];
         let mut rules = String::new();
         if let Some(preview) = &choice.preview {
-            let (effects, notes) = super::execution::previewed(view, option, preview);
+            let (effects, notes) = super::execution::previewed(view, preview);
             entries.extend(effects);
             rules = notes.join(" ");
         }
@@ -617,14 +585,49 @@ pub(super) fn lines(text: &str, width: usize) -> Vec<String> {
         .collect()
 }
 
+/// An emblem's width in characters of the text it stands in: the emblems are square and
+/// 0.9 em high (`emblems::HEIGHT`), about two of Lato's average characters.
+const EMBLEM_CHARS: usize = 2;
+
+/// [`lines`] broken by what is drawn, for text whose first mention of a faction draws
+/// its name and emblem and whose later ones draw the emblem alone (#60). `seen` holds
+/// the factions already mentioned in the briefing's earlier texts.
+pub(super) fn drawn_lines(text: &str, width: usize, seen: &[bool; 4]) -> Vec<String> {
+    let mut seen = *seen;
+    text.split('\n')
+        .flat_map(|part| wrap_by(part, width, |word| drawn_chars(word, &mut seen)))
+        .collect()
+}
+
+/// The characters `words` take when drawn, counting an emblem as [`EMBLEM_CHARS`].
+fn drawn_chars(words: &str, seen: &mut [bool; 4]) -> usize {
+    emblems::segments_after(words, Naming::FirstMention, false, seen)
+        .iter()
+        .map(|segment| match segment {
+            Segment::Words(words) => words.chars().count(),
+            Segment::Emblem(_) => EMBLEM_CHARS,
+        })
+        .sum()
+}
+
 /// Breaks a sentence into lines of at most `width` characters at spaces.
 pub(super) fn wrap(sentence: &str, width: usize) -> Vec<String> {
+    wrap_by(sentence, width, |word| word.chars().count())
+}
+
+/// Breaks a sentence at spaces into lines whose words, as `measure` counts each in
+/// turn, and the spaces between them come to at most `width`.
+fn wrap_by(sentence: &str, width: usize, mut measure: impl FnMut(&str) -> usize) -> Vec<String> {
     let mut lines = vec![];
     let mut line = String::new();
+    let mut used = 0;
     for word in sentence.split_whitespace() {
-        if !line.is_empty() && line.chars().count() + 1 + word.chars().count() > width {
+        let size = measure(word);
+        if !line.is_empty() && used + 1 + size > width {
             lines.push(std::mem::take(&mut line));
+            used = 0;
         }
+        used += size + usize::from(!line.is_empty());
         if !line.is_empty() {
             line.push(' ');
         }
@@ -839,10 +842,9 @@ mod tests {
             assert_eq!(briefing.rule, rule);
             assert_eq!(briefing.entries[0].label, label);
         }
-        step(&mut game, "assault:areas:cities");
-        let back = content(&game.observe(), "assault:back").unwrap();
-        assert!(back.rule.is_empty());
-        assert_eq!(back.entries[0].label, "NAVIGATION");
+        let finish = content(&view, "end-assault").unwrap();
+        assert_eq!(finish.rule, "R 2.3.4");
+        assert_eq!(finish.entries[0].label, "RESULT");
     }
 
     /// Cost and Kidnap's range follow current Resources, before and after a transfer,
@@ -905,13 +907,44 @@ mod tests {
         for view in &views {
             for option in OPTIONS {
                 let b = content(view, option).unwrap();
+                let mut seen = [false; 4];
                 for e in &b.entries {
-                    for line in lines(&e.text, CHARS) {
-                        assert!(line.chars().count() <= CHARS, "{line}");
+                    for line in drawn_lines(&e.text, CHARS, &seen.clone()) {
+                        assert!(drawn_chars(&line, &mut seen) <= CHARS, "{line}");
                     }
                 }
                 assert!(b.title.chars().count() <= 33, "{}", b.title);
             }
         }
+    }
+
+    /// A faction's first mention draws its name and its emblem, a later one its emblem
+    /// alone (#60). Lines are broken by what is drawn, so none wraps again in its box
+    /// and none stops short (#166's playtest).
+    #[test]
+    fn lines_are_broken_by_what_each_mention_draws() {
+        let text =
+            "Government has 1 Resource and cannot pay for a space. Look at the map or finish.";
+        // Drawn: "Government" (10) + a space + its emblem (2) + 43 characters = 56, and
+        // " Look" makes 61. By its letters alone the line is 58 with "Look".
+        assert_eq!(
+            drawn_lines(text, CHARS, &[false; 4]),
+            [
+                "Government has 1 Resource and cannot pay for a space.",
+                "Look at the map or finish."
+            ]
+        );
+        // Already mentioned, Government is an emblem: the same words fit with "Look".
+        let mut seen = [false; 4];
+        seen[Faction::Government.index()] = true;
+        assert_eq!(
+            drawn_lines(text, CHARS, &seen),
+            [
+                "Government has 1 Resource and cannot pay for a space. Look at the",
+                "map or finish."
+            ]
+        );
+        // A newline in the text still starts a new line.
+        assert_eq!(drawn_lines("One\nTwo", CHARS, &[false; 4]), ["One", "Two"]);
     }
 }

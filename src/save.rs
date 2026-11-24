@@ -22,9 +22,31 @@ use unfolded_record_replacement::save::{self, Baseline, Format, Identity, Write}
 /// About 4 MiB, far above a full game; a save at the limit is refused plainly.
 const LIMIT: u64 = 4 * 1024 * 1024;
 /// The save's shape. It changes whenever what a save holds changes shape.
-const FORMAT: &str = "2";
+const FORMAT: &str = "3";
 /// Marks a refusal from exact-replay admission.
 const REPLAY: &str = "cuba-replay:";
+
+/// Why [`Session::submit`] did not commit a decision. Its words are the refusal's
+/// or the save error's own, unchanged.
+#[derive(Debug)]
+pub enum Submit {
+    /// The checked submission refused the decision: the position is unchanged.
+    Refused(String),
+    /// The decision was legal, but the save could not be written, so the position
+    /// is unchanged too (for example, the save changed in another session).
+    Save(anyhow::Error),
+}
+
+impl std::fmt::Display for Submit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Refused(reason) => f.write_str(reason),
+            Self::Save(error) => write!(f, "{error}"),
+        }
+    }
+}
+
+impl std::error::Error for Submit {}
 
 /// What a save holds inside the shared record's envelope.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -215,18 +237,25 @@ impl Session {
         self.payload.position.observe()
     }
     /// Submits a decision through the checked submission and saves it, with its
-    /// place in the decision list, before the changed position is published.
-    pub fn submit(&mut self, owner: Faction, revision: u64, choice: &str) -> Result<()> {
+    /// place in the decision list, before the changed position is published. A
+    /// failure says which it was: the rules refused the decision, or the save could
+    /// not be written (#174: the table draws each as its own kind of notice).
+    pub fn submit(
+        &mut self,
+        owner: Faction,
+        revision: u64,
+        choice: &str,
+    ) -> std::result::Result<(), Submit> {
         let mut candidate = self.payload.clone();
         candidate
             .position
             .submit(owner, revision, choice)
-            .map_err(anyhow::Error::msg)?;
+            .map_err(Submit::Refused)?;
         // Accepted, so `choice` is an offered choice's id.
         candidate
             .decisions
             .push(Choice::action_of(choice).to_owned());
-        self.persist(&candidate)?;
+        self.persist(&candidate).map_err(Submit::Save)?;
         self.payload = candidate;
         Ok(())
     }

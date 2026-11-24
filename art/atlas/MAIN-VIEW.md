@@ -7,7 +7,7 @@ This layout is the authority for where every area of the main view sits ([founda
 ## What it shows
 
 - **Map:** the 3D map is the whole window. The sea is the layout's `map` colour, which the authored water frames also have.
-- **Areas over the map:** the top display's two groups, the victory standings, the Sequence of Play track, the decision panel, the session panel and the card area, and since #159 the Available Forces ledger ([AVAILABLE.md](AVAILABLE.md)). The others are the accepted designs, moved and not redesigned: each has the size and the place on the owner's display that it had in the framed view. Their own specifications still own what is inside them ([TOP.md](TOP.md), [VICTORY.md](VICTORY.md), [ELIGIBILITY.md](ELIGIBILITY.md), [CHOICE.md](CHOICE.md), [EXECUTION.md](EXECUTION.md), [KIDNAP.md](KIDNAP.md), [TRANSFER.md](TRANSFER.md), [CARD-TAG.md](CARD-TAG.md)).
+- **Areas over the map:** the top display's two groups, the victory standings, the Sequence of Play track, the decision panel and the card area, since #159 the Available Forces ledger ([AVAILABLE.md](AVAILABLE.md)), since #172 the marker supply ([TOP.md](TOP.md#the-marker-supply)), and since #174 Save · quit, with the notice slip above it while a notice is drawn (["Save · quit and the notice slip"](#save--quit-and-the-notice-slip)). The session panel is gone. The others are the accepted designs, moved and not redesigned: each has the size and the place on the owner's display that it had in the framed view. Their own specifications still own what is inside them ([TOP.md](TOP.md), [VICTORY.md](VICTORY.md), [ELIGIBILITY.md](ELIGIBILITY.md), [CHOICE.md](CHOICE.md), [EXECUTION.md](EXECUTION.md), [KIDNAP.md](KIDNAP.md), [TRANSFER.md](TRANSFER.md), [CARD-TAG.md](CARD-TAG.md)).
 - **Pointer:** an area takes the pointer over its own rectangle. A press, a scroll or a drag there neither moves the camera nor reaches the space or piece beneath. Everywhere else the window belongs to the map: orbit, zoom, pan and Home work over all of it.
 - **Home:** all thirteen spaces lie inside the layout's island box, as large as the box allows and centred in it, so no space starts under an area.
 - **Tags and popovers:** a space tag opens anywhere on the map and keeps off every area. A space or piece popover opens in the part of the window the areas at its edges leave clear: below the standings, left of the decision panel and above the card area.
@@ -16,8 +16,10 @@ This layout is the authority for where every area of the main view sits ([founda
 ## Files
 
 - **Layout source:** `atlas-main-view.figcraft`, authored in FigCraft CLI 0.18.1 from sheet A, whose frame it keeps. Its one frame, `16:9 main view`, is 3840×2160: the owner's display, where one reference pixel is 1.6875 frame units.
-  - **Accepted areas:** the top display's and the standings' graphics are the runtime exports, placed at their runtime rectangles and named as the runtime names them. The Sequence of Play track, the decision panel and the session panel are locked crops of one native capture (card 17, Directorio's shaded Event pending), as on sheet A, with the parts the runtime draws at fixed places marked by named rectangles over them. No crop includes a card face.
-  - **`area/<name>`:** nine unfilled rectangles, one for each area: the rectangle that takes the pointer.
+  - **Accepted areas:** the top display's and the standings' graphics are the runtime exports, placed at their runtime rectangles and named as the runtime names them. The Sequence of Play track and the decision panel are locked crops of one native capture (card 17, Directorio's shaded Event pending), as on sheet A, with the parts the runtime draws at fixed places marked by named rectangles over them. No crop includes a card face.
+  - **`area/<name>`:** ten unfilled rectangles, one for each area: the rectangle that takes the pointer.
+  - **Save · quit and the notice slip** (#174): `save-quit`, the plate's at-rest export, on `area/save-quit`; `notice-slip`, a hidden frame drawn with a two-line notice (the space popover's card in `paper` with a 1-unit `ink` stroke and its shadow, the `action/primary` rule `notice-rule`, and the words `notice-text`, Lato Regular 21.09, which is the popover's `Popover/Regular 12.5`, in `ink`); and `save-quit-tag`, a hidden rectangle where the plate's tag opens. Each colour is bound to its `Atlas` variable. They replace the session panel's crop, its frame, its status text, its button and its area.
+  - **Marker supply** (#172): `marker-supply`, the marker's at-rest export, and the texts `marker-supply-count` and `marker-supply-of`, placed as layout A · Franja places them ([TOP.md](TOP.md#the-marker-supply)).
   - **`island`:** the unfilled box the island fills at Home, drawn round the island of sheet A.
   - **Piles:** `played-pile` and `draw-deck` (300×430 each, 60 apart) are the top cards. Under each, `played-pile-base` and `deck-pile-base` are where the pile's foot shows on card 17, with the stack drawn between. `played-label` and `deck-label`, a count disc and its number on each pile, a caption under each, and `propaganda-label`, `propaganda-pip-0`…`3` and `propaganda-caption` lie over them. The cards are sheet A's placeholders; no private face or back is embedded.
   - **`card-tray`:** the unfilled rectangle the tray's camera draws, 60, 1480, 760×660. It is larger than the piles so that a card which lifts or turns stays inside it (#145).
@@ -31,11 +33,12 @@ This layout is the authority for where every area of the main view sits ([founda
   - `parts` and `text`: the accepted areas' images and text whose places do not follow the match's state.
   - `tray`: the card tray's rectangle and anchor, both top cards, and both piles' feet on card 17.
   - `card-tag`: where the card tag opens.
+  - `notice-slip`: the slip's rectangle with a two-line notice and the place of its words, anchored bottom-right; `save-quit-tag`: where Save · quit's tag opens, anchored bottom-right (#174).
   - `exports`: each node exported as an image, its file and its size in pixels.
   - `tolerance`: 2 frame units, which are pixels on the owner's display.
 - **Exports:** FigCraft exports of the frame's own nodes: `atlas-main-view-count-disc.png` (`played-count-disc`, at 2 px per unit), `atlas-main-view-pip-played.png` and `atlas-main-view-pip.png` (`propaganda-pip-0` and `-1`, at 2 px per unit), and `atlas-main-view-pile-shadow.png` (`pile-shadow`, 378×508 with its blur). The numbers and words are runtime Lato.
-- **Manifest:** `main-view.sha256` admits the layout record, the two area frames the layout places (`atlas-layout-operation.png`, `atlas-layout-session.png`) and the four exports above. A missing or changed file refuses launch before any save is created or replaced, like every other manifest. For saves, see [launch admission](README.md#launch-admission). It replaces `layout.sha256`.
-- **Palette:** `atlas-main-view.variables.json` is the file's `Atlas` export ([README.md, "Interface palette"](README.md#interface-palette)).
+- **Manifest:** `main-view.sha256` admits the layout record, the area frame the layout places (`atlas-layout-operation.png`) and the four exports above. #174 retired the session panel's frame, `atlas-layout-session.png`; `save-quit.sha256` admits Save · quit's two exports. A missing or changed file refuses launch before any save is created or replaced, like every other manifest. For saves, see [launch admission](README.md#launch-admission). It replaces `layout.sha256`.
+- **Palette:** `atlas-main-view.variables.json` is the file's `Atlas` export ([README.md, "Interface palette"](README.md#interface-palette)). Since #172 the collection holds `action/primary`, and the file has two text styles, `Supply/count` and `Supply/of`, for the marker supply's number and "of 20" ([TOP.md](TOP.md#the-marker-supply)).
 
 The application loads the record: the areas' rectangles and the island box come from it at launch. What each area draws inside its rectangle is implemented against its own layout, and the native regression holds both to this record. The card tray's rectangles are constants in `src/tabletop/piles.rs`, which a unit test holds equal to the record.
 
@@ -49,9 +52,10 @@ Frame rectangles are x, y, width, height on the owner's display. The reference r
 | `standings` | 1528.5, 13.5, 783×182.25 | top, centred | 728, 8, 464×108 of a centred 1920 | The four victory emblems and margins |
 | `resources` | 3448.5, 33.75, 324×415.13 | top right | 1688, 20, 192×246 | The Resources ledger and the Cash supply |
 | `available-forces` | 2928.75, 33.75, 494×320.63 | top right | 1380, 20, 292.74×190 | The Available Forces ledger (#159) |
+| `marker-supply` | 964.69, 30.38, 291×108 | top, between `outside-influence` and `standings` | 172.44×64, 18 from the top, centred between the two | The marker supply (#172) |
 | `sequence-of-play` | 101.25, 300, 391.5×647.94 | top left | 60, 177.8, 232×384 | The Sequence of Play track at its tallest |
 | `decision` | 2928.75, 472.5, 843.75×1113.75 | top right | 1380, 280, 500×660 | The decision panel, with the Kidnap die tray |
-| `session` | 2928.75, 1626.75, 843.75×445.5 | bottom right | 1380, 964, 500×264 | The session panel |
+| `save-quit` | 3516, 2021.63, 256.5×70.88 | bottom right | 1728, 1198, 152×42 | Save · quit (#174) |
 | `cards` | 67.5, 1594, 734.5×536 | bottom left | 40, 944.6, 435.3×317.6 | The two piles, their count discs and captions |
 | `propaganda` | 834, 1920, 226×160 | bottom left | 494.2, 1137.8, 133.9×94.8 | The Propaganda pips |
 
@@ -93,12 +97,40 @@ When a card is played (R 2.3.8) the tray shows it happen, in the four steps of [
 - **The back** is the original shared card back, `cuba-libre-card-back.png`, admitted from the private card directory by its hash ([Private card admission](README.md#private-card-admission)). The tray draws a copy made smaller once at launch, 600×860 (twice the card's size here), so that drawing it does not skip four of every five of the scan's printed dots. The scan's corners are transparent, not printed dark: 17 px in along each diagonal. The cards' 5.6% corner cuts 24 px in, so none of that shows.
 - **Above the labels.** A card in the air is above the table, so a second camera with the tray's view draws it, and only it, after the interface: it passes over the pile labels and the captions, as the advance sheet's step 2 draws the lifted card above the table. That camera is on only while a card is in the air. The card's shadow stays on the table, under them.
 
+## Save · quit and the notice slip
+
+The owner selected button **S2 · Etiqueta** and its place in layout **A · Franja** on 2026-11-24 ([decision record](../proposals/last-ui/README.md), sheets [`graphics-save-quit.png`](../proposals/last-ui/graphics-save-quit.png) and [`layout-a-franja-corner-1x.png`](../proposals/last-ui/layout-a-franja-corner-1x.png)). #174 built them and retired the session panel, its "Saved revision" line and its marker supply line.
+
+- **Save · quit** is a paper plate with the door-and-arrow glyph and "SAVE · QUIT" in the plates' capitals, in the `save-quit` area: 152×42 reference pixels, 40 from the right and bottom edges in every window. Under the pointer or keyboard focus it shows its hovered export, an `ink` stroke and an `action/primary` top rule. It closes the game; every decision is already saved, and the same save resumes the match.
+- **Its tag** is the top display's tag ([TOP.md](TOP.md)) titled "Save · quit" with one sentence: "Every decision is saved as it is made, and this button closes the game." It opens 8 above the plate, its right edge on the window's 40 margin, where `save-quit-tag` is, after the shared dwell.
+- **The notice slip** shows a refusal, an error, or the loading state before the match opens, and nothing else: a decision that succeeded is not drawn, since its result is on the map, the ledgers and the Sequence of Play track. It reuses the space popover's card plate and top rule at the popover's width, 340, with its `Popover/Regular 12.5` text and inline emblems. The card is its own export of that plate, `atlas-popover-card-slip.png` ([HIGHLIGHTS.md](HIGHLIGHTS.md#production-source-and-plates-58-review) gives its construction): on the popover's export a short card draws its border outside the card ([#178](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/178) holds the popover's own short cards). It stands 14 above the plate, their right edges aligned, and grows upward with its lines; in every window it clears the decision panel.
+- **Pointer:** the plate and the slip each take the pointer over their own rectangle. A click on the slip dismisses it; the next notice replaces it. The loading state and a launch error stay until the match opens.
+- **Kinds:** each notice is written with its kind (success, refusal, error or loading); nothing reads it from the words. The development seat reads every notice, successes included, as before ([seat reference](../../docs/agents/seat.md#what-the-table-reports)).
+
+**Files**
+
+- **Graphics source:** `atlas-save-quit.vectorcraft`, authored through the VectorCraft MCP from the study's `last-ui-graphics.vectorcraft`: S2's drawings at rest and hovered, kept at reference size (the plate 150×40 with its 1.25 stroke, the glyph and the live Lato type). Artboards `save-quit` and `save-quit-hover` are 152×42 and are exported at 3 px per unit: `atlas-save-quit.png` and `atlas-save-quit-hover.png`, 456×126.
+- **Manifest:** `save-quit.sha256` admits both exports. A missing or changed file refuses launch before any save is created or replaced.
+- **Layout:** `atlas-main-view.figcraft` places the plate, the slip and the tag's place (["Files"](#files)).
+
+| Part | From | Frame rectangle on the owner's display |
+|---|---|---|
+| `save-quit` | `atlas-save-quit.png`, or `atlas-save-quit-hover.png` | 3516, 2021.63, 256.5×70.88 |
+| `notice-slip` | `atlas-popover-card-slip.png` and `atlas-popover-rule-primary.png` ([HIGHLIGHTS.md](HIGHLIGHTS.md#production-source-and-plates-58-review)), runtime Lato | 3198.75, 1905.19, 573.75×92.81 with two lines; right edge, foot and width fixed |
+| `save-quit-tag` | `atlas-top-tag.png` ([TOP.md](TOP.md)) | 2982.75, 1758.38, 789.75×249.75 with two note lines; right edge and foot fixed |
+
+**Old button plates.** `atlas-button.png` and `atlas-button-primary.png` stay admitted by `runtime.sha256`, as #174 asked. Since #174 nothing draws either: the session panel's button was the only caller of the code that drew them, and the primary plate was already drawn by nothing.
+
+**Tools:** VectorCraft CLI 0.24.1 and FigCraft CLI 0.18.1, the builds installed on 2026-11-22 from clean checkouts of `storytold/vectorcraft@88f5ece1` and `storytold/figcraft@5c2a3784` ([TOP.md, "The marker supply"](TOP.md#the-marker-supply) gives the same reflog and timestamp evidence; it is not a recorded build).
+
+**What this establishes:** placement and behaviour evidence from the native regression `native_save_quit_and_the_notice_slip_match_layout_and_resume_the_save` and the main view's regressions. It is not owner play acceptance: the owner judges the corner on the display in #166's review.
+
 ## Other window sizes
 
 The layout is authored and compared at 16:9 only, as foundation 4 requires. In any window:
 
 - **Sizes** follow the window alone ([ADR 0002](../../docs/adr/0002-sizes-follow-the-window-not-the-desktop-scale.md)): one reference pixel is the smaller of the window's width over 1920 and its height over 1280.
-- **Places:** each area keeps its distance, in reference pixels, from the edges its anchor names. Nothing is letterboxed: in a window taller than 3:2 the session panel and the card area lie against the bottom edge, where the framed view centred everything between two strips of desk.
+- **Places:** each area keeps its distance, in reference pixels, from the edges its anchor names. The marker supply keeps its distance from the top and is centred between the right edge of `outside-influence` and the left edge of `standings`, which move apart as the window widens. Nothing is letterboxed: in a window taller than 3:2 Save · quit, the notice slip and the card area lie against the bottom edge, where the framed view centred everything between two strips of desk.
 - **Island box:** its top-left corner keeps its distance from the window's top-left corner, and its bottom-right corner from the bottom-right corner. Home fits the island into it, so the island is smaller in a 3:2 window and no larger in a 21:9 one, and no space lies under an area in either.
 - **Camera:** a camera resting at Home follows a change of the window's size. One the player has moved stays, and Home returns it to the new framing.
 
@@ -108,7 +140,7 @@ Each area is a transparent interface rectangle beneath its own controls. The sha
 
 ## Provenance and limits
 
-- **Tools:** FigCraft CLI 0.18.1, rebuilt from `storytold/figcraft@559c952d`, as [art-tools.md](../../docs/agents/art-tools.md) records. Its re-saves on 2026-11-23, the last for #159's `available-forces` area, used the build installed on 2026-11-22 from `storytold/figcraft@5c2a3784`; as for [AVAILABLE.md](AVAILABLE.md#provenance-and-limits), this is reflog and timestamp evidence, not a recorded build. The source is sheet A's document with the other sheets removed, the top display's `Atlas` variables imported, and the parts placed at the runtime's rectangles and named.
+- **Tools:** FigCraft CLI 0.18.1, rebuilt from `storytold/figcraft@559c952d`, as [art-tools.md](../../docs/agents/art-tools.md) records. Its re-saves on 2026-11-23, for #159's `available-forces` area, and on 2026-11-24, for #172's marker supply and #174's Save · quit and notice slip, used the build installed on 2026-11-22 from `storytold/figcraft@5c2a3784`; as for [AVAILABLE.md](AVAILABLE.md#provenance-and-limits), this is reflog and timestamp evidence, not a recorded build. The source is sheet A's document with the other sheets removed, the top display's `Atlas` variables imported, and the parts placed at the runtime's rectangles and named.
 - **Measured before the change:** on the build before #142, at 3840×2160, the seat reported every part named in the record within 1 px of the rectangle the record now holds; the difference is the renderer's rounding to whole pixels.
 - **Retired:** `atlas-layout-background.png`, `atlas-layout-map-fill.png`, `atlas-layout-map-header.png` and `atlas-layout-map-footer.png` are deleted, and `layout.sha256` with them; #143 deleted `atlas-layout-card.png`, the card panel's frame. Their artboards remain in `atlas-layout.vectorcraft` ([LAYOUT.md](LAYOUT.md)).
 - **3D look:** the frame is a flat drawing. The island in it is a capture of the map at its Home pose. The piles in it are flat rectangles stepped down to each pile's foot; in production they are solid cards, and the record holds only their top cards, their feet and what lies over them.

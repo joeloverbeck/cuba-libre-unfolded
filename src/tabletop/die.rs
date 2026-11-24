@@ -453,17 +453,17 @@ fn spawn_stage(commands: &mut Commands, art: &DieArt, revision: u64, face: u8, w
         });
 }
 
-/// The words that report a landed roll, in the session notice. Kidnap proceeds are a
-/// movement the rules require, not a Resource transfer (glossary), so the notice says
-/// Government pays them; running text draws both names as emblems.
-fn landed_notice(view: &crate::Observation, kidnap: &crate::Kidnap) -> String {
-    format!(
+/// The notice of a landed roll, a success that the seat reads and no slip draws
+/// (#174). Kidnap proceeds are a movement the rules require, not a Resource transfer
+/// (glossary), so the notice says Government pays them.
+fn landed_notice(view: &crate::Observation, kidnap: &crate::Kidnap) -> super::notice::Notice {
+    super::notice::Notice::success(format!(
         "Kidnap rolled {} · Government pays {} to 26July.\nGovernment {} · 26July {}. Saved.",
         kidnap.die,
         crate::resources(kidnap.proceeds),
         view.resources[Faction::Government.index()],
         view.resources[Faction::M26.index()]
-    )
+    ))
 }
 
 /// Keeps the tray in step with the saved roll: spawns it for a presented roll and
@@ -822,7 +822,9 @@ mod tests {
     use crate::Game;
 
     /// #75: #8's seed 3 rolls 4, so Government pays 4 of its 6 (R 4.3.3): Government
-    /// 6 → 2, 26July 0 → 4. The words never call the proceeds a transfer.
+    /// 6 → 2, 26July 0 → 4. The words never call the proceeds a transfer. The roll was
+    /// committed, so the notice is a success (#174): the seat reads it, and no slip
+    /// draws it.
     #[test]
     fn the_landed_notice_says_government_pays_the_proceeds() {
         let mut game = crate::terror_chosen(Game::opening_with_seed(3));
@@ -830,6 +832,8 @@ mod tests {
         game.submit(Faction::M26, 2, "2:kidnap:roll").unwrap();
         let view = game.observe();
         let notice = landed_notice(&view, view.kidnap.as_ref().unwrap());
+        assert_eq!(notice.kind, super::super::notice::Kind::Success);
+        let notice = notice.text;
         assert_eq!(
             notice,
             "Kidnap rolled 4 · Government pays 4 Resources to 26July.\nGovernment 2 · 26July 4. Saved."

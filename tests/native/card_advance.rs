@@ -168,51 +168,57 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
         assert_eq!(resumed["table"]["piles"], opening["table"]["piles"]);
         app.capture("card-18-restarted");
         card_piles::assert_piles_drawn(&app, "card-18-restarted", &resumed);
-        for action in [
-            "government:assault",
-            "assault:areas:cities",
-            "assault:space:santiago",
-        ] {
+        {
+            let action = "government:assault";
             let current = app.observe()["observation"]["revision"].as_u64().unwrap();
             app.activate(&format!("option:{action}"), current);
             app.choose(action);
         }
+        // Government has 1 Resource and a space costs 2: Santiago is blocked on the
+        // map (#169). Its popover gives the reason and offers no button, and the
+        // payment itself is refused with nothing changed.
         let pending = app.observe()["observation"].clone();
         let payment_revision = pending["revision"].as_u64().unwrap();
         let active = fs::read(&app.save).unwrap();
         let previous = fs::read(previous_path(&app.save)).unwrap();
-        app.activate("option:assault:santiago:26july", payment_revision);
+        app.activate("space:santiago", payment_revision);
+        let blocked = app.observe();
+        let row = &blocked["table"]["popover"]["card"]["rows"][0];
+        assert_eq!(row["mark"], "not-yet", "{row}");
+        assert!(row["button"].is_null(), "{row}");
         assert!(
-            tag_text(&app.observe()["table"]["briefing"])
-                .contains("1 Resource and cannot pay 2 Resources")
-        );
-        app.activate("choice-commit", payment_revision);
-        let refused = app.observe();
-        assert!(
-            refused["table"]["notice"]
+            row["lines"][0][1]
                 .as_str()
                 .unwrap()
-                .contains("1 Resource and cannot pay 2 Resources")
+                .contains("1 Resource and cannot pay 2 Resources"),
+            "{row}"
         );
+        app.request(
+            json!({"op":"activate","revision":payment_revision,
+                "choice":format!("{payment_revision}:assault:santiago:26july")}),
+            false,
+        );
+        let refused = app.observe();
         assert_eq!(refused["observation"], pending);
         assert_eq!(fs::read(&app.save).unwrap(), active);
         assert_eq!(fs::read(previous_path(&app.save)).unwrap(), previous);
         app.capture("unfunded-assault-payment-refused");
+        // Close Santiago's popover, which would win over Finish Assault's briefing.
+        let current = app.observe()["observation"]["revision"].as_u64().unwrap();
+        app.request(json!({"op":"key","revision":current,"key":"Escape"}), true);
+        app.request(json!({"op":"settle"}), true);
 
-        for action in ["assault:back", "assault:back", "end-assault"] {
-            let current = app.observe()["observation"]["revision"].as_u64().unwrap();
-            app.activate(&format!("option:{action}"), current);
-            if action == "end-assault" {
-                let view = app.observe();
-                let explanation = tag_text(&view["table"]["briefing"]);
-                assert!(explanation.contains("earns no Pass Resources (local policy)"));
-                let notes = preview_notes(&view, action);
-                assert!(notes.contains("Records Operation Only"), "{notes}");
-                assert!(!notes.contains("Available"), "{notes}");
-                app.capture("zero-space-assault-preview");
-            }
-            app.choose(action);
-        }
+        let action = "end-assault";
+        let current = app.observe()["observation"]["revision"].as_u64().unwrap();
+        app.activate(&format!("option:{action}"), current);
+        let view = app.observe();
+        let explanation = tag_text(&view["table"]["briefing"]);
+        assert!(explanation.contains("earns no Pass Resources (local policy)"));
+        let notes = preview_notes(&view, action);
+        assert!(notes.contains("Records Operation Only"), "{notes}");
+        assert!(!notes.contains("Available"), "{notes}");
+        app.capture("zero-space-assault-preview");
+        app.choose(action);
         let handoff = app.observe()["observation"].clone();
         assert_eq!(handoff["current_card"], 18);
         assert_eq!(handoff["resources"], after["resources"]);
@@ -950,7 +956,7 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
     app.launch_size("3840x2160");
     app.request(json!({"op":"settle"}), true);
     app.activate("card:preview", revision);
-    app.point("quit");
+    app.point("area:propaganda");
     let pinned = app.observe();
     let tag = &pinned["table"]["card"]["shown"];
     assert_eq!(

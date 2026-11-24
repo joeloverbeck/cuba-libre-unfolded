@@ -145,7 +145,7 @@ fn native_card_tag_matches_layout_and_reads_the_model() {
     // Hover waits for the shared dwell, then opens the tag; it changes nothing.
     for slot in ["card:current", "card:preview"] {
         // An open tag switches at once; the dwell applies from nothing open.
-        app.point("quit");
+        app.point("area:propaganda");
         app.request(json!({"op":"point","revision":0,"component":slot}), true);
         let waiting = app.observe();
         assert!(
@@ -182,7 +182,7 @@ fn native_card_tag_matches_layout_and_reads_the_model() {
     }
 
     // Keyboard focus opens each tag with the same dwell; Enter pins; Escape closes.
-    app.point("quit");
+    app.point("area:propaganda");
     let mut focus = Value::Null;
     for _ in 0..20 {
         app.request(json!({"op":"key","revision":0,"key":"Tab"}), true);
@@ -219,8 +219,9 @@ fn native_card_tag_matches_layout_and_reads_the_model() {
     // Escape keeps the focused card's tag closed until focus moves.
     app.request(json!({"op":"advance","steps":60}), true);
     assert!(app.observe()["table"]["card"]["shown"].is_null());
-    // Tab passes the two piles (#144) and wraps to the first option.
-    for next in ["pile:played", "pile:deck", "option:pass"] {
+    // Tab passes the two piles (#144) and Save · quit (#174), and wraps to the first
+    // option.
+    for next in ["pile:played", "pile:deck", "quit", "option:pass"] {
         app.request(json!({"op":"key","revision":0,"key":"Tab"}), true);
         // A focused pile's tag waits for the shared dwell, as a card's does.
         app.request(json!({"op":"settle"}), true);
@@ -229,7 +230,7 @@ fn native_card_tag_matches_layout_and_reads_the_model() {
 
     // A click pins the tag: it stays open after the pointer leaves, until Escape.
     app.activate("card:current", 0);
-    app.point("quit");
+    app.point("area:propaganda");
     let kept = app.observe();
     assert_eq!(kept["table"]["card"]["shown"]["card"], "card:current");
     assert_eq!(kept["table"]["card"]["shown"]["pinned"], true);
@@ -238,7 +239,7 @@ fn native_card_tag_matches_layout_and_reads_the_model() {
     // A second click unpins.
     app.activate("card:preview", 0);
     app.activate("card:preview", 0);
-    app.point("quit");
+    app.point("area:propaganda");
     assert!(app.observe()["table"]["card"]["shown"].is_null());
     let untouched = std::fs::read(&app.save).unwrap();
 

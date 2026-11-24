@@ -52,6 +52,9 @@ pub enum UsAlliance {
     Reluctant,
     Embargoed,
 }
+/// The US Alliance level in this build: the setup's Firm, which no Operation or Event
+/// it implements shifts. Every COIN Operation's cost reads it (R 6.3.1).
+const ALLIANCE: UsAlliance = UsAlliance::Firm;
 impl UsAlliance {
     pub const ALL: [Self; 3] = [Self::Firm, Self::Reluctant, Self::Embargoed];
     pub fn name(self) -> &'static str {
@@ -77,6 +80,30 @@ impl UsAlliance {
 }
 /// The game's Cash markers; any others are spares (R 4.5.2).
 pub const CASH_MARKERS: u8 = 4;
+/// The Terror and Sabotage markers the two kinds share: a marker is placed only from
+/// the marker supply, and with all of them on the map Terror places none (R 3.3.4).
+pub const MARKER_SUPPLY: u8 = 20;
+/// The marker supply (R 3.3.4): the shared Terror and Sabotage markers not on the map,
+/// and those on it by kind. `available` is [`MARKER_SUPPLY`] less the two.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct MarkerSupply {
+    pub available: u8,
+    pub terror_on_map: u8,
+    pub sabotage_on_map: u8,
+}
+impl MarkerSupply {
+    /// The supply left by the markers on the map. Nothing in this build places more
+    /// than the supply holds, but a count past it shows none available, never a wrap.
+    pub fn left_by(terror_on_map: u8, sabotage_on_map: u8) -> Self {
+        Self {
+            available: MARKER_SUPPLY
+                .saturating_sub(terror_on_map)
+                .saturating_sub(sabotage_on_map),
+            terror_on_map,
+            sabotage_on_map,
+        }
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Kind {
     Troops,
@@ -328,6 +355,20 @@ const RESOURCE_CAP: u8 = 49;
 const GOVERNMENT_PASS_INCOME: u8 = 3;
 /// What 26July pays for Terror in each City or Province it selects (R 3.3.4).
 pub const TERROR_COST: u8 = 1;
+/// The remedy of a choice that another faction's Resources would make supported.
+const TRANSFER_REMEDY: &str = "Request a Resource transfer";
+/// The remedy of Santiago's Terror that a Kidnap roll would fund.
+const KIDNAP_REMEDY: &str = "Kidnap here first";
+/// What would open a space blocked with `remedies`, as one line of its tag (#170).
+fn remedy_line(remedies: &[String]) -> String {
+    let named = |remedy: &str| remedies.iter().any(|r| r == remedy);
+    match (named(KIDNAP_REMEDY), named(TRANSFER_REMEDY)) {
+        (true, true) => "Kidnap or a transfer opens it",
+        (true, false) => "Kidnap here first opens it",
+        _ => "A Resource transfer opens it",
+    }
+    .into()
+}
 /// The prepared position's Resources, indexed like `Faction::ALL`.
 const PREPARED_RESOURCES: [u8; 4] = [6, 0, 5, 15];
 /// The random state of `Game::opening`.
@@ -402,6 +443,9 @@ pub struct Game {
     pub(crate) event: Option<EventProgress>,
     #[serde(deserialize_with = "Option::deserialize")]
     assault: Option<assault::Assault>,
+    /// The spaces where 26July's Terror resolved, in the order resolved (#171): the
+    /// execution panel lists them so, which the map's markers cannot tell.
+    pub(crate) terror_resolved: Vec<String>,
 }
 
 /// Removal mode (#73): open from "Remove own pieces" until Done. Each decision in it
@@ -590,7 +634,8 @@ pub struct Observation {
     pub aid: u8,
     pub alliance: UsAlliance,
     pub cash_available: u8,
-    pub terror_available: u8,
+    /// The marker supply and the markers on the map by kind (R 3.3.4).
+    pub marker_supply: MarkerSupply,
     pub capabilities: Vec<String>,
     pub momentum: Vec<String>,
     /// True once 26July's first action on card 17 is recorded. Directorio's Event
@@ -601,9 +646,9 @@ pub struct Observation {
     /// (R 2.3.3–2.3.4).
     pub next: Option<Next>,
     pub operation: &'static str,
-    /// The paid Santiago result, once the target has resolved.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub assault_result: Option<AssaultResolution>,
+    /// What Government paid in each space it Assaulted on this card and what was
+    /// removed or closed there, in the order paid (#169). Empty outside an Assault.
+    pub assault_paid: Vec<AssaultResolution>,
     pub special_activity: Option<String>,
     pub owed_terror: Option<String>,
     pub transfer: Option<Transfer>,
@@ -621,18 +666,40 @@ pub struct Observation {
     pub effected: bool,
     /// The balance before and after a recorded Pass on this card (R 2.3.3, 1.8).
     pub recorded_resources: Vec<ResourceChange>,
-    /// This tactical task starts without Terror markers. Each space with a marker
-    /// contributes one resolution at the fixed per-space cost [`TERROR_COST`] (R 3.3.4).
+    /// Each space where 26July's Terror resolved, in the order resolved (#171), at the
+    /// fixed per-space cost [`TERROR_COST`] it paid (R 3.3.4).
     pub resolved: Vec<Resolved>,
     /// What a Kidnap roll could take now (R 4.3.3), from current Resources, until
     /// Kidnap is rolled or the action is recorded.
     pub kidnap_stakes: Option<KidnapStakes>,
+    /// While a decision offers choices that act on map spaces, why each space that
+    /// needs one is in its state, in the map's space order (#170): what a paid or
+    /// resolved space paid, an owed Terror, what would open a blocked space, or why
+    /// nothing acts there. A space where a supported choice acts has none, and outside
+    /// such a decision the list is empty. The space tag draws these words as they are.
+    pub space_reasons: Vec<SpaceReason>,
+}
+/// The rules authority's reason for one space's state in the open decision (#170).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct SpaceReason {
+    pub space: String,
+    pub reason: String,
 }
 /// A space where 26July's Terror resolved, and the Resources it paid there.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Resolved {
     pub space: String,
     pub paid: u8,
+}
+/// The rules authority's statement of where a choice acts on the map (#169).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct Site {
+    /// The id of the space the choice acts on.
+    pub space: String,
+    /// Whether the choice changes anything on the map there: an Assault plan that
+    /// removes or closes at least one piece (R 3.2.4, 1.4.5), a Terror (R 3.3.4) or
+    /// opening Kidnap (R 4.3.3). False for the Assault plan that removes nothing.
+    pub effect: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Choice {
@@ -649,6 +716,11 @@ pub struct Choice {
     /// For an unsupported choice, the actions possible in this task that would make
     /// it supported, such as "Kidnap here first"; empty when nothing here can.
     pub remedies: Vec<String>,
+    /// Where on the map the choice acts and whether it changes anything there, for a
+    /// choice that acts on one space. The map and the space popover read this
+    /// statement, and never a label, an id or an explanation (#169).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub site: Option<Site>,
     /// The consequences of an irreversible step, computed by applying it to a copy of
     /// the match, including Pass, Terror and Assault effects, and voluntary removal.
     pub preview: Option<Preview>,
@@ -663,19 +735,19 @@ impl Choice {
     pub(crate) fn action_of(id: &str) -> &str {
         id.split_once(':').map_or(id, |(_, action)| action)
     }
-    /// The map space this choice acts on, so the map can offer it there: a Terror
-    /// target, or opening Kidnap in its space. Other choices act on no space.
+    /// The map space this choice acts on, as the authority states it in `site`, so
+    /// the map can offer it there: a Terror target, opening Kidnap in its space, or an
+    /// Assault plan. Other choices act on no space.
     pub fn space(&self) -> Option<&str> {
-        // A Special Activity listed under its Operation at the action choice is
-        // not an action on the map.
-        if self.accompanies.is_some() {
-            return None;
-        }
-        let action = self.action();
-        match action {
-            "kidnap" => Some(KIDNAP_SPACE),
-            _ => action.strip_prefix("terror:"),
-        }
+        self.site.as_ref().map(|site| site.space.as_str())
+    }
+    /// States the space this choice acts on and whether it changes anything there.
+    fn at(mut self, space: &str, effect: bool) -> Self {
+        self.site = Some(Site {
+            space: space.to_owned(),
+            effect,
+        });
+        self
     }
     /// For a removal in removal mode: its space, group and quantity.
     pub fn removal(&self) -> Option<(&str, &str, u8)> {
@@ -768,8 +840,22 @@ pub struct Preview {
     /// What a Kidnap roll could take, for opening Kidnap and for its roll. A roll's
     /// result is never previewed.
     pub kidnap: Option<KidnapStakes>,
+    /// What paying for an Assault space states besides its computed changes, for an
+    /// Assault payment only. The payment itself is in `resources`.
+    pub assault: Option<AssaultPreview>,
     /// Facts with rule references, such as the zero-space warning.
     pub notes: Vec<String>,
+}
+/// The parts of an Assault payment's preview that its computed changes do not show,
+/// each stated by name (R 3.2.4).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct AssaultPreview {
+    /// The capacity arithmetic: the cubes that count in the space's terrain.
+    pub arithmetic: String,
+    /// Whom the plan can affect, and what protects the rest.
+    pub affects: String,
+    /// What the plan removes or closes, or that it affects no piece.
+    pub effect: String,
 }
 /// What a Kidnap roll could take (R 4.3.3), from current Resources only.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -1047,6 +1133,7 @@ impl Game {
             kidnap_open: false,
             event: None,
             assault: None,
+            terror_resolved: Vec::new(),
             available,
         }
     }
@@ -1074,6 +1161,15 @@ impl Game {
         let deck = pile_facts::deck_facts(&played_pile, piles.deck, self.draw_deck[0]);
         // No Capability or Momentum is in effect in this build.
         let capabilities: Vec<String> = vec![];
+        let choices: Vec<Choice> = self
+            .choices()
+            .into_iter()
+            .map(|mut choice| {
+                choice.preview = self.preview(&choice);
+                choice
+            })
+            .collect();
+        let space_reasons = self.space_reasons(&choices);
         Observation {
             revision: self.revision,
             owner: self.owner(),
@@ -1108,20 +1204,19 @@ impl Game {
                 _ => false,
             }),
             aid: 15,
-            alliance: UsAlliance::Firm,
+            alliance: ALLIANCE,
             cash_available: CASH_MARKERS,
-            terror_available: 20 - self.spaces.iter().map(|s| s.terror).sum::<u8>(),
+            // No Operation, Event or phase this build implements places a Sabotage
+            // marker (R 3.3.4 in an economic center, R 4.2.3, R 6.2.1), so the
+            // model holds none.
+            marker_supply: MarkerSupply::left_by(
+                self.spaces.iter().map(|s| s.terror).sum::<u8>(),
+                0,
+            ),
             capabilities,
             momentum: vec![],
             finished: self.m26_action_ended,
-            choices: self
-                .choices()
-                .into_iter()
-                .map(|mut choice| {
-                    choice.preview = self.preview(&choice);
-                    choice
-                })
-                .collect(),
+            choices,
             next: self.next(),
             operation: match self.action {
                 _ if self.government_pass_from.is_some() => {
@@ -1157,7 +1252,7 @@ impl Game {
                 }
                 ActionChoice::Terror => "executing Terror",
             },
-            assault_result: self.assault_result(),
+            assault_paid: self.assault_paid(),
             special_activity: self.kidnap.as_ref().map(|_| "Kidnap".into()),
             owed_terror: self.owes_santiago().then(|| "santiago".into()),
             transfer: self.transfer.clone(),
@@ -1168,16 +1263,82 @@ impl Game {
             effected: self.effect,
             recorded_resources: self.recorded_resources(),
             resolved: self
-                .spaces
+                .terror_resolved
                 .iter()
-                .filter(|s| s.terror > 0)
-                .map(|s| Resolved {
-                    space: s.id.clone(),
+                .map(|space| Resolved {
+                    space: space.clone(),
                     paid: TERROR_COST,
                 })
                 .collect(),
             kidnap_stakes: (self.kidnap.is_none() && !self.m26_action_ended).then(|| self.stakes()),
+            space_reasons,
         }
+    }
+    /// Why each space is in its map state while `choices`, the open decision's, act on
+    /// map spaces (#170); empty when none does. Each Operation states its own reasons.
+    fn space_reasons(&self, choices: &[Choice]) -> Vec<SpaceReason> {
+        if choices.iter().all(|c| c.site.is_none()) {
+            return vec![];
+        }
+        self.spaces
+            .iter()
+            .filter_map(|space| {
+                let here: Vec<&Choice> = choices
+                    .iter()
+                    .filter(|c| c.space() == Some(space.id.as_str()))
+                    .collect();
+                let reason = if self.assault.is_some() {
+                    self.assault_reason(space, &here)
+                } else {
+                    self.terror_reason(space, &here)
+                };
+                reason.map(|reason| SpaceReason {
+                    space: space.id.clone(),
+                    reason,
+                })
+            })
+            .collect()
+    }
+    /// Why `space` is in its map state while 26July executes Terror (#170), from the
+    /// Terror and Kidnap choices there (`here`): what a resolved Terror paid (R 3.3.4),
+    /// that Kidnap owes Terror there (R 4.3.3), what would open it, or why Terror
+    /// cannot act there. A space where a supported choice acts and nothing is owed
+    /// needs no reason.
+    fn terror_reason(&self, space: &Space, here: &[&Choice]) -> Option<String> {
+        if self.terror_resolved.contains(&space.id) {
+            return Some(format!("Terror here paid {}", resources(TERROR_COST)));
+        }
+        if self.owes_santiago() && space.id == KIDNAP_SPACE {
+            return Some("Terror is owed here (R 4.3.3)".into());
+        }
+        if here.iter().any(|c| c.supported) {
+            return None;
+        }
+        if let Some(blocked) = here.iter().find(|c| !c.remedies.is_empty()) {
+            return Some(remedy_line(&blocked.remedies));
+        }
+        let underground = space.pieces.iter().any(|p| {
+            p.faction == Faction::M26
+                && p.kind == Kind::Guerrilla
+                && p.state == State::Underground
+                && p.count > 0
+        });
+        if !underground {
+            return Some("No Underground 26July Guerrilla".into());
+        }
+        if here.is_empty() {
+            return None;
+        }
+        // Refused with no remedy though an Underground Guerrilla is there: nothing in
+        // this task can pay for it.
+        let cost = resources(TERROR_COST);
+        Some(
+            if self.owes_santiago() && self.resources[Faction::M26.index()] > 0 {
+                format!("{cost} is kept for Santiago")
+            } else {
+                format!("26July cannot pay {cost}")
+            },
+        )
     }
     /// The balance change from the Pass recorded on the current card.
     fn recorded_resources(&self) -> Vec<ResourceChange> {
@@ -1416,6 +1577,11 @@ impl Game {
                 preview.m26_next_card = e.m26_next_card;
                 preview.next = after.next();
             }
+        } else if self.card_18 && Self::assault_payment_space(action).is_some() {
+            // Paying for a space takes that space's other plans with it (R 3.1), and a
+            // balance short of the cost closes every other space's. Listing each plan
+            // would bury what the payment does, so the preview's notes state the
+            // shortfall once instead.
         } else {
             // Compare the Operation menus, so removal mode's own menu does not count:
             // a removal leaves the mode open, but what it changes is what the
@@ -1440,15 +1606,29 @@ impl Game {
                 if now.is_none_or(|c| !c.supported) {
                     preview.unavailable.push(Unavailable {
                         choice: name,
-                        label: choice.label.clone(),
+                        label: self.unavailable_label(choice),
                         reason: now
                             .map_or_else(|| "No longer offered.".into(), |c| c.explanation.clone()),
                     });
                 }
             }
         }
+        preview.assault = self.assault_preview(after, action);
         preview.notes = self.notes(after, action);
         preview
+    }
+    /// How a preview names a choice it would leave unavailable. An Assault plan's
+    /// label names only whom it targets, so its space is added.
+    fn unavailable_label(&self, choice: &Choice) -> String {
+        let space = choice
+            .site
+            .as_ref()
+            .filter(|_| Self::assault_payment_space(choice.action()).is_some())
+            .and_then(|site| self.spaces.iter().find(|s| s.id == site.space));
+        match space {
+            Some(space) => format!("Assault in {} · {}", space.name, choice.label),
+            None => choice.label.clone(),
+        }
     }
     /// The facts a preview states besides its computed changes, with rule references.
     fn notes(&self, after: &Game, action: &str) -> Vec<String> {
@@ -1489,9 +1669,7 @@ impl Game {
                 "end-assault" => notes.push("Records Operation Only. Syndicate may Pass or choose a Limited Operation as 2nd Eligible (R 2.3.4–5).".into()),
                 _ if action.starts_with("remove:") => notes.push("R 1.4.1: after Done, Assault uses the remaining cubes.".into()),
                 _ if Self::assault_payment_space(action).is_some() => {
-                    if let Some(note) = after.assault_preview_effect() {
-                        notes.push(note);
-                    }
+                    notes.extend(Self::assault_preview_notes(after));
                 }
                 _ => {}
             }
@@ -1802,6 +1980,7 @@ impl Game {
             owner: self.owner(),
             accompanies: None,
             remedies: vec![],
+            site: None,
             preview: None,
         }
     }
@@ -1941,6 +2120,9 @@ impl Game {
             let mut roll = self.kidnap_offer();
             roll.id = format!("{}:kidnap:roll", self.revision);
             roll.label = "Roll the Kidnap die · commits the result".into();
+            // The roll is taken in the panel, where its stakes are: while Kidnap is
+            // open no choice acts on a map space, so the map targets nothing.
+            roll.site = None;
             return vec![
                 roll,
                 self.offer(
@@ -2007,7 +2189,7 @@ impl Game {
     fn government_choices(&self) -> Vec<Choice> {
         let balance = self.resources[Faction::Government.index()];
         let after_pass = Self::government_pass_balance(balance);
-        let alliance = UsAlliance::Firm;
+        let alliance = ALLIANCE;
         let cost = alliance.coin_cost();
         let offer = |id: &str, label: &str, rule: String| {
             self.offer(
@@ -2341,7 +2523,8 @@ impl Game {
             "Kidnap · Santiago · Government",
             guerrillas > police && feasible,
             format!("{counted} vs {police} Police; must outnumber. Die 1–6: proceeds {}–{} from Government. {}", self.resources[Faction::Government.index()].min(1), self.resources[Faction::Government.index()].min(6), if feasible {"Santiago Terror was resolved or is guaranteed feasible on every roll; an early roll commits its payment and Underground Guerrilla."} else {"Santiago needs an Underground Guerrilla and guaranteed payment without a promised Resource transfer or favorable roll."}),
-        );
+        )
+        .at(KIDNAP_SPACE, true);
         // Only payment can still change: nothing in this task places a Guerrilla,
         // removes Police or makes an Active Guerrilla Underground again. With
         // Government at 0, Kidnap takes nothing, so only a transfer to 26July funds it.
@@ -2353,9 +2536,7 @@ impl Game {
                 .iter()
                 .any(|f| self.resources[f.index()] > 0)
         {
-            kidnap
-                .remedies
-                .push("Request a Resource transfer".to_owned());
+            kidnap.remedies.push(TRANSFER_REMEDY.to_owned());
         }
         kidnap
     }
@@ -2402,14 +2583,14 @@ impl Game {
                 && kidnap.is_some_and(|k| k.supported)
                 && self.resources[Faction::Government.index()] > 0
             {
-                remedies.push("Kidnap here first".to_owned());
+                remedies.push(KIDNAP_REMEDY.to_owned());
             }
             if self.executing().is_some()
                 && [Faction::Government, Faction::Directorio, Faction::Syndicate]
                     .iter()
                     .any(|f| self.resources[f.index()] > 0)
             {
-                remedies.push("Request a Resource transfer".to_owned());
+                remedies.push(TRANSFER_REMEDY.to_owned());
             }
         }
         let mut choice = self.offer(
@@ -2426,7 +2607,7 @@ impl Game {
             },
         );
         choice.remedies = remedies;
-        choice
+        choice.at(id, true)
     }
     /// Whether the owed-Terror protection holds this group's last piece: the last
     /// Santiago Underground Guerrilla while Santiago Terror is owed (accepted
@@ -2697,6 +2878,7 @@ impl Game {
                 let id = action.strip_prefix("terror:").unwrap();
                 let space = self.spaces.iter_mut().find(|s| s.id == id).unwrap();
                 Self::resolve_terror(space);
+                self.terror_resolved.push(id.to_owned());
                 self.resources[Faction::M26.index()] -= TERROR_COST;
                 self.effect = true;
             }
@@ -2771,31 +2953,45 @@ impl Game {
         };
         pairs
             .into_iter()
-            .map(|(giver, recipient)| {
-                let balance = self.resources[giver.index()];
-                let held = self.resources[recipient.index()];
-                let room = RESOURCE_CAP.saturating_sub(held);
-                let reserved = u8::from(giver == Faction::M26 && self.owes_santiago());
-                let spendable = balance.saturating_sub(reserved);
-                let bound = if spendable > room {
-                    Bound::Cap
-                } else if reserved > 0 && balance > 0 {
-                    Bound::Reserve
-                } else {
-                    Bound::Balance
-                };
-                TransferTerms {
-                    giver,
-                    recipient,
-                    balance,
-                    held,
-                    room,
-                    reserved,
-                    limit: spendable.min(room),
-                    bound,
-                }
-            })
+            .map(|(giver, recipient)| self.terms(giver, recipient))
             .collect()
+    }
+    /// What `giver` may transfer to `recipient` while one of them executes (R 1.5.1).
+    fn terms(&self, giver: Faction, recipient: Faction) -> TransferTerms {
+        let balance = self.resources[giver.index()];
+        let held = self.resources[recipient.index()];
+        let room = RESOURCE_CAP.saturating_sub(held);
+        let reserved = u8::from(giver == Faction::M26 && self.owes_santiago());
+        let spendable = balance.saturating_sub(reserved);
+        let bound = if spendable > room {
+            Bound::Cap
+        } else if reserved > 0 && balance > 0 {
+            Bound::Reserve
+        } else {
+            Bound::Balance
+        };
+        TransferTerms {
+            giver,
+            recipient,
+            balance,
+            held,
+            room,
+            reserved,
+            limit: spendable.min(room),
+            bound,
+        }
+    }
+    /// The most `recipient` could hold while it executes, if every other faction gave
+    /// it all its terms allow. A transfer may be repeated, so the givers add up; a
+    /// faction that does not execute cannot give to another that does not (R 1.5.1),
+    /// but can give to `recipient` directly, so nothing more can reach it.
+    fn balance_after_transfers(&self, recipient: Faction) -> u8 {
+        let given: u16 = Faction::ALL
+            .into_iter()
+            .filter(|&giver| giver != recipient)
+            .map(|giver| u16::from(self.terms(giver, recipient).limit))
+            .sum();
+        (u16::from(self.resources[recipient.index()]) + given).min(u16::from(RESOURCE_CAP)) as u8
     }
     /// Why an amount beyond its limit is refused, in the terms' own words: the executor's Resource
     /// transfer or request the modal offers, or the pending request's authorization.
@@ -3011,5 +3207,376 @@ mod inventory_tests {
     #[should_panic(expected = "breaks the Available Forces chart")]
     fn observing_a_position_that_breaks_the_chart_panics_in_unit_tests() {
         with_two_more_guerrillas(false).observe();
+    }
+}
+
+#[cfg(test)]
+mod space_reason_tests {
+    use super::{Faction, Game, KIDNAP_REMEDY, TRANSFER_REMEDY, remedy_line};
+
+    fn choose(game: &mut Game, action: &str) {
+        let view = game.observe();
+        game.submit(
+            view.owner,
+            view.revision,
+            &format!("{}:{action}", view.revision),
+        )
+        .unwrap_or_else(|e| panic!("{action}: {e}"));
+    }
+
+    fn reason(game: &Game, space: &str) -> Option<String> {
+        game.observe()
+            .space_reasons
+            .into_iter()
+            .find(|r| r.space == space)
+            .map(|r| r.reason)
+    }
+
+    /// #170: a blocked space's line names what would open it, from the remedies the
+    /// authority gives its choice.
+    #[test]
+    fn a_blocked_space_s_line_names_its_remedies() {
+        let line = |remedies: &[&str]| {
+            remedy_line(&remedies.iter().map(|r| r.to_string()).collect::<Vec<_>>())
+        };
+        assert_eq!(line(&[TRANSFER_REMEDY]), "A Resource transfer opens it");
+        assert_eq!(line(&[KIDNAP_REMEDY]), "Kidnap here first opens it");
+        assert_eq!(
+            line(&[KIDNAP_REMEDY, TRANSFER_REMEDY]),
+            "Kidnap or a transfer opens it"
+        );
+    }
+
+    /// #170: a Terror refused with no remedy while an Underground Guerrilla is there.
+    /// No faction can give a Resource, so nothing in this task pays for it (R 3.3.4);
+    /// once Kidnap owes Santiago's Terror, 26July's last Resource is kept for it
+    /// (accepted commitment policy).
+    #[test]
+    fn a_terror_nothing_can_pay_for_says_why() {
+        let mut game = Game::opening_with_seed(2);
+        choose(&mut game, "terror");
+        game.resources = [0; 4];
+        // Kidnap takes nothing from Government at 0, so it is not offered either.
+        assert_eq!(
+            reason(&game, "santiago").as_deref(),
+            Some("26July cannot pay 1 Resource")
+        );
+        assert_eq!(
+            reason(&game, "oriente").as_deref(),
+            Some("26July cannot pay 1 Resource")
+        );
+
+        let mut owed = Game::opening_with_seed(2);
+        choose(&mut owed, "terror");
+        choose(&mut owed, "kidnap");
+        choose(&mut owed, "kidnap:roll");
+        owed.resources = [0; 4];
+        owed.resources[Faction::M26.index()] = 1;
+        assert_eq!(
+            reason(&owed, "santiago").as_deref(),
+            Some("Terror is owed here (R 4.3.3)")
+        );
+        assert_eq!(
+            reason(&owed, "oriente").as_deref(),
+            Some("1 Resource is kept for Santiago")
+        );
+    }
+
+    /// An Assault space whose plans would remove or close a piece, with none supported
+    /// and no remedy, is not involved, as a Terror with no remedy is: veiled, nothing
+    /// opens on a click and Tab passes it, and its line keeps the authority's reason.
+    /// A space whose only plan removes nothing stays no effect though Government cannot
+    /// pay for it (R 3.2.4, 6.3.1).
+    #[test]
+    fn an_assault_space_nobody_can_fund_is_not_involved_and_keeps_its_reason() {
+        use crate::targets::{SpaceState, focus_order, space_targets};
+        let mut game = Game::opening_with_seed(2);
+        for action in [
+            "terror",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+            "advance-card",
+            "government:assault",
+        ] {
+            choose(&mut game, action);
+        }
+        // Government has 1 Resource and a space costs 2 at a Firm US Alliance; no other
+        // faction has a Resource to give, so no transfer can open a space.
+        game.resources = [0; 4];
+        game.resources[Faction::Government.index()] = 1;
+        let view = game.observe();
+        let targets = space_targets(&view).expect("an open Assault targets the map");
+        let state = |space: &str| targets.iter().find(|t| t.space == space).unwrap().state;
+        // Havana's open Casino would close and Santiago's 2 Active Guerrillas would
+        // return, but nothing can pay for either.
+        for space in ["havana", "santiago"] {
+            let effective: Vec<_> = view
+                .choices
+                .iter()
+                .filter(|c| c.space() == Some(space) && c.site.as_ref().unwrap().effect)
+                .collect();
+            assert!(!effective.is_empty(), "{space}");
+            assert!(
+                effective
+                    .iter()
+                    .all(|c| !c.supported && c.remedies.is_empty()),
+                "{space}"
+            );
+            assert_eq!(state(space), SpaceState::NotInvolved, "{space}");
+            assert!(!state(space).choosable(), "{space}");
+            assert_eq!(
+                reason(&game, space).as_deref(),
+                Some("Government cannot pay 2 Resources"),
+                "{space}"
+            );
+        }
+        // The other 11 spaces' only plan removes nothing: still no effect.
+        for target in targets
+            .iter()
+            .filter(|t| !["havana", "santiago"].contains(&t.space.as_str()))
+        {
+            assert_eq!(target.state, SpaceState::NoEffect, "{}", target.space);
+        }
+        assert_eq!(
+            reason(&game, "matanzas").as_deref(),
+            Some("No enemy pieces (R 3.2.4)")
+        );
+        let order = focus_order(&targets);
+        assert_eq!(order.len(), 11);
+        assert!(!order.contains(&"havana") && !order.contains(&"santiago"));
+    }
+
+    /// The same state reached by legal decisions alone (spec #166's review, D1).
+    /// After Kidnap, Santiago's Terror and the shaded Event, the four factions hold
+    /// 25 Resources: 26 at setup, less the Terror's 1 (R 3.3.4). Government, executing
+    /// the Assault, asks each other faction for its whole balance and each gives it
+    /// (R 1.5.1): Government holds 25, the others 0. Twelve spaces paid at 2 each
+    /// (R 6.3.1) leave 1. Havana is left unpaid, its open Casino still a target, and
+    /// nothing can pay for it: no faction has a Resource to give.
+    #[test]
+    fn legal_play_reaches_an_assault_space_nobody_can_fund() {
+        use crate::targets::{SpaceState, focus_order, space_targets};
+        let mut game = Game::opening_with_seed(2);
+        for action in [
+            "terror",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+            "advance-card",
+            "government:assault",
+        ] {
+            choose(&mut game, action);
+        }
+        assert_eq!(game.observe().resources, [1, 4, 5, 15]);
+        for (giver, amount) in [(1, 4), (2, 5), (3, 15)] {
+            choose(&mut game, "transfer");
+            choose(&mut game, &format!("ask:{giver}:{amount}"));
+            choose(&mut game, &format!("authorize:{amount}"));
+        }
+        assert_eq!(game.observe().resources, [25, 0, 0, 0]);
+        let unpaid: Vec<String> = game
+            .observe()
+            .spaces
+            .iter()
+            .map(|space| space.id.clone())
+            .filter(|id| id != "havana")
+            .collect();
+        for space in &unpaid {
+            choose(&mut game, &format!("assault:{space}:none"));
+        }
+        let view = game.observe();
+        assert_eq!(view.resources, [1, 0, 0, 0]);
+        assert_eq!(view.assault_paid.len(), 12);
+        let targets = space_targets(&view).expect("the Assault is still open");
+        let havana = targets.iter().find(|t| t.space == "havana").unwrap();
+        // Havana's plans would close the Casino, but none is supported and none names
+        // a remedy.
+        let plans: Vec<_> = view
+            .choices
+            .iter()
+            .filter(|c| c.space() == Some("havana"))
+            .collect();
+        assert!(plans.iter().any(|c| c.site.as_ref().unwrap().effect));
+        assert!(plans.iter().all(|c| !c.supported && c.remedies.is_empty()));
+        assert_eq!(havana.state, SpaceState::NotInvolved);
+        assert!(focus_order(&targets).is_empty());
+        assert_eq!(
+            reason(&game, "havana").as_deref(),
+            Some("Government cannot pay 2 Resources")
+        );
+    }
+
+    /// The Assault opened after Kidnap and these Terrors, with each giver's `asked`
+    /// Resources given to Government and every space but `unpaid` paid.
+    fn reach(terrors: &[&str], asked: [(usize, u8); 3], unpaid: &[&str]) -> Game {
+        let mut game = Game::opening_with_seed(2);
+        for action in ["terror", "kidnap", "kidnap:roll"] {
+            choose(&mut game, action);
+        }
+        for terror in terrors {
+            choose(&mut game, terror);
+        }
+        for action in [
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+            "advance-card",
+            "government:assault",
+        ] {
+            choose(&mut game, action);
+        }
+        for (giver, amount) in asked {
+            choose(&mut game, "transfer");
+            choose(&mut game, &format!("ask:{giver}:{amount}"));
+            choose(&mut game, &format!("authorize:{amount}"));
+        }
+        for space in game.observe().spaces {
+            if !unpaid.contains(&space.id.as_str()) {
+                choose(&mut game, &format!("assault:{}:none", space.id));
+            }
+        }
+        game
+    }
+
+    /// Q1 (spec #166's review): a Resource transfer is the remedy exactly when the
+    /// transfers open to Government can raise it to the space's cost, 2 at a Firm US
+    /// Alliance (R 6.3.1). While Government executes, each other faction may give it
+    /// any part of its balance, as often as they agree (R 1.5.1), so what several of
+    /// them hold adds up. Every position here is reached by decisions alone, and leaves
+    /// Havana, whose open Casino a plan would close, unpaid. Resources leave the game
+    /// only by Terror (1 each) and Assault (2 a space): 26 at setup, less one Terror
+    /// and 12 spaces is 1; less two Terrors and 11 spaces is 2.
+    #[test]
+    fn a_resource_transfer_is_the_remedy_exactly_when_the_givers_can_reach_the_cost() {
+        use crate::targets::{SpaceState, focus_order, space_targets};
+        // Havana's state, the spaces Tab reaches and Havana's reason.
+        let shown = |game: &Game| {
+            let view = game.observe();
+            let targets = space_targets(&view).expect("the Assault is open");
+            let state = targets.iter().find(|t| t.space == "havana").unwrap().state;
+            let stops: Vec<String> = focus_order(&targets)
+                .into_iter()
+                .map(str::to_owned)
+                .collect();
+            (state, stops, reason(game, "havana"))
+        };
+        let remedies = |game: &Game| -> Vec<Vec<String>> {
+            game.observe()
+                .choices
+                .into_iter()
+                .filter(|c| c.space() == Some("havana"))
+                .map(|c| c.remedies)
+                .collect()
+        };
+        let one = &["terror:santiago"][..];
+        let two = &["terror:santiago", "terror:oriente"][..];
+
+        // One short of the cost: Government 0, Syndicate 1. No transfer can make 2.
+        let short = reach(one, [(1, 4), (2, 5), (3, 14)], &["havana"]);
+        assert_eq!(short.observe().resources, [0, 0, 0, 1]);
+        assert!(remedies(&short).iter().all(Vec::is_empty));
+        assert_eq!(
+            shown(&short),
+            (
+                SpaceState::NotInvolved,
+                vec![],
+                Some("Government cannot pay 2 Resources".into())
+            )
+        );
+
+        // Exactly the cost, held by two givers, or by Government and one giver.
+        let blocked = (
+            SpaceState::Blocked,
+            vec!["havana".to_owned(), "ec-oriente-sierra".to_owned()],
+            Some("A Resource transfer opens it".to_owned()),
+        );
+        let unpaid = &["havana", "ec-oriente-sierra"][..];
+        let mut givers = reach(two, [(1, 3), (2, 4), (3, 14)], unpaid);
+        assert_eq!(givers.observe().resources, [0, 0, 1, 1]);
+        let mut shared = reach(two, [(1, 3), (2, 5), (3, 14)], unpaid);
+        assert_eq!(shared.observe().resources, [1, 0, 0, 1]);
+        for game in [&givers, &shared] {
+            assert!(
+                remedies(game)
+                    .iter()
+                    .all(|r| *r == [TRANSFER_REMEDY.to_owned()])
+            );
+            assert_eq!(shown(game), blocked);
+        }
+
+        // The remedy is real: the transfers it names open Havana. One of the two givers'
+        // is not yet enough, and the other is still the remedy.
+        let give = |game: &mut Game, giver: usize| {
+            choose(game, "transfer");
+            choose(game, &format!("ask:{giver}:1"));
+            choose(game, "authorize:1");
+        };
+        give(&mut givers, 2);
+        assert_eq!(givers.observe().resources, [1, 0, 0, 1]);
+        assert_eq!(shown(&givers), blocked);
+        for game in [&mut givers, &mut shared] {
+            give(game, 3);
+            assert_eq!(game.observe().resources, [2, 0, 0, 0]);
+            let (state, stops, reason) = shown(game);
+            assert_eq!((state, reason), (SpaceState::Selectable, None));
+            assert_eq!(stops, ["havana", "ec-oriente-sierra"]);
+            choose(game, "assault:havana:syndicate");
+            assert_eq!(game.observe().resources, [0; 4]);
+        }
+    }
+
+    /// V1 (spec #166's review): a payment's preview points to a Resource transfer for
+    /// another space only when transfers could then raise Government to its cost
+    /// (R 6.3.1, 1.5.1). Positions as above, with one more space still to pay.
+    #[test]
+    fn a_payment_s_preview_names_a_transfer_only_when_one_could_fund_another_space() {
+        let notes = |game: &Game, action: &str| {
+            let view = game.observe();
+            let choice = view.choices.iter().find(|c| c.action() == action).unwrap();
+            choice.preview.clone().unwrap().notes
+        };
+        let pay = "assault:matanzas:none";
+        let one = &["terror:santiago"][..];
+        let two = &["terror:santiago", "terror:oriente"][..];
+
+        // Exactly the cost afterwards: Government 2 - 2 = 0, Directorio 1, Syndicate 1.
+        let unpaid = &["havana", "matanzas", "ec-oriente-sierra"][..];
+        let exact = reach(two, [(1, 3), (2, 4), (3, 14)], unpaid);
+        assert_eq!(exact.observe().resources, [2, 0, 1, 1]);
+        assert_eq!(
+            notes(&exact, pay),
+            [
+                "Government would have 0 Resources: another space would need a Resource transfer first (R 6.3.1)."
+            ]
+        );
+
+        // One short, in another's hands: Government 2 - 2 = 0, Syndicate 1.
+        let unpaid = &["havana", "matanzas"][..];
+        let short = reach(one, [(1, 4), (2, 5), (3, 14)], unpaid);
+        assert_eq!(short.observe().resources, [2, 0, 0, 1]);
+        assert_eq!(
+            notes(&short, pay),
+            ["Government would have 0 Resources: it could not pay for another space (R 6.3.1)."]
+        );
+        // One short, in Government's own: 3 - 2 = 1, and no other faction has any.
+        let alone = reach(one, [(1, 4), (2, 5), (3, 15)], unpaid);
+        assert_eq!(alone.observe().resources, [3, 0, 0, 0]);
+        assert_eq!(
+            notes(&alone, pay),
+            ["Government would have 1 Resource: it could not pay for another space (R 6.3.1)."]
+        );
+
+        // Government could still pay, 5 - 2 = 3: no note.
+        let more = &["havana", "matanzas", "ec-oriente-sierra"][..];
+        let funded = reach(one, [(1, 4), (2, 5), (3, 15)], more);
+        assert_eq!(funded.observe().resources, [5, 0, 0, 0]);
+        assert!(notes(&funded, pay).is_empty());
     }
 }
