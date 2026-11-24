@@ -47,6 +47,8 @@ Build both executables from the reviewed checkout into the review package with `
 
 Follow the owner’s launch instructions in order at their display size. Capture the first decision frame before hover, focus, pin or click. Compare what each instruction promises with the frame visible at that step, including the choices and their spacing. If a briefing requires input, name that input in the instructions. Inspect the result after committing. Run the packaged replay from outside the build checkout using its packaged executables.
 
+Capture every briefing, tag and popover the steps open, and read each as a player would: a word alone on a line, a citation split across lines, and a preview that names pieces without saying which stay and why are findings, as illegible text is. #175 called every text legible; the owner then found a stranded word in a briefing it had not captured, and a preview that read as if it affected Guerrillas it could not.
+
 When the goal names an effect, give the visible choices that produce it. For example, click **Havana** on the map; in its popover the row targeting Syndicate previews the effect on its open Casino. Click **Pay 2 · Assault in Havana** to commit. The Casino stays in Havana, flips closed and reduces the Open Casinos count by one.
 
 ## The owner's display
@@ -336,7 +338,7 @@ The ignored native regressions need the selected card directory and a working re
 CUBA_TEST_CARDS="/path/to/cards" scripts/heavy scripts/native
 ```
 
-- Each test keeps isolated saves, JSON observations and screenshots under its evidence directory, below. `CUBA_NATIVE_EVIDENCE` selects another evidence directory.
+- Each test keeps isolated saves, JSON observations and screenshots under its evidence directory, below. `CUBA_NATIVE_EVIDENCE` selects another evidence directory, and `scripts/native` sets it when run from a worktree ([parallel-work.md](parallel-work.md#builds)).
 - Inspect the images separately: passing assertions do not prove readability or owner acceptance.
 - Run native regressions serially (`--test-threads=1`).
 - A regression reaches its position by submitting decisions, through the seat or the save session, never from a save retained from an earlier build: such a save is disposable ([foundation 2](../foundation/02-rules-and-verification.md#engine-authority)). One that needs a known die roll first creates its save from a chosen seed with `cuba_libre_unfolded::save::Session::create_seeded` ([saves, "A seeded save"](saves.md#the-record)), and then launches the app on it. Kidnap rolls by seed: 19 → 1, 0 → 2, 5 → 3, 3 → 4, 2 → 5, 1 → 6.
