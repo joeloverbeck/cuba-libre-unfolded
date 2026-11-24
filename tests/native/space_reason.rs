@@ -273,7 +273,7 @@ fn native_space_tags_say_why_each_space_is_in_its_state() {
     );
     app.quit();
 
-    // At 3:2 and 21:9 each tag still stands off every area and beside its space.
+    // At 3:2 and 21:9 each tag still keeps off every area, region and piece.
     for size in ["2160x1440", "3440x1440"] {
         app.launch_size(size);
         for space in ["havana", "la-habana", "santiago", "ec-oriente-sierra"] {
