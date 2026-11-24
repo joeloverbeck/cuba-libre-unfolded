@@ -352,14 +352,14 @@ fn assault(view: &Observation) -> bool {
 
 /// An Assault plan's preview (#169), from the authority: the capacity arithmetic,
 /// the payment, whom the plan can affect, what it removes or closes, the Control and
-/// standings that change, and whether another space could still be paid. The
-/// authority's notes come in that order: the arithmetic first, then whom the plan can
-/// affect, then what it removes or closes.
+/// standings that change, and whether another space could still be paid. Each part is
+/// read by name: the payment from `resources`, the three Assault statements from
+/// `assault`, and the remaining notes, which are quiet.
 fn assault_lines(preview: &crate::Preview) -> Vec<(Tone, String)> {
     let mut lines = vec![];
-    let mut notes = preview.notes.iter();
-    if let Some(arithmetic) = notes.next() {
-        lines.push((Tone::Plain, arithmetic.clone()));
+    let assault = preview.assault.as_ref();
+    if let Some(assault) = assault {
+        lines.push((Tone::Plain, assault.arithmetic.clone()));
     }
     for r in &preview.resources {
         lines.push((
@@ -373,11 +373,9 @@ fn assault_lines(preview: &crate::Preview) -> Vec<(Tone, String)> {
             ),
         ));
     }
-    if let Some(affects) = notes.next() {
-        lines.push((Tone::Plain, affects.clone()));
-    }
-    if let Some(effect) = notes.next() {
-        lines.push((Tone::Strong, effect.clone()));
+    if let Some(assault) = assault {
+        lines.push((Tone::Plain, assault.affects.clone()));
+        lines.push((Tone::Strong, assault.effect.clone()));
     }
     let mut outcome: Vec<String> = preview
         .control
@@ -403,7 +401,7 @@ fn assault_lines(preview: &crate::Preview) -> Vec<(Tone, String)> {
     if !outcome.is_empty() {
         lines.push((Tone::Strong, format!("{}.", outcome.join("; "))));
     }
-    lines.extend(notes.map(|note| (Tone::Quiet, note.clone())));
+    lines.extend(preview.notes.iter().map(|note| (Tone::Quiet, note.clone())));
     lines
 }
 

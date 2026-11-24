@@ -451,25 +451,31 @@ impl Game {
         removes_nothing(space)
     }
 
-    /// What the preview of paying for `action` states besides its computed changes:
-    /// the capacity arithmetic, whom the plan can affect, what it removes or closes,
-    /// and whether Government could then pay for another space. `self` is the match
-    /// before the payment and `after` the copy it was applied to.
-    pub(super) fn assault_preview_notes(&self, after: &Game, action: &str) -> Vec<String> {
+    /// What the preview of paying for `action` states besides its computed changes, or
+    /// `None` when `action` pays for no Assault plan: the capacity arithmetic, whom the
+    /// plan can affect, and what it removes or closes. `self` is the match before the
+    /// payment and `after` the copy it was applied to.
+    pub(super) fn assault_preview(&self, after: &Game, action: &str) -> Option<AssaultPreview> {
+        let space =
+            payment_action(action).and_then(|id| self.spaces.iter().find(|s| s.id == id))?;
+        let plan = plans(space)
+            .into_iter()
+            .find(|plan| plan.action == action)?;
+        let paid = after.assault.as_ref()?.paid.last()?;
+        Some(AssaultPreview {
+            arithmetic: capacity(space).1,
+            affects: plan.protection,
+            effect: format!("R 3.2.4: {}.", paid.detail.effect(false)),
+        })
+    }
+
+    /// The facts an Assault payment's preview states besides [`Self::assault_preview`]:
+    /// whether Government could then pay for another space (R 6.3.1).
+    pub(super) fn assault_preview_notes(after: &Game) -> Vec<String> {
         let mut notes = vec![];
-        let space = payment_action(action).and_then(|id| self.spaces.iter().find(|s| s.id == id));
-        if let Some(space) = space {
-            notes.push(capacity(space).1);
-            if let Some(plan) = plans(space).into_iter().find(|plan| plan.action == action) {
-                notes.push(plan.protection);
-            }
-        }
         let Some(assault) = &after.assault else {
             return notes;
         };
-        if let Some(paid) = assault.paid.last() {
-            notes.push(format!("R 3.2.4: {}.", paid.detail.effect(false)));
-        }
         let balance = after.resources[Faction::Government.index()];
         let cost = assault_cost();
         if balance < cost && assault.paid.len() < after.spaces.len() {

@@ -840,8 +840,22 @@ pub struct Preview {
     /// What a Kidnap roll could take, for opening Kidnap and for its roll. A roll's
     /// result is never previewed.
     pub kidnap: Option<KidnapStakes>,
+    /// What paying for an Assault space states besides its computed changes, for an
+    /// Assault payment only. The payment itself is in `resources`.
+    pub assault: Option<AssaultPreview>,
     /// Facts with rule references, such as the zero-space warning.
     pub notes: Vec<String>,
+}
+/// The parts of an Assault payment's preview that its computed changes do not show,
+/// each stated by name (R 3.2.4).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct AssaultPreview {
+    /// The capacity arithmetic: the cubes that count in the space's terrain.
+    pub arithmetic: String,
+    /// Whom the plan can affect, and what protects the rest.
+    pub affects: String,
+    /// What the plan removes or closes, or that it affects no piece.
+    pub effect: String,
 }
 /// What a Kidnap roll could take (R 4.3.3), from current Resources only.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -1599,6 +1613,7 @@ impl Game {
                 }
             }
         }
+        preview.assault = self.assault_preview(after, action);
         preview.notes = self.notes(after, action);
         preview
     }
@@ -1654,7 +1669,7 @@ impl Game {
                 "end-assault" => notes.push("Records Operation Only. Syndicate may Pass or choose a Limited Operation as 2nd Eligible (R 2.3.4–5).".into()),
                 _ if action.starts_with("remove:") => notes.push("R 1.4.1: after Done, Assault uses the remaining cubes.".into()),
                 _ if Self::assault_payment_space(action).is_some() => {
-                    notes.extend(self.assault_preview_notes(after, action));
+                    notes.extend(Self::assault_preview_notes(after));
                 }
                 _ => {}
             }
