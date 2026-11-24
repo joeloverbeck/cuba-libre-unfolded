@@ -264,7 +264,7 @@ fn launch(prefix: &str) -> Native {
 /// Hovers a pile and returns the settled view with its tag open, checking that
 /// reading it changed nothing in the match.
 fn hover(app: &mut Native, pile: &str, before: &Value) -> Value {
-    app.point("quit");
+    app.point("area:propaganda");
     app.point(pile);
     let shown = app.observe();
     assert_eq!(shown["table"]["hover"], pile);
@@ -282,7 +282,7 @@ fn hover(app: &mut Native, pile: &str, before: &Value) -> Value {
 /// Tab moves focus to `pile`, whose tag opens after the shared dwell.
 fn focus(app: &mut Native, pile: &str, before: &Value) -> Value {
     let revision = before["observation"]["revision"].as_u64().unwrap();
-    app.point("quit");
+    app.point("area:propaganda");
     app.request(json!({"op":"settle"}), true);
     let mut focus = Value::Null;
     for _ in 0..30 {
@@ -348,7 +348,7 @@ fn native_pile_tags_match_layout_and_read_the_model() {
     assert!(app.observe()["table"]["pile_tag"]["shown"].is_null());
     // Story 35, "hover the played pile": a pile is what the owner sees of it, its
     // visible side and its caption as well as its disc. The pointer comes to rest on
-    // each from the session's Quit button, carried there by a middle-button drag,
+    // each from Save · quit, carried there by a middle-button drag,
     // which clicks nothing (the seat presses only where no hover is waiting).
     let main_parts = card_piles::parts(&rest);
     let quit = rest["table"]["controls"]
@@ -382,7 +382,7 @@ fn native_pile_tags_match_layout_and_read_the_model() {
                 foot[3] - face[3] > 8.,
                 "{pile}'s side shows: {face:?} {foot:?}"
             );
-            app.point("quit");
+            app.point("area:propaganda");
             app.request(json!({"op":"settle"}), true);
             assert!(app.observe()["table"]["pile_tag"]["shown"].is_null());
             app.request(

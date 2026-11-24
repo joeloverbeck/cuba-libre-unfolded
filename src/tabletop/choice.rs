@@ -870,7 +870,8 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
 /// Enter does to it: the panel's; the spaces the map offers (#168); the Available
 /// Forces ledger's four rows above the panel, whose tags focus opens as hover does
 /// (#160); then the current and the preview card (#139) and the two piles (#144),
-/// whose tags it opens too.
+/// whose tags it opens too; and last Save · quit, whose tag focus opens too and which
+/// Enter activates (#174).
 fn focusable(
     view: &Observation,
     ui: &Interface,
@@ -884,6 +885,7 @@ fn focusable(
         .extend(super::cards::Slot::ALL.map(|slot| (slot.name().to_owned(), Action::Card(slot))));
     controls
         .extend(super::piles::Pile::ALL.map(|pile| (pile.name().to_owned(), Action::Pile(pile))));
+    controls.push((super::save_quit::NAME.to_owned(), Action::Quit));
     controls
 }
 
@@ -990,6 +992,7 @@ pub(super) fn keys(
     mut popover: ResMut<Popover>,
     targeting: Res<Targeting>,
     roll: Res<super::die::Roll>,
+    mut exit: MessageWriter<AppExit>,
 ) {
     let activation_keys = [KeyCode::Enter, KeyCode::NumpadEnter, KeyCode::Space];
     let tab = keys.just_pressed(KeyCode::Tab);
@@ -1079,9 +1082,10 @@ pub(super) fn keys(
             decide(&mut play, &mut ui, owner, revision, &choice);
             ui.dirty = true;
         }
-        Action::Unsupported(reason) => {
-            ui.notice = reason;
-            ui.dirty = true;
+        Action::Unsupported(reason) => super::notice::refuse(&mut ui, reason),
+        // Save · quit closes the game: every decision is already saved (#174).
+        Action::Quit => {
+            exit.write(AppExit::Success);
         }
         // Enter or Space on a focused card pins its tag, as a click does.
         Action::Card(slot) => {
@@ -1807,11 +1811,11 @@ mod tests {
         let view = Game::opening().observe();
         let ui = Interface::default();
         let order = names(&view, &ui);
-        assert_eq!(order.len(), 20);
+        assert_eq!(order.len(), 21);
         assert_eq!(order[0], "option:pass");
         assert_eq!(order[11], "choice-commit");
         // Then the Available Forces rows above the panel (#160), both cards and both
-        // piles, whose tags focus opens (#139, #144).
+        // piles, whose tags focus opens (#139, #144), and last Save · quit (#174).
         assert_eq!(
             order[12..],
             [
@@ -1822,7 +1826,8 @@ mod tests {
                 "card:current",
                 "card:preview",
                 "pile:played",
-                "pile:deck"
+                "pile:deck",
+                "quit"
             ]
         );
         // During Terror (#84): every listed step, the commit, then the ribbon, then
@@ -1851,13 +1856,14 @@ mod tests {
                 "card:current",
                 "card:preview",
                 "pile:played",
-                "pile:deck"
+                "pile:deck",
+                "quit"
             ]
         );
         ui.choice.ribbon = true;
         let order = names(&game.observe(), &ui);
         assert_eq!(
-            order[order.len() - 13..],
+            order[order.len() - 14..],
             [
                 "briefing-ribbon",
                 "briefing-tab:kidnap",
@@ -1871,7 +1877,8 @@ mod tests {
                 "card:current",
                 "card:preview",
                 "pile:played",
-                "pile:deck"
+                "pile:deck",
+                "quit"
             ]
         );
         ui.choice.pinned = Some("end-terror".into());

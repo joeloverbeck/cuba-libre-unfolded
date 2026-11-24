@@ -89,8 +89,9 @@ fn native_keyboard_reaches_santiago_and_commits_terror() {
         );
     };
     app.launch_size("3840x2160");
-    // The pointer rests on a control, away from the map, for the whole run.
-    app.point("quit");
+    // The pointer rests on an area, away from the map, for the whole run (#174: not
+    // on Save · quit, whose tag the pointer opens).
+    app.point("area:propaganda");
 
     // At the action choice no space is a stop. Terror is chosen with the keyboard.
     let order = tab_round(&mut app);
@@ -205,7 +206,7 @@ fn native_keyboard_reaches_santiago_and_commits_terror() {
     let escaped = app.observe();
     assert_eq!(escaped["table"]["popover"], Value::Null);
     assert_eq!(escaped["table"]["choice"]["focus"], Value::Null);
-    app.point("quit");
+    app.point("area:propaganda");
 
     // Terror in Santiago with the keyboard alone: reach the space, open its popover,
     // choose Terror's row, commit with its button.

@@ -18,6 +18,9 @@ pub(super) enum Item {
     Cash,
     /// A faction's row of the Available Forces ledger (#160).
     Available(Faction),
+    /// Save · quit in the bottom-right corner (#174), which opens the same tag. It is
+    /// not a top-band target: the plate is its own control (`save_quit`).
+    SaveQuit,
 }
 
 /// The Available Forces rows' seat names, `available:<faction>`, in `Faction::ALL`
@@ -43,6 +46,7 @@ impl Item {
             Self::Resources => "resources",
             Self::Cash => "cash",
             Self::Available(faction) => &AVAILABLE_NAMES[faction.index()],
+            Self::SaveQuit => "save-quit",
         }
     }
     /// The hover target in reference pixels, and whether it is anchored to the
@@ -54,6 +58,8 @@ impl Item {
             Self::Resources => (LEDGER, true),
             Self::Cash => ([1702., 222., 178., 44.], true),
             Self::Available(faction) => (available::row(faction), true),
+            // The main view's `save-quit` area at the reference, from its bottom-right.
+            Self::SaveQuit => (SAVE_QUIT, true),
         }
     }
 }
@@ -67,6 +73,8 @@ impl serde::Serialize for Item {
 /// Layout rectangles in reference pixels, from the FigCraft frame.
 const TRACK: [f32; 4] = [150., 18., 260., 64.];
 const LEDGER: [f32; 4] = [1688., 20., 192., 190.];
+/// Save · quit's plate in a 1920×1280 reference, 40 from the right and bottom edges.
+const SAVE_QUIT: [f32; 4] = [1728., 1198., 152., 42.];
 
 /// Hover-tag geometry from the FigCraft `hover tag` frame, in reference pixels.
 pub(super) mod tag {
@@ -294,6 +302,11 @@ pub(super) fn content(view: &crate::Observation, item: Item) -> Shown {
             let tag = available::tag(view, faction);
             (tag.title, tag.rows, tag.notes)
         }
+        Item::SaveQuit => (
+            "Save · quit".into(),
+            Vec::new(),
+            vec!["Every decision is saved as it is made, and this\nbutton closes the game."],
+        ),
     };
     let mut notes: Vec<String> = notes.into_iter().map(String::from).collect();
     if item == Item::Resources {
@@ -340,6 +353,10 @@ pub(super) fn bounds(shown: &Shown, scale: f32, right: Vec2) -> [f32; 4] {
             let [x, y] = available::opens();
             (right, x, y)
         }
+        // Save · quit's tag opens above the plate, right edges on the window's margin,
+        // as the top band's right-hand tags open below theirs; `draw` puts its right
+        // edge and foot on the main view's `save-quit-tag` (#174).
+        (Item::SaveQuit, _) => (right, 1880. - tag::WIDTH, y - tag::GAP - height),
         (_, true) => (right, 1880. - tag::WIDTH, y + h + tag::GAP),
         (_, false) => (Vec2::ZERO, x.min(1880. - tag::WIDTH), y + h + tag::GAP),
     };
@@ -360,6 +377,7 @@ pub(super) fn draw(
     window: Single<&Window, With<PrimaryWindow>>,
     roots: Query<Entity, With<Tag>>,
     mut previous: Local<Option<Shown>>,
+    layout: Res<areas::Layout>,
 ) {
     let scale = reference_pixel(&window);
     let right = Vec2::new(window.width() - WIDTH * scale, 0.);
@@ -377,6 +395,13 @@ pub(super) fn draw(
         .map(|item| {
             let mut shown = content(&play.game().observe(), item);
             shown.bounds = bounds(&shown, scale, right);
+            if item == Item::SaveQuit {
+                // Its right edge and foot are the main view's `save-quit-tag` (#174).
+                let place = layout.save_quit_tag(&window);
+                let [left, top, right, foot] = shown.bounds;
+                let shift = place.max - Vec2::new(right, foot);
+                shown.bounds = [left + shift.x, top + shift.y, place.max.x, place.max.y];
+            }
             shown
         });
     if *previous == shown {
@@ -529,6 +554,45 @@ mod tests {
                     assert!(line.chars().count() <= tag::NOTE_CHARS, "{line}");
                 }
             }
+        }
+    }
+
+    /// #174: Save · quit's tag is the top display's tag with one sentence, which says
+    /// that every decision is already saved and that the button closes the game. On
+    /// the owner's display it opens where the main view's `save-quit-tag` is.
+    #[test]
+    fn save_quit_s_tag_says_decisions_are_saved_and_opens_above_the_plate() {
+        let shown = content(&view(), Item::SaveQuit);
+        assert_eq!(shown.title, "Save · quit");
+        assert!(shown.rows.is_empty());
+        assert_eq!(
+            shown.notes.join(" ").replace('\n', " "),
+            "Every decision is saved as it is made, and this button closes the game."
+        );
+        for line in shown.notes.iter().flat_map(|note| note.lines()) {
+            assert!(line.chars().count() <= tag::NOTE_CHARS, "{line}");
+        }
+        let record: serde_json::Value =
+            serde_json::from_str(include_str!("../../art/atlas/atlas-main-view.layout.json"))
+                .unwrap();
+        let [x, y, w, h]: [f32; 4] =
+            serde_json::from_value(record["save-quit-tag"]["bounds"].clone()).unwrap();
+        // 3840×2160: one reference pixel is 1.6875, and the right edge is 600 further.
+        let at = bounds(&shown, 1.6875, Vec2::new(600., 0.));
+        for (drawn, recorded) in at.into_iter().zip([x, y, x + w, y + h]) {
+            assert!(
+                (drawn - recorded).abs() <= 0.02,
+                "{at:?} against {x} {y} {w} {h}"
+            );
+        }
+        let [px, py, pw, ph]: [f32; 4] =
+            serde_json::from_value(record["areas"]["save-quit"]["bounds"].clone()).unwrap();
+        let ([rx, ry, rw, rh], _) = Item::SaveQuit.target();
+        for (drawn, recorded) in [rx * 1.6875 + 600., ry * 1.6875, rw * 1.6875, rh * 1.6875]
+            .into_iter()
+            .zip([px, py, pw, ph])
+        {
+            assert!((drawn - recorded).abs() <= 0.02, "{drawn} {recorded}");
         }
     }
 

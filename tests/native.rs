@@ -28,6 +28,8 @@ mod marker_supply;
 mod pile_tags;
 #[path = "native/rally.rs"]
 mod rally;
+#[path = "native/save_quit.rs"]
+mod save_quit;
 #[test]
 fn session_log_rejects_the_historical_dither_warning() {
     let line = "\x1b[2m2026-11-17T08:00:15.950912Z\x1b[0m \x1b[33m WARN\x1b[0m \x1b[2mbevy_core_pipeline::tonemapping\x1b[0m\x1b[2m:\x1b[0m Camera 406v0 has `Tonemapping::None` with `DebandDither::Enabled`, so dithering has no effect. Use `Tonemapping::Linear` to keep dithering, or set `DebandDither::Disabled`.";
@@ -526,10 +528,12 @@ impl Native {
             self.activate(&format!("step:{step}"), revision);
         }
         self.activate("execution-commit", revision);
-        self.observe()["table"]["notice"]
-            .as_str()
-            .unwrap()
-            .to_owned()
+        let view = self.observe();
+        let notice = view["table"]["notice"].as_str().unwrap().to_owned();
+        // #174: a refusal is drawn on the notice slip, word for word.
+        assert_eq!(view["table"]["slip"]["kind"], "refusal");
+        assert_eq!(view["table"]["slip"]["text"], notice.as_str());
+        notice
     }
     /// Types an amount into the transfer modal's field: clears it, then the digits.
     fn type_amount(&mut self, digits: &str) {
@@ -777,9 +781,14 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
         );
         assert!(before["table"].get("inspected").is_none());
         assert!(before["table"].get("details").is_none());
+        // #174: Save · quit, 152×42 and 40 from the right and bottom edges, so its
+        // middle is 116 from the right and 61 from the bottom.
         let quit = controls.iter().find(|c| c["name"] == "quit").unwrap();
         assert!(
-            (quit["position"][0].as_f64().unwrap() - (width as f64 - 147. * scale)).abs() <= 1.
+            (quit["position"][0].as_f64().unwrap() - (width as f64 - 116. * scale)).abs() <= 1.
+        );
+        assert!(
+            (quit["position"][1].as_f64().unwrap() - (height as f64 - 61. * scale)).abs() <= 1.
         );
         let centers: Vec<_> = controls
             .iter()
@@ -1770,7 +1779,7 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     }
     app.capture("raised-ec-picking");
     // Rest the pointer on interface chrome, off the map.
-    app.point("quit");
+    app.point("area:propaganda");
     let home = app.observe()["table"]["camera"].clone();
     for _ in 0..24 {
         app.request(json!({"op":"key","key":"ArrowLeft","revision":0}), true);
@@ -2289,7 +2298,10 @@ fn native_hover_status_is_transient_without_region_inspection() {
     app.capture("matanzas-hover");
     app.activate("space:matanzas", 0);
     assert_eq!(app.observe()["observation"]["revision"], 0);
-    app.request(json!({"op":"point","revision":0,"component":"quit"}), true);
+    app.request(
+        json!({"op":"point","revision":0,"component":"area:propaganda"}),
+        true,
+    );
     assert!(app.observe()["table"]["status"].is_null());
     // Independent prepared-position expectations from R1.6/1.7 and the
     // accepted tactical handoff, including mixed Control/opinion cases. The
@@ -3038,8 +3050,8 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         let mut checked = 0;
 
         // The action choice (#69): a briefing names each faction in full at its first
-        // mention, then by emblem, and an unsupported option's explanation shows in
-        // the session notice.
+        // mention, then by emblem, and an unsupported option's explanation shows on
+        // the notice slip (#174).
         app.activate("option:rally", 0);
         let open = app.observe();
         checked += assert_inline_emblems(&open);
@@ -3062,17 +3074,13 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         checked += assert_inline_emblems(&refused);
         let notice = refused["table"]["notice"].as_str().unwrap().to_owned();
         assert!(notice.contains("26July Guerrillas"));
-        let session = |view: &Value, words: &str| -> Vec<String> {
+        let slip = |view: &Value, words: &str| -> Vec<String> {
             let texts = view["table"]["inline_text"].as_array().unwrap();
             let found: Vec<_> = texts
                 .iter()
                 .filter(|t| t["text"].as_str().unwrap().ends_with(words))
                 .collect();
-            assert_eq!(
-                found.len(),
-                1,
-                "one session text ending {words:?}: {texts:?}"
-            );
+            assert_eq!(found.len(), 1, "one slip text ending {words:?}: {texts:?}");
             found[0]["emblems"]
                 .as_array()
                 .unwrap()
@@ -3080,7 +3088,8 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
                 .map(|e| e["faction"].as_str().unwrap().to_owned())
                 .collect()
         };
-        assert!(session(&refused, &notice).contains(&"26July".to_owned()));
+        assert_eq!(refused["table"]["slip"]["text"], notice.as_str());
+        assert!(slip(&refused, &notice).contains(&"26July".to_owned()));
         app.capture("rally-explanation");
         app.activate("option:rally", 0);
         app.choose("terror");
@@ -3253,7 +3262,8 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         );
         app.capture("transfer-authorization");
 
-        // The session notice: "[S] gave 1 to [26]. Saved." keeps its full stop.
+        // The reported notice: "[S] gave 1 to [26]. Saved." keeps its full stop. A
+        // success is not drawn (#174).
         app.choose("authorize:1");
         let given = app.observe();
         checked += assert_inline_emblems(&given);
@@ -3261,21 +3271,24 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
             given["table"]["notice"],
             "Syndicate gave 1 to 26July. Saved."
         );
+        assert_eq!(given["table"]["slip"]["shown"], false);
         app.capture("after-authorize");
 
-        // Kidnap's record and notice.
+        // Kidnap's record, and its notice as the seat reads it: the roll succeeded,
+        // so no slip draws it (#174).
         app.choose("kidnap");
         app.roll();
         let kidnap = app.observe();
         checked += assert_inline_emblems(&kidnap);
         assert!(
-            kidnap["table"]["inline_text"]
-                .as_array()
+            kidnap["table"]["notice"]
+                .as_str()
                 .unwrap()
-                .iter()
-                .any(|t| t["text"].as_str().unwrap().contains("Government pays")
-                    && t["emblems"].as_array().unwrap().len() >= 2)
+                .contains("Government pays"),
+            "{}",
+            kidnap["table"]["notice"]
         );
+        assert_eq!(kidnap["table"]["slip"]["shown"], false);
         app.capture("kidnap");
 
         app.quit();
@@ -3288,7 +3301,7 @@ fn native_inline_emblems_sit_on_their_baseline_inside_their_text() {
         checked += assert_inline_emblems(&passed);
         let notice = passed["table"]["notice"].as_str().unwrap().to_owned();
         assert!(notice.starts_with("26July passed"), "{notice}");
-        assert_eq!(session(&passed, &notice), ["26July", "Directorio"]);
+        assert_eq!(passed["table"]["slip"]["shown"], false);
         assert!(
             passed["table"]["inline_text"]
                 .as_array()
@@ -5615,7 +5628,7 @@ fn native_eligibility_indicator_matches_layout_in_every_state() {
             }
         }
         // The tag dismisses like the other hover tags when the pointer leaves.
-        let away = app.point("quit");
+        let away = app.point("area:propaganda");
         assert!(away["table"]["eligibility"]["tag"].is_null());
         assert_eq!(app.observe()["table"]["eligibility"]["tag"], Value::Null);
     };

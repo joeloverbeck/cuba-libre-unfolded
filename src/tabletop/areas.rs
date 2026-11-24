@@ -45,6 +45,14 @@ pub(super) struct Layout {
     frame: [f32; 2],
     island: Placed,
     areas: BTreeMap<String, Placed>,
+    /// The notice slip (#174), drawn with two lines: its right edge, its foot and
+    /// its width. It grows upward with its lines.
+    #[serde(rename = "notice-slip")]
+    slip: Placed,
+    /// Where Save · quit's hover tag opens (#174), with its two note lines: its right
+    /// edge and its foot. Its height follows its lines.
+    #[serde(rename = "save-quit-tag")]
+    save_quit_tag: Placed,
 }
 
 impl Layout {
@@ -150,6 +158,18 @@ impl Layout {
 
     pub(super) fn area(&self, name: &str, window: &Window) -> Rect {
         self.place(&self.areas[name], window)
+    }
+
+    /// The notice slip's place in this window. Its right edge, its foot and its width
+    /// are the slip's; it grows upward from its foot.
+    pub(super) fn slip(&self, window: &Window) -> Rect {
+        self.place(&self.slip, window)
+    }
+
+    /// Where Save · quit's hover tag opens in this window. Its right edge and foot are
+    /// the tag's; its height follows its lines.
+    pub(super) fn save_quit_tag(&self, window: &Window) -> Rect {
+        self.place(&self.save_quit_tag, window)
     }
 
     /// The box the thirteen spaces fill at Home.
@@ -517,7 +537,8 @@ mod tests {
                     0.,
                 ),
                 ("decision", [1380., 280., 500., 660.], right, 0.),
-                ("session", [1380., 964., 500., 264.], right, bottom),
+                // #174: Save · quit, 40 from the right and the bottom edges.
+                ("save-quit", [1728., 1198., 152., 42.], right, bottom),
                 // #143: the two piles and the Propaganda pips took the card
                 // panel's place. These are the layout's own rectangles, in
                 // reference pixels from the bottom of a 1280-high reference.
@@ -616,6 +637,42 @@ mod tests {
         }
     }
 
+    /// #174, layout A · Franja: the notice slip stands 14 reference pixels above Save ·
+    /// quit, their right edges aligned, at the space popover's width (340), and Save ·
+    /// quit's hover tag opens 8 above the plate, its right edge on the window's 40
+    /// margin, at the top display tag's width (468). In every window the slip clears
+    /// the decision panel with room for several lines, and neither covers the plate.
+    #[test]
+    fn the_slip_and_the_tag_stand_above_save_quit() {
+        let layout = record();
+        for (width, height) in [
+            (1920., 1280.),
+            (3840., 2160.),
+            (2520., 1080.),
+            (1600., 1280.),
+            (3440., 1440.),
+        ] {
+            let window = window(width, height);
+            let s = super::super::reference_pixel(&window);
+            let plate = layout.area("save-quit", &window);
+            let slip = layout.slip(&window);
+            let tag = layout.save_quit_tag(&window);
+            let at = format!("{width}x{height}");
+            assert!((slip.max.x - plate.max.x).abs() < 0.02, "{at}");
+            assert!((plate.min.y - slip.max.y - 14. * s).abs() < 0.02, "{at}");
+            assert!((slip.width() - 340. * s).abs() < 0.02, "{at}");
+            assert!((tag.max.x - (width - 40. * s)).abs() < 0.02, "{at}");
+            assert!((plate.min.y - tag.max.y - 8. * s).abs() < 0.02, "{at}");
+            assert!((tag.width() - 468. * s).abs() < 0.02, "{at}");
+            let decision = layout.area("decision", &window);
+            assert!(
+                slip.max.y - decision.max.y > 150. * s,
+                "{at}: room for lines"
+            );
+            assert!(decision.max.y < tag.min.y, "{at}: the tag clears the panel");
+        }
+    }
+
     /// A between area must name two areas placed by their own edges.
     #[test]
     fn a_between_area_names_two_placed_areas() {
@@ -625,7 +682,9 @@ mod tests {
                 "standings":{{"bounds":[0,0,1,1],"anchor":"top"}},
                 "decision":{{"bounds":[0,0,1,1],"anchor":"top-right"}},
                 "cards":{{"bounds":[0,0,1,1],"anchor":"bottom-left"}},
-                "marker-supply":{marker}}}}}"#
+                "marker-supply":{marker}}},
+                "notice-slip":{{"bounds":[0,0,1,1],"anchor":"bottom-right"}},
+                "save-quit-tag":{{"bounds":[0,0,1,1],"anchor":"bottom-right"}}}}"#
             )
         };
         let read = |marker: &str| Layout::read(record(marker).as_bytes()).map(|_| ());

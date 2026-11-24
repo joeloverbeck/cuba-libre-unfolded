@@ -331,25 +331,34 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
     );
     assert_areas_and_island(&rest, &layout, 3840., 2160.);
 
-    // #161: the session panel reports the save and the Terror/Sabotage supply; the
-    // piece totals are the Available Forces ledger's.
-    let status = rest["table"]["main_view"]["parts"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|part| part["part"] == "session-status")
-        .and_then(|part| part["text"].as_str())
-        .expect("the session panel reports its status")
-        .to_owned();
-    let observation = &rest["observation"];
+    // #174: the session panel is gone. Its status line, the saved revision and the
+    // marker supply's text with it, is drawn nowhere: the marker supply's graphic is
+    // the one place the count is shown. At rest no notice slip is drawn.
+    let parts = rest["table"]["main_view"]["parts"].as_array().unwrap();
     assert!(
-        status.starts_with(&format!(
-            "Saved revision {}\nTerror/Sabotage {} available\n",
-            observation["revision"], observation["marker_supply"]["available"]
-        )),
-        "{status}"
+        parts
+            .iter()
+            .all(|part| !part["part"].as_str().unwrap().starts_with("session")),
+        "{parts:?}"
     );
-    assert!(!status.contains(" map / "), "{status}");
+    let texts: Vec<&str> = parts
+        .iter()
+        .filter_map(|part| part["text"].as_str())
+        .collect();
+    for retired in ["Saved revision", "Terror/Sabotage"] {
+        assert!(
+            texts.iter().all(|text| !text.contains(retired)),
+            "{retired} is still drawn: {texts:?}"
+        );
+    }
+    assert!(
+        rest["table"]["controls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|control| control["name"] != "area:session")
+    );
+    assert_eq!(rest["table"]["slip"]["shown"], false);
 
     // The accepted areas against the layout record: images on all four edges, text
     // on left, top and right, since its line height is the renderer's.
@@ -402,6 +411,9 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
         [1500, 1700],
         [2000, 2100],
         [2895, 1900],
+        // #174: the session panel's place, now sea, with the slip hidden.
+        [3300, 1750],
+        [3100, 2050],
         // The title, the key's five entries and the adjacency line.
         [145, 275],
         [150, 1483],
@@ -499,9 +511,16 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
     assert_eq!(camera(&app.observe()), home_camera, "Home returns");
 
     // An overlaid area takes the pointer over its own rectangle: on each, the wheel,
-    // a right-drag and a press leave the camera and the match as they were.
+    // a right-drag and a press leave the camera and the match as they were. Save ·
+    // quit's plate covers its whole area (#174), so the wheel and the drag go to the
+    // plate, and it is not pressed: that would close the game.
     for area in areas(&rest).keys() {
-        let target = format!("area:{area}");
+        let plate = area == "save-quit";
+        let target = if plate {
+            "quit".to_owned()
+        } else {
+            format!("area:{area}")
+        };
         let over = app.point(&target);
         assert!(over["table"]["status"].is_null(), "{area}");
         let scrolled = app.request(
@@ -518,6 +537,9 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
         assert_eq!(dragged["status"], "dragged", "{dragged}");
         let after = app.request(json!({"op":"settle"}), true);
         assert_eq!(camera(&after), home_camera, "a drag on {area} orbited");
+        if plate {
+            continue;
+        }
         app.activate(&target, 0);
         let after = app.observe();
         assert_eq!(after["observation"], rest["observation"], "{area}");
