@@ -52,8 +52,9 @@ fn focus_save_quit(app: &mut Native) -> Value {
     let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
     for _ in 0..40 {
         app.request(json!({"op":"key","revision":revision,"key":"Tab"}), true);
-        if app.observe()["table"]["choice"]["focus"] == "quit" {
-            app.request(json!({"op":"settle"}), true);
+        // A stop whose tag focus opens holds the table until its dwell is out.
+        let settled = app.request(json!({"op":"settle"}), true);
+        if settled["table"]["choice"]["focus"] == "quit" {
             return app.observe();
         }
     }
@@ -258,9 +259,16 @@ fn native_save_quit_and_the_notice_slip_match_layout_and_resume_the_save() {
     {
         app.activate("kidnap-die:continue", revision);
     }
+    // Syndicate's decision opens over a scrim, which covers the corner too; Wait sets
+    // it aside and the request stays pending (#75).
     app.choose("transfer");
     app.choose("ask:3:1");
+    app.choose("wait");
     let asked = app.observe();
+    assert_eq!(
+        asked["observation"]["transfer"]["Authorizing"]["waited"],
+        true
+    );
     assert!(
         !asked["observation"]["transfer"].is_null(),
         "{}",

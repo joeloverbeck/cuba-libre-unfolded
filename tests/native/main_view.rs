@@ -511,9 +511,16 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
     assert_eq!(camera(&app.observe()), home_camera, "Home returns");
 
     // An overlaid area takes the pointer over its own rectangle: on each, the wheel,
-    // a right-drag and a press leave the camera and the match as they were.
+    // a right-drag and a press leave the camera and the match as they were. Save ·
+    // quit's plate covers its whole area (#174), so the wheel and the drag go to the
+    // plate, and it is not pressed: that would close the game.
     for area in areas(&rest).keys() {
-        let target = format!("area:{area}");
+        let plate = area == "save-quit";
+        let target = if plate {
+            "quit".to_owned()
+        } else {
+            format!("area:{area}")
+        };
         let over = app.point(&target);
         assert!(over["table"]["status"].is_null(), "{area}");
         let scrolled = app.request(
@@ -530,6 +537,9 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
         assert_eq!(dragged["status"], "dragged", "{dragged}");
         let after = app.request(json!({"op":"settle"}), true);
         assert_eq!(camera(&after), home_camera, "a drag on {area} orbited");
+        if plate {
+            continue;
+        }
         app.activate(&target, 0);
         let after = app.observe();
         assert_eq!(after["observation"], rest["observation"], "{area}");
