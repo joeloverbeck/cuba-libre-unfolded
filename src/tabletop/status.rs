@@ -62,9 +62,26 @@ pub(super) fn hover(
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(id, _)| id)
     });
-    let eligible = !over_ui && play.session.is_some();
+    // A space with keyboard focus opens its tag as hover does, after the same dwell
+    // (#168). The pointer over the map wins; over an interface node it gives way to
+    // focus.
+    let (target, eligible) = match (target, focused(&ui)) {
+        (Some(pointed), _) if !over_ui => (Some(pointed), true),
+        (_, Some(focused)) => (Some(focused), true),
+        (pointed, None) => (pointed, !over_ui),
+    };
+    let eligible = eligible && play.session.is_some();
     ui.status
         .update(target, eligible, time.delta(), Duration::from_millis(250));
+}
+
+/// The space that has keyboard focus, by its id (#168).
+pub(super) fn focused(ui: &Interface) -> Option<String> {
+    ui.choice
+        .focus
+        .as_deref()?
+        .strip_prefix("space:")
+        .map(str::to_owned)
 }
 
 /// What kind of space this is, in the words of the terrain row and the popover.

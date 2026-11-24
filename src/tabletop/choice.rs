@@ -16,7 +16,9 @@
 //! through the same checked seam as every other control.
 use super::briefing::{self, Briefing};
 use super::emblems::{self, Naming};
+use super::highlights::Targeting;
 use super::palette::{INK, PAPER, QUIET};
+use super::popover::Popover;
 use super::*;
 use crate::{ActionChoice, Choice, EventProgress, Observation, Transfer, resources};
 use bevy::text::{Justify, LetterSpacing, LineHeight};
@@ -865,17 +867,48 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
 }
 
 /// The controls Tab moves through, in order, by their seat names, each with what
-/// Enter does to it: the panel's; the Available Forces ledger's four rows above it,
-/// whose tags focus opens as hover does (#160); then the current and the preview card
-/// (#139) and the two piles (#144), whose tags it opens too.
-fn focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> {
+/// Enter does to it: the panel's; the spaces the map offers (#168); the Available
+/// Forces ledger's four rows above the panel, whose tags focus opens as hover does
+/// (#160); then the current and the preview card (#139) and the two piles (#144),
+/// whose tags it opens too.
+fn focusable(
+    view: &Observation,
+    ui: &Interface,
+    targeting: &Targeting,
+    popover: &Popover,
+) -> Vec<(String, Action)> {
     let mut controls = panel_focusable(view, ui);
+    controls.extend(map_focusable(view, targeting, popover));
     controls.extend(super::available::focusable());
     controls
         .extend(super::cards::Slot::ALL.map(|slot| (slot.name().to_owned(), Action::Card(slot))));
     controls
         .extend(super::piles::Pile::ALL.map(|pile| (pile.name().to_owned(), Action::Pile(pile))));
     controls
+}
+
+/// While map targeting is active, the spaces it offers in `targets::focus_order`
+/// (#168), each Enter-activated as a click on it; an open space popover's rows and
+/// button follow its space. None while targeting is suspended.
+fn map_focusable(
+    view: &Observation,
+    targeting: &Targeting,
+    popover: &Popover,
+) -> Vec<(String, Action)> {
+    let Some(targets) = targeting.targets.as_deref() else {
+        return vec![];
+    };
+    let open = popover.space(view.revision);
+    let mut stops = vec![];
+    for space in crate::targets::focus_order(targets) {
+        stops.push((format!("space:{space}"), Action::Space(space.into())));
+        if let Some((open, selected)) = open
+            && open == space
+        {
+            stops.extend(super::popover::focusable(view, space, selected));
+        }
+    }
+    stops
 }
 
 /// The panel's controls Tab moves through.
@@ -934,15 +967,28 @@ fn tab_name(option: &str) -> String {
     format!("briefing-tab:{}", option.trim_start_matches("terror:"))
 }
 
+/// The stop Tab (or, `back`, Shift+Tab) moves to among `n`, from the focused one
+/// `at`, wrapping at either end.
+fn step(n: usize, at: Option<usize>, back: bool) -> usize {
+    match (at, back) {
+        (None, false) => 0,
+        (None, true) => n - 1,
+        (Some(i), false) => (i + 1) % n,
+        (Some(i), true) => (i + n - 1) % n,
+    }
+}
+
 /// Keyboard reach: Tab and Shift+Tab move focus through the options, the commit, the
-/// ribbon and its tabs; Enter or Space activates the focused one as a click would;
-/// Escape unpins the briefing or closes the ribbon's tag, and closes an open space or
-/// piece popover.
+/// ribbon and its tabs, the spaces the map offers and an open space popover's rows and
+/// button; Enter or Space activates the focused one as a click would; Escape unpins
+/// the briefing or closes the ribbon's tag, and closes an open space or piece popover,
+/// leaving focus on a closed space popover's space (#168).
 pub(super) fn keys(
     mut keys: ResMut<ButtonInput<KeyCode>>,
     mut play: ResMut<Play>,
     mut ui: ResMut<Interface>,
-    mut popover: ResMut<super::popover::Popover>,
+    mut popover: ResMut<Popover>,
+    targeting: Res<Targeting>,
     roll: Res<super::die::Roll>,
 ) {
     let activation_keys = [KeyCode::Enter, KeyCode::NumpadEnter, KeyCode::Space];
@@ -968,7 +1014,19 @@ pub(super) fn keys(
             return;
         }
         // An open space or piece popover closes as the tag does (#75); nothing is
-        // decided.
+        // decided. Keyboard focus on the space or in its popover returns to the space
+        // (#168); a popover the pointer opened leaves focus where it was.
+        if let Some((space, _)) = popover.space(view.revision) {
+            let stop = format!("space:{space}");
+            if ui
+                .choice
+                .focus
+                .as_deref()
+                .is_some_and(|f| f == stop || f.starts_with("popover:"))
+            {
+                ui.choice.focus = Some(stop);
+            }
+        }
         popover.close_all();
         if ui.choice.pinned.is_some() {
             ui.choice.pinned = None;
@@ -978,7 +1036,7 @@ pub(super) fn keys(
         ui.dirty = true;
         return;
     }
-    let order = focusable(&view, &ui);
+    let order = focusable(&view, &ui, &targeting, &popover);
     if order.is_empty() {
         return;
     }
@@ -989,14 +1047,7 @@ pub(super) fn keys(
         .and_then(|f| order.iter().position(|(n, _)| n == f));
     if tab {
         let back = keys.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight]);
-        let n = order.len();
-        let next = match (at, back) {
-            (None, false) => 0,
-            (None, true) => n - 1,
-            (Some(i), false) => (i + 1) % n,
-            (Some(i), true) => (i + n - 1) % n,
-        };
-        ui.choice.focus = Some(order[next].0.clone());
+        ui.choice.focus = Some(order[step(order.len(), at, back)].0.clone());
         ui.dirty = true;
         return;
     }
@@ -1037,6 +1088,15 @@ pub(super) fn keys(
             super::cards::activate(&mut ui, slot);
             ui.dirty = true;
         }
+        // On a focused space they open or close its popover, and on a popover row they
+        // choose it, as a click does (#168); neither decides anything.
+        Action::Space(space) => {
+            if popover.click_space(&space, &targeting) {
+                ui.choice.close();
+            }
+            ui.dirty = true;
+        }
+        Action::Row(action) => popover.choose_row(&action),
         _ => {}
     }
 }
@@ -1521,6 +1581,7 @@ pub(super) fn observe(ui: &Interface) -> serde_json::Value {
     serde_json::json!({
         "pinned": ui.choice.pinned,
         "focus": ui.choice.focus,
+        "focused_space": super::status::focused(ui),
         "ribbon": ui.choice.ribbon,
         "tab": ui.choice.tab(),
     })
@@ -1606,10 +1667,142 @@ mod tests {
         );
     }
 
+    /// The map's targeting states as `highlights::refresh` computes them for `view`.
+    fn aim(view: &Observation) -> Targeting {
+        let mut targeting = Targeting::default();
+        targeting.targets = crate::targets::space_targets(view);
+        targeting.view = Some(view.clone());
+        targeting
+    }
+
+    fn stops(
+        view: &Observation,
+        ui: &Interface,
+        targeting: &Targeting,
+        popover: &Popover,
+    ) -> Vec<String> {
+        focusable(view, ui, targeting, popover)
+            .into_iter()
+            .map(|(n, _)| n)
+            .collect()
+    }
+
+    /// While map targeting is active, Tab goes from the panel's controls to the
+    /// selectable spaces, then the blocked ones, each group in the observation's space
+    /// order, then on to the stops that follow the panel (#168). An open space popover
+    /// puts its rows and its button right after its space. Where targeting is
+    /// suspended no space is a stop.
+    #[test]
+    fn tab_reaches_the_offered_spaces_by_map_state_after_the_panel() {
+        let mut game = Game::opening();
+        game.submit(Faction::M26, 0, "0:terror").unwrap();
+        let view = game.observe();
+        let ui = Interface::default();
+        let targeting = aim(&view);
+        let closed = Popover::default();
+        // At 0 Resources neither Terror can be paid (1 Resource a space, R 3.3.4).
+        // Kidnap can act in Santiago, where 26July's Guerrillas outnumber the Police
+        // (R 4.3.3): Santiago is selectable. Oriente's Terror waits for a Resource
+        // transfer: it is blocked.
+        let order = stops(&view, &ui, &targeting, &closed);
+        let ribbon = order.iter().position(|n| n == "briefing-ribbon").unwrap();
+        assert_eq!(
+            order[ribbon..ribbon + 4],
+            [
+                "briefing-ribbon",
+                "space:santiago",
+                "space:oriente",
+                "available:government"
+            ],
+            "{order:?}"
+        );
+        // The group decides before the observation's space order: with Oriente
+        // selectable and Santiago blocked, Oriente comes first.
+        let mut swapped = view.clone();
+        for choice in &mut swapped.choices {
+            match choice.space() {
+                Some("oriente") => choice.supported = true,
+                Some("santiago") => {
+                    choice.supported = false;
+                    choice.remedies = vec!["Request a Resource transfer".into()];
+                }
+                _ => {}
+            }
+        }
+        let order = stops(&swapped, &ui, &aim(&swapped), &closed);
+        let spaces: Vec<_> = order.iter().filter(|n| n.starts_with("space:")).collect();
+        assert_eq!(spaces, ["space:oriente", "space:santiago"]);
+
+        // Santiago's popover open: its choosable row (Kidnap; Terror is not yet) and
+        // its button follow Santiago, before Oriente.
+        let mut open = Popover::default();
+        assert!(open.click_space("santiago", &targeting));
+        let order = stops(&view, &ui, &targeting, &open);
+        let at = order.iter().position(|n| n == "space:santiago").unwrap();
+        assert_eq!(
+            order[at..at + 4],
+            [
+                "space:santiago",
+                "popover:row:kidnap",
+                "popover:commit",
+                "space:oriente"
+            ],
+            "{order:?}"
+        );
+        let Some((_, Action::Submit(owner, revision, choice))) =
+            focusable(&view, &ui, &targeting, &open)
+                .into_iter()
+                .find(|(n, _)| n == "popover:commit")
+        else {
+            panic!("the popover's button submits its chosen row's choice")
+        };
+        assert_eq!(
+            (owner, revision, choice.as_str()),
+            (Faction::M26, 1, "1:kidnap")
+        );
+
+        // Targeting is suspended at the action choice, while Kidnap is open, during a
+        // Resource transfer, in removal mode and once Terror has ended: no space is a
+        // stop. (A presented die holds the keyboard before any of these: `keys`.)
+        let opening = Game::opening().observe();
+        let mut suspended = vec![opening];
+        for step in ["1:kidnap", "1:transfer", "1:remove", "1:end-terror"] {
+            let mut game = game.clone();
+            game.submit(Faction::M26, 1, step).unwrap();
+            suspended.push(game.observe());
+        }
+        for view in &suspended {
+            let order = stops(view, &ui, &aim(view), &open);
+            assert!(
+                !order
+                    .iter()
+                    .any(|n| n.starts_with("space:") || n.starts_with("popover:")),
+                "revision {}: {order:?}",
+                view.revision
+            );
+        }
+    }
+
+    /// Shift+Tab walks the same stops backwards, and both directions wrap.
+    #[test]
+    fn shift_tab_reverses_the_tab_order() {
+        let forward: Vec<usize> = std::iter::successors(Some(step(5, None, false)), |&i| {
+            Some(step(5, Some(i), false))
+        })
+        .take(6)
+        .collect();
+        assert_eq!(forward, [0, 1, 2, 3, 4, 0]);
+        let back: Vec<usize> =
+            std::iter::successors(Some(step(5, None, true)), |&i| Some(step(5, Some(i), true)))
+                .take(6)
+                .collect();
+        assert_eq!(back, [4, 3, 2, 1, 0, 4]);
+    }
+
     #[test]
     fn tab_order_covers_every_option_then_the_commit() {
         let names = |view: &Observation, ui: &Interface| -> Vec<String> {
-            focusable(view, ui).into_iter().map(|(n, _)| n).collect()
+            stops(view, ui, &aim(view), &Popover::default())
         };
         let view = Game::opening().observe();
         let ui = Interface::default();
@@ -1632,7 +1825,8 @@ mod tests {
                 "pile:deck"
             ]
         );
-        // During Terror (#84): every listed step, the commit, then the ribbon.
+        // During Terror (#84): every listed step, the commit, then the ribbon, then
+        // the spaces the map offers (#168).
         let mut game = Game::opening();
         game.submit(Faction::M26, 0, "0:terror").unwrap();
         let mut ui = Interface::default();
@@ -1648,6 +1842,8 @@ mod tests {
                 "step:back-to-choice",
                 "execution-commit",
                 "briefing-ribbon",
+                "space:santiago",
+                "space:oriente",
                 "available:government",
                 "available:26july",
                 "available:directorio",
@@ -1661,11 +1857,13 @@ mod tests {
         ui.choice.ribbon = true;
         let order = names(&game.observe(), &ui);
         assert_eq!(
-            order[order.len() - 11..],
+            order[order.len() - 13..],
             [
                 "briefing-ribbon",
                 "briefing-tab:kidnap",
                 "briefing-tab:terror",
+                "space:santiago",
+                "space:oriente",
                 "available:government",
                 "available:26july",
                 "available:directorio",

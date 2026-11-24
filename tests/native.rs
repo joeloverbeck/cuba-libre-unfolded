@@ -20,6 +20,8 @@ mod card_piles;
 mod card_tag;
 #[path = "native/main_view.rs"]
 mod main_view;
+#[path = "native/map_keys.rs"]
+mod map_keys;
 #[path = "native/marker_supply.rs"]
 mod marker_supply;
 #[path = "native/pile_tags.rs"]
