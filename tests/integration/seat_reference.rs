@@ -8,7 +8,7 @@
 //! Card 18 visits the open Assault on the inherited board, with one paid space and
 //! representative side choices. A family appearing only in another state will
 //! fail the stale check if the table lists it.
-use crate::explore;
+use crate::explore::{self, Explored, parallel};
 use cuba_libre_unfolded::{Choice, Faction, Game, TransferChoice};
 use std::collections::BTreeSet;
 
@@ -54,11 +54,12 @@ fn families(game: &Game) -> BTreeSet<String> {
 /// Every family offered in every explored state.
 fn offered() -> BTreeSet<String> {
     let mut offered = BTreeSet::new();
-    let starts = explore::starts().into_iter().map(|(_, start)| start);
-    for start in starts.chain(explore::event_starts()) {
-        for node in explore::explore(start) {
-            offered.extend(families(&node.game));
-        }
+    for Explored { nodes, .. } in explore::all_explored() {
+        offered.extend(
+            parallel(nodes, |_, node| families(&node.game))
+                .into_iter()
+                .flatten(),
+        );
     }
     offered.extend(card_18_families());
     offered

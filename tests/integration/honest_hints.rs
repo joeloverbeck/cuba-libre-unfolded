@@ -10,18 +10,26 @@
 //! The oracle is reachability through the authority's own offered decisions, not the
 //! remedies' wording; the states explored are `support/explore.rs`'s. A disabled
 //! choice is judged where that path's one transfer is still unused.
-use crate::explore::{Action, Node, action, choose, explore, reachable, starts};
+use crate::explore::{
+    Action, Explored, Node, action, choose, explored, parallel, predecessors, reaching,
+};
 use cuba_libre_unfolded::{Choice, Faction, Game, TransferChoice};
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 /// Every dishonest hint among the explored states, by label.
 fn dishonest(nodes: &[Node]) -> BTreeSet<String> {
-    let future = reachable(nodes);
+    let judged = || nodes.iter().filter(|n| !n.transferred);
+    let refused: HashSet<&Action> = judged()
+        .flat_map(|n| n.disabled.iter().map(|(action, ..)| action))
+        .collect();
+    let refused: Vec<_> = refused.into_iter().collect();
+    let before = predecessors(nodes);
+    let states = parallel(&refused, |_, action| reaching(nodes, &before, action));
+    let can_reach: HashMap<_, _> = refused.into_iter().zip(states).collect();
     let mut found = BTreeSet::new();
-    for node in nodes.iter().filter(|n| !n.transferred) {
-        let later: HashSet<_> = node.next.iter().flat_map(|&j| &future[j]).collect();
+    for node in judged() {
         for (action, label, remedies) in &node.disabled {
-            let possible = later.contains(action);
+            let possible = node.next.iter().any(|&j| can_reach[action][j]);
             if remedies.is_empty() == possible {
                 let (owner, name) = action;
                 found.insert(format!(
@@ -37,8 +45,8 @@ fn dishonest(nodes: &[Node]) -> BTreeSet<String> {
 
 #[test]
 fn every_disabled_choice_s_remedies_are_exactly_what_this_task_allows() {
-    for (start, game) in starts() {
-        let found = dishonest(&explore(game));
+    for Explored { start, nodes } in explored() {
+        let found = dishonest(nodes);
         assert!(
             found.is_empty(),
             "{start}:\n{}",
@@ -190,28 +198,25 @@ fn works(game: &Game, wanted: &Action, remedy: &str) -> Result<(), String> {
 #[test]
 fn every_named_remedy_makes_its_choice_available() {
     let mut timed = BTreeSet::new();
-    for (start, game) in starts() {
-        let nodes = explore(game);
-        let mut failed = BTreeSet::new();
-        let mut checked = 0;
-        for node in &nodes {
+    for Explored { start, nodes } in explored() {
+        let tried = parallel(nodes, |_, node| {
+            let mut tried = vec![];
             for (wanted, label, remedies) in &node.disabled {
                 for remedy in remedies {
-                    checked += 1;
-                    if let (_, Some(giver)) = timing(remedy) {
-                        timed.insert(giver.to_owned());
-                    }
-                    if let Err(why) = works(&node.game, wanted, remedy) {
+                    let giver = timing(remedy).1.map(str::to_owned);
+                    let failure = works(&node.game, wanted, remedy).err().map(|why| {
                         let (owner, name) = wanted;
-                        failed.insert(format!(
-                            "{}: {label} ({name}): {remedy:?} {why}",
-                            owner.name()
-                        ));
-                    }
+                        format!("{}: {label} ({name}): {remedy:?} {why}", owner.name())
+                    });
+                    tried.push((giver, failure));
                 }
             }
-        }
-        assert!(checked > 0, "{start}: no remedy was named");
+            tried
+        });
+        let tried: Vec<_> = tried.into_iter().flatten().collect();
+        assert!(!tried.is_empty(), "{start}: no remedy was named");
+        timed.extend(tried.iter().filter_map(|(giver, _)| giver.clone()));
+        let failed: BTreeSet<_> = tried.into_iter().filter_map(|(_, why)| why).collect();
         assert!(
             failed.is_empty(),
             "{start}:\n{}",
