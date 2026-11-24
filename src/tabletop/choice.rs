@@ -2113,6 +2113,54 @@ mod tests {
         );
     }
 
+    /// Foundation 2, "Engine authority": legal-action discovery stays complete. Every
+    /// choice an open Assault offers has the one surface that presents it: a plan in
+    /// its space's popover, which a click opens because the map marks the space
+    /// choosable (the chosen row with the button when Government can pay, else a
+    /// refused row with the reason), and a step that selects no space as a panel row.
+    #[test]
+    fn every_assault_choice_is_presented_by_its_space_s_popover_or_a_panel_row() {
+        let mut paid = assault(4);
+        decide(&mut paid, "assault:santiago:26july");
+        for game in [assault(4), assault(0), paid] {
+            let view = game.observe();
+            let targeting = aim(&view);
+            let rows: Vec<&str> = panel_rows(&view).map(|(c, _)| c.id.as_str()).collect();
+            assert!(view.choices.iter().any(|c| c.site.is_some()));
+            for choice in &view.choices {
+                let Some(space) = choice.space() else {
+                    assert!(rows.contains(&choice.id.as_str()), "{}", choice.id);
+                    continue;
+                };
+                assert!(!rows.contains(&choice.id.as_str()), "{}", choice.id);
+                assert!(
+                    targeting
+                        .state(space)
+                        .is_some_and(crate::targets::SpaceState::choosable),
+                    "{}",
+                    choice.id
+                );
+                let card =
+                    super::super::popover::content(&view, space, Some(choice.action())).unwrap();
+                let row = card
+                    .rows
+                    .iter()
+                    .find(|r| r.choice.as_ref() == Some(&choice.id))
+                    .unwrap_or_else(|| panic!("no row for {}", choice.id));
+                if choice.supported {
+                    assert!(row.chosen && row.button.is_some(), "{}", choice.id);
+                } else {
+                    assert!(
+                        row.button.is_none() && !row.lines.is_empty(),
+                        "{}",
+                        choice.id
+                    );
+                    assert_eq!(row.remedies, choice.remedies);
+                }
+            }
+        }
+    }
+
     /// The Assault constants are the layout record's: the frame "AC-B panel · Assault"
     /// with two spaces paid, and beside it with nothing paid.
     #[test]

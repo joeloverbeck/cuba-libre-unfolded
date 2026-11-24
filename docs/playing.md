@@ -100,11 +100,23 @@ Hover or focus Government's options to see what the rules allow and why a choice
 
 Syndicate takes over as 1st Eligible on Pact of Caracas. Inspect its Pass, Event, Operations and Special Activities.
 
-Choose **Assault · Operation Only**, then choose **Cities**, **Provinces**, or **Economic Centers** and a space. Pin a target to see how many pieces the local Troops, Police and terrain let you affect, what remains protected, and what the payment will do. With the inherited cubes still in place, targeting Syndicate in Havana closes the open Casino in place. In Santiago, the Event determines whether one or two 26July Guerrillas return to Available Forces. Voluntary removal of Government cubes can reduce either city's capacity to zero.
+Choose **Assault · Operation Only**. The space is then chosen on the map and nowhere else. The map marks every space for the open Assault:
+
+- **Selectable**, a red and ink outline: Assault would remove or close a piece there and Government can pay.
+- **Blocked**, a dashed outline: it would, but Government cannot pay. A Resource transfer opens the space.
+- **Veiled:** Assault would remove nothing there, or the space was already assaulted in this Operation.
+
+Click a space to open its popover, or reach it with Tab and press Enter ([Camera and keys](#camera-and-keys)). Tab reaches the selectable spaces first, then the blocked ones, then the veiled ones that can still be chosen. The popover lists the space's plans, one row each: the factions a plan targets, with the split when the capacity is short, and last the plan that removes nothing. Choose a row to see how many pieces the local Troops, Police and terrain let you affect, what remains protected, and what the payment will do. Looking decides nothing and saves nothing. The one button pays and resolves the space at once: **Pay 2 · Assault in Havana**, or **Pay 2 · Assault removes nothing**.
+
+A veiled space where Assault would remove nothing stays choosable: its popover holds the one plan that removes nothing, which pays the space's cost and changes nothing else (R 3.2.4). A space already assaulted opens nothing (R 3.1).
+
+With the inherited cubes still in place, targeting Syndicate in Havana closes the open Casino in place. In Santiago, the Event determines whether one or two 26July Guerrillas return to Available Forces. Voluntary removal of Government cubes can reduce either city's capacity to zero, and the map follows at once.
+
+The panel keeps what is not a place: Government's Resources and the cost per space, one line for each space already assaulted, in the order paid, with what it paid and what was removed or closed, and the rows **Finish Assault**, **Resource transfer** and **Remove own pieces**.
 
 Under Firm US Alliance, each payment costs 2 Resources and resolves that space once. Continue in any order you can afford, or choose **Finish Assault**. Government may finish without paying for a space under the [card 18 local policy](local-rule-policies.md#zero-space-government-assault-on-card-18). Government earns no Pass income and Syndicate can inspect Pass and Limited Operation as 2nd Eligible.
 
-Once Government opens Assault, **Resource transfer** lets Government give or request Resources. Pending requests keep their giver's decision across a restart. The authorized amount changes the balance available for the next space.
+Once Government opens Assault, **Resource transfer** lets Government give or request Resources. Pending requests keep their giver's decision across a restart. The authorized amount changes the balance available for the next space, and a blocked space turns selectable as soon as Government can pay. While a transfer is under way or removal mode is open, the map marks no space.
 
 **Remove own pieces** opens the map's voluntary removal controls for Government. Click a marked Troop or Police stack, select a quantity and confirm to return it to Available Forces. Choose **Done** to return to Assault and inspect its removal capacity with the remaining cubes.
 

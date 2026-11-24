@@ -363,6 +363,18 @@ fn native_assault_is_chosen_on_the_map_by_space_picks_alone() {
     assert_eq!(funded["observation"]["resources"], json!([4, 1, 5, 15]));
     assert_map(&funded, &states("selectable", "selectable", "no-effect"));
     shot(&mut app, "3-funded-selectable");
+    // Removal mode suspends the targeting too, as it does during Terror; Done
+    // returns to the same map.
+    pin(&mut app, "remove");
+    app.choose("remove");
+    let removal = app.observe();
+    assert_eq!(removal["table"]["map_targets"], Value::Null);
+    assert!(removal["table"]["removal"].is_object());
+    pin(&mut app, "done-removal");
+    app.choose("done-removal");
+    app.point("area:propaganda");
+    let funded = app.observe();
+    assert_map(&funded, &states("selectable", "selectable", "no-effect"));
 
     // 4. Santiago's popover: the plan that removes something first and chosen, with
     //    the authority's preview and the one button; the plan that removes nothing last.
