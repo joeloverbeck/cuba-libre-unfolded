@@ -32,6 +32,8 @@ mod pile_tags;
 mod rally;
 #[path = "native/save_quit.rs"]
 mod save_quit;
+#[path = "native/space_reason.rs"]
+mod space_reason;
 #[test]
 fn session_log_rejects_the_historical_dither_warning() {
     let line = "\x1b[2m2026-11-17T08:00:15.950912Z\x1b[0m \x1b[33m WARN\x1b[0m \x1b[2mbevy_core_pipeline::tonemapping\x1b[0m\x1b[2m:\x1b[0m Camera 406v0 has `Tonemapping::None` with `DebandDither::Enabled`, so dithering has no effect. Use `Tonemapping::Linear` to keep dithering, or set `DebandDither::Disabled`.";
