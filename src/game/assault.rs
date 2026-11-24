@@ -787,6 +787,51 @@ mod reason_tests {
         (group.0, group.1, group.2, count)
     }
 
+    /// R 3.1, 3.2.4 worked by hand: Grassland, 2 Troops = capacity 2. 26July has 3 Active
+    /// Guerrillas and Directorio 2; either alone, or both with the capacity split. The
+    /// Syndicate's Underground Guerrilla shelters it and its Casino, so no plan targets
+    /// it and every plan says why its pieces stay.
+    #[test]
+    fn plans_target_and_split_only_the_factions_assault_can_affect() {
+        let active = |faction, count| (faction, Kind::Guerrilla, State::Active, count);
+        let probe = space(
+            Terrain::Grassland,
+            &[
+                with(TROOPS, 2),
+                active(Faction::M26, 3),
+                active(Faction::Directorio, 2),
+                (Faction::Syndicate, Kind::Guerrilla, State::Underground, 1),
+                (Faction::Syndicate, Kind::Casino, State::Open, 1),
+            ],
+        );
+        let offered = plans(&probe);
+        assert_eq!(
+            offered
+                .iter()
+                .map(|p| p.action.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "assault:probe:26july",
+                "assault:probe:directorio",
+                "assault:probe:26july+directorio:0-2",
+                "assault:probe:26july+directorio:1-1",
+                "assault:probe:26july+directorio:2-0",
+                "assault:probe:none",
+            ]
+        );
+        for plan in &offered {
+            assert!(
+                plan.protection.ends_with(
+                    "Syndicate: 0 Active, 1 Underground, 1 open Casino. Assault cannot remove its Underground Guerrillas until they are Activated, and they protect their faction's Bases (R 3.2.4)."
+                ),
+                "{}",
+                plan.protection
+            );
+            assert_eq!(plan.effect(), plan.action != "assault:probe:none");
+            assert_eq!(plan.detail.closed, 0);
+        }
+    }
+
     /// Each kind of reason R 3.2.4 gives for an Assault that removes nothing, worked
     /// by hand from the rule on a position built for it.
     #[test]

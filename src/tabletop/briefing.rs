@@ -7,7 +7,7 @@
 //! The owner narrowed the briefings for #69 (#58, issuecomment-6940684089): they name
 //! no province and compute no space's result, which the map popover previews (#72).
 //! Pass keeps its exact numbers, from the rules authority's preview, since it involves
-//! no space. Current Resources come from the observation; the             wrap_by(part, width, |word| drawn_chars(word, &mut seen))ing only places them.
+//! no space. Current Resources come from the observation; the wording only places them.
 use super::emblems::{self, Naming, Segment};
 use crate::game::CARD_17_UNSHADED;
 use crate::{
@@ -595,17 +595,7 @@ const EMBLEM_CHARS: usize = 2;
 pub(super) fn drawn_lines(text: &str, width: usize, seen: &[bool; 4]) -> Vec<String> {
     let mut seen = *seen;
     text.split('\n')
-        .flat_map(|part| {
-            wrap_by(part, width, |word| {
-                emblems::segments_after(word, Naming::FirstMention, false, &mut seen)
-                    .iter()
-                    .map(|segment| match segment {
-                        Segment::Words(words) => words.chars().count(),
-                        Segment::Emblem(_) => EMBLEM_CHARS,
-                    })
-                    .sum()
-            })
-        })
+        .flat_map(|part| wrap_by(part, width, |word| drawn_chars(word, &mut seen)))
         .collect()
 }
 

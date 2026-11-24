@@ -2517,7 +2517,7 @@ mod tests {
 
         // The plan that removes nothing, once chosen, says so on its button.
         let card = super::content(&game.observe(), "havana", Some("assault:havana:none")).unwrap();
-        let nothing = &card.rows[2];
+        let nothing = &card.rows[1];
         assert!(nothing.chosen && !card.rows[0].chosen);
         assert_eq!(
             nothing.button.as_deref(),
