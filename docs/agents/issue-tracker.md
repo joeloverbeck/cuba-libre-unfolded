@@ -12,7 +12,7 @@ Use `gh` from this clone. Before creating an issue, verify the target with `gh r
 - Comment: `gh issue comment <number> --body-file <file>`.
 - Label: `gh issue edit <number> --add-label "..."` or `--remove-label "..."`.
 - Close: post the explanation first, then `gh issue close <number>`.
-- Merge: first run the `code-review` skill against the PR's merge-base. Fix each finding, or record in the PR why it stays (a linked ticket or a stated reason). The review must cover the head you merge: review commits pushed after it with `code-review` from the last reviewed commit. After a push, wait until `gh pr checks <n>` lists `Rust checks` for the new head before `--watch`, which exits at once while no check is registered. GitHub deletes the PR's head branch automatically; delete only the local branch.
+- Merge: first run the `code-review` skill against the PR's merge-base. Fix each finding, or record in the PR why it stays (a linked ticket or a stated reason). The review must cover the head you merge: review commits pushed after it with `code-review` from the last reviewed commit. After a push, run `scripts/wait-ci <n>` in the background from the pull request's checkout: it waits for that head's `Rust checks` and fails unless they pass. GitHub deletes the PR's head branch automatically; delete only the local branch.
 
 Write multiline bodies to a file and use `--body-file`. When a skill says to publish to the tracker, create an issue; when it says to fetch a ticket, read the issue.
 
@@ -22,7 +22,7 @@ GitHub issues and PRs share a number space. Resolve a bare number before acting,
 
 ## Closing issues
 
-Reference issues from commits and PRs with `For #N` or `Part of #N`. Merging never closes an issue: the owner turned off **Auto-close issues with merged linked pull requests** (Settings → General → Issues) on 2026-11-16, and the API does not expose that setting. After the merge, close an issue as **Close** above describes, and only when every one of its acceptance criteria is met and no owner acceptance is still outstanding, such as a requested playtest. Publication authority never stands in for gameplay or visual acceptance; an issue awaiting it stays open.
+Reference issues from commits and PRs with `For #N` or `Part of #N`. Merging never closes an issue: the owner turned off **Auto-close issues with merged linked pull requests** (Settings → General → Issues) on 2026-11-16, and the API does not expose that setting. After the merge, close an issue as **Close** above describes, and only when every one of its acceptance criteria is met and no owner acceptance is still outstanding, such as a requested playtest. Then prune its native captures ([parallel-work.md](parallel-work.md#builds), "Disk"). Publication authority never stands in for gameplay or visual acceptance; an issue awaiting it stays open.
 
 ## Authority
 

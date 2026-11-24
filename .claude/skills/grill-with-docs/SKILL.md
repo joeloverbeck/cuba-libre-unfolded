@@ -4,6 +4,8 @@ description: Review an existing workflow or sharpen a design against the project
 disable-model-invocation: true
 ---
 
+Name the measurement behind each cost or saving a recommendation rests on, or call it unmeasured. When an accepted change is executable, its review clears before the final suite runs.
+
 ## Existing workflow
 
 1. Check the documented procedure, the live interface, and the required inputs. Reproduce the reported failure when feasible. Before recommending a path as a default, trace its origin and check who maintains the files and whether they survive a fresh checkout.
