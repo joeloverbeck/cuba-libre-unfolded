@@ -478,7 +478,8 @@ impl Game {
     }
 
     /// The facts an Assault payment's preview states besides [`Self::assault_preview`]:
-    /// whether Government could then pay for another space (R 6.3.1).
+    /// whether Government could then pay for another space, and when it could not,
+    /// whether a Resource transfer could fund one (R 6.3.1).
     pub(super) fn assault_preview_notes(after: &Game) -> Vec<String> {
         let mut notes = vec![];
         let Some(assault) = &after.assault else {
@@ -487,8 +488,13 @@ impl Game {
         let balance = after.resources[Faction::Government.index()];
         let cost = assault_cost();
         if balance < cost && assault.paid.len() < after.spaces.len() {
+            let rest = if after.balance_after_transfers(Faction::Government) >= cost {
+                "another space would need a Resource transfer first"
+            } else {
+                "it could not pay for another space"
+            };
             notes.push(format!(
-                "Government would have {}: another space would need a Resource transfer first (R 6.3.1).",
+                "Government would have {}: {rest} (R 6.3.1).",
                 resources(balance)
             ));
         }
@@ -543,17 +549,14 @@ impl Game {
     /// The plans of every space not yet paid, in the map's space order (#169). Each
     /// states its space and whether it removes or closes a piece. A plan is supported
     /// when Government can pay the space's cost; otherwise it gives that reason and,
-    /// while another faction has Resources to give, names the Resource transfer that
-    /// would open it, as a Terror target does.
+    /// while the other factions could give Government enough to pay it, names the
+    /// Resource transfer that would open it, as a Terror target does.
     fn assault_plans(&self) -> Vec<Choice> {
         let assault = self.assault.as_ref().unwrap();
         let balance = self.resources[Faction::Government.index()];
         let cost = assault_cost();
         let funded = balance >= cost;
-        let transfer_helps = !funded
-            && ENEMIES
-                .iter()
-                .any(|faction| self.resources[faction.index()] > 0);
+        let transfer_helps = !funded && self.balance_after_transfers(Faction::Government) >= cost;
         self.spaces
             .iter()
             .filter(|space| assault.paid.iter().all(|paid| paid.space != space.id))
