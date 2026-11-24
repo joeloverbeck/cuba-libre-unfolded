@@ -2064,8 +2064,10 @@ mod tests {
         );
         // The map line clears the cost lines above it and the first record below.
         let [first, line, size, height] = fig::ASSAULT_RECORD;
-        assert!(fig::ASSAULT_MAP_LINE[0] >= fig::SUBTITLE[1] + 2. * fig::SUBTITLE_LINE);
-        assert!(fig::ASSAULT_MAP_LINE[0] + fig::SUBTITLE_LINE <= first);
+        const {
+            assert!(fig::ASSAULT_MAP_LINE[0] >= fig::SUBTITLE[1] + 2. * fig::SUBTITLE_LINE);
+            assert!(fig::ASSAULT_MAP_LINE[0] + fig::SUBTITLE_LINE <= fig::ASSAULT_RECORD[0]);
+        }
         assert!(size <= height && height <= line);
         assert_eq!(first, top);
 

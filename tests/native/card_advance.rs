@@ -208,20 +208,17 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
         app.request(json!({"op":"key","revision":current,"key":"Escape"}), true);
         app.request(json!({"op":"settle"}), true);
 
-        for action in ["end-assault"] {
-            let current = app.observe()["observation"]["revision"].as_u64().unwrap();
-            app.activate(&format!("option:{action}"), current);
-            if action == "end-assault" {
-                let view = app.observe();
-                let explanation = tag_text(&view["table"]["briefing"]);
-                assert!(explanation.contains("earns no Pass Resources (local policy)"));
-                let notes = preview_notes(&view, action);
-                assert!(notes.contains("Records Operation Only"), "{notes}");
-                assert!(!notes.contains("Available"), "{notes}");
-                app.capture("zero-space-assault-preview");
-            }
-            app.choose(action);
-        }
+        let action = "end-assault";
+        let current = app.observe()["observation"]["revision"].as_u64().unwrap();
+        app.activate(&format!("option:{action}"), current);
+        let view = app.observe();
+        let explanation = tag_text(&view["table"]["briefing"]);
+        assert!(explanation.contains("earns no Pass Resources (local policy)"));
+        let notes = preview_notes(&view, action);
+        assert!(notes.contains("Records Operation Only"), "{notes}");
+        assert!(!notes.contains("Available"), "{notes}");
+        app.capture("zero-space-assault-preview");
+        app.choose(action);
         let handoff = app.observe()["observation"].clone();
         assert_eq!(handoff["current_card"], 18);
         assert_eq!(handoff["resources"], after["resources"]);
