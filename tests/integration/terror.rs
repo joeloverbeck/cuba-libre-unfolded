@@ -1,4 +1,4 @@
-use cuba_libre_unfolded::{Faction, Game, Kind, State};
+use cuba_libre_unfolded::{Faction, Game, Kind, MarkerSupply, State};
 
 fn choose(game: &mut Game, action: &str) {
     let view = game.observe();
@@ -14,6 +14,35 @@ fn transfer_resources(game: &mut Game, giver: usize, amount: u8) {
     choose(game, "transfer");
     choose(game, &format!("ask:{giver}:{amount}"));
     choose(game, &format!("authorize:{amount}"));
+}
+
+/// #172: the marker supply follows each committed Terror (R 3.3.4). The prepared
+/// scenario has no Terror or Sabotage marker on the map (the accepted tactical
+/// handoff), so all 20 are available; each Terror places one Terror marker from the
+/// supply. Reading a Terror's preview changes nothing.
+#[test]
+fn the_marker_supply_follows_each_terror_and_not_its_preview() {
+    let supply = |available, terror_on_map| MarkerSupply {
+        available,
+        terror_on_map,
+        sabotage_on_map: 0,
+    };
+    assert_eq!(Game::opening().observe().marker_supply, supply(20, 0));
+    let mut game = crate::terror_chosen(Game::opening());
+    transfer_resources(&mut game, 2, 2);
+    let view = game.observe();
+    assert_eq!(view.marker_supply, supply(20, 0));
+    let santiago = view
+        .choices
+        .iter()
+        .find(|c| c.id.ends_with("terror:santiago"))
+        .unwrap();
+    assert!(santiago.preview.is_some());
+    assert_eq!(game.observe().marker_supply, supply(20, 0));
+    choose(&mut game, "terror:santiago");
+    assert_eq!(game.observe().marker_supply, supply(19, 1));
+    choose(&mut game, "terror:oriente");
+    assert_eq!(game.observe().marker_supply, supply(18, 2));
 }
 
 // Accepted deacd635 handoff witness: DR gives 1 by Resource transfer, Oriente Terror,
@@ -34,7 +63,15 @@ fn oriente_terror_after_a_resource_transfer_updates_pieces_resources_standing_an
         && p.state == State::Active
         && p.count == 1));
     assert_eq!(view.standings[1].score, 9);
-    assert_eq!(view.terror_available, 19);
+    // R 3.3.4: the Terror marker comes from the shared supply of 20.
+    assert_eq!(
+        view.marker_supply,
+        MarkerSupply {
+            available: 19,
+            terror_on_map: 1,
+            sabotage_on_map: 0
+        }
+    );
     assert_eq!((view.map_piece_count, view.available_piece_count), (29, 57));
     choose(&mut game, "end-terror");
     assert_eq!(
@@ -155,7 +192,14 @@ fn actual_resource_transfers_allow_both_target_orders_and_early_during_late_or_n
                 }
             );
             assert_eq!(game.observe().standings[1].score, 10);
-            assert_eq!(game.observe().terror_available, 18);
+            assert_eq!(
+                game.observe().marker_supply,
+                MarkerSupply {
+                    available: 18,
+                    terror_on_map: 2,
+                    sabotage_on_map: 0
+                }
+            );
             assert_eq!(
                 game.observe()
                     .spaces

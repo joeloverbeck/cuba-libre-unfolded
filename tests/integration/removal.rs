@@ -376,7 +376,11 @@ fn removal_leaves_earlier_terror_support_and_the_kidnap_result_in_place() {
     assert_eq!(v.resources, before.resources);
     // Opposition still scores: 7 + 1 (Santiago) + 2 (Oriente) − 1 (the Base) = 9.
     assert_eq!(v.standings[1].score, 9);
-    assert_eq!(v.terror_available, 18);
+    // The two Terror markers stay on the map (R 1.4.1, 3.3.4).
+    assert_eq!(
+        (v.marker_supply.available, v.marker_supply.terror_on_map),
+        (18, 2)
+    );
     choose(&mut game, "done-removal");
     choose(&mut game, "end-terror");
 }
@@ -399,7 +403,10 @@ fn all_own_pieces_can_return_to_supply_and_zero_space_finish_remains_legal() {
     assert_eq!(v.standings[1].score, 6);
     assert_eq!(v.spaces[8].control(), None);
     assert_eq!(v.resources, [6, 0, 5, 15]);
-    assert_eq!(v.terror_available, 20);
+    assert_eq!(
+        (v.marker_supply.available, v.marker_supply.terror_on_map),
+        (20, 0)
+    );
     // #62 lists lost targets disabled, with no remedy, instead of hiding them.
     assert!(
         v.choices

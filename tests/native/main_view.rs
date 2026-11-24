@@ -162,14 +162,29 @@ fn assert_areas_and_island(view: &Value, layout: &Value, width: f64, height: f64
     let start = |v: f64| v * unit;
     let end = |v: f64, of: f64, window: f64| window - (of - v) * unit;
     let centre = |v: f64| width / 2. + (v - frame[0] / 2.) * unit;
+    // An area's left and right edges in this window, from the edges its anchor names.
+    let across = |placed: &Value| -> [f64; 2] {
+        let [l, _, r, _] = edges(&placed["bounds"]);
+        match placed["anchor"].as_str().unwrap() {
+            "top-left" | "bottom-left" => [start(l), start(r)],
+            "top" => [centre(l), centre(r)],
+            "top-right" | "bottom-right" => [end(l, frame[0], width), end(r, frame[0], width)],
+            other => panic!("anchor {other}"),
+        }
+    };
     for (name, placed) in recorded {
         let [l, t, r, b] = edges(&placed["bounds"]);
         let anchor = placed["anchor"].as_str().unwrap();
-        let (left, right) = match anchor {
-            "top-left" | "bottom-left" => (start(l), start(r)),
-            "top" => (centre(l), centre(r)),
-            "top-right" | "bottom-right" => (end(l, frame[0], width), end(r, frame[0], width)),
-            other => panic!("{name}: anchor {other}"),
+        let (left, right) = if anchor == "top-between" {
+            // #172: centred between the right edge of one area and the left edge of
+            // another, at the size the window's scale gives it.
+            let [one, other] = [0, 1].map(|i| &recorded[placed["between"][i].as_str().unwrap()]);
+            let middle = (across(one)[1] + across(other)[0]) / 2.;
+            let half = (r - l) * unit / 2.;
+            (middle - half, middle + half)
+        } else {
+            let [left, right] = across(placed);
+            (left, right)
         };
         let (top, bottom) = if anchor.starts_with("top") {
             (start(t), start(b))
@@ -330,7 +345,7 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
     assert!(
         status.starts_with(&format!(
             "Saved revision {}\nTerror/Sabotage {} available\n",
-            observation["revision"], observation["terror_available"]
+            observation["revision"], observation["marker_supply"]["available"]
         )),
         "{status}"
     );

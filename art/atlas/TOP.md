@@ -14,6 +14,7 @@ The selection studies remain in [`../proposals/issue-46/`](../proposals/issue-46
 ## What it shows
 
 - **Top left (outside influence):** the Aid crate with its value, and the US Alliance track, with the eagle marker on the current level.
+- **Between it and the standings:** the marker supply (#172, ["The marker supply"](#the-marker-supply)).
 - **Top right:** a Resources ledger with one row per faction (its accepted emblem and value), and below it the Cash supply: four slots, filled while that marker is Available and an empty dashed ring while it is on the map.
 - **Hover tags:** each of the four elements opens a tag with the shared emblem/region dwell. The Resources tag opens beside the ledger, so the Cash supply stays visible. The Available Forces ledger's rows open the same tag, at their own place ([AVAILABLE.md](AVAILABLE.md#the-tag)).
 - **Rules ownership:** the game model owns the track (`UsAlliance`: levels, COIN cost per space, Air Strike) and the four Cash markers (`CASH_MARKERS`). The display only reads them.
@@ -42,6 +43,36 @@ The selection studies remain in [`../proposals/issue-46/`](../proposals/issue-46
 The ledger rows reuse `atlas-victory-icon-*.png` at 1704,76+31n, 27×27. Values are runtime Lato text in the layout's `ink` (#203238):
 - Aid: 30 px at 92,30;
 - ledger: 26 px, right-aligned in 1790..1864, rows from 74.
+
+## The marker supply
+
+The owner selected graphic **M1 · Ficha** and its place in layout **A · Franja** on 2026-11-24 ([decision record](../proposals/last-ui/README.md), sheets [`graphics-marker-supply.png`](../proposals/last-ui/graphics-marker-supply.png) and [`layout-a-franja.png`](../proposals/last-ui/layout-a-franja.png)). #172 built it at rest; its hover tag is #173's.
+
+- **What it shows:** the marker supply ([glossary](../../GLOSSARY.md)): the Terror and Sabotage markers not on the map, of the 20 the two kinds share (R 3.3.4). It is the two-faced marker, a bell on the Terror face and a flame on the Sabotage face, beside the number available and "of 20". The flame is provisional: Sabotage has no on-map design yet.
+- **Counts:** the rules authority's `observation.marker_supply`; the size of the supply is `MARKER_SUPPLY` in the rules model. The graphic draws the committed position, so a hovered or pinned preview leaves it unchanged.
+- **None left:** the number takes `action/primary` and the marker is its dimmed export, as the study's 0 draws them. No position this build reaches places 20 markers, so the native app has not shown it; a unit test builds it from an observation.
+- **Place:** the top band, between the US Alliance track and the standings: the main view's area `marker-supply` ([MAIN-VIEW.md](MAIN-VIEW.md#areas)). In every window it is centred between the right edge of the `outside-influence` area and the left edge of the `standings` area, and keeps its distance from the top.
+- **Pointer:** the area takes the pointer: a press, a scroll or a drag on it neither moves the camera nor reaches a space or piece. Space tags and popovers keep off it, as they keep off every area.
+
+**Files**
+
+- **Graphics source:** `atlas-marker-supply.vectorcraft`, authored through the VectorCraft MCP from the study's `last-ui-graphics.vectorcraft`: M1's at-rest and 0 drawings, copied and scaled 6× with their strokes. Artboards `marker` and `marker-dimmed` are 54 reference pixels square, drawn at 6× and exported at 0.5, which is 3× the reference, as the top display's other artboards are. The dimmed marker is the study's: its faces and ring at 40% opacity, its split and glyphs in `paper`.
+- **Layout:** the main view's `atlas-main-view.figcraft` places them, with the text styles `Supply/count` (Lato Regular 64.125, 38 at the reference, `ink`) and `Supply/of` (Lato Regular 23.625, 14 at the reference, `ink-secondary`), and the `Atlas` variable `action/primary` for the number at 0. "of 20" stands 13.5 (8 reference pixels) after the number, on its baseline, so it follows the number's width as the study sets it.
+- **Manifest:** `marker-supply.sha256` admits both exports. A missing or changed file refuses launch before any save is created or replaced.
+
+| Part | From | PNG | Frame rectangle on the owner's display |
+|---|---|---:|---|
+| `marker-supply` | `atlas-marker-supply.png`, or `atlas-marker-supply-dimmed.png` at 0 | 162×162 | 983.6, 38.82, 91.13×91.13 |
+| `marker-supply-count` | runtime text, `Supply/count` | | 1093.29, 44.72 (75×77 for "20") |
+| `marker-supply-of` | runtime text, `Supply/of` | | 1181.79, 84.89 (55×28) for "20" |
+
+The area is 964.69, 30.38, 291×108, at the outside-influence area's top and height. For "20" the graphic is centred in it, 253.19 wide.
+
+**Tools:** VectorCraft CLI 0.24.1 and FigCraft CLI 0.18.1, the builds installed on 2026-11-22 from clean checkouts of `storytold/vectorcraft@88f5ece1` and `storytold/figcraft@5c2a3784`, which had not moved on 2026-11-24 ([AVAILABLE.md](AVAILABLE.md#provenance-and-limits) gives the same reflog and timestamp evidence; it is not a recorded build).
+
+**Seat:** the development seat names the area `area:marker-supply` and reports the graphic as `table.marker_supply` ([seat reference](../../docs/agents/seat.md#what-the-table-reports)).
+
+**What this establishes:** placement and count evidence from the native regression `native_marker_supply_matches_layout_and_follows_each_terror` and the main view's regressions in other windows. It is not owner play acceptance: the owner judges its legibility on the display in #166's review.
 
 ## Drawing notes
 

@@ -60,6 +60,7 @@ mod piles;
 mod popover;
 pub mod seat;
 mod status;
+mod supply;
 mod top;
 mod transfer;
 mod victory;
@@ -1629,6 +1630,9 @@ fn draw_ui(
     // #159: Available Forces stand left of the Resources ledger, from the committed
     // position, so a preview never changes them.
     available::draw(&mut commands, &art, &view, s, right);
+    // #172: the marker supply stands between the US Alliance track and the standings,
+    // from the committed position.
+    supply::draw(&mut commands, &art, &view, &main_view, &window);
     if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
         die::panel(&mut commands, &art, kidnap, roll.landed(), s, right);
     } else {
@@ -1678,13 +1682,13 @@ fn draw_ui(
         .insert(areas::Part("session-quit".into()));
 }
 
-/// The session panel's status: the saved revision, and the Terror/Sabotage supply,
-/// which no other surface shows. Piece totals are the Available Forces ledger's
-/// (#161).
+/// The session panel's status: the saved revision, and the marker supply's count,
+/// which the top band's graphic also shows (#172) until #174 retires this panel. Piece
+/// totals are the Available Forces ledger's (#161).
 fn session_status(view: &Observation) -> String {
     format!(
         "Saved revision {}\nTerror/Sabotage {} available",
-        view.revision, view.terror_available
+        view.revision, view.marker_supply.available
     )
 }
 
