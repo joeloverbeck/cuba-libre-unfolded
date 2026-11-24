@@ -1006,10 +1006,11 @@ fn hover_disclosures(
             }
         })
     });
-    // Keyboard focus on a card, a pile or an Available Forces row opens its tag as
-    // the pointer does, with the same dwell.
+    // Keyboard focus on a card, a pile, the marker supply or an Available Forces row
+    // opens its tag as the pointer does, with the same dwell.
     let target = target
         .or_else(|| pile_tags::focused(&ui).map(Target::Pile))
+        .or_else(|| supply::focused(&ui).map(Target::Top))
         .or_else(|| available::focused(&ui).map(Target::Top));
     let target = cards::target(&mut ui, target);
     ui.hover

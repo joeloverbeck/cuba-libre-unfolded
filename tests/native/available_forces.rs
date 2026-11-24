@@ -293,7 +293,7 @@ pub(super) fn start(prefix: &str, issue: &str, size: &str) -> NativeRun {
 }
 
 /// Tab until `name` has focus, then waits out the shared dwell.
-fn focus(app: &mut Native, name: &str) -> Value {
+pub(super) fn focus(app: &mut Native, name: &str) -> Value {
     let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
     let mut focus = Value::Null;
     for _ in 0..30 {

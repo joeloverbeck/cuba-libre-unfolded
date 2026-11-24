@@ -16,7 +16,7 @@ The selection studies remain in [`../proposals/issue-46/`](../proposals/issue-46
 - **Top left (outside influence):** the Aid crate with its value, and the US Alliance track, with the eagle marker on the current level.
 - **Between it and the standings:** the marker supply (#172, ["The marker supply"](#the-marker-supply)).
 - **Top right:** a Resources ledger with one row per faction (its accepted emblem and value), and below it the Cash supply: four slots, filled while that marker is Available and an empty dashed ring while it is on the map.
-- **Hover tags:** each of the four elements opens a tag with the shared emblem/region dwell. The Resources tag opens beside the ledger, so the Cash supply stays visible. The Available Forces ledger's rows open the same tag, at their own place ([AVAILABLE.md](AVAILABLE.md#the-tag)).
+- **Hover tags:** each of the four elements opens a tag with the shared emblem/region dwell. The Resources tag opens beside the ledger, so the Cash supply stays visible. The Available Forces ledger's rows open the same tag, at their own place ([AVAILABLE.md](AVAILABLE.md#the-tag)), and so does the marker supply, below it (["Its tag"](#its-tag)).
 - **Rules ownership:** the game model owns the track (`UsAlliance`: levels, COIN cost per space, Air Strike) and the four Cash markers (`CASH_MARKERS`). The display only reads them.
 
 ## Files
@@ -46,7 +46,7 @@ The ledger rows reuse `atlas-victory-icon-*.png` at 1704,76+31n, 27×27. Values 
 
 ## The marker supply
 
-The owner selected graphic **M1 · Ficha** and its place in layout **A · Franja** on 2026-11-24 ([decision record](../proposals/last-ui/README.md), sheets [`graphics-marker-supply.png`](../proposals/last-ui/graphics-marker-supply.png) and [`layout-a-franja.png`](../proposals/last-ui/layout-a-franja.png)). #172 built it at rest; its hover tag is #173's.
+The owner selected graphic **M1 · Ficha** and its place in layout **A · Franja** on 2026-11-24 ([decision record](../proposals/last-ui/README.md), sheets [`graphics-marker-supply.png`](../proposals/last-ui/graphics-marker-supply.png) and [`layout-a-franja.png`](../proposals/last-ui/layout-a-franja.png)). #172 built it at rest; #173 added its hover tag (["Its tag"](#its-tag)).
 
 - **What it shows:** the marker supply ([glossary](../../GLOSSARY.md)): the Terror and Sabotage markers not on the map, of the 20 the two kinds share (R 3.3.4). It is the two-faced marker, a bell on the Terror face and a flame on the Sabotage face, beside the number available and "of 20". The flame is provisional: Sabotage has no on-map design yet.
 - **Counts:** the rules authority's `observation.marker_supply`; the size of the supply is `MARKER_SUPPLY` in the rules model. The graphic draws the committed position, so a hovered or pinned preview leaves it unchanged.
@@ -73,6 +73,22 @@ The area is 964.69, 30.38, 291×108, at the outside-influence area's top and hei
 **Seat:** the development seat names the area `area:marker-supply` and reports the graphic as `table.marker_supply` ([seat reference](../../docs/agents/seat.md#what-the-table-reports)).
 
 **What this establishes:** placement and count evidence from the native regression `native_marker_supply_matches_layout_and_follows_each_terror` and the main view's regressions in other windows. It is not owner play acceptance: the owner judges its legibility on the display in #166's review.
+
+### Its tag
+
+The marker supply opens the accepted top-display tag, as the Available Forces ledger's rows do: the same plate, title, rule, rows and notes, at the `hover tag` frame's sizes. It is not a new design.
+
+- **Opening:** hovering the graphic, or focusing it with Tab, opens the tag after the shared 400 ms dwell. It closes when the pointer or focus leaves, as the other top-band tags do. There is no pin; reading it changes nothing.
+- **Target:** the graphic's extent, the marker's height across the area less the marker's margin on each side (frame 983.6, 38.82, 253.19×91.13 on the owner's display). The area's corners stay bare, so the area still takes the pointer there.
+- **Tab order:** the panel's controls, then the marker supply, then the four Available Forces rows, the cards and the piles ([seat reference](../../docs/agents/seat.md#keys) names the stops). It stands left of the ledger, so it comes before it. Aid, US Alliance, Resources and Cash stay hover-only.
+- **Words:** the title "Marker supply"; the rows "Terror on the map", "Sabotage on the map" and "Available", whose value is "N of 20", all from `observation.marker_supply`; and two notes:
+  - "Terror and Sabotage share 20 markers. Terror places no marker when all 20 are on the map (R 3.3.4)."
+  - "Civic Action and Agitation return Terror markers to the supply (R 6.3.2, 6.3.3); the Reset Phase returns the Terror and Sabotage markers (R 6.5)."
+
+  They state nothing the rules leave open: nothing about Terror's other effects with no marker left, and nothing about whether the cap binds Reprisal or Government Earnings.
+- **Place:** just below the marker supply's area, at the tags' 8-pixel gap, which is the line the Aid and US Alliance tags open on. It is centred under the graphic, but its right edge keeps the same gap left of the standings area. So it covers neither the US Alliance track nor the standings, and stays inside the window, at 3:2, 16:9 and 21:9 (unit test `the_tag_opens_below_the_graphic_clear_of_the_track_and_the_standings`). Where the window is narrow, at 3:2 and 16:9, its left 40 reference pixels lie over the Sequence of Play track's right edge while it is open, as the Aid and US Alliance tags cover that track. At 21:9 it is centred.
+- **Seat:** the development seat names the target `marker-supply` and reports the open tag as `table.top` ([seat reference](../../docs/agents/seat.md#what-the-table-reports)).
+- **What this establishes:** the native regression `native_marker_supply_tag_opens_on_hover_and_focus_and_follows_a_terror` opens it by hover and by Tab, reads its rows before and after a Terror, and checks its place in all three windows. It is not owner play acceptance.
 
 ## Drawing notes
 
