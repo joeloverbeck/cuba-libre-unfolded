@@ -451,7 +451,7 @@ fn settled(app: &mut Native) -> Value {
 fn assert_tags_open(app: &mut Native, name: &str, before: &Value) {
     let revision = before["observation"]["revision"].as_u64().unwrap();
     for (slot, key) in [("card:current", "current"), ("card:preview", "preview")] {
-        app.point("quit");
+        app.point("area:propaganda");
         app.point(slot);
         let shown = app.observe();
         assert_eq!(shown["table"]["hover"], slot);
@@ -488,7 +488,7 @@ fn assert_tags_open(app: &mut Native, name: &str, before: &Value) {
         close_card_tag(app);
     }
     // Keyboard focus opens a card's tag as the pointer does.
-    app.point("quit");
+    app.point("area:propaganda");
     let mut focus = Value::Null;
     for _ in 0..24 {
         app.request(json!({"op":"key","revision":revision,"key":"Tab"}), true);
@@ -508,7 +508,7 @@ fn assert_tags_open(app: &mut Native, name: &str, before: &Value) {
     // pile, whose tag waits for the shared dwell (#144).
     app.request(json!({"op":"key","revision":revision,"key":"Tab"}), true);
     app.request(json!({"op":"settle"}), true);
-    app.point("quit");
+    app.point("area:propaganda");
 }
 
 #[test]
@@ -554,7 +554,7 @@ fn native_card_piles_match_layout_and_follow_the_match() {
         json!({"op":"drag","revision":revision,"component":"space:camaguey-city","button":"right","x":-60,"y":-20}),
         true,
     );
-    app.point("quit");
+    app.point("area:propaganda");
     let moved = settled(&mut app);
     assert_ne!(moved["table"]["camera"], rest["table"]["camera"]);
     assert_eq!(moved["table"]["piles"], rest["table"]["piles"]);

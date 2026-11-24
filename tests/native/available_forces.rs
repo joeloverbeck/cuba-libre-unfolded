@@ -394,7 +394,7 @@ fn native_available_forces_tags_open_on_hover_and_focus_and_follow_a_removal() {
         ));
     }
     // The tag closes when the pointer leaves, as the top display's tags do.
-    let left = app.point("quit");
+    let left = app.point("area:propaganda");
     assert!(left["table"]["top"].is_null(), "{}", left["table"]["top"]);
 
     // A voluntary removal returns the Sierra Maestra Base to 26July's Available
@@ -413,7 +413,7 @@ fn native_available_forces_tags_open_on_hover_and_focus_and_follow_a_removal() {
     );
     assert_eq!(drawn_count(&removed, "26july-base"), "4");
     app.capture("tag-26july-after-removal");
-    app.point("quit");
+    app.point("area:propaganda");
 
     // Focus: Tab reaches the four rows after the panel's controls, and each opens its
     // tag with the same dwell; the next stop, the current card, closes it.

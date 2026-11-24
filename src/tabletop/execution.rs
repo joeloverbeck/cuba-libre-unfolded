@@ -1636,7 +1636,7 @@ pub(super) fn tag(view: &Observation, action: &str) -> Option<Briefing> {
                         ],
                         if *waited {
                             format!(
-                                "Waiting for {g}. The request stays pending; Save / quit keeps it."
+                                "Waiting for {g}. The request stays pending; Save · quit keeps it."
                             )
                         } else {
                             format!("{g} decides the actual amount, from 0 to its limit (R 1.5.1).")

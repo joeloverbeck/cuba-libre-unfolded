@@ -35,8 +35,10 @@ pub const CARD_TAG_MANIFEST: &str = include_str!("../art/atlas/card-tag.sha256")
 pub const AVAILABLE_FORCES_MANIFEST: &str = include_str!("../art/atlas/available-forces.sha256");
 /// The marker supply's marker, at rest and dimmed (#172): stateless presentation.
 pub const MARKER_SUPPLY_MANIFEST: &str = include_str!("../art/atlas/marker-supply.sha256");
+/// Save · quit's plate, at rest and hovered (#174): stateless presentation.
+pub const SAVE_QUIT_MANIFEST: &str = include_str!("../art/atlas/save-quit.sha256");
 /// Every manifest admitted at launch, in the order `inspect` reads them.
-pub const MANIFESTS: [&str; 17] = [
+pub const MANIFESTS: [&str; 18] = [
     MANIFEST,
     STATUS_MANIFEST,
     VICTORY_MANIFEST,
@@ -54,6 +56,7 @@ pub const MANIFESTS: [&str; 17] = [
     CARD_TAG_MANIFEST,
     AVAILABLE_FORCES_MANIFEST,
     MARKER_SUPPLY_MANIFEST,
+    SAVE_QUIT_MANIFEST,
 ];
 pub const SOURCE: &str = "deacd635db5f71f4d3f092bd9cc99a9d96bb7aab;R:8152cb0056e3690fdc01c7b4ff893369ad7eff288941abc540ceee2c9d606792;P:dcaa5afd6f01c0c9ed4746c18199c1b09058823d67b627384fd3184ed4015fe8";
 pub(crate) struct CardFace {

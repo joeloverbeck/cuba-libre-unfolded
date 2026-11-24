@@ -16,7 +16,7 @@ The selection studies remain in [`../proposals/issue-46/`](../proposals/issue-46
 - **Top left (outside influence):** the Aid crate with its value, and the US Alliance track, with the eagle marker on the current level.
 - **Between it and the standings:** the marker supply (#172, ["The marker supply"](#the-marker-supply)).
 - **Top right:** a Resources ledger with one row per faction (its accepted emblem and value), and below it the Cash supply: four slots, filled while that marker is Available and an empty dashed ring while it is on the map.
-- **Hover tags:** each of the four elements opens a tag with the shared emblem/region dwell. The Resources tag opens beside the ledger, so the Cash supply stays visible. The Available Forces ledger's rows open the same tag, at their own place ([AVAILABLE.md](AVAILABLE.md#the-tag)).
+- **Hover tags:** each of the four elements opens a tag with the shared emblem/region dwell. The Resources tag opens beside the ledger, so the Cash supply stays visible. The Available Forces ledger's rows open the same tag, at their own place ([AVAILABLE.md](AVAILABLE.md#the-tag)). So does Save · quit in the bottom-right corner, with no rows and one sentence, above the plate ([MAIN-VIEW.md](MAIN-VIEW.md#save--quit-and-the-notice-slip)).
 - **Rules ownership:** the game model owns the track (`UsAlliance`: levels, COIN cost per space, Air Strike) and the four Cash markers (`CASH_MARKERS`). The display only reads them.
 
 ## Files

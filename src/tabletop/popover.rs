@@ -35,7 +35,7 @@ use emblems::Naming;
 use highlights::Targeting;
 
 /// Layout values in reference pixels, from the A-P1/A-P3/A-P4 masters.
-mod frame {
+pub(super) mod frame {
     pub const WIDTH: f32 = 340.;
     /// The protected hover tag, A-P6.
     pub const TAG_WIDTH: f32 = 300.;
@@ -57,7 +57,7 @@ mod frame {
 /// The production plates of `art/atlas/atlas-popover.figcraft` (frame "Production
 /// plates"), drawn at reference size in the `Atlas` variables and exported at 3x. The
 /// numbers are `atlas-popover.layout.json`'s `plates` (a unit test holds them equal).
-mod plate {
+pub(super) mod plate {
     /// The card: `paper`, a 1 px `ink` stroke, radius 2 and its drop shadow (`ink` at
     /// 20%, 0/3, blur 10). The export reaches past the card's box by this much (left,
     /// top, right, bottom), and it is nine-sliced 40 px in, clear of the shadow's corners.
@@ -93,7 +93,7 @@ pub(super) struct Part(pub String);
 /// Draws a plate as the first child of `parent`, over its whole box (and past it by
 /// the plate's outset) and beneath its content. A sliced plate keeps its corners at
 /// reference size: the exports are 3x, so the corner scale is `s / 3`.
-fn plate(
+pub(super) fn plate(
     commands: &mut Commands,
     art: &Art,
     parent: Entity,
@@ -910,15 +910,15 @@ fn region_ends(
 }
 
 /// The drawing context every popover text shares: the admitted art for emblems.
-struct Ink<'a> {
-    art: &'a Art,
+pub(super) struct Ink<'a> {
+    pub art: &'a Art,
 }
 
 /// Spawns a line of popover text in the card's flow. Faction names become #60's inline
 /// emblems by `naming` (story 60), except 26July on a red button; the words keep every
 /// name for the seat (`emblems::Plain`).
 #[allow(clippy::too_many_arguments)]
-fn words(
+pub(super) fn words(
     commands: &mut Commands,
     ink: &Ink,
     parent: Entity,
@@ -968,7 +968,14 @@ fn words(
 }
 
 /// A rule or divider: its plate, stretched across the card.
-fn rule(commands: &mut Commands, art: &Art, parent: Entity, height: f32, file: &str, part: String) {
+pub(super) fn rule(
+    commands: &mut Commands,
+    art: &Art,
+    parent: Entity,
+    height: f32,
+    file: &str,
+    part: String,
+) {
     commands.spawn((
         ImageNode::new(art.images[file].clone()).with_mode(NodeImageMode::Stretch),
         Node {

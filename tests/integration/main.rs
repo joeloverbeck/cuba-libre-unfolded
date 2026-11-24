@@ -38,6 +38,7 @@ mod popover;
 mod position;
 mod previews;
 mod removal;
+mod save_quit;
 mod seat_brief;
 mod seat_reference;
 mod terror;

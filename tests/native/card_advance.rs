@@ -950,7 +950,7 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
     app.launch_size("3840x2160");
     app.request(json!({"op":"settle"}), true);
     app.activate("card:preview", revision);
-    app.point("quit");
+    app.point("area:propaganda");
     let pinned = app.observe();
     let tag = &pinned["table"]["card"]["shown"];
     assert_eq!(
