@@ -773,6 +773,37 @@ mod tests {
         }
     }
 
+    /// The outer edges of the card's 1 px ink stroke as drawn in `capture`, found by
+    /// scanning inward from 20 px outside each edge of the slip's reported `bounds`
+    /// (left, top, right, bottom): across the bottom padding for the sides, and down
+    /// and up a column inside the left padding for the top and the foot. A pixel is
+    /// the stroke's when its channels sum below 400; the sea, the paper and the
+    /// shadow do not.
+    pub(crate) fn drawn_stroke(capture: &std::path::Path, bounds: [f64; 4]) -> [f64; 4] {
+        let image = image::open(capture).unwrap().to_rgb8();
+        let dark = |x: f64, y: f64| {
+            let p = image.get_pixel(x as u32, y as u32);
+            p.0.iter().map(|&c| u32::from(c)).sum::<u32>() < 400
+        };
+        let [left, top, right, foot] = bounds.map(f64::round);
+        let row = foot - 4.;
+        let column = left + 8.;
+        let first = |mut at: f64, step: f64, end: f64, hit: &dyn Fn(f64) -> bool| loop {
+            if hit(at) {
+                return at;
+            }
+            assert!((at - end).abs() > 0.5, "no stroke between {} and {end}", at);
+            at += step;
+        };
+        [
+            first(left - 20., 1., left + 8., &|x| dark(x, row)),
+            first(top - 20., 1., top + 8., &|y| dark(column, y)),
+            // The last dark pixel's far side is the edge.
+            first(right + 20., -1., right - 8., &|x| dark(x, row)) + 1.,
+            first(foot + 20., -1., foot - 8., &|y| dark(column, y)) + 1.,
+        ]
+    }
+
     /// Every file in `dir`, by name, with its bytes.
     fn files(dir: &std::path::Path) -> Vec<(std::ffi::OsString, Vec<u8>)> {
         let mut files: Vec<_> = std::fs::read_dir(dir)
@@ -861,6 +892,41 @@ mod tests {
             assert!((foot - (ry + rh)).abs() <= tolerance, "{slip}");
             assert!((right - left - rw).abs() <= tolerance, "{slip}");
         };
+        // The card is drawn on that place: its stroke's outer edges lie on the reported
+        // bounds, and its right edge on Save · quit's.
+        let drawn_on_its_place = |capture: &std::path::Path, view: &Value| {
+            let slip = &view["table"]["slip"];
+            let bounds: [f64; 4] = serde_json::from_value(slip["bounds"].clone()).unwrap();
+            let stroke = drawn_stroke(capture, bounds);
+            eprintln!(
+                "{}: stroke {stroke:?} on bounds {bounds:?}",
+                capture.display()
+            );
+            for edge in 0..4 {
+                assert!(
+                    (stroke[edge] - bounds[edge]).abs() <= tolerance,
+                    "{}: the drawn stroke {stroke:?} leaves the slip's bounds {bounds:?}",
+                    capture.display()
+                );
+            }
+            let plate: [f64; 4] = serde_json::from_value(
+                view["table"]["main_view"]["parts"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|part| part["part"] == "save-quit")
+                    .expect("the main view draws Save · quit")["bounds"]
+                    .clone(),
+            )
+            .unwrap();
+            assert!(
+                (stroke[2] - plate[2]).abs() <= tolerance,
+                "{}: the slip's right edge {} is not Save · quit's {}",
+                capture.display(),
+                stroke[2],
+                plate[2]
+            );
+        };
 
         // Before admission: no match is open, and the slip shows the loading state.
         let loading = ask(&mut seat, &mut app, json!({"op":"observe"}));
@@ -876,6 +942,7 @@ mod tests {
             &mut app,
             json!({"op":"capture","path":root.join("loading.png")}),
         );
+        drawn_on_its_place(&root.join("loading.png"), &loading);
 
         // Admission refuses the save, in the words the table then shows.
         let refusal = match seat.admit(&mut app, Duration::from_secs(180)) {
@@ -904,6 +971,7 @@ mod tests {
             &mut app,
             json!({"op":"capture","path":root.join("refused.png")}),
         );
+        drawn_on_its_place(&root.join("refused.png"), &refused);
         assert_eq!(files(&saves), before, "the refused launch changed a file");
     }
 }

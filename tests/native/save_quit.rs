@@ -35,6 +35,37 @@ fn holds(name: &str, native: [f64; 4], recorded: [f64; 4], which: &[usize], tole
     }
 }
 
+/// The outer edges of the card's 1 px ink stroke as drawn in `capture`, found by
+/// scanning inward from 20 px outside each edge of the slip's reported `bounds` (left,
+/// top, right, bottom): across the bottom padding for the sides, and down and up a
+/// column inside the left padding for the top and the foot. A pixel is the stroke's
+/// when its channels sum below 400; the sea, the paper and the shadow do not. The
+/// library's launch-error regression measures the same way (`tabletop::seat`).
+fn drawn_stroke(capture: &Path, bounds: [f64; 4]) -> [f64; 4] {
+    let image = image::open(capture).unwrap().to_rgb8();
+    let dark = |x: f64, y: f64| {
+        let p = image.get_pixel(x as u32, y as u32);
+        p.0.iter().map(|&c| u32::from(c)).sum::<u32>() < 400
+    };
+    let [left, top, right, foot] = bounds.map(f64::round);
+    let row = foot - 4.;
+    let column = left + 8.;
+    let first = |mut at: f64, step: f64, end: f64, hit: &dyn Fn(f64) -> bool| loop {
+        if hit(at) {
+            return at;
+        }
+        assert!((at - end).abs() > 0.5, "no stroke between {at} and {end}");
+        at += step;
+    };
+    [
+        first(left - 20., 1., left + 8., &|x| dark(x, row)),
+        first(top - 20., 1., top + 8., &|y| dark(column, y)),
+        // The last dark pixel's far side is the edge.
+        first(right + 20., -1., right - 8., &|x| dark(x, row)) + 1.,
+        first(foot + 20., -1., foot - 8., &|y| dark(column, y)) + 1.,
+    ]
+}
+
 /// The plate's drawn rectangle.
 fn plate(view: &Value) -> [f64; 4] {
     rect_of(
@@ -176,6 +207,23 @@ fn native_save_quit_and_the_notice_slip_match_layout_and_resume_the_save() {
         "the slip covers the decision panel"
     );
     corner(&mut app, "refusal");
+    // The card is drawn on that place, three lines tall: its stroke's outer edges lie on
+    // the reported bounds, and its right edge on Save · quit's.
+    let stroke = drawn_stroke(&app.root.join("refusal.png"), bounds);
+    eprintln!("refusal: stroke {stroke:?} on bounds {bounds:?}");
+    holds(
+        "the drawn refusal slip",
+        stroke,
+        bounds,
+        &[0, 1, 2, 3],
+        tolerance,
+    );
+    assert!(
+        (stroke[2] - drawn[2]).abs() <= tolerance,
+        "the slip's right edge {} is not Save · quit's {}",
+        stroke[2],
+        drawn[2]
+    );
 
     // A click on the slip dismisses it; the seat still reads the notice.
     app.activate("notice-slip", 0);
