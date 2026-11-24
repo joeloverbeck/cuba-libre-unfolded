@@ -21,8 +21,6 @@ const PILL: (&str, f32) = ("atlas-focus-mark-pill.png", 19.);
 const OUTSET: f32 = 4.;
 /// A popover's row is as wide as its card, so its mark lies inside it, this far in.
 const ROW_INSET: f32 = 1.;
-/// Just over the transfer modal's layer.
-const OVER_MODAL: i32 = 32;
 
 /// A drawn mark, a child of the control it marks.
 #[derive(Component, Clone, Copy, PartialEq)]
@@ -168,7 +166,9 @@ pub(super) fn draw(
         commands.entity(drawn).insert(mark);
         if round {
             // The toggle's segments touch: the mark lies over its neighbour's end.
-            commands.entity(drawn).insert(GlobalZIndex(OVER_MODAL));
+            commands
+                .entity(drawn)
+                .insert(GlobalZIndex(transfer::LAYER + 1));
         }
     }
 }

@@ -105,8 +105,9 @@ pub(super) mod plate {
 #[derive(Component, Clone)]
 pub(super) struct Part(pub String);
 
-/// Draws a plate as the first child of `parent`, over its whole box (and past it by
-/// the plate's outset) and beneath its content. A sliced plate keeps its corners at
+/// Draws a plate as the next child of `parent`, over its whole box (and past it by the
+/// plate's outset; a negative one draws it inside). Drawn before the content it lies
+/// beneath it; the focus mark is drawn after (`focus_mark`). A sliced plate keeps its corners at
 /// reference size: the exports are 3x, so the corner scale is `s / 3`.
 pub(super) fn plate(
     commands: &mut Commands,

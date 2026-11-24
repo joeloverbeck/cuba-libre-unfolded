@@ -346,7 +346,7 @@ fn native_focus_mark_is_on_a_pending_request_and_the_card_advance() {
     assert_eq!(marks(&flying), [], "a card is in the air");
     app.request(json!({"op":"settle"}), true);
     assert_unmarked(app, "the cards have landed");
-    // Card 18: Government's options, then Assault's panel, spaces and popover.
+    // Card 18: Government's options, then Assault's panel and spaces.
     assert_round(app, "card 18");
     rally::choose_rally_option(app, "government:assault");
     let order = assert_round(app, "Assault");
@@ -376,7 +376,11 @@ fn native_focus_mark_follows_the_window() {
             assert_marked(app, stop, &format!("{name}-{capture}"));
         }
         app.choose("terror");
-        for (stop, capture) in [("step:transfer", "step"), ("briefing-ribbon", "ribbon")] {
+        for (stop, capture) in [
+            ("step:transfer", "step"),
+            ("execution-commit", "execution-commit"),
+            ("briefing-ribbon", "ribbon"),
+        ] {
             map_keys::tab_to(app, stop);
             assert_marked(app, stop, &format!("{name}-{capture}"));
         }
@@ -399,7 +403,17 @@ fn native_focus_mark_follows_the_window() {
         assert_eq!(marks(&field).len(), 2);
         app.capture(&format!("{name}-modal-field"));
         assert_line(app, &field, &format!("{name}-modal-field"));
-        app.choose("back");
+        let at = field["observation"]["revision"].as_u64().unwrap();
+        modal_to(app, &format!("{at}:back"));
+        assert_marked(app, &format!("{at}:back"), &format!("{name}-modal-cancel"));
+        app.choose("ask:3:2");
+        let at = at + 1;
+        assert_marked(app, &format!("{at}:authorize:2"), &format!("{name}-giver"));
+        for act in ["wait", "decline"] {
+            modal_to(app, &format!("{at}:{act}"));
+            assert_marked(app, &format!("{at}:{act}"), &format!("{name}-giver-{act}"));
+        }
+        app.choose("decline");
         map_keys::tab_to(app, "space:santiago");
         map_keys::press(app, "Enter", "space:santiago");
         for (stop, capture) in [
@@ -414,7 +428,10 @@ fn native_focus_mark_follows_the_window() {
         let cancel = format!("{at}:kidnap:cancel");
         map_keys::tab_to(app, &cancel);
         assert_marked(app, &cancel, &format!("{name}-kidnap-cancel"));
-        app.roll();
+        let roll = format!("{at}:kidnap:roll");
+        map_keys::tab_to(app, &roll);
+        map_keys::press(app, "Enter", &roll);
+        assert_marked(app, "kidnap-die:continue", &format!("{name}-die-continue"));
         app.quit();
     }
 }

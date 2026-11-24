@@ -367,6 +367,8 @@ fn counterparts(view: &Observation) -> impl Iterator<Item = Faction> + '_ {
         .filter(|&faction| Some(faction) != view.executing)
 }
 
+/// The modal's and the pending tab's layer, over the scrim's.
+pub(super) const LAYER: i32 = 31;
 /// The primary button's part name.
 pub(super) const PRIMARY_PART: &str = "button:primary";
 /// The amount field's seat name.
@@ -420,6 +422,7 @@ impl Pressed {
     }
 }
 
+/// The modal's stop that Enter presses now.
 pub(super) fn pressed(view: &Observation, ui: &Interface) -> Pressed {
     let mut order = focusable(view, ui);
     // The primary is the last stop.
@@ -1039,7 +1042,7 @@ fn modal(
                 align_items: AlignItems::Center,
                 ..default()
             },
-            GlobalZIndex(31),
+            GlobalZIndex(LAYER),
             Pickable::IGNORE,
         ))
         .id();
@@ -2097,7 +2100,7 @@ fn pending(commands: &mut Commands, art: &Art, view: &Observation, s: f32, cente
                 },
                 ..default()
             },
-            GlobalZIndex(31),
+            GlobalZIndex(LAYER),
             Pickable::IGNORE,
         ))
         .id();
