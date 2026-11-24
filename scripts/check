@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The repository's checks; CI runs this same entry point. It stops at the first
 # failure. The ignored native tests need private cards and a GPU, so they stay
-# manual (README, "Checks and development seat"; docs/agents/seat.md).
+# manual (README, "Checks and development seat"; docs/agents/native-tests.md).
 set -euo pipefail
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
@@ -79,18 +79,18 @@ if ! check_desktop_launch_arguments "$desktop_launch"; then
   exit 1
 fi
 echo "README desktop launch: required arguments and card directory match"
-# docs/agents/seat.md catalogues every native regression, one bullet per test (#91). A
+# docs/agents/native-tests.md catalogues every native regression, one bullet per test (#91). A
 # `fn native_*` is a native regression by name; rename a helper rather than list it.
 # grep exits 1 on no match, which pipefail would turn into a silent failure here; an
 # empty side fails below with its own message instead.
-documented=$({ grep -oE '^- `native_[a-z0-9_]+`' docs/agents/seat.md || [[ $? == 1 ]]; } | sed 's/^- `//; s/`$//' | sort)
+documented=$({ grep -oE '^- `native_[a-z0-9_]+`' docs/agents/native-tests.md || [[ $? == 1 ]]; } | sed 's/^- `//; s/`$//' | sort)
 defined=$({ grep -rhoE 'fn native_[a-z0-9_]+' src tests || [[ $? == 1 ]]; } | sed 's/^fn //' | sort -u)
 if [[ -z $documented || -z $defined ]]; then
-  echo "native catalogue: found no native tests in docs/agents/seat.md or in src/ and tests/" >&2
+  echo "native catalogue: found no native tests in docs/agents/native-tests.md or in src/ and tests/" >&2
   exit 1
 fi
 if [[ $documented != "$defined" ]]; then
-  echo "native catalogue: docs/agents/seat.md differs from the native tests (< documented, > defined):" >&2
+  echo "native catalogue: docs/agents/native-tests.md differs from the native tests (< documented, > defined):" >&2
   diff <(echo "$documented") <(echo "$defined") >&2 || true
   exit 1
 fi

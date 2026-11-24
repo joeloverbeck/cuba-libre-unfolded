@@ -437,6 +437,9 @@ struct Native {
     save: PathBuf,
     step: usize,
 }
+/// The seed whose first Kidnap roll is 1, which leaves 26July the fewest Resources.
+const ROLLS_1: u64 = 19;
+
 impl Native {
     /// Where the detached app writes its log: beside the socket.
     fn runtime_log(&self) -> PathBuf {
@@ -447,7 +450,20 @@ impl Native {
     fn launch(&mut self) {
         self.launch_size("1920x1280");
     }
+    /// Launches the app, on a save of a known die when there is none yet: a regression
+    /// whose steps follow a Kidnap roll then passes or fails alike on every run. In #179
+    /// one passed until the die rolled 1.
     fn launch_size(&mut self, size: &str) {
+        let previous = unfolded_record_replacement::previous_path(&self.save);
+        if !self.save.exists() && !previous.exists() {
+            use cuba_libre_unfolded::save::Session;
+            drop(Session::create_seeded(&self.save, ROLLS_1).unwrap());
+        }
+        self.launch_as_is(size);
+    }
+    /// Launches the app on the save as it is: with none, the app creates its own and
+    /// draws its seed.
+    fn launch_as_is(&mut self, size: &str) {
         let output = Command::new(env!("CARGO_BIN_EXE_cuba-libre"))
             .args([
                 "--cards",
@@ -1843,7 +1859,8 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
         step: 0,
     };
     eprintln!("Native evidence: {}", app.root.display());
-    app.launch();
+    // The app creates this save itself, as a player's first launch does.
+    app.launch_as_is("1920x1280");
     let initial = app.observe();
     assert_eq!(initial["observation"]["resources"], json!([6, 0, 5, 15]));
     assert_eq!(initial["observation"]["revision"], 0);

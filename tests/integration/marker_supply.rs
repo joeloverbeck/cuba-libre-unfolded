@@ -9,60 +9,13 @@ fn the_supply_s_size_is_declared_once() {
     assert_eq!(MARKER_SUPPLY, 20);
 }
 
-/// Hash admission (`marker-supply.sha256`): a missing or changed marker export
-/// refuses launch before any save, like every other manifest.
+/// `marker-supply.sha256` admits the marker at rest and dimmed.
 #[test]
-fn launch_refuses_a_missing_or_changed_marker_export() {
-    let art = tempfile::tempdir().unwrap();
-    for line in assets::MANIFESTS.iter().flat_map(|m| m.lines()) {
-        let (_, path) = line.split_once("  ").unwrap();
-        let to = art.path().join(path.strip_prefix("art/atlas/").unwrap());
-        std::fs::create_dir_all(to.parent().unwrap()).unwrap();
-        std::fs::copy(path, to).unwrap();
-    }
-    // No private cards here: intact art passes and reaches the card check.
-    let cards = tempfile::tempdir().unwrap();
-    let error = || {
-        format!(
-            "{:#}",
-            assets::inspect(art.path(), cards.path()).err().unwrap()
-        )
-    };
-    assert!(error().contains("Required private card"));
-    let admitted: Vec<&str> = assets::MARKER_SUPPLY_MANIFEST
-        .lines()
-        .map(|line| {
-            line.split_once("  ")
-                .unwrap()
-                .1
-                .strip_prefix("art/atlas/")
-                .unwrap()
-        })
-        .collect();
+fn the_marker_s_exports_are_admitted() {
     assert_eq!(
-        admitted,
+        crate::admission::admitted(assets::MARKER_SUPPLY_MANIFEST),
         ["atlas-marker-supply.png", "atlas-marker-supply-dimmed.png"]
     );
-    for name in admitted {
-        let path = art.path().join(name);
-        let original = std::fs::read(&path).unwrap();
-        std::fs::remove_file(&path).unwrap();
-        let missing = error();
-        assert!(
-            missing.contains("Required art missing") && missing.contains(name),
-            "{missing}"
-        );
-        let mut changed = original.clone();
-        changed[original.len() / 2] ^= 1;
-        std::fs::write(&path, changed).unwrap();
-        let changed = error();
-        assert!(
-            changed.contains("Required art changed") && changed.contains(name),
-            "{changed}"
-        );
-        std::fs::write(&path, original).unwrap();
-    }
-    assert!(error().contains("Required private card"));
 }
 
 /// In every position the explorer reaches, the supply is the 20 less the markers on

@@ -566,54 +566,6 @@ fn die_and_tray_names_never_bind_as_map_spaces() {
     }
 }
 
-/// Hash admission (`kidnap.sha256`): a missing or changed die, tray or record refuses
-/// launch before any save, like the Terror bell.
-#[test]
-fn launch_refuses_a_missing_or_changed_die_tray_or_record() {
-    use cuba_libre_unfolded::assets;
-    let art = tempfile::tempdir().unwrap();
-    for line in assets::MANIFESTS.iter().flat_map(|m| m.lines()) {
-        let (_, path) = line.split_once("  ").unwrap();
-        let to = art.path().join(path.strip_prefix("art/atlas/").unwrap());
-        std::fs::create_dir_all(to.parent().unwrap()).unwrap();
-        std::fs::copy(path, to).unwrap();
-    }
-    // No private cards here: intact art passes and reaches the card check.
-    let cards = tempfile::tempdir().unwrap();
-    let error = || {
-        format!(
-            "{:#}",
-            assets::inspect(art.path(), cards.path()).err().unwrap()
-        )
-    };
-    let intact = error();
-    assert!(intact.contains("Required private card"), "{intact}");
-    for name in [
-        "atlas-kidnap-die.glb",
-        "atlas-kidnap-tray.glb",
-        "kidnap-die.json",
-    ] {
-        let path = art.path().join(name);
-        let original = std::fs::read(&path).unwrap();
-        std::fs::remove_file(&path).unwrap();
-        let missing = error();
-        assert!(
-            missing.contains("Required art missing") && missing.contains(name),
-            "{missing}"
-        );
-        let mut changed = original.clone();
-        changed[original.len() / 2] ^= 1;
-        std::fs::write(&path, changed).unwrap();
-        let changed = error();
-        assert!(
-            changed.contains("Required art changed") && changed.contains(name),
-            "{changed}"
-        );
-        std::fs::write(&path, original).unwrap();
-    }
-    assert!(error().contains("Required private card"));
-}
-
 /// #67's legibility floor in the AC-B die-presented frame: at 1920×1080 every clip's
 /// landed top face, in both placements, is at least `die::FACE_FLOOR`, 69.5 px (the
 /// square root of the projected area of its 16 mm square, as the study measured it).

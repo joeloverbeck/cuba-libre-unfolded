@@ -38,7 +38,7 @@ scripts/check
 
 It prints the checked revision and whether the working tree differs from it, then stops at the first failing check. CI runs the same command on every pull request, and `main` requires it to pass. A single focused command is only partial evidence. A commit hook runs the format check before each commit; enable it once per clone with `git config core.hooksPath .githooks`.
 
-Core tests need no private inputs or GPU. The ignored native regressions need the card directory and a working renderer. `scripts/native` runs them all, those that launch the app several at a time, and checks that each requested name filter selects a regression. See the [native regression catalogue](docs/agents/seat.md#native-regressions) for focused runs.
+Core tests need no private inputs or GPU. The ignored native regressions need the card directory and a working renderer. `scripts/native` runs them all, those that launch the app several at a time, and checks that each requested name filter selects a regression. See the [native regression catalogue](docs/agents/native-tests.md) for focused runs.
 
 ```sh
 CUBA_TEST_CARDS="$HOME/.local/share/cuba-libre-unfolded/cards" scripts/native
@@ -46,7 +46,7 @@ CUBA_TEST_CARDS="$HOME/.local/share/cuba-libre-unfolded/cards" scripts/native
 
 Each native test keeps its saves, observations and screenshots under `local/verification/`. Inspect the images yourself: passing assertions do not prove readability or owner acceptance.
 
-The development seat drives the same scene, UI and input path without opening a window. It is distinct from a faction player's connection. [docs/agents/seat.md](docs/agents/seat.md) has its launch commands, requests, every component and choice id, and the native regression catalogue.
+The development seat drives the same scene, UI and input path without opening a window. It is distinct from a faction player's connection. [docs/agents/seat.md](docs/agents/seat.md) has its launch commands, requests and every component and choice id.
 
 ## Where files live
 

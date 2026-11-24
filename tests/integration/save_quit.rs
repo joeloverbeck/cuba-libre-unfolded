@@ -3,60 +3,13 @@
 use cuba_libre_unfolded::assets;
 use serde_json::Value;
 
-/// Hash admission (`save-quit.sha256`): a missing or changed export of the plate
-/// refuses launch before any save, like every other manifest.
+/// `save-quit.sha256` admits the plate at rest and hovered.
 #[test]
-fn launch_refuses_a_missing_or_changed_save_quit_export() {
-    let art = tempfile::tempdir().unwrap();
-    for line in assets::MANIFESTS.iter().flat_map(|m| m.lines()) {
-        let (_, path) = line.split_once("  ").unwrap();
-        let to = art.path().join(path.strip_prefix("art/atlas/").unwrap());
-        std::fs::create_dir_all(to.parent().unwrap()).unwrap();
-        std::fs::copy(path, to).unwrap();
-    }
-    // No private cards here: intact art passes and reaches the card check.
-    let cards = tempfile::tempdir().unwrap();
-    let error = || {
-        format!(
-            "{:#}",
-            assets::inspect(art.path(), cards.path()).err().unwrap()
-        )
-    };
-    assert!(error().contains("Required private card"));
-    let admitted: Vec<&str> = assets::SAVE_QUIT_MANIFEST
-        .lines()
-        .map(|line| {
-            line.split_once("  ")
-                .unwrap()
-                .1
-                .strip_prefix("art/atlas/")
-                .unwrap()
-        })
-        .collect();
+fn the_plate_s_exports_are_admitted() {
     assert_eq!(
-        admitted,
+        crate::admission::admitted(assets::SAVE_QUIT_MANIFEST),
         ["atlas-save-quit.png", "atlas-save-quit-hover.png"]
     );
-    for name in admitted {
-        let path = art.path().join(name);
-        let original = std::fs::read(&path).unwrap();
-        std::fs::remove_file(&path).unwrap();
-        let missing = error();
-        assert!(
-            missing.contains("Required art missing") && missing.contains(name),
-            "{missing}"
-        );
-        let mut changed = original.clone();
-        changed[original.len() / 2] ^= 1;
-        std::fs::write(&path, changed).unwrap();
-        let changed = error();
-        assert!(
-            changed.contains("Required art changed") && changed.contains(name),
-            "{changed}"
-        );
-        std::fs::write(&path, original).unwrap();
-    }
-    assert!(error().contains("Required private card"));
 }
 
 /// [x, y, width, height] as [left, top, right, bottom].

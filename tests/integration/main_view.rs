@@ -21,39 +21,11 @@ fn disjoint(a: [f64; 4], b: [f64; 4]) -> bool {
     a[2] <= b[0] || a[0] >= b[2] || a[3] <= b[1] || a[1] >= b[3]
 }
 
-/// Hash admission (`main-view.sha256`): a missing or changed layout record or area
-/// frame refuses launch before any save, like every other manifest.
+/// `main-view.sha256` admits the layout record, the area frame and the exports.
 #[test]
-fn launch_refuses_a_missing_or_changed_layout_record_or_frame() {
-    let art = tempfile::tempdir().unwrap();
-    for line in assets::MANIFESTS.iter().flat_map(|m| m.lines()) {
-        let (_, path) = line.split_once("  ").unwrap();
-        let to = art.path().join(path.strip_prefix("art/atlas/").unwrap());
-        std::fs::create_dir_all(to.parent().unwrap()).unwrap();
-        std::fs::copy(path, to).unwrap();
-    }
-    // No private cards here: intact art passes and reaches the card check.
-    let cards = tempfile::tempdir().unwrap();
-    let error = || {
-        format!(
-            "{:#}",
-            assets::inspect(art.path(), cards.path()).err().unwrap()
-        )
-    };
-    let intact = error();
-    assert!(intact.contains("Required private card"), "{intact}");
-    let admitted: Vec<&str> = assets::MAIN_VIEW_MANIFEST
-        .lines()
-        .map(|line| {
-            line.split_once("  ")
-                .unwrap()
-                .1
-                .strip_prefix("art/atlas/")
-                .unwrap()
-        })
-        .collect();
+fn the_layout_record_frame_and_exports_are_admitted() {
     assert_eq!(
-        admitted,
+        crate::admission::admitted(assets::MAIN_VIEW_MANIFEST),
         [
             "atlas-main-view.layout.json",
             "atlas-layout-operation.png",
@@ -63,26 +35,6 @@ fn launch_refuses_a_missing_or_changed_layout_record_or_frame() {
             "atlas-main-view-pile-shadow.png",
         ]
     );
-    for name in admitted {
-        let path = art.path().join(name);
-        let original = std::fs::read(&path).unwrap();
-        std::fs::remove_file(&path).unwrap();
-        let missing = error();
-        assert!(
-            missing.contains("Required art missing") && missing.contains(name),
-            "{missing}"
-        );
-        let mut changed = original.clone();
-        changed[original.len() / 2] ^= 1;
-        std::fs::write(&path, changed).unwrap();
-        let changed = error();
-        assert!(
-            changed.contains("Required art changed") && changed.contains(name),
-            "{changed}"
-        );
-        std::fs::write(&path, original).unwrap();
-    }
-    assert!(error().contains("Required private card"));
 }
 
 /// The desk, the map's header and footer, and with them the "CUBA" title, the

@@ -25,5 +25,5 @@ The owner selected **A · Doble filete** on 2026-11-24 ([selection](https://gith
 ## Limits
 
 - **A popover moved off screen** by the camera hides its mark with it, while its row and button stay keyboard stops: Enter still presses a focused button that is out of sight. #179 left what Enter does unchanged.
-- **Checks:** unit tests compare the rule with what the keyboard reads. The native regressions `native_focus_mark_*` compare the drawn marks' controls with the keyboard's at every stop they reach and find the line in captures, at the owner's display and at 3:2, 16:9 and 21:9 ([seat reference](../../docs/agents/seat.md#native-regressions)). They do not judge how clear the mark is: that is the owner's.
+- **Checks:** unit tests compare the rule with what the keyboard reads. The native regressions `native_focus_mark_*` compare the drawn marks' controls with the keyboard's at every stop they reach and find the line in captures, at the owner's display and at 3:2, 16:9 and 21:9 ([native regressions](../../docs/agents/native-tests.md)). They do not judge how clear the mark is: that is the owner's.
 - **The study's sheets** are composed pictures. The captures of the build are the evidence of what is drawn.
