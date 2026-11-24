@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run ignored regressions from both test binaries: those that launch the app, four apps
+# Run ignored regressions from both test binaries: those that launch the app, three apps
 # at once (`--test-threads=1` to 4), and the in-process ones serially.
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
@@ -42,10 +42,11 @@ if [[ -z ${CUBA_NATIVE_EVIDENCE:-} && $common != "$(git rev-parse --show-topleve
   export CUBA_NATIVE_EVIDENCE="$common/local/verification/native/${branch//\//-}/$run"
 fi
 
-# Each app holds about 1 GB of memory and up to 1.6 GB of graphics memory, so the limit
-# is four at once: six failed with 10.8 of 11 GB of graphics memory in use (#187). The
-# option is taken out of the arguments, because libtest refuses it twice.
-apps=4
+# Each app takes up to 1.6 GB of memory and 1.2 GB of graphics memory. Three fit in
+# `scripts/heavy`'s memory scope; four took 6.5 GB, which its 6 GB limit slows and its
+# 7 GB limit could end (#187). The option is taken out of the arguments, because libtest
+# refuses it twice.
+apps=3
 args=()
 while (($#)); do
   case $1 in
