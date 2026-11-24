@@ -49,6 +49,8 @@ In this repository the list starts from:
 - The foundations (`docs/foundation/`) and ADRs (`docs/adr/`) the change touches, and the constitution rules the spec cites (`scripts/rule ID…` prints them).
 - The agent document that owns the changed area, under `docs/agents/`.
 
+The Standards axis also checks that a committed document states what is decided, and that what still awaits the owner is on the issue or pull request (`GOV-2`), where an answer makes no committed line untrue.
+
 For source-only documents/research, collect the applicable documentation, source-authority and evidence standards instead. Skip the code-smell baseline and do not demand executable tests or scaffolding. The Standards review checks citations, source identities/precedence and evidence limits against those standards. The Spec review checks source reconciliation, independently checks relevant calculations, and compares general rules and exceptions with worked examples. Verify that conclusions, acceptance status and claimed downstream readiness match the cited evidence and recorded authority. For mixed changes, apply these checks to the documents and code checks to the executable changes.
 
 For executable changes, the Standards axis also carries the **smell baseline** below: a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules bind it:

@@ -638,12 +638,17 @@ mod tests {
             .unwrap_or_else(|exited| panic!("{request}: {exited}"))
     }
 
-    /// An admitted table of `size` in process, on a new save.
+    /// An admitted table of `size` in process, on a save of a known die when there is
+    /// none yet, as `tests/native.rs` launches.
     fn table(
         cards: &std::path::Path,
         save: &std::path::Path,
         size: UVec2,
     ) -> (App, shared::Seat<Table>) {
+        if !save.exists() {
+            use crate::save::Session;
+            drop(Session::create_seeded(save, Session::KIDNAP_ROLLS_1).unwrap());
+        }
         let mut app = build(
             Options {
                 art: "art/atlas".into(),

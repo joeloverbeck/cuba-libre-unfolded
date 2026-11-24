@@ -24,6 +24,8 @@ On the founding machine all three CLI programs are already installed in `~/.carg
 
 On 2026-11-22 the installed VectorCraft 0.24.1 and FigCraft 0.18.1 were rebuilt from local checkouts of `storytold/vectorcraft@88f5ece1` and `storytold/figcraft@5c2a3784`: `~/.cargo/.crates2.json` installs both from those checkouts, each checkout's reflog reached that commit minutes before its binary's modification time, and neither has moved since or is dirty. This is reflog and timestamp evidence, not a recorded build.
 
+An asset's provenance line names that source. For VectorCraft: "VectorCraft CLI 0.24.1, the build installed on 2026-11-22 from a clean checkout of `storytold/vectorcraft@88f5ece1` (reflog and timestamp evidence, not a recorded build)". Check first that the checkout and binary have not moved since.
+
 If a binary is absent or the selected authoring task needs a newer command, inspect the editor checkout and its own instructions, then use its documented install command from that checkout:
 
 ```sh

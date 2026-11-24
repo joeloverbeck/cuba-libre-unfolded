@@ -18,6 +18,7 @@ use cuba_libre_unfolded::{Choice, Faction, Game, TransferChoice};
 use terror_chosen::terror_chosen;
 
 mod action_choice;
+mod admission;
 mod assault;
 mod assault_side;
 mod available_forces;

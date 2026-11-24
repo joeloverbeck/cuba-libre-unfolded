@@ -4,7 +4,7 @@ This foundation specializes `EVID-6`, `BOUND`, `INT`, `AGENT-1`, and `OPS-7`. Al
 
 ## Before every feature
 
-Inspect `arkham-unfolded`, `mudsong`, `netrunner-unfolded`, and `unfolded-tabletop` for the behavior and tooling needed by the feature. Record the inspected revisions, concrete source locations and disposition in its issue/PR:
+Inspect `arkham-unfolded`, `mudsong`, `netrunner-unfolded`, and `unfolded-tabletop` for the behavior and tooling needed by the feature. Search and cite each sibling at its `origin/main` after a fetch; a sibling's checkout may be on another branch. Record the inspected revisions, concrete source locations and disposition in its issue/PR:
 
 - Already shared: consume the existing mechanism at an immutable revision.
 - Implemented in a sibling: extract the common mechanism into `unfolded-tabletop` and migrate every involved existing implementation.
