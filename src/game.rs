@@ -52,6 +52,9 @@ pub enum UsAlliance {
     Reluctant,
     Embargoed,
 }
+/// The US Alliance level in this build: the setup's Firm, which no Operation or Event
+/// it implements shifts. Every COIN Operation's cost reads it (R 6.3.1).
+const ALLIANCE: UsAlliance = UsAlliance::Firm;
 impl UsAlliance {
     pub const ALL: [Self; 3] = [Self::Firm, Self::Reluctant, Self::Embargoed];
     pub fn name(self) -> &'static str {
@@ -1187,7 +1190,7 @@ impl Game {
                 _ => false,
             }),
             aid: 15,
-            alliance: UsAlliance::Firm,
+            alliance: ALLIANCE,
             cash_available: CASH_MARKERS,
             // No Operation, Event or phase this build implements places a Sabotage
             // marker (R 3.3.4 in an economic center, R 4.2.3, R 6.2.1), so the
@@ -2171,7 +2174,7 @@ impl Game {
     fn government_choices(&self) -> Vec<Choice> {
         let balance = self.resources[Faction::Government.index()];
         let after_pass = Self::government_pass_balance(balance);
-        let alliance = UsAlliance::Firm;
+        let alliance = ALLIANCE;
         let cost = alliance.coin_cost();
         let offer = |id: &str, label: &str, rule: String| {
             self.offer(

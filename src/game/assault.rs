@@ -408,6 +408,12 @@ fn payment_action(action: &str) -> Option<&str> {
     Some(space)
 }
 
+/// What Assault costs Government in each space: the US Alliance level's COIN cost
+/// (R 6.3.1).
+fn assault_cost() -> u8 {
+    ALLIANCE.coin_cost()
+}
+
 impl Game {
     /// What each paid space paid and what was removed or closed there, in the order paid.
     pub(super) fn assault_paid(&self) -> Vec<AssaultResolution> {
@@ -438,7 +444,7 @@ impl Game {
         if !effective.is_empty() {
             return Some(format!(
                 "Government cannot pay {}",
-                resources(UsAlliance::Firm.coin_cost())
+                resources(assault_cost())
             ));
         }
         removes_nothing(space)
@@ -464,7 +470,7 @@ impl Game {
             notes.push(format!("R 3.2.4: {}.", paid.detail.effect(false)));
         }
         let balance = after.resources[Faction::Government.index()];
-        let cost = UsAlliance::Firm.coin_cost();
+        let cost = assault_cost();
         if balance < cost && assault.paid.len() < after.spaces.len() {
             notes.push(format!(
                 "Government would have {}: another space would need a Resource transfer first (R 6.3.1).",
@@ -479,9 +485,9 @@ impl Game {
     }
 
     pub(super) fn assault_opening(&self) -> Choice {
-        let alliance = UsAlliance::Firm;
+        let alliance = ALLIANCE;
         let balance = self.resources[Faction::Government.index()];
-        let cost = alliance.coin_cost();
+        let cost = assault_cost();
         let cost_line = format!(
             "{} US Alliance: {} per space (R 6.3.1). Government has {}",
             alliance.name(),
@@ -527,7 +533,7 @@ impl Game {
     fn assault_plans(&self) -> Vec<Choice> {
         let assault = self.assault.as_ref().unwrap();
         let balance = self.resources[Faction::Government.index()];
-        let cost = UsAlliance::Firm.coin_cost();
+        let cost = assault_cost();
         let funded = balance >= cost;
         let transfer_helps = !funded
             && ENEMIES
@@ -652,7 +658,7 @@ impl Game {
             .into_iter()
             .find(|plan| plan.action == action)
             .ok_or("Unknown Assault targets.")?;
-        let paid = UsAlliance::Firm.coin_cost();
+        let paid = assault_cost();
         self.resources[Faction::Government.index()] -= paid;
         for returned in &plan.detail.removed {
             let piece = space
