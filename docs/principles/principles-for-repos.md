@@ -1,7 +1,7 @@
 # Principles for Repositories
 
-**Constitution revision:** 2026-11-15.1
-**Supersedes:** 2026-09-30.1.
+**Constitution revision:** 2026-11-23.1
+**Supersedes:** 2026-11-15.1.
 
 ## Purpose and requirements language
 
@@ -15,16 +15,16 @@ All text is normative unless labelled **Informative**. The identified rules own 
 
 Copy this block into root `CLAUDE.md` under `ADOPT-1`. Only the `Adopted modules:` line is an adopter parameter: list that repository's adopted module filenames, or `none`. Every other byte is invariant. The core and module files themselves are always copied byte for byte. Repository-specific instructions may surround the block.
 
-<!-- BEGIN PRINCIPLES-FOR-REPOS BOOTSTRAP 2026-11-15.1 -->
+<!-- BEGIN PRINCIPLES-FOR-REPOS BOOTSTRAP 2026-11-23.1 -->
 ## Repository constitution
 
-This repository adopts `docs/principles/principles-for-repos.md`, revision **2026-11-15.1**, and the modules below as binding. `CLAUDE.md` is the real root instruction file; `AGENTS.md` is its symlink.
+This repository adopts `docs/principles/principles-for-repos.md`, revision **2026-11-23.1**, and the modules below as binding. `CLAUDE.md` is the real root instruction file; `AGENTS.md` is its symlink.
 
 Adopted modules: `fidelity.md`, `agency-simulation.md`, `search-adaptation.md`, `evaluators-scores.md`, `integration.md`, `longitudinal.md`.
 
 ### Mandatory reading
 
-Reasonable doubt fires a trigger. Read the core's Modules table for applicability. A missing triggered module MUST be adopted under `ADOPT-1` before substantive dependent work. Read each applicable module's rules. Founding, material reorientation or foundation revision, adoption/reconciliation, and constitutional amendment require the complete adopted text: core and all adopted modules, plus any newly applicable module.
+Reasonable doubt fires a trigger. Read the core's Modules table for applicability. A missing triggered module MUST be adopted under `ADOPT-1` before substantive dependent work. Read each applicable module's rules. Founding, material reorientation, adoption/reconciliation, and constitutional amendment require the complete adopted text: core and all adopted modules, plus any newly applicable module.
 
 An exact quotation of a current-revision rule in a brief naming that revision satisfies the recipient's reading of that rule. Paraphrase, memory and earlier reading for another decision do not. The recipient reads anything else its own work triggers.
 
@@ -32,6 +32,7 @@ An exact quotation of a current-revision rule in a brief naming that revision sa
 - Before using a test or other evidence for completion, adoption or expansion: read `EVID-3`, `EVID-4`, `EVID-6`, `REP-2`.
 - Before merge, release or authoritative publication: read `AUTH-1`, `AUTH-2`, `AUTH-3`, `OPS-6`, `OPS-7`, `PUB-1`.
 - Before founding, reorientation or selecting an outcome: read `PURP-1`, `PURP-2`, `PURP-4`, `GOV-1`.
+- Before changing a foundation: read `GOV-1`, `AUTH-1`, `AUTH-2`, `ADOPT-1`, `ADOPT-2`.
 - Before prerequisites, supply, substrate or a coordinated consumer iteration constrain work: read `PURP-5`, `PURP-6`, `WORK-6`.
 - Before research or relying on an origin story: read `EVID-1`, `EVID-2`.
 - Before broad exploration or a selected full sweep: read `EVID-7`.
@@ -58,7 +59,7 @@ Human intent → constrained proposal → checks → inspectable consequences �
 Stop discretionary expansion and read the controlling rules when inputs, oracles, lifecycle evidence or no-match outcomes are missing; an essential consumer handoff remains untested; claims outrun evidence or burden exceeds appetite; presentation, scores, replay or compliance substitute for a different claim, hide failed requirements or obscure causal credit; capability, boundary, fan-out, non-convergence or terminal-decision limits arise; or authority conflicts or a human request would transfer technical investigation to the human. Use the routes above and applicable modules.
 
 If required text cannot be located or read, substantive work is unauthorized. Preserve potentially applicable safeguards while investigating. `AGENT-5` reserves only the human remainder; ordinary implementation uncertainty permits governed investigation and reversible work.
-<!-- END PRINCIPLES-FOR-REPOS BOOTSTRAP 2026-11-15.1 -->
+<!-- END PRINCIPLES-FOR-REPOS BOOTSTRAP 2026-11-23.1 -->
 
 ## Normative definitions
 
@@ -654,13 +655,15 @@ Before publication, list exact commits/decision-bearing files and reconcile each
 
 ### GOV-1 — Foundations are minimal and cannot manufacture a backlog
 
-**Trigger:** Repository-specific foundations are created or expanded before the first accepted risk-bearing slice.
+**Trigger:** Repository-specific foundations are created, expanded or changed.
 
 **Rule:** Foundations MUST identify only what current work needs: mission and purpose class, primary outcome and non-goals, authority, real inputs and named consumers, active bottleneck, blocking prerequisites, active uncertainty, bounded experiment, repository boundaries, work-control plane, and minimum contracts needed to run safely.
 
 Foundations MUST NOT pre-author a complete future workflow map, workflow-to-skill conversion queue, speculative ADR family, template or schema family for unconsumed artifacts, shared implementation host, maintenance system, or architecture-derived backlog. Legacy guides, skills, corpora, and capability inventories MAY remain reference-only evidence; their chapters, edges, and handoffs do not become active boundaries or work items. Document presence is not work authorization.
 
 More than roughly five repository-specific foundation documents or 5,000 repository-specific words before the first accepted slice—excluding this constitution and reference-only source evidence—MUST trigger an explicit recheck for speculative architecture. Every additional foundation document MUST have an immediate decision or execution consumer.
+
+A foundation change that alters the purpose class, primary outcome, named consumers or repository boundaries is a material reorientation.
 
 ### GOV-2 — One work-control plane owns active work
 
