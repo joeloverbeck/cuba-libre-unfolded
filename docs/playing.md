@@ -104,7 +104,9 @@ Choose **Assault · Operation Only**. The space is then chosen on the map and no
 
 - **Selectable:** Assault would remove or close a piece there and Government can pay.
 - **Blocked:** it would, but Government cannot pay. Resource transfers open the space: together the other factions can give it enough.
-- **Veiled:** Assault would remove nothing there, the space was already assaulted in this Operation, or it would act there but Government cannot pay and cannot be given enough.
+- **Veiled:** Assault would remove nothing there, the space was already assaulted in this Operation, or it would act there but Government cannot pay and cannot be given enough. The last still opens, to show what Assault would do and why it cannot be paid; only a space already assaulted does not.
+
+A selectable space's tag says what the best Assault there would do, such as "Can close 1 Casino".
 
 Click a space to open its popover, or reach it with Tab and press Enter ([Camera and keys](#camera-and-keys)). Tab reaches the selectable spaces first, then the blocked ones, then the veiled ones that can still be chosen. The popover lists the space's plans, one row each: the factions a plan targets, with the split when the capacity is short, and last the plan that removes nothing. Choose a row to see how many pieces the local Troops, Police and terrain let you affect, what remains protected, and what the payment will do. Looking decides nothing and saves nothing. The one button pays and resolves the space at once: **Pay 2 · Assault in Havana**, or **Pay 2 · Assault removes nothing**.
 
@@ -128,7 +130,7 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 | Wheel or `+`/`-` | Zoom |
 | `W` `A` `S` `D` | Pan |
 | `Home` | Restore the map framing; also brings back hover tags that extreme framing hid |
-| `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked, then no effect) and an open popover's rows and button, then the marker supply, the four Available Forces rows, the current and the preview card, the two piles and Save · quit |
+| `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked, then no effect, then those nothing can pay for) and an open popover's rows and button, then the marker supply, the four Available Forces rows, the current and the preview card, the two piles and Save · quit |
 | `Enter`, `Space` | Activate the focused control. While a played card is moving, land the cards instead |
 | `Escape` | Close a card's tag, unpin a briefing, cancel an open transfer, or close a tag or popover; a space popover closed from the keyboard leaves focus on its space |
 

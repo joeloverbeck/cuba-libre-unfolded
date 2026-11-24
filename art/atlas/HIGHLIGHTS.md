@@ -8,9 +8,10 @@ While a decision offers choices that act on a space, `cuba_libre_unfolded::targe
 - **Selectable:** a supported choice there changes something now. The graphic is a 5-unit `action/primary` rule just inside the border, with a hairline ink rule inside it.
 - **Blocked with a remedy:** no such choice is supported, but one names an in-task remedy. The graphic is the same red rule, dashed.
 - **No effect (#169):** the space's only choices change nothing on the map, as Assault's plan that removes nothing. The space stays choosable (R 3.2.4), and it is shown as quietly as a space no choice acts on: its graphic is the not-involved veil. No graphic of its own was drawn.
-- **Not involved:** no choice acts there, or none could. That includes a Terror with no remedy, Assault plans that would remove or close a piece where nothing can pay and no remedy is named, and a space already paid in this Assault (R 3.1). The graphic is a 62% `desk` veil, and a click opens nothing.
+- **Unpayable (#180):** a choice there would change something, and only its cost stops it: nothing in this task can pay and no remedy is named. The space stays choosable, to read why, and it is drawn as a no-effect space is, with the not-involved veil: the dashed rule would promise a remedy. No graphic of its own was drawn.
+- **Not involved:** no choice acts there, or none could for another reason than its cost. That includes a resolved Terror, a Terror with no Underground Guerrilla, and a space already paid in this Assault (R 3.1). The graphic is a 62% `desk` veil, and a click opens nothing.
 
-During Assault a space is selectable where a plan would remove or close a piece and Government can pay, blocked where one would and Government cannot pay, but the other factions could give it enough (a Resource transfer is the remedy), not involved where one would but Government cannot pay and cannot be given enough, and no effect where no plan would. Tab reaches the selectable, blocked and no-effect spaces, in that order, and passes the not-involved ones ([seat reference](../../docs/agents/seat.md#keys)).
+During Assault a space is selectable where a plan would remove or close a piece and Government can pay, blocked where one would and Government cannot pay, but the other factions could give it enough (a Resource transfer is the remedy), unpayable where one would but Government cannot pay and cannot be given enough, and no effect where no plan would. Tab reaches the selectable, blocked, no-effect and unpayable spaces, in that order, and passes the not-involved ones ([seat reference](../../docs/agents/seat.md#keys)).
 
 Outside these states (the action choice, either ending, an opened Kidnap, a Resource transfer under way and removal mode), no space is a target and a region click opens no space popover. Removal mode has its own states, below.
 
@@ -100,7 +101,7 @@ The development-seat reference lists the removal mode and piece popover [compone
 
 ## The space popover
 
-Clicking a selectable or blocked space opens its popover (#58: "clicking a selectable or blocked space opens one popover"), and so does clicking a no-effect space (#169); hovering a space shows only its status tag. Clicking the space again, or a not-involved space, closes it. Any decision closes it. Until #58's final review a hover also opened the popover, unpinned. The popover lists every action the authority offers in that space:
+Clicking a selectable or blocked space opens its popover (#58: "clicking a selectable or blocked space opens one popover"), and so does clicking a no-effect (#169) or unpayable (#180) space; hovering a space shows only its status tag. Clicking the space again, or a not-involved space, closes it. Any decision closes it. Until #58's final review a hover also opened the popover, unpinned. The popover lists every action the authority offers in that space:
 - **Selectable** rows first. The chosen row (the first by default) is shaded `desk` and shows its preview above the only button that acts; choosing another row only changes the preview.
 - **Not yet** rows: the reason and the remedies as chips.
 - **Unavailable** rows: the reason, and that nothing in this task can change it.
@@ -110,7 +111,7 @@ Clicking a selectable or blocked space opens its popover (#58: "clicking a selec
 - **The chosen row's preview** is the authority's: the capacity arithmetic (R 3.2.4), the payment, whom the plan can affect and why a faction Assault cannot affect keeps its pieces, what it removes or closes in bold, any change of Control or standing in bold, and, when Government could then pay for no other space, a quiet note that says so.
 - **The button** reads "Pay N · Assault in <space>", where N is the cost per space at the current US Alliance (R 6.3.1). For the plan that removes nothing it reads "Pay N · Assault removes nothing".
 - **Without the cost**, every row gives the authority's reason. Where the authority names the remedy, the row is "not yet" with the chip "Request a Resource transfer"; where it names none, the row is "unavailable" and says that nothing in this task can change it.
-- A no-effect space's popover holds the one plan that removes nothing, chosen. A paid space has no popover.
+- A no-effect space's popover holds the one plan that removes nothing, chosen where Government can pay. An unpayable space's lists its plans, all unavailable. A paid space has no popover.
 
 The layout is [`atlas-popover.figcraft`](atlas-popover.figcraft), page "Popover masters (1920x1280 reference units)", frames A-P1, A-P3 and A-P4 (FigCraft CLI 0.18.1). `src/tabletop/popover.rs` implements its values in reference pixels:
 - **Card:** 340 wide, `paper` fill, 1 px `ink` stroke, radius 2, drop shadow `ink` at 20% (0, 3, blur 10), 10 bottom padding; a 3 px `action/primary` top rule.

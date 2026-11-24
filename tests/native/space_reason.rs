@@ -133,7 +133,7 @@ fn native_space_tags_say_why_each_space_is_in_its_state() {
         &mut app,
         "santiago",
         "selectable",
-        None,
+        Some("Kidnap can start here"),
         "terror-santiago-selectable",
     );
     hover(
@@ -163,7 +163,7 @@ fn native_space_tags_say_why_each_space_is_in_its_state() {
         &mut app,
         "oriente",
         "selectable",
-        None,
+        Some("Terror costs 1 Resource"),
         "terror-oriente-selectable",
     );
     app.choose("terror:santiago");
@@ -246,8 +246,15 @@ fn native_space_tags_say_why_each_space_is_in_its_state() {
         &mut app,
         "havana",
         "selectable",
-        None,
+        Some("Can close 1 Casino"),
         "assault-havana-selectable",
+    );
+    hover(
+        &mut app,
+        "santiago",
+        "selectable",
+        Some("Can remove 2 Guerrillas"),
+        "assault-santiago-selectable",
     );
     app.choose("assault:santiago:26july");
     hover(
@@ -257,5 +264,94 @@ fn native_space_tags_say_why_each_space_is_in_its_state() {
         Some("Assaulted · paid 2 Resources"),
         "assault-santiago-paid",
     );
+    app.quit();
+
+    // #180: twelve spaces paid with every faction's Resources, and Havana left with 1
+    // Resource to pay 2. Its Casino would close, so it opens to say why it cannot.
+    app.save = app.root.join("unpayable.json");
+    let mut actions: Vec<String> = [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:assault",
+    ]
+    .map(str::to_owned)
+    .to_vec();
+    for (giver, amount) in [(1, 4), (2, 5), (3, 15)] {
+        actions.push("transfer".into());
+        actions.push(format!("ask:{giver}:{amount}"));
+        actions.push(format!("authorize:{amount}"));
+    }
+    for space in [
+        "camaguey-city",
+        "santiago",
+        "pinar-del-rio",
+        "la-habana",
+        "matanzas",
+        "las-villas",
+        "camaguey-province",
+        "oriente",
+        "sierra-maestra",
+        "ec-pinar-la-habana",
+        "ec-las-villas-camaguey",
+        "ec-oriente-sierra",
+    ] {
+        actions.push(format!("assault:{space}:none"));
+    }
+    submit_all(
+        &app.save,
+        &actions.iter().map(String::as_str).collect::<Vec<_>>(),
+    );
+    app.launch_size("3840x2160");
+    assert_eq!(
+        app.observe()["observation"]["resources"],
+        json!([1, 0, 0, 0])
+    );
+    hover(
+        &mut app,
+        "havana",
+        "unpayable",
+        Some("Government cannot pay 2 Resources"),
+        "assault-havana-unpayable",
+    );
+    let saved = fs::read(&app.save).unwrap();
+    let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.activate("space:havana", revision);
+    let opened = app.observe();
+    assert_eq!(opened["table"]["popover"]["space"], "havana");
+    let rows = opened["table"]["popover"]["card"]["rows"]
+        .as_array()
+        .unwrap();
+    assert_eq!(rows.len(), 2);
+    for row in rows {
+        assert_eq!(row["kind"], "unavailable", "{row}");
+        assert!(row["button"].is_null(), "{row}");
+    }
+    app.capture("assault-havana-unpayable-popover");
+    // The only space Tab reaches, and Enter closes and opens its popover as a click does.
+    let key = |app: &mut Native, key: &str| {
+        app.request(json!({"op":"key","revision":revision,"key":key}), true);
+        app.request(json!({"op":"settle"}), true);
+    };
+    key(&mut app, "Escape");
+    assert_eq!(app.observe()["table"]["popover"], Value::Null);
+    for _ in 0..12 {
+        if app.observe()["table"]["choice"]["focus"] == "space:havana" {
+            break;
+        }
+        key(&mut app, "Tab");
+    }
+    app.request(
+        json!({"op":"key","revision":revision,"key":"Enter","focused":"space:havana"}),
+        true,
+    );
+    app.request(json!({"op":"settle"}), true);
+    assert_eq!(app.observe()["table"]["popover"]["space"], "havana");
+    assert_eq!(fs::read(&app.save).unwrap(), saved);
     app.quit();
 }

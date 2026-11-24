@@ -758,7 +758,8 @@ fn the_plan_that_removes_nothing_costs_the_space_s_price_and_changes_nothing_els
             choice.site,
             Some(cuba_libre_unfolded::Site {
                 space: space.into(),
-                effect: false
+                effect: false,
+                unpayable: false
             })
         );
         let preview = choice.preview.as_ref().unwrap();
@@ -915,17 +916,27 @@ fn expected_reasons(havana: Option<&str>, santiago: Option<&str>) -> Vec<(String
 
 /// #170: the space tag's line is the rules authority's reason for each space's state,
 /// checked for all 13 spaces in each of the handoff's Assault positions. A selectable
-/// space needs none; a blocked one names the Resource transfer that would open it
+/// space says what its best plan would do (#180); a blocked one names the Resource transfer that would open it
 /// (R 6.3.1, 1.5.1); a paid one says what it paid (R 3.1); every other one says why
 /// R 3.2.4 would remove nothing there.
 #[test]
 fn each_of_the_thirteen_spaces_has_the_reason_r_3_2_4_gives_its_state() {
-    // The unshaded Event's free Rally and the shaded Event leave the same reasons:
-    // only 26July's pieces in Oriente and Sierra Maestra differ, and neither holds a
-    // Troop. Government has 5 Resources, so Havana and Santiago are selectable.
-    for event in [&RALLY[..], &SHADED[..]] {
+    // Government has 5 Resources, so Havana and Santiago are selectable. Havana's open
+    // Casino would close (its capacity is 10 and Directorio's Guerrillas are
+    // Underground). Santiago's capacity is 3: the shaded Event leaves its 2 Guerrillas
+    // Active, and without it Terror has flipped 1 of them.
+    let casino = Some("Can close 1 Casino");
+    let both = Some("Can remove 2 Guerrillas");
+    for (event, santiago) in [
+        (&RALLY[..], Some("Can remove 1 Guerrilla")),
+        (&SHADED[..], both),
+    ] {
         let view = assault_after(4, event).observe();
-        assert_eq!(reasons(&view), expected_reasons(None, None), "{event:?}");
+        assert_eq!(
+            reasons(&view),
+            expected_reasons(casino, santiago),
+            "{event:?}"
+        );
     }
     // With 1 Resource Government cannot pay 2, and 26July, Directorio and Syndicate
     // have Resources to give.
@@ -940,7 +951,7 @@ fn each_of_the_thirteen_spaces_has_the_reason_r_3_2_4_gives_its_state() {
     assert!(short.observe().space_reasons.is_empty());
     choose(&mut short, "ask:1:1");
     choose(&mut short, "authorize:1");
-    assert_eq!(reasons(&short.observe()), expected_reasons(None, None));
+    assert_eq!(reasons(&short.observe()), expected_reasons(casino, both));
     // Santiago paid 2 (Firm, R 6.3.1); Government is at 0 again.
     choose(&mut short, "assault:santiago:26july");
     assert_eq!(

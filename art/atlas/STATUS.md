@@ -35,17 +35,20 @@ Authored and exported with VectorCraft CLI 0.24.1 at 2 px per point. Native plac
 
 ## The open decision's line (#170)
 
-While a decision offers choices on the map's spaces (Terror and Assault in this build), the tag gains one last line that says why the space is in its state for that decision. The words are the rules authority's (`observation.space_reasons`); the tag builds none from a label or from the pieces it sees. A space where a supported choice acts and nothing is owed has no line, and outside such a decision, or while the targeting is suspended (a presented die, a Resource transfer under way, removal mode, Kidnap open), every tag is as it was.
+While a decision offers choices on the map's spaces (Terror and Assault in this build), the tag gains one last line that says why the space is in its state for that decision. The words are the rules authority's (`observation.space_reasons`); the tag builds none from a label or from the pieces it sees. Outside such a decision, or while the targeting is suspended (a presented die, a Resource transfer under way, removal mode, Kidnap open), every tag is as it was.
 
 The line is the contribution's text style: Lato Regular at 17, the Atlas desk text colour, left x12 and at most 248 wide. It sits on its own row, 4 px below the rows above: at y172 in a city's or province's tag, which becomes 272×208, and at y40 in an Economic center's, which becomes 272×76. The row is `atlas-status-reason.png`, the Control row's frame with no mark or label, copied from the Uncontrolled artboard; the text's top is 8 px into the row, which centres one line. Faction names in the line are drawn as their emblems, as in the contribution. The tag is placed with its new height by the same rules, so it keeps off the hovered region, its pieces and every area.
 
 The rules authority owns the lines' words (`Game::assault_reason` in `src/game/assault.rs` and `Game::terror_reason` in `src/game.rs`), each shortened from its explanation to fit one line; this specification owns only how a line is drawn. For example:
 
 - Assault, blocked: "A Resource transfer opens it" (R 6.3.1, 1.5.1).
+- Assault, selectable (#180): "Can close 1 Casino", "Can remove 2 Guerrillas", or "Can remove up to 2 Guerrillas" where a short capacity can be divided (R 3.2.4).
+- Terror, selectable (#180): "Terror costs 1 Resource" (R 3.3.4), or "Kidnap can start here" (R 4.3.3).
+- Assault, unpayable (#180): "Government cannot pay 2 Resources".
 - Assault, no effect: "No enemy pieces (R 3.2.4)", or "1 Troop: Mountain needs 2".
 - Assault, paid in this Operation: "Assaulted · paid 2 Resources" (R 3.1).
 - Terror, owed after Kidnap: "Terror is owed here (R 4.3.3)".
-- Terror, not involved while 26July's last Resource is kept for the owed Terror: "1 Resource is kept for Santiago" ([local rule policy](../../docs/local-rule-policies.md#owed-terror-after-an-early-kidnap)).
+- Terror, unpayable while 26July's last Resource is kept for the owed Terror: "1 Resource is kept for Santiago" ([local rule policy](../../docs/local-rule-policies.md#owed-terror-after-an-early-kidnap)).
 
 Measured in Lato Regular at 17 with each emblem 0.9 em wide, the longest line the authority writes takes 232 of the 248 pixels; a unit test keeps every wording within that line's 33 characters. The native regression `native_space_tags_say_why_each_space_is_in_its_state` checks on the owner's display that each line it reaches is laid out inside its row.
 
