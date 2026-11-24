@@ -340,7 +340,7 @@ CUBA_TEST_CARDS="/path/to/cards" scripts/heavy scripts/native
 
 - Each test keeps isolated saves, JSON observations and screenshots under its evidence directory, below. `CUBA_NATIVE_EVIDENCE` selects another evidence directory, and `scripts/native` sets it when run from a worktree ([parallel-work.md](parallel-work.md#builds)).
 - Inspect the images separately: passing assertions do not prove readability or owner acceptance.
-- An app that ends early ("No such file or directory" from `cuba-tools`) may have run out of graphics memory, as was likely in #187 with the card at 10.7 of 11 GB, another program's renders included. Rerun the failed test alone with `--test-threads=1` before judging it.
+- An app that ends early ("No such file or directory" from `cuba-tools`) may have run out of graphics memory: in #187 one ended with the card at 10.7 of 11 GB, possibly with another program's renders on it. Rerun the failed test alone with `--test-threads=1` before judging it.
 - A regression reaches its position by submitting decisions, through the seat or the save session, never from a save retained from an earlier build: such a save is disposable ([foundation 2](../foundation/02-rules-and-verification.md#engine-authority)). One that needs a known die roll first creates its save from a chosen seed with `cuba_libre_unfolded::save::Session::create_seeded` ([saves, "A seeded save"](saves.md#the-record)), and then launches the app on it. Kidnap rolls by seed: 19 → 1, 0 → 2, 5 → 3, 3 → 4, 2 → 5, 1 → 6.
 - A user-selected `CARGO_TARGET_DIR` can reuse a compatible warm build cache; it is not a runtime dependency.
 

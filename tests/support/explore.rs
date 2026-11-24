@@ -1,7 +1,7 @@
 //! The task's reachable states through the authority's own offered decisions, shared
 //! by the integration tests (`available_forces`, `honest_hints`, `marker_supply`,
-//! `seat_reference`) and the panel's discovery test (`src/tabletop/discovery.rs`). The includer brings `Choice`,
-//! `Faction`, `Game` and `TransferChoice` into scope.
+//! `seat_reference`) and the panel's discovery test (`src/tabletop/discovery.rs`). The
+//! includer brings `Choice`, `Faction`, `Game` and `TransferChoice` into scope.
 //!
 //! From each start, offered decisions are explored with at most one Resource
 //! transfer on any path (every Terror remedy here needs at most one), of 1 or of
@@ -18,7 +18,7 @@
 //! representative paths instead of folding that Operation into this graph.
 //!
 //! Exploring dominates these tests, so a test process explores each start once, in
-//! parallel (`explored`), and the tests read the same graphs.
+//! parallel (`explored`, `all_explored`), and the tests read the same graphs.
 #![allow(dead_code)]
 use super::{Choice, Faction, Game, TransferChoice};
 use sha2::{Digest, Sha256};

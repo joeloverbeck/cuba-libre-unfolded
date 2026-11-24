@@ -24,8 +24,8 @@ fn dishonest(nodes: &[Node]) -> BTreeSet<String> {
         .collect();
     let refused: Vec<_> = refused.into_iter().collect();
     let before = predecessors(nodes);
-    let found = parallel(&refused, |_, action| reaching(nodes, &before, action));
-    let can_reach: HashMap<_, _> = refused.into_iter().zip(found).collect();
+    let states = parallel(&refused, |_, action| reaching(nodes, &before, action));
+    let can_reach: HashMap<_, _> = refused.into_iter().zip(states).collect();
     let mut found = BTreeSet::new();
     for node in judged() {
         for (action, label, remedies) in &node.disabled {
