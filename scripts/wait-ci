@@ -16,7 +16,11 @@ for ((try = 0; ; try++)); do
   shown=$(gh pr view "$1" --json headRefOid --jq .headRefOid) || shown=unknown
   if [[ $shown == "$head" ]]; then break; fi
   if ((try == 12)); then
-    echo "wait-ci: pull request $1 is at $shown, and this checkout at $head; push it first" >&2
+    if [[ $shown == unknown ]]; then
+      echo "wait-ci: GitHub does not show pull request $1" >&2
+    else
+      echo "wait-ci: pull request $1 is at $shown, and this checkout at $head; push it first" >&2
+    fi
     exit 1
   fi
   sleep 5
