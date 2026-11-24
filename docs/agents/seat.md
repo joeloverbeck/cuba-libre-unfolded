@@ -399,10 +399,12 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
   - It hovers Santiago's stack, which opens nothing, then clicks it open, steps its quantity to 2 and back, and cancels.
   - It removes one Guerrilla (Kidnap is then unavailable), restarts in removal mode, removes the Base and leaves with Done.
   - After a Kidnap roll it shows the owed-Terror limit and the protected Guerrilla's tag, whose click opens nothing. Escape closes a piece popover.
-- `native_kidnap_die_lands_on_each_face_and_restarts_landed`: runs at 3840×2160 from #8's six seeds, and restarts once during the tumble. Evidence: `local/verification/issue-74/die-*`.
+- `native_kidnap_die_lands_on_each_face_and_restarts_landed`: runs at 3840×2160 from #8's six seeds, and restarts once during the tumble and once on the landed die. Evidence: `local/verification/issue-74/die-*`.
   - For each face it checks the tray, result text, Continue and BRIEFING ribbon against the AC-B die-presented frame ([record](../../art/atlas/KIDNAP.md)), and that they do not overlap.
   - The landed top face meets the study's "about 70 px" floor, made explicit as 69.5 px (139 px at this size).
   - The manual clock moves the die while the seat reports `Kidnap die landing` unsettled. It checks the ledger before and after landing, the landed face and result, and Continue by button and by Enter.
+  - Every piece count stands where it stood before the roll, within 2 px: in the air, landed, after each restart and after Continue (#177).
+- `native_counts_follow_a_resize_while_the_die_is_shown` (in the library: `cargo test --features tabletop --lib -- --ignored native_counts_follow`): resizes the in-process surface, since the seat has no resize request, with the die in the air and then landed. Every piece count matches a table opened at that size, within 2 px, and Continue moves none. Evidence: `local/verification/issue-177/resize-*`.
 - `native_right_drag_orbits_and_the_wheel_zooms_the_table_camera`: drives the table camera's right-drag orbit and wheel zoom through the seat's `drag` and `scroll` requests. Evidence: `local/verification/issue-79/native-*`.
 - `native_execution_panel_matches_layout_and_previews_every_step`: the EX-A panel against its FigCraft layout record at 3840×2160, within 2 px, and every step's tag before its committing click. Evidence: `local/verification/issue-84/ex-a-*`.
   - It covers Terror's targets by space picks (#171), with the panel's map line and record lines (`terror-map-line`, `terror-record:<space>` in `table.choice_parts`), Kidnap opened (Roll and Cancel), End Terror's previews and its owed pill, the clash rule with a space popover, Escape and an outside click, the keyboard to Santiago's popover, and Directorio's handoff.

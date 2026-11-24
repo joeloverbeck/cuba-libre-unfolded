@@ -424,6 +424,8 @@ fn spawn_stage(commands: &mut Commands, art: &DieArt, revision: u64, face: u8, w
                 Name::new("Kidnap tray camera"),
                 Camera3d::default(),
                 TrayCamera,
+                // Another view than the map's, which the piece counts follow (`piles`).
+                unfolded_tabletop::label_anchor::OtherView,
                 // Renders the seat's image after the UI camera, over the panel.
                 unfolded_tabletop::capture::OnSurface,
                 Tonemapping::None,

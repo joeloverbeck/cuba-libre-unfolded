@@ -1396,11 +1396,8 @@ fn bottom(window: &Window) -> Vec2 {
 /// What the table says to the shared camera: an unopened session, the transfer modal
 /// and a presented Kidnap die block it. The whole window shows the scene; the
 /// camera itself leaves the pointer to any interface node it is over, and each
-/// overlaid area has one (`areas::Area`). The die's camera is a second `Camera3d`
-/// that the shared count anchors count beside the map's, and with two they place
-/// nothing, so the map holds still under its counts while the die is shown. The
-/// card tray's camera is always there and is marked as another view instead
-/// (`piles`).
+/// overlaid area has one (`areas::Area`). The die no longer needs the block for its
+/// counts (#177); lifting it is the owner's design decision.
 fn camera_facts(play: &Play, roll: &die::Roll) -> TableFacts {
     let (modal, die) = play.session.as_ref().map_or((false, false), |session| {
         let game = session.game();
