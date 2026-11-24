@@ -372,7 +372,7 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
 - `native_transfer_modal_matches_layout`: the TM-B modal at the owner's 16:9 aspect against its FigCraft layout record, in the 16:9 frame's state (26July asks Syndicate for 2). Evidence: `local/verification/issue-71/transfer-layout-*`.
 - `native_map_targets_and_space_popovers_follow_the_rules`: clicks spaces at the action choice, while Kidnap is open, in removal mode and after End Terror, and finds nothing changed. Evidence: `local/verification/issue-72/targets-*`.
   - It hovers blocked Oriente, which shows only its status tag, and clicks it open at 0 Resources and after a Resource transfer.
-  - It opens Kidnap and Terror from Santiago's popover and Oriente's Terror from the panel.
+  - It opens Kidnap and Terror from Santiago's popover and Oriente's Terror from its own popover (#171).
   - After each transfer, Terror and removal, the map states, the visible highlights and the popover rows agree with the observation's choices, reasons and remedies. It also refuses a changed highlight at launch.
 - `native_map_targets_at_the_owner_s_aspect`: captures the same states at 3840×2160, the owner's display, for comparison with the selected 16:9 frame, and checks that the counts keep their size on that display (#50). Evidence: `local/verification/issue-72/targets-16x9-*`.
 - `native_space_popover_matches_layout`: compares Santiago's popover with its [layout record](../../art/atlas/HIGHLIGHTS.md) at 3840×2160, within 4 px, from `table.popover.parts`. Evidence: `local/verification/review-fix-2/popover-layout-*`.

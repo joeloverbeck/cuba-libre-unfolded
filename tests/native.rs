@@ -4263,7 +4263,7 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
     app.activate("space:santiago", revision);
     assert_eq!(app.observe()["table"]["popover"], Value::Null);
 
-    // Terror from the panel after another Resource transfer.
+    // Oriente's Terror from its popover after another Resource transfer (#171).
     for step in ["transfer", "ask:3:1", "authorize:1"] {
         app.choose(step);
     }
@@ -4272,7 +4272,7 @@ fn native_map_targets_and_space_popovers_follow_the_rules() {
     assert_eq!(panel["observation"]["standings"][1]["score"], 10);
     assert_map_agrees(&panel);
     assert_eq!(target_state(&panel, "oriente"), "not-involved");
-    app.capture("after-oriente-terror-from-panel");
+    app.capture("after-oriente-terror-from-popover");
 
     // Removal mode pauses space targeting; a removal can leave a space with no remedy.
     app.choose("remove");
