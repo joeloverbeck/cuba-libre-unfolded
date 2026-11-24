@@ -1,6 +1,6 @@
 # Focus mark
 
-The owner selected **A · Doble filete** on 2026-11-24 ([selection](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/179), [studies](../proposals/focus-mark/README.md)), for [#179](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/179): an `ink` line outside a control, across a `paper` gap.
+The owner selected **A · Doble filete** on 2026-11-24 ([selection](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/179#issuecomment-7144819750), [studies](../proposals/focus-mark/README.md)), for [#179](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/179): an `ink` line outside a control, across a `paper` gap.
 
 ## What it shows
 
@@ -18,11 +18,12 @@ The owner selected **A · Doble filete** on 2026-11-24 ([selection](https://gith
 | `atlas-focus-mark-pill.png` | 40×40 | 19 | the round segments of the modal's direction toggle |
 | `atlas-focus-mark-field.png` | 24×24 | 9 | the modal's amount field, the light form |
 
-- **Source:** `atlas-focus-mark.vectorcraft`, authored through the VectorCraft MCP (CLI 0.24.1) from the study's A, and exported at 3×. The round cut is not on the study's sheets: on the toggle's round segments the square corners left pieces of the toggle's own outline showing.
+- **Source:** `atlas-focus-mark.vectorcraft`, authored through the VectorCraft MCP from the study's A, and exported at 3×. The CLI is 0.24.1, the build installed on 2026-11-22 from a clean checkout of `storytold/vectorcraft@88f5ece1` ([TOP.md, "The marker supply"](TOP.md#the-marker-supply) gives the same reflog and timestamp evidence; it is not a recorded build). The round cut is not on the study's sheets, so the owner has not selected it and judges it in the build: on the toggle's round segments the square corners left pieces of the toggle's own outline showing.
 - **Manifest:** `focus-mark.sha256` admits the three exports. A missing or changed file refuses launch before any save is created or replaced.
-- **Placement:** nine-sliced, the mark reaches 4 reference pixels past the control on every side: the gap for 1.25, the line for 2, then 0.75 of paper. Two option rows are 4.1 apart. A popover's row is as wide as its card, so its mark lies inside it, 1 pixel in. The mark is the control's child, so it moves, hides and goes with it.
+- **Placement:** nine-sliced, the mark reaches 4 reference pixels past the control on every side: the gap for 1.25, the line for 2, then 0.75 of paper. Two option rows are 4.1 apart. A popover's row is as wide as its card, so its mark lies inside it, 1 pixel in. The direction toggle's segments touch, so its mark lies over the end of the neighbouring segment, off its words. The mark is the control's child, so it moves, hides and goes with it.
 
 ## Limits
 
+- **A popover moved off screen** by the camera hides its mark with it, while its row and button stay keyboard stops: Enter still presses a focused button that is out of sight. #179 left what Enter does unchanged.
 - **Checks:** unit tests compare the rule with what the keyboard reads. The native regressions `native_focus_mark_*` compare the drawn marks' controls with the keyboard's at every stop they reach and find the line in captures, at the owner's display and at 3:2, 16:9 and 21:9 ([seat reference](../../docs/agents/seat.md#native-regressions)). They do not judge how clear the mark is: that is the owner's.
 - **The study's sheets** are composed pictures. The captures of the build are the evidence of what is drawn.

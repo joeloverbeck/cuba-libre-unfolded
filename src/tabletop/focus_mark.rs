@@ -9,11 +9,10 @@
 //! (`focus-mark.sha256`), nine-sliced around the control they mark (FOCUS-MARK.md).
 use super::*;
 use crate::Observation;
-use bevy::ui::widget::NodeImageMode;
 
-/// A plate and its corner slice in reference pixels, exported at 3×: the mark, its
-/// light form for the modal's amount field, and its cut for the round segments of the
-/// modal's direction toggle.
+/// A plate and its corner slice in reference pixels: the mark, its light form for the
+/// modal's amount field, and its cut for the round segments of the modal's direction
+/// toggle.
 const FULL: (&str, f32) = ("atlas-focus-mark.png", 9.);
 const LIGHT: (&str, f32) = ("atlas-focus-mark-field.png", 9.);
 const PILL: (&str, f32) = ("atlas-focus-mark-pill.png", 19.);
@@ -22,6 +21,8 @@ const PILL: (&str, f32) = ("atlas-focus-mark-pill.png", 19.);
 const OUTSET: f32 = 4.;
 /// A popover's row is as wide as its card, so its mark lies inside it, this far in.
 const ROW_INSET: f32 = 1.;
+/// Just over the transfer modal's layer.
+const OVER_MODAL: i32 = 32;
 
 /// A drawn mark, a child of the control it marks.
 #[derive(Component, Clone, Copy, PartialEq)]
@@ -33,13 +34,28 @@ pub(super) struct FocusMark {
     s: f32,
 }
 
-/// The controls that are marked, by their seat names.
+/// The controls that are marked.
 #[derive(Default, Debug, PartialEq)]
 struct Marked {
     /// The control Enter would press.
-    pressed: Option<String>,
-    /// The amount field, while Tab has reached it.
-    field: Option<String>,
+    pressed: Option<Target>,
+    /// Whether Tab has reached the amount field.
+    field: bool,
+}
+/// A control to mark: one by its seat name, or the modal's primary button, whose name
+/// follows the amount before it is drawn again.
+#[derive(Debug, PartialEq)]
+enum Target {
+    Control(String),
+    Primary,
+}
+impl Target {
+    fn is(&self, control: &Control, part: Option<&transfer::Part>) -> bool {
+        match self {
+            Self::Control(name) => &control.name == name,
+            Self::Primary => part.is_some_and(|part| part.0 == transfer::PRIMARY_PART),
+        }
+    }
 }
 
 /// Whether a control Enter would press carries the mark. The others' tags show focus.
@@ -65,25 +81,26 @@ fn marked(
     }
     if die::presented(view.revision, view.kidnap.as_ref(), roll).is_some() {
         return Marked {
-            pressed: roll.landed().then(|| die::CONTINUE.to_owned()),
-            field: None,
+            pressed: roll
+                .landed()
+                .then(|| Target::Control(die::CONTINUE.to_owned())),
+            field: false,
         };
     }
     if transfer::shown(view.transfer.as_ref()) {
         return Marked {
-            pressed: Some(transfer::pressed(view, ui)),
-            field: ui
-                .transfer
-                .focus
-                .clone()
-                .filter(|focus| focus == transfer::FIELD),
+            pressed: Some(match transfer::pressed(view, ui) {
+                transfer::Pressed::Primary(_) => Target::Primary,
+                transfer::Pressed::Other(name) => Target::Control(name),
+            }),
+            field: ui.transfer.focus.as_deref() == Some(transfer::FIELD),
         };
     }
     Marked {
         pressed: choice::pressed(view, ui, targeting, popover)
             .filter(|(_, action)| carries(action))
-            .map(|(name, _)| name),
-        field: None,
+            .map(|(name, _)| Target::Control(name)),
+        field: false,
     }
 }
 
@@ -101,7 +118,7 @@ pub(super) fn draw(
     advance: Res<piles::Advance>,
     time: Res<Time>,
     window: Single<&Window, With<PrimaryWindow>>,
-    controls: Query<(Entity, &Control), With<Node>>,
+    controls: Query<(Entity, &Control, Option<&transfer::Part>), With<Node>>,
     marks: Query<(Entity, &FocusMark)>,
 ) {
     // A decision made in this frame is targeted in the next.
@@ -115,10 +132,13 @@ pub(super) fn draw(
         marked(view, &ui, &targeting, &popover, &roll, flying)
     });
     let s = reference_pixel(&window);
+    let field = wanted
+        .field
+        .then(|| Target::Control(transfer::FIELD.to_owned()));
     let mut missing = vec![];
-    for (name, light) in [(&wanted.pressed, false), (&wanted.field, true)] {
-        let Some(name) = name else { continue };
-        if let Some((on, control)) = controls.iter().find(|(_, c)| &c.name == name) {
+    for (target, light) in [(wanted.pressed, false), (field, true)] {
+        let Some(target) = target else { continue };
+        if let Some((on, control, _)) = controls.iter().find(|(_, c, part)| target.is(c, *part)) {
             missing.push((FocusMark { on, light, s }, control));
         }
     }
@@ -130,35 +150,26 @@ pub(super) fn draw(
         }
     }
     for (mark, control) in missing {
-        let edge = match control.action {
-            Action::Row(_) => px(ROW_INSET * s),
-            _ => px(-OUTSET * s),
+        let round = matches!(
+            control.action,
+            Action::Transfer(transfer::Input::Direction(_))
+        );
+        let (plate, corner) = match (mark.light, round) {
+            (true, _) => LIGHT,
+            (false, true) => PILL,
+            (false, false) => FULL,
         };
-        let (plate, corner) = match control.action {
-            _ if mark.light => LIGHT,
-            Action::Transfer(transfer::Input::Direction(_)) => PILL,
-            _ => FULL,
+        let outset = match control.action {
+            Action::Row(_) => -ROW_INSET,
+            _ => OUTSET,
         };
-        commands.spawn((
-            ImageNode::new(art.images[plate].clone()).with_mode(NodeImageMode::Sliced(
-                TextureSlicer {
-                    border: BorderRect::all(corner * 3.),
-                    max_corner_scale: s / 3.,
-                    ..default()
-                },
-            )),
-            Node {
-                position_type: PositionType::Absolute,
-                left: edge,
-                top: edge,
-                right: edge,
-                bottom: edge,
-                ..default()
-            },
-            Pickable::IGNORE,
-            mark,
-            ChildOf(mark.on),
-        ));
+        let plate = (plate, Some(corner), [outset; 4]);
+        let drawn = popover::plate(&mut commands, &art, mark.on, plate, s);
+        commands.entity(drawn).insert(mark);
+        if round {
+            // The toggle's segments touch: the mark lies over its neighbour's end.
+            commands.entity(drawn).insert(GlobalZIndex(OVER_MODAL));
+        }
     }
 }
 
@@ -167,29 +178,21 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
     let marks: Vec<_> = world
         .query::<(
             &FocusMark,
-            &ChildOf,
             &ComputedNode,
             &bevy::ui::UiGlobalTransform,
             &InheritedVisibility,
         )>()
         .iter(world)
         .filter(|(.., shown)| shown.get())
-        .map(|(mark, parent, node, at, _)| {
-            let scale = node.inverse_scale_factor();
-            let half = node.size() * scale / 2.;
-            let middle = at.translation * scale;
-            let rect = Rect::from_center_half_size(middle, half);
-            (mark.light, parent.parent(), rect)
-        })
+        .map(|(mark, node, at, _)| (*mark, seat::logical_bounds(node, at)))
         .collect();
     marks
         .into_iter()
-        .map(|(light, on, r)| {
-            let control = world.get::<Control>(on).map(|c| c.name.clone());
+        .map(|(mark, bounds)| {
             serde_json::json!({
-                "control": control,
-                "form": if light { "light" } else { "full" },
-                "bounds": [r.min.x, r.min.y, r.max.x, r.max.y],
+                "control": world.get::<Control>(mark.on).map(|c| c.name.clone()),
+                "form": if mark.light { "light" } else { "full" },
+                "bounds": bounds,
             })
         })
         .collect()
@@ -222,8 +225,8 @@ mod tests {
     }
     fn pressed(name: &str) -> Marked {
         Marked {
-            pressed: Some(name.into()),
-            field: None,
+            pressed: Some(Target::Control(name.into())),
+            field: false,
         }
     }
 
@@ -297,23 +300,45 @@ mod tests {
     /// amount field has focus. The field then has the light form beside it.
     #[test]
     fn the_modal_s_primary_is_marked_until_another_control_has_focus() {
+        let primary = |field| Marked {
+            pressed: Some(Target::Primary),
+            field,
+        };
         let view = after(&["terror", "transfer"]);
         let mut ui = Interface::default();
-        assert_eq!(mark(&view, &ui), pressed("transfer:primary"));
+        assert_eq!(mark(&view, &ui), primary(false));
         ui.transfer.focus = Some(transfer::FIELD.into());
-        assert_eq!(
-            mark(&view, &ui),
-            Marked {
-                pressed: Some("transfer:primary".into()),
-                field: Some(transfer::FIELD.into()),
-            }
-        );
+        assert_eq!(mark(&view, &ui), primary(true));
         ui.transfer.focus = Some("2:back".into());
         assert_eq!(mark(&view, &ui), pressed("2:back"));
         // Focus elsewhere on the table does not reach through the modal.
         ui.transfer.focus = None;
         ui.choice.focus = Some("quit".into());
-        assert_eq!(mark(&view, &ui), pressed("transfer:primary"));
+        assert_eq!(mark(&view, &ui), primary(false));
+    }
+
+    /// A dragged slider changes the choice Enter would submit at once, and the drawn
+    /// button's name only on release. The mark stays on the button.
+    #[test]
+    fn the_primary_stays_marked_while_the_amount_changes() {
+        let view = after(&["terror", "transfer"]);
+        let mut ui = Interface::default();
+        ui.transfer.counterpart = Some(Faction::Syndicate);
+        ui.transfer.direction = Some(transfer::Direction::Ask);
+        for (amount, choice) in [("2", "2:ask:3:2"), ("5", "2:ask:3:5")] {
+            ui.transfer.entry = amount.into();
+            assert_eq!(
+                transfer::pressed(&view, &ui),
+                transfer::Pressed::Primary(choice.into())
+            );
+            assert_eq!(
+                mark(&view, &ui),
+                Marked {
+                    pressed: Some(Target::Primary),
+                    field: false,
+                }
+            );
+        }
     }
 
     /// A card in the air takes Enter, and so does the die: in the air it only lands,

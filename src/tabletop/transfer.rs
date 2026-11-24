@@ -367,6 +367,8 @@ fn counterparts(view: &Observation) -> impl Iterator<Item = Faction> + '_ {
         .filter(|&faction| Some(faction) != view.executing)
 }
 
+/// The primary button's part name.
+pub(super) const PRIMARY_PART: &str = "button:primary";
 /// The amount field's seat name.
 pub(super) const FIELD: &str = "transfer:field";
 
@@ -400,17 +402,35 @@ pub(super) fn focusable(view: &Observation, ui: &Interface) -> Vec<String> {
     names
 }
 
-/// The control Enter presses, by its seat name: the focused one, or else the primary
-/// button, which Enter on the amount field presses too. The focus mark is on it (#179).
-pub(super) fn pressed(view: &Observation, ui: &Interface) -> String {
+/// What Enter presses in the modal: the focused control, or else the primary button,
+/// which Enter on the amount field presses too. The focus mark is on it (#179).
+#[derive(Debug, PartialEq)]
+pub(super) enum Pressed {
+    /// The primary button, by its seat name, which follows the amount. While the slider
+    /// is dragged the drawn button keeps the name it was drawn with.
+    Primary(String),
+    /// Another control, by its seat name.
+    Other(String),
+}
+impl Pressed {
+    fn name(self) -> String {
+        match self {
+            Self::Primary(name) | Self::Other(name) => name,
+        }
+    }
+}
+
+pub(super) fn pressed(view: &Observation, ui: &Interface) -> Pressed {
     let mut order = focusable(view, ui);
-    let at = ui
-        .transfer
+    // The primary is the last stop.
+    let primary = order.pop().unwrap();
+    ui.transfer
         .focus
         .as_ref()
-        .filter(|focus| *focus != FIELD)
-        .and_then(|focus| order.iter().position(|name| name == focus));
-    order.swap_remove(at.unwrap_or(order.len() - 1))
+        .filter(|focus| *focus != FIELD && order.contains(focus))
+        .map_or(Pressed::Primary(primary), |focus| {
+            Pressed::Other(focus.clone())
+        })
 }
 
 /// Activates the modal control `name` as a click would.
@@ -516,7 +536,7 @@ pub(super) fn keys(
         return;
     }
     if keys.any_just_pressed([KeyCode::Enter, KeyCode::NumpadEnter]) {
-        let name = pressed(&view, &ui);
+        let name = pressed(&view, &ui).name();
         activate(&mut play, &mut ui, &view, &name);
     }
 }
@@ -2021,7 +2041,7 @@ fn footer(
         shown.commit.is_some(),
         action,
     );
-    part(commands, primary, "button:primary");
+    part(commands, primary, PRIMARY_PART);
     // The primary button is red while 26July composes, and in the giver's colour in a
     // decision. The faction whose colour it is keeps its name there, since its emblem
     // would vanish on it: #60's rule for 26July on red (accepted in #68), applied to

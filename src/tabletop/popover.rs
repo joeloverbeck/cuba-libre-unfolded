@@ -114,7 +114,7 @@ pub(super) fn plate(
     parent: Entity,
     (file, slice, outset): (&str, Option<f32>, [f32; 4]),
     s: f32,
-) {
+) -> Entity {
     let image = ImageNode::new(art.images[file].clone());
     let image = match slice {
         Some(slice) => image.with_mode(NodeImageMode::Sliced(TextureSlicer {
@@ -124,19 +124,21 @@ pub(super) fn plate(
         })),
         None => image.with_mode(NodeImageMode::Stretch),
     };
-    commands.spawn((
-        image,
-        Node {
-            position_type: PositionType::Absolute,
-            left: px(-outset[0] * s),
-            top: px(-outset[1] * s),
-            right: px(-outset[2] * s),
-            bottom: px(-outset[3] * s),
-            ..default()
-        },
-        Pickable::IGNORE,
-        ChildOf(parent),
-    ));
+    commands
+        .spawn((
+            image,
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(-outset[0] * s),
+                top: px(-outset[1] * s),
+                right: px(-outset[2] * s),
+                bottom: px(-outset[3] * s),
+                ..default()
+            },
+            Pickable::IGNORE,
+            ChildOf(parent),
+        ))
+        .id()
 }
 
 /// The Bold Lato face the `Popover/Bold *` styles use; admitted with the regular face.

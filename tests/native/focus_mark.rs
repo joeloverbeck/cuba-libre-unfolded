@@ -246,6 +246,25 @@ fn native_focus_mark_is_on_what_enter_presses() {
     assert_marked(app, "kidnap-die:continue", "die-continue");
     map_keys::press(app, "Enter", "kidnap-die:continue");
     assert_unmarked(app, "Continue closed the die");
+    // Both Terrors can be paid now: the pointer swaps one popover's button for
+    // another's, which Enter would press.
+    map_keys::tab_to(app, "space:santiago");
+    map_keys::press(app, "Enter", "space:santiago");
+    map_keys::tab_to(app, "popover:commit");
+    let santiago = assert_marked(app, "popover:commit", "santiago-button");
+    let at = santiago["observation"]["revision"].as_u64().unwrap();
+    app.activate("space:oriente", at);
+    let oriente = assert_marked(app, "popover:commit", "oriente-button");
+    assert_eq!(oriente["table"]["popover"]["space"], "oriente");
+    assert_ne!(
+        santiago["table"]["focus_mark"][0]["bounds"],
+        oriente["table"]["focus_mark"][0]["bounds"]
+    );
+    escape(app);
+    // Removal mode's panel.
+    app.choose("remove");
+    assert_round(app, "removal mode");
+    app.choose("done-removal");
 
     // The modal: the primary at rest, while blocked and while it can commit.
     app.choose("transfer");
@@ -303,7 +322,9 @@ fn native_focus_mark_is_on_a_pending_request_and_the_card_advance() {
     let mut run = rally::event_app("focus-mark-event-", "issue-179");
     let app = &mut *run;
     rally::open_event_handoff(app);
+    assert_round(app, "Directorio handoff");
     rally::choose_rally_option(app, "event:shaded");
+    assert_round(app, "Directorio's Event");
     rally::choose_rally_option(app, "transfer");
     app.choose("ask:3:2");
     app.choose("wait");
@@ -325,6 +346,11 @@ fn native_focus_mark_is_on_a_pending_request_and_the_card_advance() {
     assert_eq!(marks(&flying), [], "a card is in the air");
     app.request(json!({"op":"settle"}), true);
     assert_unmarked(app, "the cards have landed");
+    // Card 18: Government's options, then Assault's panel, spaces and popover.
+    assert_round(app, "card 18");
+    rally::choose_rally_option(app, "assault");
+    let order = assert_round(app, "Assault");
+    assert!(order.iter().any(|n| n == "space:havana"), "{order:?}");
     app.quit();
 }
 
@@ -350,12 +376,45 @@ fn native_focus_mark_follows_the_window() {
             assert_marked(app, stop, &format!("{name}-{capture}"));
         }
         app.choose("terror");
-        map_keys::tab_to(app, "space:santiago");
-        map_keys::press(app, "Enter", "space:santiago");
-        map_keys::tab_to(app, "popover:commit");
-        assert_marked(app, "popover:commit", &format!("{name}-popover"));
+        for (stop, capture) in [("step:transfer", "step"), ("briefing-ribbon", "ribbon")] {
+            map_keys::tab_to(app, stop);
+            assert_marked(app, stop, &format!("{name}-{capture}"));
+        }
+        map_keys::press(app, "Enter", "briefing-ribbon");
+        map_keys::tab_to(app, "briefing-tab:kidnap");
+        assert_marked(app, "briefing-tab:kidnap", &format!("{name}-tab"));
+        escape(app);
         app.choose("transfer");
         assert_marked(app, "transfer:primary", &format!("{name}-modal"));
+        for (stop, capture) in [
+            ("transfer:tab:government", "modal-tab"),
+            ("transfer:direction:give", "modal-direction"),
+            ("transfer:quick:1", "modal-quick"),
+        ] {
+            modal_to(app, stop);
+            assert_marked(app, stop, &format!("{name}-{capture}"));
+        }
+        modal_to(app, "transfer:field");
+        let field = app.observe();
+        assert_eq!(marks(&field).len(), 2);
+        app.capture(&format!("{name}-modal-field"));
+        assert_line(app, &field, &format!("{name}-modal-field"));
+        app.choose("back");
+        map_keys::tab_to(app, "space:santiago");
+        map_keys::press(app, "Enter", "space:santiago");
+        for (stop, capture) in [
+            ("popover:row:kidnap", "popover-row"),
+            ("popover:commit", "popover"),
+        ] {
+            map_keys::tab_to(app, stop);
+            assert_marked(app, stop, &format!("{name}-{capture}"));
+        }
+        let kidnap = map_keys::press(app, "Enter", "popover:commit");
+        let at = kidnap["observation"]["revision"].as_u64().unwrap();
+        let cancel = format!("{at}:kidnap:cancel");
+        map_keys::tab_to(app, &cancel);
+        assert_marked(app, &cancel, &format!("{name}-kidnap-cancel"));
+        app.roll();
         app.quit();
     }
 }
