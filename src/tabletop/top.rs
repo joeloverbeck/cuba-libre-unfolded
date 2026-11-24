@@ -244,6 +244,8 @@ pub(super) fn header(
 /// What a tag explains. Values come from the observation and the game model; the
 /// notes restate the rules cited beside them, broken into drawn lines.
 pub(super) fn content(view: &crate::Observation, item: Item) -> Shown {
+    // The marker supply's notes state its cap, which the rules model declares once.
+    let marker_notes: [String; 2];
     let (title, rows, notes): (String, Vec<(String, String)>, Vec<&str>) = match item {
         Item::Aid => (
             "Aid".into(),
@@ -335,10 +337,15 @@ pub(super) fn content(view: &crate::Observation, item: Item) -> Shown {
                 // R 3.3.4's cap, and what returns markers (R 6.3.2, 6.3.3, 6.5). Only
                 // what the rules state: nothing on Terror's other effects at 0, nor on
                 // Reprisal or Government Earnings, which the rules leave open (#166).
-                vec![
-                    "Terror and Sabotage share 20 markers. Terror\nplaces no marker when all 20 are on the map\n(R 3.3.4).",
-                    "Civic Action and Agitation return Terror markers\nto the supply (R 6.3.2, 6.3.3); the Reset Phase\nreturns the Terror and Sabotage markers (R 6.5).",
-                ],
+                {
+                    marker_notes = [
+                        format!(
+                            "Terror and Sabotage share {MARKER_SUPPLY} markers. Terror\nplaces no marker when all {MARKER_SUPPLY} are on the map\n(R 3.3.4)."
+                        ),
+                        "Civic Action and Agitation return Terror markers\nto the marker supply (R 6.3.2, 6.3.3); the Reset\nPhase returns the Terror and Sabotage markers\n(R 6.5).".into(),
+                    ];
+                    marker_notes.iter().map(String::as_str).collect()
+                },
             )
         }
     };
