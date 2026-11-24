@@ -14,8 +14,9 @@ fi
 # From a worktree, evidence goes to the main checkout: `git worktree remove` deletes the
 # worktree's own ignored files. A set CUBA_NATIVE_EVIDENCE wins.
 common=$(dirname -- "$(git rev-parse --path-format=absolute --git-common-dir)")
-if [[ -z ${CUBA_NATIVE_EVIDENCE:-} && $common != "$PWD" ]]; then
+if [[ -z ${CUBA_NATIVE_EVIDENCE:-} && $common != "$(git rev-parse --show-toplevel)" ]]; then
   branch=$(git branch --show-current)
+  branch=${branch:-detached}
   run=$(git rev-parse --short HEAD)-$(date +%Y%m%d-%H%M%S)
   export CUBA_NATIVE_EVIDENCE="$common/local/verification/native/${branch//\//-}/$run"
 fi
@@ -136,4 +137,8 @@ if ((${#failed[@]})); then
   echo "native regressions failed in: ${failed[*]}" >&2
   exit 1
 fi
-echo "native regressions: all passed"
+if [[ -n $shard ]]; then
+  echo "native regressions: shard $shard passed; the suite needs all $parts"
+else
+  echo "native regressions: all passed"
+fi

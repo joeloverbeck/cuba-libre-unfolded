@@ -3,7 +3,8 @@
 # under the shared heavy lock, in a fresh memory scope, and with a worktree's private
 # Cargo target (docs/agents/parallel-work.md). Run it from the checkout the command is
 # for: `scripts/heavy cargo test --locked --test integration seat_brief::`.
-# `scripts/heavy --stop` ends this checkout's running command and any app it left.
+# `scripts/heavy --stop` ends this checkout's commands, running or waiting for the lock,
+# and any app they left.
 set -euo pipefail
 
 if (($# == 0)); then
@@ -12,19 +13,29 @@ if (($# == 0)); then
 fi
 checkout=$(git rev-parse --show-toplevel)
 main=$(dirname -- "$(git rev-parse --path-format=absolute --git-common-dir)")
-# One scope name per checkout, so --stop reaches only this checkout's command.
-unit=cuba-heavy-$(sha256sum <<<"$checkout" | cut -c1-12)
+# One scope name per checkout, so --stop reaches only this checkout's commands. Sibling
+# repositories' guards find heavy scopes by systemd's own `run-` prefix.
+unit=run-cuba-heavy-$(sha256sum <<<"$checkout" | cut -c1-12)
 
 if [[ $1 == --stop ]]; then
-  mapfile -t units < <(systemctl --user list-units --type=scope --plain --no-legend "$unit-*" | cut -d' ' -f1)
+  listing=$(systemctl --user list-units --type=scope --plain --no-legend "$unit-*")
+  mapfile -t units < <(awk 'NF { print $1 }' <<<"$listing")
   if ((${#units[@]} == 0)); then
-    echo "scripts/heavy: nothing is running for $checkout"
+    echo "scripts/heavy: nothing is running or waiting for $checkout"
     exit 0
   fi
   systemctl --user stop "${units[@]}"
   echo "scripts/heavy: stopped ${units[*]}"
   exit 0
 fi
+
+# The scope opens before the wait, so it also holds a command that waits for the lock.
+if [[ $1 != --in-scope ]]; then
+  exec systemd-run --user --scope --collect -q --unit="$unit-$$" \
+    -p MemoryHigh=6G -p MemoryMax=7G -p MemorySwapMax=1G -- \
+    "$(realpath -- "${BASH_SOURCE[0]}")" --in-scope "$@"
+fi
+shift
 
 # The main checkout keeps Cargo's default target. A worktree builds into
 # local/target-<branch>, with a branch's slashes as dashes; a set CARGO_TARGET_DIR wins.
@@ -43,17 +54,18 @@ exec 9>"$main/local/heavy.lock"
 flock 9
 
 # Cargo trusts file times, so a target moved or copied from another checkout can serve
-# that checkout's binaries as fresh. The first use from a checkout discards this crate.
-if [[ -n ${CARGO_TARGET_DIR:-} && -d $CARGO_TARGET_DIR ]]; then
-  stamp=$CARGO_TARGET_DIR/.heavy-checkout
-  if [[ ! -f $stamp || $(<"$stamp") != "$checkout" ]]; then
-    echo "scripts/heavy: $CARGO_TARGET_DIR was built for another checkout; discarding this crate's build" >&2
-    cargo clean --quiet --locked -p cuba-libre-unfolded
-  fi
+# that checkout's binaries as fresh. A target last used from another checkout, or never
+# stamped, loses this crate's build.
+target=${CARGO_TARGET_DIR:-$checkout/target}
+stamp=$target/.heavy-checkout
+if [[ -d $target ]] && [[ ! -f $stamp || $(<"$stamp") != "$checkout" ]]; then
+  echo "scripts/heavy: $target is not stamped for this checkout; discarding this crate's build" >&2
+  cargo clean --quiet --locked -p cuba-libre-unfolded
 fi
-if [[ -n ${CARGO_TARGET_DIR:-} ]]; then
-  mkdir -p -- "$CARGO_TARGET_DIR"
-  printf '%s\n' "$checkout" > "$CARGO_TARGET_DIR/.heavy-checkout"
+if [[ ! -d $target ]]; then
+  mkdir -p -- "$target"
+  # Cargo writes this only into a directory it creates.
+  echo "Signature: 8a477f597d28d172789f06886806bc55" > "$target/CACHEDIR.TAG"
 fi
-exec systemd-run --user --scope --collect -q --unit="$unit-$$" \
-  -p MemoryHigh=6G -p MemoryMax=7G -p MemorySwapMax=1G -- "$@"
+printf '%s\n' "$checkout" > "$stamp"
+exec "$@"
