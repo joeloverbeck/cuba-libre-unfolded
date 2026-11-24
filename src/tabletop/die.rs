@@ -453,9 +453,9 @@ fn spawn_stage(commands: &mut Commands, art: &DieArt, revision: u64, face: u8, w
         });
 }
 
-/// The words that report a landed roll, in the session notice. Kidnap proceeds are a
-/// movement the rules require, not a Resource transfer (glossary), so the notice says
-/// Government pays them; running text draws both names as emblems.
+/// The notice of a landed roll, a success that the seat reads and no slip draws
+/// (#174). Kidnap proceeds are a movement the rules require, not a Resource transfer
+/// (glossary), so the notice says Government pays them.
 fn landed_notice(view: &crate::Observation, kidnap: &crate::Kidnap) -> super::notice::Notice {
     super::notice::Notice::success(format!(
         "Kidnap rolled {} · Government pays {} to 26July.\nGovernment {} · 26July {}. Saved.",

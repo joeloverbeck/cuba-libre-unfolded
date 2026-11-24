@@ -361,7 +361,7 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
   - The `aid`, `us-alliance`, `resources` and `cash` tags each open, with their lines inside the plate, and the Resources tag leaves Cash visible.
   - A transfer, both Terror payments and a Kidnap each update the ledger.
   - The top display stays shown while a card tag is open.
-- `native_inline_emblems_sit_on_their_baseline_inside_their_text`: at 1920×1280 and 4096×2160, every inline emblem in the panel, buttons, notice and tags. Evidence: `local/verification/issue-60/inline-*`.
+- `native_inline_emblems_sit_on_their_baseline_inside_their_text`: at 1920×1280 and 4096×2160, every inline emblem in the panel, buttons, a refusal on the notice slip and tags; the notices of decisions that succeeded are read from `table.notice` (#174). Evidence: `local/verification/issue-60/inline-*`.
   - It is 0.9× its type size, lies inside its text's bounds, sits within 1.5 px of its line's baseline, and keeps glued punctuation on its line.
   - Observations keep the names. The seat reports this geometry as `table.inline_text`.
   - Bevy's text layout, parley 0.11, always permits a line break right after an inline image, whatever character follows it, so a word joiner cannot prevent the break. A full stop glued to an emblem ("[S].") could therefore wrap to the next line; the test asserts it does not in the states it exercises.

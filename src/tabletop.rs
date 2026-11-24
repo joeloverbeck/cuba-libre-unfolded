@@ -1201,10 +1201,11 @@ fn listing(parts: &[String]) -> String {
         [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
     }
 }
-/// The session notice for the committed decision `name`. Every rules fact it states
-/// is the authority's (foundation 2, "Engine authority"): the decision's own id, read
-/// through `Choice`'s accessors; the preview the authority showed for it, from
-/// `previous`; or the record in `after`, the observation once it was committed.
+/// The notice for the committed decision `name`, a success: the seat reads it and no
+/// slip draws it (#174). Every rules fact it states is the authority's (foundation 2,
+/// "Engine authority"): the decision's own id, read through `Choice`'s accessors; the
+/// preview the authority showed for it, from `previous`; or the record in `after`, the
+/// observation once it was committed.
 fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &str) -> String {
     let choice = previous.choices.iter().find(|c| c.id == name);
     let action = name.split_once(':').map_or(name, |(_, a)| a);

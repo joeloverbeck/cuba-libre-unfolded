@@ -72,7 +72,7 @@ Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfe
 
 ## Removing your own pieces
 
-"Remove own pieces" opens removal mode (#73). The map marks the executing faction's removable pieces and dims spaces holding none of its pieces ([HIGHLIGHTS.md, "Removal mode"](../art/atlas/HIGHLIGHTS.md#removal-mode-73)). Click a marked piece for the preview, Remove and Cancel, and a quantity selector when it is in a stack. Each Remove returns that many pieces to Available. The mode stays open until Done and survives Save / quit. After resuming, click a piece to reopen its popover.
+"Remove own pieces" opens removal mode (#73). The map marks the executing faction's removable pieces and dims spaces holding none of its pieces ([HIGHLIGHTS.md, "Removal mode"](../art/atlas/HIGHLIGHTS.md#removal-mode-73)). Click a marked piece for the preview, Remove and Cancel, and a quantity selector when it is in a stack. Each Remove returns that many pieces to Available. The mode stays open until Done and survives Save · quit. After resuming, click a piece to reopen its popover.
 
 Supply, Control, standings and legal choices update at once. Earlier Terror, support shifts and Kidnap results stay. While Santiago Terror is owed, its last Underground Guerrilla is locked ([local policy](local-rule-policies.md#owed-terror-after-an-early-kidnap)). During the Event, Directorio can remove its pieces before resolving shaded or choosing the Rally beneficiary, then the beneficiary can remove its own pieces while Rallying.
 
