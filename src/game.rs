@@ -700,6 +700,9 @@ pub struct Site {
     /// removes or closes at least one piece (R 3.2.4, 1.4.5), a Terror (R 3.3.4) or
     /// opening Kidnap (R 4.3.3). False for the Assault plan that removes nothing.
     pub effect: bool,
+    /// Whether only its cost stops the choice: it is refused, nothing in this task can
+    /// pay for it, and no remedy is named (#180). The map lets such a space open.
+    pub unpayable: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Choice {
@@ -746,7 +749,15 @@ impl Choice {
         self.site = Some(Site {
             space: space.to_owned(),
             effect,
+            unpayable: false,
         });
+        self
+    }
+    /// States whether only its cost stops a choice on the map ([`Site::unpayable`]).
+    fn stopped_by_cost(mut self, unpayable: bool) -> Self {
+        if let Some(site) = &mut self.site {
+            site.unpayable = unpayable;
+        }
         self
     }
     /// For a removal in removal mode: its space, group and quantity.
@@ -1302,17 +1313,27 @@ impl Game {
     /// Why `space` is in its map state while 26July executes Terror (#170), from the
     /// Terror and Kidnap choices there (`here`): what a resolved Terror paid (R 3.3.4),
     /// that Kidnap owes Terror there (R 4.3.3), what would open it, or why Terror
-    /// cannot act there. A space where a supported choice acts and nothing is owed
-    /// needs no reason.
+    /// cannot act there. Where a supported choice acts and nothing is owed, it says
+    /// which choices those are and what Terror costs (#180).
     fn terror_reason(&self, space: &Space, here: &[&Choice]) -> Option<String> {
-        if self.terror_resolved.contains(&space.id) {
+        let supported = |terror: bool| {
+            here.iter()
+                .any(|c| c.supported && c.action().starts_with("terror:") == terror)
+        };
+        // Kidnap may follow the Terror it accompanies, so the space is still selectable.
+        if self.terror_resolved.contains(&space.id) && !supported(false) {
             return Some(format!("Terror here paid {}", resources(TERROR_COST)));
         }
         if self.owes_santiago() && space.id == KIDNAP_SPACE {
             return Some("Terror is owed here (R 4.3.3)".into());
         }
-        if here.iter().any(|c| c.supported) {
-            return None;
+        match (supported(true), supported(false)) {
+            (true, true) => {
+                return Some(format!("Terror ({}) or Kidnap", resources(TERROR_COST)));
+            }
+            (true, false) => return Some(format!("Terror costs {}", resources(TERROR_COST))),
+            (false, true) => return Some("Kidnap can start here".into()),
+            (false, false) => {}
         }
         if let Some(blocked) = here.iter().find(|c| !c.remedies.is_empty()) {
             return Some(remedy_line(&blocked.remedies));
@@ -2606,8 +2627,11 @@ impl Game {
                 ),
             },
         );
+        // Not resolved and with a Guerrilla to flip, a refused Terror lacks only its cost.
+        let for_cost = !choice.supported && space.terror == 0 && underground;
+        let unpayable = for_cost && remedies.is_empty();
         choice.remedies = remedies;
-        choice.at(id, true)
+        choice.at(id, true).stopped_by_cost(unpayable)
     }
     /// Whether the owed-Terror protection holds this group's last piece: the last
     /// Santiago Underground Guerrilla while Santiago Terror is owed (accepted
@@ -3283,12 +3307,12 @@ mod space_reason_tests {
     }
 
     /// An Assault space whose plans would remove or close a piece, with none supported
-    /// and no remedy, is not involved, as a Terror with no remedy is: veiled, nothing
-    /// opens on a click and Tab passes it, and its line keeps the authority's reason.
-    /// A space whose only plan removes nothing stays no effect though Government cannot
-    /// pay for it (R 3.2.4, 6.3.1).
+    /// and no remedy, is unpayable (#180): veiled, but choosable to read why, last in the
+    /// Tab order, and its line keeps the authority's reason. A space whose only plan
+    /// removes nothing stays no effect though Government cannot pay for it (R 3.2.4,
+    /// 6.3.1).
     #[test]
-    fn an_assault_space_nobody_can_fund_is_not_involved_and_keeps_its_reason() {
+    fn an_assault_space_nobody_can_fund_is_unpayable_and_keeps_its_reason() {
         use crate::targets::{SpaceState, focus_order, space_targets};
         let mut game = Game::opening_with_seed(2);
         for action in [
@@ -3326,8 +3350,15 @@ mod space_reason_tests {
                     .all(|c| !c.supported && c.remedies.is_empty()),
                 "{space}"
             );
-            assert_eq!(state(space), SpaceState::NotInvolved, "{space}");
-            assert!(!state(space).choosable(), "{space}");
+            assert_eq!(state(space), SpaceState::Unpayable, "{space}");
+            assert!(state(space).choosable(), "{space}");
+            assert_eq!(state(space).drawn(), SpaceState::NotInvolved, "{space}");
+            // Opening it pays for nothing: every plan there is refused.
+            for plan in &effective {
+                let before = game.clone();
+                assert!(game.submit(view.owner, view.revision, &plan.id).is_err());
+                assert_eq!(game, before, "{}", plan.id);
+            }
             assert_eq!(
                 reason(&game, space).as_deref(),
                 Some("Government cannot pay 2 Resources"),
@@ -3346,8 +3377,56 @@ mod space_reason_tests {
             Some("No enemy pieces (R 3.2.4)")
         );
         let order = focus_order(&targets);
-        assert_eq!(order.len(), 11);
-        assert!(!order.contains(&"havana") && !order.contains(&"santiago"));
+        // Tab reaches the 11 no-effect spaces, then the two nothing can pay for (#180).
+        assert_eq!(order.len(), 13);
+        assert_eq!(order[11..], ["havana", "santiago"]);
+    }
+
+    /// #180: a Terror refused for its cost alone leaves its space unpayable, whether
+    /// 26July has nothing or keeps its last Resource for the owed Terror; a Terror with
+    /// no Underground Guerrilla, and a resolved one, leave theirs not involved.
+    #[test]
+    fn a_terror_only_its_cost_stops_leaves_its_space_unpayable() {
+        use crate::targets::{SpaceState, focus_order, space_targets};
+        let state = |game: &Game, space: &str| {
+            space_targets(&game.observe())
+                .unwrap()
+                .into_iter()
+                .find(|t| t.space == space)
+                .unwrap()
+                .state
+        };
+        let mut game = Game::opening_with_seed(2);
+        choose(&mut game, "terror");
+        game.resources = [0; 4];
+        assert_eq!(state(&game, "santiago"), SpaceState::Unpayable);
+        assert_eq!(state(&game, "oriente"), SpaceState::Unpayable);
+        let targets = space_targets(&game.observe()).unwrap();
+        assert_eq!(focus_order(&targets), ["santiago", "oriente"]);
+        // A giver with a Resource makes the transfer a remedy again.
+        game.resources[Faction::Syndicate.index()] = 1;
+        assert_eq!(state(&game, "oriente"), SpaceState::Blocked);
+
+        let mut owed = Game::opening_with_seed(2);
+        for action in ["terror", "kidnap", "kidnap:roll"] {
+            choose(&mut owed, action);
+        }
+        owed.resources = [0; 4];
+        owed.resources[Faction::M26.index()] = 1;
+        assert_eq!(state(&owed, "santiago"), SpaceState::Selectable);
+        assert_eq!(state(&owed, "oriente"), SpaceState::Unpayable);
+
+        let mut gone = Game::opening_with_seed(2);
+        for action in [
+            "terror",
+            "remove",
+            "remove:oriente:underground:1",
+            "done-removal",
+        ] {
+            choose(&mut gone, action);
+        }
+        gone.resources = [0; 4];
+        assert_eq!(state(&gone, "oriente"), SpaceState::NotInvolved);
     }
 
     /// The same state reached by legal decisions alone (spec #166's review, D1).
@@ -3405,8 +3484,8 @@ mod space_reason_tests {
             .collect();
         assert!(plans.iter().any(|c| c.site.as_ref().unwrap().effect));
         assert!(plans.iter().all(|c| !c.supported && c.remedies.is_empty()));
-        assert_eq!(havana.state, SpaceState::NotInvolved);
-        assert!(focus_order(&targets).is_empty());
+        assert_eq!(havana.state, SpaceState::Unpayable);
+        assert_eq!(focus_order(&targets), ["havana"]);
         assert_eq!(
             reason(&game, "havana").as_deref(),
             Some("Government cannot pay 2 Resources")
@@ -3485,8 +3564,8 @@ mod space_reason_tests {
         assert_eq!(
             shown(&short),
             (
-                SpaceState::NotInvolved,
-                vec![],
+                SpaceState::Unpayable,
+                vec!["havana".to_owned()],
                 Some("Government cannot pay 2 Resources".into())
             )
         );
@@ -3525,7 +3604,8 @@ mod space_reason_tests {
             give(game, 3);
             assert_eq!(game.observe().resources, [2, 0, 0, 0]);
             let (state, stops, reason) = shown(game);
-            assert_eq!((state, reason), (SpaceState::Selectable, None));
+            assert_eq!(state, SpaceState::Selectable);
+            assert_eq!(reason.as_deref(), Some("Can close 1 Casino"));
             assert_eq!(stops, ["havana", "ec-oriente-sierra"]);
             choose(game, "assault:havana:syndicate");
             assert_eq!(game.observe().resources, [0; 4]);

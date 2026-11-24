@@ -37,8 +37,8 @@ fn surface(view: &Observation, choice: &Choice) -> Option<&'static str> {
         }
     }
     // A choice that names a space is presented by that space's popover, which a click
-    // or Enter opens where the map marks the space selectable or blocked (#168): the
-    // chosen row with the one button, or a blocked row with its reason (#171).
+    // or Enter opens where the space is choosable (#168): the chosen row with the one
+    // button, or a refused row with its reason (#171, #180).
     if let Some(space) = choice.space()
         && targets::space_targets(view)
             .is_some_and(|all| all.iter().any(|t| t.space == space && t.state.choosable()))
@@ -55,8 +55,8 @@ fn surface(view: &Observation, choice: &Choice) -> Option<&'static str> {
             return Some("space popover (refused)");
         }
     }
-    // A refused choice that names a space, with nothing in this task to change it,
-    // leaves its space not involved: the map veils it, and a click opens nothing. The
+    // A choice refused for another reason than its cost, with nothing in this task to
+    // change it, leaves its space not involved: the map veils it, and a click opens nothing. The
     // authority's reason stays in the observation for the seat; the map does not word
     // it (#171 moved Terror's targets off the panel, whose row gave it).
     if let Some(space) = choice.space()

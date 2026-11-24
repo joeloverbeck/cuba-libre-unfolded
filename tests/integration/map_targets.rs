@@ -332,27 +332,64 @@ fn each_space_s_tag_reason_during_terror_comes_from_the_authority() {
         all
     };
     // 26July has 0. Santiago is selectable all the same, since Kidnap may open there
-    // (2 Guerrillas outnumber 1 Police and Government has 6 to take), so it needs no
-    // reason; Oriente can be funded only by a transfer.
+    // (2 Guerrillas outnumber 1 Police and Government has 6 to take), and its line says
+    // so; Oriente can be funded only by a transfer.
     let mut game = crate::terror_chosen(Game::opening_with_seed(2));
     assert_eq!(
         reasons(&game),
-        with(&game, None, Some("A Resource transfer opens it"))
+        with(
+            &game,
+            Some("Kidnap can start here"),
+            Some("A Resource transfer opens it")
+        )
+    );
+    // With a Resource, Santiago offers Terror as well as Kidnap.
+    let mut funded = game.clone();
+    give(&mut funded, Faction::Syndicate, 1);
+    assert_eq!(
+        reasons(&funded),
+        with(
+            &funded,
+            Some("Terror (1 Resource) or Kidnap"),
+            Some("Terror costs 1 Resource")
+        )
     );
     // Seed 2's Kidnap roll is 5: 26July has 5, and Santiago's Terror is owed (R 4.3.3).
-    // Oriente is affordable with 1 Resource kept for Santiago, so it needs no reason.
+    // Oriente is affordable with 1 Resource kept for Santiago.
     choose(&mut game, "kidnap");
     assert!(game.observe().space_reasons.is_empty(), "Kidnap is open");
     choose(&mut game, "kidnap:roll");
     assert_eq!(
         reasons(&game),
-        with(&game, Some("Terror is owed here (R 4.3.3)"), None)
+        with(
+            &game,
+            Some("Terror is owed here (R 4.3.3)"),
+            Some("Terror costs 1 Resource")
+        )
     );
     // Santiago's Terror resolves and pays 1 (R 3.3.4).
     choose(&mut game, "terror:santiago");
     assert_eq!(
         reasons(&game),
-        with(&game, Some("Terror here paid 1 Resource"), None)
+        with(
+            &game,
+            Some("Terror here paid 1 Resource"),
+            Some("Terror costs 1 Resource")
+        )
+    );
+    // Terror first, then Kidnap: Santiago's Terror is resolved, and the space is still
+    // selectable because Kidnap may start there (R 4.3.3), which is what its line says.
+    let mut terror_first = crate::terror_chosen(Game::opening_with_seed(2));
+    give(&mut terror_first, Faction::Syndicate, 2);
+    choose(&mut terror_first, "terror:santiago");
+    assert_eq!(state(&terror_first, "santiago").0, SpaceState::Selectable);
+    assert_eq!(
+        reasons(&terror_first),
+        with(
+            &terror_first,
+            Some("Kidnap can start here"),
+            Some("Terror costs 1 Resource")
+        )
     );
     // Removing Oriente's only Guerrilla leaves its Terror refused with no remedy:
     // the space is not involved, and its tag says why.

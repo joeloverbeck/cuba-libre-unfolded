@@ -10,9 +10,12 @@
 //! - **No effect:** the space's only choices change nothing on the map, as the
 //!   Assault plan that removes nothing. The space stays choosable (R 3.2.4, 4.1),
 //!   whether or not its choices are supported.
-//! - **Not involved:** no choice acts there, or none could: a Terror with no remedy,
-//!   Assault plans that would remove or close a piece where nothing can pay and no
-//!   remedy is named, or a space already paid in this Assault (R 3.1).
+//! - **Unpayable:** a choice there would change something, and only its cost stops it:
+//!   nothing in this task can pay and no remedy is named (#180). The space stays
+//!   choosable, so its popover can say why.
+//! - **Not involved:** no choice acts there, or none could for another reason than its
+//!   cost: a resolved Terror, a Terror with no Underground Guerrilla, or a space already
+//!   paid in this Assault (R 3.1).
 //!
 //! In removal mode (#73) piece states replace them: each of the executor's groups is
 //! removable, or protected by the owed Terror (accepted commitment policy, local),
@@ -27,19 +30,23 @@ pub enum SpaceState {
     Blocked,
     /// Choosable, and every choice there changes nothing on the map (#169).
     NoEffect,
+    /// A choice there would act, and only its cost stops it: nothing in this task can
+    /// pay for it and no remedy is named. Choosable, to read why (#180).
+    Unpayable,
     NotInvolved,
 }
 
 impl SpaceState {
     /// The states whose spaces the keyboard reaches, in the order Tab reaches them
     /// (#168): where a supported choice acts, then where an in-task remedy would open
-    /// one, then where the only choices change nothing (#169). This list is the one
-    /// rule for that order: a state added later takes its place here, and a state not
-    /// listed takes no focus.
+    /// one, then where the only choices change nothing (#169), then where nothing can
+    /// pay (#180). This list is the one rule for that order: a state added later takes
+    /// its place here, and a state not listed takes no focus.
     pub const FOCUS_ORDER: &'static [SpaceState] = &[
         SpaceState::Selectable,
         SpaceState::Blocked,
         SpaceState::NoEffect,
+        SpaceState::Unpayable,
     ];
 
     /// Whether choosing a space in this state opens what the authority offers there.
@@ -47,11 +54,11 @@ impl SpaceState {
         Self::FOCUS_ORDER.contains(&self)
     }
 
-    /// The state whose graphic the map draws for this one: a no-effect space is as
-    /// quiet as a space no choice acts on, so it draws that state's veil.
+    /// The state whose graphic the map draws for this one: a no-effect or unpayable
+    /// space is as quiet as a space no choice acts on, so it draws that state's veil.
     pub fn drawn(self) -> SpaceState {
         match self {
-            SpaceState::NoEffect => SpaceState::NotInvolved,
+            SpaceState::NoEffect | SpaceState::Unpayable => SpaceState::NotInvolved,
             state => state,
         }
     }
@@ -108,6 +115,11 @@ pub fn space_targets(view: &Observation) -> Option<Vec<SpaceTarget>> {
                     SpaceState::Blocked
                 } else if here.iter().all(|c| !effect(c)) && !here.is_empty() {
                     SpaceState::NoEffect
+                } else if here
+                    .iter()
+                    .any(|c| c.site.as_ref().is_some_and(|s| s.effect && s.unpayable))
+                {
+                    SpaceState::Unpayable
                 } else {
                     SpaceState::NotInvolved
                 };

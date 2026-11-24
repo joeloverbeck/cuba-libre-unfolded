@@ -428,6 +428,56 @@ fn plural<'a>(count: u8, one: &'a str, many: &'a str) -> &'a str {
     if count == 1 { one } else { many }
 }
 
+/// The most characters a description takes in the tag's line. Without an emblem words
+/// run wider than the reason lines (`art/atlas/STATUS.md`, "The open decision's line"),
+/// so the limit is lower than theirs.
+const OUTCOME_CHARS: usize = 31;
+
+/// What the most effective Assault in `space` would do (R 3.2.4, 1.4.5), as the space
+/// tag's line: the plan that affects the most pieces, or "up to" that many where several
+/// do, as when a short capacity can be divided. Where those plans differ in what they
+/// affect, or the words would not fit the line, it gives the number of pieces alone.
+fn best_outcome(space: &Space) -> String {
+    let outcome = |plan: &Plan| {
+        let of = |kind| -> u8 {
+            plan.detail
+                .removed
+                .iter()
+                .filter(|group| group.kind == kind)
+                .map(|group| group.count)
+                .sum()
+        };
+        (of(Kind::Guerrilla), of(Kind::Base), plan.detail.closed)
+    };
+    let total = |(guerrillas, bases, casinos): (u8, u8, u8)| guerrillas + bases + casinos;
+    let all: Vec<_> = plans(space).iter().map(outcome).collect();
+    let most = all.iter().map(|one| total(*one)).max().unwrap_or_default();
+    let best: Vec<_> = all.into_iter().filter(|one| total(*one) == most).collect();
+    let up_to = if best.len() > 1 { "up to " } else { "" };
+    let first = best[0];
+    let guerrillas = format!("{} {}", first.0, plural(first.0, "Guerrilla", "Guerrillas"));
+    let bases = format!("{} {}", first.1, plural(first.1, "Base", "Bases"));
+    let described = match first {
+        _ if best.iter().any(|other| *other != first) => None,
+        (_, 0, 0) => Some(format!("Can remove {up_to}{guerrillas}")),
+        (0, _, 0) => Some(format!("Can remove {up_to}{bases}")),
+        (0, 0, n) => Some(format!(
+            "Can close {up_to}{n} {}",
+            plural(n, "Casino", "Casinos")
+        )),
+        (_, _, 0) => Some(format!("Can remove {up_to}{guerrillas}, {bases}")),
+        _ => None,
+    };
+    described
+        .filter(|line| line.chars().count() <= OUTCOME_CHARS)
+        .unwrap_or_else(|| {
+            format!(
+                "Can affect {up_to}{most} {}",
+                plural(most, "piece", "pieces")
+            )
+        })
+}
+
 fn payment_action(action: &str) -> Option<&str> {
     let (space, _) = action.strip_prefix("assault:")?.split_once(':')?;
     Some(space)
@@ -450,8 +500,8 @@ impl Game {
     /// Why `space` is in its map state while the Assault is open (#170), from the
     /// plans offered there (`here`): what a paid space paid (R 3.1), what would open a
     /// space Government cannot pay for now, that nothing can pay for a space where a plan
-    /// would act (not involved), or why Assault would remove nothing there.
-    /// A space where a supported plan affects a piece needs no reason.
+    /// would act (unpayable), or why Assault would remove nothing there.
+    /// A space where a supported plan affects a piece says what its best plan does.
     pub(super) fn assault_reason(&self, space: &Space, here: &[&Choice]) -> Option<String> {
         let assault = self.assault.as_ref()?;
         if let Some(paid) = assault.paid.iter().find(|paid| paid.space == space.id) {
@@ -462,7 +512,7 @@ impl Game {
             .filter(|c| c.site.as_ref().is_some_and(|site| site.effect))
             .collect();
         if effective.iter().any(|c| c.supported) {
-            return None;
+            return Some(best_outcome(space));
         }
         if let Some(blocked) = effective.iter().find(|c| !c.remedies.is_empty()) {
             return Some(remedy_line(&blocked.remedies));
@@ -598,7 +648,8 @@ impl Game {
                     };
                     let mut choice = self
                         .offer(&plan.action, plan.label.as_str(), funded, explanation)
-                        .at(&space.id, plan.effect());
+                        .at(&space.id, plan.effect())
+                        .stopped_by_cost(!funded && !transfer_helps);
                     if transfer_helps {
                         choice.remedies.push(TRANSFER_REMEDY.to_owned());
                     }
@@ -829,6 +880,119 @@ mod reason_tests {
             assert_eq!(plan.effect(), plan.action != "assault:probe:none");
             assert_eq!(plan.detail.closed, 0);
         }
+    }
+
+    /// What the best Assault would do, worked by hand from R 3.2.4 (1 piece per Troop in
+    /// Grassland, plus 1 per Police in a City; a faction's Bases only once it has no
+    /// Guerrillas there; a Casino closes, R 1.4.5).
+    #[test]
+    fn a_selectable_space_says_what_its_best_assault_would_do() {
+        let active = |faction, count| (faction, Kind::Guerrilla, State::Active, count);
+        let base = |faction, count| (faction, Kind::Base, State::Ordinary, count);
+        let casino = |count| (Faction::Syndicate, Kind::Casino, State::Open, count);
+        for (terrain, pieces, expected) in [
+            // Capacity 3, 2 Active: both.
+            (
+                Terrain::City,
+                vec![with(TROOPS, 2), with(POLICE, 1), active(Faction::M26, 2)],
+                "Can remove 2 Guerrillas",
+            ),
+            // Capacity 1: one of the two.
+            (
+                Terrain::Grassland,
+                vec![with(TROOPS, 1), active(Faction::M26, 2)],
+                "Can remove 1 Guerrilla",
+            ),
+            // No Guerrillas: the Base.
+            (
+                Terrain::Grassland,
+                vec![with(TROOPS, 4), base(Faction::M26, 1)],
+                "Can remove 1 Base",
+            ),
+            // Guerrillas first, then the Base: 2 + 1 of capacity 3.
+            (
+                Terrain::Grassland,
+                vec![
+                    with(TROOPS, 3),
+                    active(Faction::M26, 2),
+                    base(Faction::M26, 1),
+                ],
+                "Can remove 2 Guerrillas, 1 Base",
+            ),
+            (
+                Terrain::City,
+                vec![with(TROOPS, 6), casino(1)],
+                "Can close 1 Casino",
+            ),
+            // Two factions and room for both: Guerrillas of either, 4 in all.
+            (
+                Terrain::Grassland,
+                vec![
+                    with(TROOPS, 4),
+                    active(Faction::M26, 3),
+                    active(Faction::Directorio, 1),
+                ],
+                "Can remove 4 Guerrillas",
+            ),
+            // Capacity 2 among 5 of two factions: whichever are chosen, 2 Guerrillas.
+            (
+                Terrain::Grassland,
+                vec![
+                    with(TROOPS, 2),
+                    active(Faction::M26, 3),
+                    active(Faction::Directorio, 2),
+                ],
+                "Can remove up to 2 Guerrillas",
+            ),
+            // Capacity 1: a Guerrilla, or the Casino.
+            (
+                Terrain::Grassland,
+                vec![with(TROOPS, 1), active(Faction::M26, 1), casino(1)],
+                "Can affect up to 1 piece",
+            ),
+            // Room for a Guerrilla and the Casino: two kinds, one plan.
+            (
+                Terrain::Grassland,
+                vec![with(TROOPS, 2), active(Faction::M26, 1), casino(1)],
+                "Can affect 2 pieces",
+            ),
+            // Directorio's Underground Guerrillas are out of reach and not counted.
+            (
+                Terrain::City,
+                vec![
+                    with(TROOPS, 6),
+                    with(POLICE, 4),
+                    (Faction::Directorio, Kind::Guerrilla, State::Underground, 2),
+                    casino(1),
+                ],
+                "Can close 1 Casino",
+            ),
+        ] {
+            let line = best_outcome(&space(terrain, &pieces));
+            assert_eq!(line, expected, "{pieces:?}");
+            assert!(line.chars().count() <= OUTCOME_CHARS, "{line}");
+        }
+        // The longest words the pieces allow are replaced by the number.
+        let crowded = space(
+            Terrain::Grassland,
+            &[
+                with(TROOPS, 20),
+                active(Faction::M26, 15),
+                active(Faction::Directorio, 12),
+                base(Faction::M26, 2),
+                base(Faction::Directorio, 2),
+            ],
+        );
+        assert_eq!(best_outcome(&crowded), "Can affect up to 20 pieces");
+        let ten = space(
+            Terrain::Grassland,
+            &[
+                with(TROOPS, 20),
+                active(Faction::M26, 10),
+                base(Faction::M26, 2),
+            ],
+        );
+        assert_eq!(best_outcome(&ten), "Can affect 12 pieces");
     }
 
     /// Each kind of reason R 3.2.4 gives for an Assault that removes nothing, worked

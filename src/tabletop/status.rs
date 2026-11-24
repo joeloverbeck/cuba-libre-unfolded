@@ -245,59 +245,13 @@ pub(super) fn draw(
         }
         let size = Vec2::new(272., tag_height(space.terrain, reason.is_some())) * scale;
         let gap = 22. * scale;
-        let center = region.center();
-        let mut candidates = vec![
-            Vec2::new(region.max.x + gap, center.y - size.y / 2.),
-            Vec2::new(center.x - size.x / 2., region.min.y - size.y - gap),
-            Vec2::new(center.x - size.x / 2., region.max.y + gap),
-            Vec2::new(region.min.x - size.x - gap, center.y - size.y / 2.),
-        ];
         let margin = 2. * scale;
-        let lo = viewport.min + Vec2::splat(margin);
-        let hi = viewport.max - Vec2::splat(margin) - size;
-        if hi.cmplt(lo).any() {
-            return None;
-        }
-        candidates.extend([
-            Vec2::new(region.min.x - size.x - gap, lo.y),
-            Vec2::new(region.max.x + gap, lo.y),
-            Vec2::new(region.min.x - size.x - gap, hi.y),
-            Vec2::new(region.max.x + gap, hi.y),
-        ]);
-        // Try the coast across the available viewport as well as the nearest
-        // four sides. Prefer empty water over covering another region.
-        for ix in 0..=12 {
-            for iy in 0..=5 {
-                candidates.push(lo + (hi - lo) * Vec2::new(ix as f32 / 12., iy as f32 / 5.));
-            }
-        }
-        let tag = candidates
-            .into_iter()
-            .map(|p| Rect::from_corners(p.clamp(lo, hi), p.clamp(lo, hi) + size))
-            .filter(|r| {
-                r.max.x + gap <= region.min.x
-                    || r.min.x >= region.max.x + gap
-                    || r.max.y + gap <= region.min.y
-                    || r.min.y >= region.max.y + gap
-            })
-            .filter(|r| {
-                occupied.iter().all(|other| {
-                    r.max.x + 2. * scale <= other.min.x
-                        || r.min.x >= other.max.x + 2. * scale
-                        || r.max.y + 2. * scale <= other.min.y
-                        || r.min.y >= other.max.y + 2. * scale
-                })
-            })
-            .min_by(|a, b| {
-                let leader_length = |r: &Rect| {
-                    coast
-                        .iter()
-                        .map(|p| p.distance_squared(p.clamp(r.min, r.max)))
-                        .min_by(f32::total_cmp)
-                        .unwrap_or(f32::INFINITY)
-                };
-                leader_length(a).total_cmp(&leader_length(b))
-            })?;
+        let bounds = Rect::from_corners(
+            viewport.min + Vec2::splat(margin),
+            viewport.max - Vec2::splat(margin),
+        );
+        let found = candidates(region, bounds, size, gap, SWEEP * scale);
+        let tag = place(found, region, bounds, size, gap, margin, &occupied, &coast)?;
         // A vertex on the actual authored coast unambiguously belongs to the
         // region, unlike an AABB corner. Its nearest exposed coast keeps the
         // leader away from names and pieces in the interior.
@@ -484,6 +438,88 @@ pub(super) fn draw(
 #[derive(Component)]
 pub(super) struct Reason;
 
+/// The step of the sweep around a space, in reference pixels.
+const SWEEP: f32 = 8.;
+
+/// Where the tag of `size` may stand for the space whose projected bounds are `region`,
+/// by their top-left corners: beside each side of the space at every `step`, so the tag
+/// takes the nearest free place (#180), then a coarse grid across `bounds`. Corners
+/// outside `bounds` are drawn back inside it by [`place`].
+fn candidates(region: Rect, bounds: Rect, size: Vec2, gap: f32, step: f32) -> Vec<Vec2> {
+    let lo = bounds.min;
+    let hi = bounds.max - size;
+    let center = region.center();
+    let (left, right) = (region.min.x - size.x - gap, region.max.x + gap);
+    let (above, below) = (region.min.y - size.y - gap, region.max.y + gap);
+    let mut all = vec![
+        Vec2::new(right, center.y - size.y / 2.),
+        Vec2::new(center.x - size.x / 2., above),
+        Vec2::new(center.x - size.x / 2., below),
+        Vec2::new(left, center.y - size.y / 2.),
+        Vec2::new(left, lo.y),
+        Vec2::new(right, lo.y),
+        Vec2::new(left, hi.y),
+        Vec2::new(right, hi.y),
+    ];
+    // Across the available viewport as well as the nearest sides: prefer empty water
+    // over covering another region.
+    for ix in 0..=12 {
+        for iy in 0..=5 {
+            all.push(lo + (hi - lo) * Vec2::new(ix as f32 / 12., iy as f32 / 5.));
+        }
+    }
+    let sweep = |from: f32, to: f32| {
+        let steps = ((to - from) / step).ceil().max(0.) as usize;
+        (0..=steps).map(move |n| (from + n as f32 * step).min(to))
+    };
+    for y in sweep(above, below) {
+        all.extend([Vec2::new(left, y), Vec2::new(right, y)]);
+    }
+    for x in sweep(left, right) {
+        all.extend([Vec2::new(x, above), Vec2::new(x, below)]);
+    }
+    all
+}
+
+/// The free candidate whose leader to the space's `coast` is shortest: at least `gap`
+/// from the space and `margin` from everything `occupied`, inside `bounds`.
+#[allow(clippy::too_many_arguments)]
+fn place(
+    candidates: Vec<Vec2>,
+    region: Rect,
+    bounds: Rect,
+    size: Vec2,
+    gap: f32,
+    margin: f32,
+    occupied: &[Rect],
+    coast: &[Vec2],
+) -> Option<Rect> {
+    let lo = bounds.min;
+    let hi = bounds.max - size;
+    if hi.cmplt(lo).any() {
+        return None;
+    }
+    let clear = |r: &Rect, other: &Rect, by: f32| {
+        r.max.x + by <= other.min.x
+            || r.min.x >= other.max.x + by
+            || r.max.y + by <= other.min.y
+            || r.min.y >= other.max.y + by
+    };
+    let leader_length = |r: &Rect| {
+        coast
+            .iter()
+            .map(|p| p.distance_squared(p.clamp(r.min, r.max)))
+            .min_by(f32::total_cmp)
+            .unwrap_or(f32::INFINITY)
+    };
+    candidates
+        .into_iter()
+        .map(|p| Rect::from_corners(p.clamp(lo, hi), p.clamp(lo, hi) + size))
+        .filter(|r| clear(r, &region, gap - 0.01))
+        .filter(|r| occupied.iter().all(|other| clear(r, other, margin)))
+        .min_by(|a, b| leader_length(a).total_cmp(&leader_length(b)))
+}
+
 /// The tag's dynamic text style (STATUS.md): Lato at 17 reference pixels, 12 in from
 /// the row's left edge and at most 248 wide.
 const TEXT_SIZE: f32 = 17.;
@@ -526,6 +562,62 @@ mod tests {
     use super::super::highlights::Targeting;
     use super::*;
     use crate::targets::space_targets;
+
+    /// #180: the fine sweep keeps every place the search tried before, so a tag never
+    /// stands further from its space, and it never covers anything occupied.
+    #[test]
+    fn the_sweep_finds_a_place_at_least_as_near_and_covers_nothing() {
+        let bounds = Rect::new(2., 2., 2274., 1278.);
+        let size = Vec2::new(272., 208.);
+        let (gap, margin) = (22., 2.);
+        let distance = |r: &Rect, coast: &[Vec2]| {
+            coast
+                .iter()
+                .map(|p| p.distance(p.clamp(r.min, r.max)))
+                .min_by(f32::total_cmp)
+                .unwrap()
+        };
+        // Areas at the top, left and right, as the main view has them, and a band of
+        // land below, in reference pixels.
+        let areas = [
+            Rect::new(580., 18., 740., 84.),
+            Rect::new(60., 178., 292., 560.),
+            Rect::new(1736., 280., 2236., 940.),
+            Rect::new(60., 950., 620., 1270.),
+            Rect::new(390., 400., 1660., 780.),
+        ];
+        let mut nearer = 0;
+        for x in (300..1700).step_by(140) {
+            for y in (60..1150).step_by(90) {
+                let region = Rect::new(x as f32, y as f32, x as f32 + 180., y as f32 + 130.);
+                let coast = [
+                    region.min,
+                    region.max,
+                    Vec2::new(region.min.x, region.max.y),
+                    Vec2::new(region.max.x, region.min.y),
+                ];
+                let all = candidates(region, bounds, size, gap, SWEEP);
+                // The places tried before the sweep: the four sides, the corners and
+                // the 13 by 6 grid.
+                let before = all[..8 + 13 * 6].to_vec();
+                let at = |found| place(found, region, bounds, size, gap, margin, &areas, &coast);
+                let (old, new) = (at(before), at(all));
+                if let Some(old) = old {
+                    let new = new.expect("a place found before is still found");
+                    let (far, near) = (distance(&old, &coast), distance(&new, &coast));
+                    assert!(near <= far, "{region:?}: {near} > {far}");
+                    nearer += usize::from(near + 1. < far);
+                }
+                for area in areas.iter().chain([&region]) {
+                    assert!(
+                        new.is_none_or(|r| r.intersect(*area).is_empty()),
+                        "{region:?} covers {area:?}"
+                    );
+                }
+            }
+        }
+        assert!(nearer > 0, "the sweep changes nothing");
+    }
 
     fn choose(game: &mut Game, action: &str) {
         let view = game.observe();
@@ -572,8 +664,8 @@ mod tests {
     }
 
     /// #170: the tag's line for each kind of reason is the rules authority's, drawn on
-    /// one row below the tag's other rows; a space that needs no reason, and every
-    /// space outside a decision that offers spaces, keeps the tag it had.
+    /// one row below the tag's other rows; every space
+    /// outside a decision that offers spaces keeps the tag it had.
     #[test]
     fn the_tag_s_line_is_the_authority_s_reason_for_each_kind() {
         let terror = crate::terror_chosen(Game::opening_with_seed(2));
@@ -622,8 +714,21 @@ mod tests {
                 Terrain::City,
                 Some("Assaulted · paid 2 Resources"),
             ),
-            // Assault: a selectable space needs no reason.
-            (&paid, "havana", Terrain::City, None),
+            // Assault: what a selectable space's best plan would do (#180).
+            (&paid, "havana", Terrain::City, Some("Can close 1 Casino")),
+            // Terror: what a selectable space offers: Kidnap alone while 26July has 0.
+            (
+                &terror,
+                "santiago",
+                Terrain::City,
+                Some("Kidnap can start here"),
+            ),
+            (
+                &owed,
+                "oriente",
+                Terrain::Forest,
+                Some("Terror costs 1 Resource"),
+            ),
             // Terror: what would open a blocked space.
             (
                 &terror,

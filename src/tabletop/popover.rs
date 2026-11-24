@@ -2533,6 +2533,39 @@ mod tests {
         }
     }
 
+    /// #180: a space nothing can pay for opens to say why. Its plans are listed, each
+    /// unavailable with the authority's reason and no remedy, and no button pays.
+    #[test]
+    fn an_unpayable_space_s_popover_lists_its_plans_without_a_button() {
+        let mut game = assault(0);
+        game.resources = [1, 0, 0, 0];
+        let mut targeting = Targeting::default();
+        targeting.targets = crate::targets::space_targets(&game.observe());
+        targeting.view = Some(game.observe());
+        assert_eq!(targeting.state("havana"), Some(SpaceState::Unpayable));
+        assert!(Popover::default().click_space("havana", &targeting));
+        let card = card(&game, "havana", None);
+        assert_eq!(
+            card.rows
+                .iter()
+                .map(|r| (r.head.as_str(), r.kind.as_str(), r.mark))
+                .collect::<Vec<_>>(),
+            [
+                ("Target Syndicate", "unavailable", Mark::Unavailable),
+                ("Removes nothing", "unavailable", Mark::Unavailable),
+            ]
+        );
+        for row in &card.rows {
+            assert!(row.button.is_none() && !row.chosen && row.remedies.is_empty());
+            assert_eq!(row.no_remedy.as_deref(), Some(NO_REMEDY));
+            assert!(
+                text(row).contains("Government has 1 Resource and cannot pay 2 Resources"),
+                "{}",
+                text(row)
+            );
+        }
+    }
+
     /// A no-effect space's popover holds the one plan that removes nothing, chosen,
     /// with the button that says so. Matanzas is empty Grassland: 0 Troops = 0.
     #[test]
