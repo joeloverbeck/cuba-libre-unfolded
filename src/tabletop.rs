@@ -1648,8 +1648,7 @@ mod tests {
             .iter()
             .find(|c| c.action() == "remove:sierra-maestra:base:1")
             .unwrap();
-        let (entries, _) =
-            execution::previewed(&view, base.action(), base.preview.as_ref().unwrap());
+        let (entries, _) = execution::previewed(&view, base.preview.as_ref().unwrap());
         assert!(
             entries.iter().any(|e| e
                 .text

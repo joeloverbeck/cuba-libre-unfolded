@@ -16,6 +16,46 @@ fn transfer_resources(game: &mut Game, giver: usize, amount: u8) {
     choose(game, &format!("authorize:{amount}"));
 }
 
+/// #171: the rules authority records each resolved Terror in the order resolved,
+/// with what it paid (R 3.3.4: 1 Resource a space), so the execution panel can list
+/// them in that order. Both orders are legal once 26July has 2 Resources from a real
+/// Resource transfer; the map's markers are the same either way, and the record
+/// differs only in its order.
+#[test]
+fn each_resolved_terror_is_recorded_in_the_order_resolved() {
+    let resolved = |first: &str, second: &str| {
+        let mut game = crate::terror_chosen(Game::opening());
+        transfer_resources(&mut game, 2, 2);
+        assert!(game.observe().resolved.is_empty());
+        choose(&mut game, &format!("terror:{first}"));
+        let after_first = game.observe();
+        assert_eq!(after_first.resolved.len(), 1);
+        assert_eq!(after_first.resolved[0].space, first);
+        choose(&mut game, &format!("terror:{second}"));
+        let view = game.observe();
+        assert_eq!(view.resources[Faction::M26.index()], 0);
+        let terror: Vec<u8> = view.spaces.iter().map(|s| s.terror).collect();
+        (
+            view.resolved
+                .iter()
+                .map(|r| (r.space.clone(), r.paid))
+                .collect::<Vec<_>>(),
+            terror,
+        )
+    };
+    let (oriente_first, markers_a) = resolved("oriente", "santiago");
+    let (santiago_first, markers_b) = resolved("santiago", "oriente");
+    assert_eq!(
+        oriente_first,
+        [("oriente".to_owned(), 1), ("santiago".to_owned(), 1)]
+    );
+    assert_eq!(
+        santiago_first,
+        [("santiago".to_owned(), 1), ("oriente".to_owned(), 1)]
+    );
+    assert_eq!(markers_a, markers_b);
+}
+
 /// #172: the marker supply follows each committed Terror (R 3.3.4). The prepared
 /// scenario has no Terror or Sabotage marker on the map (the accepted tactical
 /// handoff), so all 20 are available; each Terror places one Terror marker from the

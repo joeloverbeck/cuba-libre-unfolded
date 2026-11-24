@@ -426,6 +426,9 @@ pub struct Game {
     pub(crate) event: Option<EventProgress>,
     #[serde(deserialize_with = "Option::deserialize")]
     assault: Option<assault::Assault>,
+    /// The spaces where 26July's Terror resolved, in the order resolved (#171): the
+    /// execution panel lists them so, which the map's markers cannot tell.
+    pub(crate) terror_resolved: Vec<String>,
 }
 
 /// Removal mode (#73): open from "Remove own pieces" until Done. Each decision in it
@@ -646,8 +649,8 @@ pub struct Observation {
     pub effected: bool,
     /// The balance before and after a recorded Pass on this card (R 2.3.3, 1.8).
     pub recorded_resources: Vec<ResourceChange>,
-    /// This tactical task starts without Terror markers. Each space with a marker
-    /// contributes one resolution at the fixed per-space cost [`TERROR_COST`] (R 3.3.4).
+    /// Each space where 26July's Terror resolved, in the order resolved (#171), at the
+    /// fixed per-space cost [`TERROR_COST`] it paid (R 3.3.4).
     pub resolved: Vec<Resolved>,
     /// What a Kidnap roll could take now (R 4.3.3), from current Resources, until
     /// Kidnap is rolled or the action is recorded.
@@ -1072,6 +1075,7 @@ impl Game {
             kidnap_open: false,
             event: None,
             assault: None,
+            terror_resolved: Vec::new(),
             available,
         }
     }
@@ -1199,11 +1203,10 @@ impl Game {
             effected: self.effect,
             recorded_resources: self.recorded_resources(),
             resolved: self
-                .spaces
+                .terror_resolved
                 .iter()
-                .filter(|s| s.terror > 0)
-                .map(|s| Resolved {
-                    space: s.id.clone(),
+                .map(|space| Resolved {
+                    space: space.clone(),
                     paid: TERROR_COST,
                 })
                 .collect(),
@@ -2728,6 +2731,7 @@ impl Game {
                 let id = action.strip_prefix("terror:").unwrap();
                 let space = self.spaces.iter_mut().find(|s| s.id == id).unwrap();
                 Self::resolve_terror(space);
+                self.terror_resolved.push(id.to_owned());
                 self.resources[Faction::M26.index()] -= TERROR_COST;
                 self.effect = true;
             }

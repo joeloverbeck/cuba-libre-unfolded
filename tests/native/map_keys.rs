@@ -126,8 +126,13 @@ fn native_keyboard_reaches_santiago_and_commits_terror() {
         ],
         "{order:?}"
     );
-    // The panel's steps come first.
-    assert_eq!(order[0], "step:terror:santiago", "{order:?}");
+    // The panel's steps come first; Terror's targets are no steps (#171), so the
+    // first is Kidnap's.
+    assert_eq!(order[0], "step:kidnap", "{order:?}");
+    assert!(
+        order.iter().all(|n| !n.starts_with("step:terror")),
+        "{order:?}"
+    );
 
     // A focused space shows its tag, as hover does; nothing is decided.
     let saved = std::fs::read(&app.save).unwrap();

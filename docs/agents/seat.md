@@ -132,7 +132,7 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `briefing-ribbon` | Terror | Reopens the briefings. |
 | `briefing-tab:kidnap`, `briefing-tab:terror` | Briefing tag | Switches the briefing. |
 | `eligibility:pass`, `eligibility:operation-only`, `eligibility:operation-special-activity` | Eligibility indicator | Hover targets for each box's tag. |
-| `step:terror:santiago`, `step:terror:oriente`, `step:kidnap`, `step:transfer`, `step:remove`, `step:end-terror`, `step:back-to-choice` | Execution panel (EX-A) during Terror | Pins the step's tag. The commit is then the pinned step's choice. |
+| `step:kidnap`, `step:transfer`, `step:remove`, `step:end-terror`, `step:back-to-choice` | Execution panel (EX-A) during Terror | Pins the step's tag. The commit is then the pinned step's choice. Terror's targets are no steps (#171): `space:santiago` or `space:oriente` opens the space's popover, and `popover:commit` commits its chosen row. |
 | `execution-commit` | Execution panel | The commit while it is disabled. |
 | `kidnap-die` | Kidnap die tray | Skips the tumble while the die is in the air. |
 | `kidnap-die:continue` | Landed die | Continues past the result. |
@@ -375,7 +375,7 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
   - Observations keep the names. The seat reports this geometry as `table.inline_text`.
   - Bevy's text layout, parley 0.11, always permits a line break right after an inline image, whatever character follows it, so a word joiner cannot prevent the break. A full stop glued to an emblem ("[S].") could therefore wrap to the next line; the test asserts it does not in the states it exercises.
 - `native_action_choice_pass_and_back_before_the_first_effect`: lists and refuses the unsupported options, Passes and restarts, then chooses Terror, opens a Transfer request, restarts, goes back and Passes. Evidence: `local/verification/issue-61/action-choice-*`.
-- `native_previews_disabled_targets_and_end_terror`: each irreversible step's preview and each disabled Terror target's reason and remedies, as the panel shows them while the pointer rests on a button. Evidence: `local/verification/issue-62/previews-*`.
+- `native_previews_disabled_targets_and_end_terror`: each irreversible step's preview, as the panel shows it while the pointer rests on a step, and each disabled Terror target's reason and remedies, as its space popover shows them. Evidence: `local/verification/issue-62/previews-*`.
 - `native_kidnap_opens_cancels_and_rolls_through_the_panel`: previews Kidnap's stakes, opens it, previews the roll, cancels, reopens, restarts while open, then rolls and restarts. Opening and cancelling leave the saved randomness unchanged, and a stale roll is refused. Evidence: `local/verification/issue-63/kidnap-*`.
 - `native_action_choice_matches_layout_and_briefs_every_option`: compares the action choice with its [layout record](../../art/atlas/CHOICE.md) at 3840×2160 and hovers every option's briefing. Evidence: `local/verification/issue-69/ac-b-*`.
   - It pins Pass and Terror, commits Terror by keyboard, reopens the Terror and Kidnap briefings from the ribbon, and checks their values after a transfer, a Terror and a removal.
@@ -387,7 +387,7 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
 - `native_transfer_modal_matches_layout`: the TM-B modal at the owner's 16:9 aspect against its FigCraft layout record, in the 16:9 frame's state (26July asks Syndicate for 2). Evidence: `local/verification/issue-71/transfer-layout-*`.
 - `native_map_targets_and_space_popovers_follow_the_rules`: clicks spaces at the action choice, while Kidnap is open, in removal mode and after End Terror, and finds nothing changed. Evidence: `local/verification/issue-72/targets-*`.
   - It hovers blocked Oriente, which shows only its status tag, and clicks it open at 0 Resources and after a Resource transfer.
-  - It opens Kidnap and Terror from Santiago's popover and Oriente's Terror from the panel.
+  - It opens Kidnap and Terror from Santiago's popover and Oriente's Terror from its own popover (#171).
   - After each transfer, Terror and removal, the map states, the visible highlights and the popover rows agree with the observation's choices, reasons and remedies. It also refuses a changed highlight at launch.
 - `native_map_targets_at_the_owner_s_aspect`: captures the same states at 3840×2160, the owner's display, for comparison with the selected 16:9 frame, and checks that the counts keep their size on that display (#50). Evidence: `local/verification/issue-72/targets-16x9-*`.
 - `native_space_popover_matches_layout`: compares Santiago's popover with its [layout record](../../art/atlas/HIGHLIGHTS.md) at 3840×2160, within 4 px, from `table.popover.parts`. Evidence: `local/verification/review-fix-2/popover-layout-*`.
@@ -401,7 +401,7 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
   - The manual clock moves the die while the seat reports `Kidnap die landing` unsettled. It checks the ledger before and after landing, the landed face and result, and Continue by button and by Enter.
 - `native_right_drag_orbits_and_the_wheel_zooms_the_table_camera`: drives the table camera's right-drag orbit and wheel zoom through the seat's `drag` and `scroll` requests. Evidence: `local/verification/issue-79/native-*`.
 - `native_execution_panel_matches_layout_and_previews_every_step`: the EX-A panel against its FigCraft layout record at 3840×2160, within 2 px, and every step's tag before its committing click. Evidence: `local/verification/issue-84/ex-a-*`.
-  - It covers Terror targets from the panel, Kidnap opened (Roll and Cancel), End Terror's previews, the clash rule with a space popover, Escape and an outside click, the keyboard, and Directorio's handoff.
+  - It covers Terror's targets by space picks (#171), with the panel's map line and record lines (`terror-map-line`, `terror-record:<space>` in `table.choice_parts`), Kidnap opened (Roll and Cancel), End Terror's previews and its owed pill, the clash rule with a space popover, Escape and an outside click, the keyboard to Santiago's popover, and Directorio's handoff.
 - `native_seat_skips_the_die_by_enter_space_or_a_click_on_the_tray` (in the library: `cargo test --features tabletop --lib -- --ignored native_seat_skips`): skips mid-tumble through the seat's own requests, by Enter or Space naming `kidnap-die` or by an activation of the tray. Tab is still refused as busy, and Enter naming Continue is refused (#87). Evidence: `local/verification/issue-87/skip-*`.
 - `native_refused_end_terror_while_a_request_waits_and_the_ended_panels`: runs at 3840×2160. Evidence: `local/verification/review-fix-3/refused-end-*`.
   - After an early Kidnap roll owes Santiago's Terror and a Transfer request waits on Directorio, the End Terror row, its tag, the commit's refusal and the request's tag all give the authority's reason and its remedy, timed "once Directorio has decided".

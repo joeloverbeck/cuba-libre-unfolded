@@ -518,7 +518,7 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
         let mut entries = vec![entry(label, &choice.explanation)];
         let mut rules = String::new();
         if let Some(preview) = &choice.preview {
-            let (effects, notes) = super::execution::previewed(view, option, preview);
+            let (effects, notes) = super::execution::previewed(view, preview);
             entries.extend(effects);
             rules = notes.join(" ");
         }
