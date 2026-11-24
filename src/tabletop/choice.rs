@@ -1812,7 +1812,7 @@ mod tests {
         let view = Game::opening().observe();
         let ui = Interface::default();
         let order = names(&view, &ui);
-        assert_eq!(order.len(), 21);
+        assert_eq!(order.len(), 22);
         assert_eq!(order[0], "option:pass");
         assert_eq!(order[11], "choice-commit");
         // Then the marker supply (#173) and the Available Forces rows above the panel
@@ -1867,7 +1867,7 @@ mod tests {
         ui.choice.ribbon = true;
         let order = names(&game.observe(), &ui);
         assert_eq!(
-            order[order.len() - 14..],
+            order[order.len() - 15..],
             [
                 "briefing-ribbon",
                 "briefing-tab:kidnap",

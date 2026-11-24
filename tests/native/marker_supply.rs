@@ -255,7 +255,7 @@ fn native_marker_supply_tag_opens_on_hover_and_focus_and_follows_a_terror() {
     assert_eq!(shown["observation"], rest["observation"]);
     assert_eq!(number(&shown), ("20".into(), 20));
     // It closes when the pointer leaves, as the top display's tags do.
-    let left = app.point("quit");
+    let left = app.point("area:propaganda");
     assert!(left["table"]["top"].is_null(), "{}", left["table"]["top"]);
     // Tab reaches it after the panel's controls and before the Available Forces rows;
     // focus opens the tag with the same dwell, and the next stop closes it.
@@ -283,7 +283,7 @@ fn native_marker_supply_tag_opens_on_hover_and_focus_and_follows_a_terror() {
     let shown = app.point("marker-supply");
     assert_tag(&mut app, &shown, 1, "hover-after-santiago");
     assert_eq!(shown["observation"], after["observation"]);
-    app.point("quit");
+    app.point("area:propaganda");
     let focused = focus(&mut app, "marker-supply");
     assert_tag(&mut app, &focused, 1, "focus-after-santiago");
     app.quit();
