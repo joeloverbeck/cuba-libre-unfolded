@@ -183,6 +183,13 @@ impl Popover {
     pub fn choose_row(&mut self, action: &str) {
         self.selected = Some(action.into());
     }
+    /// The space whose popover is open at `revision`, and its chosen row's action.
+    pub fn space(&self, revision: u64) -> Option<(&str, Option<&str>)> {
+        self.pinned
+            .as_ref()
+            .filter(|(_, at)| *at == revision)
+            .map(|(space, _)| (space.as_str(), self.selected.as_deref()))
+    }
     /// A click on a 26July piece in removal mode: a removable group's popover opens,
     /// or closes when it is the open one; a protected piece opens nothing.
     pub fn click_piece(&mut self, key: &str, targeting: &Targeting) {
@@ -601,6 +608,38 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
         cancel: false,
         footer: FOOTER.into(),
     })
+}
+
+/// An open space popover's Tab stops, by their seat names (#168): each row that can be
+/// chosen, which Enter chooses as a click does, then the button, which submits the
+/// chosen row's choice as a click on it does.
+pub(super) fn focusable(
+    view: &Observation,
+    space: &str,
+    selected: Option<&str>,
+) -> Vec<(String, Action)> {
+    let Some(card) = content(view, space, selected) else {
+        return vec![];
+    };
+    let mut stops: Vec<(String, Action)> = card
+        .rows
+        .iter()
+        .filter(|row| row.mark == Mark::Selectable)
+        .filter_map(|row| row.choice.as_ref()?.split_once(':'))
+        .map(|(_, action)| (format!("popover:row:{action}"), Action::Row(action.into())))
+        .collect();
+    if let Some((row, choice)) = card.rows.iter().find_map(|row| {
+        row.button
+            .as_ref()
+            .and(row.choice.as_ref())
+            .map(|c| (row, c))
+    }) {
+        stops.push((
+            "popover:commit".into(),
+            Action::Submit(row.owner, card.revision, choice.clone()),
+        ));
+    }
+    stops
 }
 
 const PIECE_FOOTER: &str = "Removal stays open for more pieces until Done.";
@@ -1303,8 +1342,10 @@ fn space_rows(
             .and_then(|c| c.split_once(':'))
             .map(|(_, a)| a.to_owned());
         match &action {
-            // Choosing a selectable row only shows its preview.
-            Some(action) if row.mark == Mark::Selectable && !row.chosen => {
+            // Choosing a selectable row only shows its preview. The chosen row keeps
+            // its name, so keyboard focus stays on it once Enter has chosen it (#168);
+            // choosing it again changes nothing.
+            Some(action) if row.mark == Mark::Selectable => {
                 commands
                     .entity(node)
                     .insert(Control {
