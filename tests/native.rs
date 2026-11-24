@@ -51,6 +51,27 @@ fn session_log_checks_the_level_field() {
     ));
 }
 
+#[test]
+fn a_failing_test_keeps_the_log_of_its_app() {
+    let evidence = tempfile::tempdir().unwrap();
+    let run = || {
+        let sockets = tempfile::tempdir().unwrap();
+        let socket = sockets.path().join("seat.sock");
+        let _app = Native {
+            root: evidence.path().into(),
+            cards: PathBuf::new(),
+            save: PathBuf::new(),
+            socket: socket.clone(),
+            step: 7,
+        };
+        std::fs::write(sockets.path().join("seat.sock.log"), "why it ended").unwrap();
+        panic!("the test fails");
+    };
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(run)).unwrap_err();
+    let kept = std::fs::read_to_string(evidence.path().join("007-failed-runtime.log"));
+    assert_eq!(kept.unwrap(), "why it ended");
+}
+
 fn choice_part<'a>(view: &'a Value, name: &str) -> &'a Value {
     view["table"]["choice_parts"]
         .as_array()
@@ -414,6 +435,12 @@ struct Native {
     step: usize,
 }
 impl Native {
+    /// Where the detached app writes its log: beside the socket.
+    fn runtime_log(&self) -> PathBuf {
+        let mut log = self.socket.as_os_str().to_owned();
+        log.push(".log");
+        log.into()
+    }
     fn launch(&mut self) {
         self.launch_size("1920x1280");
     }
@@ -716,8 +743,7 @@ impl Native {
             fs::inotify::{self, CreateFlags, WatchFlags},
         };
 
-        let mut runtime = self.socket.as_os_str().to_owned();
-        runtime.push(".log");
+        let runtime = self.runtime_log();
         let retained = self.root.join(format!("{:03}-quit-runtime.log", self.step));
         // The detached process can still write after replying to quit. Wait for its
         // stderr to close before copying, even when recovery started the session.
@@ -802,6 +828,11 @@ impl Drop for Native {
         let _ = Command::new(env!("CARGO_BIN_EXE_cuba-tools"))
             .args(["seat", self.socket.to_str().unwrap(), "{\"op\":\"quit\"}"])
             .output();
+        // The log says why an app ended early, and goes with the socket's directory.
+        if std::thread::panicking() {
+            let kept = format!("{:03}-failed-runtime.log", self.step);
+            let _ = std::fs::copy(self.runtime_log(), self.root.join(kept));
+        }
     }
 }
 
