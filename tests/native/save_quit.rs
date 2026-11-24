@@ -39,13 +39,14 @@ fn holds(name: &str, native: [f64; 4], recorded: [f64; 4], which: &[usize], tole
 /// scanning inward from 20 px outside each edge of the slip's reported `bounds` (left,
 /// top, right, bottom): across the bottom padding for the sides, and down and up a
 /// column inside the left padding for the top and the foot. A pixel is the stroke's
-/// when its channels sum below 400; the sea, the paper and the shadow do not. The
-/// library's launch-error regression measures the same way (`tabletop::seat`).
+/// when its channels sum below 560: the sea sums about 674, the paper 724 and
+/// the shadow at least 600. The library's launch-error regression measures the same
+/// way (`tabletop::seat`).
 fn drawn_stroke(capture: &Path, bounds: [f64; 4]) -> [f64; 4] {
     let image = image::open(capture).unwrap().to_rgb8();
     let dark = |x: f64, y: f64| {
         let p = image.get_pixel(x as u32, y as u32);
-        p.0.iter().map(|&c| u32::from(c)).sum::<u32>() < 400
+        p.0.iter().map(|&c| u32::from(c)).sum::<u32>() < 560
     };
     let [left, top, right, foot] = bounds.map(f64::round);
     let row = foot - 4.;
