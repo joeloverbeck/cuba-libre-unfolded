@@ -10,7 +10,7 @@ While a decision offers choices that act on a space, `cuba_libre_unfolded::targe
 - **No effect (#169):** the space's only choices change nothing on the map, as Assault's plan that removes nothing. The space stays choosable (R 3.2.4), and it is shown as quietly as a space no choice acts on: its graphic is the not-involved veil. No graphic of its own was drawn.
 - **Not involved:** no choice acts there, or none could. That includes a Terror with no remedy, Assault plans that would remove or close a piece where nothing can pay and no remedy is named, and a space already paid in this Assault (R 3.1). The graphic is a 62% `desk` veil, and a click opens nothing.
 
-During Assault a space is selectable where a plan would remove or close a piece and Government can pay, blocked where one would but Government cannot pay (a Resource transfer is the remedy), not involved where one would but no faction has a Resource to give, and no effect where no plan would. Tab reaches the spaces in that order, the no-effect spaces last.
+During Assault a space is selectable where a plan would remove or close a piece and Government can pay, blocked where one would but Government cannot pay (a Resource transfer is the remedy), not involved where one would but no faction has a Resource to give, and no effect where no plan would. Tab reaches the selectable, blocked and no-effect spaces, in that order, and passes the not-involved ones ([seat reference](../../docs/agents/seat.md#keys)).
 
 Outside these states (the action choice, either ending, an opened Kidnap, a Resource transfer under way and removal mode), no space is a target and a region click opens no space popover. Removal mode has its own states, below.
 
