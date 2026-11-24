@@ -2708,7 +2708,6 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
         position(&start, "piece:santiago Terror"),
         position(&start, "piece:oriente Terror"),
     ];
-    app.capture("loop-start");
     // The authored loop is 3.6 s: 216 steps of 16,666,667 ns. Advance 2 steps at a
     // time (and an odd step alone), so each request shows the loop never holds the
     // table.
@@ -2720,6 +2719,26 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
             app.advance(1);
         }
     };
+    // 216 steps last 72 ns more than 3.6 s, and the clip's f32 length is 95 ns less, so
+    // a loop can return a bell's f32 seek one or two representable values late, which at
+    // some phases moves one pixel by one level. Launch timing varied the phase captured,
+    // so the captures start at one fixed phase, where both seeks come back bit for bit
+    // (#166). The clock's steps land on it exactly; the step before and the step after
+    // come back bit for bit too. That holds in the clock's first loop only, so a start
+    // past the phase must fail here rather than wrap into the next loop.
+    let pinned = 2.166_045_7;
+    let ahead = ((pinned - initial[0]) * 60.).round();
+    assert!(
+        ahead >= 0.,
+        "the table settled after the pinned phase, Oriente at {pinned} s: {initial:?}"
+    );
+    step(&mut app, ahead as usize);
+    let initial = seeks(&app.observe());
+    assert!(
+        (initial[0] - pinned).abs() < 1e-4,
+        "Oriente's bell starts at the pinned {pinned} s: {initial:?}"
+    );
+    app.capture("loop-start");
     step(&mut app, 216);
     app.capture("loop-whole");
     let whole = seeks(&app.observe());

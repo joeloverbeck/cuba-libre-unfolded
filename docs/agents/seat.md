@@ -363,7 +363,7 @@ Core checks cover all six actual shared-RNG outcomes and independent source-deri
 - `native_victory_emblems_disclose_live_margins_without_inspection`: emblem and margin targets, one tag (the card tag replaces it, and the standings stay shown), leave dismissal, actual transfer/Terror/removal updates (the removed Base is read on the Available Forces ledger, since the tag has no footer), and rendered text bounds, including the largest reachable contribution list. Evidence: `local/verification/issue-16/victory-*`.
 - `native_responsive_layout_uses_width_and_preserves_picks`: 3:2, 16:9 and 21:9 native surfaces (agent-chosen regression coverage, not owner display policy; see the art foundation), the map over the whole window, all region picks, piece/count hover, counts that scale with the window (#50), centered emblems, panel anchors, the card tag inside each window and clear of both cards, and unchanged save bytes. Evidence: `local/verification/issue-16/layout-*`.
 - `native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space`: resolves both Terrors and checks three things.
-  - Captures exactly one loop apart (216 manual-clock steps, asked for with `advance`) are pixel-identical around each bell.
+  - Captures exactly one loop apart (216 manual-clock steps, asked for with `advance`) are pixel-identical around each bell. They start at a fixed phase; [TERROR.md](../../art/atlas/TERROR.md) ("In the app") says which and why.
   - Each bell, advanced to the fixed seek times 0, 0.225, 0.45 and 0.675 s, visibly changes between two of those poses whatever the run's phase.
   - Bell/count hover discloses its space.
   - Evidence: `local/verification/issue-41/terror-bell-*`.
