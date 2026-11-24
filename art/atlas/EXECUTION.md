@@ -40,14 +40,14 @@ The owner selected **EX-A, Pinned step tag** in #83's round ([selection on #58](
 | The commit, disabled | `execution-commit` (activating it shows the reason) |
 | The commit opening a pending request | `execution-commit` (TM-B's pending tab already carries the choice `<revision>:reopen`) |
 | Kidnap's Cancel | the choice `<revision>:kidnap:cancel` |
-| Drawn parts (`table.choice_parts`) | `execution-heading`, `execution-subtitle`, `section:<targets\|during\|end>`, `terror-map-line`, `terror-record:<space>`, `step:<action>-label`, `-note`, `-pill`, `-pill-label`, `step:kidnap-connector`, `execution-commit-label`, `execution-cancel`, `ended-label:<LABEL>`, `ended-value:<LABEL>`, and the tag's `briefing-*` parts with `briefing-chips:<LABEL>` and `briefing-chip:<remedy>` |
+| Drawn parts (`table.choice_parts`) | `execution-heading`, `execution-subtitle`, `section:<targets\|during\|end>`, the map line and each resolved space's record ([seat reference](../../docs/agents/seat.md#what-the-table-reports) names them), `step:<action>-label`, `-note`, `-pill`, `-pill-label`, `step:kidnap-connector`, `execution-commit-label`, `execution-cancel`, `ended-label:<LABEL>`, `ended-value:<LABEL>`, and the tag's `briefing-*` parts with `briefing-chips:<LABEL>` and `briefing-chip:<remedy>` |
 
 `table.briefing` reports the shown tag: its `option` (the step), `pinned`, `entries` with their `chips`, and `rules`. `table.choice.pinned` reports the pinned step.
 
 ## Files
 
 - **Layout source:** `atlas-execution.figcraft`, a sibling of `atlas-action-choice.figcraft`. It began as a copy of the #83 proposal source, without EX-B and EX-C, so it keeps the `Atlas` variables and the `Choice/*`, `Briefing/*`, `Tag/*` and `Execution/*` text styles. Page "Execution panel (EX-A)" holds:
-  - **16:9 frame (6144×3456, reference ×2.7):** revision 14 of #75's run as #171 revised it: Oriente's Terror resolved and recorded, Kidnap rolled, Santiago's Terror owed, and End Terror pinned and refused, with its tag and the disabled commit. Its parts are named as the runtime names them. Export: `atlas-execution-layout.png`.
+  - **16:9 frame (6144×3456, reference ×2.7):** revision 14 of #75's run as #171 revised it: Oriente's Terror resolved and recorded, Kidnap rolled, Santiago's Terror owed, and End Terror pinned and refused, with its tag and the disabled commit. Its parts are named as the runtime names them. Export: `atlas-execution-layout.png`. The panel and its tag are the design; the frame's surroundings are a capture of the retired framed view, with its desk, title, terrain key and session panel ([MAIN-VIEW.md](MAIN-VIEW.md)), kept as context that the layout record does not check. Re-cropping the frame to the panel would move every recorded part.
   - **States:** the eight states of the proposal, without the target rows since #171, and with each state's map line and record lines. State 1's blocked-target tag is gone: a blocked target's reason and remedies are in its space popover. Export: `atlas-execution-states.png`, at 0.4×.
   - **Ended panels** (added in #84): Terror ended and passed, in EX-A's grammar. Export: `atlas-execution-ended.png`, at half size.
   - **Production plates:** the three new pills at reference size.

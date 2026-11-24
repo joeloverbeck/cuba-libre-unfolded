@@ -203,7 +203,7 @@ fn assert_tag(app: &mut Native, view: &Value, terror: u8, at: &str) {
         notes(view),
         [
             "Terror and Sabotage share 20 markers. Terror places no marker when all 20 are on the map (R 3.3.4).",
-            "Civic Action and Agitation return Terror markers to the supply (R 6.3.2, 6.3.3); the Reset Phase returns the Terror and Sabotage markers (R 6.5).",
+            "Civic Action and Agitation return Terror markers to the marker supply (R 6.3.2, 6.3.3); the Reset Phase returns the Terror and Sabotage markers (R 6.5).",
         ],
         "{at}"
     );

@@ -2708,7 +2708,6 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
         position(&start, "piece:santiago Terror"),
         position(&start, "piece:oriente Terror"),
     ];
-    app.capture("loop-start");
     // The authored loop is 3.6 s: 216 steps of 16,666,667 ns. Advance 2 steps at a
     // time (and an odd step alone), so each request shows the loop never holds the
     // table.
@@ -2720,15 +2719,43 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
             app.advance(1);
         }
     };
-    step(&mut app, 216);
-    app.capture("loop-whole");
-    let whole = seeks(&app.observe());
-    for (a, b) in initial.iter().zip(&whole) {
+    // The captures start at one fixed phase, where one loop returns both f32 seeks bit
+    // for bit; art/atlas/TERROR.md, "In the app", says why (#166). A model of the seek
+    // predicts the same for the step before and the step after, which no capture has
+    // shown. `advance` lands on the phase exactly from any start before it. A start past
+    // it fails here. A start so late that Oriente's seek has wrapped lands one loop on,
+    // where the seeks do not come back exactly and the equality below fails.
+    let pinned = 2.166_045_7;
+    let ahead = ((pinned - initial[0]) * 60.).round();
+    assert!(
+        ahead >= 0.,
+        "the table settled after the pinned phase, Oriente at {pinned} s: {initial:?}"
+    );
+    let ahead = ahead as usize;
+    step(&mut app, ahead);
+    let start_seeks = seeks(&app.observe());
+    assert!(
+        (start_seeks[0] - pinned).abs() < 1e-4,
+        "Oriente's bell starts at the pinned {pinned} s: {start_seeks:?}"
+    );
+    app.capture("loop-start");
+    // On the way, one loop after the table settled: the seeks return at the phase the
+    // launch happened to reach too, not only at the pinned one.
+    step(&mut app, 216 - ahead);
+    let settled_again = seeks(&app.observe());
+    for (a, b) in initial.iter().zip(&settled_again) {
         assert!(
             (a - b).abs() < 1e-4,
-            "one loop returns each bell: {initial:?} {whole:?}"
+            "one loop returns each bell to its settled phase: {initial:?} {settled_again:?}"
         );
     }
+    step(&mut app, ahead);
+    app.capture("loop-whole");
+    let whole = seeks(&app.observe());
+    assert_eq!(
+        start_seeks, whole,
+        "at the pinned phase one loop returns each seek exactly"
+    );
     for at in bells {
         let seam = token_changes(
             &app.root.join("loop-start.png"),

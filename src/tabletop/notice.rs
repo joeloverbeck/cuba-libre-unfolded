@@ -104,16 +104,14 @@ pub(super) fn slip(play: &Play, ui: &Interface) -> Option<Notice> {
     (notice.kind.drawn() && !notice.dismissed && !notice.text.is_empty()).then(|| notice.clone())
 }
 
-/// The slip's geometry in reference pixels: the space popover's (`popover::frame`,
-/// A-P1), which the main view's `notice-slip` repeats.
+/// The slip's geometry in reference pixels: the space popover's text inset, space below
+/// the rule and rule height (`popover::frame`, A-P1), and the slip's own space below its
+/// text.
 mod frame {
-    /// The text's inset from the card's sides, and its space below the rule.
-    pub const INSET: f32 = 14.;
-    pub const TOP: f32 = 9.;
-    /// Below the last line, inside the card's 1 px stroke.
+    pub use super::popover::frame::{INSET, RULE, TOP};
+    /// Below the last line, inside the card's 1 px stroke. The popover's card keeps 10
+    /// there below its last row, which has its own padding; the slip's text has none.
     pub const BOTTOM: f32 = 11.;
-    /// The rule's height.
-    pub const RULE: f32 = 3.;
 }
 
 /// Marks the drawn slip, which the seat reports as `table.slip`.
@@ -156,7 +154,7 @@ pub(super) fn draw(
         ))
         .observe(click)
         .id();
-    popover::plate(commands, art, card, popover::plate::CARD, s);
+    popover::plate(commands, art, card, popover::plate::SLIP_CARD, s);
     // The popover's `action/primary` rule, stretched across the card.
     commands.spawn((
         ImageNode::new(art.images[popover::plate::RULE_PRIMARY].clone())

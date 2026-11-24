@@ -378,7 +378,7 @@ pub(super) fn assault_lines(view: &Observation) -> Vec<AssaultLine> {
     }];
     let [mut top, pitch, ..] = fig::ASSAULT_RECORD;
     for paid in &view.assault_paid {
-        let words = wrap(&paid.summary(), fig::ASSAULT_RECORD_CHARS);
+        let words = briefing::wrap(&paid.summary(), fig::ASSAULT_RECORD_CHARS).join("\n");
         let height = pitch * words.lines().count() as f32;
         lines.push(AssaultLine {
             name: format!("assault-record:{}", paid.space),
@@ -406,22 +406,6 @@ fn assault_rows_after(lines: usize) -> f32 {
         0 => first,
         n => first + pitch * n as f32 + fig::ASSAULT_GAP,
     }
-}
-
-/// Breaks `words` at spaces into lines of at most `chars` characters, so the panel
-/// knows each record's height before it is drawn.
-fn wrap(words: &str, chars: usize) -> String {
-    let mut lines: Vec<String> = vec![];
-    for word in words.split(' ') {
-        match lines.last_mut() {
-            Some(line) if line.chars().count() + 1 + word.chars().count() <= chars => {
-                line.push(' ');
-                line.push_str(word);
-            }
-            _ => lines.push(word.to_owned()),
-        }
-    }
-    lines.join("\n")
 }
 
 fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool) -> String {
@@ -2222,10 +2206,10 @@ mod tests {
     fn a_record_wraps_at_spaces_within_its_line_budget() {
         let chars = fig::ASSAULT_RECORD_CHARS;
         let short = "Santiago de Cuba · paid 2 Resources · returned 2 26July Guerrillas";
-        assert_eq!(wrap(short, chars), short);
+        assert_eq!(briefing::wrap(short, chars).join("\n"), short);
         // Had Directorio's Guerrillas in Havana been Active: 77 characters.
         let long = "Havana · paid 2 Resources · returned 2 Directorio Guerrillas, closed 1 Casino";
-        let wrapped = wrap(long, chars);
+        let wrapped = briefing::wrap(long, chars).join("\n");
         assert_eq!(
             wrapped,
             "Havana · paid 2 Resources · returned 2 Directorio Guerrillas, closed 1\nCasino"

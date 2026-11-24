@@ -426,7 +426,7 @@ mod tests {
         let text = notes.join(" ").replace('\n', " ");
         for said in [
             "Terror places no marker when all 20 are on the map (R 3.3.4)",
-            "Civic Action and Agitation return Terror markers to the supply (R 6.3.2, 6.3.3)",
+            "Civic Action and Agitation return Terror markers to the marker supply (R 6.3.2, 6.3.3)",
             "the Reset Phase returns the Terror and Sabotage markers (R 6.5)",
         ] {
             assert!(text.contains(said), "{said}: {text}");

@@ -80,10 +80,10 @@ The marker supply opens the accepted top-display tag, as the Available Forces le
 
 - **Opening:** hovering the graphic, or focusing it with Tab, opens the tag after the shared 400 ms dwell. It closes when the pointer or focus leaves, as the other top-band tags do. There is no pin; reading it changes nothing.
 - **Target:** the graphic's extent, the marker's height across the area less the marker's margin on each side (frame 983.6, 38.82, 253.19×91.13 on the owner's display). The area's corners stay bare, so the area still takes the pointer there.
-- **Tab order:** the panel's controls, then the marker supply, then the four Available Forces rows, the cards and the piles ([seat reference](../../docs/agents/seat.md#keys) names the stops). It stands left of the ledger, so it comes before it. Aid, US Alliance, Resources and Cash stay hover-only.
+- **Tab order:** Tab reaches the marker supply; the [seat reference](../../docs/agents/seat.md#keys) owns the order of the stops. Aid, US Alliance, Resources and Cash stay hover-only.
 - **Words:** the title "Marker supply"; the rows "Terror on the map", "Sabotage on the map" and "Available", whose value is "N of 20", all from `observation.marker_supply`; and two notes:
   - "Terror and Sabotage share 20 markers. Terror places no marker when all 20 are on the map (R 3.3.4)."
-  - "Civic Action and Agitation return Terror markers to the supply (R 6.3.2, 6.3.3); the Reset Phase returns the Terror and Sabotage markers (R 6.5)."
+  - "Civic Action and Agitation return Terror markers to the marker supply (R 6.3.2, 6.3.3); the Reset Phase returns the Terror and Sabotage markers (R 6.5)."
 
   They state nothing the rules leave open: nothing about Terror's other effects with no marker left, and nothing about whether the cap binds Reprisal or Government Earnings.
 - **Place:** just below the marker supply's area, at the tags' 8-pixel gap, which is the line the Aid and US Alliance tags open on. It is centred under the graphic, but its right edge keeps the same gap left of the standings area. So it covers neither the US Alliance track nor the standings, and stays inside the window, at 3:2, 16:9 and 21:9 (unit test `the_tag_opens_below_the_graphic_clear_of_the_track_and_the_standings`). At 3:2, where the standings stand closest to the track, its left 40 reference pixels lie over the Sequence of Play track's right edge while it is open, as the Aid and US Alliance tags cover that track. At 16:9 it clears the track, and at 21:9 it is centred.

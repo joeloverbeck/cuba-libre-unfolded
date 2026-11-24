@@ -52,6 +52,9 @@ pub enum UsAlliance {
     Reluctant,
     Embargoed,
 }
+/// The US Alliance level in this build: the setup's Firm, which no Operation or Event
+/// it implements shifts. Every COIN Operation's cost reads it (R 6.3.1).
+const ALLIANCE: UsAlliance = UsAlliance::Firm;
 impl UsAlliance {
     pub const ALL: [Self; 3] = [Self::Firm, Self::Reluctant, Self::Embargoed];
     pub fn name(self) -> &'static str {
@@ -837,8 +840,22 @@ pub struct Preview {
     /// What a Kidnap roll could take, for opening Kidnap and for its roll. A roll's
     /// result is never previewed.
     pub kidnap: Option<KidnapStakes>,
+    /// What paying for an Assault space states besides its computed changes, for an
+    /// Assault payment only. The payment itself is in `resources`.
+    pub assault: Option<AssaultPreview>,
     /// Facts with rule references, such as the zero-space warning.
     pub notes: Vec<String>,
+}
+/// The parts of an Assault payment's preview that its computed changes do not show,
+/// each stated by name (R 3.2.4).
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
+pub struct AssaultPreview {
+    /// The capacity arithmetic: the cubes that count in the space's terrain.
+    pub arithmetic: String,
+    /// Whom the plan can affect, and what protects the rest.
+    pub affects: String,
+    /// What the plan removes or closes, or that it affects no piece.
+    pub effect: String,
 }
 /// What a Kidnap roll could take (R 4.3.3), from current Resources only.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -1187,7 +1204,7 @@ impl Game {
                 _ => false,
             }),
             aid: 15,
-            alliance: UsAlliance::Firm,
+            alliance: ALLIANCE,
             cash_available: CASH_MARKERS,
             // No Operation, Event or phase this build implements places a Sabotage
             // marker (R 3.3.4 in an economic center, R 4.2.3, R 6.2.1), so the
@@ -1596,6 +1613,7 @@ impl Game {
                 }
             }
         }
+        preview.assault = self.assault_preview(after, action);
         preview.notes = self.notes(after, action);
         preview
     }
@@ -1651,7 +1669,7 @@ impl Game {
                 "end-assault" => notes.push("Records Operation Only. Syndicate may Pass or choose a Limited Operation as 2nd Eligible (R 2.3.4–5).".into()),
                 _ if action.starts_with("remove:") => notes.push("R 1.4.1: after Done, Assault uses the remaining cubes.".into()),
                 _ if Self::assault_payment_space(action).is_some() => {
-                    notes.extend(self.assault_preview_notes(after, action));
+                    notes.extend(Self::assault_preview_notes(after));
                 }
                 _ => {}
             }
@@ -2171,7 +2189,7 @@ impl Game {
     fn government_choices(&self) -> Vec<Choice> {
         let balance = self.resources[Faction::Government.index()];
         let after_pass = Self::government_pass_balance(balance);
-        let alliance = UsAlliance::Firm;
+        let alliance = ALLIANCE;
         let cost = alliance.coin_cost();
         let offer = |id: &str, label: &str, rule: String| {
             self.offer(
@@ -2935,31 +2953,45 @@ impl Game {
         };
         pairs
             .into_iter()
-            .map(|(giver, recipient)| {
-                let balance = self.resources[giver.index()];
-                let held = self.resources[recipient.index()];
-                let room = RESOURCE_CAP.saturating_sub(held);
-                let reserved = u8::from(giver == Faction::M26 && self.owes_santiago());
-                let spendable = balance.saturating_sub(reserved);
-                let bound = if spendable > room {
-                    Bound::Cap
-                } else if reserved > 0 && balance > 0 {
-                    Bound::Reserve
-                } else {
-                    Bound::Balance
-                };
-                TransferTerms {
-                    giver,
-                    recipient,
-                    balance,
-                    held,
-                    room,
-                    reserved,
-                    limit: spendable.min(room),
-                    bound,
-                }
-            })
+            .map(|(giver, recipient)| self.terms(giver, recipient))
             .collect()
+    }
+    /// What `giver` may transfer to `recipient` while one of them executes (R 1.5.1).
+    fn terms(&self, giver: Faction, recipient: Faction) -> TransferTerms {
+        let balance = self.resources[giver.index()];
+        let held = self.resources[recipient.index()];
+        let room = RESOURCE_CAP.saturating_sub(held);
+        let reserved = u8::from(giver == Faction::M26 && self.owes_santiago());
+        let spendable = balance.saturating_sub(reserved);
+        let bound = if spendable > room {
+            Bound::Cap
+        } else if reserved > 0 && balance > 0 {
+            Bound::Reserve
+        } else {
+            Bound::Balance
+        };
+        TransferTerms {
+            giver,
+            recipient,
+            balance,
+            held,
+            room,
+            reserved,
+            limit: spendable.min(room),
+            bound,
+        }
+    }
+    /// The most `recipient` could hold while it executes, if every other faction gave
+    /// it all its terms allow. A transfer may be repeated, so the givers add up; a
+    /// faction that does not execute cannot give to another that does not (R 1.5.1),
+    /// but can give to `recipient` directly, so nothing more can reach it.
+    fn balance_after_transfers(&self, recipient: Faction) -> u8 {
+        let given: u16 = Faction::ALL
+            .into_iter()
+            .filter(|&giver| giver != recipient)
+            .map(|giver| u16::from(self.terms(giver, recipient).limit))
+            .sum();
+        (u16::from(self.resources[recipient.index()]) + given).min(u16::from(RESOURCE_CAP)) as u8
     }
     /// Why an amount beyond its limit is refused, in the terms' own words: the executor's Resource
     /// transfer or request the modal offers, or the pending request's authorization.
@@ -3248,5 +3280,303 @@ mod space_reason_tests {
             reason(&owed, "oriente").as_deref(),
             Some("1 Resource is kept for Santiago")
         );
+    }
+
+    /// An Assault space whose plans would remove or close a piece, with none supported
+    /// and no remedy, is not involved, as a Terror with no remedy is: veiled, nothing
+    /// opens on a click and Tab passes it, and its line keeps the authority's reason.
+    /// A space whose only plan removes nothing stays no effect though Government cannot
+    /// pay for it (R 3.2.4, 6.3.1).
+    #[test]
+    fn an_assault_space_nobody_can_fund_is_not_involved_and_keeps_its_reason() {
+        use crate::targets::{SpaceState, focus_order, space_targets};
+        let mut game = Game::opening_with_seed(2);
+        for action in [
+            "terror",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+            "advance-card",
+            "government:assault",
+        ] {
+            choose(&mut game, action);
+        }
+        // Government has 1 Resource and a space costs 2 at a Firm US Alliance; no other
+        // faction has a Resource to give, so no transfer can open a space.
+        game.resources = [0; 4];
+        game.resources[Faction::Government.index()] = 1;
+        let view = game.observe();
+        let targets = space_targets(&view).expect("an open Assault targets the map");
+        let state = |space: &str| targets.iter().find(|t| t.space == space).unwrap().state;
+        // Havana's open Casino would close and Santiago's 2 Active Guerrillas would
+        // return, but nothing can pay for either.
+        for space in ["havana", "santiago"] {
+            let effective: Vec<_> = view
+                .choices
+                .iter()
+                .filter(|c| c.space() == Some(space) && c.site.as_ref().unwrap().effect)
+                .collect();
+            assert!(!effective.is_empty(), "{space}");
+            assert!(
+                effective
+                    .iter()
+                    .all(|c| !c.supported && c.remedies.is_empty()),
+                "{space}"
+            );
+            assert_eq!(state(space), SpaceState::NotInvolved, "{space}");
+            assert!(!state(space).choosable(), "{space}");
+            assert_eq!(
+                reason(&game, space).as_deref(),
+                Some("Government cannot pay 2 Resources"),
+                "{space}"
+            );
+        }
+        // The other 11 spaces' only plan removes nothing: still no effect.
+        for target in targets
+            .iter()
+            .filter(|t| !["havana", "santiago"].contains(&t.space.as_str()))
+        {
+            assert_eq!(target.state, SpaceState::NoEffect, "{}", target.space);
+        }
+        assert_eq!(
+            reason(&game, "matanzas").as_deref(),
+            Some("No enemy pieces (R 3.2.4)")
+        );
+        let order = focus_order(&targets);
+        assert_eq!(order.len(), 11);
+        assert!(!order.contains(&"havana") && !order.contains(&"santiago"));
+    }
+
+    /// The same state reached by legal decisions alone (spec #166's review, D1).
+    /// After Kidnap, Santiago's Terror and the shaded Event, the four factions hold
+    /// 25 Resources: 26 at setup, less the Terror's 1 (R 3.3.4). Government, executing
+    /// the Assault, asks each other faction for its whole balance and each gives it
+    /// (R 1.5.1): Government holds 25, the others 0. Twelve spaces paid at 2 each
+    /// (R 6.3.1) leave 1. Havana is left unpaid, its open Casino still a target, and
+    /// nothing can pay for it: no faction has a Resource to give.
+    #[test]
+    fn legal_play_reaches_an_assault_space_nobody_can_fund() {
+        use crate::targets::{SpaceState, focus_order, space_targets};
+        let mut game = Game::opening_with_seed(2);
+        for action in [
+            "terror",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+            "advance-card",
+            "government:assault",
+        ] {
+            choose(&mut game, action);
+        }
+        assert_eq!(game.observe().resources, [1, 4, 5, 15]);
+        for (giver, amount) in [(1, 4), (2, 5), (3, 15)] {
+            choose(&mut game, "transfer");
+            choose(&mut game, &format!("ask:{giver}:{amount}"));
+            choose(&mut game, &format!("authorize:{amount}"));
+        }
+        assert_eq!(game.observe().resources, [25, 0, 0, 0]);
+        let unpaid: Vec<String> = game
+            .observe()
+            .spaces
+            .iter()
+            .map(|space| space.id.clone())
+            .filter(|id| id != "havana")
+            .collect();
+        for space in &unpaid {
+            choose(&mut game, &format!("assault:{space}:none"));
+        }
+        let view = game.observe();
+        assert_eq!(view.resources, [1, 0, 0, 0]);
+        assert_eq!(view.assault_paid.len(), 12);
+        let targets = space_targets(&view).expect("the Assault is still open");
+        let havana = targets.iter().find(|t| t.space == "havana").unwrap();
+        // Havana's plans would close the Casino, but none is supported and none names
+        // a remedy.
+        let plans: Vec<_> = view
+            .choices
+            .iter()
+            .filter(|c| c.space() == Some("havana"))
+            .collect();
+        assert!(plans.iter().any(|c| c.site.as_ref().unwrap().effect));
+        assert!(plans.iter().all(|c| !c.supported && c.remedies.is_empty()));
+        assert_eq!(havana.state, SpaceState::NotInvolved);
+        assert!(focus_order(&targets).is_empty());
+        assert_eq!(
+            reason(&game, "havana").as_deref(),
+            Some("Government cannot pay 2 Resources")
+        );
+    }
+
+    /// The Assault opened after Kidnap and these Terrors, with each giver's `asked`
+    /// Resources given to Government and every space but `unpaid` paid.
+    fn reach(terrors: &[&str], asked: [(usize, u8); 3], unpaid: &[&str]) -> Game {
+        let mut game = Game::opening_with_seed(2);
+        for action in ["terror", "kidnap", "kidnap:roll"] {
+            choose(&mut game, action);
+        }
+        for terror in terrors {
+            choose(&mut game, terror);
+        }
+        for action in [
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+            "advance-card",
+            "government:assault",
+        ] {
+            choose(&mut game, action);
+        }
+        for (giver, amount) in asked {
+            choose(&mut game, "transfer");
+            choose(&mut game, &format!("ask:{giver}:{amount}"));
+            choose(&mut game, &format!("authorize:{amount}"));
+        }
+        for space in game.observe().spaces {
+            if !unpaid.contains(&space.id.as_str()) {
+                choose(&mut game, &format!("assault:{}:none", space.id));
+            }
+        }
+        game
+    }
+
+    /// Q1 (spec #166's review): a Resource transfer is the remedy exactly when the
+    /// transfers open to Government can raise it to the space's cost, 2 at a Firm US
+    /// Alliance (R 6.3.1). While Government executes, each other faction may give it
+    /// any part of its balance, as often as they agree (R 1.5.1), so what several of
+    /// them hold adds up. Every position here is reached by decisions alone, and leaves
+    /// Havana, whose open Casino a plan would close, unpaid. Resources leave the game
+    /// only by Terror (1 each) and Assault (2 a space): 26 at setup, less one Terror
+    /// and 12 spaces is 1; less two Terrors and 11 spaces is 2.
+    #[test]
+    fn a_resource_transfer_is_the_remedy_exactly_when_the_givers_can_reach_the_cost() {
+        use crate::targets::{SpaceState, focus_order, space_targets};
+        // Havana's state, the spaces Tab reaches and Havana's reason.
+        let shown = |game: &Game| {
+            let view = game.observe();
+            let targets = space_targets(&view).expect("the Assault is open");
+            let state = targets.iter().find(|t| t.space == "havana").unwrap().state;
+            let stops: Vec<String> = focus_order(&targets)
+                .into_iter()
+                .map(str::to_owned)
+                .collect();
+            (state, stops, reason(game, "havana"))
+        };
+        let remedies = |game: &Game| -> Vec<Vec<String>> {
+            game.observe()
+                .choices
+                .into_iter()
+                .filter(|c| c.space() == Some("havana"))
+                .map(|c| c.remedies)
+                .collect()
+        };
+        let one = &["terror:santiago"][..];
+        let two = &["terror:santiago", "terror:oriente"][..];
+
+        // One short of the cost: Government 0, Syndicate 1. No transfer can make 2.
+        let short = reach(one, [(1, 4), (2, 5), (3, 14)], &["havana"]);
+        assert_eq!(short.observe().resources, [0, 0, 0, 1]);
+        assert!(remedies(&short).iter().all(Vec::is_empty));
+        assert_eq!(
+            shown(&short),
+            (
+                SpaceState::NotInvolved,
+                vec![],
+                Some("Government cannot pay 2 Resources".into())
+            )
+        );
+
+        // Exactly the cost, held by two givers, or by Government and one giver.
+        let blocked = (
+            SpaceState::Blocked,
+            vec!["havana".to_owned(), "ec-oriente-sierra".to_owned()],
+            Some("A Resource transfer opens it".to_owned()),
+        );
+        let unpaid = &["havana", "ec-oriente-sierra"][..];
+        let mut givers = reach(two, [(1, 3), (2, 4), (3, 14)], unpaid);
+        assert_eq!(givers.observe().resources, [0, 0, 1, 1]);
+        let mut shared = reach(two, [(1, 3), (2, 5), (3, 14)], unpaid);
+        assert_eq!(shared.observe().resources, [1, 0, 0, 1]);
+        for game in [&givers, &shared] {
+            assert!(
+                remedies(game)
+                    .iter()
+                    .all(|r| *r == [TRANSFER_REMEDY.to_owned()])
+            );
+            assert_eq!(shown(game), blocked);
+        }
+
+        // The remedy is real: the transfers it names open Havana. One of the two givers'
+        // is not yet enough, and the other is still the remedy.
+        let give = |game: &mut Game, giver: usize| {
+            choose(game, "transfer");
+            choose(game, &format!("ask:{giver}:1"));
+            choose(game, "authorize:1");
+        };
+        give(&mut givers, 2);
+        assert_eq!(givers.observe().resources, [1, 0, 0, 1]);
+        assert_eq!(shown(&givers), blocked);
+        for game in [&mut givers, &mut shared] {
+            give(game, 3);
+            assert_eq!(game.observe().resources, [2, 0, 0, 0]);
+            let (state, stops, reason) = shown(game);
+            assert_eq!((state, reason), (SpaceState::Selectable, None));
+            assert_eq!(stops, ["havana", "ec-oriente-sierra"]);
+            choose(game, "assault:havana:syndicate");
+            assert_eq!(game.observe().resources, [0; 4]);
+        }
+    }
+
+    /// V1 (spec #166's review): a payment's preview points to a Resource transfer for
+    /// another space only when transfers could then raise Government to its cost
+    /// (R 6.3.1, 1.5.1). Positions as above, with one more space still to pay.
+    #[test]
+    fn a_payment_s_preview_names_a_transfer_only_when_one_could_fund_another_space() {
+        let notes = |game: &Game, action: &str| {
+            let view = game.observe();
+            let choice = view.choices.iter().find(|c| c.action() == action).unwrap();
+            choice.preview.clone().unwrap().notes
+        };
+        let pay = "assault:matanzas:none";
+        let one = &["terror:santiago"][..];
+        let two = &["terror:santiago", "terror:oriente"][..];
+
+        // Exactly the cost afterwards: Government 2 - 2 = 0, Directorio 1, Syndicate 1.
+        let unpaid = &["havana", "matanzas", "ec-oriente-sierra"][..];
+        let exact = reach(two, [(1, 3), (2, 4), (3, 14)], unpaid);
+        assert_eq!(exact.observe().resources, [2, 0, 1, 1]);
+        assert_eq!(
+            notes(&exact, pay),
+            [
+                "Government would have 0 Resources: another space would need a Resource transfer first (R 6.3.1)."
+            ]
+        );
+
+        // One short, in another's hands: Government 2 - 2 = 0, Syndicate 1.
+        let unpaid = &["havana", "matanzas"][..];
+        let short = reach(one, [(1, 4), (2, 5), (3, 14)], unpaid);
+        assert_eq!(short.observe().resources, [2, 0, 0, 1]);
+        assert_eq!(
+            notes(&short, pay),
+            ["Government would have 0 Resources: it could not pay for another space (R 6.3.1)."]
+        );
+        // One short, in Government's own: 3 - 2 = 1, and no other faction has any.
+        let alone = reach(one, [(1, 4), (2, 5), (3, 15)], unpaid);
+        assert_eq!(alone.observe().resources, [3, 0, 0, 0]);
+        assert_eq!(
+            notes(&alone, pay),
+            ["Government would have 1 Resource: it could not pay for another space (R 6.3.1)."]
+        );
+
+        // Government could still pay, 5 - 2 = 3: no note.
+        let more = &["havana", "matanzas", "ec-oriente-sierra"][..];
+        let funded = reach(one, [(1, 4), (2, 5), (3, 15)], more);
+        assert_eq!(funded.observe().resources, [5, 0, 0, 0]);
+        assert!(notes(&funded, pay).is_empty());
     }
 }

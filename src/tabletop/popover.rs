@@ -52,6 +52,11 @@ pub(super) mod frame {
     /// rule notes, Regular 11 (`art/atlas/HIGHLIGHTS.md`, A-P1 rows).
     pub const LINE_SIZE: f32 = 12.5;
     pub const NOTE_SIZE: f32 = 11.;
+    /// The text's inset from the card's sides, and the header's space below the rule.
+    pub const INSET: f32 = 14.;
+    pub const TOP: f32 = 9.;
+    /// The rule's height.
+    pub const RULE: f32 = 3.;
 }
 
 /// The production plates of `art/atlas/atlas-popover.figcraft` (frame "Production
@@ -63,6 +68,16 @@ pub(super) mod plate {
     /// top, right, bottom), and it is nine-sliced 40 px in, clear of the shadow's corners.
     pub const CARD: (&str, Option<f32>, [f32; 4]) =
         ("atlas-popover-card.png", Some(40.), [15., 12., 15., 18.]);
+    /// The notice slip's card (#174): the same plate on a 36 px box, nine-sliced 30 px
+    /// in. Bevy scales a nine-slice's corners by at most its node's size over its image's,
+    /// so `CARD`'s 130 px canvas would shrink the corners of a card shorter than 100 px
+    /// and draw its stroke outside the card; this canvas is 66 px, under a one-line
+    /// slip's 70. Its corner slices are `CARD`'s, pixel for pixel.
+    pub const SLIP_CARD: (&str, Option<f32>, [f32; 4]) = (
+        "atlas-popover-card-slip.png",
+        Some(30.),
+        [15., 12., 15., 18.],
+    );
     /// The committing button: `action/primary`, radius 2.
     pub const PRIMARY: (&str, Option<f32>, [f32; 4]) =
         ("atlas-popover-primary.png", Some(6.), [0.; 4]);
@@ -347,14 +362,14 @@ fn assault(view: &Observation) -> bool {
 
 /// An Assault plan's preview (#169), from the authority: the capacity arithmetic,
 /// the payment, whom the plan can affect, what it removes or closes, the Control and
-/// standings that change, and whether another space could still be paid. The
-/// authority's notes come in that order: the arithmetic first, then whom the plan can
-/// affect, then what it removes or closes.
+/// standings that change, and whether another space could still be paid. Each part is
+/// read by name: the payment from `resources`, the three Assault statements from
+/// `assault`, and the remaining notes, which are quiet.
 fn assault_lines(preview: &crate::Preview) -> Vec<(Tone, String)> {
     let mut lines = vec![];
-    let mut notes = preview.notes.iter();
-    if let Some(arithmetic) = notes.next() {
-        lines.push((Tone::Plain, arithmetic.clone()));
+    let assault = preview.assault.as_ref();
+    if let Some(assault) = assault {
+        lines.push((Tone::Plain, assault.arithmetic.clone()));
     }
     for r in &preview.resources {
         lines.push((
@@ -368,11 +383,9 @@ fn assault_lines(preview: &crate::Preview) -> Vec<(Tone, String)> {
             ),
         ));
     }
-    if let Some(affects) = notes.next() {
-        lines.push((Tone::Plain, affects.clone()));
-    }
-    if let Some(effect) = notes.next() {
-        lines.push((Tone::Strong, effect.clone()));
+    if let Some(assault) = assault {
+        lines.push((Tone::Plain, assault.affects.clone()));
+        lines.push((Tone::Strong, assault.effect.clone()));
     }
     let mut outcome: Vec<String> = preview
         .control
@@ -398,7 +411,7 @@ fn assault_lines(preview: &crate::Preview) -> Vec<(Tone, String)> {
     if !outcome.is_empty() {
         lines.push((Tone::Strong, format!("{}.", outcome.join("; "))));
     }
-    lines.extend(notes.map(|note| (Tone::Quiet, note.clone())));
+    lines.extend(preview.notes.iter().map(|note| (Tone::Quiet, note.clone())));
     lines
 }
 
@@ -1230,7 +1243,7 @@ fn spawn(
         commands,
         art,
         body,
-        3. * s,
+        frame::RULE * s,
         if card.kind == CardKind::Protected {
             plate::RULE_INK
         } else {
@@ -1243,7 +1256,12 @@ fn spawn(
             Node {
                 flex_direction: FlexDirection::Column,
                 row_gap: px(2. * s),
-                padding: UiRect::new(px(14. * s), px(14. * s), px(9. * s), px(8. * s)),
+                padding: UiRect::new(
+                    px(frame::INSET * s),
+                    px(frame::INSET * s),
+                    px(frame::TOP * s),
+                    px(8. * s),
+                ),
                 ..default()
             },
             Part("popover-header".into()),
@@ -2136,6 +2154,7 @@ mod tests {
                 .unwrap();
         let sliced = [
             plate::CARD,
+            plate::SLIP_CARD,
             plate::PRIMARY,
             plate::CANCEL,
             plate::CHIP,

@@ -1,6 +1,6 @@
 //! Matched Santiago positions worked from R 3.1, 3.2.4, 6.3.1 and #130.
 use cuba_libre_unfolded::{
-    Choice, Faction, Game, Kind, Observation, State,
+    AssaultPreview, Choice, Faction, Game, Kind, Observation, State,
     targets::{SpaceState, space_targets},
 };
 
@@ -211,19 +211,16 @@ fn havana_assault_closes_the_targeted_casino_without_returning_it() {
     // consequences are equal, and only the note on whom each can affect differs.
     let consequences = |choice: &Choice| {
         let mut preview = choice.preview.clone().unwrap();
-        preview.notes.clear();
+        preview.assault.as_mut().unwrap().affects.clear();
         preview
     };
     assert_eq!(consequences(both), consequences(target));
     assert_eq!(preview.resources[0].from, 5);
     assert_eq!(preview.resources[0].to, 3);
     assert!(preview.removed.is_empty());
-    assert!(
-        preview
-            .notes
-            .iter()
-            .any(|note| note.contains("Close 1 Casino in place"))
-    );
+    let effect = &preview.assault.as_ref().unwrap().effect;
+    assert!(effect.contains("Close 1 Casino in place"), "{effect}");
+    assert!(!effect.contains("to Available"), "{effect}");
     assert!(
         preview
             .notes
@@ -777,11 +774,9 @@ fn the_plan_that_removes_nothing_costs_the_space_s_price_and_changes_nothing_els
         );
         assert!(preview.removed.is_empty() && preview.flips.is_empty());
         assert!(preview.control.is_empty() && preview.standings.is_empty());
-        assert!(
-            preview
-                .notes
-                .iter()
-                .any(|n| n == "R 3.2.4: No pieces affected.")
+        assert_eq!(
+            preview.assault.as_ref().unwrap().effect,
+            "R 3.2.4: No pieces affected."
         );
         choose(&mut game, &action);
         let after = game.observe();
@@ -855,13 +850,19 @@ fn each_paid_space_is_recorded_in_the_order_paid_with_what_it_removed_or_closed(
         .preview
         .clone()
         .unwrap();
+    // Each part is stated by name, so none depends on the notes' order.
+    assert_eq!(
+        preview.assault,
+        Some(AssaultPreview {
+            arithmetic: "6 Troops + 4 Police = 10 in a City (R 3.2.4).".into(),
+            affects: "Syndicate: 0 Active, 0 Underground, 1 open Casino.".into(),
+            effect: "R 3.2.4: Close 1 Casino in place (R 1.4.5).".into(),
+        })
+    );
     assert_eq!(
         preview.notes,
         [
-            "6 Troops + 4 Police = 10 in a City (R 3.2.4).",
-            "Syndicate: 0 Active, 0 Underground, 1 open Casino.",
-            "R 3.2.4: Close 1 Casino in place (R 1.4.5).",
-            "Government would have 1 Resource: another space would need a Resource transfer first (R 6.3.1).",
+            "Government would have 1 Resource: another space would need a Resource transfer first (R 6.3.1)."
         ]
     );
     assert!(preview.unavailable.is_empty());

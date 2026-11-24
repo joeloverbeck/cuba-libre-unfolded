@@ -40,15 +40,23 @@ impl AssaultResolution {
         &self.detail.space
     }
 
+    /// The space and what it paid, such as "Havana · paid 2 Resources": the one wording
+    /// of a paid space that its record and Finish Assault's explanation both begin with.
+    fn paid_line(&self) -> String {
+        format!("{} · paid {}", self.space_name(), resources(self.paid))
+    }
+
     /// The record of this space: its name, what it paid and what was removed or
     /// closed, such as "Havana · paid 2 Resources · closed 1 Casino".
     pub fn summary(&self) -> String {
-        format!(
-            "{} · paid {} · {}",
-            self.detail.space,
-            resources(self.paid),
-            self.detail.record()
-        )
+        format!("{} · {}", self.paid_line(), self.detail.record())
+    }
+
+    /// The space as Finish Assault's explanation states it, with what was removed or
+    /// closed and its rule, such as "Havana · paid 2 Resources. Closed 1 Casino in
+    /// place (R 1.4.5)".
+    fn finished(&self) -> String {
+        format!("{}. {}", self.paid_line(), self.detail.effect(true))
     }
 }
 
@@ -408,6 +416,12 @@ fn payment_action(action: &str) -> Option<&str> {
     Some(space)
 }
 
+/// What Assault costs Government in each space: the US Alliance level's COIN cost
+/// (R 6.3.1).
+fn assault_cost() -> u8 {
+    ALLIANCE.coin_cost()
+}
+
 impl Game {
     /// What each paid space paid and what was removed or closed there, in the order paid.
     pub(super) fn assault_paid(&self) -> Vec<AssaultResolution> {
@@ -418,7 +432,8 @@ impl Game {
 
     /// Why `space` is in its map state while the Assault is open (#170), from the
     /// plans offered there (`here`): what a paid space paid (R 3.1), what would open a
-    /// space Government cannot pay for now, or why Assault would remove nothing there.
+    /// space Government cannot pay for now, that nothing can pay for a space where a plan
+    /// would act (not involved), or why Assault would remove nothing there.
     /// A space where a supported plan affects a piece needs no reason.
     pub(super) fn assault_reason(&self, space: &Space, here: &[&Choice]) -> Option<String> {
         let assault = self.assault.as_ref()?;
@@ -438,36 +453,48 @@ impl Game {
         if !effective.is_empty() {
             return Some(format!(
                 "Government cannot pay {}",
-                resources(UsAlliance::Firm.coin_cost())
+                resources(assault_cost())
             ));
         }
         removes_nothing(space)
     }
 
-    /// What the preview of paying for `action` states besides its computed changes:
-    /// the capacity arithmetic, whom the plan can affect, what it removes or closes,
-    /// and whether Government could then pay for another space. `self` is the match
-    /// before the payment and `after` the copy it was applied to.
-    pub(super) fn assault_preview_notes(&self, after: &Game, action: &str) -> Vec<String> {
+    /// What the preview of paying for `action` states besides its computed changes, or
+    /// `None` when `action` pays for no Assault plan: the capacity arithmetic, whom the
+    /// plan can affect, and what it removes or closes. `self` is the match before the
+    /// payment and `after` the copy it was applied to.
+    pub(super) fn assault_preview(&self, after: &Game, action: &str) -> Option<AssaultPreview> {
+        let space =
+            payment_action(action).and_then(|id| self.spaces.iter().find(|s| s.id == id))?;
+        let plan = plans(space)
+            .into_iter()
+            .find(|plan| plan.action == action)?;
+        let paid = after.assault.as_ref()?.paid.last()?;
+        Some(AssaultPreview {
+            arithmetic: capacity(space).1,
+            affects: plan.protection,
+            effect: format!("R 3.2.4: {}.", paid.detail.effect(false)),
+        })
+    }
+
+    /// The facts an Assault payment's preview states besides [`Self::assault_preview`]:
+    /// whether Government could then pay for another space, and when it could not,
+    /// whether a Resource transfer could fund one (R 6.3.1).
+    pub(super) fn assault_preview_notes(after: &Game) -> Vec<String> {
         let mut notes = vec![];
-        let space = payment_action(action).and_then(|id| self.spaces.iter().find(|s| s.id == id));
-        if let Some(space) = space {
-            notes.push(capacity(space).1);
-            if let Some(plan) = plans(space).into_iter().find(|plan| plan.action == action) {
-                notes.push(plan.protection);
-            }
-        }
         let Some(assault) = &after.assault else {
             return notes;
         };
-        if let Some(paid) = assault.paid.last() {
-            notes.push(format!("R 3.2.4: {}.", paid.detail.effect(false)));
-        }
         let balance = after.resources[Faction::Government.index()];
-        let cost = UsAlliance::Firm.coin_cost();
+        let cost = assault_cost();
         if balance < cost && assault.paid.len() < after.spaces.len() {
+            let rest = if after.balance_after_transfers(Faction::Government) >= cost {
+                "another space would need a Resource transfer first"
+            } else {
+                "it could not pay for another space"
+            };
             notes.push(format!(
-                "Government would have {}: another space would need a Resource transfer first (R 6.3.1).",
+                "Government would have {}: {rest} (R 6.3.1).",
                 resources(balance)
             ));
         }
@@ -479,9 +506,9 @@ impl Game {
     }
 
     pub(super) fn assault_opening(&self) -> Choice {
-        let alliance = UsAlliance::Firm;
+        let alliance = ALLIANCE;
         let balance = self.resources[Faction::Government.index()];
-        let cost = alliance.coin_cost();
+        let cost = assault_cost();
         let cost_line = format!(
             "{} US Alliance: {} per space (R 6.3.1). Government has {}",
             alliance.name(),
@@ -522,17 +549,14 @@ impl Game {
     /// The plans of every space not yet paid, in the map's space order (#169). Each
     /// states its space and whether it removes or closes a piece. A plan is supported
     /// when Government can pay the space's cost; otherwise it gives that reason and,
-    /// while another faction has Resources to give, names the Resource transfer that
-    /// would open it, as a Terror target does.
+    /// while the other factions could give Government enough to pay it, names the
+    /// Resource transfer that would open it, as a Terror target does.
     fn assault_plans(&self) -> Vec<Choice> {
         let assault = self.assault.as_ref().unwrap();
         let balance = self.resources[Faction::Government.index()];
-        let cost = UsAlliance::Firm.coin_cost();
+        let cost = assault_cost();
         let funded = balance >= cost;
-        let transfer_helps = !funded
-            && ENEMIES
-                .iter()
-                .any(|faction| self.resources[faction.index()] > 0);
+        let transfer_helps = !funded && self.balance_after_transfers(Faction::Government) >= cost;
         self.spaces
             .iter()
             .filter(|space| assault.paid.iter().all(|paid| paid.space != space.id))
@@ -579,12 +603,7 @@ impl Game {
                 assault
                     .paid
                     .iter()
-                    .map(|paid| format!(
-                        "{} · paid {}. {}",
-                        paid.space_name(),
-                        resources(paid.paid),
-                        paid.detail.effect(true)
-                    ))
+                    .map(AssaultResolution::finished)
                     .collect::<Vec<_>>()
                     .join(". "),
                 resources(balance),
@@ -652,7 +671,7 @@ impl Game {
             .into_iter()
             .find(|plan| plan.action == action)
             .ok_or("Unknown Assault targets.")?;
-        let paid = UsAlliance::Firm.coin_cost();
+        let paid = assault_cost();
         self.resources[Faction::Government.index()] -= paid;
         for returned in &plan.detail.removed {
             let piece = space
@@ -718,8 +737,8 @@ mod reason_tests {
     use super::*;
 
     /// The most characters a space tag's line has held. Every wording measured at most
-    /// 232 of the line's 248 reference pixels in Lato Regular at 17 (#170's done note);
-    /// this keeps a longer wording from slipping in unmeasured.
+    /// 232 of the line's 248 reference pixels in Lato Regular at 17 (`art/atlas/STATUS.md`,
+    /// "The open decision's line"); this keeps a longer wording from slipping in unmeasured.
     const REASON_CHARS: usize = 33;
 
     fn space(terrain: Terrain, pieces: &[(Faction, Kind, State, u8)]) -> Space {
@@ -830,5 +849,65 @@ mod reason_tests {
                 assert!(line.chars().count() <= REASON_CHARS, "{line}");
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod record_tests {
+    use super::*;
+
+    fn paid(removed: Vec<Group>, closed: u8) -> AssaultResolution {
+        AssaultResolution {
+            space: "havana".into(),
+            paid: 2,
+            returned: removed.iter().map(|group| group.count).sum(),
+            detail: AssaultDetail {
+                space: "Havana".into(),
+                removed,
+                closed,
+            },
+        }
+    }
+
+    /// A paid space's record, in the panel's summary and in Finish Assault's
+    /// explanation: one wording for the space and its payment, then each sentence's
+    /// own words for what it removed or closed (R 3.2.4, 1.4.5).
+    #[test]
+    fn a_paid_space_is_worded_once_for_the_summary_and_the_finish() {
+        let casino = paid(vec![], 1);
+        assert_eq!(
+            casino.summary(),
+            "Havana · paid 2 Resources · closed 1 Casino"
+        );
+        assert_eq!(
+            casino.finished(),
+            "Havana · paid 2 Resources. Closed 1 Casino in place (R 1.4.5)"
+        );
+        let guerrillas = paid(
+            vec![Group {
+                faction: Faction::Directorio,
+                kind: Kind::Guerrilla,
+                state: State::Active,
+                count: 2,
+            }],
+            0,
+        );
+        assert_eq!(
+            guerrillas.summary(),
+            "Havana · paid 2 Resources · returned 2 Directorio Guerrillas"
+        );
+        assert_eq!(
+            guerrillas.finished(),
+            "Havana · paid 2 Resources. Returned 2 Directorio Active Guerrillas to Available Forces"
+        );
+        let nothing = paid(vec![], 0);
+        assert_eq!(
+            nothing.summary(),
+            "Havana · paid 2 Resources · removed nothing"
+        );
+        assert_eq!(
+            nothing.finished(),
+            "Havana · paid 2 Resources. No pieces affected"
+        );
     }
 }
