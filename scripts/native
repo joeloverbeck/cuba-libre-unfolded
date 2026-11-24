@@ -10,16 +10,19 @@ if [[ -z $changes ]]; then
 else
   echo "working tree: $(wc -l <<<"$changes") changed path(s) differ from the revision"
 fi
-# What this suite builds and reads. Commits that print the same `inputs:` line run the
-# same suite, so a run on one holds for the other (a merge that touched only documents).
-# Markdown is left out: no native test reads it. The private cards and the renderer are not in it.
-inputs=(.cargo Cargo.lock Cargo.toml rust-toolchain.toml art src tests scripts/native)
-if [[ -n $(git status --porcelain --untracked-files=normal -- "${inputs[@]}") ]]; then
-  echo "inputs: not named, they differ from the revision"
-else
-  listed=$(git ls-tree -r HEAD -- "${inputs[@]}" | grep -v '\.md$')
-  echo "inputs: $(git hash-object --stdin <<<"$listed")"
-fi
+# A hash of every tracked file this suite could build or read: all but documents, agent
+# settings and CI, so a file added later counts. Commits with the same hash run the same
+# suite, as far as this repository decides it: the private cards, the renderer and the
+# environment are not in it. Prints nothing while any of those files differs from HEAD.
+suite_inputs() {
+  local among=(. ':(exclude)*.md' ':(exclude)docs' ':(exclude)LICENSE' ':(exclude).agents'
+    ':(exclude).claude' ':(exclude).codex' ':(exclude).github' ':(exclude).githooks'
+    ':(exclude).mcp.json')
+  local dirty
+  dirty=$(git status --porcelain --untracked-files=normal -- "${among[@]}")
+  if [[ -z $dirty ]]; then git ls-files -s -- "${among[@]}" | git hash-object --stdin; fi
+}
+before=$(suite_inputs)
 
 # From a worktree, evidence goes to the main checkout: `git worktree remove` deletes the
 # worktree's own ignored files. A set CUBA_NATIVE_EVIDENCE wins.
@@ -50,6 +53,7 @@ fi
 # Keep the original libtest arguments for discovery and execution. Extract just
 # the positive name filters so one valid filter cannot mask a misspelled one.
 args=("$@")
+given=$#
 filters=()
 list=false
 selection=()
@@ -135,6 +139,8 @@ fi
 
 : "${CUBA_TEST_CARDS:?set CUBA_TEST_CARDS to the selected card directory (README, Where files live)}"
 if [[ -n ${CUBA_NATIVE_EVIDENCE:-} ]]; then echo "evidence: $CUBA_NATIVE_EVIDENCE"; fi
+whole=false
+if [[ -n $shard ]] || ((given == 0)); then whole=true; fi
 failed=()
 echo "== tests/native.rs"
 "${cargo_test[@]}" --test native -- "${harness[@]}" "${args[@]}" || failed+=("tests/native.rs")
@@ -153,4 +159,13 @@ if [[ -n $shard ]]; then
   echo "native regressions: shard $shard passed; the suite needs all $parts"
 else
   echo "native regressions: all passed"
+fi
+# Only a passed shard or a passed unfiltered run names its inputs, so a filtered or
+# failed one cannot be taken for the suite.
+if "$whole"; then
+  if [[ -n $before && $(suite_inputs) == "$before" ]]; then
+    echo "suite inputs: $before"
+  else
+    echo "suite inputs not named: files the suite reads differ from the revision or changed during the run"
+  fi
 fi

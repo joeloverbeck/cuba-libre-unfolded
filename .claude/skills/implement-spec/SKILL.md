@@ -59,6 +59,6 @@ A **small follow-up** corrects one local behaviour of delivered work, within tha
 - no other agent is working on the same files;
 - authority, acceptance boundary and publication set stay those of the work it corrects.
 
-For one, skip the subagents of steps 2, 4–6 and 9. Implement it yourself on one branch with focused runs; after the review clears, run `scripts/check` and any native check the change reaches on the head to be merged. Call the Skill tool with "code-review", marking the change a small follow-up so one reviewer runs. Fix its findings yourself and have the fixes reviewed as its "Fixes" paragraph describes. Merge it yourself once checks pass and the reviewer leaves no unresolved finding, within the existing publication authority.
+For one, skip the subagents of steps 2, 4–6 and 9. Implement it yourself on one branch with focused runs; after the review clears, merge `main` in, then run `scripts/check` and any native check the change reaches on the head to be merged. Call the Skill tool with "code-review", marking the change a small follow-up so one reviewer runs. Fix its findings yourself and have the fixes reviewed as its "Fixes" paragraph describes. Merge it yourself once checks pass and the reviewer leaves no unresolved finding, within the existing publication authority.
 
 Escalate to the full steps as soon as a condition fails, the reviewer finds something outside the correction, or the change outgrows its first plan.
