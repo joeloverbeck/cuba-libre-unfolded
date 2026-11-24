@@ -176,7 +176,6 @@ impl Target {
             if self.bases > 0 {
                 text.push_str(", and they protect their faction's Bases");
             }
-            text.push_str(" (R 3.2.4)");
         } else if self.bases > 0 && self.active > 0 {
             text.push_str(". Bases are affected after this faction's Guerrillas");
         }
@@ -822,7 +821,7 @@ mod reason_tests {
         for plan in &offered {
             assert!(
                 plan.protection.ends_with(
-                    "Syndicate: 0 Active, 1 Underground, 1 open Casino. Assault cannot remove its Underground Guerrillas until they are Activated, and they protect their faction's Bases (R 3.2.4)."
+                    "Syndicate: 0 Active, 1 Underground, 1 open Casino. Assault cannot remove its Underground Guerrillas until they are Activated, and they protect their faction's Bases."
                 ),
                 "{}",
                 plan.protection

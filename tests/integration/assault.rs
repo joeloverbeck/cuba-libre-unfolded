@@ -194,7 +194,7 @@ fn havana_assault_closes_the_targeted_casino_without_returning_it() {
         havana.iter().map(|c| c.action()).collect::<Vec<_>>(),
         ["assault:havana:syndicate", "assault:havana:none",]
     );
-    let reason = "Directorio: 0 Active, 2 Underground. Assault cannot remove its Underground Guerrillas until they are Activated (R 3.2.4).";
+    let reason = "Directorio: 0 Active, 2 Underground. Assault cannot remove its Underground Guerrillas until they are Activated.";
     for row in &havana {
         assert!(row.explanation.contains(reason), "{}", row.explanation);
     }
@@ -850,7 +850,7 @@ fn each_paid_space_is_recorded_in_the_order_paid_with_what_it_removed_or_closed(
         preview.assault,
         Some(AssaultPreview {
             arithmetic: "6 Troops + 4 Police = 10 in a City (R 3.2.4).".into(),
-            affects: "Syndicate: 0 Active, 0 Underground, 1 open Casino. Directorio: 0 Active, 2 Underground. Assault cannot remove its Underground Guerrillas until they are Activated (R 3.2.4).".into(),
+            affects: "Syndicate: 0 Active, 0 Underground, 1 open Casino. Directorio: 0 Active, 2 Underground. Assault cannot remove its Underground Guerrillas until they are Activated.".into(),
             effect: "R 3.2.4: Close 1 Casino in place (R 1.4.5).".into(),
         })
     );
