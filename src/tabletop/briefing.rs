@@ -422,7 +422,7 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
                 "remove" | "done-removal" => ("R 1.4.1", "VOLUNTARY REMOVAL"),
                 _ if view.transfer.is_some() => ("R 1.5.1, 1.8", "GIVER'S DECISION"),
                 _ if option.starts_with("remove:") => ("R 1.4.1", "VOLUNTARY REMOVAL"),
-                _ => ("R 3.1, 3.2.4, 6.3.1", "TARGET AND COST"),
+                _ => ("R 3.1, 3.2.4, 6.3.1", "ASSAULT"),
             };
             // An Assault plan is no panel option: its space's popover previews it (#169).
             let entries = vec![entry(label, &choice.explanation)];
