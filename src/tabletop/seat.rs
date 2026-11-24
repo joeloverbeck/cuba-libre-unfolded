@@ -763,6 +763,16 @@ mod tests {
                 count_bounds(&ask(&mut seat, &mut app, json!({"op":"observe"})))
             })
             .collect();
+        // Every two sizes put every count more than 20 px apart, so a count left where
+        // another size had it cannot pass.
+        for (i, one) in opened.iter().enumerate() {
+            for other in &opened[i + 1..] {
+                for ((name, a), (_, b)) in one.iter().zip(other) {
+                    let apart = (a[0] - b[0]).hypot(a[1] - b[1]);
+                    assert!(apart > 20., "{name}: {a:?} {b:?}");
+                }
+            }
+        }
         let save = root.join("resized.json");
         let (mut app, mut seat) = rolled(&cards, &save, sizes[0]);
         let air = ask(&mut seat, &mut app, json!({"op":"settle","steps":3}));
@@ -804,12 +814,6 @@ mod tests {
         let continued = ask(&mut seat, &mut app, json!({"op":"observe"}));
         assert!(continued["table"]["die"].is_null(), "{continued}");
         assert_counts_at(&count_bounds(&continued), &at_landing, "after Continue");
-        // The sizes put the counts far apart, so a frozen count cannot pass.
-        for pair in opened.windows(2) {
-            let (_, first) = &pair[0][0];
-            let (_, second) = &pair[1][0];
-            assert!((first[0] - second[0]).abs() > 20., "{first:?} {second:?}");
-        }
     }
 
     /// Resizes the in-process surface as a window resize does: the primary window and the
