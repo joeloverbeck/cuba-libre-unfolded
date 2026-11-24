@@ -1014,9 +1014,18 @@ pub(super) fn keys(
             return;
         }
         // An open space or piece popover closes as the tag does (#75); nothing is
-        // decided. Focus returns to a closed space popover's space (#168).
+        // decided. Keyboard focus on the space or in its popover returns to the space
+        // (#168); a popover the pointer opened leaves focus where it was.
         if let Some((space, _)) = popover.space(view.revision) {
-            ui.choice.focus = Some(format!("space:{space}"));
+            let stop = format!("space:{space}");
+            if ui
+                .choice
+                .focus
+                .as_deref()
+                .is_some_and(|f| f == stop || f.starts_with("popover:"))
+            {
+                ui.choice.focus = Some(stop);
+            }
         }
         popover.close_all();
         if ui.choice.pinned.is_some() {

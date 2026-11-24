@@ -302,6 +302,9 @@ fn focus(app: &mut Native, name: &str) -> Value {
         if focus == name {
             break;
         }
+        // During Terror the map's spaces come before the rows (#168); a focused
+        // space's tag holds the table for its dwell.
+        app.request(json!({"op":"settle"}), true);
     }
     assert_eq!(focus, name);
     app.request(json!({"op":"settle"}), true);
@@ -415,7 +418,8 @@ fn native_available_forces_tags_open_on_hover_and_focus_and_follow_a_removal() {
     app.capture("tag-26july-after-removal");
     app.point("quit");
 
-    // Focus: Tab reaches the four rows after the panel's controls, and each opens its
+    // Focus: Tab reaches the four rows after the panel's controls and the map's spaces
+    // (#168), and each opens its
     // tag with the same dwell; the next stop, the current card, closes it.
     let focused = focus(&mut app, "available:government");
     assert_eq!(focused["table"]["top"]["item"], "available:government");

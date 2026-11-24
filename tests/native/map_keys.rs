@@ -196,6 +196,17 @@ fn native_keyboard_reaches_santiago_and_commits_terror() {
     let revision = landed["observation"]["revision"].as_u64().unwrap();
     assert_eq!(target_state(&landed, "santiago"), "selectable");
 
+    // A popover the pointer opened, closed by Escape, leaves focus where it was.
+    assert_eq!(landed["table"]["choice"]["focus"], Value::Null);
+    app.activate("space:santiago", revision);
+    assert_eq!(app.observe()["table"]["popover"]["space"], "santiago");
+    app.request(json!({"op":"key","revision":revision,"key":"Escape"}), true);
+    app.request(json!({"op":"settle"}), true);
+    let escaped = app.observe();
+    assert_eq!(escaped["table"]["popover"], Value::Null);
+    assert_eq!(escaped["table"]["choice"]["focus"], Value::Null);
+    app.point("quit");
+
     // Terror in Santiago with the keyboard alone: reach the space, open its popover,
     // choose Terror's row, commit with its button.
     let before = landed["observation"].clone();
