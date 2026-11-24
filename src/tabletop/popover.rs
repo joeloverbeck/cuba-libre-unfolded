@@ -52,6 +52,11 @@ pub(super) mod frame {
     /// rule notes, Regular 11 (`art/atlas/HIGHLIGHTS.md`, A-P1 rows).
     pub const LINE_SIZE: f32 = 12.5;
     pub const NOTE_SIZE: f32 = 11.;
+    /// The text's inset from the card's sides, and the header's space below the rule.
+    pub const INSET: f32 = 14.;
+    pub const TOP: f32 = 9.;
+    /// The rule's height.
+    pub const RULE: f32 = 3.;
 }
 
 /// The production plates of `art/atlas/atlas-popover.figcraft` (frame "Production
@@ -1230,7 +1235,7 @@ fn spawn(
         commands,
         art,
         body,
-        3. * s,
+        frame::RULE * s,
         if card.kind == CardKind::Protected {
             plate::RULE_INK
         } else {
@@ -1243,7 +1248,12 @@ fn spawn(
             Node {
                 flex_direction: FlexDirection::Column,
                 row_gap: px(2. * s),
-                padding: UiRect::new(px(14. * s), px(14. * s), px(9. * s), px(8. * s)),
+                padding: UiRect::new(
+                    px(frame::INSET * s),
+                    px(frame::INSET * s),
+                    px(frame::TOP * s),
+                    px(8. * s),
+                ),
                 ..default()
             },
             Part("popover-header".into()),
