@@ -3335,4 +3335,67 @@ mod space_reason_tests {
         assert_eq!(order.len(), 11);
         assert!(!order.contains(&"havana") && !order.contains(&"santiago"));
     }
+
+    /// The same state reached by legal decisions alone (spec #166's review, D1).
+    /// After Kidnap, Santiago's Terror and the shaded Event, the four factions hold
+    /// 25 Resources: 26 at setup, less the Terror's 1 (R 3.3.4). Government, executing
+    /// the Assault, asks each other faction for its whole balance and each gives it
+    /// (R 1.5.1): Government holds 25, the others 0. Twelve spaces paid at 2 each
+    /// (R 6.3.1) leave 1. Havana is left unpaid, its open Casino still a target, and
+    /// nothing can pay for it: no faction has a Resource to give.
+    #[test]
+    fn legal_play_reaches_an_assault_space_nobody_can_fund() {
+        use crate::targets::{SpaceState, focus_order, space_targets};
+        let mut game = Game::opening_with_seed(2);
+        for action in [
+            "terror",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+            "advance-card",
+            "government:assault",
+        ] {
+            choose(&mut game, action);
+        }
+        assert_eq!(game.observe().resources, [1, 4, 5, 15]);
+        for (giver, amount) in [(1, 4), (2, 5), (3, 15)] {
+            choose(&mut game, "transfer");
+            choose(&mut game, &format!("ask:{giver}:{amount}"));
+            choose(&mut game, &format!("authorize:{amount}"));
+        }
+        assert_eq!(game.observe().resources, [25, 0, 0, 0]);
+        let unpaid: Vec<String> = game
+            .observe()
+            .spaces
+            .iter()
+            .map(|space| space.id.clone())
+            .filter(|id| id != "havana")
+            .collect();
+        for space in &unpaid {
+            choose(&mut game, &format!("assault:{space}:none"));
+        }
+        let view = game.observe();
+        assert_eq!(view.resources, [1, 0, 0, 0]);
+        assert_eq!(view.assault_paid.len(), 12);
+        let targets = space_targets(&view).expect("the Assault is still open");
+        let havana = targets.iter().find(|t| t.space == "havana").unwrap();
+        // Havana's plans would close the Casino, but none is supported and none names
+        // a remedy.
+        let plans: Vec<_> = view
+            .choices
+            .iter()
+            .filter(|c| c.space() == Some("havana"))
+            .collect();
+        assert!(plans.iter().any(|c| c.site.as_ref().unwrap().effect));
+        assert!(plans.iter().all(|c| !c.supported && c.remedies.is_empty()));
+        assert_eq!(havana.state, SpaceState::NotInvolved);
+        assert!(focus_order(&targets).is_empty());
+        assert_eq!(
+            reason(&game, "havana").as_deref(),
+            Some("Government cannot pay 2 Resources")
+        );
+    }
 }
