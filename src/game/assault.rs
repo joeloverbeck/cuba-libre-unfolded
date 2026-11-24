@@ -718,8 +718,8 @@ mod reason_tests {
     use super::*;
 
     /// The most characters a space tag's line has held. Every wording measured at most
-    /// 232 of the line's 248 reference pixels in Lato Regular at 17 (#170's done note);
-    /// this keeps a longer wording from slipping in unmeasured.
+    /// 232 of the line's 248 reference pixels in Lato Regular at 17 (`art/atlas/STATUS.md`,
+    /// "The open decision's line"); this keeps a longer wording from slipping in unmeasured.
     const REASON_CHARS: usize = 33;
 
     fn space(terrain: Terrain, pieces: &[(Faction, Kind, State, u8)]) -> Space {
