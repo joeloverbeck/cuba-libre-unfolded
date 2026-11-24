@@ -1,13 +1,13 @@
-<!-- BEGIN PRINCIPLES-FOR-REPOS BOOTSTRAP 2026-11-15.1 -->
+<!-- BEGIN PRINCIPLES-FOR-REPOS BOOTSTRAP 2026-11-23.1 -->
 ## Repository constitution
 
-This repository adopts `docs/principles/principles-for-repos.md`, revision **2026-11-15.1**, and the modules below as binding. `CLAUDE.md` is the real root instruction file; `AGENTS.md` is its symlink.
+This repository adopts `docs/principles/principles-for-repos.md`, revision **2026-11-23.1**, and the modules below as binding. `CLAUDE.md` is the real root instruction file; `AGENTS.md` is its symlink.
 
 Adopted modules: `fidelity.md`, `agency-simulation.md`, `integration.md`.
 
 ### Mandatory reading
 
-Reasonable doubt fires a trigger. Read the core's Modules table for applicability. A missing triggered module MUST be adopted under `ADOPT-1` before substantive dependent work. Read each applicable module's rules. Founding, material reorientation or foundation revision, adoption/reconciliation, and constitutional amendment require the complete adopted text: core and all adopted modules, plus any newly applicable module.
+Reasonable doubt fires a trigger. Read the core's Modules table for applicability. A missing triggered module MUST be adopted under `ADOPT-1` before substantive dependent work. Read each applicable module's rules. Founding, material reorientation, adoption/reconciliation, and constitutional amendment require the complete adopted text: core and all adopted modules, plus any newly applicable module.
 
 An exact quotation of a current-revision rule in a brief naming that revision satisfies the recipient's reading of that rule. Paraphrase, memory and earlier reading for another decision do not. The recipient reads anything else its own work triggers.
 
@@ -15,6 +15,7 @@ An exact quotation of a current-revision rule in a brief naming that revision sa
 - Before using a test or other evidence for completion, adoption or expansion: read `EVID-3`, `EVID-4`, `EVID-6`, `REP-2`.
 - Before merge, release or authoritative publication: read `AUTH-1`, `AUTH-2`, `AUTH-3`, `OPS-6`, `OPS-7`, `PUB-1`.
 - Before founding, reorientation or selecting an outcome: read `PURP-1`, `PURP-2`, `PURP-4`, `GOV-1`.
+- Before changing a foundation: read `GOV-1`, `AUTH-1`, `AUTH-2`, `ADOPT-1`, `ADOPT-2`.
 - Before prerequisites, supply, substrate or a coordinated consumer iteration constrain work: read `PURP-5`, `PURP-6`, `WORK-6`.
 - Before research or relying on an origin story: read `EVID-1`, `EVID-2`.
 - Before broad exploration or a selected full sweep: read `EVID-7`.
@@ -41,7 +42,7 @@ Human intent → constrained proposal → checks → inspectable consequences �
 Stop discretionary expansion and read the controlling rules when inputs, oracles, lifecycle evidence or no-match outcomes are missing; an essential consumer handoff remains untested; claims outrun evidence or burden exceeds appetite; presentation, scores, replay or compliance substitute for a different claim, hide failed requirements or obscure causal credit; capability, boundary, fan-out, non-convergence or terminal-decision limits arise; or authority conflicts or a human request would transfer technical investigation to the human. Use the routes above and applicable modules.
 
 If required text cannot be located or read, substantive work is unauthorized. Preserve potentially applicable safeguards while investigating. `AGENT-5` reserves only the human remainder; ordinary implementation uncertainty permits governed investigation and reversible work.
-<!-- END PRINCIPLES-FOR-REPOS BOOTSTRAP 2026-11-15.1 -->
+<!-- END PRINCIPLES-FOR-REPOS BOOTSTRAP 2026-11-23.1 -->
 
 ## Cuba Libre Unfolded
 
