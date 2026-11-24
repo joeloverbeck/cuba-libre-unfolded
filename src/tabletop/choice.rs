@@ -1575,7 +1575,7 @@ pub(super) fn draw(
         spawned.push((label, format!("briefing-label:{}", entry.label)));
         y += fig::ENTRY_VALUE_TOP;
         if !entry.text.is_empty() {
-            let lines = briefing::lines(&entry.text, briefing::CHARS);
+            let lines = briefing::drawn_lines(&entry.text, briefing::CHARS, &seen);
             let p = at(left_x, y);
             let value = run(
                 &mut commands,

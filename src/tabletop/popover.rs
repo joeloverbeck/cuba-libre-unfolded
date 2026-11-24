@@ -2488,12 +2488,6 @@ mod tests {
                 .collect::<Vec<_>>(),
             [
                 ("Target Syndicate", "Assault", Mark::Selectable, true),
-                (
-                    "Target Directorio + Syndicate",
-                    "Assault",
-                    Mark::Selectable,
-                    false
-                ),
                 ("Removes nothing", "Assault", Mark::Selectable, false),
             ]
         );
@@ -2509,7 +2503,8 @@ mod tests {
                 (Tone::Plain, "Pay 2 Resources: Government 5 → 3.".into()),
                 (
                     Tone::Plain,
-                    "Syndicate: 0 Active, 0 Underground, 1 open Casino.".into()
+                    "Syndicate: 0 Active, 0 Underground, 1 open Casino. Directorio: 0 Active, 2 Underground. Assault cannot remove its Underground Guerrillas until they are Activated (R 3.2.4)."
+                        .into()
                 ),
                 (
                     Tone::Strong,
@@ -2522,7 +2517,7 @@ mod tests {
 
         // The plan that removes nothing, once chosen, says so on its button.
         let card = super::content(&game.observe(), "havana", Some("assault:havana:none")).unwrap();
-        let nothing = &card.rows[2];
+        let nothing = &card.rows[1];
         assert!(nothing.chosen && !card.rows[0].chosen);
         assert_eq!(
             nothing.button.as_deref(),

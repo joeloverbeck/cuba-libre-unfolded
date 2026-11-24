@@ -258,6 +258,8 @@ fn native_assault_is_chosen_on_the_map_by_space_picks_alone() {
 
     app.launch_size("3840x2160");
     pin(&mut app, "government:assault");
+    assert_briefing_lines_fit(&app.observe());
+    app.capture("0-assault-briefing");
     app.choose("government:assault");
     escape(&mut app);
     app.point("area:propaganda");

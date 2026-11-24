@@ -60,6 +60,34 @@ fn choice_part<'a>(view: &'a Value, name: &str) -> &'a Value {
         .unwrap_or_else(|| panic!("missing choice panel part: {name}"))
 }
 
+/// No value of the open AC-B briefing is drawn on more lines than it was broken into:
+/// a line too wide for its box would wrap again and strand a word (#166's playtest).
+/// A line of plain text is 20 reference pixels and one with emblems 18 (the emblem
+/// spans do not carry the text's line height), so fewer than nine broken lines cannot
+/// take as much height as one more drawn line.
+fn assert_briefing_lines_fit(view: &Value) {
+    let reference = view["table"]["viewport"][1].as_f64().unwrap() / 1280.;
+    let values: Vec<_> = view["table"]["choice_parts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|p| p["part"].as_str().unwrap().starts_with("briefing-value:"))
+        .collect();
+    assert!(!values.is_empty(), "no briefing is open");
+    for value in values {
+        let bounds = rect_of(&value["bounds"]);
+        let text = value["text"].as_str().unwrap();
+        let height = (bounds[3] - bounds[1]) / reference;
+        let broken = text.lines().count() as f64;
+        assert!(broken < 9.);
+        assert!(
+            (18. * broken - 1.0..=20. * broken + 1.0).contains(&height),
+            "{}: {broken} lines drawn {height:.1} reference px high: {text:?}",
+            value["part"]
+        );
+    }
+}
+
 fn unexpected_record(line: &str) -> bool {
     let plain = anstream::adapter::strip_str(line).to_string();
     let mut fields = plain.split_whitespace();
@@ -4687,6 +4715,7 @@ fn native_action_choice_matches_layout_and_briefs_every_option() {
             "{option}"
         );
         assert_eq!(view["table"]["briefing"]["pinned"], false);
+        assert_briefing_lines_fit(&view);
         let words = briefing(&view);
         assert!(words.contains("26July has 0"), "{option}: {words}");
         no_advice(&words);

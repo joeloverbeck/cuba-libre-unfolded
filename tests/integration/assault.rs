@@ -186,35 +186,31 @@ fn havana_assault_closes_the_targeted_casino_without_returning_it() {
     }
     let before = game.observe();
     assert_eq!(before.resources, [5, 0, 5, 15]);
-    // #169: Havana's plans are offered with every other space's. Targeting
-    // Directorio alone removes nothing (its Guerrillas are Underground), so it is the
-    // one plan that removes nothing, offered last.
+    // #169: Havana's plans are offered with every other space's. Directorio's two
+    // Guerrillas are Underground, so no plan targets it (#166's playtest): a row that
+    // named it would say Assault affects it. Every row says why its pieces stay.
     let havana = plans(&before, "havana");
     assert_eq!(
         havana.iter().map(|c| c.action()).collect::<Vec<_>>(),
-        [
-            "assault:havana:syndicate",
-            "assault:havana:directorio+syndicate",
-            "assault:havana:none",
-        ]
+        ["assault:havana:syndicate", "assault:havana:none",]
     );
-    let both = havana[1];
-    assert!(both.explanation.contains("Underground Guerrillas survive"));
-    let nothing = havana[2];
+    let reason = "Directorio: 0 Active, 2 Underground. Assault cannot remove its Underground Guerrillas until they are Activated (R 3.2.4).";
+    for row in &havana {
+        assert!(row.explanation.contains(reason), "{}", row.explanation);
+    }
+    let gone = format!("{}:assault:havana:directorio+syndicate", before.revision);
+    assert!(
+        game.clone()
+            .submit(before.owner, before.revision, &gone)
+            .is_err()
+    );
+    let nothing = havana[1];
     let zero = nothing.preview.as_ref().unwrap();
     assert!(zero.flips.is_empty() && zero.removed.is_empty());
     assert_eq!(zero.resources[0].to, 3);
     let target = havana[0];
     assert!(target.explanation.contains("6 Troops + 4 Police = 10"));
     let preview = target.preview.as_ref().unwrap();
-    // Targeting Directorio as well changes nothing more: the two plans' computed
-    // consequences are equal, and only the note on whom each can affect differs.
-    let consequences = |choice: &Choice| {
-        let mut preview = choice.preview.clone().unwrap();
-        preview.assault.as_mut().unwrap().affects.clear();
-        preview
-    };
-    assert_eq!(consequences(both), consequences(target));
     assert_eq!(preview.resources[0].from, 5);
     assert_eq!(preview.resources[0].to, 3);
     assert!(preview.removed.is_empty());
@@ -564,7 +560,6 @@ fn an_open_assault_offers_every_unpaid_space_s_plans_at_once_and_no_menu() {
         view.choices.iter().map(|c| c.action()).collect::<Vec<_>>(),
         [
             "assault:havana:syndicate",
-            "assault:havana:directorio+syndicate",
             "assault:havana:none",
             "assault:camaguey-city:none",
             "assault:santiago:26july",
@@ -626,7 +621,7 @@ fn each_of_the_thirteen_spaces_has_the_state_r_3_2_4_gives_its_pieces() {
         "havana",
         "G:6T,4P D:2U S:1C",
         SpaceState::Selectable,
-        &["syndicate", "directorio+syndicate"],
+        &["syndicate"],
     );
     let rally = assault_after(4, &RALLY);
     assert_eq!(rally.observe().resources, [5, 0, 5, 15]);
@@ -855,7 +850,7 @@ fn each_paid_space_is_recorded_in_the_order_paid_with_what_it_removed_or_closed(
         preview.assault,
         Some(AssaultPreview {
             arithmetic: "6 Troops + 4 Police = 10 in a City (R 3.2.4).".into(),
-            affects: "Syndicate: 0 Active, 0 Underground, 1 open Casino.".into(),
+            affects: "Syndicate: 0 Active, 0 Underground, 1 open Casino. Directorio: 0 Active, 2 Underground. Assault cannot remove its Underground Guerrillas until they are Activated (R 3.2.4).".into(),
             effect: "R 3.2.4: Close 1 Casino in place (R 1.4.5).".into(),
         })
     );

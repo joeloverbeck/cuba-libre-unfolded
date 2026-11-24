@@ -170,10 +170,13 @@ impl Target {
             text.push_str(&format!(", {} {name}", self.bases));
         }
         if self.underground > 0 {
-            text.push_str(". Underground Guerrillas survive");
+            text.push_str(
+                ". Assault cannot remove its Underground Guerrillas until they are Activated",
+            );
             if self.bases > 0 {
-                text.push_str(" and protect their faction's Bases");
+                text.push_str(", and they protect their faction's Bases");
             }
+            text.push_str(" (R 3.2.4)");
         } else if self.bases > 0 && self.active > 0 {
             text.push_str(". Bases are affected after this faction's Guerrillas");
         }
@@ -201,23 +204,32 @@ impl Plan {
 
 /// What Government may do in `space` (#169): every choice of targeted factions, and
 /// of a short capacity's division among them, that removes or closes at least one
-/// piece (R 3.1, 3.2.4), then the one plan that removes nothing. R 3.2.4 lets
-/// Government select any space, so that plan is offered in every space; where no
-/// other plan exists it is the only one. Every way of removing nothing pays the
-/// same cost and changes nothing else, so one plan stands for them all.
+/// piece (R 3.1, 3.2.4), then the one plan that removes nothing. A plan targets only
+/// factions with a piece Assault can affect there: naming another changes nothing and
+/// reads as if it would (the owner's decision in #166's playtest). Each plan says why
+/// such a faction's pieces stay. R 3.2.4 lets Government select any space, so the plan
+/// that removes nothing is offered in every space; where no other plan exists it is the
+/// only one. Every way of removing nothing pays the same cost and changes nothing else,
+/// so one plan stands for them all.
 fn plans(space: &Space) -> Vec<Plan> {
     let targets: Vec<_> = ENEMIES
         .into_iter()
         .map(|faction| Target::in_space(space, faction))
         .filter(Target::present)
         .collect();
+    let (reachable, sheltered): (Vec<_>, Vec<_>) =
+        targets.iter().partition(|target| target.available() > 0);
+    let sheltered: String = sheltered
+        .iter()
+        .map(|target| format!(" {}", target.protection()))
+        .collect();
     let capacity = capacity(space).0;
-    let mut plans: Vec<Plan> = (1..1 << targets.len())
+    let mut plans: Vec<Plan> = (1..1 << reachable.len())
         .flat_map(|mask| {
-            let selected: Vec<_> = targets
+            let selected: Vec<_> = reachable
                 .iter()
                 .enumerate()
-                .filter_map(|(index, target)| (mask & (1 << index) != 0).then_some(target))
+                .filter_map(|(index, target)| (mask & (1 << index) != 0).then_some(*target))
                 .collect();
             let limits: Vec<_> = selected.iter().map(|target| target.available()).collect();
             let maximum = capacity.min(limits.iter().sum());
@@ -229,6 +241,10 @@ fn plans(space: &Space) -> Vec<Plan> {
                 .collect::<Vec<_>>()
         })
         .filter(Plan::effect)
+        .map(|mut plan| {
+            plan.protection.push_str(&sheltered);
+            plan
+        })
         .collect();
     let why = if targets.is_empty() {
         "No enemy pieces are there.".to_owned()
@@ -239,7 +255,9 @@ fn plans(space: &Space) -> Vec<Plan> {
             .collect::<Vec<_>>()
             .join(" ")
     } else {
-        "This plan targets no faction with a piece Assault can affect here (R 3.1).".to_owned()
+        format!(
+            "This plan targets no faction with a piece Assault can affect here (R 3.1).{sheltered}"
+        )
     };
     plans.push(Plan {
         action: format!("assault:{}:{NOTHING}", space.id),
@@ -767,6 +785,51 @@ mod reason_tests {
 
     fn with(group: (Faction, Kind, State), count: u8) -> (Faction, Kind, State, u8) {
         (group.0, group.1, group.2, count)
+    }
+
+    /// R 3.1, 3.2.4 worked by hand: Grassland, 2 Troops = capacity 2. 26July has 3 Active
+    /// Guerrillas and Directorio 2; either alone, or both with the capacity split. The
+    /// Syndicate's Underground Guerrilla shelters it and its Casino, so no plan targets
+    /// it and every plan says why its pieces stay.
+    #[test]
+    fn plans_target_and_split_only_the_factions_assault_can_affect() {
+        let active = |faction, count| (faction, Kind::Guerrilla, State::Active, count);
+        let probe = space(
+            Terrain::Grassland,
+            &[
+                with(TROOPS, 2),
+                active(Faction::M26, 3),
+                active(Faction::Directorio, 2),
+                (Faction::Syndicate, Kind::Guerrilla, State::Underground, 1),
+                (Faction::Syndicate, Kind::Casino, State::Open, 1),
+            ],
+        );
+        let offered = plans(&probe);
+        assert_eq!(
+            offered
+                .iter()
+                .map(|p| p.action.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "assault:probe:26july",
+                "assault:probe:directorio",
+                "assault:probe:26july+directorio:0-2",
+                "assault:probe:26july+directorio:1-1",
+                "assault:probe:26july+directorio:2-0",
+                "assault:probe:none",
+            ]
+        );
+        for plan in &offered {
+            assert!(
+                plan.protection.ends_with(
+                    "Syndicate: 0 Active, 1 Underground, 1 open Casino. Assault cannot remove its Underground Guerrillas until they are Activated, and they protect their faction's Bases (R 3.2.4)."
+                ),
+                "{}",
+                plan.protection
+            );
+            assert_eq!(plan.effect(), plan.action != "assault:probe:none");
+            assert_eq!(plan.detail.closed, 0);
+        }
     }
 
     /// Each kind of reason R 3.2.4 gives for an Assault that removes nothing, worked
