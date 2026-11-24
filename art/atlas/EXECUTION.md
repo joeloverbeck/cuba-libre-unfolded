@@ -40,7 +40,7 @@ The owner selected **EX-A, Pinned step tag** in #83's round ([selection on #58](
 | The commit, disabled | `execution-commit` (activating it shows the reason) |
 | The commit opening a pending request | `execution-commit` (TM-B's pending tab already carries the choice `<revision>:reopen`) |
 | Kidnap's Cancel | the choice `<revision>:kidnap:cancel` |
-| Drawn parts (`table.choice_parts`) | `execution-heading`, `execution-subtitle`, `section:<targets\|during\|end>`, `terror-map-line`, `terror-record:<space>`, `step:<action>-label`, `-note`, `-pill`, `-pill-label`, `step:kidnap-connector`, `execution-commit-label`, `execution-cancel`, `ended-label:<LABEL>`, `ended-value:<LABEL>`, and the tag's `briefing-*` parts with `briefing-chips:<LABEL>` and `briefing-chip:<remedy>` |
+| Drawn parts (`table.choice_parts`) | `execution-heading`, `execution-subtitle`, `section:<targets\|during\|end>`, the map line and each resolved space's record ([seat reference](../../docs/agents/seat.md#what-the-table-reports) names them), `step:<action>-label`, `-note`, `-pill`, `-pill-label`, `step:kidnap-connector`, `execution-commit-label`, `execution-cancel`, `ended-label:<LABEL>`, `ended-value:<LABEL>`, and the tag's `briefing-*` parts with `briefing-chips:<LABEL>` and `briefing-chip:<remedy>` |
 
 `table.briefing` reports the shown tag: its `option` (the step), `pinned`, `entries` with their `chips`, and `rules`. `table.choice.pinned` reports the pinned step.
 
