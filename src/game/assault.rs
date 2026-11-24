@@ -478,7 +478,8 @@ impl Game {
     }
 
     /// The facts an Assault payment's preview states besides [`Self::assault_preview`]:
-    /// whether Government could then pay for another space (R 6.3.1).
+    /// whether Government could then pay for another space, and when it could not,
+    /// whether a Resource transfer could fund one (R 6.3.1).
     pub(super) fn assault_preview_notes(after: &Game) -> Vec<String> {
         let mut notes = vec![];
         let Some(assault) = &after.assault else {
@@ -487,8 +488,13 @@ impl Game {
         let balance = after.resources[Faction::Government.index()];
         let cost = assault_cost();
         if balance < cost && assault.paid.len() < after.spaces.len() {
+            let rest = if after.balance_after_transfers(Faction::Government) >= cost {
+                "another space would need a Resource transfer first"
+            } else {
+                "it could not pay for another space"
+            };
             notes.push(format!(
-                "Government would have {}: another space would need a Resource transfer first (R 6.3.1).",
+                "Government would have {}: {rest} (R 6.3.1).",
                 resources(balance)
             ));
         }
