@@ -131,7 +131,7 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 | `W` `A` `S` `D` | Pan |
 | `Home` | Restore the map framing; also brings back hover tags that extreme framing hid |
 | `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked, then no effect, then those nothing can pay for) and an open popover's rows and button, then the marker supply, the four Available Forces rows, the current and the preview card, the two piles and Save · quit |
-| `Enter`, `Space` | Activate the focused control. While a played card is moving, land the cards instead |
+| `Enter`, `Space` | Activate the focused control. A double line ([FOCUS-MARK.md](../art/atlas/FOCUS-MARK.md)) is round the button, row or option that Enter would press; in the transfer modal that is the main button until Tab reaches another control, and in the amount field too. A focused space, card, pile, the marker supply or an Available Forces row shows its tag instead. While a played card is moving, land the cards instead |
 | `Escape` | Close a card's tag, unpin a briefing, cancel an open transfer, or close a tag or popover; a space popover closed from the keyboard leaves focus on its space |
 
 The camera answers wherever the pointer is over the map. A scroll, a drag or a click on a panel stays with that panel: it neither moves the camera nor reaches the space beneath. The transfer modal takes camera input while open.

@@ -2,7 +2,7 @@
 
 Decision-only alternatives for [#179](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/179), which owns the work. No runtime code or admission manifest consumes these files, and selection is not native play acceptance. [Foundation 4](../../../docs/foundation/04-art-and-assets.md) governs the round.
 
-**Selected:** pending.
+**Selected by the owner on 2026-11-24: A · Doble filete,** with its light form on the modal's amount field, and the mark on the landed Kidnap die's Continue. Production art: [FOCUS-MARK.md](../../atlas/FOCUS-MARK.md).
 
 The mark is on the control that Enter would press. The light form is for the modal's amount field only: Tab has reached it, while Enter still presses the primary button, which keeps the mark.
 
