@@ -33,13 +33,29 @@ fn refusal(art: &Path, cards: &Path) -> String {
     format!("{:#}", assets::inspect(art, cards).err().unwrap())
 }
 
+/// Every manifest beside the art is in `MANIFESTS`, so the test below reaches its files.
+/// `palette-sources.sha256` is a test record, not an admission manifest.
+#[test]
+fn every_manifest_is_admitted() {
+    let mut written: Vec<String> = std::fs::read_dir("art/atlas")
+        .unwrap()
+        .map(|entry| entry.unwrap().path())
+        .filter(|path| path.extension().is_some_and(|e| e == "sha256"))
+        .filter(|path| !path.ends_with("palette-sources.sha256"))
+        .map(|path| std::fs::read_to_string(path).unwrap())
+        .collect();
+    let mut listed = assets::MANIFESTS.map(str::to_owned).to_vec();
+    written.sort_unstable();
+    listed.sort_unstable();
+    assert_eq!(listed, written);
+}
+
 #[test]
 fn launch_refuses_any_missing_or_changed_admitted_file() {
     let names = all();
-    assert!(names.len() > 200, "{} admitted files", names.len());
     let cards = tempfile::tempdir().unwrap();
-    let workers = std::thread::available_parallelism().map_or(4, |n| n.get());
-    let shares: Vec<_> = names.chunks(names.len().div_ceil(workers)).collect();
+    // Each share breaks files in its own copy of the art.
+    let shares: Vec<_> = names.chunks(16).collect();
     parallel(&shares, |_, share| {
         let art = tempfile::tempdir().unwrap();
         copy(art.path());

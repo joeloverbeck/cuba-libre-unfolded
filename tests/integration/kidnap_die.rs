@@ -649,3 +649,16 @@ fn every_landed_face_keeps_the_70_px_floor_at_1920x1080() {
         );
     }
 }
+
+/// `kidnap.sha256` admits the die, the tray and the record.
+#[test]
+fn the_die_s_files_are_admitted() {
+    assert_eq!(
+        crate::admission::admitted(cuba_libre_unfolded::assets::KIDNAP_MANIFEST),
+        [
+            "atlas-kidnap-die.glb",
+            "atlas-kidnap-tray.glb",
+            "kidnap-die.json"
+        ]
+    );
+}

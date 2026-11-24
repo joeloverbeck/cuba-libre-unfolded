@@ -212,6 +212,9 @@ impl Session {
             None => Self::create_seeded(path, unfolded_random::fresh_seed()?),
         }
     }
+    /// A seed whose first Kidnap roll is 1, which leaves 26July the fewest Resources: the
+    /// native regressions' own (docs/agents/native-tests.md).
+    pub const KIDNAP_ROLLS_1: u64 = 19;
     /// Creates a new save at `path` whose match opens with `seed`, at 26July's
     /// action choice. A file or recovery history already there is refused. For
     /// tests and verification runs that need a known die roll; the app's launch

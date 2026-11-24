@@ -437,9 +437,6 @@ struct Native {
     save: PathBuf,
     step: usize,
 }
-/// The seed whose first Kidnap roll is 1, which leaves 26July the fewest Resources.
-const ROLLS_1: u64 = 19;
-
 impl Native {
     /// Where the detached app writes its log: beside the socket.
     fn runtime_log(&self) -> PathBuf {
@@ -457,7 +454,7 @@ impl Native {
         let previous = unfolded_record_replacement::previous_path(&self.save);
         if !self.save.exists() && !previous.exists() {
             use cuba_libre_unfolded::save::Session;
-            drop(Session::create_seeded(&self.save, ROLLS_1).unwrap());
+            drop(Session::create_seeded(&self.save, Session::KIDNAP_ROLLS_1).unwrap());
         }
         self.launch_as_is(size);
     }
@@ -3905,7 +3902,14 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
     };
     let rate = 0.5;
     let step = 1. / 60.;
-    for (seed, die) in [(19u64, 1u64), (0, 2), (5, 3), (3, 4), (2, 5), (1, 6)] {
+    for (seed, die) in [
+        (Session::KIDNAP_ROLLS_1, 1u64),
+        (0, 2),
+        (5, 3),
+        (3, 4),
+        (2, 5),
+        (1, 6),
+    ] {
         // A new save with this seed, created through the save session's seeded entry.
         app.save = app.root.join(format!("face-{die}.json"));
         drop(Session::create_seeded(&app.save, seed).unwrap());
