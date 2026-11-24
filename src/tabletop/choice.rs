@@ -126,7 +126,7 @@ pub(super) fn rect(x: f32, y: f32, w: f32, h: f32) -> [f32; 4] {
 #[derive(Default)]
 pub(super) struct State {
     /// The pinned option, such as "pass", or during Terror the pinned step, such as
-    /// "terror:santiago" (#84): its tag stays open and the commit reads it.
+    /// "end-terror" (#84): its tag stays open and the commit reads it.
     pub pinned: Option<String>,
     /// The control that has keyboard focus, by its seat name.
     pub focus: Option<String>,
@@ -1826,15 +1826,13 @@ mod tests {
             ]
         );
         // During Terror (#84): every listed step, the commit, then the ribbon, then
-        // the spaces the map offers (#168).
+        // the spaces the map offers (#168), which are Terror's only targets (#171).
         let mut game = Game::opening();
         game.submit(Faction::M26, 0, "0:terror").unwrap();
         let mut ui = Interface::default();
         assert_eq!(
             names(&game.observe(), &ui),
             [
-                "step:terror:santiago",
-                "step:terror:oriente",
                 "step:kidnap",
                 "step:transfer",
                 "step:remove",
