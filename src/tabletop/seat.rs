@@ -845,6 +845,23 @@ mod tests {
                 .unwrap_or_else(|exited| panic!("{request}: {exited}"))
         };
 
+        // The slip stands where the main view's record puts it: its width, right edge
+        // and foot; it grows upward with its lines.
+        let layout: Value =
+            serde_json::from_str(include_str!("../../art/atlas/atlas-main-view.layout.json"))
+                .unwrap();
+        let tolerance = layout["tolerance"].as_f64().unwrap();
+        let [rx, ry, rw, rh]: [f64; 4] =
+            serde_json::from_value(layout["notice-slip"]["bounds"].clone()).unwrap();
+        let placed = |slip: &Value| {
+            // The seat reports the slip's edges: left, top, right, bottom.
+            let [left, _, right, foot]: [f64; 4] =
+                serde_json::from_value(slip["bounds"].clone()).unwrap();
+            assert!((right - (rx + rw)).abs() <= tolerance, "{slip}");
+            assert!((foot - (ry + rh)).abs() <= tolerance, "{slip}");
+            assert!((right - left - rw).abs() <= tolerance, "{slip}");
+        };
+
         // Before admission: no match is open, and the slip shows the loading state.
         let loading = ask(&mut seat, &mut app, json!({"op":"observe"}));
         std::fs::write(root.join("loading.json"), loading.to_string()).unwrap();
@@ -853,6 +870,7 @@ mod tests {
         assert_eq!(slip["kind"], "loading", "{slip}");
         assert_eq!(slip["text"], notice::LOADING, "{slip}");
         assert!(loading["table"]["error"].is_null());
+        placed(slip);
         ask(
             &mut seat,
             &mut app,
@@ -880,19 +898,7 @@ mod tests {
         assert_eq!(slip["kind"], "error", "{slip}");
         assert_eq!(slip["text"], refusal.as_str(), "{slip}");
         assert_eq!(refused["table"]["error"], refusal.as_str());
-        // The slip stands where the main view's record puts it: its right edge and foot.
-        let layout: Value =
-            serde_json::from_str(include_str!("../../art/atlas/atlas-main-view.layout.json"))
-                .unwrap();
-        let tolerance = layout["tolerance"].as_f64().unwrap();
-        let [rx, ry, rw, rh]: [f64; 4] =
-            serde_json::from_value(layout["notice-slip"]["bounds"].clone()).unwrap();
-        // The seat reports the slip's edges: left, top, right, bottom.
-        let [left, _, right, foot]: [f64; 4] =
-            serde_json::from_value(slip["bounds"].clone()).unwrap();
-        assert!((right - (rx + rw)).abs() <= tolerance, "{slip}");
-        assert!((foot - (ry + rh)).abs() <= tolerance, "{slip}");
-        assert!((right - left - rw).abs() <= tolerance, "{slip}");
+        placed(slip);
         ask(
             &mut seat,
             &mut app,
