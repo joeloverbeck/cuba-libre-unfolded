@@ -351,7 +351,7 @@ pub(super) fn input(ui: &mut Interface, view: &Observation, input: Input) {
                 state.set(terms.limit);
             }
         }
-        Input::Field => state.focus = Some("transfer:field".into()),
+        Input::Field => state.focus = Some(FIELD.into()),
     }
     ui.dirty = true;
 }
@@ -367,6 +367,9 @@ fn counterparts(view: &Observation) -> impl Iterator<Item = Faction> + '_ {
         .filter(|&faction| Some(faction) != view.executing)
 }
 
+/// The amount field's seat name.
+pub(super) const FIELD: &str = "transfer:field";
+
 /// The modal's controls in Tab order, by their seat names.
 pub(super) fn focusable(view: &Observation, ui: &Interface) -> Vec<String> {
     let shown = content(view, &ui.transfer);
@@ -378,7 +381,7 @@ pub(super) fn focusable(view: &Observation, ui: &Interface) -> Vec<String> {
             "transfer:direction:ask".into(),
         ]);
     }
-    names.push("transfer:field".into());
+    names.push(FIELD.into());
     names.extend(["transfer:quick:1", "transfer:quick:2", "transfer:quick:max"].map(String::from));
     match &view.transfer {
         Some(Transfer::Selecting) => {
@@ -395,6 +398,19 @@ pub(super) fn focusable(view: &Observation, ui: &Interface) -> Vec<String> {
             .map_or_else(|| "transfer:primary".to_owned(), |c| c.id),
     );
     names
+}
+
+/// The control Enter presses, by its seat name: the focused one, or else the primary
+/// button, which Enter on the amount field presses too. The focus mark is on it (#179).
+pub(super) fn pressed(view: &Observation, ui: &Interface) -> String {
+    let mut order = focusable(view, ui);
+    let at = ui
+        .transfer
+        .focus
+        .as_ref()
+        .filter(|focus| *focus != FIELD)
+        .and_then(|focus| order.iter().position(|name| name == focus));
+    order.swap_remove(at.unwrap_or(order.len() - 1))
 }
 
 /// Activates the modal control `name` as a click would.
@@ -500,10 +516,7 @@ pub(super) fn keys(
         return;
     }
     if keys.any_just_pressed([KeyCode::Enter, KeyCode::NumpadEnter]) {
-        let name = match at {
-            Some(i) if order[i] != "transfer:field" => order[i].clone(),
-            _ => order.last().unwrap().clone(),
-        };
+        let name = pressed(&view, &ui);
         activate(&mut play, &mut ui, &view, &name);
     }
 }
@@ -1570,7 +1583,7 @@ fn amount(
             padding: UiRect::horizontal(px(fig::FIELD_PAD * s)),
             ..default()
         },
-        "transfer:field",
+        FIELD,
         false,
         Action::Transfer(Input::Field),
     );

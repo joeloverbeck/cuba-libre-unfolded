@@ -1066,6 +1066,20 @@ fn step(n: usize, at: Option<usize>, back: bool) -> usize {
     }
 }
 
+/// The control Enter would press, by its seat name, with what Enter does to it: the
+/// focused one, while it is a stop. The focus mark is on it (#179).
+pub(super) fn pressed(
+    view: &Observation,
+    ui: &Interface,
+    targeting: &Targeting,
+    popover: &Popover,
+) -> Option<(String, Action)> {
+    let focus = ui.choice.focus.as_ref()?;
+    focusable(view, ui, targeting, popover)
+        .into_iter()
+        .find(|(name, _)| name == focus)
+}
+
 /// Keyboard reach: Tab and Shift+Tab move focus through the options, the commit, the
 /// ribbon and its tabs, the spaces the map offers and an open space popover's rows and
 /// button; Enter or Space activates the focused one as a click would; Escape unpins
@@ -1140,7 +1154,7 @@ pub(super) fn keys(
         ui.dirty = true;
         return;
     }
-    let Some((focused, action)) = at.map(|i| order[i].clone()) else {
+    let Some((focused, action)) = pressed(&view, &ui, &targeting, &popover) else {
         return;
     };
     // An activated control can open a modal in this update. Its next decision

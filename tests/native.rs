@@ -20,6 +20,8 @@ mod card_advance;
 mod card_piles;
 #[path = "native/card_tag.rs"]
 mod card_tag;
+#[path = "native/focus_mark.rs"]
+mod focus_mark;
 #[path = "native/main_view.rs"]
 mod main_view;
 #[path = "native/map_keys.rs"]

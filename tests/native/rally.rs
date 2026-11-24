@@ -4,7 +4,7 @@ fn rally_app() -> NativeRun {
     event_app("free-rally-", "issue-120")
 }
 
-fn event_app(prefix: &str, issue: &str) -> NativeRun {
+pub(super) fn event_app(prefix: &str, issue: &str) -> NativeRun {
     let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("local/verification").join(issue));
@@ -45,13 +45,13 @@ fn ready_for_event(app: &mut Native, retain_base: bool) {
     app.choose("end-terror");
 }
 
-fn choose_rally_option(app: &mut Native, action: &str) {
+pub(super) fn choose_rally_option(app: &mut Native, action: &str) {
     let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
     app.activate(&format!("option:{action}"), revision);
     app.choose(action);
 }
 
-fn open_event_handoff(app: &mut Native) {
+pub(super) fn open_event_handoff(app: &mut Native) {
     app.launch_size("3840x2160");
     for action in [
         "terror",

@@ -68,7 +68,7 @@ const DETAIL: [f32; 3] = [1407.407, 835.185, 20.741];
 /// Continue takes AC-B's primary action at the panel's foot (`choice::primary`).
 const CONTINUE_LABEL: &str = "Continue Terror";
 /// The Continue control's stable seat name.
-const CONTINUE: &str = "kidnap-die:continue";
+pub(super) const CONTINUE: &str = "kidnap-die:continue";
 /// The tray's stable seat name: a click on it skips the tumble.
 pub(super) const TRAY: &str = "kidnap-die";
 /// The tray camera of #67's placement C: 80° above the floor, Blender's 50 mm lens on a
@@ -246,6 +246,10 @@ impl Roll {
     }
     pub fn landed(&self) -> bool {
         self.landed
+    }
+    #[cfg(test)]
+    pub fn land(&mut self) {
+        self.landed = true;
     }
     fn start(&self, revision: u64) -> Option<f64> {
         self.start
