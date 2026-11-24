@@ -44,7 +44,7 @@ The lines, each shortened from the authority's explanation to fit one line:
 | Decision | State | Line | Rule |
 |---|---|---|---|
 | Assault | blocked | A Resource transfer opens it | R 6.3.1, 1.5.1 |
-| Assault | an affecting plan nobody can fund | Government cannot pay 2 Resources | R 6.3.1 |
+| Assault | not involved: plans that would remove or close a piece, and nothing can pay | Government cannot pay 2 Resources | R 6.3.1 |
 | Assault | no effect | No enemy pieces (R 3.2.4) · No Troops or Police (R 3.2.4) (City, EC) · No Troops (R 3.2.4) · Police count only in Cities, ECs · 1 Troop: Mountain needs 2 · No Active Guerrilla (R 3.2.4) · No Active Guerrilla · Bases last · Casinos stay closed (R 1.4.5) | R 3.2.4, 1.4.5 |
 | Assault | paid in this Operation | Assaulted · paid 2 Resources | R 3.1 |
 | Terror | owed after Kidnap | Terror is owed here (R 4.3.3) | R 4.3.3 |

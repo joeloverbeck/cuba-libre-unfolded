@@ -3252,4 +3252,72 @@ mod space_reason_tests {
             Some("1 Resource is kept for Santiago")
         );
     }
+
+    /// An Assault space whose plans would remove or close a piece, with none supported
+    /// and no remedy, is not involved, as a Terror with no remedy is: veiled, nothing
+    /// opens on a click and Tab passes it, and its line keeps the authority's reason.
+    /// A space whose only plan removes nothing stays no effect though Government cannot
+    /// pay for it (R 3.2.4, 6.3.1).
+    #[test]
+    fn an_assault_space_nobody_can_fund_is_not_involved_and_keeps_its_reason() {
+        use crate::targets::{SpaceState, focus_order, space_targets};
+        let mut game = Game::opening_with_seed(2);
+        for action in [
+            "terror",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+            "advance-card",
+            "government:assault",
+        ] {
+            choose(&mut game, action);
+        }
+        // Government has 1 Resource and a space costs 2 at a Firm US Alliance; no other
+        // faction has a Resource to give, so no transfer can open a space.
+        game.resources = [0; 4];
+        game.resources[Faction::Government.index()] = 1;
+        let view = game.observe();
+        let targets = space_targets(&view).expect("an open Assault targets the map");
+        let state = |space: &str| targets.iter().find(|t| t.space == space).unwrap().state;
+        // Havana's open Casino would close and Santiago's 2 Active Guerrillas would
+        // return, but nothing can pay for either.
+        for space in ["havana", "santiago"] {
+            let effective: Vec<_> = view
+                .choices
+                .iter()
+                .filter(|c| c.space() == Some(space) && c.site.as_ref().unwrap().effect)
+                .collect();
+            assert!(!effective.is_empty(), "{space}");
+            assert!(
+                effective
+                    .iter()
+                    .all(|c| !c.supported && c.remedies.is_empty()),
+                "{space}"
+            );
+            assert_eq!(state(space), SpaceState::NotInvolved, "{space}");
+            assert!(!state(space).choosable(), "{space}");
+            assert_eq!(
+                reason(&game, space).as_deref(),
+                Some("Government cannot pay 2 Resources"),
+                "{space}"
+            );
+        }
+        // The other 11 spaces' only plan removes nothing: still no effect.
+        for target in targets
+            .iter()
+            .filter(|t| !["havana", "santiago"].contains(&t.space.as_str()))
+        {
+            assert_eq!(target.state, SpaceState::NoEffect, "{}", target.space);
+        }
+        assert_eq!(
+            reason(&game, "matanzas").as_deref(),
+            Some("No enemy pieces (R 3.2.4)")
+        );
+        let order = focus_order(&targets);
+        assert_eq!(order.len(), 11);
+        assert!(!order.contains(&"havana") && !order.contains(&"santiago"));
+    }
 }

@@ -8,9 +8,11 @@
 //! - **Blocked with a remedy:** no such choice is supported now, but an in-task action
 //!   the authority names (its `remedies`) would make one supported.
 //! - **No effect:** the space's only choices change nothing on the map, as the
-//!   Assault plan that removes nothing. The space stays choosable (R 3.2.4, 4.1).
+//!   Assault plan that removes nothing. The space stays choosable (R 3.2.4, 4.1),
+//!   whether or not its choices are supported.
 //! - **Not involved:** no choice acts there, or none could: a Terror with no remedy,
-//!   or a space already paid in this Assault (R 3.1).
+//!   Assault plans that would remove or close a piece where nothing can pay and no
+//!   remedy is named, or a space already paid in this Assault (R 3.1).
 //!
 //! In removal mode (#73) piece states replace them: each of the executor's groups is
 //! removable, or protected by the owed Terror (accepted commitment policy, local),
@@ -104,7 +106,7 @@ pub fn space_targets(view: &Observation) -> Option<Vec<SpaceTarget>> {
                     SpaceState::Selectable
                 } else if here.iter().any(|c| effect(c) && !c.remedies.is_empty()) {
                     SpaceState::Blocked
-                } else if here.iter().any(|c| !effect(c)) {
+                } else if here.iter().all(|c| !effect(c)) && !here.is_empty() {
                     SpaceState::NoEffect
                 } else {
                     SpaceState::NotInvolved

@@ -8,7 +8,7 @@ While a decision offers choices that act on a space, `cuba_libre_unfolded::targe
 - **Selectable:** a supported choice there changes something now. The graphic is a 5-unit `action/primary` rule just inside the border, with a hairline ink rule inside it.
 - **Blocked with a remedy:** no such choice is supported, but one names an in-task remedy. The graphic is the same red rule, dashed.
 - **No effect (#169):** the space's only choices change nothing on the map, as Assault's plan that removes nothing. The space stays choosable (R 3.2.4), and it is shown as quietly as a space no choice acts on: its graphic is the not-involved veil. No graphic of its own was drawn.
-- **Not involved:** no choice acts there, or none could. That includes a space already paid in this Assault (R 3.1). The graphic is a 62% `desk` veil, and a click opens nothing.
+- **Not involved:** no choice acts there, or none could. That includes a Terror with no remedy, Assault plans that would remove or close a piece where nothing can pay and no remedy is named, and a space already paid in this Assault (R 3.1). The graphic is a 62% `desk` veil, and a click opens nothing.
 
 During Assault a space is selectable where a plan would remove or close a piece and Government can pay, blocked where one would but Government cannot pay (a Resource transfer is the remedy), and no effect where no plan would. Tab reaches the spaces in that order, the no-effect spaces last.
 

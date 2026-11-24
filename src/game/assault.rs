@@ -424,7 +424,8 @@ impl Game {
 
     /// Why `space` is in its map state while the Assault is open (#170), from the
     /// plans offered there (`here`): what a paid space paid (R 3.1), what would open a
-    /// space Government cannot pay for now, or why Assault would remove nothing there.
+    /// space Government cannot pay for now, that nothing can pay for a space where a plan
+    /// would act (not involved), or why Assault would remove nothing there.
     /// A space where a supported plan affects a piece needs no reason.
     pub(super) fn assault_reason(&self, space: &Space, here: &[&Choice]) -> Option<String> {
         let assault = self.assault.as_ref()?;
