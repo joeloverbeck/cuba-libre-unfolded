@@ -109,7 +109,7 @@ Clicking a selectable or blocked space opens its popover (#58: "clicking a selec
 **During Assault (#169)** the rows are the space's plans, in the authority's order: each plan that removes or closes at least one piece, headed "Target" and the factions it targets, with the split when the capacity is short; then the one plan that removes nothing, headed "Removes nothing". Each row's kind is "Assault". The subtitle gives the terrain, "Government executing Assault" and Government's Resources.
 - **The chosen row's preview** is the authority's: the capacity arithmetic (R 3.2.4), the payment, whom the plan can affect, what it removes or closes in bold, any change of Control or standing in bold, and, when Government could then pay for no other space, a quiet note that says so.
 - **The button** reads "Pay N · Assault in <space>", where N is the cost per space at the current US Alliance (R 6.3.1). For the plan that removes nothing it reads "Pay N · Assault removes nothing".
-- **Without the cost**, every row is "not yet" with the authority's reason and the chip "Request a Resource transfer".
+- **Without the cost**, every row gives the authority's reason. Where the authority names the remedy, the row is "not yet" with the chip "Request a Resource transfer"; where it names none, the row is "unavailable" and says that nothing in this task can change it.
 - A no-effect space's popover holds the one plan that removes nothing, chosen. A paid space has no popover.
 
 The layout is [`atlas-popover.figcraft`](atlas-popover.figcraft), page "Popover masters (1920x1280 reference units)", frames A-P1, A-P3 and A-P4 (FigCraft CLI 0.18.1). `src/tabletop/popover.rs` implements its values in reference pixels:
