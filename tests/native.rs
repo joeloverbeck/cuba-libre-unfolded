@@ -4930,12 +4930,20 @@ fn native_execution_panel_matches_layout_and_previews_every_step() {
     );
     let map_line = "Choose a space on the map; its popover pays and resolves.";
     assert_eq!(words(&chosen, "terror-map-line"), map_line);
+    // The record lines as drawn, top to bottom.
     let records = |view: &Value| -> Vec<String> {
-        parts(view)
+        let mut lines: Vec<(f64, String)> = parts(view)
             .into_iter()
             .filter(|p| p["part"].as_str().unwrap().starts_with("terror-record:"))
-            .map(|p| p["text"].as_str().unwrap().to_owned())
-            .collect()
+            .map(|p| {
+                (
+                    rect_of(&p["bounds"])[1],
+                    p["text"].as_str().unwrap().to_owned(),
+                )
+            })
+            .collect();
+        lines.sort_by(|a, b| a.0.total_cmp(&b.0));
+        lines.into_iter().map(|(_, text)| text).collect()
     };
     assert!(records(&chosen).is_empty());
     assert_eq!(

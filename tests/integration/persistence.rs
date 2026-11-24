@@ -732,7 +732,7 @@ fn a_save_holds_its_seed_decisions_and_position_under_format_2() {
     let saved = record(&path);
     assert_eq!(
         saved["identity"],
-        serde_json::json!({"format": "2", "source": cuba_libre_unfolded::assets::SOURCE})
+        serde_json::json!({"format": "3", "source": cuba_libre_unfolded::assets::SOURCE})
     );
     assert_eq!(saved["payload"]["seed"], 5);
     assert_eq!(
@@ -779,9 +779,10 @@ fn saves_this_build_cannot_continue_are_refused_with_every_file_unchanged() {
     });
     format_1["payload"] = valid["payload"]["position"].clone();
     cases.push(("another build", reseal(&format_1)));
-    // The same position under another format number.
+    // The same position under another format number: format 2, which builds before
+    // #171 wrote.
     let mut other_format = valid.clone();
-    other_format["identity"]["format"] = "3".into();
+    other_format["identity"]["format"] = "2".into();
     cases.push(("another build", reseal(&other_format)));
     // The position does not follow from its decisions.
     let mut moved = valid.clone();
