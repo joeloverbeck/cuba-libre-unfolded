@@ -32,6 +32,8 @@ The agent needs to know when it's done. Every agent brief must have concrete, te
 - **Good:** "Running `gh issue list --label needs-triage` returns issues that have been through initial classification"
 - **Bad:** "Triage should work correctly"
 
+A criterion to correct named documents or comments gives the search term that found them, for the implementer to rerun over the repository.
+
 A criterion that nothing of a kind remains across the repository ("no doc calls X Y") names the kinds of document it covers and any it excludes. Dated records, such as finished design rounds and research notes, are history: a correction annotates them rather than rewriting them.
 
 ### Explicit scope boundaries

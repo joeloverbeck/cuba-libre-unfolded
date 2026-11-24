@@ -10,6 +10,16 @@ if [[ -z $changes ]]; then
 else
   echo "working tree: $(wc -l <<<"$changes") changed path(s) differ from the revision"
 fi
+# What this suite builds and reads. Commits that print the same `inputs:` line run the
+# same suite, so a run on one holds for the other (a merge that touched only documents).
+# Markdown is left out: no native test reads it. The private cards and the renderer are not in it.
+inputs=(.cargo Cargo.lock Cargo.toml rust-toolchain.toml art src tests scripts/native)
+if [[ -n $(git status --porcelain --untracked-files=normal -- "${inputs[@]}") ]]; then
+  echo "inputs: not named, they differ from the revision"
+else
+  listed=$(git ls-tree -r HEAD -- "${inputs[@]}" | grep -v '\.md$')
+  echo "inputs: $(git hash-object --stdin <<<"$listed")"
+fi
 
 # From a worktree, evidence goes to the main checkout: `git worktree remove` deletes the
 # worktree's own ignored files. A set CUBA_NATIVE_EVIDENCE wins.
@@ -18,6 +28,8 @@ if [[ -z ${CUBA_NATIVE_EVIDENCE:-} && $common != "$(git rev-parse --show-topleve
   branch=$(git branch --show-current)
   branch=${branch:-detached}
   run=$(git rev-parse --short HEAD)-$(date +%Y%m%d-%H%M%S)
+  # A dirty tree's evidence does not go under the clean revision's name.
+  if [[ -n $changes ]]; then run=${run/-/-dirty-}; fi
   export CUBA_NATIVE_EVIDENCE="$common/local/verification/native/${branch//\//-}/$run"
 fi
 
