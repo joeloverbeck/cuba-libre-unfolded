@@ -77,6 +77,30 @@ impl UsAlliance {
 }
 /// The game's Cash markers; any others are spares (R 4.5.2).
 pub const CASH_MARKERS: u8 = 4;
+/// The Terror and Sabotage markers the two kinds share: a marker is placed only from
+/// the marker supply, and with all of them on the map Terror places none (R 3.3.4).
+pub const MARKER_SUPPLY: u8 = 20;
+/// The marker supply (R 3.3.4): the shared Terror and Sabotage markers not on the map,
+/// and those on it by kind. `available` is [`MARKER_SUPPLY`] less the two.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct MarkerSupply {
+    pub available: u8,
+    pub terror_on_map: u8,
+    pub sabotage_on_map: u8,
+}
+impl MarkerSupply {
+    /// The supply left by the markers on the map. Nothing in this build places more
+    /// than the supply holds, but a count past it shows none available, never a wrap.
+    pub fn left_by(terror_on_map: u8, sabotage_on_map: u8) -> Self {
+        Self {
+            available: MARKER_SUPPLY
+                .saturating_sub(terror_on_map)
+                .saturating_sub(sabotage_on_map),
+            terror_on_map,
+            sabotage_on_map,
+        }
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Kind {
     Troops,
@@ -590,7 +614,8 @@ pub struct Observation {
     pub aid: u8,
     pub alliance: UsAlliance,
     pub cash_available: u8,
-    pub terror_available: u8,
+    /// The marker supply and the markers on the map by kind (R 3.3.4).
+    pub marker_supply: MarkerSupply,
     pub capabilities: Vec<String>,
     pub momentum: Vec<String>,
     /// True once 26July's first action on card 17 is recorded. Directorio's Event
@@ -1110,7 +1135,13 @@ impl Game {
             aid: 15,
             alliance: UsAlliance::Firm,
             cash_available: CASH_MARKERS,
-            terror_available: 20 - self.spaces.iter().map(|s| s.terror).sum::<u8>(),
+            // No Operation, Event or phase this build implements places a Sabotage
+            // marker (R 3.3.4 in an economic center, R 4.2.3, R 6.2.1), so the
+            // model holds none.
+            marker_supply: MarkerSupply::left_by(
+                self.spaces.iter().map(|s| s.terror).sum::<u8>(),
+                0,
+            ),
             capabilities,
             momentum: vec![],
             finished: self.m26_action_ended,

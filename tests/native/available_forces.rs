@@ -262,7 +262,7 @@ fn assert_tag_covers_only_the_map(view: &Value, at: &str) -> Vec<String> {
 
 /// Launches the app at `size`, its evidence in a fresh `prefix` directory under
 /// `local/verification/<issue>` unless `CUBA_NATIVE_EVIDENCE` names another root.
-fn start(prefix: &str, issue: &str, size: &str) -> NativeRun {
+pub(super) fn start(prefix: &str, issue: &str, size: &str) -> NativeRun {
     let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
         .map(PathBuf::from)
         .unwrap_or_else(|| format!("local/verification/{issue}").into());
@@ -287,7 +287,7 @@ fn start(prefix: &str, issue: &str, size: &str) -> NativeRun {
         },
         _socket: socket,
     };
-    eprintln!("Available Forces native evidence: {}", app.root.display());
+    eprintln!("Native evidence: {}", app.root.display());
     app.launch_size(size);
     app
 }

@@ -19,16 +19,23 @@ pub(super) enum Anchor {
     /// The top edge and the window's horizontal centre.
     Top,
     TopRight,
+    /// The top edge, and centred between the right edge of one area and the left edge
+    /// of another, which `between` names (#172: the marker supply, between the
+    /// outside-influence area and the standings).
+    TopBetween,
     BottomLeft,
     BottomRight,
     Edges,
 }
 
-#[derive(Clone, Copy, Debug, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Deserialize)]
 pub(super) struct Placed {
     /// x, y, width and height in the layout's frame.
     pub bounds: [f32; 4],
     pub anchor: Anchor,
+    /// For [`Anchor::TopBetween`], the areas to its left and its right.
+    #[serde(default)]
+    pub between: Option<[String; 2]>,
 }
 
 /// The layout record, `atlas-main-view.layout.json`, admitted at launch with the
@@ -50,12 +57,42 @@ impl Layout {
                 return Err(format!("Main view layout record has no {name} area"));
             }
         }
+        // An area placed between two others names two areas that are placed by their
+        // own edges.
+        for (name, placed) in &layout.areas {
+            match (placed.anchor, &placed.between) {
+                (Anchor::TopBetween, Some(pair)) => {
+                    for other in pair {
+                        let fixed = layout
+                            .areas
+                            .get(other)
+                            .is_some_and(|o| o.anchor != Anchor::TopBetween);
+                        if !fixed {
+                            return Err(format!(
+                                "Main view layout record: {name} lies between {other}, which is not an area placed by its edges"
+                            ));
+                        }
+                    }
+                }
+                (Anchor::TopBetween, None) => {
+                    return Err(format!(
+                        "Main view layout record: {name} names no areas it lies between"
+                    ));
+                }
+                (_, Some(_)) => {
+                    return Err(format!(
+                        "Main view layout record: {name} names areas but is not placed between them"
+                    ));
+                }
+                (_, None) => {}
+            }
+        }
         Ok(layout)
     }
 
     /// A placed rectangle in logical window pixels. One frame unit is the same length
     /// in every window of a given scale: the frame is as tall as the reference.
-    pub(super) fn place(&self, placed: Placed, window: &Window) -> Rect {
+    pub(super) fn place(&self, placed: &Placed, window: &Window) -> Rect {
         let unit = reference_pixel(window) * HEIGHT / self.frame[1];
         let size = Vec2::new(window.width(), window.height());
         let frame = Vec2::from(self.frame);
@@ -82,6 +119,21 @@ impl Layout {
             ),
             Anchor::BottomRight => (from_end(min), from_end(max)),
             Anchor::Edges => (from_start(min), from_end(max)),
+            Anchor::TopBetween => {
+                // `read` checked that both neighbours exist and are placed by edges.
+                let [left, right] = placed
+                    .between
+                    .as_ref()
+                    .map(|[l, r]| [&self.areas[l], &self.areas[r]])
+                    .expect("read checks that a between area names its neighbours");
+                let middle =
+                    (self.place(left, window).max.x + self.place(right, window).min.x) / 2.;
+                let half = w * unit / 2.;
+                (
+                    Vec2::new(middle - half, from_start(min).y),
+                    Vec2::new(middle + half, from_start(max).y),
+                )
+            }
         };
         Rect { min, max }
     }
@@ -93,16 +145,16 @@ impl Layout {
     ) -> impl Iterator<Item = (&'a str, Rect)> + 'a {
         self.areas
             .iter()
-            .map(|(name, placed)| (name.as_str(), self.place(*placed, window)))
+            .map(|(name, placed)| (name.as_str(), self.place(placed, window)))
     }
 
-    fn area(&self, name: &str, window: &Window) -> Rect {
-        self.place(self.areas[name], window)
+    pub(super) fn area(&self, name: &str, window: &Window) -> Rect {
+        self.place(&self.areas[name], window)
     }
 
     /// The box the thirteen spaces fill at Home.
     pub(super) fn island(&self, window: &Window) -> Rect {
-        self.place(self.island, window)
+        self.place(&self.island, window)
     }
 
     /// The part of the window between the areas at its edges, where space and piece
@@ -425,7 +477,7 @@ mod tests {
         let layout = record();
         let window = window(3840., 2160.);
         for placed in layout.areas.values().chain([&layout.island]) {
-            assert!(close(layout.place(*placed, &window), placed.bounds));
+            assert!(close(layout.place(placed, &window), placed.bounds));
         }
     }
 
@@ -518,6 +570,76 @@ mod tests {
                     );
                 }
             }
+        }
+    }
+
+    /// #172: the marker supply keeps the size the window's scale gives it and its
+    /// distance from the top, and is centred between the right edge of the
+    /// outside-influence area and the left edge of the standings, which move apart at
+    /// different rates as the window widens. On the owner's display that is the frame's
+    /// own place.
+    #[test]
+    fn the_marker_supply_is_centred_between_its_neighbours_in_every_window() {
+        let layout = record();
+        let placed = &layout.areas["marker-supply"];
+        assert_eq!(placed.anchor, Anchor::TopBetween);
+        assert_eq!(
+            placed.between,
+            Some(["outside-influence".to_string(), "standings".to_string()])
+        );
+        let [x, y, w, h] = placed.bounds;
+        let frame_middle = (67.5 + 624.38 + 1528.5) / 2.;
+        assert!((x + w / 2. - frame_middle).abs() < 0.01, "{x} {w}");
+        for (width, height) in [
+            (1920., 1280.),
+            (2160., 1440.),
+            (1600., 1280.),
+            (1920., 1080.),
+            (3840., 2160.),
+            (2520., 1080.),
+            (3440., 1440.),
+        ] {
+            let window = window(width, height);
+            let s = super::super::reference_pixel(&window);
+            // In reference pixels: outside influence ends at 410 from the left; the
+            // standings begin at 728 of a 1920 reference centred in the window.
+            let left = 410. * s;
+            let right = (width - WIDTH * s) / 2. + 728. * s;
+            let k = s / 1.6875;
+            let area = layout.area("marker-supply", &window);
+            let at = format!("{width}x{height}: {area:?}");
+            assert!((area.center().x - (left + right) / 2.).abs() < 0.01, "{at}");
+            assert!((area.min.y - y * k).abs() < 0.01, "{at}");
+            assert!((area.width() - w * k).abs() < 0.01, "{at}");
+            assert!((area.height() - h * k).abs() < 0.01, "{at}");
+            assert!(left < area.min.x && area.max.x < right, "{at}");
+        }
+    }
+
+    /// A between area must name two areas placed by their own edges.
+    #[test]
+    fn a_between_area_names_two_placed_areas() {
+        let record = |marker: &str| {
+            format!(
+                r#"{{"frame":[3840,2160],"island":{{"bounds":[0,0,1,1],"anchor":"edges"}},"areas":{{
+                "standings":{{"bounds":[0,0,1,1],"anchor":"top"}},
+                "decision":{{"bounds":[0,0,1,1],"anchor":"top-right"}},
+                "cards":{{"bounds":[0,0,1,1],"anchor":"bottom-left"}},
+                "marker-supply":{marker}}}}}"#
+            )
+        };
+        let read = |marker: &str| Layout::read(record(marker).as_bytes()).map(|_| ());
+        assert_eq!(
+            read(r#"{"bounds":[0,0,1,1],"anchor":"top-between","between":["cards","standings"]}"#),
+            Ok(())
+        );
+        for refused in [
+            r#"{"bounds":[0,0,1,1],"anchor":"top-between"}"#,
+            r#"{"bounds":[0,0,1,1],"anchor":"top-between","between":["nowhere","standings"]}"#,
+            r#"{"bounds":[0,0,1,1],"anchor":"top-between","between":["marker-supply","standings"]}"#,
+            r#"{"bounds":[0,0,1,1],"anchor":"top","between":["cards","standings"]}"#,
+        ] {
+            assert!(read(refused).is_err(), "{refused}");
         }
     }
 
