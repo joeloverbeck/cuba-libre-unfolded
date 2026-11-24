@@ -246,8 +246,13 @@ fn native_focus_mark_is_on_what_enter_presses() {
     assert_marked(app, "kidnap-die:continue", "die-continue");
     map_keys::press(app, "Enter", "kidnap-die:continue");
     assert_unmarked(app, "Continue closed the die");
-    // Both Terrors can be paid now: the pointer swaps one popover's button for
-    // another's, which Enter would press.
+    // With 2 Resources more than the die's 1 to 6, both Terrors can be paid, Santiago's
+    // owed one included: the pointer swaps one popover's button for another's, which
+    // Enter would press.
+    for action in ["transfer", "ask:3:2", "authorize:2"] {
+        app.choose(action);
+    }
+    assert_unmarked(app, "the authorized transfer clears focus");
     map_keys::tab_to(app, "space:santiago");
     map_keys::press(app, "Enter", "space:santiago");
     map_keys::tab_to(app, "popover:commit");
