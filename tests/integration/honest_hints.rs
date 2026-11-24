@@ -24,12 +24,12 @@ fn dishonest(nodes: &[Node]) -> BTreeSet<String> {
         .collect();
     let refused: Vec<_> = refused.into_iter().collect();
     let before = predecessors(nodes);
-    let reaching = parallel(&refused, |_, action| reaching(nodes, &before, action));
-    let reaching: HashMap<_, _> = refused.into_iter().zip(reaching).collect();
+    let found = parallel(&refused, |_, action| reaching(nodes, &before, action));
+    let can_reach: HashMap<_, _> = refused.into_iter().zip(found).collect();
     let mut found = BTreeSet::new();
     for node in judged() {
         for (action, label, remedies) in &node.disabled {
-            let possible = node.next.iter().any(|&j| reaching[action][j]);
+            let possible = node.next.iter().any(|&j| can_reach[action][j]);
             if remedies.is_empty() == possible {
                 let (owner, name) = action;
                 found.insert(format!(

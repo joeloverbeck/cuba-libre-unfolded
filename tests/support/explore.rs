@@ -1,6 +1,6 @@
 //! The task's reachable states through the authority's own offered decisions, shared
-//! by the integration tests (`honest_hints`, `seat_reference`) and the panel's
-//! discovery test (`src/tabletop/discovery.rs`). The includer brings `Choice`,
+//! by the integration tests (`available_forces`, `honest_hints`, `marker_supply`,
+//! `seat_reference`) and the panel's discovery test (`src/tabletop/discovery.rs`). The includer brings `Choice`,
 //! `Faction`, `Game` and `TransferChoice` into scope.
 //!
 //! From each start, offered decisions are explored with at most one Resource
@@ -30,20 +30,20 @@ use std::{
 
 /// A state's identity: the digest of its decision's key, which is far shorter than the
 /// key, and whether its path's one Resource transfer has been made.
-type State = ([u8; 32], bool);
+type StateId = ([u8; 32], bool);
 
-fn state(game: &Game, transferred: bool) -> State {
+fn state_id(game: &Game, transferred: bool) -> StateId {
     (Sha256::digest(key(game)).into(), transferred)
 }
 
 /// The current decision without its revision. Reopening and cancelling a side
 /// decision reaches the same choices.
 pub fn key(game: &Game) -> String {
-    let saved = serde_json::to_string(game).unwrap();
-    let (revision, decision) = saved.split_once(',').unwrap();
+    let serialized = serde_json::to_string(game).unwrap();
+    let (revision, decision) = serialized.split_once(',').unwrap();
     assert!(
         revision.starts_with("{\"revision\":"),
-        "a saved game starts with its revision, not {revision}"
+        "a serialized game starts with its revision, not {revision}"
     );
     decision.into()
 }
@@ -144,10 +144,10 @@ fn explore(start: Game) -> Vec<Node> {
     /// A successor: its state's index where it was already found, else the state.
     enum Next {
         Known(usize),
-        Found(State, Box<Game>),
+        Found(StateId, Box<Game>),
     }
     let starts_during_event = start.observe().event_executor.is_some();
-    let mut index = HashMap::from([(state(&start, false), 0)]);
+    let mut index = HashMap::from([(state_id(&start, false), 0)]);
     let mut waiting = VecDeque::from([(start, false)]);
     let mut nodes = vec![];
     while !waiting.is_empty() {
@@ -184,10 +184,10 @@ fn explore(start: Game) -> Vec<Node> {
                 after
                     .submit(choice.owner, view.revision, &choice.id)
                     .unwrap_or_else(|e| panic!("{}: {e}", choice.id));
-                let state = state(&after, *transferred || transfers(choice));
-                next.push(match index.get(&state) {
+                let id = state_id(&after, *transferred || transfers(choice));
+                next.push(match index.get(&id) {
                     Some(&at) => Next::Known(at),
-                    None => Next::Found(state, Box::new(after)),
+                    None => Next::Found(id, Box::new(after)),
                 });
             }
             (disabled, supported, next)
@@ -197,10 +197,10 @@ fn explore(start: Game) -> Vec<Node> {
                 .into_iter()
                 .map(|next| match next {
                     Next::Known(at) => at,
-                    Next::Found(state, after) => {
+                    Next::Found(id, after) => {
                         let at = index.len();
-                        *index.entry(state).or_insert_with(|| {
-                            waiting.push_back((*after, state.1));
+                        *index.entry(id).or_insert_with(|| {
+                            waiting.push_back((*after, id.1));
                             at
                         })
                     }
@@ -305,7 +305,7 @@ pub fn explored() -> &'static [Explored] {
 }
 
 /// What is explored from each of `event_starts`, in their order.
-pub fn event_explored() -> &'static [Explored] {
+fn event_explored() -> &'static [Explored] {
     static EXPLORED: LazyLock<Vec<Explored>> = LazyLock::new(|| {
         let [shaded, unshaded] = event_starts();
         [("shaded Event", shaded), ("unshaded Event", unshaded)]
@@ -313,4 +313,9 @@ pub fn event_explored() -> &'static [Explored] {
             .into()
     });
     &EXPLORED
+}
+
+/// What is explored from each of `starts` and `event_starts`, in their order.
+pub fn all_explored() -> impl Iterator<Item = &'static Explored> {
+    explored().iter().chain(event_explored())
 }

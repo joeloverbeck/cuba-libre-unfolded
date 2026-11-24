@@ -1,6 +1,6 @@
 //! #159: the Available Forces ledger's art and its admission, without a GPU. #160:
 //! the inventories the ledger's tag reads, against every reached position.
-use crate::explore::{Explored, event_explored, explored, parallel};
+use crate::explore::{Explored, all_explored, parallel};
 use cuba_libre_unfolded::{Faction, Game, assets};
 
 /// Hash admission (`available-forces.sha256`): a missing or changed plate or piece
@@ -158,7 +158,7 @@ fn assert_inventories_hold(game: &Game, at: &str) {
 #[test]
 fn every_reached_position_keeps_each_inventory() {
     let mut positions = 0;
-    for Explored { start, nodes } in explored().iter().chain(event_explored()) {
+    for Explored { start, nodes } in all_explored() {
         parallel(nodes, |i, node| {
             assert_inventories_hold(&node.game, &format!("{start}, explored position {i}"));
         });

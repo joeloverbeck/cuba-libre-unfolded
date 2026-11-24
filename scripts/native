@@ -42,9 +42,9 @@ if [[ -z ${CUBA_NATIVE_EVIDENCE:-} && $common != "$(git rev-parse --show-topleve
   export CUBA_NATIVE_EVIDENCE="$common/local/verification/native/${branch//\//-}/$run"
 fi
 
-# Each app takes up to 1.6 GB of memory and 1.2 GB of graphics memory. Three fit in
+# Each app takes up to 1.6 GB of memory and 1.8 GB of graphics memory (#187). Three fit in
 # `scripts/heavy`'s memory scope; four took 6.5 GB, which its 6 GB limit slows and its
-# 7 GB limit could end (#187). The option is taken out of the arguments, because libtest
+# 7 GB limit could end. The option is taken out of the arguments, because libtest
 # refuses it twice.
 apps=3
 args=()

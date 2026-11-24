@@ -183,7 +183,7 @@ fn every_choice_offered_to_26july_during_terror_has_a_surface() {
         for presented in presented.into_iter().flatten() {
             match presented {
                 Ok(place) => drop(seen.insert(place)),
-                Err(choice) => drop(missing.insert(choice)),
+                Err(unpresented) => drop(missing.insert(unpresented)),
             }
         }
     }

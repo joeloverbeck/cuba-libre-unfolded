@@ -1,6 +1,6 @@
 //! #172: the marker supply's size, its admission at launch, and the supply in every
 //! position this build reaches.
-use crate::explore::{Explored, event_explored, explored, parallel};
+use crate::explore::{Explored, all_explored, parallel};
 use cuba_libre_unfolded::{Game, MARKER_SUPPLY, assets};
 
 /// R 3.3.4: Terror and Sabotage markers share one supply of 20.
@@ -73,7 +73,7 @@ fn launch_refuses_a_missing_or_changed_marker_export() {
 fn every_reached_position_accounts_for_all_20_markers() {
     let mut positions = 0;
     let mut fewest = MARKER_SUPPLY;
-    for Explored { start, nodes } in explored().iter().chain(event_explored()) {
+    for Explored { start, nodes } in all_explored() {
         let available = parallel(nodes, |i, node| {
             let view = node.game.observe();
             let supply = view.marker_supply;
