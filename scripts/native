@@ -23,6 +23,11 @@ suite_inputs() {
   if [[ -z $dirty ]]; then git ls-files -s -- "${among[@]}" | git hash-object --stdin; fi
 }
 before=$(suite_inputs)
+# `--inputs` prints this checkout's hash alone, to compare with an earlier run's.
+if [[ ${1:-} == --inputs ]]; then
+  echo "suite inputs: ${before:-not named, files the suite reads differ from the revision}"
+  exit
+fi
 
 # From a worktree, evidence goes to the main checkout: `git worktree remove` deletes the
 # worktree's own ignored files. A set CUBA_NATIVE_EVIDENCE wins.
