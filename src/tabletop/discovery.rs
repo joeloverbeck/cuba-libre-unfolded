@@ -40,15 +40,8 @@ fn surface(view: &Observation, choice: &Choice) -> Option<&'static str> {
     // or Enter opens where the map marks the space selectable or blocked (#168): the
     // chosen row with the one button, or a blocked row with its reason (#171).
     if let Some(space) = choice.space()
-        && targets::space_targets(view).is_some_and(|all| {
-            all.iter().any(|t| {
-                t.space == space
-                    && matches!(
-                        t.state,
-                        targets::SpaceState::Selectable | targets::SpaceState::Blocked
-                    )
-            })
-        })
+        && targets::space_targets(view)
+            .is_some_and(|all| all.iter().any(|t| t.space == space && t.state.choosable()))
         && let Some(card) = popover::content(view, space, Some(action))
         && let Some(row) = card
             .rows

@@ -3,66 +3,25 @@ use super::*;
 
 const OPEN: &str = "government:assault";
 const FINISH: &str = "end-assault";
-const BACK: &str = "assault:back";
+/// The plan id of the one plan that removes nothing: `assault:<space>:none`.
+const NOTHING: &str = "none";
 const ENEMIES: [Faction; 3] = [Faction::M26, Faction::Directorio, Faction::Syndicate];
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(super) struct Assault {
-    /// The spaces Government has paid to Assault, in order. A space may be selected
-    /// once (R 3.1), so the menus leave them out.
-    paid_spaces: Vec<String>,
-    #[serde(deserialize_with = "Option::deserialize")]
-    resolution: Option<AssaultResolution>,
+    /// What Government paid in each space it Assaulted and what was removed or closed
+    /// there, in the order paid. A space may be selected once (R 3.1), so a paid
+    /// space offers no plan. Where the player looks on the map is not recorded (#169).
+    paid: Vec<AssaultResolution>,
     pub(super) finished: bool,
-    browse: Browse,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-enum Browse {
-    Areas,
-    Spaces(Area),
-    Targets(String),
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-enum Area {
-    Cities,
-    Provinces,
-    EconomicCenters,
-}
-
-impl Area {
-    const ALL: [Self; 3] = [Self::Cities, Self::Provinces, Self::EconomicCenters];
-
-    fn for_space(space: &Space) -> Self {
-        match space.terrain {
-            Terrain::City => Self::Cities,
-            Terrain::EconomicCenter => Self::EconomicCenters,
-            _ => Self::Provinces,
-        }
-    }
-
-    fn id(self) -> &'static str {
-        match self {
-            Self::Cities => "cities",
-            Self::Provinces => "provinces",
-            Self::EconomicCenters => "economic-centers",
-        }
-    }
-
-    fn label(self) -> &'static str {
-        match self {
-            Self::Cities => "Cities",
-            Self::Provinces => "Provinces",
-            Self::EconomicCenters => "Economic Centers",
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AssaultResolution {
+    /// The paid space's id.
+    pub space: String,
     pub paid: u8,
     pub returned: u8,
     detail: AssaultDetail,
@@ -81,8 +40,15 @@ impl AssaultResolution {
         &self.detail.space
     }
 
-    pub(crate) fn removal_summary(&self) -> String {
-        self.detail.effect(true)
+    /// The record of this space: its name, what it paid and what was removed or
+    /// closed, such as "Havana · paid 2 Resources · closed 1 Casino".
+    pub fn summary(&self) -> String {
+        format!(
+            "{} · paid {} · {}",
+            self.detail.space,
+            resources(self.paid),
+            self.detail.record()
+        )
     }
 }
 
@@ -116,6 +82,36 @@ impl AssaultDetail {
             return "No pieces affected".into();
         }
         lines.join(". ")
+    }
+
+    /// What a paid space's record says was removed or closed.
+    fn record(&self) -> String {
+        let returned = self
+            .removed
+            .iter()
+            .map(|group| {
+                let name = match group.kind {
+                    Kind::Guerrilla => plural(group.count, "Guerrilla", "Guerrillas"),
+                    _ => plural(group.count, "Base", "Bases"),
+                };
+                format!("{} {} {name}", group.count, group.faction.name())
+            })
+            .collect::<Vec<_>>();
+        let mut parts = vec![];
+        if !returned.is_empty() {
+            parts.push(format!("returned {}", returned.join(", ")));
+        }
+        if self.closed > 0 {
+            parts.push(format!(
+                "closed {} {}",
+                self.closed,
+                plural(self.closed, "Casino", "Casinos")
+            ));
+        }
+        if parts.is_empty() {
+            return "removed nothing".into();
+        }
+        parts.join(", ")
     }
 }
 
@@ -188,6 +184,19 @@ struct Plan {
     detail: AssaultDetail,
 }
 
+impl Plan {
+    /// Whether the plan removes or closes at least one piece.
+    fn effect(&self) -> bool {
+        !self.detail.removed.is_empty() || self.detail.closed > 0
+    }
+}
+
+/// What Government may do in `space` (#169): every choice of targeted factions, and
+/// of a short capacity's division among them, that removes or closes at least one
+/// piece (R 3.1, 3.2.4), then the one plan that removes nothing. R 3.2.4 lets
+/// Government select any space, so that plan is offered in every space; where no
+/// other plan exists it is the only one. Every way of removing nothing pays the
+/// same cost and changes nothing else, so one plan stands for them all.
 fn plans(space: &Space) -> Vec<Plan> {
     let targets: Vec<_> = ENEMIES
         .into_iter()
@@ -195,10 +204,7 @@ fn plans(space: &Space) -> Vec<Plan> {
         .filter(Target::present)
         .collect();
     let capacity = capacity(space).0;
-    if targets.is_empty() {
-        return vec![plan(space, &[], &[], false)];
-    }
-    (1..1 << targets.len())
+    let mut plans: Vec<Plan> = (1..1 << targets.len())
         .flat_map(|mask| {
             let selected: Vec<_> = targets
                 .iter()
@@ -214,7 +220,30 @@ fn plans(space: &Space) -> Vec<Plan> {
                 .map(|allocation| plan(space, &selected, allocation, competing))
                 .collect::<Vec<_>>()
         })
-        .collect()
+        .filter(Plan::effect)
+        .collect();
+    let why = if targets.is_empty() {
+        "No enemy pieces are there.".to_owned()
+    } else if plans.is_empty() {
+        targets
+            .iter()
+            .map(Target::protection)
+            .collect::<Vec<_>>()
+            .join(" ")
+    } else {
+        "This plan targets no faction with a piece Assault can affect here (R 3.1).".to_owned()
+    };
+    plans.push(Plan {
+        action: format!("assault:{}:{NOTHING}", space.id),
+        label: "Removes nothing".into(),
+        protection: why,
+        detail: AssaultDetail {
+            space: space.name.clone(),
+            removed: vec![],
+            closed: 0,
+        },
+    });
+    plans
 }
 
 /// R 1.4.1 and 3.1 require the maximum total across the targeted factions.
@@ -263,14 +292,8 @@ fn plan(space: &Space, targets: &[&Target], allocation: &[u8], competing: bool) 
         }
     }
     let target_names = targets.iter().map(|t| t.faction.name()).collect::<Vec<_>>();
-    let (mut id, mut label) = if target_names.is_empty() {
-        ("none".into(), "No enemy pieces".into())
-    } else {
-        (
-            target_names.join("+").to_ascii_lowercase(),
-            target_names.join(" + "),
-        )
-    };
+    let mut id = target_names.join("+").to_ascii_lowercase();
+    let mut label = target_names.join(" + ");
     if competing {
         let counts: Vec<_> = allocation.iter().map(u8::to_string).collect();
         id = format!("{id}:{}", counts.join("-"));
@@ -338,17 +361,45 @@ fn plural<'a>(count: u8, one: &'a str, many: &'a str) -> &'a str {
 
 fn payment_action(action: &str) -> Option<&str> {
     let (space, _) = action.strip_prefix("assault:")?.split_once(':')?;
-    (!matches!(space, "areas" | "space")).then_some(space)
+    Some(space)
 }
 
 impl Game {
-    pub(super) fn assault_result(&self) -> Option<AssaultResolution> {
-        self.assault.as_ref()?.resolution.clone()
+    /// What each paid space paid and what was removed or closed there, in the order paid.
+    pub(super) fn assault_paid(&self) -> Vec<AssaultResolution> {
+        self.assault
+            .as_ref()
+            .map_or_else(Vec::new, |assault| assault.paid.clone())
     }
 
-    pub(super) fn assault_preview_effect(&self) -> Option<String> {
-        let detail = &self.assault.as_ref()?.resolution.as_ref()?.detail;
-        Some(format!("R 3.2.4: {}.", detail.effect(false)))
+    /// What the preview of paying for `action` states besides its computed changes:
+    /// the capacity arithmetic, whom the plan can affect, what it removes or closes,
+    /// and whether Government could then pay for another space. `self` is the match
+    /// before the payment and `after` the copy it was applied to.
+    pub(super) fn assault_preview_notes(&self, after: &Game, action: &str) -> Vec<String> {
+        let mut notes = vec![];
+        let space = payment_action(action).and_then(|id| self.spaces.iter().find(|s| s.id == id));
+        if let Some(space) = space {
+            notes.push(capacity(space).1);
+            if let Some(plan) = plans(space).into_iter().find(|plan| plan.action == action) {
+                notes.push(plan.protection);
+            }
+        }
+        let Some(assault) = &after.assault else {
+            return notes;
+        };
+        if let Some(paid) = assault.paid.last() {
+            notes.push(format!("R 3.2.4: {}.", paid.detail.effect(false)));
+        }
+        let balance = after.resources[Faction::Government.index()];
+        let cost = UsAlliance::Firm.coin_cost();
+        if balance < cost && assault.paid.len() < after.spaces.len() {
+            notes.push(format!(
+                "Government would have {}: another space would need a Resource transfer first (R 6.3.1).",
+                resources(balance)
+            ));
+        }
+        notes
     }
 
     pub(super) fn assault_finished(&self) -> bool {
@@ -366,9 +417,9 @@ impl Game {
             resources(balance)
         );
         let affordability = if balance >= cost {
-            ". Inspect spaces and targets before paying."
+            ". Choose each space on the map; its popover shows the plans before paying."
         } else {
-            " and cannot pay for a space. Inspect spaces or finish without paying."
+            " and cannot pay for a space. Look at the map or finish without paying."
         };
         self.offer(
             OPEN,
@@ -391,125 +442,99 @@ impl Game {
         if self.removal.is_some() {
             return self.removal_menu();
         }
-        self.assault_browse_choices()
+        let mut choices = self.assault_plans();
+        choices.extend(self.assault_steps());
+        choices
     }
 
-    fn assault_browse_choices(&self) -> Vec<Choice> {
+    /// The plans of every space not yet paid, in the map's space order (#169). Each
+    /// states its space and whether it removes or closes a piece. A plan is supported
+    /// when Government can pay the space's cost; otherwise it gives that reason and,
+    /// while another faction has Resources to give, names the Resource transfer that
+    /// would open it, as a Terror target does.
+    fn assault_plans(&self) -> Vec<Choice> {
         let assault = self.assault.as_ref().unwrap();
-        let unselected = |space: &&Space| !assault.paid_spaces.contains(&space.id);
         let balance = self.resources[Faction::Government.index()];
         let cost = UsAlliance::Firm.coin_cost();
         let funded = balance >= cost;
-        let payment = if funded {
-            format!(
-                "Government pays {} ({balance} → {}).",
-                resources(cost),
-                balance - cost
-            )
+        let transfer_helps = !funded
+            && ENEMIES
+                .iter()
+                .any(|faction| self.resources[faction.index()] > 0);
+        self.spaces
+            .iter()
+            .filter(|space| assault.paid.iter().all(|paid| paid.space != space.id))
+            .flat_map(|space| {
+                let arithmetic = capacity(space).1;
+                plans(space).into_iter().map(move |plan| {
+                    let effect = plan.detail.effect(false);
+                    let explanation = if funded {
+                        format!(
+                            "{arithmetic} {} Government pays {} ({balance} → {}). {effect}.",
+                            plan.protection,
+                            resources(cost),
+                            balance - cost
+                        )
+                    } else {
+                        format!(
+                            "Government has {} and cannot pay {} (R 6.3.1). {arithmetic} {} {effect}.",
+                            resources(balance),
+                            resources(cost),
+                            plan.protection
+                        )
+                    };
+                    let mut choice = self
+                        .offer(&plan.action, plan.label.as_str(), funded, explanation)
+                        .at(&space.id, plan.effect());
+                    if transfer_helps {
+                        choice.remedies.push("Request a Resource transfer".to_owned());
+                    }
+                    choice
+                })
+            })
+            .collect()
+    }
+
+    /// The steps that select no space: the ending, a Resource transfer and voluntary removal.
+    fn assault_steps(&self) -> Vec<Choice> {
+        let assault = self.assault.as_ref().unwrap();
+        let balance = self.resources[Faction::Government.index()];
+        let result = if assault.paid.is_empty() {
+            "No spaces selected. A zero-space Assault costs nothing and earns no Pass Resources (local policy).".to_owned()
         } else {
             format!(
-                "Government has {} and cannot pay {}.",
+                "{}. Government has {} left.",
+                assault
+                    .paid
+                    .iter()
+                    .map(|paid| format!(
+                        "{} · paid {}. {}",
+                        paid.space_name(),
+                        resources(paid.paid),
+                        paid.detail.effect(true)
+                    ))
+                    .collect::<Vec<_>>()
+                    .join(". "),
                 resources(balance),
-                resources(cost)
             )
         };
-        match &assault.browse {
-            Browse::Areas => {
-                let mut choices: Vec<_> = Area::ALL.into_iter().filter(|&area| {
-                    self.spaces.iter().filter(unselected).any(|space| Area::for_space(space) == area)
-                }).map(|area| self.offer(
-                    &format!("assault:areas:{}", area.id()),
-                    area.label(),
-                    true,
-                    format!("Inspect the remaining {} and choose where to Assault. {payment} A space may be selected once (R 3.1).", area.label().to_lowercase()),
-                )).collect();
-                let result = assault.resolution.as_ref().map_or_else(
-                    || "No spaces selected. A zero-space Assault costs nothing and earns no Pass Resources (local policy).".into(),
-                    |result| format!(
-                        "{} · paid {}. {}. Government has {} left.",
-                        result.space_name(),
-                        resources(result.paid),
-                        result.removal_summary(),
-                        resources(balance),
-                    ),
-                );
-                choices.push(self.offer(FINISH, "Finish Assault", true, format!(
-                    "{result} Finish to record Operation Only and give Syndicate Pass or Limited Operation as 2nd Eligible (R 2.3.4)."
-                )));
-                choices.extend([
-                    self.offer(
-                        "transfer",
-                        "Resource transfer",
-                        true,
-                        "Government may give Resources or ask another faction for Resources. The giver decides how much to transfer (R 1.5.1, 1.8).",
-                    ),
-                    self.offer(
-                        "remove",
-                        "Remove own pieces",
-                        true,
-                        "Choose Government pieces on the map to return to Available Forces (R 1.4.1). Assault uses the remaining cubes.",
-                    ),
-                ]);
-                choices
-            }
-            Browse::Spaces(area) => {
-                let mut choices: Vec<_> = self
-                    .spaces
-                    .iter()
-                    .filter(unselected)
-                    .filter(|space| Area::for_space(space) == *area)
-                    .map(|space| {
-                        self.offer(
-                            &format!("assault:space:{}", space.id),
-                            &space.name,
-                            true,
-                            format!(
-                                "{} {payment} Inspect target and piece choices before paying.",
-                                capacity(space).1
-                            ),
-                        )
-                    })
-                    .collect();
-                choices.push(self.offer(
-                    BACK,
-                    "Back to all areas",
-                    true,
-                    "Choose another area of the board.",
-                ));
-                choices
-            }
-            Browse::Targets(id) => {
-                let space = self
-                    .spaces
-                    .iter()
-                    .filter(unselected)
-                    .find(|space| space.id == *id)
-                    .unwrap();
-                let arithmetic = capacity(space).1;
-                let mut choices: Vec<_> = plans(space)
-                    .into_iter()
-                    .map(|plan| {
-                        self.offer(
-                            &plan.action,
-                            plan.label,
-                            funded,
-                            format!(
-                                "{arithmetic} {} {payment} {}.",
-                                plan.protection,
-                                plan.detail.effect(false)
-                            ),
-                        )
-                    })
-                    .collect();
-                choices.push(self.offer(
-                    BACK,
-                    "Back to spaces",
-                    true,
-                    "Choose a different space before paying.",
-                ));
-                choices
-            }
-        }
+        vec![
+            self.offer(FINISH, "Finish Assault", true, format!(
+                "{result} Finish to record Operation Only and give Syndicate Pass or Limited Operation as 2nd Eligible (R 2.3.4)."
+            )),
+            self.offer(
+                "transfer",
+                "Resource transfer",
+                true,
+                "Government may give Resources or ask another faction for Resources. The giver decides how much to transfer (R 1.5.1, 1.8).",
+            ),
+            self.offer(
+                "remove",
+                "Remove own pieces",
+                true,
+                "Choose Government pieces on the map to return to Available Forces (R 1.4.1). Assault uses the remaining cubes.",
+            ),
+        ]
     }
 
     pub(super) fn assault_next(&self) -> Option<Next> {
@@ -528,33 +553,11 @@ impl Game {
         match action {
             OPEN => {
                 self.assault = Some(Assault {
-                    paid_spaces: vec![],
-                    resolution: None,
+                    paid: vec![],
                     finished: false,
-                    browse: Browse::Areas,
                 });
             }
             FINISH => self.assault.as_mut().unwrap().finished = true,
-            BACK => {
-                let browse = &mut self.assault.as_mut().unwrap().browse;
-                *browse = match browse {
-                    Browse::Targets(id) => Browse::Spaces(Area::for_space(
-                        self.spaces.iter().find(|s| s.id == *id).unwrap(),
-                    )),
-                    _ => Browse::Areas,
-                };
-            }
-            _ if action.starts_with("assault:areas:") => {
-                let area = Area::ALL
-                    .into_iter()
-                    .find(|area| action.ends_with(area.id()))
-                    .ok_or("Unknown Assault area.")?;
-                self.assault.as_mut().unwrap().browse = Browse::Spaces(area);
-            }
-            _ if action.starts_with("assault:space:") => {
-                let id = action.strip_prefix("assault:space:").unwrap();
-                self.assault.as_mut().unwrap().browse = Browse::Targets(id.into());
-            }
             _ if self.transfer.is_some()
                 || self.removal.is_some()
                 || matches!(action, "transfer" | "remove") =>
@@ -620,14 +623,12 @@ impl Game {
             }
         }
         space.pieces.retain(|p| p.count > 0);
-        let assault = self.assault.as_mut().unwrap();
-        assault.resolution = Some(AssaultResolution {
+        self.assault.as_mut().unwrap().paid.push(AssaultResolution {
+            space: id.to_owned(),
             paid,
             returned: plan.detail.removed.iter().map(|group| group.count).sum(),
             detail: plan.detail,
         });
-        assault.paid_spaces.push(id.to_owned());
-        assault.browse = Browse::Areas;
         Ok(())
     }
 }

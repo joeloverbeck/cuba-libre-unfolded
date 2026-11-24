@@ -126,8 +126,7 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `option:directorio:pass`, `option:directorio:limited-operation`, `option:event:unshaded`, `option:event:shaded` | Directorio's handoff after Kidnap | Opens or pins an option's briefing. |
 | `option:rally:beneficiary:<faction>`, `option:rally:sierra-maestra:place:<n>` | Unshaded Event | Opens or pins a beneficiary or Rally procedure. Commit the pinned option by its offered choice ID. |
 | `option:government:<option>`, e.g. `option:government:assault` | Card 18 opening | Opens or pins an option's briefing. |
-| `option:<assault action>` | Government's Assault | Opens or pins a choice's briefing. Use the action suffix of the offered choice ID. |
-| `option:transfer`, `option:remove`, `option:done-removal` | Government's Assault | Pins the corresponding transfer or removal step. Commit using the offered choice ID. |
+| `option:end-assault`, `option:transfer`, `option:remove`, `option:done-removal` | Government's Assault | Pins the ending or the corresponding transfer or removal step and opens its briefing. Commit using the offered choice ID. The panel lists no space (#169): Assault's spaces are picked on the map. |
 | `choice-commit` | Action choice | Commits the pinned option. |
 | `briefing-ribbon` | Terror | Reopens the briefings. |
 | `briefing-tab:kidnap`, `briefing-tab:terror` | Briefing tag | Switches the briefing. |
@@ -169,10 +168,7 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:government:event` | Government's Pact of Caracas briefing. |
 | `<revision>:government:train`, `<revision>:government:garrison`, `<revision>:government:sweep` | Government's opening Operation briefings. |
 | `<revision>:government:assault` | Opens Operation Only Assault. |
-| `<revision>:assault:areas:<area>` | Lists remaining Cities, Provinces, or Economic Centers. Area IDs are `cities`, `provinces`, and `economic-centers`. |
-| `<revision>:assault:space:<space>` | Lists legal target and piece choices in the selected space. |
-| `<revision>:assault:<space>:<targets>` | Confirms payment and effects. For example, `assault:havana:syndicate` closes its Casino. |
-| `<revision>:assault:back` | Returns to the previous Assault menu without paying. |
+| `<revision>:assault:<space>:<plan>` | Pays for the space and resolves the plan at once (#169). Every unpaid space's plans are offered together while Assault is open. A plan names the factions it targets, with a short capacity's split: `assault:havana:syndicate` closes Havana's Casino. `assault:<space>:none` is the one plan that removes nothing; it pays the same cost and changes nothing else. Each choice's `site` states its `space` and whether it has an `effect` there. Commit it from the space's popover: pick `space:<space>`, choose its row, then `popover:commit`. |
 | `<revision>:end-assault` | Finishes Assault and records Operation Only. |
 | `<revision>:syndicate:limited-operation` | Inspect Syndicate's Limited Operation as 2nd Eligible after Operation Only. |
 | `<revision>:government:transport`, `<revision>:government:air-strike`, `<revision>:government:reprisal` | Government's Special Activity briefings, including the Operations each may accompany. |

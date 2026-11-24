@@ -5,7 +5,7 @@
 //!
 //! Not covered: states the explorer does not reach. It follows at most one Resource
 //! transfer per path, of 1 or of the direction's limit, from the starts it names.
-//! Card 18 visits the menus on the inherited board, with one paid Assault and
+//! Card 18 visits the open Assault on the inherited board, with one paid space and
 //! representative side choices. A family appearing only in another state will
 //! fail the stale check if the table lists it.
 use crate::explore;
@@ -34,6 +34,14 @@ fn family(choice: &Choice) -> String {
         .is_some_and(|space| choice.space() == Some(space))
     {
         return "terror:<space>".into();
+    }
+    // An Assault plan: the authority states its space, the id's second part.
+    if action
+        .strip_prefix("assault:")
+        .and_then(|rest| rest.split_once(':'))
+        .is_some_and(|(space, _)| choice.space() == Some(space))
+    {
+        return "assault:<space>:<plan>".into();
     }
     action.into()
 }
@@ -66,37 +74,11 @@ fn card_18_families() -> BTreeSet<String> {
     let mut offered = families(&opening);
     offered.extend(families(&passed));
 
+    // An open Assault offers every unpaid space's plans at once (#169).
     let mut assault = opening;
     explore::choose(&mut assault, "government:assault");
     let root = assault.observe();
-    let mut browsable = false;
-    for area in &root.choices {
-        if !area.action().starts_with("assault:areas:") {
-            offered.insert(family(area));
-            continue;
-        }
-        browsable = true;
-        offered.insert("assault:areas:<area>".into());
-        let mut spaces = assault.clone();
-        explore::choose(&mut spaces, area.action());
-        for space in &spaces.observe().choices {
-            let Some(id) = space.action().strip_prefix("assault:space:") else {
-                offered.insert(family(space));
-                continue;
-            };
-            offered.insert("assault:space:<space>".into());
-            let mut targets = spaces.clone();
-            explore::choose(&mut targets, space.action());
-            let payment = format!("assault:{id}:");
-            for target in &targets.observe().choices {
-                offered.insert(if target.action().starts_with(&payment) {
-                    "assault:<space>:<targets>".into()
-                } else {
-                    family(target)
-                });
-            }
-        }
-    }
+    offered.extend(families(&assault));
 
     for actions in [&["transfer", "ask:1:1", "wait"][..], &["remove"]] {
         if root
@@ -111,16 +93,8 @@ fn card_18_families() -> BTreeSet<String> {
             }
         }
     }
-    if browsable {
-        for action in ["assault:areas:cities", "assault:space:santiago"] {
-            explore::choose(&mut assault, action);
-        }
-    }
     explore::choose(&mut assault, "assault:santiago:26july");
-    offered.extend(families(&assault).into_iter().filter(|family| {
-        // The same area family remains available after paying for one space.
-        !browsable || !family.starts_with("assault:areas:")
-    }));
+    offered.extend(families(&assault));
     explore::choose(&mut assault, "end-assault");
     offered.extend(families(&assault));
     offered

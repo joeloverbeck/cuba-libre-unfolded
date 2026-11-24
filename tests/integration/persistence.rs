@@ -351,8 +351,10 @@ fn pact_of_caracas_lists_the_first_eligible_options_and_refuses_an_unfunded_assa
     assert_eq!(next.options, ["Pass", "Limited Operation"]);
 }
 
-/// Menu steps are decisions: after Assault menu loops a restart shows the same match
-/// revision, equal to the number of saved decisions, and the giver still decides.
+/// Menu steps are decisions: after loops through Assault's transfer and removal
+/// menus a restart shows the same match revision, equal to the number of saved
+/// decisions, and the giver still decides. Looking at the map is not a decision
+/// (#169), so the loops hold no browse step.
 #[test]
 fn assault_menu_loops_preserve_revision_and_the_live_giver_decision() {
     let dir = tempfile::tempdir().unwrap();
@@ -374,10 +376,6 @@ fn assault_menu_loops_preserve_revision_and_the_live_giver_decision() {
     }
     let opening = session.observe();
     let loop_choices = [
-        "assault:areas:cities",
-        "assault:space:santiago",
-        "assault:back",
-        "assault:back",
         "transfer",
         "back",
         "transfer",
@@ -877,8 +875,6 @@ fn a_save_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
         "resolve-shaded",
         "advance-card",
         "government:assault",
-        "assault:areas:cities",
-        "assault:space:santiago",
         "assault:santiago:26july",
         "transfer",
         "ask:1:1",
@@ -891,7 +887,7 @@ fn a_save_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
     let position = &valid["payload"]["position"];
     assert!(position["removal"].is_null() && position["government_pass_from"].is_null());
     assert_eq!(position["transfer"]["Authorizing"]["waited"], true);
-    assert!(position["kidnap"].is_object() && position["assault"]["resolution"].is_object());
+    assert!(position["kidnap"].is_object() && position["assault"]["paid"][0].is_object());
     let previous = std::fs::read(previous_path(&path)).unwrap();
 
     let mut cases = vec![];
@@ -906,9 +902,9 @@ fn a_save_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
     for (pointer, field) in [
         ("/payload/position/kidnap", "revision"),
         ("/payload/position/transfer/Authorizing", "waited"),
-        ("/payload/position/assault", "paid_spaces"),
-        ("/payload/position/assault", "resolution"),
-        ("/payload/position/assault/resolution", "detail"),
+        ("/payload/position/assault", "paid"),
+        ("/payload/position/assault", "finished"),
+        ("/payload/position/assault/paid/0", "detail"),
     ] {
         let mut altered = valid.clone();
         let fields = altered
@@ -923,6 +919,8 @@ fn a_save_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
         ("/payload/position", "finished"),
         ("/payload/position", "event_side_decisions"),
         ("/payload/position/assault", "omitted"),
+        // The browse position an earlier build's open Assault stored (#169).
+        ("/payload/position/assault", "browse"),
         ("/payload/position/kidnap", "unknown"),
     ] {
         let mut altered = valid.clone();
@@ -948,7 +946,7 @@ fn a_save_lacking_a_field_or_with_an_unknown_one_is_refused_unchanged() {
         .unwrap()
         .remove("decisions");
     cases.push(("missing field `decisions`".to_owned(), altered));
-    assert_eq!(cases.len(), position.as_object().unwrap().len() + 11);
+    assert_eq!(cases.len(), position.as_object().unwrap().len() + 12);
     for (expected, altered) in cases {
         let bytes = reseal(&altered);
         std::fs::write(&path, &bytes).unwrap();
@@ -999,7 +997,7 @@ fn restart_after_each(path: &Path, mut session: Session, actions: &[&str]) -> Se
 /// an open Kidnap before its roll, the rolled Kidnap with Santiago's Terror owed, the
 /// open Transfer modal, Directorio's handoff, the shaded Event before it resolves, a
 /// request awaiting its giver and set aside with Wait, the card advance, the
-/// Assault's menus, its payment and side decisions, and Syndicate's decision after
+/// open Assault, its payment and side decisions, and Syndicate's decision after
 /// the finished Assault.
 #[test]
 fn every_decision_of_the_shaded_event_and_the_assault_resumes_exactly_once() {
@@ -1027,10 +1025,6 @@ fn every_decision_of_the_shaded_event_and_the_assault_resumes_exactly_once() {
             "resolve-shaded",
             "advance-card",
             "government:assault",
-            "assault:areas:cities",
-            "assault:space:santiago",
-            "assault:back",
-            "assault:space:santiago",
             "assault:santiago:26july",
             "transfer",
             "ask:1:1",
@@ -1046,6 +1040,170 @@ fn every_decision_of_the_shaded_event_and_the_assault_resumes_exactly_once() {
     let finished = session.observe();
     assert_eq!(finished.owner, Faction::Syndicate);
     assert_eq!(finished.next.as_ref().unwrap().role, "2nd Eligible");
+}
+
+/// #169: a save this build writes in the middle of an Assault is admitted by exact
+/// replay and resumes with its paid spaces, in the order paid: the record of what each
+/// paid and what was removed or closed, the map states and the choices that remain.
+/// Seed 2 rolls 5 and 26July gives 4, so Government opens the Assault with 5
+/// Resources: Santiago (2 Active Guerrillas return, R 3.2.4) and then Havana (the
+/// Casino closes, R 1.4.5) leave 1.
+#[test]
+fn a_save_written_in_the_middle_of_an_assault_resumes_with_its_paid_spaces() {
+    use cuba_libre_unfolded::targets::{SpaceState, space_targets};
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("assault.json");
+    let mut session = Session::create_seeded(&path, 2).unwrap();
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "transfer",
+        "give:0:4",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:assault",
+        "assault:santiago:26july",
+        "assault:havana:syndicate",
+    ] {
+        act(&mut session, action);
+    }
+    let middle = session.observe();
+    let random = session.game().random_state();
+    drop(session);
+    // Only decisions are saved: no step for looking at a space.
+    let saved = decisions(&path);
+    assert_eq!(saved.len() as u64, middle.revision);
+    assert_eq!(
+        saved[saved.len() - 3..],
+        [
+            "government:assault",
+            "assault:santiago:26july",
+            "assault:havana:syndicate"
+        ]
+    );
+    let stored = &record(&path)["payload"]["position"]["assault"];
+    assert_eq!(
+        stored.as_object().unwrap().keys().collect::<Vec<_>>(),
+        ["finished", "paid"]
+    );
+
+    let mut session = Session::open(&path, None).unwrap();
+    let resumed = session.observe();
+    assert_eq!(resumed, middle);
+    assert_eq!(session.game().random_state(), random);
+    assert_eq!(resumed.resources, [1, 0, 5, 15]);
+    assert_eq!(
+        resumed
+            .assault_paid
+            .iter()
+            .map(|paid| paid.summary())
+            .collect::<Vec<_>>(),
+        [
+            "Santiago de Cuba · paid 2 Resources · returned 2 26July Guerrillas",
+            "Havana · paid 2 Resources · closed 1 Casino",
+        ]
+    );
+    let targets = space_targets(&resumed).unwrap();
+    for target in &targets {
+        let paid = matches!(target.space.as_str(), "santiago" | "havana");
+        assert_eq!(
+            target.state,
+            if paid {
+                SpaceState::NotInvolved
+            } else {
+                SpaceState::NoEffect
+            },
+            "{}",
+            target.space
+        );
+        assert_eq!(target.choices.is_empty(), paid);
+    }
+    // A paid space cannot be paid again after the restart, and the save is unchanged.
+    let bytes = std::fs::read(&path).unwrap();
+    for repeat in ["assault:santiago:26july", "assault:santiago:none"] {
+        assert!(
+            session
+                .submit(
+                    Faction::Government,
+                    resumed.revision,
+                    &format!("{}:{repeat}", resumed.revision)
+                )
+                .is_err()
+        );
+    }
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    act(&mut session, "end-assault");
+    assert_eq!(session.observe().owner, Faction::Syndicate);
+    assert_eq!(session.observe().assault_paid, middle.assault_paid);
+}
+
+/// #169: the match's record of an open Assault lost the browse position, so a save an
+/// earlier build wrote in an Assault is a disposable save (foundation 2, ADR 0003). It
+/// is refused as another build's, with the save and its previous record byte for byte
+/// as they were, whether it carries the earlier format or, to show that nothing reads
+/// the earlier shape, this build's.
+#[test]
+fn a_save_an_earlier_build_wrote_in_an_assault_is_refused_with_every_file_unchanged() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("earlier.json");
+    let mut session = Session::create_seeded(&path, 2).unwrap();
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "transfer",
+        "give:0:1",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:assault",
+    ] {
+        act(&mut session, action);
+    }
+    drop(session);
+    let valid = record(&path);
+    let previous = std::fs::read(previous_path(&path)).unwrap();
+    assert_eq!(
+        valid["payload"]["position"]["assault"],
+        serde_json::json!({ "paid": [], "finished": false })
+    );
+
+    // The earlier build's open Assault: the paid spaces' ids, the latest result and
+    // the browse position, here at the list of Cities after two menu decisions.
+    let mut earlier = valid.clone();
+    earlier["payload"]["position"]["assault"] = serde_json::json!({
+        "paid_spaces": [],
+        "resolution": null,
+        "finished": false,
+        "browse": { "Spaces": "Cities" },
+    });
+    let decisions = earlier["payload"]["decisions"].as_array_mut().unwrap();
+    decisions.push("assault:areas:cities".into());
+    earlier["payload"]["position"]["revision"] = (decisions.len() as u64).into();
+    let mut earlier_format = earlier.clone();
+    earlier_format["identity"]["format"] = "2".into();
+
+    for (case, altered) in [("earlier format", earlier_format), ("this format", earlier)] {
+        let bytes = reseal(&altered);
+        std::fs::write(&path, &bytes).unwrap();
+        let refusal = format!("{:#}", Session::open(&path, None).err().expect(case));
+        assert_another_build(&refusal);
+        assert_eq!(std::fs::read(&path).unwrap(), bytes, "{case}");
+        assert_eq!(
+            std::fs::read(previous_path(&path)).unwrap(),
+            previous,
+            "{case}"
+        );
+    }
+    // The same decisions without the browse step, in this build's shape, still open.
+    std::fs::write(&path, reseal(&valid)).unwrap();
+    assert!(Session::open(&path, None).is_ok());
 }
 
 /// A restart at each pending decision of the unshaded Event: the Rally's beneficiary
