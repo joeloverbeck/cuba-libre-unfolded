@@ -40,15 +40,23 @@ impl AssaultResolution {
         &self.detail.space
     }
 
+    /// The space and what it paid, such as "Havana · paid 2 Resources": the one wording
+    /// of a paid space that its record and Finish Assault's explanation both begin with.
+    fn paid_line(&self) -> String {
+        format!("{} · paid {}", self.space_name(), resources(self.paid))
+    }
+
     /// The record of this space: its name, what it paid and what was removed or
     /// closed, such as "Havana · paid 2 Resources · closed 1 Casino".
     pub fn summary(&self) -> String {
-        format!(
-            "{} · paid {} · {}",
-            self.detail.space,
-            resources(self.paid),
-            self.detail.record()
-        )
+        format!("{} · {}", self.paid_line(), self.detail.record())
+    }
+
+    /// The space as Finish Assault's explanation states it, with what was removed or
+    /// closed and its rule, such as "Havana · paid 2 Resources. Closed 1 Casino in
+    /// place (R 1.4.5)".
+    fn finished(&self) -> String {
+        format!("{}. {}", self.paid_line(), self.detail.effect(true))
     }
 }
 
@@ -592,12 +600,7 @@ impl Game {
                 assault
                     .paid
                     .iter()
-                    .map(|paid| format!(
-                        "{} · paid {}. {}",
-                        paid.space_name(),
-                        resources(paid.paid),
-                        paid.detail.effect(true)
-                    ))
+                    .map(AssaultResolution::finished)
                     .collect::<Vec<_>>()
                     .join(". "),
                 resources(balance),
@@ -843,5 +846,65 @@ mod reason_tests {
                 assert!(line.chars().count() <= REASON_CHARS, "{line}");
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod record_tests {
+    use super::*;
+
+    fn paid(removed: Vec<Group>, closed: u8) -> AssaultResolution {
+        AssaultResolution {
+            space: "havana".into(),
+            paid: 2,
+            returned: removed.iter().map(|group| group.count).sum(),
+            detail: AssaultDetail {
+                space: "Havana".into(),
+                removed,
+                closed,
+            },
+        }
+    }
+
+    /// A paid space's record, in the panel's summary and in Finish Assault's
+    /// explanation: one wording for the space and its payment, then each sentence's
+    /// own words for what it removed or closed (R 3.2.4, 1.4.5).
+    #[test]
+    fn a_paid_space_is_worded_once_for_the_summary_and_the_finish() {
+        let casino = paid(vec![], 1);
+        assert_eq!(
+            casino.summary(),
+            "Havana · paid 2 Resources · closed 1 Casino"
+        );
+        assert_eq!(
+            casino.finished(),
+            "Havana · paid 2 Resources. Closed 1 Casino in place (R 1.4.5)"
+        );
+        let guerrillas = paid(
+            vec![Group {
+                faction: Faction::Directorio,
+                kind: Kind::Guerrilla,
+                state: State::Active,
+                count: 2,
+            }],
+            0,
+        );
+        assert_eq!(
+            guerrillas.summary(),
+            "Havana · paid 2 Resources · returned 2 Directorio Guerrillas"
+        );
+        assert_eq!(
+            guerrillas.finished(),
+            "Havana · paid 2 Resources. Returned 2 Directorio Active Guerrillas to Available Forces"
+        );
+        let nothing = paid(vec![], 0);
+        assert_eq!(
+            nothing.summary(),
+            "Havana · paid 2 Resources · removed nothing"
+        );
+        assert_eq!(
+            nothing.finished(),
+            "Havana · paid 2 Resources. No pieces affected"
+        );
     }
 }
