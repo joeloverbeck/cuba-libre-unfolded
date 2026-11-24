@@ -106,6 +106,19 @@ pub(super) mod fig {
     ];
     /// The BRIEFING ribbon, relative to the panel.
     pub const RIBBON: [f32; 4] = [1188., 0., 97.2, 302.4];
+    /// During Assault (#169, the frame "AC-B panel · Assault"), the panel's column
+    /// under the cost lines, at the rows' left and width. First the line that sends
+    /// the player to the map, in the subtitle's quiet type: its top and size.
+    pub const ASSAULT_MAP_LINE: [f32; 2] = [1013.6, 35.1];
+    /// Then each paid space's record, in ink: the first record's top, the pitch of
+    /// one line, the type size and the line height.
+    pub const ASSAULT_RECORD: [f32; 4] = [1066.4, 49., 36.45, 49.];
+    /// The most characters one record line holds; a longer record wraps. A line of
+    /// the row's width holds about 77 at the record's size: in #169's native run 66
+    /// characters drew 655 of its 763 px at 3840×2160.
+    pub const ASSAULT_RECORD_CHARS: usize = 70;
+    /// The column's gap, between the record and the first row.
+    pub const ASSAULT_GAP: f32 = 10.8;
 }
 
 /// A frame x or y in reference pixels, on the panel's right-anchored reference.
@@ -252,9 +265,6 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                         }
                     }),
                 "terror" => "Choose Terror".into(),
-                action if crate::Game::assault_payment_space(action).is_some() => {
-                    format!("Pay {} · Assault", resources(view.alliance.coin_cost()))
-                }
                 "event:shaded" => "Choose shaded Event".into(),
                 "event:unshaded" => "Choose unshaded Event".into(),
                 _ => c.label.clone(),
@@ -264,9 +274,7 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
             enabled: true,
         },
         Some(c) => {
-            let label = if crate::Game::assault_payment_space(c.action()).is_some() {
-                format!("Cannot pay {}", resources(view.alliance.coin_cost()))
-            } else if view.current_card == 18 {
+            let label = if view.current_card == 18 {
                 "Inspection only".into()
             } else if view.eligibility.directorio_handoff() {
                 format!("{} is outside this task", c.label)
@@ -310,22 +318,110 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
     }
 }
 
+/// The panel's rows: every offered choice that is not a place. A choice that acts on
+/// a map space is chosen on the map and nowhere else (foundation 2, #169), so the
+/// panel lists none.
 fn panel_options(view: &Observation) -> impl Iterator<Item = &Choice> {
     view.choices.iter().filter(|choice| {
-        view.transfer.is_none() && (view.removal.is_none() || choice.action() == "done-removal")
+        choice.site.is_none()
+            && view.transfer.is_none()
+            && (view.removal.is_none() || choice.action() == "done-removal")
     })
 }
 
 /// Event execution and the card 18 decisions use rows without section headings.
+/// During Assault the rows follow the map line and the record of paid spaces (#169).
 fn panel_rows(view: &Observation) -> impl Iterator<Item = (&Choice, f32)> {
     let tops = if view.current_card == 18 || view.event.as_ref().is_some_and(EventProgress::pending)
     {
         let within_section_pitch = fig::ROWS[2] - fig::ROWS[1];
-        std::array::from_fn(|i| fig::ROWS[0] + i as f32 * within_section_pitch)
+        let first = assault_rows_top(view).unwrap_or(fig::ROWS[0]);
+        std::array::from_fn(|i| first + i as f32 * within_section_pitch)
     } else {
         fig::ROWS
     };
     panel_options(view).zip(tops)
+}
+
+/// Whether the panel shows Assault's own steps: Government executes it, and neither
+/// a Resource transfer nor removal mode holds the panel.
+fn assault_open(view: &Observation) -> bool {
+    view.current_card == 18
+        && view.executing == Some(Faction::Government)
+        && view.transfer.is_none()
+        && view.removal.is_none()
+}
+
+/// One of the Assault panel's lines under its cost lines.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct AssaultLine {
+    /// The part's name: `assault-map-line`, or `assault-record:<space>`.
+    pub name: String,
+    /// The words, wrapped to [`fig::ASSAULT_RECORD_CHARS`] a line.
+    pub words: String,
+    /// The line's top in the FigCraft frame.
+    pub top: f32,
+}
+
+/// The Assault panel's lines under its cost lines (#169): the line that sends the
+/// player to the map, then each paid space in the order paid, with the authority's
+/// summary of what it paid and what was removed or closed. Empty while the panel
+/// shows anything but Assault's own steps.
+pub(super) fn assault_lines(view: &Observation) -> Vec<AssaultLine> {
+    if !assault_open(view) {
+        return vec![];
+    }
+    let mut lines = vec![AssaultLine {
+        name: "assault-map-line".into(),
+        words: super::execution::MAP_LINE.into(),
+        top: fig::ASSAULT_MAP_LINE[0],
+    }];
+    let [mut top, pitch, ..] = fig::ASSAULT_RECORD;
+    for paid in &view.assault_paid {
+        let words = wrap(&paid.summary(), fig::ASSAULT_RECORD_CHARS);
+        let height = pitch * words.lines().count() as f32;
+        lines.push(AssaultLine {
+            name: format!("assault-record:{}", paid.space),
+            words,
+            top,
+        });
+        top += height;
+    }
+    lines
+}
+
+/// The first row's top during Assault. With nothing paid the rows stand where the
+/// record would start; a record moves them down by one line pitch for each of its
+/// lines, and the column's gap follows it.
+fn assault_rows_top(view: &Observation) -> Option<f32> {
+    let lines = assault_lines(view);
+    let record: usize = lines.iter().skip(1).map(|l| l.words.lines().count()).sum();
+    (!lines.is_empty()).then(|| assault_rows_after(record))
+}
+
+/// The first row's top under a record of `lines` lines.
+fn assault_rows_after(lines: usize) -> f32 {
+    let [first, pitch, ..] = fig::ASSAULT_RECORD;
+    match lines {
+        0 => first,
+        n => first + pitch * n as f32 + fig::ASSAULT_GAP,
+    }
+}
+
+/// Breaks `words` at spaces into lines of at most `chars` characters, so the panel
+/// knows each record's height before it is drawn.
+fn wrap(words: &str, chars: usize) -> String {
+    let mut lines: Vec<String> = vec![];
+    for word in words.split(' ') {
+        match lines.last_mut() {
+            Some(line) if line.chars().count() + 1 + word.chars().count() <= chars => {
+                line.push(' ');
+                line.push_str(word);
+            }
+            _ => lines.push(word.to_owned()),
+        }
+    }
+    lines.join("\n")
 }
 
 fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool) -> String {
@@ -361,32 +457,11 @@ fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool) -> St
             return "Select a marked piece on the map.\nChoose Done to return to Assault.".into();
         }
         if executor == Faction::Government && view.executing.is_some() {
-            if let Some(space) = view.choices.iter().find_map(|choice| {
-                let id = crate::Game::assault_payment_space(choice.action())?;
-                view.spaces.iter().find(|space| space.id == id)
-            }) {
-                return format!(
-                    "{} · Select targets\n{balance} · {} per space",
-                    space.name,
-                    resources(view.alliance.coin_cost())
-                );
-            }
-            return view.assault_result.as_ref().map_or_else(
-                || {
-                    format!(
-                        "{balance} · {} US Alliance\n{} per space",
-                        view.alliance.name(),
-                        resources(view.alliance.coin_cost()),
-                    )
-                },
-                |result| {
-                    format!(
-                        "{} · paid {} · {balance} left\n{}",
-                        result.space_name(),
-                        resources(result.paid),
-                        result.removal_summary(),
-                    )
-                },
+            // The cost lines: the balance and what each space costs (R 6.3.1).
+            return format!(
+                "{balance} · {} US Alliance\n{} per space",
+                view.alliance.name(),
+                resources(view.alliance.coin_cost()),
             );
         }
         let eligibility = if view.eligibility.event_restriction.is_some() {
@@ -555,6 +630,32 @@ pub(super) fn panel(
             None,
         );
         part(commands, label, name);
+    }
+    for line in assault_lines(view) {
+        let record = line.name != "assault-map-line";
+        let [_, _, size, height] = if record {
+            fig::ASSAULT_RECORD
+        } else {
+            let [_, size] = fig::ASSAULT_MAP_LINE;
+            [0., 0., size, fig::SUBTITLE_LINE]
+        };
+        let words = text(
+            commands,
+            art,
+            Prose::named(line.words),
+            rx(fig::ROW_X),
+            ry(line.top),
+            rs(fig::ROW_W),
+            rs(size),
+            s,
+            o,
+            5,
+        );
+        commands
+            .entity(words)
+            .insert(TextColor(if record { INK } else { QUIET }));
+        style(commands, words, art, false, 0., 0., Some(rs(height) * s));
+        part(commands, words, &line.name);
     }
     for (choice, top) in panel_rows(view) {
         let act = choice.action();
@@ -1886,5 +1987,316 @@ mod tests {
         );
         ui.choice.pinned = Some("end-terror".into());
         assert!(names(&game.observe(), &ui).contains(&"1:end-terror".to_owned()));
+    }
+
+    /// Card 18 with Government's Assault opened (#169). Seed 2's Kidnap roll takes 5
+    /// of Government's 6 Resources; 26July then gives `give` back, and the shaded
+    /// Event makes every 26July Guerrilla Active.
+    fn assault(give: u8) -> Game {
+        let mut game = crate::terror_chosen(Game::opening_with_seed(2));
+        let mut actions = vec!["kidnap".to_owned(), "kidnap:roll".into()];
+        actions.push("terror:santiago".into());
+        if give > 0 {
+            actions.extend(["transfer".to_owned(), format!("give:0:{give}")]);
+        }
+        actions.extend(
+            [
+                "end-terror",
+                "event:shaded",
+                "resolve-shaded",
+                "advance-card",
+            ]
+            .map(String::from),
+        );
+        actions.push("government:assault".into());
+        for action in actions {
+            decide(&mut game, &action);
+        }
+        game
+    }
+
+    fn decide(game: &mut Game, action: &str) {
+        let view = game.observe();
+        let id = format!("{}:{action}", view.revision);
+        let owner = view
+            .choices
+            .iter()
+            .find(|c| c.id == id)
+            .map_or(view.owner, |c| c.owner);
+        game.submit(owner, view.revision, &id).unwrap();
+    }
+
+    /// #169: during Assault the panel lists no place. Its rows are the three steps
+    /// that select no space; under the cost lines one line sends the player to the
+    /// map, and each paid space is recorded in the order paid with the authority's
+    /// summary. The rows stand under the record and move down one pitch a line.
+    #[test]
+    fn the_assault_panel_lists_its_steps_the_map_line_and_each_paid_space() {
+        let mut game = assault(4);
+        let view = game.observe();
+        // 6 − 5 (Kidnap) + 4 (given) = 5, and a space costs 2 at Firm (R 6.3.1).
+        assert_eq!(
+            panel_subtitle(&view, Faction::Government, false),
+            "5 Resources · Firm US Alliance\n2 Resources per space"
+        );
+        let rows = |view: &Observation| -> Vec<(String, f32)> {
+            panel_rows(view)
+                .map(|(c, top)| (c.action().to_owned(), top))
+                .collect()
+        };
+        let pitch = fig::ROWS[2] - fig::ROWS[1];
+        let top = assault_rows_after(0);
+        assert_eq!(
+            rows(&view),
+            [
+                ("end-assault".to_owned(), top),
+                ("transfer".to_owned(), top + pitch),
+                ("remove".to_owned(), top + 2. * pitch),
+            ]
+        );
+        assert_eq!(
+            assault_lines(&view),
+            [AssaultLine {
+                name: "assault-map-line".into(),
+                words: "Choose a space on the map; its popover pays and resolves.".into(),
+                top: fig::ASSAULT_MAP_LINE[0],
+            }]
+        );
+        // The map line clears the cost lines above it and the first record below.
+        let [first, line, size, height] = fig::ASSAULT_RECORD;
+        const {
+            assert!(fig::ASSAULT_MAP_LINE[0] >= fig::SUBTITLE[1] + 2. * fig::SUBTITLE_LINE);
+            assert!(fig::ASSAULT_MAP_LINE[0] + fig::SUBTITLE_LINE <= fig::ASSAULT_RECORD[0]);
+        }
+        assert!(size <= height && height <= line);
+        assert_eq!(first, top);
+
+        // Santiago first, then Havana, though Havana comes first on the map: 2 Active
+        // 26July Guerrillas return (R 3.2.4), then Syndicate's Casino closes (R 1.4.5).
+        decide(&mut game, "assault:santiago:26july");
+        decide(&mut game, "assault:havana:syndicate");
+        let view = game.observe();
+        let lines = assault_lines(&view);
+        assert_eq!(
+            lines
+                .iter()
+                .map(|l| (l.name.as_str(), l.words.as_str(), l.top))
+                .collect::<Vec<_>>(),
+            [
+                (
+                    "assault-map-line",
+                    "Choose a space on the map; its popover pays and resolves.",
+                    fig::ASSAULT_MAP_LINE[0]
+                ),
+                (
+                    "assault-record:santiago",
+                    "Santiago de Cuba · paid 2 Resources · returned 2 26July Guerrillas",
+                    first
+                ),
+                (
+                    "assault-record:havana",
+                    "Havana · paid 2 Resources · closed 1 Casino",
+                    first + line
+                ),
+            ]
+        );
+        // Two record lines: the rows start two pitches lower.
+        assert_eq!(
+            rows(&view)[0],
+            ("end-assault".to_owned(), assault_rows_after(2))
+        );
+        assert_eq!(assault_rows_after(2), first + 2. * line + fig::ASSAULT_GAP);
+        // Removal mode and a transfer hold the panel: the lines wait.
+        decide(&mut game, "remove");
+        assert!(assault_lines(&game.observe()).is_empty());
+        assert_eq!(
+            rows(&game.observe()),
+            [("done-removal".to_owned(), fig::ROWS[0])]
+        );
+    }
+
+    /// Foundation 2, "Engine authority": legal-action discovery stays complete. Every
+    /// choice an open Assault offers has the one surface that presents it: a plan in
+    /// its space's popover, which a click opens because the map marks the space
+    /// choosable (the chosen row with the button when Government can pay, else a
+    /// refused row with the reason), and a step that selects no space as a panel row.
+    #[test]
+    fn every_assault_choice_is_presented_by_its_space_s_popover_or_a_panel_row() {
+        let mut paid = assault(4);
+        decide(&mut paid, "assault:santiago:26july");
+        for game in [assault(4), assault(0), paid] {
+            let view = game.observe();
+            let targeting = aim(&view);
+            let rows: Vec<&str> = panel_rows(&view).map(|(c, _)| c.id.as_str()).collect();
+            assert!(view.choices.iter().any(|c| c.site.is_some()));
+            for choice in &view.choices {
+                let Some(space) = choice.space() else {
+                    assert!(rows.contains(&choice.id.as_str()), "{}", choice.id);
+                    continue;
+                };
+                assert!(!rows.contains(&choice.id.as_str()), "{}", choice.id);
+                assert!(
+                    targeting
+                        .state(space)
+                        .is_some_and(crate::targets::SpaceState::choosable),
+                    "{}",
+                    choice.id
+                );
+                let card =
+                    super::super::popover::content(&view, space, Some(choice.action())).unwrap();
+                let row = card
+                    .rows
+                    .iter()
+                    .find(|r| r.choice.as_ref() == Some(&choice.id))
+                    .unwrap_or_else(|| panic!("no row for {}", choice.id));
+                if choice.supported {
+                    assert!(row.chosen && row.button.is_some(), "{}", choice.id);
+                } else {
+                    assert!(
+                        row.button.is_none() && !row.lines.is_empty(),
+                        "{}",
+                        choice.id
+                    );
+                    assert_eq!(row.remedies, choice.remedies);
+                }
+            }
+        }
+    }
+
+    /// The Assault constants are the layout record's: the frame "AC-B panel · Assault"
+    /// with two spaces paid, and beside it with nothing paid.
+    #[test]
+    fn the_assault_panel_s_constants_are_the_layout_record_s() {
+        let record: serde_json::Value = serde_json::from_str(include_str!(
+            "../../art/atlas/atlas-action-choice.layout.json"
+        ))
+        .unwrap();
+        let assault = &record["assault"];
+        let at = |group: &str, part: &str, edge: usize| -> f32 {
+            assault[group][part][edge]
+                .as_f64()
+                .unwrap_or_else(|| panic!("{group} {part}")) as f32
+        };
+        let near = |a: f32, b: f32| assert!((a - b).abs() < 0.05, "{a} is not {b}");
+        near(at("text", "assault-map-line", 0), fig::ROW_X);
+        near(at("text", "assault-map-line", 1), fig::ASSAULT_MAP_LINE[0]);
+        let [first, pitch, _, height] = fig::ASSAULT_RECORD;
+        near(at("text", "assault-record:santiago", 1), first);
+        near(at("text", "assault-record:matanzas", 1), first + pitch);
+        near(assault["record_line"].as_f64().unwrap() as f32, height);
+        // Two one-line records, then the rows at the within-section pitch.
+        let row = fig::ROWS[2] - fig::ROWS[1];
+        for (i, part) in ["option:end-assault", "option:transfer", "option:remove"]
+            .into_iter()
+            .enumerate()
+        {
+            near(at("parts", part, 1), assault_rows_after(2) + row * i as f32);
+            near(
+                assault["opened"]["parts"][part][1].as_f64().unwrap() as f32,
+                assault_rows_after(0) + row * i as f32,
+            );
+            near(at("parts", part, 3), fig::ROW_H);
+        }
+        near(
+            at("text", "option:end-assault-label", 0),
+            fig::ROW_X + fig::LABEL[0],
+        );
+        near(
+            at("text", "option:end-assault-label", 1),
+            assault_rows_after(2) + fig::LABEL[1],
+        );
+        near(at("parts", "choice-commit", 1), fig::COMMIT[1]);
+    }
+
+    /// The record holds every space Government could pay for: with all 13 paid and
+    /// the longest record on each, the last row still ends above the commit.
+    #[test]
+    fn thirteen_recorded_spaces_leave_the_rows_above_the_commit() {
+        let lines = 13 + 5;
+        let pitch = fig::ROWS[2] - fig::ROWS[1];
+        let last = assault_rows_after(lines) + 2. * pitch;
+        assert!(last + fig::ROW_H < fig::COMMIT[1], "{last}");
+    }
+
+    #[test]
+    fn a_record_wraps_at_spaces_within_its_line_budget() {
+        let chars = fig::ASSAULT_RECORD_CHARS;
+        let short = "Santiago de Cuba · paid 2 Resources · returned 2 26July Guerrillas";
+        assert_eq!(wrap(short, chars), short);
+        // Had Directorio's Guerrillas in Havana been Active: 77 characters.
+        let long = "Havana · paid 2 Resources · returned 2 Directorio Guerrillas, closed 1 Casino";
+        let wrapped = wrap(long, chars);
+        assert_eq!(
+            wrapped,
+            "Havana · paid 2 Resources · returned 2 Directorio Guerrillas, closed 1\nCasino"
+        );
+        assert!(wrapped.lines().all(|l| l.chars().count() <= chars));
+        assert_eq!(wrapped.replace('\n', " "), long);
+    }
+
+    /// #169: Tab goes from the panel's three steps and its commit to the spaces by
+    /// map state, the no-effect spaces last (R 3.2.4 on the handoff's position:
+    /// Havana and Santiago are the only spaces where Assault affects a piece).
+    #[test]
+    fn tab_reaches_assault_s_spaces_by_map_state_with_the_no_effect_spaces_last() {
+        let game = assault(4);
+        let view = game.observe();
+        let ui = Interface::default();
+        let order = stops(&view, &ui, &aim(&view), &Popover::default());
+        assert_eq!(
+            order[..17],
+            [
+                "option:end-assault",
+                "option:transfer",
+                "option:remove",
+                "choice-commit",
+                "space:havana",
+                "space:santiago",
+                "space:camaguey-city",
+                "space:pinar-del-rio",
+                "space:la-habana",
+                "space:matanzas",
+                "space:las-villas",
+                "space:camaguey-province",
+                "space:oriente",
+                "space:sierra-maestra",
+                "space:ec-pinar-la-habana",
+                "space:ec-las-villas-camaguey",
+                "space:ec-oriente-sierra",
+            ],
+            "{order:?}"
+        );
+        assert_eq!(order[17], "marker-supply");
+        // With Government short of the cost, Havana and Santiago are blocked and still
+        // come before the no-effect spaces.
+        let short = assault(0).observe();
+        let order = stops(&short, &ui, &aim(&short), &Popover::default());
+        assert_eq!(
+            order[4..7],
+            ["space:havana", "space:santiago", "space:camaguey-city"]
+        );
+        // A paid space is no stop.
+        let mut paid = assault(4);
+        decide(&mut paid, "assault:santiago:26july");
+        let view = paid.observe();
+        let order = stops(&view, &ui, &aim(&view), &Popover::default());
+        assert!(!order.contains(&"space:santiago".to_owned()));
+        // Santiago's popover open: its plans and the button follow it.
+        let view = game.observe();
+        let targeting = aim(&view);
+        let mut open = Popover::default();
+        assert!(open.click_space("santiago", &targeting));
+        let order = stops(&view, &ui, &targeting, &open);
+        let at = order.iter().position(|n| n == "space:santiago").unwrap();
+        assert_eq!(
+            order[at..at + 5],
+            [
+                "space:santiago",
+                "popover:row:assault:santiago:26july",
+                "popover:row:assault:santiago:none",
+                "popover:commit",
+                "space:camaguey-city",
+            ]
+        );
     }
 }

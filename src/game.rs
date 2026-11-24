@@ -629,9 +629,9 @@ pub struct Observation {
     /// (R 2.3.3–2.3.4).
     pub next: Option<Next>,
     pub operation: &'static str,
-    /// The paid Santiago result, once the target has resolved.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub assault_result: Option<AssaultResolution>,
+    /// What Government paid in each space it Assaulted on this card and what was
+    /// removed or closed there, in the order paid (#169). Empty outside an Assault.
+    pub assault_paid: Vec<AssaultResolution>,
     pub special_activity: Option<String>,
     pub owed_terror: Option<String>,
     pub transfer: Option<Transfer>,
@@ -662,6 +662,16 @@ pub struct Resolved {
     pub space: String,
     pub paid: u8,
 }
+/// The rules authority's statement of where a choice acts on the map (#169).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct Site {
+    /// The id of the space the choice acts on.
+    pub space: String,
+    /// Whether the choice changes anything on the map there: an Assault plan that
+    /// removes or closes at least one piece (R 3.2.4, 1.4.5), a Terror (R 3.3.4) or
+    /// opening Kidnap (R 4.3.3). False for the Assault plan that removes nothing.
+    pub effect: bool,
+}
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Choice {
     pub id: String,
@@ -677,6 +687,11 @@ pub struct Choice {
     /// For an unsupported choice, the actions possible in this task that would make
     /// it supported, such as "Kidnap here first"; empty when nothing here can.
     pub remedies: Vec<String>,
+    /// Where on the map the choice acts and whether it changes anything there, for a
+    /// choice that acts on one space. The map and the space popover read this
+    /// statement, and never a label, an id or an explanation (#169).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub site: Option<Site>,
     /// The consequences of an irreversible step, computed by applying it to a copy of
     /// the match, including Pass, Terror and Assault effects, and voluntary removal.
     pub preview: Option<Preview>,
@@ -691,19 +706,19 @@ impl Choice {
     pub(crate) fn action_of(id: &str) -> &str {
         id.split_once(':').map_or(id, |(_, action)| action)
     }
-    /// The map space this choice acts on, so the map can offer it there: a Terror
-    /// target, or opening Kidnap in its space. Other choices act on no space.
+    /// The map space this choice acts on, as the authority states it in `site`, so
+    /// the map can offer it there: a Terror target, opening Kidnap in its space, or an
+    /// Assault plan. Other choices act on no space.
     pub fn space(&self) -> Option<&str> {
-        // A Special Activity listed under its Operation at the action choice is
-        // not an action on the map.
-        if self.accompanies.is_some() {
-            return None;
-        }
-        let action = self.action();
-        match action {
-            "kidnap" => Some(KIDNAP_SPACE),
-            _ => action.strip_prefix("terror:"),
-        }
+        self.site.as_ref().map(|site| site.space.as_str())
+    }
+    /// States the space this choice acts on and whether it changes anything there.
+    fn at(mut self, space: &str, effect: bool) -> Self {
+        self.site = Some(Site {
+            space: space.to_owned(),
+            effect,
+        });
+        self
     }
     /// For a removal in removal mode: its space, group and quantity.
     pub fn removal(&self) -> Option<(&str, &str, u8)> {
@@ -1192,7 +1207,7 @@ impl Game {
                 }
                 ActionChoice::Terror => "executing Terror",
             },
-            assault_result: self.assault_result(),
+            assault_paid: self.assault_paid(),
             special_activity: self.kidnap.as_ref().map(|_| "Kidnap".into()),
             owed_terror: self.owes_santiago().then(|| "santiago".into()),
             transfer: self.transfer.clone(),
@@ -1450,6 +1465,11 @@ impl Game {
                 preview.m26_next_card = e.m26_next_card;
                 preview.next = after.next();
             }
+        } else if self.card_18 && Self::assault_payment_space(action).is_some() {
+            // Paying for a space takes that space's other plans with it (R 3.1), and a
+            // balance short of the cost closes every other space's. Listing each plan
+            // would bury what the payment does, so the preview's notes state the
+            // shortfall once instead.
         } else {
             // Compare the Operation menus, so removal mode's own menu does not count:
             // a removal leaves the mode open, but what it changes is what the
@@ -1474,7 +1494,7 @@ impl Game {
                 if now.is_none_or(|c| !c.supported) {
                     preview.unavailable.push(Unavailable {
                         choice: name,
-                        label: choice.label.clone(),
+                        label: self.unavailable_label(choice),
                         reason: now
                             .map_or_else(|| "No longer offered.".into(), |c| c.explanation.clone()),
                     });
@@ -1483,6 +1503,19 @@ impl Game {
         }
         preview.notes = self.notes(after, action);
         preview
+    }
+    /// How a preview names a choice it would leave unavailable. An Assault plan's
+    /// label names only whom it targets, so its space is added.
+    fn unavailable_label(&self, choice: &Choice) -> String {
+        let space = choice
+            .site
+            .as_ref()
+            .filter(|_| Self::assault_payment_space(choice.action()).is_some())
+            .and_then(|site| self.spaces.iter().find(|s| s.id == site.space));
+        match space {
+            Some(space) => format!("Assault in {} · {}", space.name, choice.label),
+            None => choice.label.clone(),
+        }
     }
     /// The facts a preview states besides its computed changes, with rule references.
     fn notes(&self, after: &Game, action: &str) -> Vec<String> {
@@ -1523,9 +1556,7 @@ impl Game {
                 "end-assault" => notes.push("Records Operation Only. Syndicate may Pass or choose a Limited Operation as 2nd Eligible (R 2.3.4–5).".into()),
                 _ if action.starts_with("remove:") => notes.push("R 1.4.1: after Done, Assault uses the remaining cubes.".into()),
                 _ if Self::assault_payment_space(action).is_some() => {
-                    if let Some(note) = after.assault_preview_effect() {
-                        notes.push(note);
-                    }
+                    notes.extend(self.assault_preview_notes(after, action));
                 }
                 _ => {}
             }
@@ -1836,6 +1867,7 @@ impl Game {
             owner: self.owner(),
             accompanies: None,
             remedies: vec![],
+            site: None,
             preview: None,
         }
     }
@@ -1975,6 +2007,9 @@ impl Game {
             let mut roll = self.kidnap_offer();
             roll.id = format!("{}:kidnap:roll", self.revision);
             roll.label = "Roll the Kidnap die · commits the result".into();
+            // The roll is taken in the panel, where its stakes are: while Kidnap is
+            // open no choice acts on a map space, so the map targets nothing.
+            roll.site = None;
             return vec![
                 roll,
                 self.offer(
@@ -2375,7 +2410,8 @@ impl Game {
             "Kidnap · Santiago · Government",
             guerrillas > police && feasible,
             format!("{counted} vs {police} Police; must outnumber. Die 1–6: proceeds {}–{} from Government. {}", self.resources[Faction::Government.index()].min(1), self.resources[Faction::Government.index()].min(6), if feasible {"Santiago Terror was resolved or is guaranteed feasible on every roll; an early roll commits its payment and Underground Guerrilla."} else {"Santiago needs an Underground Guerrilla and guaranteed payment without a promised Resource transfer or favorable roll."}),
-        );
+        )
+        .at(KIDNAP_SPACE, true);
         // Only payment can still change: nothing in this task places a Guerrilla,
         // removes Police or makes an Active Guerrilla Underground again. With
         // Government at 0, Kidnap takes nothing, so only a transfer to 26July funds it.
@@ -2460,7 +2496,7 @@ impl Game {
             },
         );
         choice.remedies = remedies;
-        choice
+        choice.at(id, true)
     }
     /// Whether the owed-Terror protection holds this group's last piece: the last
     /// Santiago Underground Guerrilla while Santiago Terror is owed (accepted

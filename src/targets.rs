@@ -1,11 +1,16 @@
-//! Map targeting (#72): while 26July executes Terror, every space is selectable,
-//! blocked with a remedy, or not involved. The states are read from the rules
-//! authority's own choices, so the map and the panel always agree:
-//! - **Selectable:** a supported choice acts there now (R 3.3.4 Terror, R 4.3.3
-//!   Kidnap).
-//! - **Blocked with a remedy:** nothing there is supported now, but an in-task action
+//! Map targeting (#72, #169): while a decision offers choices that act on a space,
+//! every space is selectable, blocked with a remedy, of no effect, or not involved.
+//! The states are read from the rules authority's own choices, each of which states
+//! the space it acts on and whether it changes anything there ([`crate::Site`]), so
+//! the map and the panel always agree, whatever the Operation:
+//! - **Selectable:** a supported choice there changes something now (R 3.3.4
+//!   Terror, R 4.3.3 Kidnap, an R 3.2.4 Assault plan that removes or closes a piece).
+//! - **Blocked with a remedy:** no such choice is supported now, but an in-task action
 //!   the authority names (its `remedies`) would make one supported.
-//! - **Not involved:** neither.
+//! - **No effect:** the space's only choices change nothing on the map, as the
+//!   Assault plan that removes nothing. The space stays choosable (R 3.2.4, 4.1).
+//! - **Not involved:** no choice acts there, or none could: a Terror with no remedy,
+//!   or a space already paid in this Assault (R 3.1).
 //!
 //! In removal mode (#73) piece states replace them: each of the executor's groups is
 //! removable, or protected by the owed Terror (accepted commitment policy, local),
@@ -18,15 +23,36 @@ use serde::{Deserialize, Serialize};
 pub enum SpaceState {
     Selectable,
     Blocked,
+    /// Choosable, and every choice there changes nothing on the map (#169).
+    NoEffect,
     NotInvolved,
 }
 
 impl SpaceState {
     /// The states whose spaces the keyboard reaches, in the order Tab reaches them
     /// (#168): where a supported choice acts, then where an in-task remedy would open
-    /// one. This list is the one rule for that order: a state added later takes its
-    /// place here, and a state not listed takes no focus.
-    pub const FOCUS_ORDER: &'static [SpaceState] = &[SpaceState::Selectable, SpaceState::Blocked];
+    /// one, then where the only choices change nothing (#169). This list is the one
+    /// rule for that order: a state added later takes its place here, and a state not
+    /// listed takes no focus.
+    pub const FOCUS_ORDER: &'static [SpaceState] = &[
+        SpaceState::Selectable,
+        SpaceState::Blocked,
+        SpaceState::NoEffect,
+    ];
+
+    /// Whether choosing a space in this state opens what the authority offers there.
+    pub fn choosable(self) -> bool {
+        Self::FOCUS_ORDER.contains(&self)
+    }
+
+    /// The state whose graphic the map draws for this one: a no-effect space is as
+    /// quiet as a space no choice acts on, so it draws that state's veil.
+    pub fn drawn(self) -> SpaceState {
+        match self {
+            SpaceState::NoEffect => SpaceState::NotInvolved,
+            state => state,
+        }
+    }
 }
 
 /// The spaces Tab reaches, by [`SpaceState::FOCUS_ORDER`], each state's spaces in the
@@ -73,10 +99,13 @@ pub fn space_targets(view: &Observation) -> Option<Vec<SpaceTarget>> {
                     .copied()
                     .filter(|c| c.space() == Some(space.id.as_str()))
                     .collect();
-                let state = if here.iter().any(|c| c.supported) {
+                let effect = |c: &Choice| c.site.as_ref().is_some_and(|site| site.effect);
+                let state = if here.iter().any(|c| effect(c) && c.supported) {
                     SpaceState::Selectable
-                } else if here.iter().any(|c| !c.remedies.is_empty()) {
+                } else if here.iter().any(|c| effect(c) && !c.remedies.is_empty()) {
                     SpaceState::Blocked
+                } else if here.iter().any(|c| !effect(c)) {
+                    SpaceState::NoEffect
                 } else {
                     SpaceState::NotInvolved
                 };

@@ -130,8 +130,6 @@ fn every_removal_message_says_the_pieces_return_to_available() {
     choose(&mut removal, "remove:santiago:troops:1");
     assert_eq!(available(&removal, Faction::Government, Kind::Troops), 4);
 
-    choose(&mut funded, "assault:areas:cities");
-    choose(&mut funded, "assault:space:santiago");
     let payment = offered(&funded, "assault:santiago:26july");
     assert!(
         payment

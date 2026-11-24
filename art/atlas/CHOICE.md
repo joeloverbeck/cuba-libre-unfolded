@@ -24,6 +24,19 @@ After Terror with Kidnap, #118 uses the same header, option rows, tag and button
 
 Alberto Bayo’s unshaded text reuses the option rows for Directorio’s beneficiary choice and the beneficiary’s Rally procedures. During the Event, consecutive choices use the spacing of rows within a section. The header emblem and briefing plate follow the faction making the decision. The same briefing tag shows the Base spaces or the Rally procedure’s placement arithmetic and cost.
 
+## Government's Assault
+
+On card 18 the same panel, header, rows, tag and commit serve Government. While Government executes Assault (#169) the panel lists no place: a space is chosen on the map and nowhere else ([foundation 2, "Engine authority"](../../docs/foundation/02-rules-and-verification.md#engine-authority); [HIGHLIGHTS.md](HIGHLIGHTS.md)). It holds, from the top:
+
+- **The heading:** Government's emblem and "Government · Assault".
+- **The cost lines,** in the subtitle's type: Government's Resources with the US Alliance, and the cost per space (R 6.3.1).
+- **The map line,** in the same quiet type: "Choose a space on the map; its popover pays and resolves." It is the line the execution panel carries during Terror ([EXECUTION.md](EXECUTION.md)).
+- **The record:** one line for each space already paid, in the order paid, in ink at 13.5 reference pixels with an 18.15 line height. The words are the rules authority's summary: the space, what it paid and what was removed or closed, such as "Santiago de Cuba · paid 2 Resources · returned 2 26July Guerrillas" or "Matanzas · paid 2 Resources · removed nothing". A record longer than 70 characters breaks at a space onto a second line.
+- **The rows:** Finish Assault, Resource transfer and Remove own pieces, at the pitch of rows within a section. They follow the record: with nothing paid they stand where the record would start, and each record line moves them down by one line height. With all 13 spaces paid they still end above the commit.
+- **The commit,** which commits the pinned row as before.
+
+During a Resource transfer and in removal mode the panel shows those steps instead, and the map line and the record wait. The briefing tag opens for the three rows only; a space's plans are previewed in its popover.
+
 ## Files
 
 - **Layout source:** `atlas-action-choice.figcraft`, copied from the #64 proposal's AC-B frames. It keeps the `Atlas` colour variables and the `Choice/*`, `Briefing/*` and `Tag/*` text styles, and has three frames:
@@ -31,11 +44,12 @@ Alberto Bayo’s unshaded text reuses the option rows for Directorio’s benefic
   - **States:** Pass hovered, Rally pinned, and during Terror with the ribbon and tabs. Its export is `atlas-action-choice-states.png`, at half size.
   - **Production plates:** the exported plates, with their text removed.
   - **Kidnap die presented (16:9, added at #74's merge):** tray C composed into the AC-B panel while the die is shown. Its export is `atlas-action-choice-die.png`; `KIDNAP.md` describes it and `atlas-kidnap-tray.layout.json` records it.
+  - **AC-B panel · Assault (#169):** two panels at the reference ×2.7. The left one shows Santiago and then Matanzas paid, with the map line, the two record lines and the three rows; the right one shows Assault opened with nothing paid. Their parts are named as the runtime names them. Its export is `atlas-action-choice-assault.png`, at half size. The frame was added with FigCraft CLI 0.18.1 (`storytold/figcraft@5c2a3784`); the other frames are unchanged.
 - **Changes from the proposal:**
   - **Pin:** the tag frames no longer clip their content, so the pushpin is drawn whole above the tag's top edge.
   - **Example text:** the Terror and Kidnap briefings follow the owner's refinement. The Terror tag has no RESULT entry, and the example text names no province.
 - **Graphics source:** `atlas-briefing.vectorcraft`, with the `pin` and `reminder-ribbon` artboards from the proposal's `briefing-eligibility-graphics.vectorcraft`. They are drawn at the reference size and exported at 3×.
-- **Layout record:** `atlas-action-choice.layout.json` records each part's FigCraft `absoluteBounds` in the 16:9 frame. The native regression `native_action_choice_matches_layout_and_briefs_every_option` compares the running app with it at 3840×2160 within 2 px.
+- **Layout record:** `atlas-action-choice.layout.json` records each part's FigCraft `absoluteBounds` in the 16:9 frame. The native regression `native_action_choice_matches_layout_and_briefs_every_option` compares the running app with it at 3840×2160 within 2 px. Its `assault` section records the Assault frame's two panels, translated to the 16:9 panel's place, and a record's line height. `native_assault_is_chosen_on_the_map_by_space_picks_alone` compares both states with it within 2 px, and a unit test holds the runtime's constants to it.
 - **Manifest:** `choice.sha256` admits the exports at launch. A missing or changed file refuses launch.
 
 | Export | Source | PNG | Reference size |

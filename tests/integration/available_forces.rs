@@ -178,8 +178,6 @@ fn every_reached_position_keeps_each_inventory() {
         "resolve-shaded",
         "advance-card",
         "government:assault",
-        "assault:areas:cities",
-        "assault:space:havana",
         "assault:havana:syndicate",
     ] {
         crate::explore::choose(&mut game, action);

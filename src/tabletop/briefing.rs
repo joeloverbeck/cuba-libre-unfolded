@@ -418,48 +418,14 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
         if view.executing == Some(Faction::Government) {
             let (rule, label) = match option {
                 "end-assault" => ("R 2.3.4", "RESULT"),
-                "assault:back" => ("", "NAVIGATION"),
                 "transfer" => ("R 1.5.1, 1.8", "GIVER'S DECISION"),
                 "remove" | "done-removal" => ("R 1.4.1", "VOLUNTARY REMOVAL"),
                 _ if view.transfer.is_some() => ("R 1.5.1, 1.8", "GIVER'S DECISION"),
                 _ if option.starts_with("remove:") => ("R 1.4.1", "VOLUNTARY REMOVAL"),
-                _ => ("R 3.1, 3.2.4, 6.3.1", "TARGET AND COST"),
+                _ => ("R 3.1, 3.2.4, 6.3.1", "ASSAULT"),
             };
-            let mut entries = vec![entry(label, &choice.explanation)];
-            if crate::Game::assault_payment_space(option).is_some()
-                && let Some(preview) = &choice.preview
-            {
-                let control = |f: Option<Faction>| {
-                    f.map_or("Uncontrolled".into(), |f| format!("{} Control", f.name()))
-                };
-                for change in &preview.control {
-                    entries.push(entry(
-                        "CONTROL",
-                        format!("{} → {}", control(change.from), control(change.to),),
-                    ));
-                }
-                for change in &preview.standings {
-                    let input = if change.faction == Faction::Syndicate {
-                        "open Casinos"
-                    } else {
-                        "victory score"
-                    };
-                    entries.push(entry(
-                        "STANDING",
-                        format!(
-                            "{} {input}: {} → {}. Margin: {} → {}.",
-                            change.faction.name(),
-                            change.score_from,
-                            change.score_to,
-                            change.margin_from,
-                            change.margin_to,
-                        ),
-                    ));
-                }
-                if preview.control.is_empty() && preview.standings.is_empty() {
-                    entries.push(entry("CONTROL AND STANDINGS", "Unchanged."));
-                }
-            }
+            // An Assault plan is no panel option: its space's popover previews it (#169).
+            let entries = vec![entry(label, &choice.explanation)];
             return Some(Briefing {
                 option: option.into(),
                 title: choice.label.clone(),
@@ -839,10 +805,9 @@ mod tests {
             assert_eq!(briefing.rule, rule);
             assert_eq!(briefing.entries[0].label, label);
         }
-        step(&mut game, "assault:areas:cities");
-        let back = content(&game.observe(), "assault:back").unwrap();
-        assert!(back.rule.is_empty());
-        assert_eq!(back.entries[0].label, "NAVIGATION");
+        let finish = content(&view, "end-assault").unwrap();
+        assert_eq!(finish.rule, "R 2.3.4");
+        assert_eq!(finish.entries[0].label, "RESULT");
     }
 
     /// Cost and Kidnap's range follow current Resources, before and after a transfer,

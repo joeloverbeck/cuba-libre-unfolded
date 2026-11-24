@@ -4,10 +4,13 @@ The owner selected **HF-A, Survey ink** in #58's combined design round ([#68 sel
 
 ## Space states
 
-While 26July executes Terror, `cuba_libre_unfolded::targets::space_targets` reads every space's state from the rules authority's own choices:
-- **Selectable:** a supported choice acts there now. The graphic is a 5-unit `action/primary` rule just inside the border, with a hairline ink rule inside it.
-- **Blocked with a remedy:** nothing there is supported, but a choice there names an in-task remedy. The graphic is the same red rule, dashed.
-- **Not involved:** neither. The graphic is a 62% `desk` veil.
+While a decision offers choices that act on a space, `cuba_libre_unfolded::targets::space_targets` reads every space's state from the rules authority's own choices. Each such choice states the space it acts on and whether it changes anything there (`Choice.site`), so the states need no rule per Operation: 26July's Terror (#72) and Government's Assault (#169) use the same reading.
+- **Selectable:** a supported choice there changes something now. The graphic is a 5-unit `action/primary` rule just inside the border, with a hairline ink rule inside it.
+- **Blocked with a remedy:** no such choice is supported, but one names an in-task remedy. The graphic is the same red rule, dashed.
+- **No effect (#169):** the space's only choices change nothing on the map, as Assault's plan that removes nothing. The space stays choosable (R 3.2.4), and it is shown as quietly as a space no choice acts on: its graphic is the not-involved veil. No graphic of its own was drawn.
+- **Not involved:** no choice acts there, or none could. That includes a space already paid in this Assault (R 3.1). The graphic is a 62% `desk` veil, and a click opens nothing.
+
+During Assault a space is selectable where a plan would remove or close a piece and Government can pay, blocked where one would but Government cannot pay (a Resource transfer is the remedy), and no effect where no plan would. Tab reaches the spaces in that order, the no-effect spaces last.
 
 Outside these states (the action choice, either ending, an opened Kidnap, a Resource transfer under way and removal mode), no space is a target and a region click opens no space popover. Removal mode has its own states, below.
 
@@ -97,11 +100,17 @@ The development-seat reference lists the removal mode and piece popover [compone
 
 ## The space popover
 
-Clicking a selectable or blocked space opens its popover (#58: "clicking a selectable or blocked space opens one popover"); hovering a space shows only its status tag. Clicking the space again, or a not-involved space, closes it. Any decision closes it. Until #58's final review a hover also opened the popover, unpinned. The popover lists every action the authority offers in that space:
+Clicking a selectable or blocked space opens its popover (#58: "clicking a selectable or blocked space opens one popover"), and so does clicking a no-effect space (#169); hovering a space shows only its status tag. Clicking the space again, or a not-involved space, closes it. Any decision closes it. Until #58's final review a hover also opened the popover, unpinned. The popover lists every action the authority offers in that space:
 - **Selectable** rows first. The chosen row (the first by default) is shaded `desk` and shows its preview above the only button that acts; choosing another row only changes the preview.
 - **Not yet** rows: the reason and the remedies as chips.
 - **Unavailable** rows: the reason, and that nothing in this task can change it.
 - **Done** rows: a resolved Terror there, and the rolled Kidnap with its result.
+
+**During Assault (#169)** the rows are the space's plans, in the authority's order: each plan that removes or closes at least one piece, headed "Target" and the factions it targets, with the split when the capacity is short; then the one plan that removes nothing, headed "Removes nothing". Each row's kind is "Assault". The subtitle gives the terrain, "Government executing Assault" and Government's Resources.
+- **The chosen row's preview** is the authority's: the capacity arithmetic (R 3.2.4), the payment, whom the plan can affect, what it removes or closes in bold, any change of Control or standing in bold, and, when Government could then pay for no other space, a quiet note that says so.
+- **The button** reads "Pay N · Assault in <space>", where N is the cost per space at the current US Alliance (R 6.3.1). For the plan that removes nothing it reads "Pay N · Assault removes nothing".
+- **Without the cost**, every row is "not yet" with the authority's reason and the chip "Request a Resource transfer".
+- A no-effect space's popover holds the one plan that removes nothing, chosen. A paid space has no popover.
 
 The layout is [`atlas-popover.figcraft`](atlas-popover.figcraft), page "Popover masters (1920x1280 reference units)", frames A-P1, A-P3 and A-P4 (FigCraft CLI 0.18.1). `src/tabletop/popover.rs` implements its values in reference pixels:
 - **Card:** 340 wide, `paper` fill, 1 px `ink` stroke, radius 2, drop shadow `ink` at 20% (0, 3, blur 10), 10 bottom padding; a 3 px `action/primary` top rule.

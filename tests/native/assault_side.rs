@@ -135,18 +135,16 @@ fn native_assault_resumes_giver_and_government_side_decisions() {
     refuse_repeat(&mut app, &removal, &committed, action);
 
     choose_row(&mut app, "done-removal");
-    choose_row(&mut app, "assault:areas:cities");
-    pin(&mut app, "assault:back");
-    let briefing = app.observe()["table"]["briefing"].clone();
-    assert_eq!(briefing["rule"], "");
-    assert!(tag_text(&briefing).contains("NAVIGATION"));
-    app.capture("assault-back-briefing");
-    choose_row(&mut app, "assault:space:santiago");
+    // Santiago's popover on the map shows the capacity the removal left (#169).
     let payment = "assault:santiago:26july";
-    pin(&mut app, payment);
-    let contents = tag_text(&app.observe()["table"]["briefing"]);
+    let at = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.activate("space:santiago", at);
+    let contents = popover_text(&app.observe());
     assert!(contents.contains("0 Troops + 1 Police = 1"), "{contents}");
-    assert!(contents.contains("2 Resources (3 → 1)"), "{contents}");
+    assert!(
+        contents.contains("Pay 2 Resources: Government 3 → 1."),
+        "{contents}"
+    );
     app.capture("santiago-recalculated-payment");
     app.choose(payment);
     let paid = app.observe()["observation"].clone();
@@ -178,7 +176,7 @@ fn native_assault_resumes_giver_and_government_side_decisions() {
     assert_eq!(zero_space["resources"], json!([0, m26, directorio, 17]));
     assert_eq!(zero_space["spaces"], after_give["spaces"]);
     assert_eq!(zero_space["available"], after_give["available"]);
-    assert_eq!(zero_space["assault_result"], Value::Null);
+    assert_eq!(zero_space["assault_paid"], json!([]));
     assert_eq!(zero_space["owner"], "Syndicate");
     assert_eq!(zero_space["next"]["role"], "2nd Eligible");
     assert_eq!(zero_space["eligibility"]["government_box"], "OperationOnly");

@@ -25,7 +25,7 @@ fn tab_to(app: &mut Native, stop: &str) -> Vec<String> {
 
 /// Presses Tab once round the whole order, from no focus back to the first stop, and
 /// returns the stops in order.
-fn tab_round(app: &mut Native) -> Vec<String> {
+pub(super) fn tab_round(app: &mut Native) -> Vec<String> {
     let mut passed: Vec<String> = vec![];
     for _ in 0..60 {
         let revision = app.observe()["observation"]["revision"].as_u64().unwrap();

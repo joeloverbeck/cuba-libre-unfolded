@@ -44,9 +44,8 @@ fn funded_opening() -> Game {
     game
 }
 
+/// The open Assault, which offers Santiago's plans with every other space's (#169).
 fn santiago_target(game: &mut Game) -> Observation {
-    choose(game, "assault:areas:cities");
-    choose(game, "assault:space:santiago");
     game.observe()
 }
 
@@ -75,7 +74,7 @@ fn only_the_giver_can_fund_the_next_assault_payment() {
     assert_eq!(completed.resources, [0, 5, 5, 15]);
     assert_eq!(completed.spaces, carried.spaces);
     assert_eq!(completed.available, carried.available);
-    assert!(completed.assault_result.is_none());
+    assert!(completed.assault_paid.is_empty());
     assert_eq!(completed.next.unwrap().role, "2nd Eligible");
     refuse(&mut zero_space, G, "transfer");
 

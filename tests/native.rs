@@ -8,6 +8,8 @@ use std::{
 
 #[path = "native/assault.rs"]
 mod assault;
+#[path = "native/assault_map.rs"]
+mod assault_map;
 #[path = "native/assault_side.rs"]
 mod assault_side;
 #[path = "native/available_forces.rs"]
@@ -483,6 +485,15 @@ impl Native {
             self.pick(space, action);
             return;
         }
+        // So is the space of an Assault plan (#169): `assault:<space>:<plan>`.
+        if view["observation"]["executing"] == "Government"
+            && let Some((space, _)) = action
+                .strip_prefix("assault:")
+                .and_then(|rest| rest.split_once(':'))
+        {
+            self.pick(space, action);
+            return;
+        }
         let pinned = view["table"]["choice"]["pinned"].clone();
         if terror && is_step(action) && pinned != action {
             self.activate(&format!("step:{action}"), revision);
@@ -514,9 +525,9 @@ impl Native {
         );
         self.request(json!({"op":"settle"}), true);
     }
-    /// Commits `action` in `space` as a player does on the map (#171): a click on the
-    /// space opens its popover, a click on the row chooses it when another row is
-    /// chosen, and the popover's one button commits it. An open tag over the map, or
+    /// Commits `action` in `space` as a player does on the map (#171, #169): a click
+    /// on the space opens its popover, a click on the row chooses it when another row
+    /// is chosen, and the popover's one button commits it. An open tag over the map, or
     /// another space's popover, is closed first with Escape, and a pointer resting on
     /// a step moves to the panel's commit, so no step's tag covers the space.
     fn pick(&mut self, space: &str, action: &str) {
@@ -529,7 +540,12 @@ impl Native {
             self.request(json!({"op":"settle"}), true);
         }
         if !self.observe()["table"]["briefing"].is_null() {
-            self.point("execution-commit");
+            // Assault's panel is the action-choice panel, whose commit has its name.
+            self.point(if view["observation"]["executing"] == "Government" {
+                "choice-commit"
+            } else {
+                "execution-commit"
+            });
         }
         let view = self.observe();
         assert!(
