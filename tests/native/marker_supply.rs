@@ -130,8 +130,14 @@ fn native_marker_supply_matches_layout_and_follows_each_terror() {
         assert_eq!(pinned["table"]["popover"]["pinned"], true, "{pinned}");
         assert_eq!(pinned["observation"], view["observation"]);
         assert_eq!(number(&pinned), (expected.to_string(), expected));
+        // The Terror row is the one chosen, with its preview of the marker.
+        let row = super::popover_row(&pinned, "Terror");
+        assert_eq!(row["chosen"], true, "{row}");
+        assert!(
+            row["lines"].to_string().contains("Place a Terror marker"),
+            "{row}"
+        );
         top_band(&mut app, &format!("{space}-preview"));
-        app.activate(&format!("popover:row:terror:{space}"), revision);
         app.activate("popover:commit", revision);
         // R 3.3.4: the Terror marker comes from the shared supply.
         expected -= 1;
