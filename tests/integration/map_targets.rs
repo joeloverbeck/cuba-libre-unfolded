@@ -297,3 +297,81 @@ fn the_owed_terror_marks_santiago_s_last_underground_guerrilla_protected() {
     choose(&mut game, "done-removal");
     assert_eq!(removal_targets(&game.observe()), None);
 }
+
+/// #170: during Terror the space tag's line is the rules authority's reason for each
+/// space's state. Expected from R 3.3.4 (1 Resource and an Underground Guerrilla),
+/// R 4.3.3 (Kidnap in a space selected for Terror) and the handoff's position, where
+/// only Santiago and Oriente hold Underground 26July Guerrillas.
+#[test]
+fn each_space_s_tag_reason_during_terror_comes_from_the_authority() {
+    let reasons = |game: &Game| -> Vec<(String, String)> {
+        game.observe()
+            .space_reasons
+            .into_iter()
+            .map(|r| (r.space, r.reason))
+            .collect()
+    };
+    let no_guerrilla = "No Underground 26July Guerrilla";
+    let others = |game: &Game| {
+        let view = game.observe();
+        view.spaces
+            .iter()
+            .filter(|s| s.id != "santiago" && s.id != "oriente")
+            .map(|s| (s.id.clone(), no_guerrilla.to_owned()))
+            .collect::<Vec<_>>()
+    };
+    let with = |game: &Game, santiago: Option<&str>, oriente: Option<&str>| {
+        let mut all = others(game);
+        for (id, reason) in [("santiago", santiago), ("oriente", oriente)] {
+            if let Some(reason) = reason {
+                all.push((id.to_owned(), reason.to_owned()));
+            }
+        }
+        let order: Vec<String> = game.observe().spaces.into_iter().map(|s| s.id).collect();
+        all.sort_by_key(|(id, _)| order.iter().position(|s| s == id));
+        all
+    };
+    // 26July has 0. Santiago is selectable all the same, since Kidnap may open there
+    // (2 Guerrillas outnumber 1 Police and Government has 6 to take), so it needs no
+    // reason; Oriente can be funded only by a transfer.
+    let mut game = crate::terror_chosen(Game::opening_with_seed(2));
+    assert_eq!(
+        reasons(&game),
+        with(&game, None, Some("A Resource transfer opens it"))
+    );
+    // Seed 2's Kidnap roll is 5: 26July has 5, and Santiago's Terror is owed (R 4.3.3).
+    // Oriente is affordable with 1 Resource kept for Santiago, so it needs no reason.
+    choose(&mut game, "kidnap");
+    assert!(game.observe().space_reasons.is_empty(), "Kidnap is open");
+    choose(&mut game, "kidnap:roll");
+    assert_eq!(
+        reasons(&game),
+        with(&game, Some("Terror is owed here (R 4.3.3)"), None)
+    );
+    // Santiago's Terror resolves and pays 1 (R 3.3.4).
+    choose(&mut game, "terror:santiago");
+    assert_eq!(
+        reasons(&game),
+        with(&game, Some("Terror here paid 1 Resource"), None)
+    );
+    // Removing Oriente's only Guerrilla leaves its Terror refused with no remedy:
+    // the space is not involved, and its tag says why.
+    choose(&mut game, "remove");
+    assert!(game.observe().space_reasons.is_empty(), "removal mode");
+    choose(&mut game, "remove:oriente:underground:1");
+    choose(&mut game, "done-removal");
+    assert_eq!(
+        reasons(&game),
+        with(
+            &game,
+            Some("Terror here paid 1 Resource"),
+            Some(no_guerrilla)
+        )
+    );
+    let oriente = space_targets(&game.observe())
+        .unwrap()
+        .into_iter()
+        .find(|t| t.space == "oriente")
+        .unwrap();
+    assert_eq!(oriente.state, SpaceState::NotInvolved);
+}

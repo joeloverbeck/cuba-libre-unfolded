@@ -352,6 +352,20 @@ const RESOURCE_CAP: u8 = 49;
 const GOVERNMENT_PASS_INCOME: u8 = 3;
 /// What 26July pays for Terror in each City or Province it selects (R 3.3.4).
 pub const TERROR_COST: u8 = 1;
+/// The remedy of a choice that another faction's Resources would make supported.
+const TRANSFER_REMEDY: &str = "Request a Resource transfer";
+/// The remedy of Santiago's Terror that a Kidnap roll would fund.
+const KIDNAP_REMEDY: &str = "Kidnap here first";
+/// What would open a space blocked with `remedies`, as one line of its tag (#170).
+fn remedy_line(remedies: &[String]) -> String {
+    let named = |remedy: &str| remedies.iter().any(|r| r == remedy);
+    match (named(KIDNAP_REMEDY), named(TRANSFER_REMEDY)) {
+        (true, true) => "Kidnap or a transfer opens it",
+        (true, false) => "Kidnap here first opens it",
+        _ => "A Resource transfer opens it",
+    }
+    .into()
+}
 /// The prepared position's Resources, indexed like `Faction::ALL`.
 const PREPARED_RESOURCES: [u8; 4] = [6, 0, 5, 15];
 /// The random state of `Game::opening`.
@@ -655,6 +669,18 @@ pub struct Observation {
     /// What a Kidnap roll could take now (R 4.3.3), from current Resources, until
     /// Kidnap is rolled or the action is recorded.
     pub kidnap_stakes: Option<KidnapStakes>,
+    /// While a decision offers choices that act on map spaces, why each space that
+    /// needs one is in its state, in the map's space order (#170): what a paid or
+    /// resolved space paid, an owed Terror, what would open a blocked space, or why
+    /// nothing acts there. A space where a supported choice acts has none, and outside
+    /// such a decision the list is empty. The space tag draws these words as they are.
+    pub space_reasons: Vec<SpaceReason>,
+}
+/// The rules authority's reason for one space's state in the open decision (#170).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct SpaceReason {
+    pub space: String,
+    pub reason: String,
 }
 /// A space where 26July's Terror resolved, and the Resources it paid there.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -1118,6 +1144,15 @@ impl Game {
         let deck = pile_facts::deck_facts(&played_pile, piles.deck, self.draw_deck[0]);
         // No Capability or Momentum is in effect in this build.
         let capabilities: Vec<String> = vec![];
+        let choices: Vec<Choice> = self
+            .choices()
+            .into_iter()
+            .map(|mut choice| {
+                choice.preview = self.preview(&choice);
+                choice
+            })
+            .collect();
+        let space_reasons = self.space_reasons(&choices);
         Observation {
             revision: self.revision,
             owner: self.owner(),
@@ -1164,14 +1199,7 @@ impl Game {
             capabilities,
             momentum: vec![],
             finished: self.m26_action_ended,
-            choices: self
-                .choices()
-                .into_iter()
-                .map(|mut choice| {
-                    choice.preview = self.preview(&choice);
-                    choice
-                })
-                .collect(),
+            choices,
             next: self.next(),
             operation: match self.action {
                 _ if self.government_pass_from.is_some() => {
@@ -1226,7 +1254,74 @@ impl Game {
                 })
                 .collect(),
             kidnap_stakes: (self.kidnap.is_none() && !self.m26_action_ended).then(|| self.stakes()),
+            space_reasons,
         }
+    }
+    /// Why each space is in its map state while `choices`, the open decision's, act on
+    /// map spaces (#170); empty when none does. Each Operation states its own reasons.
+    fn space_reasons(&self, choices: &[Choice]) -> Vec<SpaceReason> {
+        if choices.iter().all(|c| c.site.is_none()) {
+            return vec![];
+        }
+        self.spaces
+            .iter()
+            .filter_map(|space| {
+                let here: Vec<&Choice> = choices
+                    .iter()
+                    .filter(|c| c.space() == Some(space.id.as_str()))
+                    .collect();
+                let reason = if self.assault.is_some() {
+                    self.assault_reason(space, &here)
+                } else {
+                    self.terror_reason(space, &here)
+                };
+                reason.map(|reason| SpaceReason {
+                    space: space.id.clone(),
+                    reason,
+                })
+            })
+            .collect()
+    }
+    /// Why `space` is in its map state while 26July executes Terror (#170), from the
+    /// Terror and Kidnap choices there (`here`): what a resolved Terror paid (R 3.3.4),
+    /// that Kidnap owes Terror there (R 4.3.3), what would open it, or why Terror
+    /// cannot act there. A space where a supported choice acts and nothing is owed
+    /// needs no reason.
+    fn terror_reason(&self, space: &Space, here: &[&Choice]) -> Option<String> {
+        if self.terror_resolved.contains(&space.id) {
+            return Some(format!("Terror here paid {}", resources(TERROR_COST)));
+        }
+        if self.owes_santiago() && space.id == KIDNAP_SPACE {
+            return Some("Terror is owed here (R 4.3.3)".into());
+        }
+        if here.iter().any(|c| c.supported) {
+            return None;
+        }
+        if let Some(blocked) = here.iter().find(|c| !c.remedies.is_empty()) {
+            return Some(remedy_line(&blocked.remedies));
+        }
+        let underground = space.pieces.iter().any(|p| {
+            p.faction == Faction::M26
+                && p.kind == Kind::Guerrilla
+                && p.state == State::Underground
+                && p.count > 0
+        });
+        if !underground {
+            return Some("No Underground 26July Guerrilla".into());
+        }
+        if here.is_empty() {
+            return None;
+        }
+        // Refused with no remedy though an Underground Guerrilla is there: nothing in
+        // this task can pay for it.
+        let cost = resources(TERROR_COST);
+        Some(
+            if self.owes_santiago() && self.resources[Faction::M26.index()] > 0 {
+                format!("{cost} is kept for Santiago")
+            } else {
+                format!("26July cannot pay {cost}")
+            },
+        )
     }
     /// The balance change from the Pass recorded on the current card.
     fn recorded_resources(&self) -> Vec<ResourceChange> {
@@ -2423,9 +2518,7 @@ impl Game {
                 .iter()
                 .any(|f| self.resources[f.index()] > 0)
         {
-            kidnap
-                .remedies
-                .push("Request a Resource transfer".to_owned());
+            kidnap.remedies.push(TRANSFER_REMEDY.to_owned());
         }
         kidnap
     }
@@ -2472,14 +2565,14 @@ impl Game {
                 && kidnap.is_some_and(|k| k.supported)
                 && self.resources[Faction::Government.index()] > 0
             {
-                remedies.push("Kidnap here first".to_owned());
+                remedies.push(KIDNAP_REMEDY.to_owned());
             }
             if self.executing().is_some()
                 && [Faction::Government, Faction::Directorio, Faction::Syndicate]
                     .iter()
                     .any(|f| self.resources[f.index()] > 0)
             {
-                remedies.push("Request a Resource transfer".to_owned());
+                remedies.push(TRANSFER_REMEDY.to_owned());
             }
         }
         let mut choice = self.offer(
@@ -3082,5 +3175,78 @@ mod inventory_tests {
     #[should_panic(expected = "breaks the Available Forces chart")]
     fn observing_a_position_that_breaks_the_chart_panics_in_unit_tests() {
         with_two_more_guerrillas(false).observe();
+    }
+}
+
+#[cfg(test)]
+mod space_reason_tests {
+    use super::{Faction, Game, KIDNAP_REMEDY, TRANSFER_REMEDY, remedy_line};
+
+    fn choose(game: &mut Game, action: &str) {
+        let view = game.observe();
+        game.submit(
+            view.owner,
+            view.revision,
+            &format!("{}:{action}", view.revision),
+        )
+        .unwrap_or_else(|e| panic!("{action}: {e}"));
+    }
+
+    fn reason(game: &Game, space: &str) -> Option<String> {
+        game.observe()
+            .space_reasons
+            .into_iter()
+            .find(|r| r.space == space)
+            .map(|r| r.reason)
+    }
+
+    /// #170: a blocked space's line names what would open it, from the remedies the
+    /// authority gives its choice.
+    #[test]
+    fn a_blocked_space_s_line_names_its_remedies() {
+        let line = |remedies: &[&str]| {
+            remedy_line(&remedies.iter().map(|r| r.to_string()).collect::<Vec<_>>())
+        };
+        assert_eq!(line(&[TRANSFER_REMEDY]), "A Resource transfer opens it");
+        assert_eq!(line(&[KIDNAP_REMEDY]), "Kidnap here first opens it");
+        assert_eq!(
+            line(&[KIDNAP_REMEDY, TRANSFER_REMEDY]),
+            "Kidnap or a transfer opens it"
+        );
+    }
+
+    /// #170: a Terror refused with no remedy while an Underground Guerrilla is there.
+    /// No faction can give a Resource, so nothing in this task pays for it (R 3.3.4);
+    /// once Kidnap owes Santiago's Terror, 26July's last Resource is kept for it
+    /// (accepted commitment policy).
+    #[test]
+    fn a_terror_nothing_can_pay_for_says_why() {
+        let mut game = Game::opening_with_seed(2);
+        choose(&mut game, "terror");
+        game.resources = [0; 4];
+        // Kidnap takes nothing from Government at 0, so it is not offered either.
+        assert_eq!(
+            reason(&game, "santiago").as_deref(),
+            Some("26July cannot pay 1 Resource")
+        );
+        assert_eq!(
+            reason(&game, "oriente").as_deref(),
+            Some("26July cannot pay 1 Resource")
+        );
+
+        let mut owed = Game::opening_with_seed(2);
+        choose(&mut owed, "terror");
+        choose(&mut owed, "kidnap");
+        choose(&mut owed, "kidnap:roll");
+        owed.resources = [0; 4];
+        owed.resources[Faction::M26.index()] = 1;
+        assert_eq!(
+            reason(&owed, "santiago").as_deref(),
+            Some("Terror is owed here (R 4.3.3)")
+        );
+        assert_eq!(
+            reason(&owed, "oriente").as_deref(),
+            Some("1 Resource is kept for Santiago")
+        );
     }
 }

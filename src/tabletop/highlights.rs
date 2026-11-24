@@ -46,6 +46,18 @@ impl Targeting {
                 .then_some(SpaceState::NotInvolved)
         })
     }
+    /// The rules authority's reason for `space`'s state, while the map shows the open
+    /// decision's states (#170): the space tag's last line. `None` where the authority
+    /// gives none, and whenever the targeting is suspended.
+    pub fn reason(&self, space: &str) -> Option<&str> {
+        self.targets.as_ref()?;
+        self.view
+            .as_ref()?
+            .space_reasons
+            .iter()
+            .find(|r| r.space == space)
+            .map(|r| r.reason.as_str())
+    }
     /// An executing faction's group in removal mode, by its `space:group` key.
     pub fn piece(&self, key: &str) -> Option<&crate::targets::PieceTarget> {
         self.removal
