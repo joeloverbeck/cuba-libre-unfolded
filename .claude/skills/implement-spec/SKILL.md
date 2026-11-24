@@ -48,7 +48,7 @@ At activation, present one **role table** for the owner’s model and effort cho
 
 8. Report the artifact revision, checks and remaining evidence limits. Source review does not establish execution in a consumer or native usability. If a draft PR exists, mark it ready for review; otherwise report the integration branch. Resolve tickets only when their recorded acceptance conditions are met, closing them after the merge as `docs/agents/issue-tracker.md`, "Closing issues", describes. Carry existing authorization through without duplicate confirmation, while preserving any outstanding owner acceptance or publication boundary.
 
-9. Clean up what remains: worktrees, the last warm target and merged local branches.
+9. Clean up what remains: worktrees, the last warm target, merged local branches and superseded native captures (`docs/agents/parallel-work.md`, "Disk").
 
 ## Small follow-up
 

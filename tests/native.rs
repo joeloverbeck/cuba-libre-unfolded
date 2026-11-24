@@ -54,22 +54,23 @@ fn session_log_checks_the_level_field() {
 #[test]
 fn a_failing_test_keeps_the_log_of_its_app() {
     let evidence = tempfile::tempdir().unwrap();
-    let run = || {
+    let kept = evidence.path().join("007-failed-runtime.log");
+    let run = |fails: bool| {
         let sockets = tempfile::tempdir().unwrap();
-        let socket = sockets.path().join("seat.sock");
         let _app = Native {
             root: evidence.path().into(),
             cards: PathBuf::new(),
             save: PathBuf::new(),
-            socket: socket.clone(),
+            socket: sockets.path().join("seat.sock"),
             step: 7,
         };
         std::fs::write(sockets.path().join("seat.sock.log"), "why it ended").unwrap();
-        panic!("the test fails");
+        assert!(!fails, "the test fails");
     };
-    std::panic::catch_unwind(std::panic::AssertUnwindSafe(run)).unwrap_err();
-    let kept = std::fs::read_to_string(evidence.path().join("007-failed-runtime.log"));
-    assert_eq!(kept.unwrap(), "why it ended");
+    run(false);
+    assert!(!kept.exists(), "a passing test keeps no log");
+    std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| run(true))).unwrap_err();
+    assert_eq!(std::fs::read_to_string(kept).unwrap(), "why it ended");
 }
 
 fn choice_part<'a>(view: &'a Value, name: &str) -> &'a Value {

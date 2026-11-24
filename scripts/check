@@ -183,8 +183,9 @@ if ! long_lines; then
   exit 1
 fi
 echo "Markdown line length: no prose line over 1,000 characters in README, docs/ or art/"
-# A step that grows slower shows in the timings (#187).
+# A step that grows slower shows in the timings (#187), also when a later one fails.
 timings=
+trap 'echo "timings: ${timings:-none}; everything $SECONDS s"' EXIT
 timed() {
   local name=$1 began=$SECONDS
   shift
@@ -199,6 +200,7 @@ timed "clippy without tabletop" cargo clippy --locked --all-targets -- -D warnin
 timed "clippy with tabletop" cargo clippy --locked --all-targets --features tabletop -- -D warnings
 timed "test build" cargo test --locked --features tabletop --no-run
 timed "tests" cargo test --locked --features tabletop
+began=$SECONDS
 # Exercise focused native discovery in CI with the real libtest binaries.
 # Listing needs neither the private card faces nor a renderer.
 native_case=rally::native_free_rally_can_choose_zero_in_a_qualifying_base_space
@@ -222,4 +224,4 @@ if [[ $output != *"Benchmark-only mode skips native regressions."* ]]; then
   exit 1
 fi
 echo "native filters: both binaries discovered, missing name and benchmark-only run refused"
-echo "timings: $timings; everything $SECONDS s"
+timings+=", native filters $((SECONDS - began)) s"

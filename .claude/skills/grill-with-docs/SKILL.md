@@ -4,7 +4,7 @@ description: Review an existing workflow or sharpen a design against the project
 disable-model-invocation: true
 ---
 
-Name the measurement behind each cost or saving a recommendation rests on, or call it unmeasured. Executable changes the user accepts follow [implement](../implement/SKILL.md), where the review clears before the final suite runs.
+Name the measurement behind each cost or saving a recommendation rests on, or call it unmeasured. When an accepted change is executable, its review clears before the final suite runs.
 
 ## Existing workflow
 

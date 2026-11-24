@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Waits for "Rust checks" on this checkout's head, the one the pull request now has, and
 # prints its result and how long it ran: `scripts/wait-ci 188`. Exits 0 only if it passed.
+# Run it in the background, from the pull request's checkout: CI takes about three minutes,
+# and about 20 without its cache.
 # `gh pr checks --watch` exits at once while no check is registered for a fresh push, and
 # it can report an earlier head's checks.
 set -euo pipefail
@@ -11,7 +13,7 @@ fi
 head=$(git rev-parse HEAD)
 # The pull request shows a push a little after it.
 for ((try = 0; ; try++)); do
-  shown=$(gh pr view "$1" --json headRefOid --jq .headRefOid)
+  shown=$(gh pr view "$1" --json headRefOid --jq .headRefOid) || shown=unknown
   if [[ $shown == "$head" ]]; then break; fi
   if ((try == 12)); then
     echo "wait-ci: pull request $1 is at $shown, and this checkout at $head; push it first" >&2
@@ -22,11 +24,22 @@ done
 # The check appears within seconds of the push; CI itself may run for up to 45 minutes.
 deadline=$((SECONDS + 3000))
 registered=false
+unanswered=0
 while ((SECONDS < deadline)); do
   run=$(gh api "repos/{owner}/{repo}/commits/$head/check-runs?check_name=Rust%20checks" \
-    --jq '.check_runs | sort_by(.started_at) | last | select(. != null)
+    --jq '.check_runs | max_by(.id) | select(. != null)
       | [.status, .conclusion // "none", .html_url,
-         (if .completed_at then (.completed_at | fromdate) - (.started_at | fromdate) else 0 end)] | @tsv')
+         (if .started_at and .completed_at
+          then (.completed_at | fromdate) - (.started_at | fromdate) else 0 end)] | @tsv') || {
+    unanswered=$((unanswered + 1))
+    if ((unanswered > 10)); then
+      echo "wait-ci: GitHub did not answer 11 times in a row; the checks on $head are unknown" >&2
+      exit 1
+    fi
+    sleep 10
+    continue
+  }
+  unanswered=0
   # Tabs collapse where a field is empty, so every field has a word.
   IFS=$'\t' read -r status conclusion url seconds <<<"$run" || true
   if [[ -n $run ]]; then registered=true; fi
