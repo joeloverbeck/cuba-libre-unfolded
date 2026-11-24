@@ -103,8 +103,8 @@ Syndicate takes over as 1st Eligible on Pact of Caracas. Inspect its Pass, Event
 Choose **Assault · Operation Only**. The space is then chosen on the map and nowhere else. The map marks every space for the open Assault ([HIGHLIGHTS.md](../art/atlas/HIGHLIGHTS.md) shows how each state is drawn):
 
 - **Selectable:** Assault would remove or close a piece there and Government can pay.
-- **Blocked:** it would, but Government cannot pay. A Resource transfer opens the space.
-- **Veiled:** Assault would remove nothing there, the space was already assaulted in this Operation, or it would act there but Government cannot pay and no faction has a Resource to give.
+- **Blocked:** it would, but Government cannot pay. Resource transfers open the space: together the other factions hold enough.
+- **Veiled:** Assault would remove nothing there, the space was already assaulted in this Operation, or it would act there but Government cannot pay and cannot be given enough.
 
 Click a space to open its popover, or reach it with Tab and press Enter ([Camera and keys](#camera-and-keys)). Tab reaches the selectable spaces first, then the blocked ones, then the veiled ones that can still be chosen. The popover lists the space's plans, one row each: the factions a plan targets, with the split when the capacity is short, and last the plan that removes nothing. Choose a row to see how many pieces the local Troops, Police and terrain let you affect, what remains protected, and what the payment will do. Looking decides nothing and saves nothing. The one button pays and resolves the space at once: **Pay 2 · Assault in Havana**, or **Pay 2 · Assault removes nothing**.
 

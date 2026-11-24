@@ -543,17 +543,14 @@ impl Game {
     /// The plans of every space not yet paid, in the map's space order (#169). Each
     /// states its space and whether it removes or closes a piece. A plan is supported
     /// when Government can pay the space's cost; otherwise it gives that reason and,
-    /// while another faction has Resources to give, names the Resource transfer that
-    /// would open it, as a Terror target does.
+    /// while the other factions could give Government enough to pay it, names the
+    /// Resource transfer that would open it, as a Terror target does.
     fn assault_plans(&self) -> Vec<Choice> {
         let assault = self.assault.as_ref().unwrap();
         let balance = self.resources[Faction::Government.index()];
         let cost = assault_cost();
         let funded = balance >= cost;
-        let transfer_helps = !funded
-            && ENEMIES
-                .iter()
-                .any(|faction| self.resources[faction.index()] > 0);
+        let transfer_helps = !funded && self.balance_after_transfers(Faction::Government) >= cost;
         self.spaces
             .iter()
             .filter(|space| assault.paid.iter().all(|paid| paid.space != space.id))
