@@ -204,23 +204,32 @@ impl Plan {
 
 /// What Government may do in `space` (#169): every choice of targeted factions, and
 /// of a short capacity's division among them, that removes or closes at least one
-/// piece (R 3.1, 3.2.4), then the one plan that removes nothing. R 3.2.4 lets
-/// Government select any space, so that plan is offered in every space; where no
-/// other plan exists it is the only one. Every way of removing nothing pays the
-/// same cost and changes nothing else, so one plan stands for them all.
+/// piece (R 3.1, 3.2.4), then the one plan that removes nothing. A plan targets only
+/// factions with a piece Assault can affect there: naming another changes nothing and
+/// reads as if it would (the owner's decision in #166's playtest). Each plan says why
+/// such a faction's pieces stay. R 3.2.4 lets Government select any space, so the plan
+/// that removes nothing is offered in every space; where no other plan exists it is the
+/// only one. Every way of removing nothing pays the same cost and changes nothing else,
+/// so one plan stands for them all.
 fn plans(space: &Space) -> Vec<Plan> {
     let targets: Vec<_> = ENEMIES
         .into_iter()
         .map(|faction| Target::in_space(space, faction))
         .filter(Target::present)
         .collect();
+    let (reachable, sheltered): (Vec<_>, Vec<_>) =
+        targets.iter().partition(|target| target.available() > 0);
+    let sheltered: String = sheltered
+        .iter()
+        .map(|target| format!(" {}", target.protection()))
+        .collect();
     let capacity = capacity(space).0;
-    let mut plans: Vec<Plan> = (1..1 << targets.len())
+    let mut plans: Vec<Plan> = (1..1 << reachable.len())
         .flat_map(|mask| {
-            let selected: Vec<_> = targets
+            let selected: Vec<_> = reachable
                 .iter()
                 .enumerate()
-                .filter_map(|(index, target)| (mask & (1 << index) != 0).then_some(target))
+                .filter_map(|(index, target)| (mask & (1 << index) != 0).then_some(*target))
                 .collect();
             let limits: Vec<_> = selected.iter().map(|target| target.available()).collect();
             let maximum = capacity.min(limits.iter().sum());
@@ -232,6 +241,10 @@ fn plans(space: &Space) -> Vec<Plan> {
                 .collect::<Vec<_>>()
         })
         .filter(Plan::effect)
+        .map(|mut plan| {
+            plan.protection.push_str(&sheltered);
+            plan
+        })
         .collect();
     let why = if targets.is_empty() {
         "No enemy pieces are there.".to_owned()
@@ -242,7 +255,9 @@ fn plans(space: &Space) -> Vec<Plan> {
             .collect::<Vec<_>>()
             .join(" ")
     } else {
-        "This plan targets no faction with a piece Assault can affect here (R 3.1).".to_owned()
+        format!(
+            "This plan targets no faction with a piece Assault can affect here (R 3.1).{sheltered}"
+        )
     };
     plans.push(Plan {
         action: format!("assault:{}:{NOTHING}", space.id),

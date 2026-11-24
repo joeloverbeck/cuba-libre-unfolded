@@ -7,7 +7,7 @@
 //! The owner narrowed the briefings for #69 (#58, issuecomment-6940684089): they name
 //! no province and compute no space's result, which the map popover previews (#72).
 //! Pass keeps its exact numbers, from the rules authority's preview, since it involves
-//! no space. Current Resources come from the observation; the wording only places them.
+//! no space. Current Resources come from the observation; the             wrap_by(part, width, |word| drawn_chars(word, &mut seen))ing only places them.
 use super::emblems::{self, Naming, Segment};
 use crate::game::CARD_17_UNSHADED;
 use crate::{
@@ -15,10 +15,11 @@ use crate::{
     resources,
 };
 
-/// Value lines are broken by hand at this many characters, which the 420 px column
-/// holds at 15 px with margin (Lato averages about 6.5 px a character there), so each
-/// authored line is one drawn line and the tag's height follows its content.
-pub(super) const CHARS: usize = 58;
+/// Value lines are broken by hand at this many drawn characters ([`drawn_lines`]). The
+/// 420 px column at 15 px held 59 of them and not 61 in the native frames of #166's
+/// playtest, so a line is very likely one drawn line; the native regressions check the
+/// briefings they open.
+pub(super) const CHARS: usize = 60;
 /// The same for the 12.5 px rules line.
 pub(super) const RULES_CHARS: usize = 70;
 
@@ -584,8 +585,8 @@ pub(super) fn lines(text: &str, width: usize) -> Vec<String> {
         .collect()
 }
 
-/// An emblem's width in characters of the text it stands in: 0.9 em high and about as
-/// wide (`emblems::HEIGHT`), beside Lato's 0.43 em average character.
+/// An emblem's width in characters of the text it stands in: the emblems are square and
+/// 0.9 em high (`emblems::HEIGHT`), about two of Lato's average characters.
 const EMBLEM_CHARS: usize = 2;
 
 /// [`lines`] broken by what is drawn, for text whose first mention of a faction draws
@@ -606,6 +607,17 @@ pub(super) fn drawn_lines(text: &str, width: usize, seen: &[bool; 4]) -> Vec<Str
             })
         })
         .collect()
+}
+
+/// The characters `words` take when drawn, counting an emblem as [`EMBLEM_CHARS`].
+fn drawn_chars(words: &str, seen: &mut [bool; 4]) -> usize {
+    emblems::segments_after(words, Naming::FirstMention, false, seen)
+        .iter()
+        .map(|segment| match segment {
+            Segment::Words(words) => words.chars().count(),
+            Segment::Emblem(_) => EMBLEM_CHARS,
+        })
+        .sum()
 }
 
 /// Breaks a sentence into lines of at most `width` characters at spaces.
@@ -905,9 +917,10 @@ mod tests {
         for view in &views {
             for option in OPTIONS {
                 let b = content(view, option).unwrap();
+                let mut seen = [false; 4];
                 for e in &b.entries {
-                    for line in lines(&e.text, CHARS) {
-                        assert!(line.chars().count() <= CHARS, "{line}");
+                    for line in drawn_lines(&e.text, CHARS, &seen.clone()) {
+                        assert!(drawn_chars(&line, &mut seen) <= CHARS, "{line}");
                     }
                 }
                 assert!(b.title.chars().count() <= 33, "{}", b.title);
@@ -922,8 +935,8 @@ mod tests {
     fn lines_are_broken_by_what_each_mention_draws() {
         let text =
             "Government has 1 Resource and cannot pay for a space. Look at the map or finish.";
-        // Drawn: "Government" + space + emblem (2) + 49 characters reach 58 only without
-        // "Look"; by its letters alone the line holds "Look" too.
+        // Drawn: "Government" (10) + a space + its emblem (2) + 43 characters = 56, and
+        // " Look" makes 61. By its letters alone the line is 58 with "Look".
         assert_eq!(
             drawn_lines(text, CHARS, &[false; 4]),
             [

@@ -2488,12 +2488,6 @@ mod tests {
                 .collect::<Vec<_>>(),
             [
                 ("Target Syndicate", "Assault", Mark::Selectable, true),
-                (
-                    "Target Directorio + Syndicate",
-                    "Assault",
-                    Mark::Selectable,
-                    false
-                ),
                 ("Removes nothing", "Assault", Mark::Selectable, false),
             ]
         );
@@ -2509,7 +2503,8 @@ mod tests {
                 (Tone::Plain, "Pay 2 Resources: Government 5 → 3.".into()),
                 (
                     Tone::Plain,
-                    "Syndicate: 0 Active, 0 Underground, 1 open Casino.".into()
+                    "Syndicate: 0 Active, 0 Underground, 1 open Casino. Directorio: 0 Active, 2 Underground. Assault cannot remove its Underground Guerrillas until they are Activated (R 3.2.4)."
+                        .into()
                 ),
                 (
                     Tone::Strong,

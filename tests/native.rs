@@ -62,9 +62,11 @@ fn choice_part<'a>(view: &'a Value, name: &str) -> &'a Value {
 
 /// No value of the open AC-B briefing is drawn on more lines than it was broken into:
 /// a line too wide for its box would wrap again and strand a word (#166's playtest).
+/// A line of plain text is 20 reference pixels and one with emblems 18 (the emblem
+/// spans do not carry the text's line height), so fewer than nine broken lines cannot
+/// take as much height as one more drawn line.
 fn assert_briefing_lines_fit(view: &Value) {
-    // A value line is 18 of the 1280 reference pixels of the window's height at 16:9.
-    let line = 18. * view["table"]["viewport"][1].as_f64().unwrap() / 1280.;
+    let reference = view["table"]["viewport"][1].as_f64().unwrap() / 1280.;
     let values: Vec<_> = view["table"]["choice_parts"]
         .as_array()
         .unwrap()
@@ -75,11 +77,12 @@ fn assert_briefing_lines_fit(view: &Value) {
     for value in values {
         let bounds = rect_of(&value["bounds"]);
         let text = value["text"].as_str().unwrap();
-        let drawn = (bounds[3] - bounds[1]) / line;
+        let height = (bounds[3] - bounds[1]) / reference;
         let broken = text.lines().count() as f64;
+        assert!(broken < 9.);
         assert!(
-            (drawn - broken).abs() < 0.2,
-            "{}: {broken} lines drawn on {drawn:.2}: {text:?}",
+            (18. * broken - 1.0..=20. * broken + 1.0).contains(&height),
+            "{}: {broken} lines drawn {height:.1} reference px high: {text:?}",
             value["part"]
         );
     }
