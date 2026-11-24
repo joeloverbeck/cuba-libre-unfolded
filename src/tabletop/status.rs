@@ -494,6 +494,8 @@ const REASON_PLATE: &str = "atlas-status-reason.png";
 const REASON_ROW: f32 = 36.;
 /// The reason's text top within its row, which centres one 17-pixel line in it.
 const REASON_TEXT_TOP: f32 = 8.;
+// One line of 17-pixel Lato (1.2 em high) fits its row with that top above and below.
+const _: () = assert!(REASON_TEXT_TOP * 2. + TEXT_SIZE * 1.2 <= REASON_ROW + 1.);
 
 /// The rows above the reason: the terrain row alone for an Economic Center;
 /// otherwise the terrain row, 4 px, Control, 4 px and the political row (STATUS.md).
@@ -689,6 +691,5 @@ mod tests {
         // The rows stay where the tag's specification puts them.
         assert_eq!(reason_top(Terrain::City), 172.);
         assert_eq!(reason_top(Terrain::EconomicCenter), 40.);
-        assert!(REASON_TEXT_TOP * 2. + TEXT_SIZE * 1.2 <= REASON_ROW + 1.);
     }
 }
