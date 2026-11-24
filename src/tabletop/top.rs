@@ -56,8 +56,9 @@ impl Item {
         }
     }
     /// The hover target in reference pixels, and whether it is anchored to the
-    /// right edge (else the left), as the layout's anchors are. The marker supply has
-    /// none: the main view's layout places it, and `supply` draws its target.
+    /// right edge (else the left), as the layout's anchors are. The marker supply and
+    /// Save · quit have none: the main view's layout places them, and `supply` and
+    /// `save_quit` draw their targets.
     fn target(self) -> Option<([f32; 4], bool)> {
         Some(match self {
             Self::Aid => ([36., 24., 108., 50.], false),
@@ -65,9 +66,7 @@ impl Item {
             Self::Resources => (LEDGER, true),
             Self::Cash => ([1702., 222., 178., 44.], true),
             Self::Available(faction) => (available::row(faction), true),
-            // The main view's `save-quit` area at the reference, from its bottom-right.
-            Self::SaveQuit => (SAVE_QUIT, true),
-            Self::MarkerSupply => return None,
+            Self::SaveQuit | Self::MarkerSupply => return None,
         })
     }
 }
@@ -81,8 +80,6 @@ impl serde::Serialize for Item {
 /// Layout rectangles in reference pixels, from the FigCraft frame.
 const TRACK: [f32; 4] = [150., 18., 260., 64.];
 const LEDGER: [f32; 4] = [1688., 20., 192., 190.];
-/// Save · quit's plate in a 1920×1280 reference, 40 from the right and bottom edges.
-const SAVE_QUIT: [f32; 4] = [1728., 1198., 152., 42.];
 
 /// Hover-tag geometry from the FigCraft `hover tag` frame, in reference pixels.
 pub(super) mod tag {
@@ -384,6 +381,17 @@ pub(super) fn bounds(shown: &Shown, layout: &areas::Layout, window: &Window) -> 
         + tag::NOTES_GAP
         + lines as f32 * tag::NOTE_LINE
         + tag::BOTTOM;
+    if item == Item::SaveQuit {
+        // Save · quit's tag opens above the plate: its right edge and foot are the main
+        // view's `save-quit-tag` (#174), and it grows upward with its lines.
+        let place = layout.save_quit_tag(window);
+        return [
+            place.max.x - tag::WIDTH * scale,
+            place.max.y - height * scale,
+            place.max.x,
+            place.max.y,
+        ];
+    }
     let Some(([x, y, _, h], anchored_right)) = item.target() else {
         // The marker supply's tag opens just below its area, centred under the graphic,
         // but kept left of the standings by the tags' gap: below the US Alliance track
@@ -405,10 +413,6 @@ pub(super) fn bounds(shown: &Shown, layout: &areas::Layout, window: &Window) -> 
             let [x, y] = available::opens();
             (right, x, y)
         }
-        // Save · quit's tag opens above the plate, right edges on the window's margin,
-        // as the top band's right-hand tags open below theirs; `draw` puts its right
-        // edge and foot on the main view's `save-quit-tag` (#174).
-        (Item::SaveQuit, _) => (right, 1880. - tag::WIDTH, y - tag::GAP - height),
         (_, true) => (right, 1880. - tag::WIDTH, y + h + tag::GAP),
         (_, false) => (Vec2::ZERO, x.min(1880. - tag::WIDTH), y + h + tag::GAP),
     };
@@ -446,13 +450,6 @@ pub(super) fn draw(
         .map(|item| {
             let mut shown = content(&play.game().observe(), item);
             shown.bounds = bounds(&shown, &layout, &window);
-            if item == Item::SaveQuit {
-                // Its right edge and foot are the main view's `save-quit-tag` (#174).
-                let place = layout.save_quit_tag(&window);
-                let [left, top, right, foot] = shown.bounds;
-                let shift = place.max - Vec2::new(right, foot);
-                shown.bounds = [left + shift.x, top + shift.y, place.max.x, place.max.y];
-            }
             shown
         });
     if *previous == shown {
@@ -644,14 +641,22 @@ mod tests {
                 "{at:?} against {x} {y} {w} {h}"
             );
         }
-        let [px, py, pw, ph]: [f32; 4] =
-            serde_json::from_value(record["areas"]["save-quit"]["bounds"].clone()).unwrap();
-        let ([rx, ry, rw, rh], _) = Item::SaveQuit.target().unwrap();
-        for (drawn, recorded) in [rx * 1.6875 + 600., ry * 1.6875, rw * 1.6875, rh * 1.6875]
-            .into_iter()
-            .zip([px, py, pw, ph])
-        {
-            assert!((drawn - recorded).abs() <= 0.02, "{drawn} {recorded}");
+        // In every window `bounds` alone places it, the drawn tag's one placement: its
+        // right edge and foot on `save-quit-tag`, at the tag's width.
+        for (width, height) in [(1920, 1280), (2520, 1080), (1600, 1280), (3440, 1440)] {
+            let window = Window {
+                resolution: (width, height).into(),
+                ..default()
+            };
+            let place = layout.save_quit_tag(&window);
+            let [left, _, right, foot] = bounds(&shown, &layout, &window);
+            let scale = reference_pixel(&window);
+            assert!((right - place.max.x).abs() <= 0.02, "{width}x{height}");
+            assert!((foot - place.max.y).abs() <= 0.02, "{width}x{height}");
+            assert!(
+                (right - left - tag::WIDTH * scale).abs() <= 0.02,
+                "{width}x{height}"
+            );
         }
     }
 
