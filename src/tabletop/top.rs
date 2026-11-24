@@ -641,22 +641,25 @@ mod tests {
                 "{at:?} against {x} {y} {w} {h}"
             );
         }
-        // In every window `bounds` alone places it, the drawn tag's one placement: its
-        // right edge and foot on `save-quit-tag`, at the tag's width.
+        // In every window `bounds` alone places it, the drawn tag's one placement. Held
+        // to layout A's geometry, not to the layout call `bounds` makes: Save · quit's
+        // plate is 152×42 reference pixels, 40 from the window's right and bottom edges,
+        // and the tag's right edge is the plate's, its foot 8 above the plate's top.
         for (width, height) in [(1920, 1280), (2520, 1080), (1600, 1280), (3440, 1440)] {
             let window = Window {
                 resolution: (width, height).into(),
                 ..default()
             };
-            let place = layout.save_quit_tag(&window);
-            let [left, _, right, foot] = bounds(&shown, &layout, &window);
-            let scale = reference_pixel(&window);
-            assert!((right - place.max.x).abs() <= 0.02, "{width}x{height}");
-            assert!((foot - place.max.y).abs() <= 0.02, "{width}x{height}");
+            let s = reference_pixel(&window);
+            let [left, top, right, foot] = bounds(&shown, &layout, &window);
+            let at = format!("{width}x{height}");
+            assert!((right - (width as f32 - 40. * s)).abs() <= 0.02, "{at}");
             assert!(
-                (right - left - tag::WIDTH * scale).abs() <= 0.02,
-                "{width}x{height}"
+                (foot - (height as f32 - (40. + 42. + 8.) * s)).abs() <= 0.02,
+                "{at}"
             );
+            assert!((right - left - tag::WIDTH * s).abs() <= 0.02, "{at}");
+            assert!(top < foot, "{at}");
         }
     }
 
