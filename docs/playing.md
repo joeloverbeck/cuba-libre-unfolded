@@ -37,6 +37,7 @@ During Terror the panel lists the steps: Terror in Santiago and Oriente, with Ki
 
 - **Previews:** hover or focus a step for its preview, and click to pin it; the foot button commits the pinned step. A preview is computed by the rules authority on a copy of the match. It shows Resources, flipped Guerrillas, returned pieces, Terror markers, support and Control shifts, standings, choices that would become unavailable, the recorded box and Directorio's options. Reading a preview changes nothing, including randomness.
 - **The map:** each space is marked selectable, blocked (an in-task action would allow it) or not involved ([HIGHLIGHTS.md](../art/atlas/HIGHLIGHTS.md)). Hover a selectable or blocked space for its popover, and click to keep it open. The popover lists every action there with its preview and the one button that acts.
+- **Choosing a space with the keyboard:** Tab past the panel's controls reaches the selectable spaces, then the blocked ones, each focused space showing its tag. Enter or Space opens its popover, or closes it, as a click does. Tab then reaches the popover's rows and its button: Enter on a row shows its preview, and Enter on the button commits. Escape closes the popover and returns to its space.
 - **Unavailable targets:** a target 26July cannot act on now stays listed, disabled, with its reason and in-task remedies: "Request a Resource transfer", and for Santiago "Kidnap here first" while Kidnap would take at least 1 Resource. A target already resolved, or lost to removal, has none.
 - **Each Terror** costs 1 Resource, activates one Underground Guerrilla, places a Terror marker and shifts toward Active Opposition. Santiago and Oriente can each resolve once, in either order you can afford.
 - **End Terror** records Operation Only without Kidnap, which shows Directorio's Pass and Limited Operation. With Kidnap it records Operation with Special Activity and opens Directorio's options, including the Event (R 2.3.4, 5.2). Ending with no space resolved is allowed ([local policy](local-rule-policies.md#zero-space-operation-only)).
@@ -115,9 +116,9 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 | Wheel or `+`/`-` | Zoom |
 | `W` `A` `S` `D` | Pan |
 | `Home` | Restore the map framing; also brings back hover tags that extreme framing hid |
-| `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the four Available Forces rows, the current and the preview card, the two piles and Save · quit |
+| `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked) and an open popover's rows and button, then the four Available Forces rows, the current and the preview card, the two piles and Save · quit |
 | `Enter`, `Space` | Activate the focused control. While a played card is moving, land the cards instead |
-| `Escape` | Close a card's tag, unpin a briefing, cancel an open transfer, or close a tag or popover |
+| `Escape` | Close a card's tag, unpin a briefing, cancel an open transfer, or close a tag or popover; a space popover closed from the keyboard leaves focus on its space |
 
 The camera answers wherever the pointer is over the map. A scroll, a drag or a click on a panel stays with that panel: it neither moves the camera nor reaches the space beneath. The transfer modal takes camera input while open.
 
