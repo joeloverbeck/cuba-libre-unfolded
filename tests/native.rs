@@ -22,6 +22,8 @@ mod card_tag;
 mod main_view;
 #[path = "native/map_keys.rs"]
 mod map_keys;
+#[path = "native/marker_supply.rs"]
+mod marker_supply;
 #[path = "native/pile_tags.rs"]
 mod pile_tags;
 #[path = "native/rally.rs"]

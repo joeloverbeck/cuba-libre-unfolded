@@ -418,6 +418,7 @@ impl SeatGame for Table {
         let piles = piles::observe(world);
         let pile_tag = pile_tags::observe(world);
         let available_forces = available::observe(world);
+        let marker_supply = supply::observe(world);
         let main_view = areas::observe(world);
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
@@ -428,6 +429,7 @@ impl SeatGame for Table {
         table["piles"] = piles;
         table["pile_tag"] = pile_tag;
         table["available_forces"] = available_forces;
+        table["marker_supply"] = marker_supply;
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
             table,

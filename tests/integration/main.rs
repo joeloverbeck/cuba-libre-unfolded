@@ -30,6 +30,7 @@ mod kidnap;
 mod kidnap_die;
 mod main_view;
 mod map_targets;
+mod marker_supply;
 mod persistence;
 mod pile_tags;
 mod piles;
