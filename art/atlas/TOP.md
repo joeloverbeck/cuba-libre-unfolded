@@ -80,7 +80,7 @@ The marker supply opens the accepted top-display tag, as the Available Forces le
 
 - **Opening:** hovering the graphic, or focusing it with Tab, opens the tag after the shared 400 ms dwell. It closes when the pointer or focus leaves, as the other top-band tags do. There is no pin; reading it changes nothing.
 - **Target:** the graphic's extent, the marker's height across the area less the marker's margin on each side (frame 983.6, 38.82, 253.19×91.13 on the owner's display). The area's corners stay bare, so the area still takes the pointer there.
-- **Tab order:** the panel's controls, then the marker supply, then the four Available Forces rows, the cards and the piles ([seat reference](../../docs/agents/seat.md#keys) names the stops). It stands left of the ledger, so it comes before it. Aid, US Alliance, Resources and Cash stay hover-only.
+- **Tab order:** Tab reaches the marker supply; the [seat reference](../../docs/agents/seat.md#keys) owns the order of the stops. Aid, US Alliance, Resources and Cash stay hover-only.
 - **Words:** the title "Marker supply"; the rows "Terror on the map", "Sabotage on the map" and "Available", whose value is "N of 20", all from `observation.marker_supply`; and two notes:
   - "Terror and Sabotage share 20 markers. Terror places no marker when all 20 are on the map (R 3.3.4)."
   - "Civic Action and Agitation return Terror markers to the marker supply (R 6.3.2, 6.3.3); the Reset Phase returns the Terror and Sabotage markers (R 6.5)."
