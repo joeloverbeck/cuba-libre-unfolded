@@ -3,10 +3,12 @@
 //! including the hover tags, follows `art/atlas/atlas-top-display.figcraft`; every
 //! drawn element is a VectorCraft export from `atlas-top-display.vectorcraft`. The
 //! game owns the values and the rules they follow. The Available Forces ledger's rows
-//! open this tag too (#160); their targets, words and place are `available`'s.
+//! open this tag too (#160); their targets, words and place are `available`'s. So
+//! does the marker supply (#173), whose target is `supply`'s and whose tag opens below
+//! it, as the main view's layout places it.
 use super::palette::{INK, QUIET};
 use super::*;
-use crate::{CASH_MARKERS, UsAlliance};
+use crate::{CASH_MARKERS, MARKER_SUPPLY, UsAlliance};
 
 /// One hoverable element of the top display, named for the development seat. It is
 /// reported (`table.hover`, `table.top.item`) by its seat name.
@@ -21,6 +23,8 @@ pub(super) enum Item {
     /// Save · quit in the bottom-right corner (#174), which opens the same tag. It is
     /// not a top-band target: the plate is its own control (`save_quit`).
     SaveQuit,
+    /// The marker supply between the US Alliance track and the standings (#173).
+    MarkerSupply,
 }
 
 /// The Available Forces rows' seat names, `available:<faction>`, in `Faction::ALL`
@@ -29,7 +33,7 @@ static AVAILABLE_NAMES: std::sync::LazyLock<[String; 4]> =
     std::sync::LazyLock::new(|| Faction::ALL.map(|f| format!("available:{}", slug(f))));
 
 impl Item {
-    const ALL: [Self; 8] = [
+    const ALL: [Self; 9] = [
         Self::Aid,
         Self::UsAlliance,
         Self::Resources,
@@ -38,6 +42,7 @@ impl Item {
         Self::Available(Faction::M26),
         Self::Available(Faction::Directorio),
         Self::Available(Faction::Syndicate),
+        Self::MarkerSupply,
     ];
     pub(super) fn name(self) -> &'static str {
         match self {
@@ -47,12 +52,14 @@ impl Item {
             Self::Cash => "cash",
             Self::Available(faction) => &AVAILABLE_NAMES[faction.index()],
             Self::SaveQuit => "save-quit",
+            Self::MarkerSupply => "marker-supply",
         }
     }
     /// The hover target in reference pixels, and whether it is anchored to the
-    /// right edge (else the left), as the layout's anchors are.
-    fn target(self) -> ([f32; 4], bool) {
-        match self {
+    /// right edge (else the left), as the layout's anchors are. The marker supply has
+    /// none: the main view's layout places it, and `supply` draws its target.
+    fn target(self) -> Option<([f32; 4], bool)> {
+        Some(match self {
             Self::Aid => ([36., 24., 108., 50.], false),
             Self::UsAlliance => (TRACK, false),
             Self::Resources => (LEDGER, true),
@@ -60,7 +67,8 @@ impl Item {
             Self::Available(faction) => (available::row(faction), true),
             // The main view's `save-quit` area at the reference, from its bottom-right.
             Self::SaveQuit => (SAVE_QUIT, true),
-        }
+            Self::MarkerSupply => return None,
+        })
     }
 }
 
@@ -207,7 +215,9 @@ pub(super) fn header(
         ));
     }
     for item in Item::ALL {
-        let ([x, y, w, h], anchored_right) = item.target();
+        let Some(([x, y, w, h], anchored_right)) = item.target() else {
+            continue;
+        };
         let offset = if anchored_right { right } else { left };
         commands
             .spawn((
@@ -307,6 +317,30 @@ pub(super) fn content(view: &crate::Observation, item: Item) -> Shown {
             Vec::new(),
             vec!["Every decision is saved as it is made, and this\nbutton closes the game."],
         ),
+        Item::MarkerSupply => {
+            let supply = view.marker_supply;
+            (
+                "Marker supply".into(),
+                vec![
+                    ("Terror on the map".into(), supply.terror_on_map.to_string()),
+                    (
+                        "Sabotage on the map".into(),
+                        supply.sabotage_on_map.to_string(),
+                    ),
+                    (
+                        "Available".into(),
+                        format!("{} of {MARKER_SUPPLY}", supply.available),
+                    ),
+                ],
+                // R 3.3.4's cap, and what returns markers (R 6.3.2, 6.3.3, 6.5). Only
+                // what the rules state: nothing on Terror's other effects at 0, nor on
+                // Reprisal or Government Earnings, which the rules leave open (#166).
+                vec![
+                    "Terror and Sabotage share 20 markers. Terror\nplaces no marker when all 20 are on the map\n(R 3.3.4).",
+                    "Civic Action and Agitation return Terror markers\nto the supply (R 6.3.2, 6.3.3); the Reset Phase\nreturns the Terror and Sabotage markers (R 6.5).",
+                ],
+            )
+        }
     };
     let mut notes: Vec<String> = notes.into_iter().map(String::from).collect();
     if item == Item::Resources {
@@ -331,10 +365,11 @@ fn note_lines(note: &str) -> usize {
     note.lines().count()
 }
 
-/// Where a tag opens, in logical window pixels as [left, top, right, bottom], for a
-/// window of this reference pixel whose right-anchored elements are offset by `right`.
-/// Its height follows its rows and note lines.
-pub(super) fn bounds(shown: &Shown, scale: f32, right: Vec2) -> [f32; 4] {
+/// Where a tag opens in this window, in logical window pixels as [left, top, right,
+/// bottom]. Its height follows its rows and note lines.
+pub(super) fn bounds(shown: &Shown, layout: &areas::Layout, window: &Window) -> [f32; 4] {
+    let scale = reference_pixel(window);
+    let right = Vec2::new(window.width() - WIDTH * scale, 0.);
     let item = shown.item;
     let lines: usize = shown.notes.iter().map(|note| note_lines(note)).sum();
     let height = tag::ROWS_TOP
@@ -342,7 +377,17 @@ pub(super) fn bounds(shown: &Shown, scale: f32, right: Vec2) -> [f32; 4] {
         + tag::NOTES_GAP
         + lines as f32 * tag::NOTE_LINE
         + tag::BOTTOM;
-    let ([x, y, _, h], anchored_right) = item.target();
+    let Some(([x, y, _, h], anchored_right)) = item.target() else {
+        // The marker supply's tag opens just below its area, centred under the graphic,
+        // but kept left of the standings by the tags' gap: below the US Alliance track
+        // and clear of the standings in every window (#173).
+        let area = layout.area("marker-supply", window);
+        let standings = layout.area("standings", window);
+        let width = tag::WIDTH * scale;
+        let left = (area.center().x - width / 2.).min(standings.min.x - tag::GAP * scale - width);
+        let top = area.max.y + tag::GAP * scale;
+        return [left, top, left + width, top + height * scale];
+    };
     // Tags open just below their element, except the Resources tag, which opens
     // beside the ledger so the Cash supply beneath stays visible, and a faction's
     // Available Forces tag, which opens left of both ledgers below the standings
@@ -374,13 +419,12 @@ pub(super) fn draw(
     play: Res<Play>,
     ui: Res<Interface>,
     art: Res<Art>,
+    layout: Res<areas::Layout>,
     window: Single<&Window, With<PrimaryWindow>>,
     roots: Query<Entity, With<Tag>>,
     mut previous: Local<Option<Shown>>,
-    layout: Res<areas::Layout>,
 ) {
     let scale = reference_pixel(&window);
-    let right = Vec2::new(window.width() - WIDTH * scale, 0.);
     let shown = ui
         .hover
         .visible()
@@ -394,7 +438,7 @@ pub(super) fn draw(
         })
         .map(|item| {
             let mut shown = content(&play.game().observe(), item);
-            shown.bounds = bounds(&shown, scale, right);
+            shown.bounds = bounds(&shown, &layout, &window);
             if item == Item::SaveQuit {
                 // Its right edge and foot are the main view's `save-quit-tag` (#174).
                 let place = layout.save_quit_tag(&window);
@@ -578,7 +622,15 @@ mod tests {
         let [x, y, w, h]: [f32; 4] =
             serde_json::from_value(record["save-quit-tag"]["bounds"].clone()).unwrap();
         // 3840×2160: one reference pixel is 1.6875, and the right edge is 600 further.
-        let at = bounds(&shown, 1.6875, Vec2::new(600., 0.));
+        let layout = areas::Layout::read(include_bytes!(
+            "../../art/atlas/atlas-main-view.layout.json"
+        ))
+        .unwrap();
+        let window = Window {
+            resolution: (3840, 2160).into(),
+            ..default()
+        };
+        let at = bounds(&shown, &layout, &window);
         for (drawn, recorded) in at.into_iter().zip([x, y, x + w, y + h]) {
             assert!(
                 (drawn - recorded).abs() <= 0.02,
@@ -587,7 +639,7 @@ mod tests {
         }
         let [px, py, pw, ph]: [f32; 4] =
             serde_json::from_value(record["areas"]["save-quit"]["bounds"].clone()).unwrap();
-        let ([rx, ry, rw, rh], _) = Item::SaveQuit.target();
+        let ([rx, ry, rw, rh], _) = Item::SaveQuit.target().unwrap();
         for (drawn, recorded) in [rx * 1.6875 + 600., ry * 1.6875, rw * 1.6875, rh * 1.6875]
             .into_iter()
             .zip([px, py, pw, ph])

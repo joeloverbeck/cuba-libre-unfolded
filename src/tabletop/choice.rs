@@ -867,11 +867,11 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
 }
 
 /// The controls Tab moves through, in order, by their seat names, each with what
-/// Enter does to it: the panel's; the spaces the map offers (#168); the Available
-/// Forces ledger's four rows above the panel, whose tags focus opens as hover does
-/// (#160); then the current and the preview card (#139) and the two piles (#144),
-/// whose tags it opens too; and last Save · quit, whose tag focus opens too and which
-/// Enter activates (#174).
+/// Enter does to it: the panel's; the spaces the map offers (#168); the marker supply
+/// (#173) and the Available Forces ledger's four rows above the panel, whose tags
+/// focus opens as hover does (#160); then the current and the preview card (#139) and
+/// the two piles (#144), whose tags it opens too; and last Save · quit, whose tag focus
+/// opens too and which Enter activates (#174).
 fn focusable(
     view: &Observation,
     ui: &Interface,
@@ -880,6 +880,7 @@ fn focusable(
 ) -> Vec<(String, Action)> {
     let mut controls = panel_focusable(view, ui);
     controls.extend(map_focusable(view, targeting, popover));
+    controls.extend(super::supply::focusable());
     controls.extend(super::available::focusable());
     controls
         .extend(super::cards::Slot::ALL.map(|slot| (slot.name().to_owned(), Action::Card(slot))));
@@ -1716,7 +1717,7 @@ mod tests {
                 "briefing-ribbon",
                 "space:santiago",
                 "space:oriente",
-                "available:government"
+                "marker-supply"
             ],
             "{order:?}"
         );
@@ -1814,11 +1815,13 @@ mod tests {
         assert_eq!(order.len(), 21);
         assert_eq!(order[0], "option:pass");
         assert_eq!(order[11], "choice-commit");
-        // Then the Available Forces rows above the panel (#160), both cards and both
-        // piles, whose tags focus opens (#139, #144), and last Save · quit (#174).
+        // Then the marker supply (#173) and the Available Forces rows above the panel
+        // (#160), both cards and both piles, whose tags focus opens (#139, #144), and
+        // last Save · quit (#174).
         assert_eq!(
             order[12..],
             [
+                "marker-supply",
                 "available:government",
                 "available:26july",
                 "available:directorio",
@@ -1849,6 +1852,7 @@ mod tests {
                 "briefing-ribbon",
                 "space:santiago",
                 "space:oriente",
+                "marker-supply",
                 "available:government",
                 "available:26july",
                 "available:directorio",
@@ -1870,6 +1874,7 @@ mod tests {
                 "briefing-tab:terror",
                 "space:santiago",
                 "space:oriente",
+                "marker-supply",
                 "available:government",
                 "available:26july",
                 "available:directorio",

@@ -1,7 +1,7 @@
 //! #172: the marker supply in the top band, against the main view's layout record, and
 //! its number before and after each Terror (R 3.3.4). A pinned Terror preview leaves it
 //! as it is. The captures of the top band are for the legibility check at the owner's
-//! display.
+//! display. #173: its tag, opened by hover and by Tab, before and after a Terror.
 use super::*;
 use std::collections::BTreeMap;
 
@@ -152,4 +152,148 @@ fn native_marker_supply_matches_layout_and_follows_each_terror() {
         top_band(&mut app, &format!("after-{space}"));
     }
     app.quit();
+}
+
+/// The marker supply's tag as the seat reports it (`table.top`): its rows as
+/// (label, value).
+fn tag_rows(view: &Value) -> Vec<(String, String)> {
+    view["table"]["top"]["rows"]
+        .as_array()
+        .expect("a tag is open")
+        .iter()
+        .map(|row| {
+            (
+                row[0].as_str().unwrap().to_owned(),
+                row[1].as_str().unwrap().to_owned(),
+            )
+        })
+        .collect()
+}
+
+/// The rows the rules give (R 3.3.4): the markers on the map by kind, and those left
+/// of the 20.
+fn expected_rows(terror: u8) -> Vec<(String, String)> {
+    vec![
+        ("Terror on the map".into(), terror.to_string()),
+        ("Sabotage on the map".into(), "0".into()),
+        ("Available".into(), format!("{} of 20", 20 - terror)),
+    ]
+}
+
+/// The notes, each note's drawn lines joined by spaces.
+fn notes(view: &Value) -> Vec<String> {
+    view["table"]["top"]["notes"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|n| n.as_str().unwrap().replace('\n', " "))
+        .collect()
+}
+
+/// Checks the open tag: the marker supply's, titled "Marker supply" with these rows
+/// and the two notes; below the graphic and inside the window; covering neither the
+/// outside-influence area, where the US Alliance track is, nor the standings. Saves
+/// the capture and its top left beside it, at 1:1, for the legibility check.
+fn assert_tag(app: &mut Native, view: &Value, terror: u8, at: &str) {
+    let top = &view["table"]["top"];
+    assert_eq!(top["item"], "marker-supply", "{at}: {top}");
+    assert_eq!(top["title"], "Marker supply", "{at}");
+    assert_eq!(tag_rows(view), expected_rows(terror), "{at}");
+    assert_eq!(
+        notes(view),
+        [
+            "Terror and Sabotage share 20 markers. Terror places no marker when all 20 are on the map (R 3.3.4).",
+            "Civic Action and Agitation return Terror markers to the supply (R 6.3.2, 6.3.3); the Reset Phase returns the Terror and Sabotage markers (R 6.5).",
+        ],
+        "{at}"
+    );
+    let plate = rect_of(&top["bounds"]);
+    let areas = &view["table"]["main_view"]["areas"];
+    let graphic = rect_of(&areas["marker-supply"]);
+    let (width, height) = {
+        let w = &view["table"]["viewport"];
+        (w[0].as_f64().unwrap(), w[1].as_f64().unwrap())
+    };
+    assert!(
+        plate[0] >= 0. && plate[1] >= 0. && plate[2] <= width && plate[3] <= height,
+        "{at}: the tag {plate:?} leaves the window {width}x{height}"
+    );
+    assert!(
+        plate[1] > graphic[3] && plate[0] <= graphic[0] && graphic[2] <= plate[2],
+        "{at}: the tag {plate:?} is not below the graphic {graphic:?}"
+    );
+    for name in ["outside-influence", "standings"] {
+        let area = rect_of(&areas[name]);
+        let apart = plate[2] <= area[0]
+            || area[2] <= plate[0]
+            || plate[3] <= area[1]
+            || area[3] <= plate[1];
+        assert!(apart, "{at}: the tag {plate:?} covers {name} {area:?}");
+    }
+    app.capture(at);
+    let capture = image::open(app.root.join(format!("{at}.png"))).unwrap();
+    let scale = f64::from(capture.width()) / width;
+    let right = ((plate[2] + 24.) * scale).min(f64::from(capture.width()));
+    let bottom = ((plate[3] + 24.) * scale).min(f64::from(capture.height()));
+    capture
+        .crop_imm(0, 0, right as u32, bottom as u32)
+        .save(app.root.join(format!("{at}-tag.png")))
+        .unwrap();
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_marker_supply_tag_opens_on_hover_and_focus_and_follows_a_terror() {
+    use super::available_forces::{focus, start};
+    let mut app = start("marker-supply-tag-", "issue-173", "3840x2160");
+    let rest = app.observe();
+    assert!(rest["table"]["top"].is_null());
+    // Hover opens the tag after the shared dwell; reading it changes nothing.
+    let shown = app.point("marker-supply");
+    assert_eq!(shown["table"]["hover"], "marker-supply");
+    assert_tag(&mut app, &shown, 0, "hover-at-rest");
+    assert_eq!(shown["observation"], rest["observation"]);
+    assert_eq!(number(&shown), ("20".into(), 20));
+    // It closes when the pointer leaves, as the top display's tags do.
+    let left = app.point("quit");
+    assert!(left["table"]["top"].is_null(), "{}", left["table"]["top"]);
+    // Tab reaches it after the panel's controls and before the Available Forces rows;
+    // focus opens the tag with the same dwell, and the next stop closes it.
+    let focused = focus(&mut app, "marker-supply");
+    assert_tag(&mut app, &focused, 0, "focus-at-rest");
+    assert_eq!(focused["observation"], rest["observation"]);
+    let next = focus(&mut app, "available:government");
+    assert_eq!(next["table"]["top"]["item"], "available:government");
+
+    // 26July's Terror in Santiago places a Terror marker from the supply (R 3.3.4):
+    // the tag then reads 1 on the map and 19 of 20, by hover and by focus.
+    app.choose("terror");
+    app.choose("transfer");
+    app.choose("ask:2:2");
+    app.choose("authorize:2");
+    let view = app.observe();
+    let revision = view["observation"]["revision"].as_u64().unwrap();
+    app.activate("space:santiago", revision);
+    app.activate("popover:commit", revision);
+    let after = app.observe();
+    assert_eq!(
+        after["observation"]["marker_supply"],
+        json!({"available": 19, "terror_on_map": 1, "sabotage_on_map": 0})
+    );
+    let shown = app.point("marker-supply");
+    assert_tag(&mut app, &shown, 1, "hover-after-santiago");
+    assert_eq!(shown["observation"], after["observation"]);
+    app.point("quit");
+    let focused = focus(&mut app, "marker-supply");
+    assert_tag(&mut app, &focused, 1, "focus-after-santiago");
+    app.quit();
+
+    // At 3:2 and 21:9 the tag still opens below the graphic, inside the window and
+    // clear of the track and the standings. The match resumes from its save.
+    for size in ["1920x1280", "2520x1080"] {
+        app.launch_size(size);
+        let shown = app.point("marker-supply");
+        assert_tag(&mut app, &shown, 1, &format!("hover-{size}"));
+        app.quit();
+    }
 }

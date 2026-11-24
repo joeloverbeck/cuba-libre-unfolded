@@ -12,6 +12,9 @@
 //! outside-influence area and the standings in every window (`areas::Anchor::TopBetween`),
 //! with the marker and the two texts inside it. The marker's two exports are VectorCraft
 //! graphics from `art/atlas/atlas-marker-supply.vectorcraft` (TOP.md).
+//!
+//! Hovering the graphic, or focusing it with Tab, opens the top display's tag (#173):
+//! `top` says what it reads and where it opens.
 use super::palette::{INK, PRIMARY, QUIET};
 use super::*;
 use crate::{MARKER_SUPPLY, Observation};
@@ -34,6 +37,27 @@ mod fig {
     pub const OF_SIZE: f32 = 23.625;
     /// The space between the number and "of 20": 8 reference pixels in the study.
     pub const GAP: f32 = 13.5;
+    /// The hover and focus target: the graphic's extent, the marker's height across
+    /// the area less the marker's margin on each side, so the area's corners stay bare.
+    pub const TARGET: [f32; 4] = [
+        MARKER[0],
+        MARKER[1],
+        AREA[2] - 2. * (MARKER[0] - AREA[0]),
+        MARKER[3],
+    ];
+}
+
+/// The graphic's seat name, its hover and focus target and its Tab stop.
+const ITEM: top::Item = top::Item::MarkerSupply;
+
+/// The graphic, when it has keyboard focus: its tag opens as hover opens it.
+pub(super) fn focused(ui: &Interface) -> Option<top::Item> {
+    (ui.choice.focus.as_deref() == Some(ITEM.name())).then_some(ITEM)
+}
+
+/// The graphic's Tab stop, by its seat name, before the Available Forces rows.
+pub(super) fn focusable() -> impl Iterator<Item = (String, Action)> {
+    std::iter::once((ITEM.name().to_owned(), Action::Top(ITEM)))
 }
 
 /// The marker's export at rest, and dimmed when the supply is empty.
@@ -96,6 +120,27 @@ pub(super) fn draw(
     let unit = area.width() / fig::AREA[2];
     let origin = area.min - Vec2::new(fig::AREA[0], fig::AREA[1]) * unit;
     let marker = picture(commands, art, shown.marker(), fig::MARKER, unit, origin, 2);
+    // The target lies over the graphic, as the top display's targets lie over theirs.
+    let [x, y, w, h] = fig::TARGET;
+    commands
+        .spawn((
+            UiRoot,
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(origin.x + x * unit),
+                top: px(origin.y + y * unit),
+                width: px(w * unit),
+                height: px(h * unit),
+                ..default()
+            },
+            GlobalZIndex(3),
+            Control {
+                name: ITEM.name().into(),
+                choice: false,
+                action: Action::Top(ITEM),
+            },
+        ))
+        .observe(click);
     commands
         .entity(marker)
         .insert((Drawn, areas::Part("marker-supply".into())));
@@ -330,5 +375,126 @@ mod tests {
         let shown = shown(&view);
         assert_eq!((shown.available, shown.empty), (1, false));
         assert_eq!((shown.marker(), shown.ink()), (MARKER, INK));
+    }
+
+    /// The tag's rows, as (label, value).
+    fn tag_rows(view: &Observation) -> Vec<(String, String)> {
+        top::content(view, ITEM).rows
+    }
+
+    fn rows(terror: &str, sabotage: &str, available: &str) -> Vec<(String, String)> {
+        [
+            ("Terror on the map", terror),
+            ("Sabotage on the map", sabotage),
+            ("Available", available),
+        ]
+        .map(|(l, v)| (l.to_owned(), v.to_owned()))
+        .to_vec()
+    }
+
+    /// #173: the tag's title and rows. The prepared scenario has no marker on the map;
+    /// one Terror in a City or Province places a Terror marker (R 3.3.4); and a
+    /// constructed position with 17 Terror and 3 Sabotage markers on the map leaves
+    /// none of the 20.
+    #[test]
+    fn the_tag_breaks_the_supply_down_by_where_the_markers_are() {
+        let shown = top::content(&Game::opening().observe(), ITEM);
+        assert_eq!(shown.title, "Marker supply");
+        assert_eq!(shown.rows, rows("0", "0", "20 of 20"));
+        let mut game = crate::terror_chosen(Game::opening());
+        for action in ["transfer", "ask:2:2", "authorize:2", "terror:santiago"] {
+            let view = game.observe();
+            game.submit(
+                view.owner,
+                view.revision,
+                &format!("{}:{action}", view.revision),
+            )
+            .unwrap();
+        }
+        assert_eq!(tag_rows(&game.observe()), rows("1", "0", "19 of 20"));
+        let mut view = Game::opening().observe();
+        view.marker_supply = MarkerSupply::left_by(17, 3);
+        assert_eq!(tag_rows(&view), rows("17", "3", "0 of 20"));
+    }
+
+    /// #173: the notes state the cap and what returns markers, with their rules, and
+    /// nothing the rules leave open: Terror's other effects with no marker left, and
+    /// whether the cap binds Reprisal or Government Earnings (#166).
+    #[test]
+    fn the_notes_state_the_cap_and_what_returns_markers_and_nothing_more() {
+        let notes = top::content(&Game::opening().observe(), ITEM).notes;
+        let text = notes.join(" ").replace('\n', " ");
+        for said in [
+            "Terror places no marker when all 20 are on the map (R 3.3.4)",
+            "Civic Action and Agitation return Terror markers to the supply (R 6.3.2, 6.3.3)",
+            "the Reset Phase returns the Terror and Sabotage markers (R 6.5)",
+        ] {
+            assert!(text.contains(said), "{said}: {text}");
+        }
+        for unsaid in ["Reprisal", "Earnings", "shift", "Support", "Opposition"] {
+            assert!(!text.contains(unsaid), "{unsaid}: {text}");
+        }
+    }
+
+    /// #173: the tag opens below the graphic, inside the window, and covers neither the
+    /// outside-influence area, where the US Alliance track is, nor the standings, at
+    /// 3:2, 16:9 and 21:9. Of the other areas it may cover only the Sequence of Play
+    /// track's right edge, as the Aid and US Alliance tags cover that track while open:
+    /// kept left of the standings, it reaches over it at 3:2, where they stand closest.
+    #[test]
+    fn the_tag_opens_below_the_graphic_clear_of_the_track_and_the_standings() {
+        let layout = areas::Layout::read(include_bytes!(
+            "../../art/atlas/atlas-main-view.layout.json"
+        ))
+        .unwrap();
+        let mut view = Game::opening().observe();
+        view.marker_supply = MarkerSupply::left_by(17, 3);
+        let shown = top::content(&view, ITEM);
+        for (width, height) in [
+            (1920., 1280.),
+            (2160., 1440.),
+            (1920., 1080.),
+            (3840., 2160.),
+            (2520., 1080.),
+            (3440., 1440.),
+        ] {
+            let window = Window {
+                resolution: (width as u32, height as u32).into(),
+                ..default()
+            };
+            let at = format!("{width}x{height}");
+            let [l, t, r, b] = top::bounds(&shown, &layout, &window);
+            assert!(l >= 0. && t >= 0. && r <= width && b <= height, "{at}");
+            let tag = Rect::new(l, t, r, b);
+            let graphic = layout.area("marker-supply", &window);
+            assert!(t > graphic.max.y, "{at}: {tag:?} under {graphic:?}");
+            assert!(l <= graphic.min.x && graphic.max.x <= r, "{at}: {tag:?}");
+            for (name, area) in layout.areas(&window) {
+                if name == "sequence-of-play" {
+                    // At most its right 40 reference pixels, of 232.
+                    let s = super::super::reference_pixel(&window);
+                    assert!(area.max.x - l <= 40. * s + 0.01, "{at}: {tag:?} {area:?}");
+                    continue;
+                }
+                assert!(
+                    tag.intersect(area).is_empty(),
+                    "{at}: covers {name} {area:?} with {tag:?}"
+                );
+            }
+        }
+    }
+
+    /// #173: the graphic is one Tab stop, which opens its tag as hover does.
+    #[test]
+    fn focus_on_the_graphic_opens_its_tag() {
+        let mut ui = Interface::default();
+        assert_eq!(focused(&ui), None);
+        let (name, action) = focusable().next().unwrap();
+        assert_eq!(name, "marker-supply");
+        assert!(matches!(action, Action::Top(top::Item::MarkerSupply)));
+        ui.choice.focus = Some(name);
+        assert_eq!(focused(&ui), Some(top::Item::MarkerSupply));
+        ui.choice.focus = Some("available:government".into());
+        assert_eq!(focused(&ui), None);
     }
 }

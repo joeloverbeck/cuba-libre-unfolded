@@ -1015,10 +1015,11 @@ fn hover_disclosures(
             }
         })
     });
-    // Keyboard focus on a card, a pile, an Available Forces row or Save · quit opens
-    // its tag as the pointer does, with the same dwell.
+    // Keyboard focus on a card, a pile, the marker supply, an Available Forces row or
+    // Save · quit opens its tag as the pointer does, with the same dwell.
     let target = target
         .or_else(|| pile_tags::focused(&ui).map(Target::Pile))
+        .or_else(|| supply::focused(&ui).map(Target::Top))
         .or_else(|| available::focused(&ui).map(Target::Top))
         .or_else(|| {
             (ui.choice.focus.as_deref() == Some(save_quit::NAME))

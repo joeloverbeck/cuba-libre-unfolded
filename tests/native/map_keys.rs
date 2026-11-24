@@ -122,7 +122,7 @@ fn native_keyboard_reaches_santiago_and_commits_terror() {
             "briefing-ribbon",
             "space:santiago",
             "space:oriente",
-            "available:government"
+            "marker-supply"
         ],
         "{order:?}"
     );
