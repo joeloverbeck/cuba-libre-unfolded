@@ -772,4 +772,132 @@ mod tests {
             );
         }
     }
+
+    /// Every file in `dir`, by name, with its bytes.
+    fn files(dir: &std::path::Path) -> Vec<(std::ffi::OsString, Vec<u8>)> {
+        let mut files: Vec<_> = std::fs::read_dir(dir)
+            .unwrap()
+            .map(|entry| {
+                let entry = entry.unwrap();
+                (entry.file_name(), std::fs::read(entry.path()).unwrap())
+            })
+            .collect();
+        files.sort();
+        files
+    }
+
+    /// #174 (spec #166's review, P2): before the match opens, the slip shows the loading
+    /// state, and a save an earlier build wrote is refused on the slip as a launch error,
+    /// in its words, with every file left as it was. The seat admits no refused table, so
+    /// this sits at the table in process, as the die's regression does, and reads the
+    /// slip before admission and after the refusal. At the owner's display, 3840x2160.
+    #[test]
+    #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+    fn native_the_slip_shows_loading_then_an_earlier_build_s_save_refused() {
+        use unfolded_record_replacement::save as record;
+        let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
+            .expect("Set CUBA_TEST_CARDS")
+            .into();
+        let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| "local/verification/issue-174".into());
+        std::fs::create_dir_all(&evidence).unwrap();
+        let root = tempfile::Builder::new()
+            .prefix("launch-error-")
+            .tempdir_in(evidence)
+            .unwrap()
+            .keep()
+            .canonicalize()
+            .unwrap();
+        eprintln!("Launch error evidence: {}", root.display());
+        // A save of the earlier format "2": this build's opening save, resealed with
+        // that format, so only the format tells it from one this build opens.
+        let saves = root.join("saves");
+        std::fs::create_dir_all(&saves).unwrap();
+        let save = saves.join("earlier.json");
+        drop(crate::save::Session::open(&save, None).unwrap());
+        let mut written: Value = serde_json::from_slice(&std::fs::read(&save).unwrap()).unwrap();
+        written["identity"]["format"] = "2".into();
+        let identity: record::Identity =
+            serde_json::from_value(written["identity"].clone()).unwrap();
+        std::fs::write(&save, record::seal(&identity, &written["payload"])).unwrap();
+        let before = files(&saves);
+
+        let size = UVec2::new(3840, 2160);
+        let mut app = build(
+            Options {
+                art: "art/atlas".into(),
+                cards,
+                save: save.clone(),
+                recover: None,
+                socket: None,
+                agent: true,
+                seat_size: size,
+            },
+            true,
+        )
+        .unwrap();
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::ZERO));
+        capture::install::<Camera2d>(&mut app, size);
+        let mut seat = shared::Seat::open(Table, &mut app).unwrap();
+        let ask = |seat: &mut shared::Seat<Table>, app: &mut App, request: Value| -> Value {
+            seat.respond(app, &request.to_string())
+                .unwrap_or_else(|exited| panic!("{request}: {exited}"))
+        };
+
+        // Before admission: no match is open, and the slip shows the loading state.
+        let loading = ask(&mut seat, &mut app, json!({"op":"observe"}));
+        std::fs::write(root.join("loading.json"), loading.to_string()).unwrap();
+        let slip = &loading["table"]["slip"];
+        assert_eq!(slip["shown"], true, "{slip}");
+        assert_eq!(slip["kind"], "loading", "{slip}");
+        assert_eq!(slip["text"], notice::LOADING, "{slip}");
+        assert!(loading["table"]["error"].is_null());
+        ask(
+            &mut seat,
+            &mut app,
+            json!({"op":"capture","path":root.join("loading.png")}),
+        );
+
+        // Admission refuses the save, in the words the table then shows.
+        let refusal = match seat.admit(&mut app, Duration::from_secs(180)) {
+            Err(shared::Unadmitted::Refused(reason)) => reason,
+            Err(shared::Unadmitted::Unfinished) => panic!("admission ran out of time"),
+            Ok(()) => panic!("a save of format 2 was admitted"),
+        };
+        for words in [
+            "Another build wrote this save",
+            "Every file was left unchanged",
+            "Start a match under an unused save name",
+        ] {
+            assert!(refusal.contains(words), "{refusal}");
+        }
+        ask(&mut seat, &mut app, json!({"op":"advance","steps":5}));
+        let refused = ask(&mut seat, &mut app, json!({"op":"observe"}));
+        std::fs::write(root.join("refused.json"), refused.to_string()).unwrap();
+        let slip = &refused["table"]["slip"];
+        assert_eq!(slip["shown"], true, "{slip}");
+        assert_eq!(slip["kind"], "error", "{slip}");
+        assert_eq!(slip["text"], refusal.as_str(), "{slip}");
+        assert_eq!(refused["table"]["error"], refusal.as_str());
+        // The slip stands where the main view's record puts it: its right edge and foot.
+        let layout: Value =
+            serde_json::from_str(include_str!("../../art/atlas/atlas-main-view.layout.json"))
+                .unwrap();
+        let tolerance = layout["tolerance"].as_f64().unwrap();
+        let [rx, ry, rw, rh]: [f64; 4] =
+            serde_json::from_value(layout["notice-slip"]["bounds"].clone()).unwrap();
+        // The seat reports the slip's edges: left, top, right, bottom.
+        let [left, _, right, foot]: [f64; 4] =
+            serde_json::from_value(slip["bounds"].clone()).unwrap();
+        assert!((right - (rx + rw)).abs() <= tolerance, "{slip}");
+        assert!((foot - (ry + rh)).abs() <= tolerance, "{slip}");
+        assert!((right - left - rw).abs() <= tolerance, "{slip}");
+        ask(
+            &mut seat,
+            &mut app,
+            json!({"op":"capture","path":root.join("refused.png")}),
+        );
+        assert_eq!(files(&saves), before, "the refused launch changed a file");
+    }
 }
