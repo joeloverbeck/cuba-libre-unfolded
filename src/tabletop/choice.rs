@@ -1713,7 +1713,7 @@ mod tests {
                 "briefing-ribbon",
                 "space:santiago",
                 "space:oriente",
-                "available:government"
+                "marker-supply"
             ],
             "{order:?}"
         );
