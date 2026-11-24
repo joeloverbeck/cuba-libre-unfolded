@@ -38,7 +38,7 @@ scripts/check
 
 It prints the checked revision and whether the working tree differs from it, then stops at the first failing check. CI runs the same command on every pull request, and `main` requires it to pass. A single focused command is only partial evidence. A commit hook runs the format check before each commit; enable it once per clone with `git config core.hooksPath .githooks`.
 
-Core tests need no private inputs or GPU. The ignored native regressions need the card directory and a working renderer. `scripts/native` runs them all serially and checks that each requested name filter selects a regression. See the [native regression catalogue](docs/agents/seat.md#native-regressions) for focused runs.
+Core tests need no private inputs or GPU. The ignored native regressions need the card directory and a working renderer. `scripts/native` runs them all, four apps at once, and checks that each requested name filter selects a regression. See the [native regression catalogue](docs/agents/seat.md#native-regressions) for focused runs.
 
 ```sh
 CUBA_TEST_CARDS="$HOME/.local/share/cuba-libre-unfolded/cards" scripts/native

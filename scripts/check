@@ -185,8 +185,9 @@ fi
 echo "Markdown line length: no prose line over 1,000 characters in README, docs/ or art/"
 # Builds are bounded by `.cargo/config.toml`, which every Cargo command here reads.
 cargo fmt --all --check
+# Clippy compiles every target without `tabletop`. The tests run with it alone: it adds
+# the table's tests and changes none of the others (#187).
 cargo clippy --locked --all-targets -- -D warnings
-cargo test --locked
 cargo clippy --locked --all-targets --features tabletop -- -D warnings
 cargo test --locked --features tabletop
 # Exercise focused native discovery in CI with the real libtest binaries.

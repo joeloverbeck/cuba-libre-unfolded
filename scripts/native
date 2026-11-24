@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Run ignored regressions from both test binaries, serially.
+# Run ignored regressions from both test binaries: those that launch the app, four apps
+# at once (`--test-threads=1` to 4), and the in-process ones serially.
 set -euo pipefail
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
@@ -40,6 +41,29 @@ if [[ -z ${CUBA_NATIVE_EVIDENCE:-} && $common != "$(git rev-parse --show-topleve
   if [[ -n $changes ]]; then run=${run/-/-dirty-}; fi
   export CUBA_NATIVE_EVIDENCE="$common/local/verification/native/${branch//\//-}/$run"
 fi
+
+# Each app holds about 1 GB of memory and up to 1.6 GB of graphics memory, so the limit
+# is four at once: six failed with 10.8 of 11 GB of graphics memory in use (#187). The
+# option is taken out of the arguments, because libtest refuses it twice.
+apps=4
+args=()
+while (($#)); do
+  case $1 in
+    --) args+=("$@"); break ;;
+    --test-threads)
+      if (($# < 2)); then echo "--test-threads needs a number" >&2; exit 2; fi
+      apps=$2
+      shift ;;
+    --test-threads=*) apps=${1#*=} ;;
+    *) args+=("$1") ;;
+  esac
+  shift
+done
+if [[ ! $apps =~ ^[1-4]$ ]]; then
+  echo "Native regressions run 1 to 4 apps at once, not '$apps'." >&2
+  exit 2
+fi
+set -- "${args[@]}"
 
 # `--shard K/N` runs the Kth of N parts, so each fits a foreground command; the library
 # regressions run with the first.
@@ -83,13 +107,6 @@ while (($#)); do
       shift ;;
     -Z*|--skip=*|--exclude-should-panic|--include-ignored|--ignored)
       selection+=("$1") ;;
-    --test-threads|--test-threads=*)
-      threads=${1#--test-threads=}
-      if [[ $1 == --test-threads ]]; then shift; threads=${1:-}; fi
-      if [[ $threads != 1 ]]; then
-        echo "Native regressions share a renderer. Use --test-threads=1." >&2
-        exit 2
-      fi ;;
     --format|--color|--shuffle-seed|--logfile)
       # Space-separated option values aren't test names.
       if (($# > 1)); then shift; fi ;;
@@ -105,7 +122,9 @@ if "$bench" && ! "$run_tests" && ! "$list"; then
   exit 2
 fi
 cargo_test=(cargo test --locked --features tabletop)
+# The library's regressions share one renderer in one process, so they stay serial.
 harness=(--ignored --test-threads=1)
+app_harness=(--ignored "--test-threads=$apps")
 if ((${#filters[@]} + ${#selection[@]})); then
   # Let libtest apply the selection; keep output formatting and logging options
   # for the caller's actual run so discovery always reads a plain catalogue.
@@ -147,8 +166,8 @@ if [[ -n ${CUBA_NATIVE_EVIDENCE:-} ]]; then echo "evidence: $CUBA_NATIVE_EVIDENC
 whole=false
 if [[ -n $shard ]] || ((given == 0)); then whole=true; fi
 failed=()
-echo "== tests/native.rs"
-"${cargo_test[@]}" --test native -- "${harness[@]}" "${args[@]}" || failed+=("tests/native.rs")
+echo "== tests/native.rs, $apps at once"
+"${cargo_test[@]}" --test native -- "${app_harness[@]}" "${args[@]}" || failed+=("tests/native.rs")
 if [[ -z $shard ]]; then
   echo "== library (in-process)"
   "${cargo_test[@]}" --lib -- "${harness[@]}" "${args[@]}" || failed+=("library")

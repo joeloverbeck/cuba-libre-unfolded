@@ -332,7 +332,7 @@ Drawn-part names:
 - `native_rally_removing_the_last_base_closes_the_operation`: resumes a Rally after removing its last qualifying Base and refuses a stale placement. All three save evidence under `local/verification/issue-121/`.
 - `native_free_rally_without_a_base_finishes_the_event`: removes the Sierra Maestra Base during Terror before selecting 26July, then plays a separate Event selecting Directorio with no Base. Both runs preview and finish with an empty Rally effect, and reach card-end eligibility. Evidence goes to `local/verification/issue-120/`.
 
-The ignored native regressions need the selected card directory and a working renderer. `scripts/native` runs them all serially, both `tests/native.rs` and the in-process ones in the library, and passes extra arguments (a name filter, `--nocapture`) to both. For a focused run, use this runner with a name filter. It checks each requested filter against the combined selection, including the effects of `--exact` and `--skip`. Use `scripts/heavy scripts/native --list` to find the fully qualified names without opening a seat.
+The ignored native regressions need the selected card directory and a working renderer. `scripts/native` runs them all, those of `tests/native.rs` four apps at once and then the in-process ones in the library serially, and passes extra arguments (a name filter, `--nocapture`) to both. For a focused run, use this runner with a name filter. It checks each requested filter against the combined selection, including the effects of `--exact` and `--skip`. Use `scripts/heavy scripts/native --list` to find the fully qualified names without opening a seat.
 
 ```sh
 CUBA_TEST_CARDS="/path/to/cards" scripts/heavy scripts/native
@@ -340,7 +340,7 @@ CUBA_TEST_CARDS="/path/to/cards" scripts/heavy scripts/native
 
 - Each test keeps isolated saves, JSON observations and screenshots under its evidence directory, below. `CUBA_NATIVE_EVIDENCE` selects another evidence directory, and `scripts/native` sets it when run from a worktree ([parallel-work.md](parallel-work.md#builds)).
 - Inspect the images separately: passing assertions do not prove readability or owner acceptance.
-- Run native regressions serially (`--test-threads=1`).
+- Run one native regression at a time (`--test-threads=1`) while another program uses much of the graphics memory, or to judge a failure that may come from sharing it: four apps took 6 GB of 11.
 - A regression reaches its position by submitting decisions, through the seat or the save session, never from a save retained from an earlier build: such a save is disposable ([foundation 2](../foundation/02-rules-and-verification.md#engine-authority)). One that needs a known die roll first creates its save from a chosen seed with `cuba_libre_unfolded::save::Session::create_seeded` ([saves, "A seeded save"](saves.md#the-record)), and then launches the app on it. Kidnap rolls by seed: 19 → 1, 0 → 2, 5 → 3, 3 → 4, 2 → 5, 1 → 6.
 - A user-selected `CARGO_TARGET_DIR` can reuse a compatible warm build cache; it is not a runtime dependency.
 

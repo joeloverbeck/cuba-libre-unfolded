@@ -16,16 +16,65 @@
 //! not multiply their paths by every earlier Terror and transfer permutation.
 //! Card 18 opens a separate Operation. Its seat documentation uses checked
 //! representative paths instead of folding that Operation into this graph.
+//!
+//! Exploring dominates these tests, so a test process explores each start once, in
+//! parallel (`explored`), and the tests read the same graphs.
 #![allow(dead_code)]
 use super::{Choice, Faction, Game, TransferChoice};
-use std::collections::{HashMap, HashSet};
+use sha2::{Digest, Sha256};
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    sync::LazyLock,
+    thread,
+};
+
+/// A state's identity: the digest of its decision's key, which is far shorter than the
+/// key, and whether its path's one Resource transfer has been made.
+type State = ([u8; 32], bool);
+
+fn state(game: &Game, transferred: bool) -> State {
+    (Sha256::digest(key(game)).into(), transferred)
+}
 
 /// The current decision without its revision. Reopening and cancelling a side
 /// decision reaches the same choices.
 pub fn key(game: &Game) -> String {
-    let mut value = serde_json::to_value(game).unwrap();
-    value["revision"] = 0.into();
-    value.to_string()
+    let saved = serde_json::to_string(game).unwrap();
+    let (revision, decision) = saved.split_once(',').unwrap();
+    assert!(
+        revision.starts_with("{\"revision\":"),
+        "a saved game starts with its revision, not {revision}"
+    );
+    decision.into()
+}
+
+/// `work` on every item, shared among this machine's CPUs: the results in item order.
+pub fn parallel<T: Sync, R: Send>(items: &[T], work: impl Fn(usize, &T) -> R + Sync) -> Vec<R> {
+    let threads = thread::available_parallelism().map_or(1, usize::from);
+    let share = items.len().div_ceil(threads).max(1);
+    let work = &work;
+    thread::scope(|scope| {
+        let running: Vec<_> = items
+            .chunks(share)
+            .enumerate()
+            .map(|(nth, chunk)| {
+                scope.spawn(move || -> Vec<R> {
+                    (nth * share..)
+                        .zip(chunk)
+                        .map(|(i, item)| work(i, item))
+                        .collect()
+                })
+            })
+            .collect();
+        running
+            .into_iter()
+            .flat_map(|thread| {
+                thread
+                    .join()
+                    .unwrap_or_else(|panic| std::panic::resume_unwind(panic))
+            })
+            .collect()
+    })
 }
 
 pub type Action = (Faction, String);
@@ -54,8 +103,9 @@ pub fn choose(game: &mut Game, action: &str) {
         .unwrap_or_else(|e| panic!("{id}: {e}"));
 }
 
-/// The transfer amounts explored: 1 and the largest offered in each direction.
-pub fn explored(choices: &[Choice]) -> Vec<&Choice> {
+/// The choices explored. Of the transfer amounts: 1 and the largest offered in each
+/// direction.
+fn followed(choices: &[Choice]) -> Vec<&Choice> {
     let amount = |c: &Choice| c.transfer().map(|t| (t.direction(), t.amount()));
     let mut largest: HashMap<TransferChoice, u8> = HashMap::new();
     for (direction, n) in choices.iter().filter_map(amount) {
@@ -87,80 +137,112 @@ pub struct Node {
     pub transferred: bool,
 }
 
-pub fn explore(start: Game) -> Vec<Node> {
+/// The states explored from `start`, in the order found, breadth first.
+fn explore(start: Game) -> Vec<Node> {
+    /// States expanded at a time, which bounds the successors held before merging.
+    const BATCH: usize = 1024;
+    /// A successor: its state's index where it was already found, else the state.
+    enum Next {
+        Known(usize),
+        Found(State, Box<Game>),
+    }
     let starts_during_event = start.observe().event_executor.is_some();
-    let mut index = HashMap::from([((key(&start), false), 0)]);
-    let mut games = vec![(start, false)];
+    let mut index = HashMap::from([(state(&start, false), 0)]);
+    let mut waiting = VecDeque::from([(start, false)]);
     let mut nodes = vec![];
-    while let Some((game, transferred)) = games.get(nodes.len()).cloned() {
-        let view = game.observe();
-        let mut node = Node {
-            game: game.clone(),
-            disabled: view
+    while !waiting.is_empty() {
+        let batch: Vec<_> = waiting.drain(..waiting.len().min(BATCH)).collect();
+        let expanded = parallel(&batch, |_, (game, transferred)| {
+            let view = game.observe();
+            let disabled = view
                 .choices
                 .iter()
                 .filter(|c| !c.supported)
                 .map(|c| (action(c), c.label.clone(), c.remedies.clone()))
-                .collect(),
-            supported: view
+                .collect();
+            let supported = view
                 .choices
                 .iter()
                 .filter(|c| c.supported)
                 .map(action)
-                .collect(),
-            next: vec![],
-            transferred,
-        };
-        if view.current_card == 18 {
-            nodes.push(node);
-            continue;
-        }
-        for choice in explored(&view.choices) {
-            if !starts_during_event
-                && view.event_executor.is_some()
-                && matches!(choice.action(), "transfer" | "remove")
-            {
-                continue;
+                .collect();
+            let mut next = vec![];
+            if view.current_card == 18 {
+                return (disabled, supported, next);
             }
-            if transferred && transfers(choice) {
-                continue;
+            for choice in followed(&view.choices) {
+                if !starts_during_event
+                    && view.event_executor.is_some()
+                    && matches!(choice.action(), "transfer" | "remove")
+                {
+                    continue;
+                }
+                if *transferred && transfers(choice) {
+                    continue;
+                }
+                let mut after = game.clone();
+                after
+                    .submit(choice.owner, view.revision, &choice.id)
+                    .unwrap_or_else(|e| panic!("{}: {e}", choice.id));
+                let state = state(&after, *transferred || transfers(choice));
+                next.push(match index.get(&state) {
+                    Some(&at) => Next::Known(at),
+                    None => Next::Found(state, Box::new(after)),
+                });
             }
-            let mut after = game.clone();
-            after
-                .submit(choice.owner, view.revision, &choice.id)
-                .unwrap_or_else(|e| panic!("{}: {e}", choice.id));
-            let next = (key(&after), transferred || transfers(choice));
-            let at = *index.entry(next).or_insert_with(|| {
-                games.push((after, transferred || transfers(choice)));
-                games.len() - 1
+            (disabled, supported, next)
+        });
+        for ((game, transferred), (disabled, supported, next)) in batch.into_iter().zip(expanded) {
+            let next = next
+                .into_iter()
+                .map(|next| match next {
+                    Next::Known(at) => at,
+                    Next::Found(state, after) => {
+                        let at = index.len();
+                        *index.entry(state).or_insert_with(|| {
+                            waiting.push_back((*after, state.1));
+                            at
+                        })
+                    }
+                })
+                .collect();
+            nodes.push(Node {
+                game,
+                disabled,
+                supported,
+                next,
+                transferred,
             });
-            node.next.push(at);
         }
-        nodes.push(node);
         assert!(nodes.len() < 100_000, "the explored task grew unexpectedly");
     }
     nodes
 }
 
-/// For each state, every action supported there or in any state reachable from it.
-pub fn reachable(nodes: &[Node]) -> Vec<HashSet<Action>> {
-    let mut future: Vec<_> = nodes.iter().map(|n| n.supported.clone()).collect();
-    loop {
-        let mut changed = false;
-        for i in (0..nodes.len()).rev() {
-            let mut union = future[i].clone();
-            for &j in &nodes[i].next {
-                union.extend(future[j].iter().cloned());
-            }
-            if union.len() != future[i].len() {
-                future[i] = union;
-                changed = true;
-            }
-        }
-        if !changed {
-            return future;
+/// For each state, the states whose choices lead to it.
+pub fn predecessors(nodes: &[Node]) -> Vec<Vec<usize>> {
+    let mut before = vec![vec![]; nodes.len()];
+    for (i, node) in nodes.iter().enumerate() {
+        for &j in &node.next {
+            before[j].push(i);
         }
     }
+    before
+}
+
+/// For each state, whether `action` is supported there or in any state reachable from
+/// it. `before` is the states' `predecessors`.
+pub fn reaching(nodes: &[Node], before: &[Vec<usize>], action: &Action) -> Vec<bool> {
+    let mut reaching = vec![false; nodes.len()];
+    let mut found: Vec<usize> = (0..nodes.len())
+        .filter(|&i| nodes[i].supported.contains(action))
+        .collect();
+    while let Some(i) = found.pop() {
+        if !std::mem::replace(&mut reaching[i], true) {
+            found.extend(&before[i]);
+        }
+    }
+    reaching
 }
 
 pub fn drained() -> Game {
@@ -179,7 +261,7 @@ pub fn drained() -> Game {
 }
 
 /// The explored starts, by name.
-pub fn starts() -> [(&'static str, Game); 3] {
+fn starts() -> [(&'static str, Game); 3] {
     [
         ("opening, roll 1", Game::opening_with_seed(19)),
         ("opening, roll 3", Game::opening_with_seed(5)),
@@ -202,4 +284,33 @@ pub fn event_starts() -> [Game; 2] {
     choose(&mut shaded, "event:shaded");
     choose(&mut handoff, "event:unshaded");
     [shaded, handoff]
+}
+
+/// The states explored from one start.
+pub struct Explored {
+    pub start: &'static str,
+    pub nodes: Vec<Node>,
+}
+impl Explored {
+    fn new((start, game): (&'static str, Game)) -> Self {
+        let nodes = explore(game);
+        Self { start, nodes }
+    }
+}
+
+/// What is explored from each of `starts`, in their order.
+pub fn explored() -> &'static [Explored] {
+    static EXPLORED: LazyLock<Vec<Explored>> = LazyLock::new(|| starts().map(Explored::new).into());
+    &EXPLORED
+}
+
+/// What is explored from each of `event_starts`, in their order.
+pub fn event_explored() -> &'static [Explored] {
+    static EXPLORED: LazyLock<Vec<Explored>> = LazyLock::new(|| {
+        let [shaded, unshaded] = event_starts();
+        [("shaded Event", shaded), ("unshaded Event", unshaded)]
+            .map(Explored::new)
+            .into()
+    });
+    &EXPLORED
 }

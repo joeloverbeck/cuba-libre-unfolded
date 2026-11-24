@@ -157,19 +157,17 @@ fn surface(view: &Observation, choice: &Choice) -> Option<&'static str> {
 fn every_choice_offered_to_26july_during_terror_has_a_surface() {
     let mut missing = std::collections::BTreeSet::new();
     let mut seen = std::collections::BTreeSet::new();
-    for (start, game) in explore::starts() {
-        for node in explore::explore(game) {
+    for explore::Explored { start, nodes } in explore::explored() {
+        let presented = explore::parallel(nodes, |_, node| {
             let view = node.game.observe();
             if view.action != ActionChoice::Terror || view.finished {
-                continue;
+                return vec![];
             }
-            for choice in view.choices.iter().filter(|c| c.owner == Faction::M26) {
-                match surface(&view, choice) {
-                    Some(place) => {
-                        seen.insert(place);
-                    }
-                    None => {
-                        missing.insert(format!(
+            let offered = view.choices.iter().filter(|c| c.owner == Faction::M26);
+            offered
+                .map(|choice| {
+                    surface(&view, choice).ok_or_else(|| {
+                        format!(
                             "{start}: {} ({}, supported {}, remedies {:?}, mode {:?}): {}",
                             choice.action(),
                             choice.label,
@@ -177,9 +175,15 @@ fn every_choice_offered_to_26july_during_terror_has_a_surface() {
                             choice.remedies,
                             execution::mode(&view),
                             choice.explanation
-                        ));
-                    }
-                }
+                        )
+                    })
+                })
+                .collect()
+        });
+        for presented in presented.into_iter().flatten() {
+            match presented {
+                Ok(place) => drop(seen.insert(place)),
+                Err(choice) => drop(missing.insert(choice)),
             }
         }
     }
