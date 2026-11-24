@@ -3014,6 +3014,36 @@ fn assert_counts_follow_the_window(view: &Value, expected: Option<f64>, scale: f
     size
 }
 
+/// #177: every piece and Terror count stands where it stood `before`, within 2 px. The
+/// map's camera has not moved between the two observations and no piece has changed.
+fn assert_counts_stay(before: &Value, after: &Value, when: &str) {
+    let counts = |view: &Value| -> std::collections::BTreeMap<String, [f64; 4]> {
+        let counts = view["table"]["counts"].as_array().unwrap();
+        counts
+            .iter()
+            .map(|c| {
+                (
+                    c["name"].as_str().unwrap().to_owned(),
+                    rect_of(&c["bounds"]),
+                )
+            })
+            .collect()
+    };
+    let (before, after) = (counts(before), counts(after));
+    assert!(!before.is_empty(), "no counts {when}");
+    assert!(
+        before.keys().eq(after.keys()),
+        "{when}: {before:?} then {after:?}"
+    );
+    for (name, was) in &before {
+        let is = after[name];
+        assert!(
+            was.iter().zip(is).all(|(a, b)| (a - b).abs() <= 2.),
+            "{name} {when}: {was:?} then {is:?}"
+        );
+    }
+}
+
 /// #139: the open card tag reads `slot`, lies inside the window, and leaves both cards
 /// visible: it overlaps neither card on its pile, nor any part of either pile.
 fn assert_card_tag_placed(view: &Value, slot: &str) {
@@ -3856,6 +3886,7 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
         assert!(pending(&first).contains(&"Kidnap die landing".to_owned()));
         assert_eq!(first["table"]["settled"], false);
         assert_eq!(first["observation"]["kidnap"]["die"], die);
+        assert_counts_stay(&opened, &first, "in the air");
         // In the air, the ledger keeps the balances before the roll; the standings stay.
         assert_eq!(ledger(&first), ["6", "0", "5", "15"]);
         assert!(
@@ -3902,6 +3933,7 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
             app.quit();
             app.launch_size(size);
             let restarted = app.observe();
+            assert_counts_stay(&opened, &restarted, "after a restart in the air");
             assert_eq!(restarted["table"]["die"]["landed"], true, "{restarted}");
             assert_eq!(
                 restarted["table"]["die"]["seek"],
@@ -4005,6 +4037,7 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
                 .unwrap()
                 .contains(&format!("Kidnap rolled {die}"))
         );
+        assert_counts_stay(&opened, &landed, "landed");
         app.capture(&format!("face-{die}-landed"));
         // No presentation timing is saved: the record is the one the commit wrote.
         assert_eq!(std::fs::read(&app.save).unwrap(), committed);
@@ -4031,6 +4064,15 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
             app.activate("briefing-ribbon", revision);
             assert_eq!(app.observe()["table"]["choice"]["ribbon"], false);
         }
+        if die == 5 {
+            // Restart on the landed die, which is presented again.
+            app.quit();
+            app.launch_size(size);
+            let restarted = app.observe();
+            assert_eq!(restarted["table"]["die"]["landed"], true, "{restarted}");
+            assert_counts_stay(&opened, &restarted, "after a restart on the landed die");
+            app.capture(&format!("face-{die}-restarted-landed"));
+        }
         // Continue returns the panel to Terror: by Enter on the focused control once,
         // otherwise by its button.
         let revision = landed["observation"]["revision"].as_u64().unwrap();
@@ -4045,6 +4087,7 @@ fn native_kidnap_die_lands_on_each_face_and_restarts_landed() {
         }
         let continued = app.observe();
         assert!(continued["table"]["die"].is_null(), "{continued}");
+        assert_counts_stay(&opened, &continued, "after Continue");
         app.capture(&format!("face-{die}-continued"));
         assert_eq!(continued["observation"], landed["observation"]);
         assert_eq!(std::fs::read(&app.save).unwrap(), committed);

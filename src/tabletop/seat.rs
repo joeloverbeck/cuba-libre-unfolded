@@ -629,6 +629,207 @@ mod tests {
     use super::*;
     use serde_json::Value;
 
+    /// One seat request. A table that has exited fails the test here, with its reason,
+    /// rather than answering every later request as if it were still being played.
+    fn ask(seat: &mut shared::Seat<Table>, app: &mut App, request: Value) -> Value {
+        seat.respond(app, &request.to_string())
+            .unwrap_or_else(|exited| panic!("{request}: {exited}"))
+    }
+
+    /// An admitted table of `size` in process, on a new save.
+    fn table(
+        cards: &std::path::Path,
+        save: &std::path::Path,
+        size: UVec2,
+    ) -> (App, shared::Seat<Table>) {
+        let mut app = build(
+            Options {
+                art: "art/atlas".into(),
+                cards: cards.into(),
+                save: save.into(),
+                recover: None,
+                socket: None,
+                agent: true,
+                seat_size: size,
+            },
+            true,
+        )
+        .unwrap();
+        app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::ZERO));
+        capture::install::<Camera2d>(&mut app, size);
+        let mut seat = shared::Seat::open(Table, &mut app).unwrap();
+        seat.admit(&mut app, Duration::from_secs(180)).unwrap();
+        (app, seat)
+    }
+
+    /// Such a table played to a rolled Kidnap die that is still in the air, at revision 3.
+    fn rolled(
+        cards: &std::path::Path,
+        save: &std::path::Path,
+        size: UVec2,
+    ) -> (App, shared::Seat<Table>) {
+        let (mut app, mut seat) = table(cards, save, size);
+        // AC-B (#69): Terror is pinned before its commit submits it.
+        let pinned = ask(
+            &mut seat,
+            &mut app,
+            json!({"op":"activate","revision":0,"component":"option:terror"}),
+        );
+        assert_eq!(pinned["status"], "activated", "{pinned}");
+        ask(&mut seat, &mut app, json!({"op":"settle"}));
+        for (revision, choice) in [(0, "0:terror"), (1, "1:kidnap"), (2, "2:kidnap:roll")] {
+            // EX-A (#84): a Terror step is pinned by its row before its commit.
+            if choice == "1:kidnap" {
+                let step = ask(
+                    &mut seat,
+                    &mut app,
+                    json!({"op":"activate","revision":revision,"component":"step:kidnap"}),
+                );
+                assert_eq!(step["status"], "activated", "{step}");
+                ask(&mut seat, &mut app, json!({"op":"settle"}));
+            }
+            let done = ask(
+                &mut seat,
+                &mut app,
+                json!({"op":"activate","revision":revision,"choice":choice}),
+            );
+            assert_eq!(done["status"], "activated", "{done}");
+            if revision < 2 {
+                ask(&mut seat, &mut app, json!({"op":"settle"}));
+            }
+        }
+        (app, seat)
+    }
+
+    /// Every count's name and bounds (left, top, right, bottom), as the seat reports them.
+    fn count_bounds(view: &Value) -> Vec<(String, [f64; 4])> {
+        let counts = view["table"]["counts"].as_array().unwrap();
+        counts
+            .iter()
+            .map(|c| {
+                let bounds = serde_json::from_value(c["bounds"].clone()).unwrap();
+                (c["name"].as_str().unwrap().to_owned(), bounds)
+            })
+            .collect()
+    }
+
+    /// Every count in `is` stands within 2 px of where it stands in `at`.
+    fn assert_counts_at(is: &[(String, [f64; 4])], at: &[(String, [f64; 4])], when: &str) {
+        assert!(!is.is_empty(), "no counts {when}");
+        assert_eq!(is.len(), at.len(), "{when}");
+        for ((name, is), (expected_name, at)) in is.iter().zip(at) {
+            assert_eq!(name, expected_name, "{when}");
+            assert!(
+                is.iter().zip(at).all(|(a, b)| (a - b).abs() <= 2.),
+                "{name} {when}: {is:?} against {at:?}"
+            );
+        }
+    }
+
+    /// #177: the piece counts follow a window resize while the Kidnap die is shown, in the
+    /// air and landed. The seat has no resize request, so this resizes the seat's surface
+    /// in process. The map is framed anew for the size, so each size's counts must match
+    /// those a table opened at that size shows before the die, and those after Continue.
+    #[test]
+    #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+    fn native_counts_follow_a_resize_while_the_die_is_shown() {
+        let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
+            .expect("Set CUBA_TEST_CARDS")
+            .into();
+        let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| "local/verification/issue-177".into());
+        std::fs::create_dir_all(&evidence).unwrap();
+        let root = tempfile::Builder::new()
+            .prefix("resize-")
+            .tempdir_in(evidence)
+            .unwrap()
+            .keep()
+            .canonicalize()
+            .unwrap();
+        eprintln!("Resize while the die is shown evidence: {}", root.display());
+        let sizes = [
+            UVec2::new(1920, 1080),
+            UVec2::new(1440, 960),
+            UVec2::new(2560, 1080),
+        ];
+        // Where a table opened at each size shows its counts, with no die.
+        let opened: Vec<_> = sizes
+            .iter()
+            .map(|size| {
+                let save = root.join(format!("{}x{}.json", size.x, size.y));
+                let (mut app, mut seat) = table(&cards, &save, *size);
+                ask(&mut seat, &mut app, json!({"op":"settle"}));
+                count_bounds(&ask(&mut seat, &mut app, json!({"op":"observe"})))
+            })
+            .collect();
+        let save = root.join("resized.json");
+        let (mut app, mut seat) = rolled(&cards, &save, sizes[0]);
+        let air = ask(&mut seat, &mut app, json!({"op":"settle","steps":3}));
+        assert_eq!(air["status"], "unsettled", "{air}");
+
+        // In the air: to 1440x960. The steps are too few for the die to land.
+        resize(&mut app, sizes[1]);
+        let air = ask(&mut seat, &mut app, json!({"op":"settle","steps":8}));
+        assert_eq!(air["status"], "unsettled", "{air}");
+        let air = ask(&mut seat, &mut app, json!({"op":"observe"}));
+        assert_eq!(air["table"]["die"]["landed"], false, "{air}");
+        assert_counts_at(&count_bounds(&air), &opened[1], "resized in the air");
+
+        // Landed: to 2560x1080.
+        ask(&mut seat, &mut app, json!({"op":"settle"}));
+        resize(&mut app, sizes[2]);
+        // The table was settled, so it is stepped to see the new size before it settles.
+        let stepped = ask(&mut seat, &mut app, json!({"op":"advance","steps":8}));
+        assert_eq!(stepped["status"], "advanced", "{stepped}");
+        ask(&mut seat, &mut app, json!({"op":"settle"}));
+        let landed = ask(&mut seat, &mut app, json!({"op":"observe"}));
+        assert_eq!(landed["table"]["die"]["landed"], true, "{landed}");
+        let at_landing = count_bounds(&landed);
+        assert_counts_at(&at_landing, &opened[2], "resized after landing");
+        ask(
+            &mut seat,
+            &mut app,
+            json!({"op":"capture","path":root.join("resized-landed.png")}),
+        );
+
+        // Continue moves no count.
+        let done = ask(
+            &mut seat,
+            &mut app,
+            json!({"op":"activate","revision":3,"component":"kidnap-die:continue"}),
+        );
+        assert_eq!(done["status"], "activated", "{done}");
+        ask(&mut seat, &mut app, json!({"op":"settle"}));
+        let continued = ask(&mut seat, &mut app, json!({"op":"observe"}));
+        assert!(continued["table"]["die"].is_null(), "{continued}");
+        assert_counts_at(&count_bounds(&continued), &at_landing, "after Continue");
+        // The sizes put the counts far apart, so a frozen count cannot pass.
+        for pair in opened.windows(2) {
+            let (_, first) = &pair[0][0];
+            let (_, second) = &pair[1][0];
+            assert!((first[0] - second[0]).abs() > 20., "{first:?} {second:?}");
+        }
+    }
+
+    /// Resizes the in-process surface as a window resize does: the primary window and the
+    /// image the cameras render.
+    fn resize(app: &mut App, size: UVec2) {
+        let mut windows = app.world_mut().query::<&mut Window>();
+        let mut window = windows.single_mut(app.world_mut()).unwrap();
+        window.resolution.set(size.x as f32, size.y as f32);
+        let image = app.world().resource::<capture::Surface>().image();
+        app.world_mut()
+            .resource_mut::<Assets<Image>>()
+            .get_mut(&image)
+            .unwrap()
+            .resize(bevy::render::render_resource::Extent3d {
+                width: size.x,
+                height: size.y,
+                depth_or_array_layers: 1,
+            });
+    }
+
     /// The Kidnap die's skip through the seat's own requests (#87). While the die is in
     /// the air, Enter or Space naming the tray's skip, or an activation of the tray,
     /// lands it at once on the committed face, and the save is unchanged. Tab is still
@@ -655,55 +856,8 @@ mod tests {
         for by in ["enter", "space", "click"] {
             let size = UVec2::new(1920, 1080);
             let save = root.join(format!("{by}.json"));
-            let mut app = build(
-                Options {
-                    art: "art/atlas".into(),
-                    cards: cards.clone(),
-                    save: save.clone(),
-                    recover: None,
-                    socket: None,
-                    agent: true,
-                    seat_size: size,
-                },
-                true,
-            )
-            .unwrap();
-            app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::ZERO));
-            capture::install::<Camera2d>(&mut app, size);
-            let mut seat = shared::Seat::open(Table, &mut app).unwrap();
-            seat.admit(&mut app, Duration::from_secs(180)).unwrap();
-            // A table that has exited fails the test here, with its reason, rather
-            // than answering every later request as if it were still being played.
-            let mut ask = |app: &mut App, request: Value| -> Value {
-                seat.respond(app, &request.to_string())
-                    .unwrap_or_else(|exited| panic!("{request}: {exited}"))
-            };
-            // AC-B (#69): Terror is pinned before its commit submits it.
-            let pinned = ask(
-                &mut app,
-                json!({"op":"activate","revision":0,"component":"option:terror"}),
-            );
-            assert_eq!(pinned["status"], "activated", "{pinned}");
-            ask(&mut app, json!({"op":"settle"}));
-            for (revision, choice) in [(0, "0:terror"), (1, "1:kidnap"), (2, "2:kidnap:roll")] {
-                // EX-A (#84): a Terror step is pinned by its row before its commit.
-                if choice == "1:kidnap" {
-                    let step = ask(
-                        &mut app,
-                        json!({"op":"activate","revision":revision,"component":"step:kidnap"}),
-                    );
-                    assert_eq!(step["status"], "activated", "{step}");
-                    ask(&mut app, json!({"op":"settle"}));
-                }
-                let done = ask(
-                    &mut app,
-                    json!({"op":"activate","revision":revision,"choice":choice}),
-                );
-                assert_eq!(done["status"], "activated", "{done}");
-                if revision < 2 {
-                    ask(&mut app, json!({"op":"settle"}));
-                }
-            }
+            let (mut app, mut seat) = rolled(&cards, &save, size);
+            let mut ask = |app: &mut App, request: Value| ask(&mut seat, app, request);
             let bytes = std::fs::read(&save).unwrap();
             let air = ask(&mut app, json!({"op":"settle","steps":3}));
             assert_eq!(air["status"], "unsettled", "{air}");
