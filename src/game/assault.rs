@@ -293,7 +293,7 @@ fn plan(space: &Space, targets: &[&Target], allocation: &[u8], competing: bool) 
     }
     let target_names = targets.iter().map(|t| t.faction.name()).collect::<Vec<_>>();
     let mut id = target_names.join("+").to_ascii_lowercase();
-    let mut label = target_names.join(" + ");
+    let mut label = format!("Target {}", target_names.join(" + "));
     if competing {
         let counts: Vec<_> = allocation.iter().map(u8::to_string).collect();
         id = format!("{id}:{}", counts.join("-"));

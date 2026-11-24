@@ -1,5 +1,6 @@
 //! The selected map highlight family, HF-A Survey ink (#68), applied to the map while
-//! 26July executes Terror (#72) and in removal mode (#73). Every graphic is an
+//! a decision offers choices on its spaces, 26July's Terror (#72) and Government's
+//! Assault (#169), and in removal mode (#73). Every graphic is an
 //! unchanged VectorCraft export of `art/proposals/issue-66/map-highlights.vectorcraft`;
 //! `art/atlas/highlights.json` places each on the top of the one space it covers
 //! (#167: every space has its own rule, dashed rule and veil) and names the state it
@@ -248,7 +249,8 @@ pub(super) fn markers(
 
 pub(super) fn show(targeting: Res<Targeting>, mut decals: Query<(&Decal, &mut Visibility)>) {
     for (decal, mut visibility) in &mut decals {
-        let shown = targeting.shown(&decal.space) == Some(decal.state);
+        // A no-effect space draws the veil of a space no choice acts on (#169).
+        let shown = targeting.shown(&decal.space).map(SpaceState::drawn) == Some(decal.state);
         visibility.set_if_neq(if shown {
             Visibility::Inherited
         } else {

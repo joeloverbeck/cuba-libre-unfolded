@@ -106,18 +106,19 @@ pub(super) mod fig {
     ];
     /// The BRIEFING ribbon, relative to the panel.
     pub const RIBBON: [f32; 4] = [1188., 0., 97.2, 302.4];
-    /// During Assault (#169, the "AC-B panel · Assault" frame), under the cost lines
-    /// and at the rows' left: the line that sends the player to the map, in the
-    /// subtitle's quiet type (top and size).
+    /// During Assault (#169, the frame "AC-B panel · Assault"), the panel's column
+    /// under the cost lines, at the rows' left and width. First the line that sends
+    /// the player to the map, in the subtitle's quiet type: its top and size.
     pub const ASSAULT_MAP_LINE: [f32; 2] = [1013.6, 35.1];
-    /// Each paid space's record, in ink: the first record's top, the pitch of one
-    /// line, the type size and the line height.
-    pub const ASSAULT_RECORD: [f32; 4] = [1082.4, 48.6, 36.45, 48.6];
-    /// The most characters one record line holds; a longer record wraps.
-    pub const ASSAULT_RECORD_CHARS: usize = 58;
-    /// The first row's top with nothing paid; each record line moves the rows down
-    /// by the record's pitch.
-    pub const ASSAULT_ROWS_TOP: f32 = 1099.2;
+    /// Then each paid space's record, in ink: the first record's top, the pitch of
+    /// one line, the type size and the line height.
+    pub const ASSAULT_RECORD: [f32; 4] = [1066.4, 49., 36.45, 49.];
+    /// The most characters one record line holds; a longer record wraps. A line of
+    /// the row's width holds about 77 at the record's size: in #169's native run 66
+    /// characters drew 655 of its 763 px at 3840×2160.
+    pub const ASSAULT_RECORD_CHARS: usize = 70;
+    /// The column's gap, between the record and the first row.
+    pub const ASSAULT_GAP: f32 = 10.8;
 }
 
 /// A frame x or y in reference pixels, on the panel's right-anchored reference.
@@ -389,12 +390,22 @@ pub(super) fn assault_lines(view: &Observation) -> Vec<AssaultLine> {
     lines
 }
 
-/// The first row's top during Assault: under the map line and the record, which
-/// grows by one line pitch for each line of each paid space.
+/// The first row's top during Assault. With nothing paid the rows stand where the
+/// record would start; a record moves them down by one line pitch for each of its
+/// lines, and the column's gap follows it.
 fn assault_rows_top(view: &Observation) -> Option<f32> {
     let lines = assault_lines(view);
     let record: usize = lines.iter().skip(1).map(|l| l.words.lines().count()).sum();
-    (!lines.is_empty()).then(|| fig::ASSAULT_ROWS_TOP + fig::ASSAULT_RECORD[1] * record as f32)
+    (!lines.is_empty()).then(|| assault_rows_after(record))
+}
+
+/// The first row's top under a record of `lines` lines.
+fn assault_rows_after(lines: usize) -> f32 {
+    let [first, pitch, ..] = fig::ASSAULT_RECORD;
+    match lines {
+        0 => first,
+        n => first + pitch * n as f32 + fig::ASSAULT_GAP,
+    }
 }
 
 /// Breaks `words` at spaces into lines of at most `chars` characters, so the panel
@@ -626,7 +637,7 @@ pub(super) fn panel(
             fig::ASSAULT_RECORD
         } else {
             let [_, size] = fig::ASSAULT_MAP_LINE;
-            [0., 0., size, size * 1.2]
+            [0., 0., size, fig::SUBTITLE_LINE]
         };
         let words = text(
             commands,
@@ -2034,7 +2045,7 @@ mod tests {
                 .collect()
         };
         let pitch = fig::ROWS[2] - fig::ROWS[1];
-        let top = fig::ASSAULT_ROWS_TOP;
+        let top = assault_rows_after(0);
         assert_eq!(
             rows(&view),
             [
@@ -2054,9 +2065,9 @@ mod tests {
         // The map line clears the cost lines above it and the first record below.
         let [first, line, size, height] = fig::ASSAULT_RECORD;
         assert!(fig::ASSAULT_MAP_LINE[0] >= fig::SUBTITLE[1] + 2. * fig::SUBTITLE_LINE);
-        assert!(fig::ASSAULT_MAP_LINE[0] + fig::ASSAULT_MAP_LINE[1] * 1.2 <= first);
+        assert!(fig::ASSAULT_MAP_LINE[0] + fig::SUBTITLE_LINE <= first);
         assert!(size <= height && height <= line);
-        assert!(first <= top);
+        assert_eq!(first, top);
 
         // Santiago first, then Havana, though Havana comes first on the map: 2 Active
         // 26July Guerrillas return (R 3.2.4), then Syndicate's Casino closes (R 1.4.5).
@@ -2077,18 +2088,22 @@ mod tests {
                 ),
                 (
                     "assault-record:santiago",
-                    "Santiago de Cuba · paid 2 Resources · returned 2 26July\nGuerrillas",
+                    "Santiago de Cuba · paid 2 Resources · returned 2 26July Guerrillas",
                     first
                 ),
                 (
                     "assault-record:havana",
                     "Havana · paid 2 Resources · closed 1 Casino",
-                    first + 2. * line
+                    first + line
                 ),
             ]
         );
-        // Three record lines: the rows start three pitches lower.
-        assert_eq!(rows(&view)[0], ("end-assault".to_owned(), top + 3. * line));
+        // Two record lines: the rows start two pitches lower.
+        assert_eq!(
+            rows(&view)[0],
+            ("end-assault".to_owned(), assault_rows_after(2))
+        );
+        assert_eq!(assault_rows_after(2), first + 2. * line + fig::ASSAULT_GAP);
         // Removal mode and a transfer hold the panel: the lines wait.
         decide(&mut game, "remove");
         assert!(assault_lines(&game.observe()).is_empty());
@@ -2098,31 +2113,74 @@ mod tests {
         );
     }
 
+    /// The Assault constants are the layout record's: the frame "AC-B panel · Assault"
+    /// with two spaces paid, and beside it with nothing paid.
+    #[test]
+    fn the_assault_panel_s_constants_are_the_layout_record_s() {
+        let record: serde_json::Value = serde_json::from_str(include_str!(
+            "../../art/atlas/atlas-action-choice.layout.json"
+        ))
+        .unwrap();
+        let assault = &record["assault"];
+        let at = |group: &str, part: &str, edge: usize| -> f32 {
+            assault[group][part][edge]
+                .as_f64()
+                .unwrap_or_else(|| panic!("{group} {part}")) as f32
+        };
+        let near = |a: f32, b: f32| assert!((a - b).abs() < 0.05, "{a} is not {b}");
+        near(at("text", "assault-map-line", 0), fig::ROW_X);
+        near(at("text", "assault-map-line", 1), fig::ASSAULT_MAP_LINE[0]);
+        let [first, pitch, _, height] = fig::ASSAULT_RECORD;
+        near(at("text", "assault-record:santiago", 1), first);
+        near(at("text", "assault-record:matanzas", 1), first + pitch);
+        near(assault["record_line"].as_f64().unwrap() as f32, height);
+        // Two one-line records, then the rows at the within-section pitch.
+        let row = fig::ROWS[2] - fig::ROWS[1];
+        for (i, part) in ["option:end-assault", "option:transfer", "option:remove"]
+            .into_iter()
+            .enumerate()
+        {
+            near(at("parts", part, 1), assault_rows_after(2) + row * i as f32);
+            near(
+                assault["opened"]["parts"][part][1].as_f64().unwrap() as f32,
+                assault_rows_after(0) + row * i as f32,
+            );
+            near(at("parts", part, 3), fig::ROW_H);
+        }
+        near(
+            at("text", "option:end-assault-label", 0),
+            fig::ROW_X + fig::LABEL[0],
+        );
+        near(
+            at("text", "option:end-assault-label", 1),
+            assault_rows_after(2) + fig::LABEL[1],
+        );
+        near(at("parts", "choice-commit", 1), fig::COMMIT[1]);
+    }
+
     /// The record holds every space Government could pay for: with all 13 paid and
     /// the longest record on each, the last row still ends above the commit.
     #[test]
     fn thirteen_recorded_spaces_leave_the_rows_above_the_commit() {
         let lines = 13 + 5;
         let pitch = fig::ROWS[2] - fig::ROWS[1];
-        let last = fig::ASSAULT_ROWS_TOP + fig::ASSAULT_RECORD[1] * lines as f32 + 2. * pitch;
+        let last = assault_rows_after(lines) + 2. * pitch;
         assert!(last + fig::ROW_H < fig::COMMIT[1], "{last}");
     }
 
     #[test]
     fn a_record_wraps_at_spaces_within_its_line_budget() {
-        assert_eq!(
-            wrap("Havana · paid 2 Resources · closed 1 Casino", 58)
-                .lines()
-                .count(),
-            1
-        );
+        let chars = fig::ASSAULT_RECORD_CHARS;
+        let short = "Santiago de Cuba · paid 2 Resources · returned 2 26July Guerrillas";
+        assert_eq!(wrap(short, chars), short);
+        // Had Directorio's Guerrillas in Havana been Active: 77 characters.
         let long = "Havana · paid 2 Resources · returned 2 Directorio Guerrillas, closed 1 Casino";
-        let wrapped = wrap(long, 58);
+        let wrapped = wrap(long, chars);
         assert_eq!(
             wrapped,
-            "Havana · paid 2 Resources · returned 2 Directorio\nGuerrillas, closed 1 Casino"
+            "Havana · paid 2 Resources · returned 2 Directorio Guerrillas, closed 1\nCasino"
         );
-        assert!(wrapped.lines().all(|l| l.chars().count() <= 58));
+        assert!(wrapped.lines().all(|l| l.chars().count() <= chars));
         assert_eq!(wrapped.replace('\n', " "), long);
     }
 

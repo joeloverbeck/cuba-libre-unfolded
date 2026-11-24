@@ -1897,12 +1897,7 @@ pub(super) fn draw(
     {
         popover.piece = None;
     }
-    let offered = |space: &str| {
-        matches!(
-            targeting.state(space),
-            Some(SpaceState::Selectable | SpaceState::Blocked)
-        )
-    };
+    let offered = |space: &str| targeting.state(space).is_some_and(SpaceState::choosable);
     if popover
         .pinned
         .as_ref()
@@ -2473,8 +2468,13 @@ mod tests {
                 .map(|r| (r.head.as_str(), r.kind.as_str(), r.mark, r.chosen))
                 .collect::<Vec<_>>(),
             [
-                ("Syndicate", "Assault", Mark::Selectable, true),
-                ("Directorio + Syndicate", "Assault", Mark::Selectable, false),
+                ("Target Syndicate", "Assault", Mark::Selectable, true),
+                (
+                    "Target Directorio + Syndicate",
+                    "Assault",
+                    Mark::Selectable,
+                    false
+                ),
                 ("Removes nothing", "Assault", Mark::Selectable, false),
             ]
         );
@@ -2561,7 +2561,7 @@ mod tests {
                 .map(|r| (r.head.as_str(), r.kind.as_str(), r.mark))
                 .collect::<Vec<_>>(),
             [
-                ("26July", "not yet", Mark::NotYet),
+                ("Target 26July", "not yet", Mark::NotYet),
                 ("Removes nothing", "not yet", Mark::NotYet),
             ]
         );
