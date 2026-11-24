@@ -363,6 +363,33 @@ fn native_assault_is_chosen_on_the_map_by_space_picks_alone() {
     assert_eq!(funded["observation"]["resources"], json!([4, 1, 5, 15]));
     assert_map(&funded, &states("selectable", "selectable", "no-effect"));
     shot(&mut app, "3-funded-selectable");
+    // Tab reaches the panel's steps and its commit, then the spaces by map state: the
+    // two selectable ones, then the no-effect ones last, each group in the map's
+    // order (#168, #169). The decision that follows clears the keyboard focus.
+    let order = super::map_keys::tab_round(&mut app);
+    let spaces: Vec<&str> = order
+        .iter()
+        .filter_map(|stop| stop.strip_prefix("space:"))
+        .collect();
+    let mut expected = vec!["havana", "santiago"];
+    expected.extend(OTHERS);
+    assert_eq!(spaces, expected, "{order:?}");
+    assert_eq!(
+        order[..5],
+        [
+            "option:end-assault",
+            "option:transfer",
+            "option:remove",
+            "choice-commit",
+            "space:havana"
+        ],
+        "{order:?}"
+    );
+    fs::write(
+        app.root.join("order-assault.json"),
+        json!(order).to_string(),
+    )
+    .unwrap();
     // Removal mode suspends the targeting too, as it does during Terror; Done
     // returns to the same map.
     pin(&mut app, "remove");

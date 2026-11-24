@@ -1466,9 +1466,10 @@ impl Game {
                 preview.next = after.next();
             }
         } else if self.card_18 && Self::assault_payment_space(action).is_some() {
-            // Paying for a space takes that space's other plans with it, and a balance
-            // short of the cost closes every other space's: the preview's notes say
-            // so once, where listing each plan would bury what the payment does.
+            // Paying for a space takes that space's other plans with it (R 3.1), and a
+            // balance short of the cost closes every other space's. Listing each plan
+            // would bury what the payment does, so the preview's notes state the
+            // shortfall once instead.
         } else {
             // Compare the Operation menus, so removal mode's own menu does not count:
             // a removal leaves the mode open, but what it changes is what the
