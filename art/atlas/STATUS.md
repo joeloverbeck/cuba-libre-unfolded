@@ -43,13 +43,13 @@ The rules authority owns the lines' words (`Game::assault_reason` in `src/game/a
 
 - Assault, blocked: "A Resource transfer opens it" (R 6.3.1, 1.5.1).
 - Assault, selectable (#180): "Can close 1 Casino", "Can remove 2 Guerrillas", or "Can remove up to 2 Guerrillas" where a short capacity can be divided (R 3.2.4).
-- Terror, selectable (#180): "Terror costs 1 Resource" (R 3.3.4), or "Kidnap can start here" (R 4.3.3).
+- Terror, selectable (#180): "Terror costs 1 Resource" (R 3.3.4), "Kidnap can start here" (R 4.3.3), or "Terror (1 Resource) or Kidnap".
 - Assault, unpayable (#180): "Government cannot pay 2 Resources".
 - Assault, no effect: "No enemy pieces (R 3.2.4)", or "1 Troop: Mountain needs 2".
 - Assault, paid in this Operation: "Assaulted · paid 2 Resources" (R 3.1).
 - Terror, owed after Kidnap: "Terror is owed here (R 4.3.3)".
 - Terror, unpayable while 26July's last Resource is kept for the owed Terror: "1 Resource is kept for Santiago" ([local rule policy](../../docs/local-rule-policies.md#owed-terror-after-an-early-kidnap)).
 
-Measured in Lato Regular at 17 with each emblem 0.9 em wide, the longest line the authority writes takes 232 of the 248 pixels; a unit test keeps every wording within that line's 33 characters. The native regression `native_space_tags_say_why_each_space_is_in_its_state` checks on the owner's display that each line it reaches is laid out inside its row.
+Measured in Lato Regular at 17 with each emblem 0.9 em wide, the longest reason takes 232 of the 248 pixels and the longest description of a selectable space (#180, "Can remove 2 Guerrillas, 1 Base") 237. Unit tests keep the reasons within 33 characters and the descriptions, which draw no emblem and run wider, within 31; a description that would be longer, or that covers several kinds of piece or plans that differ, gives the number alone: "Can affect 2 pieces". The native regression `native_space_tags_say_why_each_space_is_in_its_state` checks on the owner's display that each line it reaches is laid out inside its row.
 
 Authored with VectorCraft CLI 0.24.1 at 2 px per point: artboard 18 and its frame, a copy of the Uncontrolled row's frame (object 18). No other artboard changed.

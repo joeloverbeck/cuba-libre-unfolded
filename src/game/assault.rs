@@ -428,9 +428,10 @@ fn plural<'a>(count: u8, one: &'a str, many: &'a str) -> &'a str {
     if count == 1 { one } else { many }
 }
 
-/// The most characters a reason line takes (`art/atlas/STATUS.md`, "The open decision's
-/// line", holds the measurement).
-const LINE_CHARS: usize = 33;
+/// The most characters a description takes in the tag's line. Without an emblem words
+/// run wider than the reason lines (`art/atlas/STATUS.md`, "The open decision's line"),
+/// so the limit is lower than theirs.
+const OUTCOME_CHARS: usize = 31;
 
 /// What the most effective Assault in `space` would do (R 3.2.4, 1.4.5), as the space
 /// tag's line: the plan that affects the most pieces, or "up to" that many where several
@@ -468,7 +469,7 @@ fn best_outcome(space: &Space) -> String {
         _ => None,
     };
     described
-        .filter(|line| line.chars().count() <= LINE_CHARS)
+        .filter(|line| line.chars().count() <= OUTCOME_CHARS)
         .unwrap_or_else(|| {
             format!(
                 "Can affect {up_to}{most} {}",
@@ -499,7 +500,7 @@ impl Game {
     /// Why `space` is in its map state while the Assault is open (#170), from the
     /// plans offered there (`here`): what a paid space paid (R 3.1), what would open a
     /// space Government cannot pay for now, that nothing can pay for a space where a plan
-    /// would act (not involved), or why Assault would remove nothing there.
+    /// would act (unpayable), or why Assault would remove nothing there.
     /// A space where a supported plan affects a piece says what its best plan does.
     pub(super) fn assault_reason(&self, space: &Space, here: &[&Choice]) -> Option<String> {
         let assault = self.assault.as_ref()?;
@@ -806,7 +807,7 @@ mod reason_tests {
     /// The most characters a space tag's line has held. Every wording measured at most
     /// 232 of the line's 248 reference pixels in Lato Regular at 17 (`art/atlas/STATUS.md`,
     /// "The open decision's line"); this keeps a longer wording from slipping in unmeasured.
-    const REASON_CHARS: usize = LINE_CHARS;
+    const REASON_CHARS: usize = 33;
 
     fn space(terrain: Terrain, pieces: &[(Faction, Kind, State, u8)]) -> Space {
         Space {
@@ -969,7 +970,7 @@ mod reason_tests {
         ] {
             let line = best_outcome(&space(terrain, &pieces));
             assert_eq!(line, expected, "{pieces:?}");
-            assert!(line.chars().count() <= LINE_CHARS, "{line}");
+            assert!(line.chars().count() <= OUTCOME_CHARS, "{line}");
         }
         // The longest words the pieces allow are replaced by the number.
         let crowded = space(
@@ -982,7 +983,16 @@ mod reason_tests {
                 base(Faction::Directorio, 2),
             ],
         );
-        assert!(best_outcome(&crowded).chars().count() <= LINE_CHARS);
+        assert_eq!(best_outcome(&crowded), "Can affect up to 20 pieces");
+        let ten = space(
+            Terrain::Grassland,
+            &[
+                with(TROOPS, 20),
+                active(Faction::M26, 10),
+                base(Faction::M26, 2),
+            ],
+        );
+        assert_eq!(best_outcome(&ten), "Can affect 12 pieces");
     }
 
     /// Each kind of reason R 3.2.4 gives for an Assault that removes nothing, worked

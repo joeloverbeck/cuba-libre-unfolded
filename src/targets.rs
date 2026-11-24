@@ -17,7 +17,7 @@
 //!   cost: a resolved Terror, a Terror with no Underground Guerrilla, or a space already
 //!   paid in this Assault (R 3.1).
 //!
-//! In removal mode (#73) piece states replace them: each of the eecutor's groups is
+//! In removal mode (#73) piece states replace them: each of the executor's groups is
 //! removable, or protected by the owed Terror (accepted commitment policy, local),
 //! and spaces holding none of the executor's pieces are dimmed.
 use crate::{Choice, Kind, Observation, State, removal_group};

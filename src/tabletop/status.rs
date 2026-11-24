@@ -438,8 +438,6 @@ pub(super) fn draw(
 #[derive(Component)]
 pub(super) struct Reason;
 
-/// The tag's dynamic text style (STATUS.md): Lato at 17 reference pixels, 12 in from
-/// the row's left edge and at most 248 wide.
 /// The step of the sweep around a space, in reference pixels.
 const SWEEP: f32 = 8.;
 
@@ -522,6 +520,8 @@ fn place(
         .min_by(|a, b| leader_length(a).total_cmp(&leader_length(b)))
 }
 
+/// The tag's dynamic text style (STATUS.md): Lato at 17 reference pixels, 12 in from
+/// the row's left edge and at most 248 wide.
 const TEXT_SIZE: f32 = 17.;
 const TEXT_LEFT: f32 = 12.;
 const TEXT_WIDTH: f32 = 248.;
@@ -664,7 +664,8 @@ mod tests {
     }
 
     /// #170: the tag's line for each kind of reason is the rules authority's, drawn on
-    /// one row below the tag's other rows; every space outside a decision that offers spaces, keeps the tag it had.
+    /// one row below the tag's other rows; every space
+    /// outside a decision that offers spaces keeps the tag it had.
     #[test]
     fn the_tag_s_line_is_the_authority_s_reason_for_each_kind() {
         let terror = crate::terror_chosen(Game::opening_with_seed(2));

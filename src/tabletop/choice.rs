@@ -1778,8 +1778,8 @@ mod tests {
     }
 
     /// While map targeting is active, Tab goes from the panel's controls to the
-    /// selectable spaces, then the blocked ones, each group in the observation's space
-    /// order, then on to the stops that follow the panel (#168). An open space popover
+    /// spaces it reaches, by [`crate::targets::SpaceState::FOCUS_ORDER`], each group in
+    /// the observation's space order, then on to the stops that follow the panel (#168). An open space popover
     /// puts its rows and its button right after its space. Where targeting is
     /// suspended no space is a stop.
     #[test]

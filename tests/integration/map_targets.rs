@@ -377,6 +377,20 @@ fn each_space_s_tag_reason_during_terror_comes_from_the_authority() {
             Some("Terror costs 1 Resource")
         )
     );
+    // Terror first, then Kidnap: Santiago's Terror is resolved, and the space is still
+    // selectable because Kidnap may start there (R 4.3.3), which is what its line says.
+    let mut terror_first = crate::terror_chosen(Game::opening_with_seed(2));
+    give(&mut terror_first, Faction::Syndicate, 2);
+    choose(&mut terror_first, "terror:santiago");
+    assert_eq!(state(&terror_first, "santiago").0, SpaceState::Selectable);
+    assert_eq!(
+        reasons(&terror_first),
+        with(
+            &terror_first,
+            Some("Kidnap can start here"),
+            Some("Terror costs 1 Resource")
+        )
+    );
     // Removing Oriente's only Guerrilla leaves its Terror refused with no remedy:
     // the space is not involved, and its tag says why.
     choose(&mut game, "remove");

@@ -1316,16 +1316,17 @@ impl Game {
     /// cannot act there. Where a supported choice acts and nothing is owed, it says
     /// which choices those are and what Terror costs (#180).
     fn terror_reason(&self, space: &Space, here: &[&Choice]) -> Option<String> {
-        if self.terror_resolved.contains(&space.id) {
+        let supported = |terror: bool| {
+            here.iter()
+                .any(|c| c.supported && c.action().starts_with("terror:") == terror)
+        };
+        // Kidnap may follow the Terror it accompanies, so the space is still selectable.
+        if self.terror_resolved.contains(&space.id) && !supported(false) {
             return Some(format!("Terror here paid {}", resources(TERROR_COST)));
         }
         if self.owes_santiago() && space.id == KIDNAP_SPACE {
             return Some("Terror is owed here (R 4.3.3)".into());
         }
-        let supported = |terror: bool| {
-            here.iter()
-                .any(|c| c.supported && c.action().starts_with("terror:") == terror)
-        };
         match (supported(true), supported(false)) {
             (true, true) => {
                 return Some(format!("Terror ({}) or Kidnap", resources(TERROR_COST)));

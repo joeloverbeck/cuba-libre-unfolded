@@ -256,6 +256,13 @@ fn native_space_tags_say_why_each_space_is_in_its_state() {
         Some("Can remove 2 Guerrillas"),
         "assault-santiago-selectable",
     );
+    hover(
+        &mut app,
+        "la-habana",
+        "no-effect",
+        Some("No Troops (R 3.2.4)"),
+        "assault-la-habana-no-effect",
+    );
     app.choose("assault:santiago:26july");
     hover(
         &mut app,
@@ -265,6 +272,21 @@ fn native_space_tags_say_why_each_space_is_in_its_state() {
         "assault-santiago-paid",
     );
     app.quit();
+
+    // At 3:2 and 21:9 each tag still stands off every area and beside its space.
+    for size in ["2160x1440", "3440x1440"] {
+        app.launch_size(size);
+        for space in ["havana", "la-habana", "santiago", "ec-oriente-sierra"] {
+            app.point("area:propaganda");
+            let view = app.point(&format!("space:{space}"));
+            let status = view["table"]["status"].clone();
+            assert_eq!(status["space"], space, "{size}");
+            assert!(!status["reason"].is_null(), "{size} {space}");
+            assert_status_geometry(&status);
+            app.capture(&format!("assault-{space}-{size}"));
+        }
+        app.quit();
+    }
 
     // #180: twelve spaces paid with every faction's Resources, and Havana left with 1
     // Resource to pay 2. Its Casino would close, so it opens to say why it cannot.
