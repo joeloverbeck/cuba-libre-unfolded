@@ -11,13 +11,14 @@ use super::*;
 use crate::Observation;
 use bevy::ui::widget::NodeImageMode;
 
-/// The mark, and the light form for the modal's amount field: 24×24 reference pixels,
-/// exported at 3×.
-const FULL: &str = "atlas-focus-mark.png";
-const LIGHT: &str = "atlas-focus-mark-field.png";
-/// The plates' corner slices and how far they reach past the control, in reference
-/// pixels. Two option rows are 4.1 apart.
-const CORNER: f32 = 9.;
+/// A plate and its corner slice in reference pixels, exported at 3×: the mark, its
+/// light form for the modal's amount field, and its cut for the round segments of the
+/// modal's direction toggle.
+const FULL: (&str, f32) = ("atlas-focus-mark.png", 9.);
+const LIGHT: (&str, f32) = ("atlas-focus-mark-field.png", 9.);
+const PILL: (&str, f32) = ("atlas-focus-mark-pill.png", 19.);
+/// How far the plates reach past the control, in reference pixels. Two option rows are
+/// 4.1 apart.
 const OUTSET: f32 = 4.;
 /// A popover's row is as wide as its card, so its mark lies inside it, this far in.
 const ROW_INSET: f32 = 1.;
@@ -133,14 +134,19 @@ pub(super) fn draw(
             Action::Row(_) => px(ROW_INSET * s),
             _ => px(-OUTSET * s),
         };
+        let (plate, corner) = match control.action {
+            _ if mark.light => LIGHT,
+            Action::Transfer(transfer::Input::Direction(_)) => PILL,
+            _ => FULL,
+        };
         commands.spawn((
-            ImageNode::new(art.images[if mark.light { LIGHT } else { FULL }].clone()).with_mode(
-                NodeImageMode::Sliced(TextureSlicer {
-                    border: BorderRect::all(CORNER * 3.),
+            ImageNode::new(art.images[plate].clone()).with_mode(NodeImageMode::Sliced(
+                TextureSlicer {
+                    border: BorderRect::all(corner * 3.),
                     max_corner_scale: s / 3.,
                     ..default()
-                }),
-            ),
+                },
+            )),
             Node {
                 position_type: PositionType::Absolute,
                 left: edge,
