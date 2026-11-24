@@ -68,6 +68,16 @@ pub(super) mod plate {
     /// top, right, bottom), and it is nine-sliced 40 px in, clear of the shadow's corners.
     pub const CARD: (&str, Option<f32>, [f32; 4]) =
         ("atlas-popover-card.png", Some(40.), [15., 12., 15., 18.]);
+    /// The notice slip's card (#174): the same plate on a 36 px box, nine-sliced 30 px
+    /// in. Bevy scales a nine-slice's corners by at most its node's size over its image's,
+    /// so `CARD`'s 130 px canvas would shrink the corners of a card shorter than 100 px
+    /// and draw its stroke outside the card; this canvas is 66 px, under a one-line
+    /// slip's 70. Its corner slices are `CARD`'s, pixel for pixel.
+    pub const SLIP_CARD: (&str, Option<f32>, [f32; 4]) = (
+        "atlas-popover-card-slip.png",
+        Some(30.),
+        [15., 12., 15., 18.],
+    );
     /// The committing button: `action/primary`, radius 2.
     pub const PRIMARY: (&str, Option<f32>, [f32; 4]) =
         ("atlas-popover-primary.png", Some(6.), [0.; 4]);
@@ -2144,6 +2154,7 @@ mod tests {
                 .unwrap();
         let sliced = [
             plate::CARD,
+            plate::SLIP_CARD,
             plate::PRIMARY,
             plate::CANCEL,
             plate::CHIP,

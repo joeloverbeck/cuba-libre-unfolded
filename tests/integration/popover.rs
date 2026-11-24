@@ -20,7 +20,7 @@ fn size(bytes: &[u8]) -> (u32, u32) {
 fn every_popover_plate_is_a_recorded_export_admitted_by_hash() {
     let record = record();
     let plates = record["plates"].as_object().unwrap();
-    assert_eq!(plates.len(), 10);
+    assert_eq!(plates.len(), 11);
     assert_eq!(assets::POPOVER_MANIFEST.lines().count(), plates.len());
     for (name, plate) in plates {
         let path = format!("art/atlas/{name}.png");
@@ -45,9 +45,15 @@ fn every_popover_plate_is_a_recorded_export_admitted_by_hash() {
             "{name}"
         );
     }
-    // Only the card carries a margin: its drop shadow, `ink` at 20%, (0, 3), blur 10.
-    let card = &plates["atlas-popover-card"]["outset"];
-    assert_eq!(card, &serde_json::json!([15.0, 12.0, 15.0, 18.0]));
+    // Only the cards carry a margin: their drop shadow, `ink` at 20%, (0, 3), blur 10.
+    for card in ["atlas-popover-card", "atlas-popover-card-slip"] {
+        let outset = &plates[card]["outset"];
+        assert_eq!(
+            outset,
+            &serde_json::json!([15.0, 12.0, 15.0, 18.0]),
+            "{card}"
+        );
+    }
 }
 
 #[test]

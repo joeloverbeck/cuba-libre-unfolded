@@ -154,7 +154,7 @@ pub(super) fn draw(
         ))
         .observe(click)
         .id();
-    popover::plate(commands, art, card, popover::plate::CARD, s);
+    popover::plate(commands, art, card, popover::plate::SLIP_CARD, s);
     // The popover's `action/primary` rule, stretched across the card.
     commands.spawn((
         ImageNode::new(art.images[popover::plate::RULE_PRIMARY].clone())
