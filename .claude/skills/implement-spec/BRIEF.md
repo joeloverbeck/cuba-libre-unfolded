@@ -24,9 +24,9 @@ Main checkout: `<absolute path>` (stays on `main`; edit tracked files and switch
 
 ## Private inputs and evidence
 
-- Private card directory: `~/.local/share/cuba-libre-unfolded/cards`, read-only. Native runs: `CUBA_TEST_CARDS="$HOME/.local/share/cuba-libre-unfolded/cards" scripts/heavy scripts/native <filter>`.
+- Private card directory: `~/.local/share/cuba-libre-unfolded/cards`, read-only. Native runs: `CUBA_TEST_CARDS="$HOME/.local/share/cuba-libre-unfolded/cards" scripts/heavy scripts/native <filter>`; the whole suite runs in shards, in the foreground (`docs/agents/parallel-work.md`, "Builds").
 - The owner's saves in `~/.local/share/cuba-libre-unfolded/saves/` are read-only: copy one into your run directory and use the copy.
-- Evidence goes in a fresh run directory under `local/verification/issue-<N>/<run>/` in the main checkout. Existing evidence stays as it is.
+- Evidence goes in a fresh run directory under `local/verification/issue-<N>/<run>/` in the main checkout, except native captures, which `scripts/native` places itself. Existing evidence stays as it is.
 - `mudsong` is private and this repository is public: commits, issue comments and done notes give only its revision and disposition (foundation 3, "Before every feature"). `exploration.md` may hold its source pointers and stays local; `inspection.md` is the published inspection.
 - Card faces, the card back and unredacted captures stay out of Git.
 

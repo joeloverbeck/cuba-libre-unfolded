@@ -12,6 +12,13 @@ Both axes run as **parallel sub-agents** so they don't pollute each other's cont
 
 The issue tracker should have been provided to you. If not, tell the user to run `/setup-matt-pocock-skills`.
 
+## What a claim rests on
+
+Both prompts carry these two rules, in these words:
+
+- **Checked.** Beside each thing reported clean, name the command run or the text read. List what was not run or read as not checked.
+- **Unreachable.** "No position reaches this" needs a search or a worked derivation over the legal decisions. Without one, write "not found".
+
 ## Process
 
 ### 1. Pin the fixed point

@@ -11,6 +11,30 @@ else
   echo "working tree: $(wc -l <<<"$changes") changed path(s) differ from the revision"
 fi
 
+# From a worktree, evidence goes to the main checkout: `git worktree remove` deletes the
+# worktree's own ignored files. A set CUBA_NATIVE_EVIDENCE wins.
+common=$(dirname -- "$(git rev-parse --path-format=absolute --git-common-dir)")
+if [[ -z ${CUBA_NATIVE_EVIDENCE:-} && $common != "$(git rev-parse --show-toplevel)" ]]; then
+  branch=$(git branch --show-current)
+  branch=${branch:-detached}
+  run=$(git rev-parse --short HEAD)-$(date +%Y%m%d-%H%M%S)
+  export CUBA_NATIVE_EVIDENCE="$common/local/verification/native/${branch//\//-}/$run"
+fi
+
+# `--shard K/N` runs the Kth of N parts, so each fits a foreground command; the library
+# regressions run with the first.
+shard=
+if [[ ${1:-} == --shard ]]; then
+  shard=${2:-}
+  if [[ ! $shard =~ ^([1-9][0-9]?)/([1-9][0-9]?)$ ]] || ((BASH_REMATCH[1] > BASH_REMATCH[2])); then
+    echo "--shard needs K/N, such as 1/3" >&2
+    exit 2
+  fi
+  part=${BASH_REMATCH[1]} parts=${BASH_REMATCH[2]}
+  shift 2
+  if (($#)); then echo "--shard takes no other argument" >&2; exit 2; fi
+fi
+
 # Keep the original libtest arguments for discovery and execution. Extract just
 # the positive name filters so one valid filter cannot mask a misspelled one.
 args=("$@")
@@ -89,14 +113,32 @@ if "$list"; then
   exec "${cargo_test[@]}" --test native --lib -- "${harness[@]}" "${args[@]}"
 fi
 
+if [[ -n $shard ]]; then
+  listing=$("${cargo_test[@]}" --test native -- "${harness[@]}" --list)
+  mapfile -t names < <(sed -n 's/: test$//p' <<<"$listing" | awk -v k="$part" -v n="$parts" 'NR % n == k % n')
+  if ((${#names[@]} == 0)); then echo "shard $shard holds no test" >&2; exit 2; fi
+  args=(--exact "${names[@]}")
+  echo "shard $shard: ${#names[@]} tests"
+fi
+
 : "${CUBA_TEST_CARDS:?set CUBA_TEST_CARDS to the selected card directory (README, Where files live)}"
+if [[ -n ${CUBA_NATIVE_EVIDENCE:-} ]]; then echo "evidence: $CUBA_NATIVE_EVIDENCE"; fi
 failed=()
 echo "== tests/native.rs"
 "${cargo_test[@]}" --test native -- "${harness[@]}" "${args[@]}" || failed+=("tests/native.rs")
-echo "== library (in-process)"
-"${cargo_test[@]}" --lib -- "${harness[@]}" "${args[@]}" || failed+=("library")
+if [[ -z $shard ]]; then
+  echo "== library (in-process)"
+  "${cargo_test[@]}" --lib -- "${harness[@]}" "${args[@]}" || failed+=("library")
+elif ((part == 1)); then
+  echo "== library (in-process)"
+  "${cargo_test[@]}" --lib -- "${harness[@]}" || failed+=("library")
+fi
 if ((${#failed[@]})); then
   echo "native regressions failed in: ${failed[*]}" >&2
   exit 1
 fi
-echo "native regressions: all passed"
+if [[ -n $shard ]]; then
+  echo "native regressions: shard $shard passed; the suite needs all $parts"
+else
+  echo "native regressions: all passed"
+fi
