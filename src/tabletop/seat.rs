@@ -302,6 +302,13 @@ impl SeatGame for Table {
             .and_then(Camera::logical_viewport_rect)
             .map(|r| [r.min.x, r.min.y, r.max.x, r.max.y]);
         let status = world.query::<&status::Shown>().iter(world).next().cloned();
+        // The space tag's drawn texts, the contribution and the open decision's line
+        // (#170), with their laid-out bounds: a line that wrapped is twice as tall.
+        let status_text = world
+            .query_filtered::<(&emblems::Plain, &ComputedNode, &UiGlobalTransform, Has<status::Reason>), With<status::Tag>>()
+            .iter(world)
+            .map(|(text, node, at, reason)| json!({"text":text.0,"reason":reason,"bounds":logical_bounds(node, at)}))
+            .collect::<Vec<_>>();
         let victory = world.query::<&victory::Shown>().iter(world).next().cloned();
         let victory_count = world.query::<&victory::Shown>().iter(world).count();
         let victory_text = world
@@ -428,6 +435,7 @@ impl SeatGame for Table {
         let water_frame = world.get_resource::<Water>().map(|water| water.frame);
         // One more key would pass the macro's recursion limit, so the piles join after.
         let mut table = json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"top":top,"briefing":briefing,"choice":choice::observe(ui),"choice_parts":choice_parts,"eligibility":eligibility,"map_targets":map_targets,"highlights":highlights,"removal":removal,"markers":markers,"popover":popover,"transfer":transfer,"top_text":top_text,"inline_text":inline_text,"counts":counts,"top_parts":top_parts,"water_frame":water_frame,"terror":terror,"die":die,"settled":pending.is_empty(),"pending":pending,"card":card,"main_view":main_view,"hover":ui.hover.visible(),"notice":ui.notice.text,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"});
+        table["status_text"] = json!(status_text);
         table["piles"] = piles;
         table["pile_tag"] = pile_tag;
         table["available_forces"] = available_forces;

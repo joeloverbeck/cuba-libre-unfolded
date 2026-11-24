@@ -355,6 +355,50 @@ fn capacity(space: &Space) -> (u8, String) {
     (limit, format!("{arithmetic} (R 3.2.4)."))
 }
 
+/// Why Assault would remove or close nothing in `space`, as one line of the space's
+/// tag (#170), or `None` where some plan would affect a piece. In order: no enemy
+/// piece to target; no cube that counts (R 3.2.4: Troops; Police only in a City or
+/// EC; in Mountain 1 piece for every 2 Troops); no piece the cubes can reach (an
+/// Underground Guerrilla survives and keeps its faction's Bases, "Bases last", and a
+/// closed Casino stays closed, R 1.4.5). The words are shortened from the plan's
+/// explanation to fit one line of the tag.
+fn removes_nothing(space: &Space) -> Option<String> {
+    let targets: Vec<_> = ENEMIES
+        .into_iter()
+        .map(|faction| Target::in_space(space, faction))
+        .filter(Target::present)
+        .collect();
+    if targets.is_empty() {
+        return Some("No enemy pieces (R 3.2.4)".into());
+    }
+    if capacity(space).0 == 0 {
+        let troops = count(space, Faction::Government, Kind::Troops, State::Ordinary);
+        let police = count(space, Faction::Government, Kind::Police, State::Ordinary);
+        return Some(
+            match space.terrain {
+                Terrain::City | Terrain::EconomicCenter => "No Troops or Police (R 3.2.4)",
+                Terrain::Mountain if troops == 1 => "1 Troop: Mountain needs 2",
+                _ if police > 0 => "Police count only in Cities, ECs",
+                _ => "No Troops (R 3.2.4)",
+            }
+            .into(),
+        );
+    }
+    if targets.iter().any(|t| t.available() > 0) {
+        return None;
+    }
+    Some(
+        if targets.iter().any(|t| t.underground > 0 && t.bases > 0) {
+            "No Active Guerrilla · Bases last"
+        } else if targets.iter().all(|t| t.underground == 0) {
+            "Casinos stay closed (R 1.4.5)"
+        } else {
+            "No Active Guerrilla (R 3.2.4)"
+        }
+        .into(),
+    )
+}
+
 fn plural<'a>(count: u8, one: &'a str, many: &'a str) -> &'a str {
     if count == 1 { one } else { many }
 }
@@ -370,6 +414,34 @@ impl Game {
         self.assault
             .as_ref()
             .map_or_else(Vec::new, |assault| assault.paid.clone())
+    }
+
+    /// Why `space` is in its map state while the Assault is open (#170), from the
+    /// plans offered there (`here`): what a paid space paid (R 3.1), what would open a
+    /// space Government cannot pay for now, or why Assault would remove nothing there.
+    /// A space where a supported plan affects a piece needs no reason.
+    pub(super) fn assault_reason(&self, space: &Space, here: &[&Choice]) -> Option<String> {
+        let assault = self.assault.as_ref()?;
+        if let Some(paid) = assault.paid.iter().find(|paid| paid.space == space.id) {
+            return Some(format!("Assaulted · paid {}", resources(paid.paid)));
+        }
+        let effective: Vec<_> = here
+            .iter()
+            .filter(|c| c.site.as_ref().is_some_and(|site| site.effect))
+            .collect();
+        if effective.iter().any(|c| c.supported) {
+            return None;
+        }
+        if let Some(blocked) = effective.iter().find(|c| !c.remedies.is_empty()) {
+            return Some(remedy_line(&blocked.remedies));
+        }
+        if !effective.is_empty() {
+            return Some(format!(
+                "Government cannot pay {}",
+                resources(UsAlliance::Firm.coin_cost())
+            ));
+        }
+        removes_nothing(space)
     }
 
     /// What the preview of paying for `action` states besides its computed changes:
@@ -487,7 +559,7 @@ impl Game {
                         .offer(&plan.action, plan.label.as_str(), funded, explanation)
                         .at(&space.id, plan.effect());
                     if transfer_helps {
-                        choice.remedies.push("Request a Resource transfer".to_owned());
+                        choice.remedies.push(TRANSFER_REMEDY.to_owned());
                     }
                     choice
                 })
@@ -639,4 +711,124 @@ fn count(space: &Space, faction: Faction, kind: Kind, state: State) -> u8 {
         .iter()
         .find(|p| p.faction == faction && p.kind == kind && p.state == state)
         .map_or(0, |p| p.count)
+}
+
+#[cfg(test)]
+mod reason_tests {
+    use super::*;
+
+    /// The most characters a space tag's line has held. Every wording measured at most
+    /// 232 of the line's 248 reference pixels in Lato Regular at 17 (#170's done note);
+    /// this keeps a longer wording from slipping in unmeasured.
+    const REASON_CHARS: usize = 33;
+
+    fn space(terrain: Terrain, pieces: &[(Faction, Kind, State, u8)]) -> Space {
+        Space {
+            id: "probe".into(),
+            name: "Probe".into(),
+            terrain,
+            population: 1,
+            economy: 0,
+            support: 0,
+            pieces: pieces
+                .iter()
+                .map(|&(faction, kind, state, count)| Group {
+                    faction,
+                    kind,
+                    state,
+                    count,
+                })
+                .collect(),
+            terror: 0,
+        }
+    }
+
+    const TROOPS: (Faction, Kind, State) = (Faction::Government, Kind::Troops, State::Ordinary);
+    const POLICE: (Faction, Kind, State) = (Faction::Government, Kind::Police, State::Ordinary);
+
+    fn with(group: (Faction, Kind, State), count: u8) -> (Faction, Kind, State, u8) {
+        (group.0, group.1, group.2, count)
+    }
+
+    /// Each kind of reason R 3.2.4 gives for an Assault that removes nothing, worked
+    /// by hand from the rule on a position built for it.
+    #[test]
+    fn assault_says_why_it_would_remove_nothing_for_each_kind_of_reason() {
+        let m26 = |state, count| (Faction::M26, Kind::Guerrilla, state, count);
+        let base = (Faction::M26, Kind::Base, State::Ordinary, 1);
+        let closed = (Faction::Syndicate, Kind::Casino, State::Closed, 1);
+        for (terrain, pieces, expected) in [
+            // No enemy piece: nothing to target, whatever the cubes.
+            (
+                Terrain::City,
+                vec![with(TROOPS, 3)],
+                Some("No enemy pieces (R 3.2.4)"),
+            ),
+            // A City or EC counts Troops and Police; with neither, 0.
+            (
+                Terrain::EconomicCenter,
+                vec![m26(State::Active, 1)],
+                Some("No Troops or Police (R 3.2.4)"),
+            ),
+            // A Forest counts Troops only: 0 Troops, and its Police do not count.
+            (
+                Terrain::Forest,
+                vec![with(POLICE, 2), m26(State::Active, 1)],
+                Some("Police count only in Cities, ECs"),
+            ),
+            (
+                Terrain::Grassland,
+                vec![m26(State::Active, 1)],
+                Some("No Troops (R 3.2.4)"),
+            ),
+            // Mountain: 1 Troop ÷ 2 = 0.
+            (
+                Terrain::Mountain,
+                vec![with(TROOPS, 1), m26(State::Active, 1)],
+                Some("1 Troop: Mountain needs 2"),
+            ),
+            // Capacity 2, but the only Guerrilla is Underground.
+            (
+                Terrain::Forest,
+                vec![with(TROOPS, 2), m26(State::Underground, 1)],
+                Some("No Active Guerrilla (R 3.2.4)"),
+            ),
+            // Capacity 2; the Underground Guerrilla keeps its Base ("Bases last").
+            (
+                Terrain::Forest,
+                vec![with(TROOPS, 2), m26(State::Underground, 1), base],
+                Some("No Active Guerrilla · Bases last"),
+            ),
+            // Capacity 1; a closed Casino stays closed (R 1.4.5).
+            (
+                Terrain::City,
+                vec![with(POLICE, 1), closed],
+                Some("Casinos stay closed (R 1.4.5)"),
+            ),
+            // Mountain: 2 Troops ÷ 2 = 1, and an Active Guerrilla: a plan removes it.
+            (
+                Terrain::Mountain,
+                vec![with(TROOPS, 2), m26(State::Active, 1)],
+                None,
+            ),
+            // With no Guerrilla left, the Base is removed.
+            (Terrain::Forest, vec![with(TROOPS, 1), base], None),
+        ] {
+            let probe = space(terrain, &pieces);
+            assert_eq!(
+                removes_nothing(&probe).as_deref(),
+                expected,
+                "{terrain:?} {pieces:?}"
+            );
+            // The reason and the plans agree: a reason exactly where no plan affects a piece.
+            assert_eq!(
+                expected.is_some(),
+                plans(&probe).iter().all(|plan| !plan.effect()),
+                "{terrain:?} {pieces:?}"
+            );
+            if let Some(line) = expected {
+                assert!(line.chars().count() <= REASON_CHARS, "{line}");
+            }
+        }
+    }
 }

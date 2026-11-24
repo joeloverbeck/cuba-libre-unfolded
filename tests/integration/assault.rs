@@ -869,3 +869,93 @@ fn each_paid_space_is_recorded_in_the_order_paid_with_what_it_removed_or_closed(
     choose(&mut game, "end-assault");
     assert_eq!(game.observe().assault_paid, view.assault_paid);
 }
+
+/// The reason the rules authority gives for each space, in the map's order, or `None`.
+fn reasons(view: &Observation) -> Vec<(String, Option<String>)> {
+    view.spaces
+        .iter()
+        .map(|space| {
+            let reason = view
+                .space_reasons
+                .iter()
+                .find(|r| r.space == space.id)
+                .map(|r| r.reason.clone());
+            (space.id.clone(), reason)
+        })
+        .collect()
+}
+
+/// The 13 spaces' expected reasons, in the map's order: Havana and Santiago, then the
+/// 11 spaces where Assault would remove nothing.
+fn expected_reasons(havana: Option<&str>, santiago: Option<&str>) -> Vec<(String, Option<String>)> {
+    // Worked from R 3.2.4 on the pieces `quiet` lists, independently of the plans:
+    // - no enemy piece in Camagüey City (1 Troops, 2 Police), Matanzas, Las Villas
+    //   (3 Troops) or any of the three Economic Centers;
+    // - no Troops in Pinar del Río (Syndicate's open Casino) and La Habana (Forest and
+    //   Grassland count Troops only, and no Police stands there either), Camagüey
+    //   (Directorio's Underground Guerrilla), Oriente and Sierra Maestra (26July's
+    //   pieces; Sierra Maestra is Mountain, where 0 Troops ÷ 2 = 0).
+    let enemy = Some("No enemy pieces (R 3.2.4)");
+    let troops = Some("No Troops (R 3.2.4)");
+    [
+        ("havana", havana),
+        ("camaguey-city", enemy),
+        ("santiago", santiago),
+        ("pinar-del-rio", troops),
+        ("la-habana", troops),
+        ("matanzas", enemy),
+        ("las-villas", enemy),
+        ("camaguey-province", troops),
+        ("oriente", troops),
+        ("sierra-maestra", troops),
+        ("ec-pinar-la-habana", enemy),
+        ("ec-las-villas-camaguey", enemy),
+        ("ec-oriente-sierra", enemy),
+    ]
+    .into_iter()
+    .map(|(space, reason)| (space.to_owned(), reason.map(str::to_owned)))
+    .collect()
+}
+
+/// #170: the space tag's line is the rules authority's reason for each space's state,
+/// checked for all 13 spaces in each of the handoff's Assault positions. A selectable
+/// space needs none; a blocked one names the Resource transfer that would open it
+/// (R 6.3.1, 1.5.1); a paid one says what it paid (R 3.1); every other one says why
+/// R 3.2.4 would remove nothing there.
+#[test]
+fn each_of_the_thirteen_spaces_has_the_reason_r_3_2_4_gives_its_state() {
+    // The unshaded Event's free Rally and the shaded Event leave the same reasons:
+    // only 26July's pieces in Oriente and Sierra Maestra differ, and neither holds a
+    // Troop. Government has 5 Resources, so Havana and Santiago are selectable.
+    for event in [&RALLY[..], &SHADED[..]] {
+        let view = assault_after(4, event).observe();
+        assert_eq!(reasons(&view), expected_reasons(None, None), "{event:?}");
+    }
+    // With 1 Resource Government cannot pay 2, and 26July, Directorio and Syndicate
+    // have Resources to give.
+    let transfer = Some("A Resource transfer opens it");
+    let mut short = assault_after(0, &SHADED);
+    assert_eq!(
+        reasons(&short.observe()),
+        expected_reasons(transfer, transfer)
+    );
+    // No targeting while the transfer is under way, so no reason either.
+    choose(&mut short, "transfer");
+    assert!(short.observe().space_reasons.is_empty());
+    choose(&mut short, "ask:1:1");
+    choose(&mut short, "authorize:1");
+    assert_eq!(reasons(&short.observe()), expected_reasons(None, None));
+    // Santiago paid 2 (Firm, R 6.3.1); Government is at 0 again.
+    choose(&mut short, "assault:santiago:26july");
+    assert_eq!(
+        reasons(&short.observe()),
+        expected_reasons(transfer, Some("Assaulted · paid 2 Resources"))
+    );
+    // Once the Assault is finished, no choice acts on a space.
+    choose(&mut short, "end-assault");
+    assert!(short.observe().space_reasons.is_empty());
+    // Every line fits the tag's one line (#170's measured budget).
+    for (_, reason) in reasons(&assault_after(0, &SHADED).observe()) {
+        assert!(reason.is_none_or(|r| r.chars().count() <= 33));
+    }
+}
