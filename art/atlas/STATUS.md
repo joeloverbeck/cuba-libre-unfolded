@@ -39,19 +39,14 @@ While a decision offers choices on the map's spaces (Terror and Assault in this 
 
 The line is the contribution's text style: Lato Regular at 17, the Atlas desk text colour, left x12 and at most 248 wide. It sits on its own row, 4 px below the rows above: at y172 in a city's or province's tag, which becomes 272×208, and at y40 in an Economic center's, which becomes 272×76. The row is `atlas-status-reason.png`, the Control row's frame with no mark or label, copied from the Uncontrolled artboard; the text's top is 8 px into the row, which centres one line. Faction names in the line are drawn as their emblems, as in the contribution. The tag is placed with its new height by the same rules, so it keeps off the hovered region, its pieces and every area.
 
-The lines, each shortened from the authority's explanation to fit one line:
+The rules authority owns the lines' words (`Game::assault_reason` in `src/game/assault.rs` and `Game::terror_reason` in `src/game.rs`), each shortened from its explanation to fit one line; this specification owns only how a line is drawn. For example:
 
-| Decision | State | Line | Rule |
-|---|---|---|---|
-| Assault | blocked | A Resource transfer opens it | R 6.3.1, 1.5.1 |
-| Assault | not involved: plans that would remove or close a piece, and nothing can pay | Government cannot pay 2 Resources | R 6.3.1 |
-| Assault | no effect | No enemy pieces (R 3.2.4) · No Troops or Police (R 3.2.4) (City, EC) · No Troops (R 3.2.4) · Police count only in Cities, ECs · 1 Troop: Mountain needs 2 · No Active Guerrilla (R 3.2.4) · No Active Guerrilla · Bases last · Casinos stay closed (R 1.4.5) | R 3.2.4, 1.4.5 |
-| Assault | paid in this Operation | Assaulted · paid 2 Resources | R 3.1 |
-| Terror | owed after Kidnap | Terror is owed here (R 4.3.3) | R 4.3.3 |
-| Terror | resolved | Terror here paid 1 Resource | R 3.3.4 |
-| Terror | blocked | A Resource transfer opens it (Kidnap here first opens it, Kidnap or a transfer opens it, where Kidnap is the remedy) | R 3.3.4, 4.3.3 |
-| Terror | not involved | No Underground 26July Guerrilla; or, with one there but nothing to pay for it, 26July cannot pay 1 Resource, or 1 Resource is kept for Santiago | R 3.3.4; accepted commitment policy |
+- Assault, blocked: "A Resource transfer opens it" (R 6.3.1, 1.5.1).
+- Assault, no effect: "No enemy pieces (R 3.2.4)", or "1 Troop: Mountain needs 2".
+- Assault, paid in this Operation: "Assaulted · paid 2 Resources" (R 3.1).
+- Terror, owed after Kidnap: "Terror is owed here (R 4.3.3)".
+- Terror, not involved while 26July's last Resource is kept for the owed Terror: "1 Resource is kept for Santiago" ([local rule policy](../../docs/local-rule-policies.md#owed-terror-after-an-early-kidnap)).
 
-Measured in Lato Regular at 17 with each emblem 0.9 em wide, the longest line takes 232 of the 248 pixels. The native regression `native_space_tags_say_why_each_space_is_in_its_state` checks on the owner's display that each line it reaches is laid out inside its row.
+Measured in Lato Regular at 17 with each emblem 0.9 em wide, the longest line the authority writes takes 232 of the 248 pixels; a unit test keeps every wording within that line's 33 characters. The native regression `native_space_tags_say_why_each_space_is_in_its_state` checks on the owner's display that each line it reaches is laid out inside its row.
 
 Authored with VectorCraft CLI 0.24.1 at 2 px per point: artboard 18 and its frame, a copy of the Uncontrolled row's frame (object 18). No other artboard changed.
