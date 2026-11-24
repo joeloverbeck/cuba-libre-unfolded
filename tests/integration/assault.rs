@@ -199,7 +199,13 @@ fn havana_assault_closes_the_targeted_casino_without_returning_it() {
         ]
     );
     let both = havana[1];
-    assert!(both.explanation.contains("Underground Guerrillas survive"));
+    assert!(
+        both.explanation.contains(
+            "Directorio: 0 Active, 2 Underground. Assault cannot remove its Underground Guerrillas until they are Activated (R 3.2.4)."
+        ),
+        "{}",
+        both.explanation
+    );
     let nothing = havana[2];
     let zero = nothing.preview.as_ref().unwrap();
     assert!(zero.flips.is_empty() && zero.removed.is_empty());

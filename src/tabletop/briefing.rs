@@ -8,6 +8,7 @@
 //! no province and compute no space's result, which the map popover previews (#72).
 //! Pass keeps its exact numbers, from the rules authority's preview, since it involves
 //! no space. Current Resources come from the observation; the wording only places them.
+use super::emblems::{self, Naming, Segment};
 use crate::game::CARD_17_UNSHADED;
 use crate::{
     CARD_17_SHADED, Choice, Faction, Flip, KidnapStakes, Observation, Preview, TERROR_COST,
@@ -583,14 +584,48 @@ pub(super) fn lines(text: &str, width: usize) -> Vec<String> {
         .collect()
 }
 
+/// An emblem's width in characters of the text it stands in: 0.9 em high and about as
+/// wide (`emblems::HEIGHT`), beside Lato's 0.43 em average character.
+const EMBLEM_CHARS: usize = 2;
+
+/// [`lines`] broken by what is drawn, for text whose first mention of a faction draws
+/// its name and emblem and whose later ones draw the emblem alone (#60). `seen` holds
+/// the factions already mentioned in the briefing's earlier texts.
+pub(super) fn drawn_lines(text: &str, width: usize, seen: &[bool; 4]) -> Vec<String> {
+    let mut seen = *seen;
+    text.split('\n')
+        .flat_map(|part| {
+            wrap_by(part, width, |word| {
+                emblems::segments_after(word, Naming::FirstMention, false, &mut seen)
+                    .iter()
+                    .map(|segment| match segment {
+                        Segment::Words(words) => words.chars().count(),
+                        Segment::Emblem(_) => EMBLEM_CHARS,
+                    })
+                    .sum()
+            })
+        })
+        .collect()
+}
+
 /// Breaks a sentence into lines of at most `width` characters at spaces.
 pub(super) fn wrap(sentence: &str, width: usize) -> Vec<String> {
+    wrap_by(sentence, width, |word| word.chars().count())
+}
+
+/// Breaks a sentence at spaces into lines whose words, as `measure` counts each in
+/// turn, and the spaces between them come to at most `width`.
+fn wrap_by(sentence: &str, width: usize, mut measure: impl FnMut(&str) -> usize) -> Vec<String> {
     let mut lines = vec![];
     let mut line = String::new();
+    let mut used = 0;
     for word in sentence.split_whitespace() {
-        if !line.is_empty() && line.chars().count() + 1 + word.chars().count() > width {
+        let size = measure(word);
+        if !line.is_empty() && used + 1 + size > width {
             lines.push(std::mem::take(&mut line));
+            used = 0;
         }
+        used += size + usize::from(!line.is_empty());
         if !line.is_empty() {
             line.push(' ');
         }
@@ -878,5 +913,35 @@ mod tests {
                 assert!(b.title.chars().count() <= 33, "{}", b.title);
             }
         }
+    }
+
+    /// A faction's first mention draws its name and its emblem, a later one its emblem
+    /// alone (#60). Lines are broken by what is drawn, so none wraps again in its box
+    /// and none stops short (#166's playtest).
+    #[test]
+    fn lines_are_broken_by_what_each_mention_draws() {
+        let text =
+            "Government has 1 Resource and cannot pay for a space. Look at the map or finish.";
+        // Drawn: "Government" + space + emblem (2) + 49 characters reach 58 only without
+        // "Look"; by its letters alone the line holds "Look" too.
+        assert_eq!(
+            drawn_lines(text, CHARS, &[false; 4]),
+            [
+                "Government has 1 Resource and cannot pay for a space.",
+                "Look at the map or finish."
+            ]
+        );
+        // Already mentioned, Government is an emblem: the same words fit with "Look".
+        let mut seen = [false; 4];
+        seen[Faction::Government.index()] = true;
+        assert_eq!(
+            drawn_lines(text, CHARS, &seen),
+            [
+                "Government has 1 Resource and cannot pay for a space. Look at the",
+                "map or finish."
+            ]
+        );
+        // A newline in the text still starts a new line.
+        assert_eq!(drawn_lines("One\nTwo", CHARS, &[false; 4]), ["One", "Two"]);
     }
 }

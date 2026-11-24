@@ -170,10 +170,13 @@ impl Target {
             text.push_str(&format!(", {} {name}", self.bases));
         }
         if self.underground > 0 {
-            text.push_str(". Underground Guerrillas survive");
+            text.push_str(
+                ". Assault cannot remove its Underground Guerrillas until they are Activated",
+            );
             if self.bases > 0 {
-                text.push_str(" and protect their faction's Bases");
+                text.push_str(", and they protect their faction's Bases");
             }
+            text.push_str(" (R 3.2.4)");
         } else if self.bases > 0 && self.active > 0 {
             text.push_str(". Bases are affected after this faction's Guerrillas");
         }
