@@ -117,7 +117,7 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 | `Home` | Restore the map framing; also brings back hover tags that extreme framing hid |
 | `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked) and an open popover's rows and button, then the four Available Forces rows, the current and the preview card and the two piles |
 | `Enter`, `Space` | Activate the focused control. While a played card is moving, land the cards instead |
-| `Escape` | Close a card's tag, unpin a briefing, cancel an open transfer, or close a tag or popover; a closed space popover leaves focus on its space |
+| `Escape` | Close a card's tag, unpin a briefing, cancel an open transfer, or close a tag or popover; a space popover closed from the keyboard leaves focus on its space |
 
 The camera answers wherever the pointer is over the map. A scroll, a drag or a click on a panel stays with that panel: it neither moves the camera nor reaches the space beneath. The transfer modal takes camera input while open.
 
