@@ -3913,8 +3913,8 @@ fn target_state(view: &Value, space: &str) -> String {
 
 /// The map states agree with the observation: a space is selectable when one of its
 /// actions is supported, blocked when none is but one names a remedy, else not
-/// involved; and the visible highlights are exactly the selected graphics for those
-/// states, a veil applying only when all of its spaces are not involved.
+/// involved; and the visible highlights are exactly each space's own graphic for its
+/// state (#167).
 fn assert_map_agrees(view: &Value) {
     let choices = view["observation"]["choices"].as_array().unwrap();
     let revision = view["observation"]["revision"].as_u64().unwrap();
@@ -3939,28 +3939,23 @@ fn assert_map_agrees(view: &Value) {
             "not-involved"
         };
         assert_eq!(target_state(view, space), state, "{space}: {view}");
-        // #73's veils dim Santiago and Oriente too once nothing is left there.
+    }
+    // Since #167 every space shows its own graphic for its state: the veil when not
+    // involved (Santiago and Oriente too once nothing is left there, #73), else its rule.
+    let targets = view["table"]["map_targets"].as_array().unwrap();
+    assert_eq!(targets.len(), 13, "{targets:?}");
+    for target in targets {
+        let space = target["space"].as_str().unwrap();
+        let state = target["state"].as_str().unwrap();
+        if space != "santiago" && space != "oriente" {
+            assert_eq!(state, "not-involved", "{space}");
+        }
         expected_files.push(if state == "not-involved" {
             format!("atlas-highlight-veil-{space}.png")
         } else {
             format!("atlas-highlight-{state}-{space}.png")
         });
     }
-    for target in view["table"]["map_targets"].as_array().unwrap() {
-        let space = target["space"].as_str().unwrap();
-        if space != "santiago" && space != "oriente" {
-            assert_eq!(target["state"], "not-involved", "{space}");
-        }
-    }
-    expected_files.extend(
-        [
-            "atlas-highlight-veil-cities.png",
-            "atlas-highlight-veil-ecs.png",
-            "atlas-highlight-veil-provinces.png",
-            "atlas-highlight-veil-sierra-maestra.png",
-        ]
-        .map(String::from),
-    );
     expected_files.sort();
     let shown: Vec<String> = view["table"]["highlights"]
         .as_array()
@@ -5193,22 +5188,15 @@ fn assert_removal_map_agrees(view: &Value) {
         .iter()
         .map(|h| h.as_str().unwrap())
         .collect();
-    assert!(
-        highlights.iter().all(|h| h.contains("-veil-")),
-        "{highlights:?}"
-    );
-    let dimmed = removal["dimmed"].as_array().unwrap();
-    for (space, file) in [
-        ("santiago", "atlas-highlight-veil-santiago.png"),
-        ("oriente", "atlas-highlight-veil-oriente.png"),
-        ("sierra-maestra", "atlas-highlight-veil-sierra-maestra.png"),
-    ] {
-        assert_eq!(
-            highlights.contains(&file),
-            dimmed.iter().any(|d| d == space),
-            "{space}: {highlights:?}"
-        );
-    }
+    // Since #167 each dimmed space shows its own veil, and nothing else shows.
+    let mut veils: Vec<String> = removal["dimmed"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|d| format!("atlas-highlight-veil-{}.png", d.as_str().unwrap()))
+        .collect();
+    veils.sort();
+    assert_eq!(highlights, veils);
 }
 
 #[test]
