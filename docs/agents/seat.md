@@ -72,7 +72,7 @@ When the goal names an effect, give the visible choices that produce it. For exa
 - Use the actual observed revision and the exact component and choice names.
 - `cuba-tools seat` uses the shared JSON-line transport. It exits nonzero for refused, missed or skipped replies, for malformed or missing ones, and has a 180-second response deadline.
 - A refusal stops the later mutations on its connection (they are `skipped`): reconnect and observe before deciding again.
-- `{"op":"advance","steps":216}` steps the table's clock 216 steps of 1/60 s with no input, settled or not.
+- `{"op":"advance","steps":216}` steps the table's clock 216 steps of 1/60 s with no input, settled or not. After a test changes the table in process, such as a resize, `advance` before `settle`: `settle` on a settled table returns before it sees the change.
 - Key requests look like `{"op":"key","revision":0,"key":"Home"}`. See [Keys](#keys).
 - `point` rests the pointer on a named component or choice, at a revision.
 - `scroll` turns the wheel over it by `y` lines (and optional `x`), e.g. `{"op":"scroll","revision":0,"component":"space:havana","y":-2}`.

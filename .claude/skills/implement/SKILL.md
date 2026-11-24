@@ -6,12 +6,10 @@ disable-model-invocation: true
 
 Implement the work described by the user in the spec or tickets.
 
-If the user passes a ticket reference, fetch it from the issue tracker and state its title before starting. If the reference is ambiguous, ask.
+If the user passes a ticket reference, fetch it from the issue tracker and state its title before starting. If the reference is ambiguous, ask. Before the work starts, and for every ticket, ask which model and effort the reviewers run on, with your recommendation.
 
 Call the Skill tool with "tdd" where possible, at pre-agreed seams.
 
-Run typechecking regularly, single test files regularly, and the full test suite once at the end.
+Run typechecking and single test files regularly. Once they pass, commit your work to the current branch and call the Skill tool with "code-review" to review the work. For a small follow-up (implement-spec, "Small follow-up"), mark it as one, so a single reviewer runs.
 
-Once done, call the Skill tool with "code-review" to review the work. For a small follow-up (implement-spec, "Small follow-up"), mark it as one, so a single reviewer runs.
-
-Commit your work to the current branch.
+Once the review clears, merge the base branch in and run the full test suite on the head you will deliver, reusing an earlier native run only as `docs/agents/parallel-work.md`, "Native suite", allows. A commit made after the review, a merge that changed reviewed files or a fix for a failed suite is reviewed as code-review's "Fixes" describes.
