@@ -21,6 +21,28 @@ pub enum SpaceState {
     NotInvolved,
 }
 
+impl SpaceState {
+    /// The states whose spaces the keyboard reaches, in the order Tab reaches them
+    /// (#168): where a supported choice acts, then where an in-task remedy would open
+    /// one. This list is the one rule for that order: a state added later takes its
+    /// place here, and a state not listed takes no focus.
+    pub const FOCUS_ORDER: &'static [SpaceState] = &[SpaceState::Selectable, SpaceState::Blocked];
+}
+
+/// The spaces Tab reaches, by [`SpaceState::FOCUS_ORDER`], each state's spaces in the
+/// observation's space order.
+pub fn focus_order(targets: &[SpaceTarget]) -> Vec<&str> {
+    SpaceState::FOCUS_ORDER
+        .iter()
+        .flat_map(|state| {
+            targets
+                .iter()
+                .filter(move |t| t.state == *state)
+                .map(|t| t.space.as_str())
+        })
+        .collect()
+}
+
 /// One space's state and the choices that act on it, in the observation's order.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct SpaceTarget {
