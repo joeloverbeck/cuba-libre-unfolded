@@ -24,6 +24,7 @@ mod available_forces;
 mod card_facts;
 mod change_texts;
 mod eligibility;
+mod focus_mark;
 mod highlights;
 mod honest_hints;
 mod kidnap;

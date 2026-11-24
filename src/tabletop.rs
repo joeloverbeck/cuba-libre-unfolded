@@ -53,6 +53,7 @@ mod discovery;
 mod eligibility;
 mod emblems;
 mod execution;
+mod focus_mark;
 mod highlights;
 mod notice;
 mod palette;
@@ -475,6 +476,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                     pile_tags::draw,
                     piles::present,
                     save_quit::hover,
+                    focus_mark::draw,
                 )
                     .chain(),
                 animate_water,

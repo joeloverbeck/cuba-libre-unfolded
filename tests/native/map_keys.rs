@@ -7,7 +7,7 @@ use super::*;
 
 /// Presses Tab until `stop` has keyboard focus, letting each focused tag's dwell end,
 /// and returns every stop focus passed through, `stop` last.
-fn tab_to(app: &mut Native, stop: &str) -> Vec<String> {
+pub(super) fn tab_to(app: &mut Native, stop: &str) -> Vec<String> {
     let mut passed = vec![];
     for _ in 0..40 {
         let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
@@ -44,7 +44,7 @@ pub(super) fn tab_round(app: &mut Native) -> Vec<String> {
 }
 
 /// Presses `key` (Enter or Space) on the focused control `focused`, as a player does.
-fn press(app: &mut Native, key: &str, focused: &str) -> Value {
+pub(super) fn press(app: &mut Native, key: &str, focused: &str) -> Value {
     let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
     app.request(
         json!({"op":"key","revision":revision,"key":key,"focused":focused}),

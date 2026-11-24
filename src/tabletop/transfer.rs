@@ -351,7 +351,7 @@ pub(super) fn input(ui: &mut Interface, view: &Observation, input: Input) {
                 state.set(terms.limit);
             }
         }
-        Input::Field => state.focus = Some("transfer:field".into()),
+        Input::Field => state.focus = Some(FIELD.into()),
     }
     ui.dirty = true;
 }
@@ -367,6 +367,13 @@ fn counterparts(view: &Observation) -> impl Iterator<Item = Faction> + '_ {
         .filter(|&faction| Some(faction) != view.executing)
 }
 
+/// The modal's and the pending tab's layer, over the scrim's.
+pub(super) const LAYER: i32 = 31;
+/// The primary button's part name.
+pub(super) const PRIMARY_PART: &str = "button:primary";
+/// The amount field's seat name.
+pub(super) const FIELD: &str = "transfer:field";
+
 /// The modal's controls in Tab order, by their seat names.
 pub(super) fn focusable(view: &Observation, ui: &Interface) -> Vec<String> {
     let shown = content(view, &ui.transfer);
@@ -378,7 +385,7 @@ pub(super) fn focusable(view: &Observation, ui: &Interface) -> Vec<String> {
             "transfer:direction:ask".into(),
         ]);
     }
-    names.push("transfer:field".into());
+    names.push(FIELD.into());
     names.extend(["transfer:quick:1", "transfer:quick:2", "transfer:quick:max"].map(String::from));
     match &view.transfer {
         Some(Transfer::Selecting) => {
@@ -395,6 +402,38 @@ pub(super) fn focusable(view: &Observation, ui: &Interface) -> Vec<String> {
             .map_or_else(|| "transfer:primary".to_owned(), |c| c.id),
     );
     names
+}
+
+/// What Enter presses in the modal: the focused control, or else the primary button,
+/// which Enter on the amount field presses too. The focus mark is on it (#179).
+#[derive(Debug, PartialEq)]
+pub(super) enum Pressed {
+    /// The primary button, by its seat name, which follows the amount. While the slider
+    /// is dragged the drawn button keeps the name it was drawn with.
+    Primary(String),
+    /// Another control, by its seat name.
+    Other(String),
+}
+impl Pressed {
+    fn name(self) -> String {
+        match self {
+            Self::Primary(name) | Self::Other(name) => name,
+        }
+    }
+}
+
+/// The modal's stop that Enter presses now.
+pub(super) fn pressed(view: &Observation, ui: &Interface) -> Pressed {
+    let mut order = focusable(view, ui);
+    // The primary is the last stop.
+    let primary = order.pop().unwrap();
+    ui.transfer
+        .focus
+        .as_ref()
+        .filter(|focus| *focus != FIELD && order.contains(focus))
+        .map_or(Pressed::Primary(primary), |focus| {
+            Pressed::Other(focus.clone())
+        })
 }
 
 /// Activates the modal control `name` as a click would.
@@ -500,10 +539,7 @@ pub(super) fn keys(
         return;
     }
     if keys.any_just_pressed([KeyCode::Enter, KeyCode::NumpadEnter]) {
-        let name = match at {
-            Some(i) if order[i] != "transfer:field" => order[i].clone(),
-            _ => order.last().unwrap().clone(),
-        };
+        let name = pressed(&view, &ui).name();
         activate(&mut play, &mut ui, &view, &name);
     }
 }
@@ -1006,7 +1042,7 @@ fn modal(
                 align_items: AlignItems::Center,
                 ..default()
             },
-            GlobalZIndex(31),
+            GlobalZIndex(LAYER),
             Pickable::IGNORE,
         ))
         .id();
@@ -1570,7 +1606,7 @@ fn amount(
             padding: UiRect::horizontal(px(fig::FIELD_PAD * s)),
             ..default()
         },
-        "transfer:field",
+        FIELD,
         false,
         Action::Transfer(Input::Field),
     );
@@ -2008,7 +2044,7 @@ fn footer(
         shown.commit.is_some(),
         action,
     );
-    part(commands, primary, "button:primary");
+    part(commands, primary, PRIMARY_PART);
     // The primary button is red while 26July composes, and in the giver's colour in a
     // decision. The faction whose colour it is keeps its name there, since its emblem
     // would vanish on it: #60's rule for 26July on red (accepted in #68), applied to
@@ -2064,7 +2100,7 @@ fn pending(commands: &mut Commands, art: &Art, view: &Observation, s: f32, cente
                 },
                 ..default()
             },
-            GlobalZIndex(31),
+            GlobalZIndex(LAYER),
             Pickable::IGNORE,
         ))
         .id();

@@ -429,6 +429,7 @@ impl SeatGame for Table {
         let main_view = areas::observe(world);
         let slip = notice::observe(world);
         let save_quit = save_quit::observe(world);
+        let focus_mark = focus_mark::observe(world);
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
         let pose = world.resource::<Orbit>().pose();
@@ -443,6 +444,7 @@ impl SeatGame for Table {
         // #174: the notice slip as drawn, and Save · quit's plate.
         table["slip"] = slip;
         table["save_quit"] = save_quit;
+        table["focus_mark"] = focus_mark;
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
             table,

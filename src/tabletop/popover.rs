@@ -105,8 +105,9 @@ pub(super) mod plate {
 #[derive(Component, Clone)]
 pub(super) struct Part(pub String);
 
-/// Draws a plate as the first child of `parent`, over its whole box (and past it by
-/// the plate's outset) and beneath its content. A sliced plate keeps its corners at
+/// Draws a plate as the next child of `parent`, over its whole box (and past it by the
+/// plate's outset; a negative one draws it inside). Drawn before the content it lies
+/// beneath it; the focus mark is drawn after (`focus_mark`). A sliced plate keeps its corners at
 /// reference size: the exports are 3x, so the corner scale is `s / 3`.
 pub(super) fn plate(
     commands: &mut Commands,
@@ -114,7 +115,7 @@ pub(super) fn plate(
     parent: Entity,
     (file, slice, outset): (&str, Option<f32>, [f32; 4]),
     s: f32,
-) {
+) -> Entity {
     let image = ImageNode::new(art.images[file].clone());
     let image = match slice {
         Some(slice) => image.with_mode(NodeImageMode::Sliced(TextureSlicer {
@@ -124,19 +125,21 @@ pub(super) fn plate(
         })),
         None => image.with_mode(NodeImageMode::Stretch),
     };
-    commands.spawn((
-        image,
-        Node {
-            position_type: PositionType::Absolute,
-            left: px(-outset[0] * s),
-            top: px(-outset[1] * s),
-            right: px(-outset[2] * s),
-            bottom: px(-outset[3] * s),
-            ..default()
-        },
-        Pickable::IGNORE,
-        ChildOf(parent),
-    ));
+    commands
+        .spawn((
+            image,
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(-outset[0] * s),
+                top: px(-outset[1] * s),
+                right: px(-outset[2] * s),
+                bottom: px(-outset[3] * s),
+                ..default()
+            },
+            Pickable::IGNORE,
+            ChildOf(parent),
+        ))
+        .id()
 }
 
 /// The Bold Lato face the `Popover/Bold *` styles use; admitted with the regular face.
