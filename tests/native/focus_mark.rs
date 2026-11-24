@@ -348,7 +348,7 @@ fn native_focus_mark_is_on_a_pending_request_and_the_card_advance() {
     assert_unmarked(app, "the cards have landed");
     // Card 18: Government's options, then Assault's panel, spaces and popover.
     assert_round(app, "card 18");
-    rally::choose_rally_option(app, "assault");
+    rally::choose_rally_option(app, "government:assault");
     let order = assert_round(app, "Assault");
     assert!(order.iter().any(|n| n == "space:havana"), "{order:?}");
     app.quit();
