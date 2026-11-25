@@ -828,10 +828,10 @@ pub fn default_socket() -> PathBuf {
 pub fn line(faction: Faction, socket: &Path, places: Option<&Places>) -> String {
     let folders = places.map_or_else(
         || "your data directory's cuba-libre-unfolded/player".to_owned(),
-        |places| places.folders().display().to_string(),
+        Places::folders_in_short,
     );
     format!(
-        "Play {} in Cuba Libre at the socket {}, as the instructions in {folders} say: claude-code/CLAUDE.md for Claude Code, codex/AGENTS.md for Codex.",
+        "Play {} in Cuba Libre at the socket {}, by the instructions in {folders}: claude-code/CLAUDE.md or codex/AGENTS.md.",
         faction.name(),
         socket.display()
     )

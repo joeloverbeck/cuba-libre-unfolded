@@ -183,17 +183,22 @@ fn a_place_a_permission_cannot_spell_is_refused_before_anything_is_written() {
 /// The line names the faction, the socket and the instructions, for each tool.
 #[test]
 fn a_line_names_the_faction_the_socket_and_the_instructions() {
-    let data = PathBuf::from("/home/player/.local/share/cuba-libre-unfolded");
+    let home = PathBuf::from(std::env::var_os("HOME").unwrap());
+    let within = home.join(".local/share/cuba-libre-unfolded");
     let socket = Path::new("/run/user/1000/cuba-libre-players.sock");
-    for faction in Faction::ALL {
-        let line = faction_seats::line(faction, socket, Some(&Places::of(&data)));
-        assert_eq!(
-            line,
-            format!(
-                "Play {} in Cuba Libre at the socket {}, as the instructions in /home/player/.local/share/cuba-libre-unfolded/player say: claude-code/CLAUDE.md for Claude Code, codex/AGENTS.md for Codex.",
-                faction.name(),
-                socket.display()
-            )
-        );
+    for (data, folders) in [
+        (&*within, "~/.local/share/cuba-libre-unfolded/player"),
+        (Path::new("/srv/cuba"), "/srv/cuba/player"),
+    ] {
+        for faction in Faction::ALL {
+            assert_eq!(
+                faction_seats::line(faction, socket, Some(&Places::of(data))),
+                format!(
+                    "Play {} in Cuba Libre at the socket {}, by the instructions in {folders}: claude-code/CLAUDE.md or codex/AGENTS.md.",
+                    faction.name(),
+                    socket.display()
+                )
+            );
+        }
     }
 }

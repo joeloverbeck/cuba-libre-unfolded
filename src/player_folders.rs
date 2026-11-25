@@ -44,6 +44,14 @@ impl Places {
         self.data.join("player")
     }
 
+    /// That directory for the pasted line, whose sheet holds three lines: `~` is the home.
+    pub fn folders_in_short(&self) -> String {
+        let folders = self.folders();
+        std::env::var_os("HOME")
+            .and_then(|home| Some(format!("~/{}", folders.strip_prefix(home).ok()?.display())))
+            .unwrap_or_else(|| folders.display().to_string())
+    }
+
     pub fn claude_code(&self) -> PathBuf {
         self.folders().join("claude-code")
     }
