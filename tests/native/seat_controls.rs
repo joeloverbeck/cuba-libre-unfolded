@@ -347,6 +347,17 @@ fn native_each_seat_state_is_shown_and_a_held_choice_is_taken_back() {
         app.settle();
     }
     app.capture("an-agents-terror");
+    // Directorio's session waits, and its command dies before the decision comes: its seat
+    // is not left thinking, and its silence counts from the death.
+    let mut dead = app.player("d", &["wait", &directorio]);
+    app.until_waiting("Directorio");
+    dead.0.kill().unwrap();
+    dead.0.wait().unwrap();
+    let end = Instant::now() + Duration::from_secs(10);
+    while seat(&app.settle(), "Directorio")["waits"] == true {
+        assert!(Instant::now() < end, "a dead client's wait is held");
+    }
+    let since = Instant::now();
     for action in ["terror:santiago", "end-terror"] {
         // The landed die's result holds the next choice for a while.
         let revision = app.revision().to_string();
@@ -356,21 +367,8 @@ fn native_each_seat_state_is_shown_and_a_held_choice_is_taken_back() {
         assert_eq!(decisions(&app.save).last().unwrap(), action);
     }
 
-    // Directorio's wait is killed at its decision: the seat is not left thinking.
     let view = app.settle();
     assert_eq!(state_words(&view, "directorio"), "Thinking");
-    let (_, told) = app.ask(&["wait", &directorio]);
-    assert_eq!(told["status"], "decision");
-    let syndicate = app.join("syndicate");
-    let mut dead = app.player("d", &["wait", &syndicate]);
-    app.until_waiting("Syndicate");
-    dead.0.kill().unwrap();
-    dead.0.wait().unwrap();
-    let since = Instant::now();
-    let end = since + Duration::from_secs(10);
-    while seat(&app.settle(), "Syndicate")["waits"] == true {
-        assert!(Instant::now() < end, "a dead client's wait is held");
-    }
     std::thread::sleep(Duration::from_secs(61).saturating_sub(since.elapsed()));
     let view = app.settle();
     assert_eq!(seat(&view, "Directorio")["state"], "silent");
@@ -383,8 +381,8 @@ fn native_each_seat_state_is_shown_and_a_held_choice_is_taken_back() {
         says(&view, "seat-strip-note").unwrap(),
         "Its choice is still open to it."
     );
-    // Syndicate's silence counts too, and shows only once it has a decision.
-    assert_eq!(state_words(&view, "syndicate"), "Agent at the table");
+    // 26July's session is as silent by now, with nothing asked of it.
+    assert_eq!(state_words(&view, "26july"), "Agent at the table");
     app.capture("silent");
     // Nothing replaces it: the decision is still Directorio's, and its next word ends
     // the silence.
