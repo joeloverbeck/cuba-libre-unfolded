@@ -1,7 +1,8 @@
-//! What a faction's seat brief says (#204). Expectations are worked by hand from the March
-//! 2019 Living Rules and the prepared position's inventory, never read from the brief's own
-//! tables: each number's rule is beside it. That no brief holds anything hidden is
-//! `faction_seats`' test, with the views.
+//! What each faction's seat brief says (#204; GLOSSARY.md, "Seat brief"); `seat_brief` is
+//! the development seat's brief replies, another thing. Expectations are worked by hand
+//! from the March 2019 Living Rules and the prepared position's inventory, never read from
+//! the brief's own tables: each number's rule is beside it. That no brief holds anything
+//! hidden is `faction_seats`' test, with the views.
 
 use crate::{explore, faction_seats::later_positions};
 use cuba_libre_unfolded::{
