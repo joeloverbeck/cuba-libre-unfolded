@@ -421,9 +421,10 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
         [1500, 1700],
         [2000, 2100],
         [2895, 1900],
-        // #174: the session panel's place, now sea, with the slip hidden.
+        // #174: the session panel's place, now sea, with the slip hidden, and since #206
+        // between the seat cards and Save · quit.
         [3300, 1750],
-        [3100, 2050],
+        [3478, 2050],
         // The title, the key's five entries and the adjacency line.
         [145, 275],
         [150, 1483],

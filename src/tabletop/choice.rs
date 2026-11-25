@@ -448,6 +448,9 @@ fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool, agent
                 resources(view.resources[Faction::Government.index()])
             );
         }
+        if view.removal.is_some() && agent {
+            return "Removal mode is on until Done.".into();
+        }
         if view.removal.is_some() {
             return "Select a marked piece on the map.\nChoose Done to return to Assault.".into();
         }

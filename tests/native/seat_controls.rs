@@ -216,7 +216,31 @@ fn native_the_seat_controls_match_the_selected_layout() {
     assert_eq!(view["table"]["faction_seats"]["copied"], line.as_str());
     app.offers_nothing();
 
-    // The panel keeps its accepted places: the rows are read with their briefings, and
+    // The panel keeps its accepted places, its rows in the regular type of the record.
+    let kept: std::collections::BTreeMap<String, [f64; 4]> = view["table"]["choice_parts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|part| {
+            (
+                part["part"].as_str().unwrap().to_owned(),
+                rect_of(&part["bounds"]),
+            )
+        })
+        .collect();
+    for (name, rect) in rects("panel") {
+        let [x, y, w, h] = rect_of(&rect);
+        let native = kept[&name];
+        let edges = [x, y, x + w, y + h];
+        let image = name.ends_with("-emblem") || name.starts_with("pill:");
+        for edge in 0..if image { 4 } else { 2 } {
+            assert!(
+                (native[edge] - edges[edge]).abs() <= tolerance,
+                "{name}: {native:?}, layout {rect}"
+            );
+        }
+    }
+    // The rows are read with their briefings, and
     // the space tags, the cards and the standings as at any time.
     let view = app.point("option:event:unshaded");
     assert_eq!(view["table"]["briefing"]["option"], "event:unshaded");

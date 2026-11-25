@@ -1,6 +1,6 @@
 {
  "source": "atlas-seats.figcraft",
- "note": "absoluteBounds [x, y, width, height] of the named nodes of the frame '16:9 seats · Directorio thinking', in the frame's own units: the owner's 3840x2160 display. The seat cards and the line sheet keep their distance from the area 'seats' of the main view's layout (atlas-main-view.layout.json), whose top left is 'origin' here and whose width says how large they are drawn; the strip keeps its distance from the window's top right corner, as the decision panel does. Image parts are compared on all four edges; text parts on left, top and, for centred text, right (line height is the renderer's). The sheet is drawn for Government, whose line wraps to three lines; another faction's sheet starts at its own card's left, or ends at the row's right edge. 'exports' are the plates exported at 2 px per unit: FigCraft's own nodes, and the VectorCraft artboards of atlas-seats.vectorcraft.",
+ "note": "absoluteBounds [x, y, width, height] of the named nodes of the frame '16:9 seats · Directorio thinking', in the frame's own units: the owner's 3840x2160 display. The seat cards and the line sheet keep their distance from the area 'seats' of the main view's layout (atlas-main-view.layout.json), whose top left is 'origin' here and whose width says how large they are drawn; the strip keeps its distance from the window's top right corner, as the decision panel does. 'panel' is what the accepted panel keeps where AC-B draws it (atlas-action-choice.layout.json) while an agent's faction decides: text on left and top, the emblem and the pills on all four edges. Image parts are compared on all four edges; text parts on left, top and, for centred text, right (line height is the renderer's). The sheet is drawn for Government, whose line wraps to three lines; another faction's sheet starts at its own card's left, or ends at the row's right edge. 'exports' are the plates exported at 2 px per unit: FigCraft's own nodes, and the VectorCraft artboards of atlas-seats.vectorcraft.",
  "frame": [3840, 2160],
  "tolerance": 2,
  "origin": [1500.0, 1896.0],
@@ -53,6 +53,19 @@
   "seat-strip-title": [3085.0, 1438.0, 266.0, 36.0],
   "seat-strip-note": [3085.0, 1480.0, 400.0, 29.0],
   "seat-strip:take-back-label": [3545.0, 1468.0, 164.0, 30.0]
+ },
+ "panel": {
+  "choice-heading-emblem": [2969.25, 513.25, 37.13, 37.13],
+  "pill:directorio:pass": [3535.63, 643.63, 179.5, 33.75],
+  "pill:directorio:limited-operation": [3535.63, 881.88, 179.5, 33.75],
+  "choice-heading": [3019.88, 509.63, 320.0, 45.0],
+  "choice-subtitle": [2969.25, 560.75, 764.0, 26.0],
+  "option:directorio:pass-label": [2992.88, 645.19, 50.0, 30.0],
+  "section:event": [2969.25, 694.25, 322.0, 21.0],
+  "option:event:unshaded-label": [2992.88, 733.94, 191.0, 30.0],
+  "option:event:shaded-label": [2992.88, 794.69, 162.0, 30.0],
+  "section:operations": [2969.25, 843.75, 125.0, 21.0],
+  "option:directorio:limited-operation-label": [2992.88, 883.44, 203.0, 30.0]
  },
  "exports": {
   "atlas-seat-card-government.png": [940, 380],
