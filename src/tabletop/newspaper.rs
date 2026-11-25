@@ -688,6 +688,17 @@ struct Type<'a> {
     justify: Justify,
 }
 
+impl<'a> Type<'a> {
+    fn new(face: &'a Handle<Font>, size: [f32; 2], color: Color, justify: Justify) -> Self {
+        Self {
+            face,
+            size,
+            color,
+            justify,
+        }
+    }
+}
+
 impl Printer<'_, '_, '_> {
     fn node(&self, [x, y, w, h]: [f32; 4]) -> Node {
         let u = self.u;
@@ -913,12 +924,7 @@ fn print(
         u,
     };
     let (regular, bold, head) = (&art.font, &art.bold, &art.headline);
-    let text = |face, size, color, justify| Type {
-        face,
-        size,
-        color,
-        justify,
-    };
+    let text = Type::new;
     on.rule(
         "edition-masthead",
         "atlas-newspaper-masthead.png",
@@ -1020,17 +1026,13 @@ fn tabs(on: &mut Printer, sheet: &Sheet, open: usize) {
                 })
                 .observe(click);
             let face = on.art.bold.clone();
+            let ink = if is_open { PAPER } else { INK };
             let inset = (fig::TAB - fig::FOLIO_TYPE[1]) / 2. - 1.;
             on.line(
                 &format!("{name}-label"),
                 words,
                 [left, top + inset, *width],
-                Type {
-                    face: &face,
-                    size: fig::FOLIO_TYPE,
-                    color: if is_open { PAPER } else { INK },
-                    justify: Justify::Center,
-                },
+                Type::new(&face, fig::FOLIO_TYPE, ink, Justify::Center),
             );
             left += width + fig::TAB_GAP;
         }
@@ -1041,12 +1043,7 @@ fn tabs(on: &mut Printer, sheet: &Sheet, open: usize) {
 fn standings(on: &mut Printer, rows: &[Row], top: f32) {
     let left = fig::COLUMNS[2];
     let (regular, bold, head) = (&on.art.font, &on.art.bold, &on.art.headline);
-    let text = |face, size, color, justify| Type {
-        face,
-        size,
-        color,
-        justify,
-    };
+    let text = Type::new;
     let at = |[x, w]: [f32; 2], y: f32| [left + x, y, w];
     on.line(
         "edition-standings",
@@ -1093,7 +1090,7 @@ fn standings(on: &mut Printer, rows: &[Row], top: f32) {
             ("resources", row.resources, fig::RESOURCES),
             ("margin", row.margin, fig::MARGIN),
         ] {
-            let (words_, changed) = figure(of);
+            let (said, changed) = figure(of);
             let (face, color) = if changed {
                 (bold, INK)
             } else {
@@ -1101,7 +1098,7 @@ fn standings(on: &mut Printer, rows: &[Row], top: f32) {
             };
             on.line(
                 &format!("edition-{what}:{faction}"),
-                &words_,
+                &said,
                 at(place, words),
                 text(face, fig::ROW_TYPE, color, Justify::Right),
             );
@@ -1128,12 +1125,7 @@ fn block(on: &mut Printer, sheet: &Sheet, stands: Stands, top: f32) {
         &format!("{name}-title"),
         &block.title,
         [left, top, block.width],
-        Type {
-            face: &head,
-            size: fig::TITLE_TYPE,
-            color: INK,
-            justify: Justify::Left,
-        },
+        Type::new(&head, fig::TITLE_TYPE, INK, Justify::Left),
     );
     if let Some(die) = block.die {
         let [dx, size] = fig::DIE;
@@ -1150,12 +1142,7 @@ fn block(on: &mut Printer, sheet: &Sheet, stands: Stands, top: f32) {
             &format!("{name}-text-{i}"),
             lines,
             [left, y, block.measure],
-            Type {
-                face: &regular,
-                size: fig::TEXT_TYPE,
-                color: INK,
-                justify: Justify::Left,
-            },
+            Type::new(&regular, fig::TEXT_TYPE, INK, Justify::Left),
         );
         y += lines.len() as f32 * fig::TEXT_TYPE[1] + fig::BETWEEN_SENTENCES;
     }
