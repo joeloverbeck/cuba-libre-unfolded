@@ -44,6 +44,13 @@ impl Faction {
             Self::Syndicate => "Syndicate",
         }
     }
+    /// The faction of this name, in either case: "26July", or `M26` as states spell it.
+    pub fn named(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|faction| {
+            faction.name().eq_ignore_ascii_case(name)
+                || format!("{faction:?}").eq_ignore_ascii_case(name)
+        })
+    }
 }
 /// The US Alliance track, best level first (R 6.3.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -369,6 +376,8 @@ fn remedy_line(remedies: &[String]) -> String {
     }
     .into()
 }
+/// The choice that makes the next card current.
+pub(crate) const ADVANCE_CARD: &str = "advance-card";
 /// The prepared position's Resources, indexed like `Faction::ALL`.
 const PREPARED_RESOURCES: [u8; 4] = [6, 0, 5, 15];
 /// The random state of `Game::opening`.
@@ -737,6 +746,11 @@ impl Choice {
     /// The action in the choice id `id`, without its match revision.
     pub(crate) fn action_of(id: &str) -> &str {
         id.split_once(':').map_or(id, |(_, action)| action)
+    }
+    /// Whether the choice only makes the next card current. The human does that at the
+    /// table, whichever faction the authority names for it (#197).
+    pub fn turns_the_card(&self) -> bool {
+        self.action() == ADVANCE_CARD
     }
     /// The map space this choice acts on, as the authority states it in `site`, so
     /// the map can offer it there: a Terror target, opening Kidnap in its space, or an
@@ -1971,7 +1985,7 @@ impl Game {
     }
     /// Who decides now: the giver of a pending authorization, the faction directing
     /// a free Rally, or the faction whose card action is open.
-    fn owner(&self) -> Faction {
+    pub(crate) fn owner(&self) -> Faction {
         if let Some(Transfer::Authorizing { giver, .. }) = self.transfer {
             giver
         } else if self.assault_finished() {
@@ -2104,7 +2118,7 @@ impl Game {
         .map(|(id, label, explanation)| self.offer(id, label, id.starts_with("event:"), explanation))
         .collect()
     }
-    fn choices(&self) -> Vec<Choice> {
+    pub(crate) fn choices(&self) -> Vec<Choice> {
         if self.card_18 {
             if self.government_pass_from.is_some() {
                 return self.syndicate_choices();
@@ -2125,7 +2139,7 @@ impl Game {
                 .is_some()
             {
                 vec![self.offer(
-                    "advance-card",
+                    ADVANCE_CARD,
                     "Advance to Pact of Caracas",
                     true,
                     "Make Pact of Caracas current and reveal the draw deck's top card as the new preview (R 2.3.8).",

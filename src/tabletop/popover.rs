@@ -245,6 +245,11 @@ impl Popover {
     pub fn open(&self) -> bool {
         self.pinned.is_some() || self.piece.is_some()
     }
+    /// Whether one is open at `revision`: a decision closes it when it is next drawn.
+    pub fn open_at(&self, revision: u64) -> bool {
+        let at = |kept: &Option<(String, u64)>| kept.as_ref().is_some_and(|(_, r)| *r == revision);
+        at(&self.pinned) || at(&self.piece)
+    }
     /// Closes any kept-open popover: the AC-B briefing tag opened after it wins
     /// (orchestrator implementation judgement, #58 carry-forward).
     pub fn close_all(&mut self) {

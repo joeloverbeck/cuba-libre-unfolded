@@ -15,6 +15,7 @@ tabletop = ["dep:bevy", "dep:unfolded-hover", "unfolded-tabletop/seat"]
 # patch below. The game, its saves and `cuba-tools` take only the packages that cannot
 # depend on Bevy; `unfolded-hover`, which only the table uses, and `unfolded-tabletop`
 # come with `tabletop`.
+unfolded-agent-players = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "b5e4a24311805eb464726b18796ce137fd4e1f98" }
 unfolded-assets = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "b5e4a24311805eb464726b18796ce137fd4e1f98" }
 unfolded-hover = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "b5e4a24311805eb464726b18796ce137fd4e1f98", optional = true }
 unfolded-random = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "b5e4a24311805eb464726b18796ce137fd4e1f98" }
