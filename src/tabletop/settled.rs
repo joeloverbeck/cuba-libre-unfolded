@@ -138,3 +138,22 @@ fn opened(world: &World) -> Vec<String> {
     .map(|(_, what)| what.into())
     .collect()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// #203: camera movement and hover dwell do not hold an agent's choice; a card or a
+    /// die in motion, and what has still to be drawn, do.
+    #[test]
+    fn looking_about_holds_no_choice_and_motion_does() {
+        use Unsettled::*;
+        for looking in [HoverDwell, StatusDwell, Camera, PieceCounts] {
+            assert!(!looking.holds_a_choice(), "{looking:?}");
+        }
+        let die = Part("Kidnap die landing".into());
+        for moving in [Admission, Redraw, HomeFraming, TerrorToken, die] {
+            assert!(moving.holds_a_choice(), "{moving:?}");
+        }
+    }
+}

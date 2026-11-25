@@ -20,6 +20,8 @@ mod card_advance;
 mod card_piles;
 #[path = "native/card_tag.rs"]
 mod card_tag;
+#[path = "native/faction_seats.rs"]
+mod faction_seats;
 #[path = "native/focus_mark.rs"]
 mod focus_mark;
 #[path = "native/main_view.rs"]
@@ -472,6 +474,8 @@ impl Native {
                 size,
                 "--socket",
                 self.socket.to_str().unwrap(),
+                "--player-socket",
+                self.socket.with_file_name("players.sock").to_str().unwrap(),
             ])
             .output()
             .unwrap();

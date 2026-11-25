@@ -37,6 +37,7 @@ mod marker_supply;
 mod persistence;
 mod pile_tags;
 mod piles;
+mod player_client;
 mod popover;
 mod position;
 mod previews;
