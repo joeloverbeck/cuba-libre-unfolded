@@ -468,6 +468,61 @@ fn each_faction_has_the_operations_and_special_activities_of_the_rules() {
     }
 }
 
+/// The thresholds of R 7.2 and 7.3, and where the rules of one Operation differ by faction
+/// (R 3.3.1, 3.3.4). The accepted reading of 26July's Terror is the tactical handoff's
+/// "Direction reconciliation": toward Active Opposition only. The rest of the wording is
+/// checked against the rules by its reviewer.
+#[test]
+fn what_differs_by_faction_in_the_rules_differs_in_the_briefs() {
+    let cases = [
+        (
+            Government,
+            "exceeds 18 (R 7.2)",
+            "Total Support − 18 (R 7.3)",
+            &[][..],
+        ),
+        (
+            M26,
+            "exceeds 15 (R 7.2)",
+            "Bases − 15 (R 7.3)",
+            &[
+                ("Rally", "at Neutral or Opposition"),
+                ("Rally", "replaces 2 with a Base"),
+                ("Terror", "1 level toward Active Opposition"),
+            ],
+        ),
+        (
+            Directorio,
+            "exceeds 9 (R 7.2)",
+            "Bases − 9 (R 7.3)",
+            &[
+                ("Rally", "at Neutral, Passive Support or Passive Opposition"),
+                ("Rally", "replaces 2 with a Base"),
+                ("Terror", "1 level toward Neutral"),
+            ],
+        ),
+        (
+            Syndicate,
+            "more than 7 open Casinos and Resources above 30 (R 7.2)",
+            "open Casinos − 7 and Syndicate Resources − 30 (R 7.3)",
+            &[
+                ("Rally", "where it has an open Casino"),
+                ("Terror", "1 level toward Neutral"),
+            ],
+        ),
+    ];
+    for (faction, condition, margin, wording) in cases {
+        let brief = brief(&opening(), faction);
+        let victory = &brief.victory;
+        assert!(victory.condition.contains(condition), "{victory:?}");
+        assert!(victory.margin_rule.contains(margin), "{victory:?}");
+        for (name, said) in wording {
+            let operation = brief.operations.iter().find(|o| o.name == *name).unwrap();
+            assert!(operation.purpose.contains(said), "{operation:?}");
+        }
+    }
+}
+
 /// The Operation or Special Activity `choice` takes, if it takes one. Every action the
 /// positions offer is named, so a new one fails here until it is.
 fn taken(choice: &Choice) -> Option<(Faction, &'static str)> {
