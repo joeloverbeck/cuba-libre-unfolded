@@ -17,6 +17,8 @@
 
 mod words;
 
+/// The table's notices list as the reports do.
+#[cfg(feature = "tabletop")]
 pub(crate) use words::listing;
 
 use crate::{
