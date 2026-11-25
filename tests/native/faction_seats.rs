@@ -78,7 +78,12 @@ impl Native {
     }
     /// The answer to a command given while `pending` keeps the table unsettled, with
     /// `steps` of table time run at once.
-    fn answered_while(&mut self, asked: &mut Asked, steps: u32, pending: &str) -> (i32, Value) {
+    pub(super) fn answered_while(
+        &mut self,
+        asked: &mut Asked,
+        steps: u32,
+        pending: &str,
+    ) -> (i32, Value) {
         loop {
             let view = self.request(json!({"op":"advance","steps":steps}), true);
             assert!(view["pending"].to_string().contains(pending), "{view}");

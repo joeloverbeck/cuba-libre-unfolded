@@ -1265,10 +1265,10 @@ fn map_click_closes_tag(
 /// clicks and the keyboard's Enter on a focused control both come here. It submits nothing
 /// for a faction handed over to an agent; turning the card is the human's, whichever
 /// faction the rules authority names for it (#197). While an edition is due or open it
-/// submits nothing: the human decides knowing what it says (#208).
+/// refuses: the human decides knowing what it says (#208).
 fn decide(play: &mut Play, ui: &mut Interface, owner: Faction, rev: u64, name: &str) {
     if ui.editions.holds() {
-        return;
+        return notice::refuse(ui, notice::EDITION_FIRST);
     }
     if !ui.plays(owner) && Choice::action_of(name) != crate::game::ADVANCE_CARD {
         return notice::refuse(

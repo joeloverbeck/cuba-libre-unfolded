@@ -694,30 +694,28 @@ fn native_an_edition_tells_each_action_of_a_faction_the_human_does_not_play() {
     );
     app.key("Escape");
     sessions.play(&mut app, &["event:unshaded", "rally:beneficiary:26july"]);
-    // The Rally that ends the Event places pieces: the edition opens once they have settled.
+    // The Rally that ends the Event places pieces: the edition opens once they are drawn,
+    // while their counts still settle over them, which does not delay it.
     let at = app.revision();
     let rally = format!("{at}:rally:sierra-maestra:place:2");
     let mut placed = app.player(
         "p",
         &["choose", &sessions.0["M26"], &at.to_string(), &rally],
     );
-    let mut settling = 0;
     let view = loop {
         let view = app.request(json!({"op":"advance","steps":1}), true);
         if view["observation"]["revision"] == at + 1 {
             let pending = view["pending"].to_string();
             if paper(&view)["open"].is_object() {
-                assert!(!pending.contains("piece counts"), "{pending}");
+                assert!(pending.contains("piece counts"), "{pending}");
                 break view;
             }
             assert_eq!(paper(&view)["due"], true);
             assert!(pending.contains("an edition to open"), "{pending}");
-            settling += usize::from(pending.contains("piece counts"));
         }
         assert!(app.step < 2000, "the edition does not open");
         std::thread::sleep(std::time::Duration::from_millis(20));
     };
-    assert!(settling > 1, "{settling}");
     assert_eq!(paper(&view)["open"]["report"]["complete"], true);
     let (_, answer) = app.answered(&mut placed);
     assert_eq!(answer["status"], "applied", "{answer}");
@@ -736,6 +734,28 @@ fn native_an_edition_tells_each_action_of_a_faction_the_human_does_not_play() {
         "Government executes Assault in no space"
     );
     app.quit();
+}
+
+/// An edition opens once the pieces and the die rest: a hover's dwell, the human's looking
+/// about, delays it no more than it holds an agent's choice (#197's review).
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan"]
+fn native_an_edition_opens_while_a_hover_dwells() {
+    let (mut app, sessions) = start("newspaper-hover-", "1920x1080", ROLLS_2, &["M26"]);
+    let m26 = sessions.0["M26"].clone();
+    app.point("area:standings");
+    app.request(
+        json!({"op":"point","revision":0,"component":"space:las-villas"}),
+        true,
+    );
+    let mut sent = app.player("p", &["choose", &m26, "0", "0:pass"]);
+    let (_, answer) = app.answered_while(&mut sent, 1, "hover dwell");
+    assert_eq!(answer["status"], "applied", "{answer}");
+    let view = app.request(json!({"op":"advance","steps":1}), true);
+    let pending = view["pending"].to_string();
+    assert!(pending.contains("hover dwell"), "{pending}");
+    assert!(paper(&view)["open"].is_object(), "{pending}");
+    assert_eq!(report(&view)["action"], "pass");
 }
 
 /// While an edition is open nothing is decided, by the human or by an agent, and nothing

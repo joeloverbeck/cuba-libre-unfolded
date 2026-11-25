@@ -162,14 +162,15 @@ pub(super) fn focusable(ui: &Interface) -> Option<(String, Action)> {
     (ui.editions.pile() > 0).then(|| (PILE.into(), Action::Edition(Press::Reopen)))
 }
 
-/// Opens an edition that is due, once the pieces and the die have settled: nothing moves,
-/// and a landed die has shown its result.
+/// Opens an edition that is due, once the pieces and the die have come to rest: nothing
+/// moves, and a landed die has shown its result. The human's looking about, a hover's
+/// dwell or the camera, does not delay it.
 pub(super) fn open(world: &mut World) {
     let ui = world.resource::<Interface>();
     if !ui.editions.due() || ui.editions.open().is_some() {
         return;
     }
-    if !settled::unsettled(world).is_empty() || settled::result_showing(world) {
+    if !settled::resting(world).is_empty() {
         return;
     }
     let mut ui = world.resource_mut::<Interface>();
@@ -1474,7 +1475,8 @@ mod tests {
         assert!(PAGE_SLICE > shadow && 2. * PAGE_SLICE < 484.);
     }
 
-    /// While an edition is due, before it opens too, the human submits nothing.
+    /// While an edition is due, before it opens too, the human submits nothing, and is
+    /// told so.
     #[test]
     fn nothing_is_submitted_while_an_edition_is_due() {
         let dir = tempfile::tempdir().unwrap();
@@ -1489,9 +1491,13 @@ mod tests {
         let mut undecided = test_play(dir.path().join("other.json"));
         decide(&mut undecided, &mut ui, Faction::M26, 0, "0:terror");
         assert_eq!(undecided.game().observe().revision, 0);
+        let refusal = notice::Notice::refusal(notice::EDITION_FIRST);
+        assert_eq!(ui.notice, refusal);
+        ui.notice = default();
         ui.editions.open_next();
         decide(&mut undecided, &mut ui, Faction::M26, 0, "0:terror");
         assert_eq!(undecided.game().observe().revision, 0);
+        assert_eq!(ui.notice, refusal);
         ui.editions.put_away();
         decide(&mut undecided, &mut ui, Faction::M26, 0, "0:terror");
         assert_eq!(undecided.game().observe().revision, 1);
