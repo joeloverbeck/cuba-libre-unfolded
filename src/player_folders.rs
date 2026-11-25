@@ -67,17 +67,10 @@ impl Places {
     /// Write both folders, deny Claude Code's file tools the saves and the checkout, and
     /// install the `built` client. A folder that holds anything else is refused first.
     pub fn write(&self, built: &Path) -> Result<()> {
-        let unread = [self.data.join("saves"), checkout()];
-        for path in &unread {
-            // A rule's pattern reads more than these characters as something else.
-            let plain = |c: char| c.is_ascii_alphanumeric() || "/._-".contains(c);
-            if !path.to_str().is_some_and(|path| path.chars().all(plain)) {
-                bail!(
-                    "{} must be a path of ASCII letters, digits, \"/\", \".\", \"_\" and \"-\" only, so that a setting can name it",
-                    path.display()
-                );
-            }
-        }
+        let unread = [
+            unreadable(&self.data.join("saves"))?,
+            unreadable(&checkout())?,
+        ];
         Folders {
             claude_code: &self.claude_code(),
             codex: &self.codex(),
@@ -93,21 +86,29 @@ impl Places {
 
     /// Add to the settings the library wrote: the save holds the match's seed. Codex has
     /// no such denial, since one would take its client's permission away (#205).
-    fn deny_reading(&self, unread: &[PathBuf]) -> Result<()> {
+    fn deny_reading(&self, unread: &[String]) -> Result<()> {
         let path = self.claude_code().join(".claude/settings.json");
         let mut settings: Value = serde_json::from_slice(&fs::read(&path)?)?;
         settings
             .pointer_mut("/permissions/deny")
             .and_then(Value::as_array_mut)
             .context("the folder's settings list no denials")?
-            // Two slashes begin a path that is not the folder's own.
-            .extend(
-                unread
-                    .iter()
-                    .map(|path| json!(format!("Read(/{}/**)", path.display()))),
-            );
+            .extend(unread.iter().map(|rule| json!(rule)));
         fs::write(&path, format!("{settings:#}\n"))?;
         Ok(())
+    }
+}
+
+/// Claude Code's rule for all that lies in `directory`. Two slashes begin a path that is not
+/// the folder's own. A pattern reads more than these characters as something else.
+fn unreadable(directory: &Path) -> Result<String> {
+    let plain = |c: char| c.is_ascii_alphanumeric() || "/._-".contains(c);
+    match directory.to_str() {
+        Some(path) if path.chars().all(plain) => Ok(format!("Read(/{path}/**)")),
+        _ => bail!(
+            "{} must be a path of ASCII letters, digits, \"/\", \".\", \"_\" and \"-\" only, so that a setting can deny it",
+            directory.display()
+        ),
     }
 }
 
@@ -120,4 +121,20 @@ pub fn checkout() -> PathBuf {
         .find(|directory| directory.join(".git").is_dir())
         .unwrap_or(built)
         .to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_directory_that_a_rule_would_not_name_is_refused() {
+        assert_eq!(
+            unreadable(Path::new("/home/a-b/src/cuba_1.0")).unwrap(),
+            "Read(//home/a-b/src/cuba_1.0/**)"
+        );
+        for wrong in ["/home/a b", "/home/*", "/home/[a]", "/home/a)", "/home/ñ"] {
+            assert!(unreadable(Path::new(wrong)).is_err(), "{wrong}");
+        }
+    }
 }

@@ -136,9 +136,8 @@ fn the_checkout_is_the_one_that_holds_the_repository() {
     let built = Path::new(env!("CARGO_MANIFEST_DIR"));
     let checkout = checkout();
     assert!(built.starts_with(&checkout));
-    if checkout != built {
-        assert!(built.join(".git").is_file() && checkout.join(".git").is_dir());
-    }
+    let repository = built.ancestors().any(|at| at.join(".git").is_dir());
+    assert!(checkout.join(".git").is_dir() || (!repository && checkout == built));
 }
 
 #[test]
