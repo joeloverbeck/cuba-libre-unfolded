@@ -7,8 +7,9 @@ use crate::{
 };
 use bevy::{
     app::AnimationSystems,
-    asset::RenderAssetUsages,
+    asset::{AssetPath, RenderAssetUsages},
     core_pipeline::tonemapping::{DebandDither, Tonemapping},
+    gltf::GltfLoaderSettings,
     image::{
         CompressedImageFormats, ImageAddressMode, ImageSampler, ImageSamplerDescriptor, ImageType,
     },
@@ -327,7 +328,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                     CompressedImageFormats::NONE,
                     true,
                     ImageSampler::linear(),
-                    RenderAssetUsages::default(),
+                    DRAWN_ONLY,
                 )
                 .map_err(|e| e.to_string())?
             };
@@ -355,9 +356,9 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
     let die_art = die::DieArt::load(&mut app, &verified.files["kidnap-die.json"])?;
     let main_view = areas::Layout::read(&verified.files["atlas-main-view.layout.json"])?;
     let server = app.world().resource::<AssetServer>();
-    let scene = server.load("atlas-terrain-map.glb#Scene0");
-    let terror = server.load("atlas-terror-token.glb#Scene0");
-    let terror_clip = server.load("atlas-terror-token.glb#Animation0");
+    let scene = model(server, "atlas-terrain-map.glb#Scene0");
+    let terror = model(server, "atlas-terror-token.glb#Scene0");
+    let terror_clip = model(server, "atlas-terror-token.glb#Animation0");
     let (graph, node) = AnimationGraph::from_clip(terror_clip.clone());
     let graph = app
         .world_mut()
@@ -491,6 +492,20 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             ),
         );
     Ok(app)
+}
+/// How the table keeps an image it only draws. The renderer takes the pixels, so the app
+/// holds no second copy; the size and sampler stay, for the interface's layout. An image
+/// any system reads after it loads uses the default instead, and says why. Nothing can
+/// upload these again from memory: a changed image must be loaded afresh.
+const DRAWN_ONLY: RenderAssetUsages = RenderAssetUsages::RENDER_WORLD;
+
+/// Loads one part of an authored model with `DRAWN_ONLY` textures. Its meshes keep their
+/// copies, because picking and the piece placement read them.
+fn model<A: Asset>(server: &AssetServer, part: impl Into<AssetPath<'static>>) -> Handle<A> {
+    server
+        .load_builder()
+        .with_settings(|settings: &mut GltfLoaderSettings| settings.load_materials = DRAWN_ONLY)
+        .load(part.into())
 }
 fn render_ready(
     images: Res<RenderAssets<GpuImage>>,

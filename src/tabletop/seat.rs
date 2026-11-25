@@ -823,6 +823,59 @@ mod tests {
         assert_counts_at(&count_bounds(&continued), &at_landing, "after Continue");
     }
 
+    /// #190: once the table and its die are drawn, the app holds no pixels of the images
+    /// it only draws: every file the table loads, and every texture a drawn material
+    /// uses, the models' included. Their sizes stay, for the interface's layout.
+    #[test]
+    #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer"]
+    fn native_the_table_keeps_no_copy_of_an_image_it_only_draws() {
+        let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
+            .expect("Set CUBA_TEST_CARDS")
+            .into();
+        let saves = tempfile::tempdir().unwrap();
+        let save = saves.path().join("task.json");
+        let (mut app, mut seat) = rolled(&cards, &save, UVec2::new(1920, 1280));
+        ask(&mut seat, &mut app, json!({"op":"settle"}));
+        let files: Vec<_> = app
+            .world()
+            .resource::<Art>()
+            .images
+            .values()
+            .cloned()
+            .collect();
+        let materials: Vec<_> = app
+            .world_mut()
+            .query::<&MeshMaterial3d<StandardMaterial>>()
+            .iter(app.world())
+            .map(|m| m.id())
+            .collect();
+        let assets = app.world().resource::<Assets<StandardMaterial>>();
+        let textures: Vec<_> = materials
+            .into_iter()
+            .flat_map(|id| {
+                let m = assets.get(id).unwrap();
+                [
+                    &m.base_color_texture,
+                    &m.emissive_texture,
+                    &m.metallic_roughness_texture,
+                    &m.normal_map_texture,
+                    &m.occlusion_texture,
+                ]
+                .map(Clone::clone)
+            })
+            .flatten()
+            .collect();
+        // A count that is too low would mean the search found nothing to check.
+        assert!(files.len() > 200, "{} files", files.len());
+        assert!(textures.len() > 4, "{} textures", textures.len());
+        let images = app.world().resource::<Assets<Image>>();
+        for handle in files.iter().chain(&textures) {
+            let image = images.get(handle).unwrap();
+            assert!(image.size().min_element() > 0, "{handle:?}");
+            assert!(image.data.is_none(), "{handle:?} keeps its pixels");
+        }
+    }
+
     /// Resizes the in-process surface as a window resize does: the primary window and the
     /// image the cameras render.
     fn resize(app: &mut App, size: UVec2) {
