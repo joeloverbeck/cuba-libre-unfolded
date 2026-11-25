@@ -2,6 +2,7 @@
 pub mod game;
 pub use game::*;
 pub mod assets;
+pub mod editions;
 pub mod faction_seats;
 pub mod reports;
 pub mod save;

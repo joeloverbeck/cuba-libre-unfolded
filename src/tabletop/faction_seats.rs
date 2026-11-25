@@ -309,8 +309,17 @@ fn show(seats: &FactionSeats, play: &Play, ui: &mut Interface, now: Instant) {
     };
     let states = seats.host.states(session.game(), now);
     if ui.seats != states {
+        let played = ui.played();
         ui.seats = states;
         ui.dirty = true;
+        if ui.played() != played {
+            let played = ui.played();
+            ui.editions.seated(
+                &session.observe(),
+                |told| session.reports_since(told),
+                played,
+            );
+        }
     }
     if ui
         .line

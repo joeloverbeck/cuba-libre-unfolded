@@ -30,6 +30,8 @@ mod main_view;
 mod map_keys;
 #[path = "native/marker_supply.rs"]
 mod marker_supply;
+#[path = "native/newspaper.rs"]
+mod newspaper;
 #[path = "native/pile_tags.rs"]
 mod pile_tags;
 #[path = "native/rally.rs"]
