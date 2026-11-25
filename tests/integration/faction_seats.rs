@@ -7,9 +7,11 @@
 use crate::explore::{self, parallel};
 use cuba_libre_unfolded::{
     Faction, Game,
-    faction_seats::{Answer, Host, Player, SeatState, Stands, Table, View},
+    faction_seats::{Answer, Brief, Host, Player, SeatState, Stands, Table, View},
+    is_propaganda,
     reports::{Report, Reports},
     save::Session,
+    title,
 };
 use serde_json::{Value, json};
 use std::{
@@ -390,6 +392,7 @@ const TOLD: &[&str] = &[
     "standings",
     "stands",
     "state",
+    "statement",
     "status",
     "summary",
     "support",
@@ -400,6 +403,7 @@ const TOLD: &[&str] = &[
     "terror",
     "terror_on_map",
     "text",
+    "texts",
     "threshold",
     "through_card",
     "title",
@@ -427,8 +431,9 @@ fn keys(value: &Value, found: &mut BTreeSet<String>) {
     }
 }
 
-/// No text or number of `value` is a generator state of `game`, and no list of it holds
-/// two cards that lie next to each other face down.
+/// No text or number of `value` is a generator state of `game`, no list of it holds two
+/// cards that lie next to each other face down, and no text of it names an Event card that
+/// lies face down.
 fn assert_hidden(value: &Value, game: &Game) {
     let record = serde_json::to_value(game).unwrap();
     let mut secrets = vec![record["random"].as_u64().unwrap()];
@@ -441,6 +446,12 @@ fn assert_hidden(value: &Value, game: &Game) {
     }
     let deck: Vec<u64> = serde_json::from_value(record["draw_deck"].clone()).unwrap();
     assert_no_order(value, &deck[1..]);
+    for card in deck[1..].iter().map(|card| *card as u8) {
+        assert!(
+            is_propaganda(card) || !text.contains(title(card)),
+            "face-down card {card} is named"
+        );
+    }
     let mut told = BTreeSet::new();
     keys(value, &mut told);
     for hidden in ["random", "random_before", "draw_deck", "seed", "decisions"] {
@@ -466,7 +477,7 @@ fn assert_no_order(value: &Value, face_down: &[u64]) {
 }
 
 /// A match's positions, from its opening to the one it stands at.
-type History = Vec<Game>;
+pub type History = Vec<Game>;
 
 fn histories(seed: u64, actions: &[&str]) -> Vec<History> {
     (0..=actions.len())
@@ -480,7 +491,7 @@ fn histories(seed: u64, actions: &[&str]) -> Vec<History> {
 
 /// Matches that stand on card 18, at each end of the build and on the way there, with
 /// every position since their opening.
-fn later_positions() -> Vec<History> {
+pub fn later_positions() -> Vec<History> {
     let mut found = vec![];
     for text in [
         &["event:shaded", "resolve-shaded"][..],
@@ -558,7 +569,21 @@ fn no_view_depends_on_what_is_hidden_and_together_they_carry_every_choice() {
                 assert_eq!(choice.supported, whole.supported);
                 assert_eq!(choice.explanation, whole.explanation);
                 assert!(!whole.explanation.is_empty());
-                assert_eq!(choice.preview, whole.preview);
+                // An Event option with no preview is told what its text does.
+                if choice.preview != whole.preview {
+                    assert_eq!(whole.preview, None);
+                    assert!(
+                        [
+                            "event:unshaded",
+                            "event:shaded",
+                            "government:event",
+                            "syndicate:event"
+                        ]
+                        .contains(&whole.action()),
+                        "{}",
+                        whole.id
+                    );
+                }
                 offered.insert(whole.id.clone());
             }
             // What is written out, for the decider and each other faction in turn: the
@@ -588,6 +613,72 @@ fn no_view_depends_on_what_is_hidden_and_together_they_carry_every_choice() {
     assert_eq!(told, listed, "the fields told are not those listed");
 }
 
+/// Every object key that occurs in a seat brief, as `TOLD` lists a view's.
+const BRIEFED: &[&str] = &[
+    "accompanies",
+    "actions",
+    "available",
+    "condition",
+    "contributions",
+    "count",
+    "counts",
+    "dealings",
+    "edition",
+    "extra",
+    "faction",
+    "kind",
+    "margin",
+    "margin_rule",
+    "name",
+    "operations",
+    "pieces",
+    "played",
+    "purpose",
+    "ranking",
+    "read_at",
+    "revision",
+    "rivals",
+    "rule",
+    "rules",
+    "score",
+    "space",
+    "special_activities",
+    "standing",
+    "state",
+    "threshold",
+    "victory",
+    "who",
+];
+
+/// Every faction's seat brief (#204) in every explored position is the same whatever lies
+/// face down and whatever the generator's state is, holds neither, and names only listed
+/// fields.
+#[test]
+fn no_brief_depends_on_what_is_hidden() {
+    let positions = positions();
+    let found: Vec<BTreeSet<String>> = parallel(&positions, |_, history| {
+        let game = history.last().unwrap();
+        let seen = game.observe();
+        let other = unseen_changed(game).observe();
+        let mut told = BTreeSet::new();
+        for faction in Faction::ALL {
+            let brief = Brief::of(&seen, faction);
+            assert_eq!(
+                brief,
+                Brief::of(&other, faction),
+                "a brief shows what is hidden"
+            );
+            let brief = serde_json::to_value(brief).unwrap();
+            assert_hidden(&brief, game);
+            keys(&brief, &mut told);
+        }
+        told
+    });
+    let told: BTreeSet<String> = found.into_iter().flatten().collect();
+    let listed: BTreeSet<String> = BRIEFED.iter().map(|key| (*key).to_owned()).collect();
+    assert_eq!(told, listed, "the fields told are not those listed");
+}
+
 /// The hidden-field check bites: each planted leak fails it.
 #[test]
 fn a_planted_leak_is_found() {
@@ -598,6 +689,7 @@ fn a_planted_leak_is_found() {
         json!({"results": [{"articles": [{"random_before": 5}]}]}),
         json!({"deck": [19, 20, 21]}),
         json!({"deck": {"next": [36, 51]}}),
+        json!({"state": {"preview_card": {"texts": [{"statement": "Sierra Maestra Manifesto"}]}}}),
     ] {
         let found = std::panic::catch_unwind(|| assert_hidden(&leak, &game));
         assert!(found.is_err(), "{leak}");
@@ -875,6 +967,171 @@ fn a_view_is_whole_and_says_where_the_match_stands() {
         .map(|f| f["count"].as_u64().unwrap())
         .sum();
     assert_eq!(flipped, 2);
+}
+
+/// What each text of a face-up card's Event does can be read in every view, in the
+/// authority's own words: card 17's two texts and card 18 in preview, then card 18 and card
+/// 19 in preview. Expectations are from the three faces and R 5.1 to 5.3, worked by hand. An
+/// Event option that previews nothing else previews its text.
+#[test]
+fn a_view_says_what_each_text_of_the_face_up_cards_does() {
+    /// Each text's name, what it must say, and where this build plays it.
+    type Text<'a> = (Value, &'a [&'a str], &'a str);
+    let seventeen: [Text; 2] = [
+        (
+            json!("Unshaded"),
+            // The executing faction selects which of the two (R 5.1); free (R 5.5); "as if
+            // spaces Neutral" lifts R 3.3.1's limits.
+            &[
+                "selects 26July or Directorio",
+                "free",
+                "each space where it has a Base",
+                "whatever the Support or Opposition there",
+            ],
+            "in this build, by Directorio",
+        ),
+        (
+            json!("Shaded"),
+            &[
+                "26July Guerrilla",
+                "becomes Active",
+                "Ineligible until card 18 has been played",
+            ],
+            "in this build, by Directorio",
+        ),
+    ];
+    let eighteen: [Text; 1] = [(
+        Value::Null,
+        // R 5.3: a Capability lasts for the rest of the game, unless cancelled as it says.
+        &[
+            "Insurgent Capability",
+            "26July and Directorio",
+            "remove each other's pieces",
+            "Opposition",
+            "2 of its own Bases at once",
+            "stays Eligible for the next card",
+        ],
+        "not in this build",
+    )];
+    let nineteen: [Text; 1] = [(
+        Value::Null,
+        &[
+            "card's faction order",
+            "2 pieces",
+            "other than Casinos",
+            "already has a piece",
+            "stays Eligible",
+        ],
+        "not in this build",
+    )];
+    let check = |card: &Value, number: u64, title: &str, texts: &[Text]| {
+        assert_eq!(card["number"], number);
+        assert_eq!(card["title"], title);
+        assert_eq!(card["order"].as_array().unwrap().len(), 4);
+        assert!(card["kind"].is_string());
+        let told = card["texts"].as_array().unwrap();
+        assert_eq!(told.len(), texts.len(), "{card}");
+        for (told, (text, says, played)) in told.iter().zip(texts) {
+            assert_eq!(told["text"], *text);
+            assert_eq!(told["played"], *played);
+            assert!(told["rules"].as_str().unwrap().contains("5.1"), "{told}");
+            let statement = told["statement"].as_str().unwrap();
+            for said in *says {
+                assert!(statement.contains(said), "{said}: {statement}");
+            }
+            // Own words: no run of the printed text.
+            for printed in [
+                "free Rallies",
+                "as if spaces Neutral",
+                "Guerrillas Active.",
+                "through next card",
+                "affect placed Opposition",
+                "cancel Capability",
+                "may place 2 non-Casino",
+            ] {
+                assert!(!statement.contains(printed), "{statement}");
+            }
+        }
+    };
+    let option = |view: &Value, action: &str| -> Value {
+        let choices = view["choices"].as_array().unwrap();
+        let ends = format!(":{action}");
+        let found = choices
+            .iter()
+            .find(|c| c["id"].as_str().unwrap().ends_with(&ends));
+        found.unwrap_or_else(|| panic!("{action}")).clone()
+    };
+    let notes = |view: &Value, action: &str| option(view, action)["preview"]["notes"].clone();
+
+    // 26July, at its opening decision, which lists both texts refused.
+    let mut s = Sitting::new();
+    let players: Vec<String> = Faction::ALL.map(|f| s.seat(f)).into();
+    let view = s.observe(&players[M26.index()]);
+    check(
+        &view["state"]["current_card"],
+        17,
+        "Alberto Bayo",
+        &seventeen,
+    );
+    let texts = &view["state"]["current_card"]["texts"];
+    assert_eq!(
+        notes(&view, "event:unshaded"),
+        json!([texts[0]["statement"]])
+    );
+    assert_eq!(notes(&view, "event:shaded"), json!([texts[1]["statement"]]));
+
+    // Directorio, at the handoff; and every other faction reads the same of the cards.
+    for action in HANDOFF {
+        s.applied(&players[M26.index()], action);
+    }
+    for player in &players {
+        let view = s.observe(player);
+        check(
+            &view["state"]["current_card"],
+            17,
+            "Alberto Bayo",
+            &seventeen,
+        );
+        check(
+            &view["state"]["preview_card"],
+            18,
+            "Pact of Caracas",
+            &eighteen,
+        );
+        assert!(!view.to_string().contains("Sierra Maestra Manifesto"));
+    }
+    let view = s.observe(&players[Directorio.index()]);
+    assert_eq!(
+        notes(&view, "event:unshaded"),
+        json!([texts[0]["statement"]])
+    );
+    // The shaded option has its own preview, as the authority computes it.
+    let flips = &option(&view, "event:shaded")["preview"]["flips"];
+    assert_eq!(flips.as_array().unwrap().len(), 2);
+
+    // The Government, on card 18.
+    s.applied(&players[Directorio.index()], "event:shaded");
+    s.applied(&players[Directorio.index()], "resolve-shaded");
+    s.human("advance-card");
+    let view = s.observe(&players[Government.index()]);
+    check(
+        &view["state"]["current_card"],
+        18,
+        "Pact of Caracas",
+        &eighteen,
+    );
+    check(
+        &view["state"]["preview_card"],
+        19,
+        "Sierra Maestra Manifesto",
+        &nineteen,
+    );
+    let statement = &view["state"]["current_card"]["texts"][0]["statement"];
+    assert_eq!(notes(&view, "government:event"), json!([statement]));
+    // The Syndicate, after the Government's Pass.
+    s.applied(&players[Government.index()], "government:pass");
+    let view = s.observe(&players[Syndicate.index()]);
+    assert_eq!(notes(&view, "syndicate:event"), json!([statement]));
 }
 
 /// The four ends of this build. A seat that reaches one is told, and is not woken.
@@ -1447,6 +1704,51 @@ fn a_session_that_lost_its_answer_comes_back_with_its_identity() {
     assert_eq!(answer["view"]["revision"], 6);
     assert_eq!(s.observe(&player)["revision"], 6);
     s.applied(&player, "resolve-shaded");
+}
+
+/// A session is given its own faction's brief as it joins, and again, as the match then
+/// stands, when it asks with its identity whether its seat is still its own: a restarted
+/// session need not remember it. No other answer holds one.
+#[test]
+fn a_session_is_given_its_seat_brief_as_it_joins() {
+    let mut s = Sitting::new();
+    for faction in Faction::ALL {
+        s.host.hand_over(faction);
+        let joined = s.ask(json!({"op":"join","faction":faction.name()}));
+        assert_eq!(joined["status"], "joined", "{joined}");
+        let brief = Brief::of(&s.room.session.observe(), faction);
+        assert_eq!(joined["brief"], serde_json::to_value(&brief).unwrap());
+        assert_eq!(joined["brief"]["revision"], joined["view"]["revision"]);
+    }
+
+    let mut s = Sitting::new();
+    let directorio = s.seat(Directorio);
+    let m26 = s.seat(M26);
+    for action in HANDOFF {
+        let applied = s.applied(&m26, action);
+        assert!(applied.get("brief").is_none(), "{applied}");
+    }
+    let waited = s.wait(&directorio);
+    assert!(s.answer(waited).unwrap().get("brief").is_none());
+    let seen = s.ask(json!({"op":"observe","player":directorio}));
+    assert!(seen.get("brief").is_none());
+
+    // It comes back after a compacted context: the brief of now, at 26July's 8 − 15.
+    for named in ["Directorio", "Government"] {
+        let again = s.refused(json!({"op":"join","faction":named,"player":directorio}));
+        assert_eq!(again["brief"]["faction"], "Directorio");
+        assert_eq!(again["brief"]["revision"], 5);
+        let rivals = again["brief"]["rivals"].as_array().unwrap();
+        let m26 = rivals.iter().find(|r| r["name"] == "26July").unwrap();
+        assert_eq!(m26["standing"]["margin"], -7);
+    }
+    // A stranger, and a session that does not give its identity, are told no brief.
+    let stranger = s.refused(json!({"op":"join","faction":"Directorio"}));
+    assert!(stranger.get("brief").is_none(), "{stranger}");
+    s.host.hand_over(Government);
+    s.ask(json!({"op":"join","faction":"Government","session":"tool=1"}));
+    let same = s.refused(json!({"op":"join","faction":"Government","session":"tool=1"}));
+    assert!(same.get("brief").is_none(), "{same}");
 }
 
 /// The save the sessions made is, byte for byte, the one the same decisions by hand

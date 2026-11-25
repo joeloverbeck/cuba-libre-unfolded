@@ -26,8 +26,9 @@ Play one faction of a running Cuba Libre match. Each command prints one line of 
   wait PLAYER [--timeout SECONDS]           until your faction has a decision
   leave PLAYER                              your seat waits for another session
 
-A wait has no time limit unless you give one. Join again with --player only to learn
-whether your seat is still yours: a session that holds a seat is refused another.
+A join's answer also holds your seat's \"brief\". A wait has no time limit unless you give
+one. Join again with --player only to learn whether your seat is still yours, and to read
+its brief again: a session that holds a seat is refused another.
 
 Answers (\"status\"): joined, observed, left; applied, held (it waits for the table to
 settle) or refused for a choice; decision, released (a held choice was not applied, with

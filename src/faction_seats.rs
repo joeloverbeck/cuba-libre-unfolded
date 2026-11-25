@@ -6,7 +6,8 @@
 //!
 //! Who holds each seat, the held choices and the waits are `unfolded_agent_players::seats`,
 //! which no game owns. What follows here is Cuba Libre's: who decides, what a faction may
-//! know ([`View`]), the requests and the answers' words.
+//! know ([`View`]), what it is told as it joins ([`Brief`]), the requests and the answers'
+//! words.
 //!
 //! **Who decides** is asked of the rules authority for each choice, never for the
 //! position as a whole: while a giver decides a Transfer request, 26July's withdrawal
@@ -20,8 +21,10 @@
 //! at once when the table is settled, and held otherwise. Who plays which faction is
 //! runtime state, in no save.
 
+mod brief;
 mod view;
 
+pub use brief::{Brief, Pieces};
 pub use view::{Stands, View};
 
 use crate::{Faction, Game, Observation, Transfer, reports::Report};
@@ -507,7 +510,7 @@ impl<R> Host<R> {
                 );
                 let id = id.to_owned();
                 self.seats.heard(&id, now);
-                return self.answer(&id, "refused", Some(reason), table);
+                return self.briefed(&id, "refused", Some(reason), table);
             }
             (Err(ClaimRefused::SameSession(faction)), _) => {
                 return refused(format!(
@@ -550,8 +553,7 @@ impl<R> Host<R> {
             follows: None,
             set_aside: None,
         });
-        // The seat brief (#204) is given here, once.
-        self.answer(&id, "joined", None, table)
+        self.briefed(&id, "joined", None, table)
     }
 
     fn choose(
@@ -722,6 +724,21 @@ impl<R> Host<R> {
                 })
                 .collect();
         }
+        answer
+    }
+
+    /// An answer to a join by a session that holds a seat, with its seat brief: as it
+    /// joins, and again when it joins with its identity, for it may have lost the first.
+    fn briefed(
+        &mut self,
+        id: &str,
+        status: &str,
+        error: Option<String>,
+        table: &impl Table,
+    ) -> Value {
+        let faction = *self.seats.seat(id).expect("Seated");
+        let mut answer = self.answer(id, status, error, table);
+        answer["brief"] = json!(Brief::of(&table.game().observe(), faction));
         answer
     }
 

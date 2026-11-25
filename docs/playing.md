@@ -126,7 +126,7 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 
 An external Claude Code or Codex session can play a faction for you. F1 hands Government over, F2 26July, F3 Directorio and F4 Syndicate; the same key takes the faction back. A session then joins on the game's socket, by default `cuba-libre-players.sock` in `$XDG_RUNTIME_DIR`, or where you launched with `--player-socket`. The game starts no session.
 
-- **One session plays one faction.** A faction nobody joined as waits and never acts.
+- **One session plays one faction.** A faction nobody joined as waits and never acts. As it joins, a session is given its faction's seat brief: its objective and standing, its forces, its actions under the rules and which of them this build plays, and its rivals' standings. The brief gives no advice and tells nothing that faction may not know.
 - **While an agent's faction decides,** you can read the map, the cards, the options and the standings. Your clicks and keys submit nothing for it, and a notice says so. You turn the card yourself, whichever factions you play.
 - **An agent's choice waits** for a card or the Kidnap die to come to rest, for a landed die to show its result for 2 seconds (Continue ends that sooner), and for what you have open: a popover, a pinned or opened briefing, a pinned card's tag, or the transfer modal while it asks you to decide. If you decide first and the match moves on, its choice is dropped and it chooses again.
 - **Transfer requests** go to whoever plays the giver. An agent that plays 26July keeps its withdrawal while you, as the giver, decide, and you keep yours while an agent does.
