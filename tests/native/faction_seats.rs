@@ -117,6 +117,7 @@ impl Native {
         self.key(key);
         let (code, joined) = self.ask(&["join", faction]);
         assert_eq!((code, &joined["status"]), (0, &json!("joined")), "{joined}");
+        assert_eq!(joined["brief"]["faction"], joined["view"]["faction"]);
         joined["player"].as_str().unwrap().to_owned()
     }
     /// A session's choice at the present revision.

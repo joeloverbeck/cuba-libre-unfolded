@@ -5,22 +5,22 @@
 
 use super::Player;
 use crate::{
-    ActionChoice, CardFacts, Choice, DeckFacts, Eligibility, EventProgress, Faction, Game, Group,
-    KidnapStakes, MarkerSupply, Next, Observation, Piles, PlayedCard, Preview, Removal, Site,
-    SpaceReason, Standing, Terrain, Transfer, TransferTerms, UsAlliance, reports::Report,
-    support_level,
+    ActionChoice, CardFacts, Choice, DeckFacts, Eligibility, EventProgress, EventStatement,
+    Faction, Game, Group, KidnapStakes, MarkerSupply, Next, Observation, Piles, PlayedCard,
+    Preview, Removal, Site, SpaceReason, Standing, Terrain, Transfer, TransferTerms, UsAlliance,
+    reports::Report, support_level,
 };
 use serde::Serialize;
 
 /// The rules that govern the match, and where they can be read.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub struct Rules {
     pub edition: &'static str,
     pub read_at: &'static str,
 }
 
 /// The accepted source (`docs/research/rules-baseline-and-candidates.md`).
-const RULES: Rules = Rules {
+pub(super) const RULES: Rules = Rules {
     edition: "GMT Cuba Libre, Living Rules of March 2019 (third printing). \"R 3.3.4\" names its rule 3.3.4",
     read_at: "https://s3-us-west-2.amazonaws.com/gmtwebsiteassets/cuba/CL-RULES-2019-LivingRules.pdf",
 };
@@ -107,8 +107,8 @@ pub struct State {
     /// Why each space is in its state, while a decision acts on spaces.
     pub space_reasons: Vec<SpaceReason>,
     pub available: Vec<Group>,
-    pub current_card: CardFacts,
-    pub preview_card: CardFacts,
+    pub current_card: Card,
+    pub preview_card: Card,
     pub piles: Piles,
     /// Every card played, most recent first.
     pub played: Vec<PlayedCard>,
@@ -120,6 +120,14 @@ pub struct State {
     pub marker_supply: MarkerSupply,
     pub capabilities: Vec<String>,
     pub momentum: Vec<String>,
+}
+
+/// A face-up card: what its tag shows, and what each text of its Event does.
+#[derive(Debug, Serialize)]
+pub struct Card {
+    #[serde(flatten)]
+    pub facts: CardFacts,
+    pub texts: Vec<EventStatement>,
 }
 
 #[derive(Debug, Serialize)]
@@ -149,6 +157,8 @@ pub struct Offer {
     /// What would make a refused choice supported.
     pub remedies: Vec<String>,
     pub site: Option<Site>,
+    /// What it would do, as the authority computes it; for an Event's text it does not
+    /// compute, what the text does.
     pub preview: Option<Preview>,
 }
 
@@ -183,7 +193,7 @@ impl View {
             .choices
             .iter()
             .filter(|choice| choice.owner == faction && !choice.turns_the_card())
-            .map(Offer::of)
+            .map(|choice| Offer::of(choice, seen.cards.current.number))
             .collect();
         Self {
             faction,
@@ -267,8 +277,8 @@ impl State {
             spaces: seen.spaces.iter().map(Space::of).collect(),
             space_reasons: seen.space_reasons.clone(),
             available: seen.available.clone(),
-            current_card: seen.cards.current.clone(),
-            preview_card: seen.cards.preview.clone(),
+            current_card: Card::of(&seen.cards.current),
+            preview_card: Card::of(&seen.cards.preview),
             piles: seen.piles,
             played: seen.played_pile.cards.clone(),
             deck: seen.deck.clone(),
@@ -278,6 +288,15 @@ impl State {
             marker_supply: seen.marker_supply,
             capabilities: seen.capabilities.clone(),
             momentum: seen.momentum.clone(),
+        }
+    }
+}
+
+impl Card {
+    fn of(facts: &CardFacts) -> Self {
+        Self {
+            facts: facts.clone(),
+            texts: EventStatement::of(facts.number),
         }
     }
 }
@@ -301,7 +320,17 @@ impl Space {
 }
 
 impl Offer {
-    fn of(choice: &Choice) -> Self {
+    fn of(choice: &Choice, card: u8) -> Self {
+        let event = |text| {
+            let told = EventStatement::of(card).into_iter();
+            let notes = told
+                .filter(|told| told.text == text)
+                .map(|told| told.statement.to_owned());
+            Preview {
+                notes: notes.collect(),
+                ..Preview::default()
+            }
+        };
         Self {
             id: choice.id.clone(),
             label: choice.label.clone(),
@@ -310,7 +339,10 @@ impl Offer {
             accompanies: choice.accompanies.clone(),
             remedies: choice.remedies.clone(),
             site: choice.site.clone(),
-            preview: choice.preview.clone(),
+            preview: choice
+                .preview
+                .clone()
+                .or_else(|| choice.event_text().map(event)),
         }
     }
 }

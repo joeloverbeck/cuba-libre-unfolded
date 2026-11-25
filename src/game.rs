@@ -5,17 +5,19 @@ use unfolded_random::SeededRandom;
 mod assault;
 mod cards;
 mod pile_facts;
+mod played;
 mod rally;
 mod titles;
 pub use assault::AssaultResolution;
 pub use cards::{
-    CardFacts, CardWords, DECK_CARDS, EventKind, EventStatus, EventText, LastingEffect,
-    PROPAGANDA_CARDS, Piles, Role, ShownCards, is_propaganda,
+    CardFacts, CardWords, DECK_CARDS, EventKind, EventStatement, EventStatus, EventText,
+    LastingEffect, PROPAGANDA_CARDS, Piles, Role, ShownCards, is_propaganda,
 };
 pub use pile_facts::{
     DeckFacts, DeckWords, NextPropaganda, PlayedCard, PlayedPile, PlayedWords, next_propaganda,
     next_propaganda_words,
 };
+pub use played::Played;
 pub use rally::{Rally, RallyAction, RallyResolution};
 pub use titles::title;
 
@@ -751,6 +753,16 @@ impl Choice {
     /// table, whichever faction the authority names for it (#197).
     pub fn turns_the_card(&self) -> bool {
         self.action() == ADVANCE_CARD
+    }
+    /// The text of the current card's Event that this choice executes: one of a dual-use
+    /// Event's two (R 5.2), or `Some(None)` for a single text.
+    pub fn event_text(&self) -> Option<Option<EventText>> {
+        match self.action() {
+            "event:unshaded" => Some(Some(EventText::Unshaded)),
+            "event:shaded" => Some(Some(EventText::Shaded)),
+            "government:event" | "syndicate:event" => Some(None),
+            _ => None,
+        }
     }
     /// The map space this choice acts on, as the authority states it in `site`, so
     /// the map can offer it there: a Terror target, opening Kidnap in its space, or an
