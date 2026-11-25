@@ -37,8 +37,8 @@ fn holds(name: &str, native: [f64; 4], recorded: [f64; 4], which: &[usize], tole
 
 /// The outer edges of the card's 1 px ink stroke as drawn in `capture`, found by
 /// scanning inward from 20 px outside each edge of the slip's reported `bounds` (left,
-/// top, right, bottom): across the bottom padding for the sides, and down and up a
-/// column inside the left padding for the top and the foot. A pixel is the stroke's
+/// top, right, bottom): across a row above the bottom padding for the sides, and down and
+/// up a column inside the left padding for the top and the foot. A pixel is the stroke's
 /// when its channels sum below 560: the sea sums about 674, the paper 724 and
 /// the shadow at least 600. The library's launch-error regression measures the same
 /// way (`tabletop::seat`).
@@ -49,8 +49,10 @@ fn drawn_stroke(capture: &Path, bounds: [f64; 4]) -> [f64; 4] {
         p.0.iter().map(|&c| u32::from(c)).sum::<u32>() < 560
     };
     let [left, top, right, foot] = bounds.map(f64::round);
-    let row = foot - 4.;
-    let column = left + 8.;
+    // Clear of the ink of Syndicate's seat card, over which the slip opens (#206): between
+    // its colour and its name, and below the foot right of its name.
+    let row = foot - 33.;
+    let (column, below) = (left + 8., left + 24.);
     let first = |mut at: f64, step: f64, end: f64, hit: &dyn Fn(f64) -> bool| loop {
         if hit(at) {
             return at;
@@ -63,7 +65,7 @@ fn drawn_stroke(capture: &Path, bounds: [f64; 4]) -> [f64; 4] {
         first(top - 20., 1., top + 8., &|y| dark(column, y)),
         // The last dark pixel's far side is the edge.
         first(right + 20., -1., right - 8., &|x| dark(x, row)) + 1.,
-        first(foot + 20., -1., foot - 8., &|y| dark(column, y)) + 1.,
+        first(foot + 20., -1., foot - 8., &|y| dark(below, y)) + 1.,
     ]
 }
 

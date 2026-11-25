@@ -417,7 +417,9 @@ fn assault_rows_after(lines: usize) -> f32 {
     }
 }
 
-fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool) -> String {
+/// The panel's two lines under its heading: where the match stands, and how the human
+/// works the rows, which an `agent`'s panel says above its strip instead.
+fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool, agent: bool) -> String {
     if view.current_card == 18 {
         let balance = resources(view.resources[view.owner.index()]);
         if let Some(next) = &view.next {
@@ -445,6 +447,9 @@ fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool) -> St
                 giver.name(),
                 resources(view.resources[Faction::Government.index()])
             );
+        }
+        if view.removal.is_some() && agent {
+            return "Removal mode is on until Done.".into();
         }
         if view.removal.is_some() {
             return "Select a marked piece on the map.\nChoose Done to return to Assault.".into();
@@ -506,6 +511,7 @@ fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool) -> St
             format!("{} decides the Resource transfer", giver.name())
         }
         Some(Transfer::Selecting) => format!("{} composes the Resource transfer", executor.name()),
+        None if agent => return position,
         None if view.removal.is_some() => "Click a marked piece, or select Done".into(),
         None => "Hover or focus an option for its briefing · click to pin it".into(),
     };
@@ -526,6 +532,9 @@ pub(super) fn panel(
     let event_pending = view.event.as_ref().is_some_and(EventProgress::pending);
     let card_18 = view.current_card == 18;
     let executor = view.executing.unwrap_or(view.owner);
+    // While an agent's faction decides, the panel is inert (#206): no plates, and the
+    // strip in the commit's place.
+    let agent = super::seat_cards::deciding(view, ui).is_some();
     let part = |commands: &mut Commands, entity: Entity, name: &str| {
         commands.entity(entity).insert(Part(name.into()));
     };
@@ -551,6 +560,7 @@ pub(super) fn panel(
         Some(EventProgress::ChooseRallyBeneficiary) => "Choose who Rallies".into(),
         Some(EventProgress::Rally(rally)) => format!("{} · Free Rally", rally.beneficiary.name()),
         _ if directorio => "Directorio's options".into(),
+        _ if agent => "26July's options".into(),
         _ => "Choose 26July's action".into(),
     };
     let heading = text(
@@ -571,7 +581,7 @@ pub(super) fn panel(
     let subtitle = text(
         commands,
         art,
-        Prose::named(panel_subtitle(view, executor, directorio)),
+        Prose::named(panel_subtitle(view, executor, directorio, agent)),
         rx(x),
         ry(y),
         rs(w),
@@ -632,10 +642,15 @@ pub(super) fn panel(
             let [_, size] = fig::ASSAULT_MAP_LINE;
             [0., 0., size, fig::SUBTITLE_LINE]
         };
+        let content = if agent && !record {
+            super::execution::MAP_LINE_READING.to_owned()
+        } else {
+            line.words
+        };
         let words = text(
             commands,
             art,
-            Prose::named(line.words),
+            Prose::named(content),
             rx(fig::ROW_X),
             ry(line.top),
             rs(fig::ROW_W),
@@ -667,8 +682,10 @@ pub(super) fn panel(
             listing(act)
         };
         let row = rect(fig::ROW_X, top, fig::ROW_W, fig::ROW_H);
-        // A playable option has the paper plate; the others only a pickable area.
-        let node = if choice.supported {
+        // A playable option has the paper plate; the others only a pickable area, and so
+        // does an agent's, which the human may read (#206).
+        let offered = choice.supported && ui.plays(choice.owner);
+        let node = if offered {
             let plate = picture(commands, art, "atlas-choice-row.png", row, s, o, 3);
             commands.entity(plate).remove::<Pickable>();
             plate
@@ -700,7 +717,7 @@ pub(super) fn panel(
             ))
             .observe(super::click);
         let accompanies = choice.accompanies.is_some();
-        let (lx, ly, size) = if choice.supported {
+        let (lx, ly, size) = if offered {
             (fig::LABEL[0], fig::LABEL[1], fig::LABEL_SIZE)
         } else if accompanies {
             (fig::SA_LABEL_X, fig::QUIET_LABEL[1], fig::QUIET_SIZE)
@@ -734,15 +751,7 @@ pub(super) fn panel(
         commands
             .entity(words)
             .insert(TextColor(if choice.supported { INK } else { QUIET }));
-        style(
-            commands,
-            words,
-            art,
-            choice.supported,
-            rs(size) * s,
-            0.,
-            None,
-        );
+        style(commands, words, art, offered, rs(size) * s, 0., None);
         part(commands, words, &format!("{name}-label"));
         if let Some(pill) = pill {
             let width = if act == "terror:kidnap" {
@@ -815,6 +824,12 @@ pub(super) fn panel(
                 .insert((TextColor(QUIET), TextLayout::justify(Justify::Right)));
             part(commands, words, &format!("{name}-value"));
         }
+    }
+    if let Some(strip) = super::seat_cards::strip(view, ui) {
+        let hint = panel_rows(view)
+            .next()
+            .map(|_| super::seat_cards::hint(strip.0));
+        return super::seat_cards::panel_strip(commands, art, strip, hint.as_deref(), s, o);
     }
     let commit = commit(view, ui.choice.pinned.as_deref());
     primary(
@@ -964,8 +979,8 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
 /// Enter does to it: the panel's; the spaces the map offers (#168); the marker supply
 /// (#173) and the Available Forces ledger's four rows above the panel, whose tags
 /// focus opens as hover does (#160); then the current and the preview card (#139) and
-/// the two piles (#144), whose tags it opens too; and last Save · quit, whose tag focus
-/// opens too and which Enter activates (#174).
+/// the two piles (#144), whose tags it opens too; the seat controls (#206); and last Save
+/// · quit, whose tag focus opens too and which Enter activates (#174).
 fn focusable(
     view: &Observation,
     ui: &Interface,
@@ -973,13 +988,14 @@ fn focusable(
     popover: &Popover,
 ) -> Vec<(String, Action)> {
     let mut controls = panel_focusable(view, ui);
-    controls.extend(map_focusable(view, targeting, popover));
+    controls.extend(map_focusable(view, ui, targeting, popover));
     controls.extend(super::supply::focusable());
     controls.extend(super::available::focusable());
     controls
         .extend(super::cards::Slot::ALL.map(|slot| (slot.name().to_owned(), Action::Card(slot))));
     controls
         .extend(super::piles::Pile::ALL.map(|pile| (pile.name().to_owned(), Action::Pile(pile))));
+    controls.extend(super::seat_cards::focusable(ui));
     controls.push((super::save_quit::NAME.to_owned(), Action::Quit));
     controls
 }
@@ -989,6 +1005,7 @@ fn focusable(
 /// button follow its space. None while targeting is suspended.
 fn map_focusable(
     view: &Observation,
+    ui: &Interface,
     targeting: &Targeting,
     popover: &Popover,
 ) -> Vec<(String, Action)> {
@@ -1002,7 +1019,7 @@ fn map_focusable(
         if let Some((open, selected)) = open
             && open == space
         {
-            stops.extend(super::popover::focusable(view, space, selected));
+            stops.extend(super::popover::focusable(view, ui, space, selected));
         }
     }
     stops
@@ -1028,14 +1045,21 @@ fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> 
             ) && let Some(choice) = view
                 .choices
                 .iter()
-                .find(|choice| choice.action() == "reopen")
+                .find(|choice| choice.action() == "reopen" && ui.plays(choice.owner))
             {
                 return vec![(
                     choice.id.clone(),
                     Action::Decision(choice.owner, view.revision),
                 )];
             }
-            let commit = commit(view, ui.choice.pinned.as_deref());
+            // The commit, or the strip that stands there (#206).
+            let foot = match super::seat_cards::strip(view, ui) {
+                Some(_) => super::seat_cards::strip_focusable(view, ui),
+                None => {
+                    let commit = commit(view, ui.choice.pinned.as_deref());
+                    Some((commit.name, commit.action))
+                }
+            };
             panel_options(view)
                 .map(|c| {
                     (
@@ -1043,11 +1067,11 @@ fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> 
                         Action::Pin(c.action().into()),
                     )
                 })
-                .chain([(commit.name, commit.action)])
+                .chain(foot)
                 .collect()
         }
         ActionChoice::Terror if view.executing.is_some() => {
-            let mut controls = super::execution::focusable(view, ui.choice.pinned.as_deref());
+            let mut controls = super::execution::focusable(view, ui);
             controls.push(("briefing-ribbon".to_owned(), Action::Ribbon));
             if ui.choice.ribbon {
                 controls.extend(
@@ -1056,7 +1080,9 @@ fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> 
             }
             controls
         }
-        _ => vec![],
+        _ => super::seat_cards::strip_focusable(view, ui)
+            .into_iter()
+            .collect(),
     }
 }
 
@@ -1113,7 +1139,7 @@ pub(super) fn keys(
     // The transfer modal takes the keyboard while it is shown (`transfer::keys`), and so
     // does a presented Kidnap die: Space or Enter skips it, then continues (#74).
     let game = play.game();
-    if super::transfer::shown(game.transfer.as_ref())
+    if super::transfer::shown(game.transfer.as_ref(), game.owner(), &ui)
         || super::die::presented(game.revision, game.kidnap.as_ref(), &roll).is_some()
     {
         return;
@@ -1122,6 +1148,11 @@ pub(super) fn keys(
     if escape {
         // An open card tag closes first, and alone (#139).
         if super::cards::escape(&mut ui) {
+            ui.dirty = true;
+            return;
+        }
+        // Then the sheet with a seat's line, and alone (#206).
+        if ui.line.take().is_some() {
             ui.dirty = true;
             return;
         }
@@ -1210,6 +1241,16 @@ pub(super) fn keys(
             ui.dirty = true;
         }
         Action::Row(action) => popover.choose_row(&action),
+        // `faction_seats::serve` reads it in this frame. Focus moves to the button that
+        // takes the pressed one's place on the card.
+        Action::Seat(press) => {
+            ui.presses.push(press);
+            if focused.starts_with("seat:")
+                && let Some(next) = super::seat_cards::focus_after(press)
+            {
+                ui.choice.focus = Some(next);
+            }
+        }
         _ => {}
     }
 }
@@ -1273,7 +1314,7 @@ fn kept(
         ActionChoice::Pass => return None,
     };
     if (ribbon || game.card_18 || game.event.as_ref().is_some_and(EventProgress::pending))
-        && (popover || super::transfer::shown(game.transfer.as_ref()))
+        && (popover || super::transfer::shown(game.transfer.as_ref(), game.owner(), ui))
     {
         return None;
     }
@@ -1447,7 +1488,7 @@ pub(super) fn draw(
     let content = if tabs || choosing {
         briefing::content(&view, &option)
     } else {
-        super::execution::tag(&view, &option)
+        super::execution::tag(&view, &ui, &option)
     };
     let Some(briefing) = content else {
         return;
@@ -1951,12 +1992,12 @@ mod tests {
         let view = Game::opening().observe();
         let ui = Interface::default();
         let order = names(&view, &ui);
-        assert_eq!(order.len(), 22);
+        assert_eq!(order.len(), 26);
         assert_eq!(order[0], "option:pass");
         assert_eq!(order[11], "choice-commit");
         // Then the marker supply (#173) and the Available Forces rows above the panel
-        // (#160), both cards and both piles, whose tags focus opens (#139, #144), and
-        // last Save · quit (#174).
+        // (#160), both cards and both piles, whose tags focus opens (#139, #144), the
+        // seat cards' buttons (#206), and last Save · quit (#174).
         assert_eq!(
             order[12..],
             [
@@ -1969,6 +2010,10 @@ mod tests {
                 "card:preview",
                 "pile:played",
                 "pile:deck",
+                "seat:government:hand-over",
+                "seat:26july:hand-over",
+                "seat:directorio:hand-over",
+                "seat:syndicate:hand-over",
                 "quit"
             ]
         );
@@ -1998,13 +2043,17 @@ mod tests {
                 "card:preview",
                 "pile:played",
                 "pile:deck",
+                "seat:government:hand-over",
+                "seat:26july:hand-over",
+                "seat:directorio:hand-over",
+                "seat:syndicate:hand-over",
                 "quit"
             ]
         );
         ui.choice.ribbon = true;
         let order = names(&game.observe(), &ui);
         assert_eq!(
-            order[order.len() - 15..],
+            order[order.len() - 19..],
             [
                 "briefing-ribbon",
                 "briefing-tab:kidnap",
@@ -2020,11 +2069,87 @@ mod tests {
                 "card:preview",
                 "pile:played",
                 "pile:deck",
+                "seat:government:hand-over",
+                "seat:26july:hand-over",
+                "seat:directorio:hand-over",
+                "seat:syndicate:hand-over",
                 "quit"
             ]
         );
         ui.choice.pinned = Some("end-terror".into());
         assert!(names(&game.observe(), &ui).contains(&"1:end-terror".to_owned()));
+    }
+
+    /// While an agent's faction decides, no stop submits anything: the strip's Take back
+    /// stands for the commit, the rows and the map's spaces stay to be read, and a seat's
+    /// buttons are stops whatever its state. At each of its decisions in card 17's play.
+    #[test]
+    fn tab_reaches_nothing_that_submits_for_an_agent() {
+        use crate::faction_seats::SeatState;
+        let mut game = Game::opening();
+        let mut seen = std::collections::BTreeSet::new();
+        for action in [
+            "terror",
+            "transfer",
+            "back",
+            "remove",
+            "done-removal",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:unshaded",
+            "",
+        ] {
+            let view = game.observe();
+            for pinned in [
+                None,
+                Some("terror"),
+                Some("end-terror"),
+                Some("event:shaded"),
+            ] {
+                let mut ui = Interface {
+                    seats: [SeatState::Thinking; 4],
+                    ..default()
+                };
+                ui.choice.pinned = pinned.map(Into::into);
+                let mut popover = Popover::default();
+                let targeting = aim(&view);
+                popover.click_space("santiago", &targeting);
+                for (name, action) in focusable(&view, &ui, &targeting, &popover) {
+                    assert!(
+                        !matches!(
+                            action,
+                            Action::Commit(..) | Action::Decision(..) | Action::Submit(..)
+                        ),
+                        "{name} at revision {}",
+                        view.revision
+                    );
+                    seen.insert(name);
+                }
+                // The human's own: the same stops submit again.
+                ui.seats = [SeatState::Human; 4];
+                let own = focusable(&view, &ui, &targeting, &popover);
+                assert!(
+                    own.iter().all(|(name, _)| name != "seat-strip:take-back"),
+                    "{own:?}",
+                    own = own.iter().map(|(name, _)| name).collect::<Vec<_>>()
+                );
+            }
+            if !action.is_empty() {
+                decide(&mut game, action);
+            }
+        }
+        for stop in [
+            "seat-strip:take-back",
+            "option:event:shaded",
+            "step:end-terror",
+            "space:santiago",
+            "popover:row:kidnap",
+            "seat:syndicate:take-back",
+        ] {
+            assert!(seen.contains(stop), "{stop}");
+        }
     }
 
     /// Card 18 with Government's Assault opened (#169). Seed 2's Kidnap roll takes 5
@@ -2074,7 +2199,7 @@ mod tests {
         let view = game.observe();
         // 6 − 5 (Kidnap) + 4 (given) = 5, and a space costs 2 at Firm (R 6.3.1).
         assert_eq!(
-            panel_subtitle(&view, Faction::Government, false),
+            panel_subtitle(&view, Faction::Government, false, false),
             "5 Resources · Firm US Alliance\n2 Resources per space"
         );
         let rows = |view: &Observation| -> Vec<(String, f32)> {

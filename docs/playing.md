@@ -124,10 +124,11 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 
 ## Handing a faction to an agent
 
-An external Claude Code or Codex session can play a faction for you. F1 hands Government over, F2 26July, F3 Directorio and F4 Syndicate; the same key takes the faction back. A session then joins on the game's socket, by default `cuba-libre-players.sock` in `$XDG_RUNTIME_DIR`, or where you launched with `--player-socket`. The game starts no session.
+An external Claude Code or Codex session can play a faction for you. The four cards along the bottom say who plays each faction ([SEATS.md](../art/atlas/SEATS.md)). **Hand over** gives a faction to an agent, **Copy its line** copies the one line to paste in its terminal, and **Take back** makes it yours again, all four if you like and at any time. F1 to F4 hand Government, 26July, Directorio and Syndicate over and take them back too. A session joins on the game's socket, by default `cuba-libre-players.sock` in `$XDG_RUNTIME_DIR`, or where you launched with `--player-socket`. The game starts no session.
 
-- **One session plays one faction.** A faction nobody joined as waits and never acts. As it joins, a session is given its faction's seat brief: its objective and standing, its forces, its actions under the rules and which of them this build plays, and its rivals' standings. The brief gives no advice and tells nothing that faction may not know.
-- **While an agent's faction decides,** you can read the map, the cards, the options and the standings. Your clicks and keys submit nothing for it, and a notice says so. You turn the card yourself, whichever factions you play.
+- **One session plays one faction.** A faction nobody joined as waits and never acts. A silent agent's card and panel say for how many minutes it was not heard from; nothing moves for it until it does, or you take its faction back. As it joins, a session is given its faction's seat brief: its objective and standing, its forces, its actions under the rules and which of them this build plays, and its rivals' standings. The brief gives no advice and tells nothing that faction may not know.
+- **While an agent's faction decides,** the panel says whose decision it is and its options can be read and not chosen; the map, with its popovers, the cards and the standings too. You turn the card yourself, whichever factions you play.
+- **The line to copy** stays on its sheet until a session joins, you take the faction back, you press Escape or you click the map.
 - **An agent's choice waits** for a card or the Kidnap die to come to rest, for a landed die to show its result for 2 seconds (Continue ends that sooner), and for what you have open: a popover, a pinned or opened briefing, a pinned card's tag, or the transfer modal while it asks you to decide. If you decide first and the match moves on, its choice is dropped and it chooses again.
 - **Transfer requests** go to whoever plays the giver. An agent that plays 26July keeps its withdrawal while you, as the giver, decide, and you keep yours while an agent does.
 - **Taking a faction back** works at any time. The session ends, and a choice of its that was not applied is cancelled.
@@ -141,10 +142,10 @@ An external Claude Code or Codex session can play a faction for you. F1 hands Go
 | Wheel or `+`/`-` | Zoom |
 | `W` `A` `S` `D` | Pan |
 | `Home` | Restore the map framing; also brings back hover tags that extreme framing hid |
-| `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked, then no effect, then those nothing can pay for) and an open popover's rows and button, then the marker supply, the four Available Forces rows, the current and the preview card, the two piles and Save · quit |
+| `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked, then no effect, then those nothing can pay for) and an open popover's rows and button, then the marker supply, the four Available Forces rows, the current and the preview card, the two piles, the seat cards' buttons and Save · quit |
 | `Enter`, `Space` | Activate the focused control. A dark line outside it ([FOCUS-MARK.md](../art/atlas/FOCUS-MARK.md)) marks the button, row or option that Enter would press; in the transfer modal that is the main button until Tab reaches another control, and in the amount field too. A focused space, card, pile, the marker supply or an Available Forces row shows its tag instead. While a played card is moving, land the cards instead |
 | `F1`, `F2`, `F3`, `F4` | Hand Government, 26July, Directorio or Syndicate to an agent, or take it back ([above](#handing-a-faction-to-an-agent)) |
-| `Escape` | Close a card's tag, unpin a briefing, cancel an open transfer, or close a tag or popover; a space popover closed from the keyboard leaves focus on its space |
+| `Escape` | Close a card's tag or the sheet with a seat's line, unpin a briefing, cancel an open transfer, or close a tag or popover; a space popover closed from the keyboard leaves focus on its space |
 
 The camera answers wherever the pointer is over the map. A scroll, a drag or a click on a panel stays with that panel: it neither moves the camera nor reaches the space beneath. The transfer modal takes camera input while open.
 

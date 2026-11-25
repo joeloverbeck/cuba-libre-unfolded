@@ -5,7 +5,7 @@ The owner selected **A · Doble filete** on 2026-11-24 ([selection](https://gith
 ## What it shows
 
 - **One meaning:** the mark is on the control that Enter would press. At most one control carries it, and it stays there wherever the pointer is. It is drawn besides a control's hover, pin, held, chosen and disabled looks, which it does not change.
-- **Marked:** the decision panel's options, steps and commits, Kidnap's Cancel, a pending request's Open, the BRIEFING ribbon and its tabs, a space popover's rows and button, the transfer modal's controls, and Save · quit.
+- **Marked:** the decision panel's options, steps and commits, Kidnap's Cancel, a pending request's Open, the BRIEFING ribbon and its tabs, a space popover's rows and button, the transfer modal's controls, the seat controls, and Save · quit.
 - **Not marked:** map spaces, cards, piles, the marker supply and the Available Forces rows. Enter commits nothing there, and focus opens their tags.
 - **The transfer modal:** Enter presses the primary button while nothing has focus and while the amount field has it, so the primary carries the mark then, blocked or not (the owner, 2026-11-24). While Tab has reached the field, the field has the light form, a thin `ink-secondary` line.
 - **The Kidnap die:** once landed, its Continue carries the mark, because Enter presses it (the owner, 2026-11-24). Nothing is marked while the die or a played card is in the air: Enter lands them.
