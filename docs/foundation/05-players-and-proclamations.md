@@ -4,17 +4,19 @@ This foundation specializes `AUTH-1`, `SEM-1`, `REP-2`, `EVID-3`, `SIM-1`, `SIM-
 
 ## Seats and authority
 
-The human may hand any player seat to an agent and reclaim it. One agent session may control all nonhuman seats, or separate sessions may control individual seats; mixed Claude Code/Codex use must work through the same protocol. An agent can act only for its assigned factions. Concurrent claims and stale requests must be refused without partial effects. Disconnects leave recoverable ownership and an intelligible wait/takeover path, never an automatic strategic choice.
+The human may hand any player seat to an agent and reclaim it. On 2026-11-25 the owner selected, replacing this foundation's earlier permission for one session to control several seats: One agent session plays exactly one seat. Playing three seats takes three sessions; a session that holds a seat is refused a second. Each session receives its own seat's brief: the information that seat needs to decide, and only the knowledge that seat may have.
+
+Mixed Claude Code/Codex use must work through the same protocol. An agent can act only for its assigned faction. Concurrent claims and stale requests must be refused without partial effects. Disconnects leave recoverable ownership and an intelligible wait/takeover path, never an automatic strategic choice.
 
 Reuse the existing shared seat/socket mechanisms and extract needed live-partner behavior from Arkham before implementing it here. Its cooperative investigator ownership and peril/table-talk rules are not Cuba Libre rules. Preserve the common transport and ownership behavior while keeping Cuba Libre's faction routing, legality, visibility, and communication policy local.
 
-A single session controlling opposing factions is convenient but cannot provide genuine isolation of its internal knowledge or strategy. Do not advertise it as independent opponents. Each faction still needs its own identity and victory objective, and each decision must be submitted as that faction. Separate sessions are the mode for independent faction perspectives. The exact multi-faction strategic policy must be settled in the first agent-play specification rather than silently turning all opponents into a team against the human.
+Each faction needs its own identity and victory objective, and each decision must be submitted as that faction.
 
 ## Decision context and prompts
 
 Before an agent acts it must be able to obtain:
 
-- Its controlled faction(s), individual objectives, controller status, the selected rules edition and accessible rules reference.
+- Its faction, that faction's objective, controller status, the selected rules edition and accessible rules reference.
 - A complete current player-visible state, match revision, decision owner, phase, eligibility, current/preview event information allowed by the rules, active capabilities and outstanding choices.
 - Legal operations, activities, event alternatives, targets, costs, restrictions and remaining steps, with stable choice identities and source-backed contextual explanations.
 - Recent actual consequences and all communications available to that player, clearly separated from authoritative state.
@@ -30,10 +32,10 @@ Both human and agent players communicate through faction-authored written procla
 
 The owner selected **public proclamations only**: rule 1.5.1 makes negotiations open and agreements nonbinding. Private dispatches are outside scope. The message must identify its actual faction author; no agent may impersonate another seat. Every player receives the same public text.
 
-Present a proclamation as an important received document, preferably a modal period newspaper article, notice or circular, with three alternatives under [foundation 4](04-art-and-assets.md) offered before choosing its design. Queue messages without silently losing them or allowing one agent to trap the human in an endless modal stream. Reading/dismissing a document never submits a game decision. Input focus must prevent an underlying action from firing through the modal.
+Present a proclamation as an important received document, preferably a modal period notice, broadsheet or circular, with three alternatives under [foundation 4](04-art-and-assets.md) offered before choosing its design. On 2026-11-25 the owner reserved the newspaper form for the application's editions, which report what another faction did. The application writes an edition only from committed results; no agent writes one. A proclamation does not look like a newspaper, so that faction rhetoric and the factual record stay apart. Queue messages without silently losing them or allowing one agent to trap the human in an endless modal stream. Reading/dismissing a document never submits a game decision. Input focus must prevent an underlying action from firing through the modal.
 
 The first communication issue must settle a concise, usable frequency/length policy, the timing of agent moves while a notice is open, and whether proclamations persist with saves. Those are unresolved product details, not permission to copy Arkham's ephemeral 280-character chat or create an archive service. Preserve enough visible context for negotiations to be understood; prove the actual read/respond/play loop with the human before expanding it.
 
 ## Acceptance
 
-Verify one agent controlling several assigned seats and separate agents controlling individual seats, including refusal to act for the human or another session, stale revisions, reconnect and takeover. Exercise a difficult legal decision with sufficient context and inspect its actual consequence. Judge faction voice, document readability, and interruption burden in real native play. Legal moves alone do not prove strategic competence; a compelling proclamation alone does not prove a capable opponent.
+Verify separate agents controlling individual seats, including refusal of a second seat, refusal to act for the human or another session, stale revisions, reconnect and takeover. Exercise a difficult legal decision with sufficient context and inspect its actual consequence. Judge faction voice, document readability, and interruption burden in real native play. Legal moves alone do not prove strategic competence; a compelling proclamation alone does not prove a capable opponent.
