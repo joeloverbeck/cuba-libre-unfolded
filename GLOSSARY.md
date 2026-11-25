@@ -36,6 +36,10 @@ _Avoid_: Development seat, built-in bot
 What an agent session is given to play its faction seat: the information that seat needs to decide, and only the knowledge that seat may have. It is distinct from a briefing, the panel's explanation of an option, and from the brief form of a development seat's reply.
 _Avoid_: Faction brief, player brief
 
+**Action report**:
+What one faction's action did, as committed facts in fixed words, from one revision of the match to another. An action belongs to its executing faction, even while another faction decides inside it. A faction seat's view lists the match's action reports as its recent results, and an edition prints one.
+_Avoid_: Notice (the table's line on one decision), news
+
 **Edition**:
 A newspaper page the app writes, from committed results only, to tell the human what a faction the human does not play has done. It is distinct from a proclamation, which a faction writes, and from the edition of the rules.
 _Avoid_: Newspaper report, news page
