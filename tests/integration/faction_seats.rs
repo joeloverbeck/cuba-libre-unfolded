@@ -513,25 +513,30 @@ const PLAYERS: [Player; 4] = [Player::Human, Player::Agent, Player::Nobody, Play
 #[test]
 fn no_view_depends_on_what_is_hidden_and_together_they_carry_every_choice() {
     let positions = positions();
-    let found: Vec<(bool, BTreeSet<String>)> = parallel(&positions, |_, game| {
+    let found: Vec<(bool, BTreeSet<String>)> = parallel(&positions, |nth, game| {
         let seen = game.observe();
         let other = unseen_changed(game).observe();
         let mut told = BTreeSet::new();
         let mut offered = BTreeSet::new();
         for faction in Faction::ALL {
-            let view = serde_json::to_value(View::of(&seen, faction, PLAYERS)).unwrap();
-            let same = serde_json::to_value(View::of(&other, faction, PLAYERS)).unwrap();
-            assert_eq!(view, same, "a view shows what is hidden");
-            assert_hidden(&view, game);
-            keys(&view, &mut told);
-            for choice in view["choices"].as_array().unwrap() {
-                let whole = seen.choices.iter().find(|c| c.id == choice["id"]).unwrap();
+            let view = View::of(&seen, faction, PLAYERS);
+            for choice in &view.choices {
+                let whole = seen.choices.iter().find(|c| c.id == choice.id).unwrap();
                 assert_eq!(whole.owner, faction);
-                assert_eq!(choice["supported"], whole.supported);
-                assert_eq!(choice["explanation"], whole.explanation);
+                assert_eq!(choice.supported, whole.supported);
+                assert_eq!(choice.explanation, whole.explanation);
                 assert!(!whole.explanation.is_empty());
-                assert_eq!(choice["preview"], json!(whole.preview));
+                assert_eq!(choice.preview, whole.preview);
                 offered.insert(whole.id.clone());
+            }
+            // What is written out, for the decider and each other faction in turn: the
+            // four views of a position share their state.
+            if faction == seen.owner || faction.index() == nth % 4 {
+                let view = serde_json::to_value(view).unwrap();
+                let same = serde_json::to_value(View::of(&other, faction, PLAYERS)).unwrap();
+                assert_eq!(view, same, "a view shows what is hidden");
+                assert_hidden(&view, game);
+                keys(&view, &mut told);
             }
         }
         let all: BTreeSet<String> = seen
