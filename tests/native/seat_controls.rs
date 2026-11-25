@@ -96,6 +96,156 @@ impl Native {
     }
 }
 
+fn disjoint(a: [f64; 4], b: [f64; 4]) -> bool {
+    a[2] <= b[0] || a[0] >= b[2] || a[3] <= b[1] || a[1] >= b[3]
+}
+
+/// `open`, where the slip or Save · quit's tag is drawn, covers no drawn part of a seat
+/// card, no other area, the decision panel's and Save · quit's included, and no control
+/// the pointer could press: the owner's ruling of 2026-11-25.
+fn clear_of_the_cards(view: &Value, what: &str, open: [f64; 4]) {
+    let cards = parts(view);
+    for (slug, _) in FACTIONS {
+        assert!(cards.contains_key(&format!("seat:{slug}")), "{slug}");
+    }
+    for (name, (_, at)) in &cards {
+        assert!(
+            disjoint(open, *at),
+            "the {what} {open:?} covers {name} {at:?}"
+        );
+    }
+    let areas = view["table"]["main_view"]["areas"].as_object().unwrap();
+    for (name, at) in areas {
+        let at = rect_of(at);
+        assert!(
+            disjoint(open, at),
+            "the {what} {open:?} covers {name} {at:?}"
+        );
+    }
+    for control in view["table"]["controls"].as_array().unwrap() {
+        let name = control["name"].as_str().unwrap();
+        let [x, y]: [f64; 2] = serde_json::from_value(control["position"].clone()).unwrap();
+        assert!(
+            name == "notice-slip" || disjoint(open, [x, y, x, y]),
+            "the {what} {open:?} covers {name} at {x}, {y}"
+        );
+    }
+}
+
+/// The notice slip and Save · quit's tag stand above the seat cards in every window the
+/// regressions use, with Syndicate's card, the nearest, forward and not (the owner's
+/// ruling of 2026-11-25).
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan"]
+fn native_the_slip_and_save_quits_tag_clear_the_seat_cards() {
+    use cuba_libre_unfolded::save::Session;
+    let mut app = super::available_forces::unlaunched("slip-clear-", "issue-206");
+    let opening = app.save.clone();
+    let forward = app.root.join("syndicate-decides.json");
+    drop(Session::create_seeded(&opening, Session::KIDNAP_ROLLS_1).unwrap());
+    let mut session = Session::create_seeded(&forward, Session::KIDNAP_ROLLS_1).unwrap();
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:assault",
+        "end-assault",
+    ] {
+        let view = session.observe();
+        let choice = view.choices.iter().find(|c| c.action() == action);
+        let choice = choice.unwrap_or_else(|| panic!("{action} is not offered"));
+        session
+            .submit(choice.owner, view.revision, &choice.id)
+            .unwrap();
+    }
+    drop(session);
+    for size in [
+        "3840x2160",
+        "4096x2160",
+        "3440x1440",
+        "2560x1080",
+        "2520x1080",
+        "2160x1440",
+        "1920x1280",
+        "1920x1080",
+        "1600x1280",
+        "1440x960",
+    ] {
+        for (save, owner) in [(&opening, "M26"), (&forward, "Syndicate")] {
+            if owner == "M26" && size != "3840x2160" {
+                continue;
+            }
+            app.save = save.clone();
+            app.launch_as_is(size);
+            let view = app.settle();
+            assert_eq!(view["observation"]["owner"], owner);
+            assert_eq!(
+                parts(&view).contains_key("seat:syndicate-edge"),
+                owner == "Syndicate",
+                "{size}: which card stands forward"
+            );
+            // A socket where another table answers refuses the hand-over, as an error.
+            let other = std::os::unix::net::UnixListener::bind(app.player_socket()).unwrap();
+            let view = app.press("seat:government:hand-over");
+            assert_eq!(view["table"]["slip"]["kind"], "error", "{size}");
+            let slip = rect_of(&view["table"]["slip"]["bounds"]);
+            clear_of_the_cards(&view, "slip", slip);
+            app.capture(&format!("slip-{owner}-{size}"));
+            drop(other);
+            std::fs::remove_file(app.player_socket()).unwrap();
+            app.activate(
+                "notice-slip",
+                view["observation"]["revision"].as_u64().unwrap(),
+            );
+
+            // Directorio's and Syndicate's line sheets reach past the slip's left edge, and
+            // the slip stands in front of them, so its words are read.
+            for seat in ["directorio", "syndicate"] {
+                if owner == "Syndicate" {
+                    break;
+                }
+                app.press(&format!("seat:{seat}:hand-over"));
+                app.press(&format!("seat:{seat}:copy"));
+                app.activate("option:rally", 0);
+                app.activate("choice-commit", 0);
+                let view = app.settle();
+                let [left, _, _, foot] = rect_of(&view["table"]["slip"]["bounds"]);
+                let sheet = parts(&view)["seat-line"].1;
+                assert!(sheet[0] < left && left < sheet[2] && foot < sheet[3]);
+                let name = format!("slip-before-the-sheet-of-{seat}");
+                app.capture(&name);
+                let capture = image::open(app.root.join(format!("{name}.png"))).unwrap();
+                let capture = capture.to_rgb8();
+                let edge = (0..3).any(|x| {
+                    let pixel = capture.get_pixel(left as u32 + x, foot as u32 - 60);
+                    pixel.0.iter().map(|&c| u32::from(c)).sum::<u32>() < 560
+                });
+                assert!(edge, "{seat}'s sheet covers the slip's left edge");
+                app.activate("notice-slip", 0);
+                app.press(&format!("seat:{seat}:take-back"));
+            }
+
+            let view = app.point("quit");
+            assert_eq!(view["table"]["top"]["item"], "save-quit", "{size}");
+            let tag = rect_of(&view["table"]["top"]["bounds"]);
+            clear_of_the_cards(&view, "tag", tag);
+            app.capture(&format!("tag-{owner}-{size}"));
+            // Both keep Save · quit's right edge, above it.
+            let plate = rect_of(&view["table"]["main_view"]["areas"]["save-quit"]);
+            for (what, open) in [("slip", slip), ("tag", tag)] {
+                assert!((open[2] - plate[2]).abs() <= 1., "{size}: {what} {open:?}");
+                assert!(open[3] < plate[1], "{size}: {what} {open:?}");
+            }
+            app.quit();
+        }
+    }
+}
+
 /// The selected layout's own position: Directorio's agent thinks, Government waits for
 /// one with its line open, Syndicate's is at the table and the human plays 26July.
 #[test]
@@ -118,12 +268,11 @@ fn native_the_seat_controls_match_the_selected_layout() {
         );
     }
     app.capture("every-faction-the-humans");
-    // A refusal's slip opens over the top right of Syndicate's card, above its buttons.
+    // A refusal's slip opens above the cards.
     app.activate("option:rally", 0);
     app.activate("choice-commit", 0);
     let view = app.settle();
-    let slip = rect_of(&view["table"]["slip"]["bounds"]);
-    assert!(slip[3] < parts(&view)["seat:syndicate:hand-over"].1[1]);
+    clear_of_the_cards(&view, "slip", rect_of(&view["table"]["slip"]["bounds"]));
     app.capture("the-slip-over-the-seats");
     app.activate("notice-slip", 0);
 

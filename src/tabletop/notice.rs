@@ -9,11 +9,11 @@
 //! Play track.
 //!
 //! The slip reuses the space popover's card plate, its `action/primary` top rule, its
-//! width and its `Popover/Regular 12.5` text, with inline emblems. It sits above Save ·
-//! quit, their right edges aligned, where the main view's layout record places
-//! `notice-slip` (`art/atlas/atlas-main-view.figcraft`, MAIN-VIEW.md): its right edge
-//! and its foot keep their distance from the window's bottom-right corner, and it grows
-//! upward with its lines. It takes the pointer over its own rectangle, and a click on
+//! width and its `Popover/Regular 12.5` text, with inline emblems. It sits above the seat
+//! cards and Save · quit, its right edge the plate's, where the main view's layout record
+//! places `notice-slip` (`art/atlas/atlas-main-view.figcraft`, MAIN-VIEW.md): its right
+//! edge and its foot keep their distance from the window's bottom-right corner, and it
+//! grows upward with its lines. It takes the pointer over its own rectangle, and a click on
 //! it dismisses it; the next notice replaces it.
 use super::palette::INK;
 use super::*;
@@ -144,7 +144,8 @@ pub(super) fn draw(
                 padding: UiRect::new(px(s), px(s), px(s), px((frame::BOTTOM + 1.) * s)),
                 ..default()
             },
-            GlobalZIndex(5),
+            // In front of a seat's open line sheet, which reaches past its left edge.
+            GlobalZIndex(6),
             Control {
                 name: "notice-slip".into(),
                 choice: false,
