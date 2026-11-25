@@ -69,37 +69,4 @@ if [[ ! -d $target ]]; then
 fi
 printf '%s\n' "$checkout" > "$stamp"
 
-# A native run takes the larger memory scope, where `scripts/native` runs four apps, when
-# the owner's ruling of 2026-11-18 allows it: no cargo or rustc runs anywhere on the
-# machine, and at least 16 GB are available. Otherwise it keeps this scope and three apps
-# (#187). `scripts/native` may follow another command, such as `timeout 540`.
-unset CUBA_NATIVE_APPS
-native=false
-for word; do
-  if [[ /$word == */scripts/native ]]; then native=true; fi
-done
-if "$native"; then
-  available=$(awk '/^MemAvailable:/ { print int($2 / 1048576) }' /proc/meminfo)
-  scope=$(awk -F: '$1 == 0 { sub(/.*\//, "", $3); print $3 }' /proc/self/cgroup)
-  # pgrep exits 1 on no match; any other failure cannot pass as "none running".
-  rc=0
-  pgrep -x 'cargo|rustc' >/dev/null || rc=$?
-  if ((rc != 1)); then
-    kept="another build may be running"
-  elif ((available < 16)); then
-    kept="only $available GB are available"
-  elif [[ $scope != "$unit"-* ]]; then
-    kept="$scope is not its own scope"
-  elif ! systemctl --user set-property --runtime "$scope" MemoryHigh=10G MemoryMax=12G; then
-    kept="its limits could not be raised"
-  else
-    kept=
-    export CUBA_NATIVE_APPS=4
-  fi
-  if [[ -n $kept ]]; then
-    echo "scripts/heavy: native run keeps its scope's limits: $kept" >&2
-  else
-    echo "scripts/heavy: native run has the 10 GB scope" >&2
-  fi
-fi
 exec "$@"

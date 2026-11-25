@@ -868,11 +868,7 @@ pub(super) fn back(scan: &[u8]) -> Result<Image, String> {
         .map_err(|e| e.to_string())?;
     let size = (2. * Vec2::new(fig::PLAYED[2], fig::PLAYED[3])).as_uvec2();
     let small = scan.resize_exact(size.x, size.y, image::imageops::FilterType::Lanczos3);
-    Ok(Image::from_dynamic(
-        small,
-        true,
-        bevy::asset::RenderAssetUsages::default(),
-    ))
+    Ok(Image::from_dynamic(small, true, DRAWN_ONLY))
 }
 
 /// The pile shadow's export (`pile-shadow` in `atlas-main-view.figcraft`).

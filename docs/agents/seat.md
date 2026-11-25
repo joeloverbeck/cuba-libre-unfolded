@@ -6,7 +6,7 @@ It is distinct from a faction player's connection (foundation 5). It has no auth
 
 ## Launch and connect
 
-From the checkout root, use `jq`, the private card directory from the [README](../../README.md#build-and-launch), and an isolated verification save. Package the two binaries in the [managed build scope](parallel-work.md#builds) first, then run them directly. The detached seat keeps serving after the launcher exits.
+From the checkout root, use `jq`, the private card directory from the [README](../../README.md#build-and-launch), and an isolated verification save. Package the two binaries in the [managed build scope](parallel-work.md#builds) first, then run them directly, outside that scope. The detached seat keeps serving after the launcher exits.
 
 ```sh
 mkdir -p local/verification &&
@@ -39,6 +39,7 @@ Once the launcher reports `ready`, connect to the seat.
 - **Connections.** Each `cuba-tools seat` invocation is its own connection, and closing it does not end the session.
 - **Session end.** The session ends at `quit`, at the table's own exit, or after 30 minutes without a request; then the socket is removed.
 - **Second launch.** A launch on a socket where a seat still answers is refused and leaves that seat untouched: send it `quit` or choose another path.
+- **Memory.** A seat launched directly is in no managed scope. The native suite runs four apps at once in that scope ([parallel-work.md](parallel-work.md#builds), "Native suite").
 - **Size.** Add `--seat-size 1920x1080` or `--seat-size 2520x1080` to exercise wider surfaces through the same renderer. The default is 1920×1280, and sizes run from 640×480 to 4096×2160. `--seat-size 3840x2160` is [the owner's display](#the-owners-display).
 
 ## Native owner handoff
