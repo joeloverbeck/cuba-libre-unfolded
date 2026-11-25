@@ -245,11 +245,15 @@ fn says_only(view: &Value, report: &Value) -> Result<(), String> {
             ));
         }
     }
-    let dice = |of: &Value| of["die"].as_u64();
+    // The die drawn is the face the report's roll gives, and only where it tells one.
+    let parts = parts(view);
     let articles = report["articles"].as_array().unwrap();
     for (i, article) in articles.iter().enumerate() {
-        let drawn = parts(view).contains_key(&format!("edition-block-{i}-die"));
-        if drawn != dice(article).is_some() {
+        let drawn = parts.get(&format!("edition-block-{i}-die"));
+        let face = article["die"]
+            .as_u64()
+            .map(|die| format!("atlas-newspaper-die-{die}.png"));
+        if drawn.map(|part| part["image"].as_str().unwrap_or_default().to_owned()) != face {
             return Err(format!("article {i}'s die"));
         }
     }
@@ -444,6 +448,35 @@ fn plant(view: &Value, report: &Value) {
         }
     }
     assert!(planted > 20, "{planted}");
+    // A die of another face, a die where none is told, and none where one is.
+    let mut dice = 0;
+    for (i, part) in drawn.iter().enumerate() {
+        let Some(face) = part["image"].as_str() else {
+            continue;
+        };
+        if !face.starts_with("atlas-newspaper-die-") {
+            continue;
+        }
+        for other in (1..=6).map(|n| format!("atlas-newspaper-die-{n}.png")) {
+            if other != face {
+                let mut view = view.clone();
+                view["table"]["newspaper"]["parts"][i]["image"] = json!(other);
+                assert!(says_only(&view, report).is_err(), "{other} for {face}");
+            }
+        }
+        let mut view = view.clone();
+        view["table"]["newspaper"]["parts"][i]["part"] = json!("edition-block-99-die");
+        assert!(says_only(&view, report).is_err(), "a die moved");
+        let mut gone = view.clone();
+        gone["table"]["newspaper"]["parts"]
+            .as_array_mut()
+            .unwrap()
+            .remove(i);
+        assert!(says_only(&gone, report).is_err(), "a die left out");
+        dice += 1;
+    }
+    let told = report["articles"].as_array().unwrap();
+    assert_eq!(dice, told.iter().filter(|a| a["die"].is_u64()).count());
 }
 
 /// An edition for each kind of action, one partway when the human must decide, and none

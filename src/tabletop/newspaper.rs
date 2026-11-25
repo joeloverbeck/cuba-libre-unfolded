@@ -666,6 +666,8 @@ pub(super) struct Root;
 pub(super) struct Part {
     name: String,
     words: Option<(String, f32, usize)>,
+    /// The exported image it draws, by its file name.
+    image: Option<String>,
 }
 
 /// The words of the named part, which its box is wider than.
@@ -722,6 +724,7 @@ impl Printer<'_, '_, '_> {
                 Part {
                     name: name.into(),
                     words: None,
+                    image: Some(file.into()),
                 },
                 Pickable::IGNORE,
                 ChildOf(self.page),
@@ -745,6 +748,7 @@ impl Printer<'_, '_, '_> {
         let part = Part {
             name: name.into(),
             words: Some((plain(&text), size * self.u, lines.len())),
+            image: None,
         };
         let boxed = self
             .commands
@@ -879,6 +883,7 @@ fn print(
         Part {
             name: "edition-scrim".into(),
             words: None,
+            image: None,
         },
         Pickable::IGNORE,
     ));
@@ -900,6 +905,7 @@ fn print(
             Part {
                 name: "edition-page".into(),
                 words: None,
+                image: None,
             },
             Pickable::IGNORE,
         ))
@@ -1176,6 +1182,7 @@ pub(super) fn pile(
     let part = |name: &str, words: Option<(String, f32, usize)>| Part {
         name: name.into(),
         words,
+        image: None,
     };
     let pile = picture(
         commands,
@@ -1276,6 +1283,7 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
                     "font_size": words.map(|(_, size, _)| size),
                     "bounds": seat::logical_bounds(node, at),
                     "ink": ink.get(&part.name),
+                    "image": part.image,
                 }),
             )
         })
