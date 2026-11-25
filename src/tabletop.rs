@@ -1301,7 +1301,7 @@ fn submit(
     let after = session.observe();
     let played = ui.played();
     ui.editions
-        .decided(&after, |told| session.reports_since(told), played);
+        .decided(&after, owner, |told| session.reports_since(told), played);
     if name.ends_with(":kidnap:roll") {
         // The result is saved; the tray shows it from this frame's clock
         // (die::present), and the notice names it once the die lands.
