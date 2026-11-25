@@ -555,12 +555,13 @@ fn taken(choice: &Choice) -> Option<(Faction, &'static str)> {
 fn what_a_brief_says_this_build_plays_is_what_the_authority_offers() {
     let explored = explore::all_explored().flat_map(|explored| &explored.nodes);
     let later = later_positions();
+    let later = later.iter().map(|history| history.last().unwrap());
     let mut found: BTreeMap<(usize, &str), BTreeSet<u8>> = BTreeMap::new();
     let mut selected = BTreeSet::new();
     let mut with_base = BTreeSet::new();
     // Where Resources may be transferred or own pieces removed: by whom, on which card.
     let mut dealings: BTreeMap<&str, BTreeSet<(usize, u8)>> = BTreeMap::new();
-    for game in explored.map(|node| &node.game).chain(&later) {
+    for game in explored.map(|node| &node.game).chain(later) {
         let seen = game.observe();
         for choice in seen.choices.iter().filter(|choice| choice.supported) {
             if let Some((faction, name)) = taken(choice) {

@@ -8,6 +8,7 @@
 //! session.
 use super::*;
 use crate::faction_seats::{self as seats, Answer, Host, Player, Stands};
+use crate::reports::Report;
 use crate::save::Submit;
 use serde_json::{Value, json};
 use std::{path::Path, time::Instant};
@@ -143,6 +144,10 @@ impl Sitting<'_> {
 impl seats::Table for Sitting<'_> {
     fn game(&self) -> &Game {
         self.session().game()
+    }
+
+    fn reports(&self) -> Vec<Report> {
+        self.session().reports()
     }
 
     fn settled(&self) -> bool {
