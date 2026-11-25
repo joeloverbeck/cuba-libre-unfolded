@@ -204,7 +204,7 @@ fn victory(faction: Faction) -> (&'static str, &'static str, &'static str) {
     }
 }
 
-const RANKING: &str = "Victory is checked at the start of each Propaganda Round: if a faction meets its condition, the game ends (R 6.1, 7.2). Otherwise it ends with the final Propaganda Round (R 6.3.5). Either way the faction with the highest victory margin comes first (R 7.1, 7.3), and ties go to the Syndicate, then Directorio, then 26July (R 7.1).";
+const RANKING: &str = "Victory is checked at the start of each Propaganda Round: if a faction meets its condition, the game ends (R 6.1, 7.2). Otherwise it ends with the final Propaganda card (R 2.4.1, 6.3.5). Either way the faction with the highest victory margin comes first (R 7.1, 7.3), and ties go to the Syndicate, then Directorio, then 26July (R 7.1).";
 
 const ACTIONS: &str = "A faction that executes an Operation chooses 1 of these 4 (R 3.1). With an Operation in at least 1 space it may execute 1 type of Special Activity, at any one time immediately before, during or immediately after it; a Limited Operation, in 1 space, has none (R 2.3.5, 4.1). \"played\" says where this build plays each. Pass (R 2.3.3) and a card's Event (R 5.1) are neither: your view lists them when they are yours to choose.";
 
