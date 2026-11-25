@@ -782,10 +782,10 @@ fn walk(seed: u64, most: usize, mut at: impl FnMut(&Match, &mut Picks)) {
     let mut picks = Picks(seed);
     let mut played = Match::opening(5 + seed % 12);
     // Most walks start where the later actions are, which a free walk seldom reaches.
-    if seed % 4 > 0 {
+    if seed % 4 >= 1 {
         played.play(&HANDOFF);
     }
-    if seed % 4 > 2 {
+    if seed % 4 == 3 {
         played.play(&CARD_18);
     }
     for _ in 0..most {
