@@ -78,7 +78,7 @@ When the goal names an effect, give the visible choices that produce it. For exa
 - `point` rests the pointer on a named component or choice, at a revision.
 - `scroll` turns the wheel over it by `y` lines (and optional `x`), e.g. `{"op":"scroll","revision":0,"component":"space:havana","y":-2}`.
 - `drag` presses `button` (`left`, `right` or `middle`) on it, moves the pointer by `x` and `y` logical pixels, and releases, e.g. `{"op":"drag","revision":0,"component":"space:havana","button":"right","x":120,"y":30}`.
-- `capture` writes a screenshot to `path`. Two captures of one position can differ: the water strokes come in two variants (up to 17 of 255 a pixel), and the Terror token's clapper takes a phase from how long loading took. Repeat a baseline before comparing builds, and open a capture before trusting its name: a save made after a Kidnap roll may be past the die's Continue.
+- `capture` writes a screenshot to `path`. Two captures of one position can differ in the water's frame and the Terror bells' motion, because the table's clock steps until loading settles: `table.water_frame` and `table.terror[].seek` say which were drawn. Compare captures that agree on both, and open each before trusting its name: a save may hold later decisions than its name says.
 
 ### Brief replies
 

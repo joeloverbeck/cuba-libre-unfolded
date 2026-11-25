@@ -2,8 +2,8 @@
 # Run ignored regressions from both test binaries: those that launch the app, four at
 # once (`--test-threads=1` to 4 chooses), and the in-process ones serially.
 set -euo pipefail
-# Bash reads a script as it runs. The braces make it read all of this one first, so an edit
-# during a run cannot change the run.
+# Bash reads a script as it runs. The braces make it read all of this one first, so an edit to
+# this script during a run cannot change the run.
 {
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
@@ -45,9 +45,8 @@ if [[ -z ${CUBA_NATIVE_EVIDENCE:-} && $common != "$(git rev-parse --show-topleve
   export CUBA_NATIVE_EVIDENCE="$common/local/verification/native/${branch//\//-}/$run"
 fi
 
-# Four apps fit `scripts/heavy`'s memory scope and the card's memory (measurements:
-# docs/agents/parallel-work.md, "Native memory"). The option is taken out of the arguments,
-# because libtest refuses it twice.
+# Four apps fit `scripts/heavy`'s memory scope (docs/agents/parallel-work.md, "Native
+# memory"). The option is taken out of the arguments, because libtest refuses it twice.
 apps=4
 args=()
 while (($#)); do
