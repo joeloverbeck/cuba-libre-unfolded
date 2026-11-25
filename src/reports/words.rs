@@ -20,7 +20,7 @@ fn article(title: impl Into<String>, lines: Vec<String>) -> Article {
 }
 
 /// "a, b and c".
-fn listing(parts: &[String]) -> String {
+pub(crate) fn listing(parts: &[String]) -> String {
     match parts {
         [] => String::new(),
         [one] => one.clone(),

@@ -777,14 +777,6 @@ impl Printer<'_, '_, '_> {
     }
 }
 
-fn sliced(slice: f32, u: f32) -> NodeImageMode {
-    NodeImageMode::Sliced(TextureSlicer {
-        border: BorderRect::all(slice * 2.),
-        max_corner_scale: u / 2.,
-        ..default()
-    })
-}
-
 /// Draws the open edition over everything, when what it shows changes.
 #[allow(clippy::too_many_arguments)] // A Bevy system: its parameters are the resources it reads.
 pub(super) fn draw(

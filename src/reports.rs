@@ -17,6 +17,8 @@
 
 mod words;
 
+pub(crate) use words::listing;
+
 use crate::{
     ActionChoice, AssaultResolution, Choice, Eligibility, EventOutcome, EventProgress, Faction,
     Flip, Game, Group, Kidnap, Kind, Next, Observation, Rally, RallyAction, Removal, Resolved,
