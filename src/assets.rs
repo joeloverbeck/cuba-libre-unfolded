@@ -41,8 +41,10 @@ pub const SAVE_QUIT_MANIFEST: &str = include_str!("../art/atlas/save-quit.sha256
 pub const FOCUS_MARK_MANIFEST: &str = include_str!("../art/atlas/focus-mark.sha256");
 /// The seat controls (#206): the selected A1 · Tarjetas cards and A2's strip.
 pub const SEATS_MANIFEST: &str = include_str!("../art/atlas/seats.sha256");
+/// The newspaper (#208): the selected B1 · El Correo de la Isla, with its headline face.
+pub const NEWSPAPER_MANIFEST: &str = include_str!("../art/atlas/newspaper.sha256");
 /// Every manifest admitted at launch, in the order `inspect` reads them.
-pub const MANIFESTS: [&str; 20] = [
+pub const MANIFESTS: [&str; 21] = [
     MANIFEST,
     STATUS_MANIFEST,
     VICTORY_MANIFEST,
@@ -63,6 +65,7 @@ pub const MANIFESTS: [&str; 20] = [
     SAVE_QUIT_MANIFEST,
     FOCUS_MARK_MANIFEST,
     SEATS_MANIFEST,
+    NEWSPAPER_MANIFEST,
 ];
 pub const SOURCE: &str = "deacd635db5f71f4d3f092bd9cc99a9d96bb7aab;R:8152cb0056e3690fdc01c7b4ff893369ad7eff288941abc540ceee2c9d606792;P:dcaa5afd6f01c0c9ed4746c18199c1b09058823d67b627384fd3184ed4015fe8";
 pub(crate) struct CardFace {

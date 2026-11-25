@@ -59,6 +59,7 @@ Frame rectangles are x, y, width, height on the owner's display. The reference r
 | `cards` | 67.5, 1594, 734.5×536 | bottom left | 40, 944.6, 435.3×317.6 | The two piles, their count discs and captions |
 | `propaganda` | 834, 1920, 226×160 | bottom left | 494.2, 1137.8, 133.9×94.8 | The Propaganda pips |
 | `seats` | 1500, 1896, 1940×226 | bottom, between `propaganda` and `save-quit`: its right edge 76 units from Save · quit; narrower windows shrink it toward that corner | 1149.6×133.9 | The four seat cards (#206) |
+| `editions` | 1120, 1800, 316×234 | bottom left, beside `propaganda` while that keeps 24 from `seats`, else 24 above `propaganda` on its left edge; there only with the pile | 187.3×138.7 | The pile of the card's editions ([NEWSPAPER.md](NEWSPAPER.md#the-pile), #208) |
 
 The island box is 620, 470, 2230×1104. The transfer modal stays in the middle of the window, over its scrim. The piles' two labels stand just above the `cards` area, on open sea beside the island box.
 
@@ -137,7 +138,7 @@ The layout is authored and compared at 16:9 only, as foundation 4 requires. In a
 
 ## Pointer and seat
 
-Each area is a transparent interface rectangle beneath its own controls. The shared table camera leaves the pointer to any interface node it is over, and picking stops at it, so nothing else is needed to keep input from the map. The development seat names the rectangles `area:<name>` and reports the main view as `table.main_view` ([seat reference](../../docs/agents/seat.md)).
+Each area is a transparent interface rectangle beneath its own controls; `editions` is there while its pile is. The shared table camera leaves the pointer to any interface node it is over, and picking stops at it, so nothing else is needed to keep input from the map. The development seat names the rectangles `area:<name>` and reports the main view as `table.main_view` ([seat reference](../../docs/agents/seat.md)).
 
 ## Provenance and limits
 

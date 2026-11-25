@@ -84,6 +84,8 @@ fn the_record_places_the_areas_the_island_and_the_piles() {
             ("available-forces", "top-right"),
             ("cards", "bottom-left"),
             ("decision", "top-right"),
+            // #208: the pile of editions, beside the pips or above them.
+            ("editions", "bottom-beside"),
             // #172: centred between outside-influence and the standings.
             ("marker-supply", "top-between"),
             ("outside-influence", "top-left"),

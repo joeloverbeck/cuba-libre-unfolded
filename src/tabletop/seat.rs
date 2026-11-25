@@ -437,6 +437,7 @@ impl SeatGame for Table {
         let focus_mark = focus_mark::observe(world);
         let seats = faction_seats::observe(world);
         let cards = seat_cards::observe(world);
+        let newspaper = newspaper::observe(world);
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
         let pose = world.resource::<Orbit>().pose();
@@ -455,6 +456,8 @@ impl SeatGame for Table {
         table["faction_seats"] = seats;
         // #206: the drawn seat cards, the open line sheet and the panel's strip.
         table["seat_cards"] = cards;
+        // #208: the newspaper.
+        table["newspaper"] = newspaper;
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
             table,
@@ -538,6 +541,9 @@ impl SeatGame for Table {
         if faction_seats::due(world) {
             pending.push("faction seats".into());
         }
+        if newspaper::unsettled(world) {
+            pending.push("an edition to open".into());
+        }
         pending
     }
     fn admission(&self, world: &World) -> shared::Admission {
@@ -584,6 +590,13 @@ impl SeatGame for Table {
             return Focus::Control {
                 choice: None,
                 label: piles::ADVANCE.into(),
+            };
+        }
+        // An open edition holds it too: Enter or Space puts it away (#208).
+        if world.resource::<Interface>().editions.open().is_some() {
+            return Focus::Control {
+                choice: None,
+                label: newspaper::NAME.into(),
             };
         }
         // A presented Kidnap die holds the keyboard: Enter reaches the tray's skip while
