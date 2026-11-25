@@ -334,6 +334,37 @@ fn a_kidnap_that_takes_nothing() {
     );
 }
 
+/// Once a targeted faction runs out, no more is transferred (R 4.3.3): Government, which
+/// gave 26July 5 of its 6, has 1 for a die of 3, so 1 moves and not 3.
+#[test]
+fn a_kidnap_that_takes_less_than_the_die() {
+    let played = Match::played(
+        5,
+        &[
+            "terror",
+            "transfer",
+            "ask:0:5",
+            "authorize:5",
+            "kidnap",
+            "kidnap:roll",
+        ],
+    );
+    assert_report(
+        &played,
+        &played.last(),
+        "[M26 Terror, card 17 Alberto Bayo, 1st Eligible, recorded nothing, partway]
+        [Santiago de Cuba]
+        26July executes Terror
+        Kidnap in Santiago de Cuba: the die shows 3, and 26July takes 1 Resource from Government.
+        Government gives 26July 5 Resources: 26July asked for 5 Resources. Government 6 → 1, 26July 0 → 5.
+        Kidnap in Santiago de Cuba [3]: The die shows 3. 26July takes 1 Resource from Government: Government 1 → 0, 26July 5 → 6.
+        | Government | 6 → 0 | 16 | -2 |
+        | M26 | 0 → 6 | 7 | -8 |
+        | Directorio | 5 | 1 | -8 |
+        | Syndicate | 15 | 3 | -15 |",
+    );
+}
+
 /// Zero-space Operation Only (accepted local policy; R 3.1 sets no minimum): nothing is
 /// paid and no income is taken.
 #[test]
