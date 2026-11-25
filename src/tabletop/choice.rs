@@ -141,6 +141,9 @@ pub(super) struct State {
     /// The pinned option, such as "pass", or during Terror the pinned step, such as
     /// "end-terror" (#84): its tag stays open and the commit reads it.
     pub pinned: Option<String>,
+    /// The human did not make the pin: the decision that opened the step drew its tag
+    /// pinned.
+    drawn: bool,
     /// The control that has keyboard focus, by its seat name.
     pub focus: Option<String>,
     /// The briefing tag is open from the BRIEFING ribbon during Terror.
@@ -157,14 +160,14 @@ impl State {
         self.pinned = super::execution::held(view)
             .filter(|step| *step != "remove")
             .map(str::to_owned);
+        self.drawn = self.pinned.is_some();
         self.focus = None;
     }
     /// An agent's decision committed: what the human pinned and focused stays (#197,
-    /// correction 2). A tag that only its open step kept pinned goes with the step.
-    pub fn agent_decided(&mut self, before: &Observation, after: &Observation) {
-        let step = super::execution::held(before);
-        if step.is_some() && self.pinned.as_deref() == step && super::execution::held(after) != step
-        {
+    /// correction 2), a step of the agent's too. A tag that only its open step kept pinned
+    /// goes with the step.
+    pub fn agent_decided(&mut self, after: &Observation) {
+        if self.drawn && self.pinned.as_deref() != super::execution::held(after) {
             self.pinned = None;
         }
     }
@@ -965,6 +968,7 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
             } else {
                 Some(option.clone())
             };
+            ui.choice.drawn = false;
             // A step pinned during Terror takes the tag's place from the ribbon's tag.
             ui.choice.ribbon = false;
         }
@@ -980,7 +984,8 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
 /// (#173) and the Available Forces ledger's four rows above the panel, whose tags
 /// focus opens as hover does (#160); then the current and the preview card (#139) and
 /// the two piles (#144), whose tags it opens too; the card's editions (#208); the seat
-/// controls (#206); and last Save · quit, whose tag focus opens too and which Enter activates (#174).
+/// controls (#206); and last Save · quit, whose tag focus opens too and which Enter
+/// activates (#174).
 fn focusable(
     view: &Observation,
     ui: &Interface,
@@ -1286,15 +1291,11 @@ fn wanted(game: &Game, ui: &Interface, popover: bool) -> Option<(String, bool, b
 }
 
 /// Whether the human keeps a briefing open: the ribbon's tag, or a pinned option or step.
-/// A step the position itself holds open keeps its tag pinned and is not the human's.
+/// A tag that a step's opening drew pinned is not theirs.
 pub(super) fn opened(game: &Game, ui: &Interface, popover: bool) -> bool {
-    match kept(game, ui, popover) {
-        Some((_, Some((_, true)))) => true,
-        Some((_, Some((pinned, false)))) => {
-            super::execution::held(&game.observe()) != Some(pinned.as_str())
-        }
-        _ => false,
-    }
+    kept(game, ui, popover)
+        .and_then(|(_, tag)| tag)
+        .is_some_and(|(_, ribbon)| ribbon || !ui.choice.drawn)
 }
 
 /// The prefix of the options a tag may show now, and the tag that stays open without a
@@ -2081,6 +2082,58 @@ mod tests {
         );
         ui.choice.pinned = Some("end-terror".into());
         assert!(names(&game.observe(), &ui).contains(&"1:end-terror".to_owned()));
+    }
+
+    /// The row of an agent's own open step that the human pins holds the agent's choice,
+    /// and its commit leaves the pin; the tag a step of the human's own opened pinned does
+    /// neither (#197's review).
+    #[test]
+    fn a_step_the_human_pins_is_theirs_whoever_opened_it() {
+        for (step, then) in [
+            ("kidnap", "kidnap:cancel"),
+            ("transfer", "back"),
+            ("remove", "done-removal"),
+        ] {
+            let mut game = crate::terror_chosen(Game::opening());
+            decide(&mut game, step);
+            let open = game.observe();
+            let mut closed = game.clone();
+            decide(&mut closed, then);
+            let closed = closed.observe();
+
+            let mut ui = Interface::default();
+            ui.seats[Faction::M26.index()] = crate::faction_seats::SeatState::Thinking;
+            ui.choice.agent_decided(&open);
+            assert!(!opened(&game, &ui, false), "{step} draws nothing pinned");
+            activate(&mut ui, &Action::Pin(step.into()));
+            assert!(opened(&game, &ui, false), "{step} is pinned by hand");
+            ui.choice.agent_decided(&closed);
+            assert_eq!(ui.choice.pinned.as_deref(), Some(step));
+            activate(&mut ui, &Action::Pin(step.into()));
+            assert!(!opened(&game, &ui, false), "{step} is put away");
+
+            // Handed over with the step open: what the decision drew is no one's pin.
+            let mut ui = Interface::default();
+            ui.choice.decided(&open);
+            ui.seats[Faction::M26.index()] = crate::faction_seats::SeatState::Thinking;
+            assert!(!opened(&game, &ui, false), "{step} is only open");
+            let drawn = ui.choice.pinned.clone();
+            assert_eq!(drawn.is_some(), step != "remove");
+            if drawn.is_some() {
+                // Closed and pinned again, it is the human's.
+                let mut pressed = Interface {
+                    seats: ui.seats,
+                    ..default()
+                };
+                pressed.choice.decided(&open);
+                for _ in 0..2 {
+                    activate(&mut pressed, &Action::Pin(step.into()));
+                }
+                assert!(opened(&game, &pressed, false), "{step}");
+            }
+            ui.choice.agent_decided(&closed);
+            assert_eq!(ui.choice.pinned, None, "{step} goes with its step");
+        }
     }
 
     /// While an agent's faction decides, no stop submits anything: the strip's Take back

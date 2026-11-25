@@ -167,10 +167,25 @@ mod over_the_socket {
             found.recv().unwrap()
         }
         fn until_it_waits(&self, waits: bool) {
+            self.until_waits(Faction::Directorio, waits);
+        }
+        fn until_waits(&self, faction: Faction, waits: bool) {
             let end = Instant::now() + Duration::from_secs(10);
-            while self.human(|host, _| host.waits(Faction::Directorio)) != waits {
-                assert!(Instant::now() < end, "its seat's wait is not {waits}");
+            while self.human(move |host, _| host.waits(faction)) != waits {
+                assert!(Instant::now() < end, "{faction:?}'s wait is not {waits}");
             }
+        }
+        /// The position, the save, the generator and who holds each seat.
+        fn standing(&self, save: &Path) -> (Game, Vec<u8>, u64, [Player; 4]) {
+            let save = save.to_owned();
+            self.human(move |host, session| {
+                (
+                    session.game().clone(),
+                    std::fs::read(&save).unwrap(),
+                    session.game().random_state(),
+                    host.players(),
+                )
+            })
         }
         fn play(&self, actions: &'static [&'static str]) {
             self.human(move |_, session| {
@@ -259,5 +274,53 @@ mod over_the_socket {
         let (code, told) = ended(&waiting.wait_with_output().unwrap());
         assert_eq!((code, &told["status"]), (0, &json!("closed")));
         assert_eq!(ask(socket, &["observe", "p"]).0, 4);
+    }
+
+    /// Over the socket, a choice at a stale revision and one by a session that holds no
+    /// seat are refused, and the position, the save and the generator stay as they were.
+    /// An agent giver's Wait sets its decision aside: its next wait is held for what comes
+    /// next and not told the decision again (#197's review).
+    #[test]
+    fn refusals_change_nothing_and_a_giver_waits_over_the_socket() {
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("players.sock");
+        let save = dir.path().join("match.json");
+        let table = Running::open(&socket, Session::create_seeded(&save, 5).unwrap());
+        let socket = socket.as_path();
+        table.human(|host, _| host.hand_over(Faction::Syndicate));
+        let (_, joined) = ask(socket, &["join", "Syndicate"]);
+        let player = joined["player"].as_str().unwrap();
+        table.play(&["terror", "transfer", "ask:3:2"]);
+        let before = table.standing(&save);
+        assert_eq!(before.0.observe().revision, 3);
+        for (session, revision, id) in [
+            (player, "2", "2:authorize:2"),
+            (player, "3", "2:authorize:2"),
+            ("never-seated", "3", "3:authorize:2"),
+        ] {
+            let (code, answer) = ask(socket, &["choose", session, revision, id]);
+            assert_eq!((code, &answer["status"]), (1, &json!("refused")), "{id}");
+            assert_eq!(table.standing(&save), before, "{session} {id}");
+        }
+
+        let (code, answer) = ask(socket, &["choose", player, "3", "3:wait"]);
+        assert_eq!(
+            (code, &answer["status"]),
+            (0, &json!("applied")),
+            "{answer}"
+        );
+        assert_eq!(answer["view"]["decision"]["yours"], true);
+        let mut held = spawn(socket, &["wait", player]);
+        table.until_waits(Faction::Syndicate, true);
+        thread::sleep(Duration::from_secs(1));
+        assert!(held.try_wait().unwrap().is_none(), "told again");
+        table.human(|host, session| {
+            for (reply, answer) in host.take_back(Faction::Syndicate) {
+                reply.send(answer.to_string());
+            }
+            assert_eq!(session.observe().revision, 4);
+        });
+        let (code, told) = ended(&held.wait_with_output().unwrap());
+        assert_eq!((code, &told["status"]), (0, &json!("closed")), "{told}");
     }
 }

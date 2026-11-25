@@ -837,6 +837,32 @@ fn a_choice_that_cannot_be_saved_is_refused() {
     );
 }
 
+/// A held choice whose save cannot be written as it is applied is released with the
+/// save's reason, and the position stays (#197's review).
+#[test]
+fn a_held_choice_that_cannot_be_saved_is_released_with_the_reason() {
+    let mut s = Sitting::at_the_handoff();
+    let player = s.seat(Directorio);
+    s.room.settled = false;
+    let mut request = s.choice(&player, "event:shaded");
+    request["wait"] = json!(true);
+    let sent = s.send(request);
+    assert!(s.answer(sent).is_none());
+    let mut other = Session::open(&s.room.path, None).unwrap();
+    other.submit(Directorio, 5, "5:event:unshaded").unwrap();
+    let written = std::fs::read(&s.room.path).unwrap();
+    s.room.settled = true;
+    s.poll();
+    let told = s.answer(sent).unwrap();
+    assert_eq!(told["status"], "released", "{told}");
+    let reason = told["reason"].as_str().unwrap();
+    assert!(reason.contains("Save changed in another session"), "{told}");
+    assert_eq!(told["choice"]["id"], "5:event:shaded");
+    assert_eq!(s.revision(), 5);
+    assert!(s.room.commits.is_empty());
+    assert_eq!(std::fs::read(&s.room.path).unwrap(), written);
+}
+
 /// Turning the card is the human's, whichever faction the authority names for it: no
 /// agent is offered it, may submit it, or is woken for it.
 #[test]

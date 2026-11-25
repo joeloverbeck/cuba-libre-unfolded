@@ -78,7 +78,12 @@ impl Native {
     }
     /// The answer to a command given while `pending` keeps the table unsettled, with
     /// `steps` of table time run at once.
-    fn answered_while(&mut self, asked: &mut Asked, steps: u32, pending: &str) -> (i32, Value) {
+    pub(super) fn answered_while(
+        &mut self,
+        asked: &mut Asked,
+        steps: u32,
+        pending: &str,
+    ) -> (i32, Value) {
         loop {
             let view = self.request(json!({"op":"advance","steps":steps}), true);
             assert!(view["pending"].to_string().contains(pending), "{view}");
@@ -430,7 +435,16 @@ fn native_an_agents_choice_waits_for_the_table_and_the_human() {
     assert_eq!(view["observation"]["kidnap_open"], true, "{view}");
     // Its own Kidnap step pins nothing of the human's.
     assert_eq!(view["table"]["choice"]["pinned"], Value::Null);
-    app.decide(&m26, "kidnap:cancel", "applied");
+    // Until the human pins its row to read it: then the choice waits, and goes on once
+    // the tag is put away.
+    let revision = app.revision();
+    app.activate("step:kidnap", revision);
+    app.decide(&m26, "kidnap:cancel", "held");
+    let view = app.settle();
+    assert_eq!(holding(&view), ["a pinned or opened briefing"]);
+    assert_eq!(view["table"]["choice"]["pinned"], "kidnap");
+    let view = app.key("Escape");
+    assert_eq!(view["observation"]["kidnap_open"], false, "{view}");
     // Two choices that reach one frame: the second waits for what the first changed.
     app.settle();
     let at = app.revision();

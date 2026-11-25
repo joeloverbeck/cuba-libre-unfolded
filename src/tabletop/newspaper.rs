@@ -162,14 +162,15 @@ pub(super) fn focusable(ui: &Interface) -> Option<(String, Action)> {
     (ui.editions.pile() > 0).then(|| (PILE.into(), Action::Edition(Press::Reopen)))
 }
 
-/// Opens an edition that is due, once the pieces and the die have settled: nothing moves,
-/// and a landed die has shown its result.
+/// Opens an edition that is due, once the pieces and the die have come to rest: nothing
+/// moves, and a landed die has shown its result. The human's looking about, a hover's
+/// dwell or the camera, does not delay it.
 pub(super) fn open(world: &mut World) {
     let ui = world.resource::<Interface>();
     if !ui.editions.due() || ui.editions.open().is_some() {
         return;
     }
-    if !settled::unsettled(world).is_empty() || settled::result_showing(world) {
+    if !settled::resting(world).is_empty() {
         return;
     }
     let mut ui = world.resource_mut::<Interface>();
@@ -665,6 +666,8 @@ pub(super) struct Root;
 pub(super) struct Part {
     name: String,
     words: Option<(String, f32, usize)>,
+    /// The exported image it draws, by its file name.
+    image: Option<String>,
 }
 
 /// The words of the named part, which its box is wider than.
@@ -721,6 +724,7 @@ impl Printer<'_, '_, '_> {
                 Part {
                     name: name.into(),
                     words: None,
+                    image: Some(file.into()),
                 },
                 Pickable::IGNORE,
                 ChildOf(self.page),
@@ -744,6 +748,7 @@ impl Printer<'_, '_, '_> {
         let part = Part {
             name: name.into(),
             words: Some((plain(&text), size * self.u, lines.len())),
+            image: None,
         };
         let boxed = self
             .commands
@@ -770,14 +775,6 @@ impl Printer<'_, '_, '_> {
     fn line(&mut self, name: &str, text: &str, at: [f32; 3], set: Type) {
         self.words(name, &[text.to_owned()], at, set);
     }
-}
-
-fn sliced(slice: f32, u: f32) -> NodeImageMode {
-    NodeImageMode::Sliced(TextureSlicer {
-        border: BorderRect::all(slice * 2.),
-        max_corner_scale: u / 2.,
-        ..default()
-    })
 }
 
 /// Draws the open edition over everything, when what it shows changes.
@@ -878,6 +875,7 @@ fn print(
         Part {
             name: "edition-scrim".into(),
             words: None,
+            image: None,
         },
         Pickable::IGNORE,
     ));
@@ -899,6 +897,7 @@ fn print(
             Part {
                 name: "edition-page".into(),
                 words: None,
+                image: None,
             },
             Pickable::IGNORE,
         ))
@@ -1175,6 +1174,7 @@ pub(super) fn pile(
     let part = |name: &str, words: Option<(String, f32, usize)>| Part {
         name: name.into(),
         words,
+        image: None,
     };
     let pile = picture(
         commands,
@@ -1275,6 +1275,7 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
                     "font_size": words.map(|(_, size, _)| size),
                     "bounds": seat::logical_bounds(node, at),
                     "ink": ink.get(&part.name),
+                    "image": part.image,
                 }),
             )
         })
@@ -1474,7 +1475,8 @@ mod tests {
         assert!(PAGE_SLICE > shadow && 2. * PAGE_SLICE < 484.);
     }
 
-    /// While an edition is due, before it opens too, the human submits nothing.
+    /// While an edition is due, before it opens too, the human submits nothing, and is
+    /// told so.
     #[test]
     fn nothing_is_submitted_while_an_edition_is_due() {
         let dir = tempfile::tempdir().unwrap();
@@ -1489,9 +1491,13 @@ mod tests {
         let mut undecided = test_play(dir.path().join("other.json"));
         decide(&mut undecided, &mut ui, Faction::M26, 0, "0:terror");
         assert_eq!(undecided.game().observe().revision, 0);
+        let refusal = notice::Notice::refusal(notice::EDITION_FIRST);
+        assert_eq!(ui.notice, refusal);
+        ui.notice = default();
         ui.editions.open_next();
         decide(&mut undecided, &mut ui, Faction::M26, 0, "0:terror");
         assert_eq!(undecided.game().observe().revision, 0);
+        assert_eq!(ui.notice, refusal);
         ui.editions.put_away();
         decide(&mut undecided, &mut ui, Faction::M26, 0, "0:terror");
         assert_eq!(undecided.game().observe().revision, 1);

@@ -2461,7 +2461,7 @@ impl Game {
                     "back",
                     "Cancel · nothing moves",
                     true,
-                    "Closes the transfer without moving anything.",
+                    "Closes the transfer without moving anything (R 1.5.1).",
                 ));
                 Some(choices)
             }
@@ -2473,7 +2473,7 @@ impl Game {
                             &format!("authorize:{n}"),
                             format!("{} authorizes {n}", giver.name()),
                             true,
-                            "Only the giver decides the actual amount, from 0 to its limit; it moves on authorization.",
+                            "Only the giver decides the actual amount, from 0 to its limit; it moves on authorization (R 1.5.1).",
                         )
                     })
                     .collect();
@@ -2481,7 +2481,10 @@ impl Game {
                     "decline",
                     format!("{} declines", giver.name()),
                     true,
-                    format!("Nothing moves, and {} decides again.", executor.name()),
+                    format!(
+                        "Nothing moves, and {} decides again: a request binds no one (R 1.5.1).",
+                        executor.name()
+                    ),
                 ));
                 // Wait sets the decision aside and Open brings it back; each is
                 // saved, so a restart shows the request as it was left (#75).
@@ -2490,14 +2493,14 @@ impl Game {
                         "reopen",
                         format!("Open · {} decides", giver.name()),
                         true,
-                        "Shows the giver's decision again; the request is unchanged.",
+                        "Shows the giver's decision again; the request is unchanged, and only the giver decides it (R 1.5.1).",
                     )
                 } else {
                     self.offer(
                         "wait",
                         "Wait · keep this decision",
                         true,
-                        "The request stays pending, also across save and quit.",
+                        "The request stays pending, also across save and quit, until the giver decides it (R 1.5.1).",
                     )
                 });
                 // Local policy (#58): 26July's request does not hold 26July's own

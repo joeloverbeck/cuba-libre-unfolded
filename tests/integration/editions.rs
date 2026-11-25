@@ -31,12 +31,19 @@ impl Table {
     }
     fn play(&mut self, actions: &[&str]) {
         for action in actions {
+            let decider = self
+                .seen()
+                .choices
+                .iter()
+                .find(|choice| choice.action() == *action)
+                .expect("An offered choice")
+                .owner;
             choose(&mut self.game, action);
             let seen = self.game.observe();
             self.reports.record(&seen);
             let reports = &self.reports;
             self.editions
-                .decided(&seen, |told| reports.since(told), self.plays);
+                .decided(&seen, decider, |told| reports.since(told), self.plays);
         }
     }
     /// The human hands `faction` over, or takes it back.
@@ -266,6 +273,114 @@ fn a_faction_that_changes_hands_is_whoevers_it_is_then() {
     table.play(&["terror:santiago", "end-terror"]);
     table.none();
     assert_eq!(table.editions.pile(), 0);
+}
+
+/// What an agent began is told when its faction is handed over again undecided, though
+/// another agent decided inside it meanwhile (#197's review): the Syndicate's agent pays,
+/// and the edition says so.
+#[test]
+fn a_faction_taken_back_and_undecided_loses_nothing() {
+    let begun = || {
+        let mut table = Table::new(&[Government, Directorio]);
+        table.play(&FUNDED[..3]);
+        table.seat(M26, true);
+        table.none();
+        table.play(&FUNDED[3..4]);
+        table.none();
+        table
+    };
+    let mut table = begun();
+    table.seat(M26, false);
+    table.none();
+    table.play(&["terror:oriente", "end-terror"]);
+    let [(faction, complete, revisions, headline)] = &table.read()[..] else {
+        panic!("One edition");
+    };
+    assert_eq!((*faction, *complete, *revisions), (M26, true, [0, 6]));
+    assert_eq!(headline, "26July executes Terror in Oriente");
+    let (_, edition) = {
+        table.editions.reopen();
+        table.editions.open().unwrap()
+    };
+    let told: Vec<&String> = edition
+        .report
+        .articles
+        .iter()
+        .flat_map(|article| &article.lines)
+        .collect();
+    assert_eq!(told[1], "Syndicate 15 → 13, 26July 0 → 2.", "{told:?}");
+
+    // Twice over, and with the giver's seat taken back and handed over too.
+    let mut table = begun();
+    for human in [false, true, false] {
+        table.seat(Syndicate, !human);
+        table.seat(M26, human);
+        table.none();
+    }
+    table.play(&["terror:oriente", "end-terror"]);
+    assert_eq!(table.one().2, [0, 6]);
+
+    // The giver's answer, the human's own, decides nothing for 26July.
+    let mut table = Table::new(&[Government, Directorio]);
+    table.play(&FUNDED[..3]);
+    table.seat(M26, true);
+    table.seat(Syndicate, true);
+    table.play(&FUNDED[3..4]);
+    table.seat(M26, false);
+    table.play(&["terror:oriente", "end-terror"]);
+    assert_eq!(table.one().2, [0, 6]);
+
+    // Once the human decides for it, what went before is theirs.
+    let mut table = begun();
+    table.play(&["terror:oriente"]);
+    table.seat(M26, false);
+    table.none();
+    table.play(&["end-terror"]);
+    assert_eq!(table.one().2, [5, 6]);
+
+    // An agent's answer inside the human's own action is the human's action.
+    let mut table = Table::new(&[M26, Government, Directorio]);
+    table.play(&FUNDED[..4]);
+    table.none();
+    table.seat(M26, false);
+    table.play(&["terror:oriente", "end-terror"]);
+    assert_eq!(table.one().2, [4, 6]);
+}
+
+/// An Event that agents alone began and ended is told, whoever plays its faction as it
+/// ends; one the human played is not.
+#[test]
+fn an_event_that_agents_alone_played_is_told() {
+    let event = &lines()[3][1].1;
+    let begun = |granted: &[Faction]| {
+        let mut table = Table::new(&[Government, Syndicate]);
+        table.play(&lines()[3][0].1);
+        table.one();
+        table.play(&event[..2]);
+        table.none();
+        for &faction in granted {
+            table.seat(faction, true);
+        }
+        table
+    };
+    let mut table = begun(&[Directorio]);
+    table.none();
+    table.play(&event[2..]);
+    let (faction, complete, _, headline) = table.one();
+    assert_eq!((faction, complete), (Directorio, true));
+    assert_eq!(headline, "Directorio executes the Event, unshaded text");
+
+    // The human's 26July Rallies: Directorio is theirs too, so the Event is.
+    let mut table = begun(&[Directorio, M26]);
+    table.play(&event[2..]);
+    table.none();
+
+    // The human chose the Event and 26July's agent ends it.
+    let mut table = Table::new(&[Government, Syndicate, Directorio]);
+    table.play(&lines()[3][0].1);
+    table.one();
+    table.play(event);
+    table.none();
 }
 
 /// Taking back the giver that an agent's faction asked puts the decision before the human,
