@@ -115,15 +115,14 @@ pub(super) fn result_showing(world: &World) -> bool {
 
 /// What the human has open over the table. What a decision's own step draws is not the
 /// human's: an agent's transfer or Kidnap would otherwise wait for itself (#197,
-/// correction 2). The transfer modal is the human's while it asks for a decision of a
-/// faction they play.
+/// correction 2). The transfer modal is shown only for a decision of a faction they play.
 fn opened(world: &World) -> Vec<String> {
     let Some(game) = world.resource::<Play>().session.as_ref().map(Session::game) else {
         return vec![];
     };
     let ui = world.resource::<Interface>();
     let popover = world.resource::<popover::Popover>().open_at(game.revision);
-    let modal = transfer::shown(game.transfer.as_ref()) && !ui.agents[game.owner().index()];
+    let modal = transfer::shown(game.transfer.as_ref(), game.owner(), ui);
     [
         (popover, "an open popover"),
         (modal, "the transfer modal"),

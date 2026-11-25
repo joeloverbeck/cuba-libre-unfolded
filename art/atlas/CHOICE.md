@@ -8,6 +8,7 @@ The owner selected **AC-B, Briefing tag** in #68 ([selection on #58](https://git
 - **The briefing tag:** it opens on the accepted 26July tag plate, 8 px left of the panel and top-aligned with it. Hover (after the shared 400 ms dwell) or keyboard focus shows an option's briefing. A click pins it, and the pushpin shows that it is pinned. The active row is outlined, with the red marker.
 - **The commit:** the full-width action at the panel's foot. It commits only the pinned option ("Pass · +1 Resource", "Choose Terror"). For an option not in this task it is disabled and gives the reason. Hovering a row never changes it, so moving the pointer to the button cannot change what it commits.
 - **During Terror:** the BRIEFING ribbon hangs from the panel's top edge. Clicking it opens the tag with Kidnap and Terror tabs, and clicking it again closes the tag. A space popover on the map wins over the tag while it is open (the owner's clash rule). The tag reopens from the ribbon.
+- **While an agent's faction decides** the panel is inert (#206): the same rows without plates, and a strip in the commit's place ([SEATS.md](SEATS.md#the-decision-panel-while-an-agent-decides)).
 - **Keyboard:** Tab and Shift+Tab move focus through the options and the commit, or the ribbon and its tabs. Enter or Space activates the focused control as a click would, and Escape unpins the briefing or closes the ribbon's tag.
 
 ## Briefing content

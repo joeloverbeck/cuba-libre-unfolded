@@ -436,6 +436,7 @@ impl SeatGame for Table {
         let save_quit = save_quit::observe(world);
         let focus_mark = focus_mark::observe(world);
         let seats = faction_seats::observe(world);
+        let cards = seat_cards::observe(world);
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
         let pose = world.resource::<Orbit>().pose();
@@ -452,6 +453,8 @@ impl SeatGame for Table {
         table["save_quit"] = save_quit;
         table["focus_mark"] = focus_mark;
         table["faction_seats"] = seats;
+        // #206: the drawn seat cards, the open line sheet and the panel's strip.
+        table["seat_cards"] = cards;
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
             table,
@@ -561,9 +564,12 @@ impl SeatGame for Table {
             // The owner's click lands a card in the air wherever it falls, and does
             // nothing else there (#145, #137's review); a choice named by its id asks
             // for a decision instead, and waits.
+            // A faction is handed over and taken back at any time (#206).
+            Interrupt::Activate(TargetName::Component(name)) if seat_cards::is_control(name) => {
+                return true;
+            }
             Interrupt::Activate(TargetName::Component(name)) => (name == die::TRAY, true),
             Interrupt::Activate(TargetName::Choice(_)) => (false, false),
-            // A faction is handed over and taken back at any time (#203).
             Interrupt::Key(key) if faction_seats::KEY_NAMES.contains(&key) => return true,
             Interrupt::Key(key) => {
                 let key = matches!(key, "Enter" | "Space");
@@ -589,7 +595,8 @@ impl SeatGame for Table {
             });
         }
         let ui = world.resource::<Interface>();
-        let modal = transfer::shown(world.resource::<Play>().game().transfer.as_ref());
+        let game = world.resource::<Play>().game();
+        let modal = transfer::shown(game.transfer.as_ref(), game.owner(), ui);
         let focused = if modal {
             ui.transfer.focus.clone()
         } else {
@@ -991,8 +998,8 @@ mod tests {
 
     /// The outer edges of the card's 1 px ink stroke as drawn in `capture`, found by
     /// scanning inward from 20 px outside each edge of the slip's reported `bounds`
-    /// (left, top, right, bottom): across the bottom padding for the sides, and down
-    /// and up a column inside the left padding for the top and the foot. A pixel is
+    /// (left, top, right, bottom): across a row above the bottom padding for the sides, and
+    /// down and up a column inside the left padding for the top and the foot. A pixel is
     /// the stroke's when its channels sum below 560: the sea sums about 674, the paper 724
     /// and the shadow at least 600.
     pub(crate) fn drawn_stroke(capture: &std::path::Path, bounds: [f64; 4]) -> [f64; 4] {
@@ -1002,8 +1009,10 @@ mod tests {
             p.0.iter().map(|&c| u32::from(c)).sum::<u32>() < 560
         };
         let [left, top, right, foot] = bounds.map(f64::round);
-        let row = foot - 4.;
-        let column = left + 8.;
+        // Clear of the ink of Syndicate's seat card, over which the slip opens (#206): between
+        // its colour and its name, and below the foot right of its name.
+        let row = foot - 33.;
+        let (column, below) = (left + 8., left + 24.);
         let first = |mut at: f64, step: f64, end: f64, hit: &dyn Fn(f64) -> bool| loop {
             if hit(at) {
                 return at;
@@ -1016,7 +1025,7 @@ mod tests {
             first(top - 20., 1., top + 8., &|y| dark(column, y)),
             // The last dark pixel's far side is the edge.
             first(right + 20., -1., right - 8., &|x| dark(x, row)) + 1.,
-            first(foot + 20., -1., foot - 8., &|y| dark(column, y)) + 1.,
+            first(foot + 20., -1., foot - 8., &|y| dark(below, y)) + 1.,
         ]
     }
 

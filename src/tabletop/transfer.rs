@@ -183,14 +183,16 @@ impl State {
     }
 }
 
-/// Whether the modal is shown: a transfer is open and not set aside by Wait. Whether
-/// it was set aside is saved (#75), so a restart shows the request as it was left.
-pub(super) fn shown(transfer: Option<&Transfer>) -> bool {
-    match transfer {
-        Some(Transfer::Selecting) => true,
-        Some(Transfer::Authorizing { waited, .. }) => !waited,
-        None => false,
-    }
+/// Whether the modal is shown: a transfer is open and not set aside by Wait, and the
+/// faction that `decides` it is the human's (#206). Whether it was set aside is saved
+/// (#75), so a restart shows the request as it was left.
+pub(super) fn shown(transfer: Option<&Transfer>, decides: Faction, ui: &Interface) -> bool {
+    ui.plays(decides)
+        && match transfer {
+            Some(Transfer::Selecting) => true,
+            Some(Transfer::Authorizing { waited, .. }) => !waited,
+            None => false,
+        }
 }
 
 /// The giver's colour key, or "ink" while the executing faction composes.
@@ -479,7 +481,7 @@ pub(super) fn keys(
     }
     let view = play.game().observe();
     ui.transfer.sync(view.revision, view.transfer.as_ref());
-    if !shown(view.transfer.as_ref()) {
+    if !shown(view.transfer.as_ref(), view.owner, &ui) {
         return;
     }
     const DIGITS: [(KeyCode, KeyCode, char); 10] = [
@@ -609,9 +611,14 @@ pub(super) fn draw(
     let key = (
         game.revision,
         game.transfer.clone(),
+        // A seat handed over or taken back shows or hides the modal and Open.
         format!(
-            "{:?}{:?}{}{:?}",
-            ui.transfer.counterpart, ui.transfer.direction, ui.transfer.entry, ui.transfer.focus,
+            "{:?}{:?}{}{:?}{}",
+            ui.transfer.counterpart,
+            ui.transfer.direction,
+            ui.transfer.entry,
+            ui.transfer.focus,
+            ui.plays(game.owner()),
         ),
         [window.width().to_bits(), window.height().to_bits()],
     );
@@ -628,8 +635,8 @@ pub(super) fn draw(
     let view = game.observe();
     let extra = window.width() - WIDTH * s;
     let centered = Vec2::new(extra / 2., 0.);
-    if !shown(view.transfer.as_ref()) {
-        pending(&mut commands, &art, &view, s, centered);
+    if !shown(view.transfer.as_ref(), view.owner, &ui) {
+        pending(&mut commands, &art, &view, &ui, s, centered);
         return;
     }
     scrim(&mut commands, &art, &window, s, Vec2::ZERO);
@@ -2068,8 +2075,16 @@ fn footer(
 }
 
 /// After Wait: a tab in the top band, right of the standings, names the pending
-/// request; Open, the authority's `reopen` choice, shows the giver's decision again.
-fn pending(commands: &mut Commands, art: &Art, view: &Observation, s: f32, centered: Vec2) {
+/// request; Open, the authority's `reopen` choice, shows the giver's decision again. An
+/// agent's giver has the tab from the request on, without Open (#206).
+fn pending(
+    commands: &mut Commands,
+    art: &Art,
+    view: &Observation,
+    ui: &Interface,
+    s: f32,
+    centered: Vec2,
+) {
     let Some(Transfer::Authorizing {
         giver,
         recipient,
@@ -2177,6 +2192,9 @@ fn pending(commands: &mut Commands, art: &Art, view: &Observation, s: f32, cente
         0.,
         s,
     );
+    if !ui.plays(giver) {
+        return;
+    }
     let open = button(
         commands,
         art,
@@ -2201,7 +2219,7 @@ fn pending(commands: &mut Commands, art: &Art, view: &Observation, s: f32, cente
 pub(super) fn observe(world: &mut World) -> serde_json::Value {
     let view = world.resource::<Play>().game().observe();
     let ui = world.resource::<Interface>();
-    let shown_now = shown(view.transfer.as_ref());
+    let shown_now = shown(view.transfer.as_ref(), view.owner, ui);
     let content = content(&view, &ui.transfer);
     let state = serde_json::json!({
         "shown": shown_now,

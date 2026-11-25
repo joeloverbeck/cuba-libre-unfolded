@@ -23,17 +23,27 @@ pub(super) enum Anchor {
     /// of another, which `between` names (#172: the marker supply, between the
     /// outside-influence area and the standings).
     TopBetween,
+    /// The bottom edge and the left edge of the second area `between` names, shrunk
+    /// toward its own bottom right corner where it would come within
+    /// [`BETWEEN_GAP`] of the first area's right edge (#206: the seat cards, between the
+    /// Propaganda pips and Save · quit, in a window narrower than the display's shape).
+    BottomBetween,
     BottomLeft,
     BottomRight,
     Edges,
 }
+
+/// How near an [`Anchor::BottomBetween`] area comes to the area on its left, in frame
+/// units.
+const BETWEEN_GAP: f32 = 24.;
 
 #[derive(Clone, Debug, serde::Deserialize)]
 pub(super) struct Placed {
     /// x, y, width and height in the layout's frame.
     pub bounds: [f32; 4],
     pub anchor: Anchor,
-    /// For [`Anchor::TopBetween`], the areas to its left and its right.
+    /// For [`Anchor::TopBetween`] and [`Anchor::BottomBetween`], the areas to its left
+    /// and its right.
     #[serde(default)]
     pub between: Option<[String; 2]>,
 }
@@ -69,12 +79,11 @@ impl Layout {
         // own edges.
         for (name, placed) in &layout.areas {
             match (placed.anchor, &placed.between) {
-                (Anchor::TopBetween, Some(pair)) => {
+                (Anchor::TopBetween | Anchor::BottomBetween, Some(pair)) => {
                     for other in pair {
-                        let fixed = layout
-                            .areas
-                            .get(other)
-                            .is_some_and(|o| o.anchor != Anchor::TopBetween);
+                        let fixed = layout.areas.get(other).is_some_and(|o| {
+                            !matches!(o.anchor, Anchor::TopBetween | Anchor::BottomBetween)
+                        });
                         if !fixed {
                             return Err(format!(
                                 "Main view layout record: {name} lies between {other}, which is not an area placed by its edges"
@@ -82,7 +91,7 @@ impl Layout {
                         }
                     }
                 }
-                (Anchor::TopBetween, None) => {
+                (Anchor::TopBetween | Anchor::BottomBetween, None) => {
                     return Err(format!(
                         "Main view layout record: {name} names no areas it lies between"
                     ));
@@ -128,12 +137,7 @@ impl Layout {
             Anchor::BottomRight => (from_end(min), from_end(max)),
             Anchor::Edges => (from_start(min), from_end(max)),
             Anchor::TopBetween => {
-                // `read` checked that both neighbours exist and are placed by edges.
-                let [left, right] = placed
-                    .between
-                    .as_ref()
-                    .map(|[l, r]| [&self.areas[l], &self.areas[r]])
-                    .expect("read checks that a between area names its neighbours");
+                let [left, right] = self.neighbours(placed);
                 let middle =
                     (self.place(left, window).max.x + self.place(right, window).min.x) / 2.;
                 let half = w * unit / 2.;
@@ -142,8 +146,29 @@ impl Layout {
                     Vec2::new(middle + half, from_start(max).y),
                 )
             }
+            Anchor::BottomBetween => {
+                let [left, right] = self.neighbours(placed);
+                let clear = right.bounds[0] - (x + w);
+                let corner = Vec2::new(
+                    self.place(right, window).min.x - clear * unit,
+                    from_end(max).y,
+                );
+                let room = corner.x - self.place(left, window).max.x - BETWEEN_GAP * unit;
+                let fits = (room / (w * unit)).clamp(0., 1.);
+                (corner - Vec2::new(w, h) * unit * fits, corner)
+            }
         };
         Rect { min, max }
+    }
+
+    /// The areas a between area lies between. `read` checked that both exist and are
+    /// placed by edges.
+    fn neighbours(&self, placed: &Placed) -> [&Placed; 2] {
+        placed
+            .between
+            .as_ref()
+            .map(|[l, r]| [&self.areas[l], &self.areas[r]])
+            .expect("read checks that a between area names its neighbours")
     }
 
     /// Every area that lies over the map, by its name in the layout.
@@ -670,6 +695,58 @@ mod tests {
                 "{at}: room for lines"
             );
             assert!(decision.max.y < tag.min.y, "{at}: the tag clears the panel");
+            // #206: above the seat cards' buttons, on a card that stands forward too.
+            let seats = layout.area("seats", &window);
+            let buttons = seats.min.y + 130. * seats.width() / 1940.;
+            assert!(
+                slip.max.y < buttons && tag.max.y < buttons,
+                "{at}: the buttons"
+            );
+        }
+    }
+
+    /// #206: the seat cards keep their distance from Save · quit and from the bottom edge
+    /// in every window, at the size the scale gives them, and shrink toward that corner
+    /// only where they would come within 24 units of the Propaganda pips. On the owner's
+    /// display that is the frame's own place.
+    #[test]
+    fn the_seat_cards_stand_between_the_pips_and_save_quit() {
+        let layout = record();
+        let placed = &layout.areas["seats"];
+        assert_eq!(placed.anchor, Anchor::BottomBetween);
+        assert_eq!(
+            placed.between,
+            Some(["propaganda".to_string(), "save-quit".to_string()])
+        );
+        let [x, y, w, h] = placed.bounds;
+        for (width, height, shrinks) in [
+            (3840., 2160., false),
+            (1920., 1080., false),
+            (2520., 1080., false),
+            (3440., 1440., false),
+            (1920., 1280., true),
+            (1600., 1280., true),
+        ] {
+            let window = window(width, height);
+            let k = super::super::reference_pixel(&window) / 1.6875;
+            let pips = layout.area("propaganda", &window);
+            let quit = layout.area("save-quit", &window);
+            let area = layout.area("seats", &window);
+            let at = format!("{width}x{height}: {area:?}");
+            assert!(
+                (quit.min.x - area.max.x - (3516. - x - w) * k).abs() < 0.02,
+                "{at}"
+            );
+            assert!(
+                (height - area.max.y - (2160. - y - h) * k).abs() < 0.02,
+                "{at}"
+            );
+            assert!((area.width() / area.height() - w / h).abs() < 0.001, "{at}");
+            assert!(area.min.x - pips.max.x >= 24. * k - 0.02, "{at}");
+            assert_eq!(area.width() < w * k - 0.02, shrinks, "{at}");
+            if shrinks {
+                assert!((area.min.x - pips.max.x - 24. * k).abs() < 0.02, "{at}");
+            }
         }
     }
 

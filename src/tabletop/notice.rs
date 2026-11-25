@@ -305,6 +305,58 @@ mod tests {
         );
     }
 
+    /// The submit path refuses what would submit for an agent's faction, with nothing
+    /// changed (#203, #206): no shown control does, and a stale one must not either.
+    /// Turning the card stays the human's.
+    #[test]
+    fn the_submit_path_refuses_for_an_agents_faction() {
+        use crate::faction_seats::SeatState;
+        let dir = tempfile::tempdir().unwrap();
+        let save = dir.path().join("task.json");
+        let mut play = play(save.clone());
+        let mut ui = Interface::default();
+        ui.seats[Faction::M26.index()] = SeatState::Awaiting;
+        let before = std::fs::read(&save).unwrap();
+        decide(&mut play, &mut ui, Faction::M26, 0, "0:terror");
+        assert_eq!(
+            shown(&play, &ui),
+            Some((
+                Kind::Refusal,
+                "26July is an agent's to play. Take 26July back on its card to decide.".into()
+            ))
+        );
+        assert_eq!(play.game().observe().revision, 0);
+        assert_eq!(std::fs::read(&save).unwrap(), before);
+
+        // The human plays to the card, which the authority names Directorio's.
+        ui.seats = Default::default();
+        let mut turned = false;
+        for action in [
+            "terror",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+            "advance-card",
+        ] {
+            if action == "advance-card" {
+                ui.seats = [SeatState::Thinking; 4];
+                turned = true;
+            }
+            let view = play.game().observe();
+            let id = format!("{}:{action}", view.revision);
+            decide(&mut play, &mut ui, view.owner, view.revision, &id);
+            assert_eq!(
+                play.game().observe().revision,
+                view.revision + 1,
+                "{action}"
+            );
+        }
+        assert!(turned && play.game().observe().current_card == 18);
+    }
+
     /// A control that cannot act yet (`Action::Unsupported`), by a click or by Enter,
     /// and the transfer modal's blocked primary button write refusals.
     #[test]

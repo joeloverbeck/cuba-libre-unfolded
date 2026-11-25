@@ -30,8 +30,10 @@ fn disjoint(a: [f64; 4], b: [f64; 4]) -> bool {
 /// Layout A · Franja on the owner's display: the plate 67.5 (40 reference pixels)
 /// from the right and bottom edges; the slip above it, right edges aligned, at the
 /// popover's width (340 reference pixels); the tag above the plate at the top display
-/// tag's width (468). Neither covers the plate, the decision panel or the island box,
-/// and nothing of the session panel is left in the record.
+/// tag's width (468). Neither covers the plate, the decision panel, the island box or
+/// any other area but the seat cards (#206): while shown they open over the top right of
+/// Syndicate's card, the last, above its buttons wherever it stands (SEATS.md, "Limits").
+/// Nothing of the session panel is left in the record.
 #[test]
 fn the_record_places_the_plate_the_slip_and_the_tag_in_the_corner() {
     let layout: Value =
@@ -49,10 +51,16 @@ fn the_record_places_the_plate_the_slip_and_the_tag_in_the_corner() {
     }
     let island = edges(&layout["island"]["bounds"]);
     for (name, placed) in layout["areas"].as_object().unwrap() {
+        let area = edges(&placed["bounds"]);
+        if name == "seats" {
+            let (syndicate, buttons) = (area[0] + 3. * 490., area[1] + 130.);
+            assert!(slip[0] > syndicate && tag[0] > syndicate);
+            assert!(slip[3] < buttons && tag[3] < buttons);
+            continue;
+        }
         if name == "save-quit" {
             continue;
         }
-        let area = edges(&placed["bounds"]);
         assert!(disjoint(slip, area), "the slip covers {name}");
         assert!(disjoint(tag, area), "the tag covers {name}");
     }
