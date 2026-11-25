@@ -6,7 +6,7 @@ It is distinct from a faction player's connection (foundation 5). It has no auth
 
 ## Launch and connect
 
-From the checkout root, use `jq`, the private card directory from the [README](../../README.md#build-and-launch), and an isolated verification save. Package the two binaries in the [managed build scope](parallel-work.md#builds) first, then run them directly. The detached seat keeps serving after the launcher exits.
+From the checkout root, use `jq`, the private card directory from the [README](../../README.md#build-and-launch), and an isolated verification save. Package the two binaries in the [managed build scope](parallel-work.md#builds) first, then run them directly, outside that scope. The native suite runs four apps at once in that scope. The detached seat keeps serving after the launcher exits.
 
 ```sh
 mkdir -p local/verification &&
