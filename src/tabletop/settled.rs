@@ -87,18 +87,25 @@ pub(super) fn unsettled(world: &mut World) -> Vec<Unsettled> {
     pending
 }
 
-/// What holds an agent's choice now, as the development seat reads it: something in
-/// motion, a die whose result has just landed, or something the human opened. Empty when
-/// a choice would be applied at once.
-pub(super) fn holding(world: &mut World) -> Vec<String> {
-    let mut holding: Vec<String> = unsettled(world)
+/// What has still to come to rest before an agent's choice or an edition: something in
+/// motion, or a die whose result has just landed. Not the human's looking about.
+pub(super) fn resting(world: &mut World) -> Vec<String> {
+    let mut resting: Vec<String> = unsettled(world)
         .into_iter()
         .filter(Unsettled::holds_a_choice)
         .map(Unsettled::words)
         .collect();
     if result_showing(world) {
-        holding.push("Kidnap result".into());
+        resting.push("Kidnap result".into());
     }
+    resting
+}
+
+/// What holds an agent's choice now, as the development seat reads it: what is
+/// [`resting`], or something the human opened. Empty when a choice would be applied at
+/// once.
+pub(super) fn holding(world: &mut World) -> Vec<String> {
+    let mut holding = resting(world);
     holding.extend(opened(world));
     holding
 }

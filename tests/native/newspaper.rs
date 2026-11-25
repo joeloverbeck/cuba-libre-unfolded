@@ -245,11 +245,15 @@ fn says_only(view: &Value, report: &Value) -> Result<(), String> {
             ));
         }
     }
-    let dice = |of: &Value| of["die"].as_u64();
+    // The die drawn is the face the report's roll gives, and only where it tells one.
+    let parts = parts(view);
     let articles = report["articles"].as_array().unwrap();
     for (i, article) in articles.iter().enumerate() {
-        let drawn = parts(view).contains_key(&format!("edition-block-{i}-die"));
-        if drawn != dice(article).is_some() {
+        let drawn = parts.get(&format!("edition-block-{i}-die"));
+        let face = article["die"]
+            .as_u64()
+            .map(|die| format!("atlas-newspaper-die-{die}.png"));
+        if drawn.map(|part| part["image"].as_str().unwrap_or_default().to_owned()) != face {
             return Err(format!("article {i}'s die"));
         }
     }
@@ -444,6 +448,35 @@ fn plant(view: &Value, report: &Value) {
         }
     }
     assert!(planted > 20, "{planted}");
+    // A die of another face, a die where none is told, and none where one is.
+    let mut dice = 0;
+    for (i, part) in drawn.iter().enumerate() {
+        let Some(face) = part["image"].as_str() else {
+            continue;
+        };
+        if !face.starts_with("atlas-newspaper-die-") {
+            continue;
+        }
+        for other in (1..=6).map(|n| format!("atlas-newspaper-die-{n}.png")) {
+            if other != face {
+                let mut view = view.clone();
+                view["table"]["newspaper"]["parts"][i]["image"] = json!(other);
+                assert!(says_only(&view, report).is_err(), "{other} for {face}");
+            }
+        }
+        let mut view = view.clone();
+        view["table"]["newspaper"]["parts"][i]["part"] = json!("edition-block-99-die");
+        assert!(says_only(&view, report).is_err(), "a die moved");
+        let mut gone = view.clone();
+        gone["table"]["newspaper"]["parts"]
+            .as_array_mut()
+            .unwrap()
+            .remove(i);
+        assert!(says_only(&gone, report).is_err(), "a die left out");
+        dice += 1;
+    }
+    let told = report["articles"].as_array().unwrap();
+    assert_eq!(dice, told.iter().filter(|a| a["die"].is_u64()).count());
 }
 
 /// An edition for each kind of action, one partway when the human must decide, and none
@@ -694,30 +727,28 @@ fn native_an_edition_tells_each_action_of_a_faction_the_human_does_not_play() {
     );
     app.key("Escape");
     sessions.play(&mut app, &["event:unshaded", "rally:beneficiary:26july"]);
-    // The Rally that ends the Event places pieces: the edition opens once they have settled.
+    // The Rally that ends the Event places pieces: the edition opens once they are drawn,
+    // while their counts still settle over them, which does not delay it.
     let at = app.revision();
     let rally = format!("{at}:rally:sierra-maestra:place:2");
     let mut placed = app.player(
         "p",
         &["choose", &sessions.0["M26"], &at.to_string(), &rally],
     );
-    let mut settling = 0;
     let view = loop {
         let view = app.request(json!({"op":"advance","steps":1}), true);
         if view["observation"]["revision"] == at + 1 {
             let pending = view["pending"].to_string();
             if paper(&view)["open"].is_object() {
-                assert!(!pending.contains("piece counts"), "{pending}");
+                assert!(pending.contains("piece counts"), "{pending}");
                 break view;
             }
             assert_eq!(paper(&view)["due"], true);
             assert!(pending.contains("an edition to open"), "{pending}");
-            settling += usize::from(pending.contains("piece counts"));
         }
         assert!(app.step < 2000, "the edition does not open");
         std::thread::sleep(std::time::Duration::from_millis(20));
     };
-    assert!(settling > 1, "{settling}");
     assert_eq!(paper(&view)["open"]["report"]["complete"], true);
     let (_, answer) = app.answered(&mut placed);
     assert_eq!(answer["status"], "applied", "{answer}");
@@ -736,6 +767,28 @@ fn native_an_edition_tells_each_action_of_a_faction_the_human_does_not_play() {
         "Government executes Assault in no space"
     );
     app.quit();
+}
+
+/// An edition opens once the pieces and the die rest: a hover's dwell, the human's looking
+/// about, delays it no more than it holds an agent's choice (#197's review).
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan"]
+fn native_an_edition_opens_while_a_hover_dwells() {
+    let (mut app, sessions) = start("newspaper-hover-", "1920x1080", ROLLS_2, &["M26"]);
+    let m26 = sessions.0["M26"].clone();
+    app.point("area:standings");
+    app.request(
+        json!({"op":"point","revision":0,"component":"space:las-villas"}),
+        true,
+    );
+    let mut sent = app.player("p", &["choose", &m26, "0", "0:pass"]);
+    let (_, answer) = app.answered_while(&mut sent, 1, "hover dwell");
+    assert_eq!(answer["status"], "applied", "{answer}");
+    let view = app.request(json!({"op":"advance","steps":1}), true);
+    let pending = view["pending"].to_string();
+    assert!(pending.contains("hover dwell"), "{pending}");
+    assert!(paper(&view)["open"].is_object(), "{pending}");
+    assert_eq!(report(&view)["action"], "pass");
 }
 
 /// While an edition is open nothing is decided, by the human or by an agent, and nothing

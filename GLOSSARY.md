@@ -41,7 +41,7 @@ The small folder outside the checkout that one tool's sessions run in to play fa
 _Avoid_: Agent folder, partner folder (Arkham's)
 
 **Action report**:
-What one faction's action did, as committed facts in fixed words, from one revision of the match to another. An action belongs to its executing faction, even while another faction decides inside it. A faction seat's view lists the match's action reports as its recent results, and an edition prints one.
+What one faction's action did, as committed facts in fixed words, from one revision of the match to another. An action belongs to the faction whose action it is, a Pass too, even while another faction decides inside it. A faction seat's view lists the match's action reports as its recent results, and an edition prints one.
 _Avoid_: Notice (the table's line on one decision), news
 
 **Edition**:

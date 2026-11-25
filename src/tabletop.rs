@@ -1265,10 +1265,10 @@ fn map_click_closes_tag(
 /// clicks and the keyboard's Enter on a focused control both come here. It submits nothing
 /// for a faction handed over to an agent; turning the card is the human's, whichever
 /// faction the rules authority names for it (#197). While an edition is due or open it
-/// submits nothing: the human decides knowing what it says (#208).
+/// refuses: the human decides knowing what it says (#208).
 fn decide(play: &mut Play, ui: &mut Interface, owner: Faction, rev: u64, name: &str) {
     if ui.editions.holds() {
-        return;
+        return notice::refuse(ui, notice::EDITION_FIRST);
     }
     if !ui.plays(owner) && Choice::action_of(name) != crate::game::ADVANCE_CARD {
         return notice::refuse(
@@ -1301,7 +1301,7 @@ fn submit(
     let after = session.observe();
     let played = ui.played();
     ui.editions
-        .decided(&after, |told| session.reports_since(told), played);
+        .decided(&after, owner, |told| session.reports_since(told), played);
     if name.ends_with(":kidnap:roll") {
         // The result is saved; the tray shows it from this frame's clock
         // (die::present), and the notice names it once the die lands.
@@ -1313,13 +1313,14 @@ fn submit(
     ui.notice = notice::Notice::success(notice(&previous, &after, owner, name));
     Ok(after)
 }
-/// "a, b and c".
-fn listing(parts: &[String]) -> String {
-    match parts {
-        [] => String::new(),
-        [one] => one.clone(),
-        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
-    }
+/// A plate drawn in nine slices, its corners `slice` frame units at `unit` window pixels
+/// a unit: the seat cards' and the newspaper's.
+fn sliced(slice: f32, unit: f32) -> NodeImageMode {
+    NodeImageMode::Sliced(TextureSlicer {
+        border: BorderRect::all(slice * 2.),
+        max_corner_scale: unit / 2.,
+        ..default()
+    })
 }
 /// The notice for the committed decision `name`, a success: the seat reads it and no
 /// slip draws it (#174). Every rules fact it states is the authority's (foundation 2,
@@ -1412,7 +1413,11 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
         for shift in &preview.support {
             done.push(format!("shifted {}", shift.label));
         }
-        return format!("Terror saved in {}: {}.", place(space), listing(&done));
+        return format!(
+            "Terror saved in {}: {}.",
+            place(space),
+            crate::reports::listing(&done)
+        );
     }
     match action {
         "decline" => format!("{} declined. No resources moved.", owner.name()),
@@ -1451,7 +1456,7 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
             });
             format!(
                 "26July passed: {}{eligibility}.{next} Saved.",
-                listing(&gained)
+                crate::reports::listing(&gained)
             )
         }
         "terror" => match after.executing {

@@ -5,12 +5,14 @@
 //! partway through it when the human must decide: a giver its Resource transfer, or 26July
 //! the free Rally that Directorio's Event grants it. There is none for an action of a
 //! faction the human plays, whoever decides inside it. An edition starts where the
-//! previous one ended, so nothing is told twice.
+//! previous one ended, so nothing is told twice. A faction's action is the human's from
+//! their first decision for it: what an agent did with one they took back is told once they
+//! hand it over again undecided, or once agents end the action themselves.
 //!
 //! While an edition is due or open no decision is taken from the human or an agent, so the
 //! next one follows from what the human has read. The current card's editions stay to be
 //! read again. They are in no save: they start at the position a match opens at.
-use crate::{Choice, Observation, reports::Report};
+use crate::{Choice, Faction, Observation, reports::Report};
 
 /// One report, with its number among its card's editions.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -34,8 +36,11 @@ pub struct Open {
 #[derive(Debug, Default)]
 pub struct Editions {
     card: u8,
-    /// The revision the last edition, or the human's own move, ended at.
+    /// The revision the last edition, or the human's own action so far, ended at.
     told: u64,
+    /// The factions whose untold doings are the human's own: those they have decided for
+    /// since they last took them back. All, as a match opens.
+    theirs: [bool; 4],
     /// The decision that is the human's now, inside another faction's action, has had its
     /// edition. A request the human set aside and takes up again is no new decision.
     announced: bool,
@@ -51,25 +56,31 @@ impl Editions {
         Self {
             card: seen.current_card,
             told: seen.revision,
+            theirs: [true; 4],
             ..Self::default()
         }
     }
 
-    /// A decision was committed and made `seen`. `since` gives the reports of what followed
-    /// a revision, and `plays` the factions the human plays, indexed like `Faction::ALL`.
+    /// `decider`'s decision was committed and made `seen`. `since` gives the reports of what
+    /// followed a revision, and `plays` the factions the human plays, indexed like
+    /// `Faction::ALL`.
     pub fn decided(
         &mut self,
         seen: &Observation,
+        decider: Faction,
         since: impl FnOnce(u64) -> Vec<Report>,
         plays: [bool; 4],
     ) {
         if self.card != seen.current_card {
             *self = Self {
                 told: self.told,
+                theirs: self.theirs,
                 ..Self::from(seen)
             };
         }
-        self.follow(seen, since(self.told), plays, true);
+        let human = plays[decider.index()];
+        self.theirs[decider.index()] |= human;
+        self.follow(seen, since(self.told), plays, human);
     }
 
     /// The human handed a faction over or took one back.
@@ -82,7 +93,11 @@ impl Editions {
         self.follow(seen, since(self.told), plays, false);
     }
 
-    fn follow(&mut self, seen: &Observation, reports: Vec<Report>, plays: [bool; 4], moved: bool) {
+    /// `human`: the human's decision led here.
+    fn follow(&mut self, seen: &Observation, reports: Vec<Report>, plays: [bool; 4], human: bool) {
+        for (theirs, plays) in self.theirs.iter_mut().zip(plays) {
+            *theirs &= plays;
+        }
         let asked = plays[seen.owner.index()]
             && seen
                 .choices
@@ -92,15 +107,14 @@ impl Editions {
             self.announced = false;
         }
         for report in reports {
-            if plays[report.faction.index()] {
-                // The human's own move, whichever faction decided inside it. One of a
-                // faction just taken back is the agent's until the human decides.
-                if moved {
-                    self.told = report.to_revision;
-                }
+            let plays = plays[report.faction.index()];
+            // The human's own, whichever faction decided inside it, or ended by them.
+            if plays && (self.theirs[report.faction.index()] || (report.complete && human)) {
+                self.told = report.to_revision;
                 continue;
             }
-            if !report.complete && (!asked || self.announced) {
+            // Of a faction just taken back, what its agent did waits to be told.
+            if !report.complete && (plays || !asked || self.announced) {
                 continue;
             }
             self.announced = !report.complete;

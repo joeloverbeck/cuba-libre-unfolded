@@ -223,10 +223,9 @@ impl seats::Table for Sitting<'_> {
     }
 
     fn commit(&mut self, faction: Faction, revision: u64, choice: &str) -> Result<(), String> {
-        let before = self.session().observe();
         match submit(self.play, self.ui, faction, revision, choice) {
             Ok(after) => {
-                self.ui.choice.agent_decided(&before, &after);
+                self.ui.choice.agent_decided(&after);
                 // The next choice waits for this one's consequences.
                 self.settled = false;
                 self.ui.dirty = true;
@@ -245,8 +244,9 @@ impl seats::Table for Sitting<'_> {
 }
 
 /// The faction seats' frame: what the human pressed, then every request that arrived,
-/// then the held ones, and the seats' states as they are then. It runs after the human's own input and before the table shows
-/// what was decided, so an agent's roll and card start from this frame's clock too.
+/// then the held ones, and the seats' states as they are then. It runs after the human's
+/// own input and before the table shows what was decided, so an agent's roll and card
+/// start from this frame's clock too.
 pub(super) fn serve(world: &mut World) {
     if world.resource::<Play>().session.is_none() {
         return;

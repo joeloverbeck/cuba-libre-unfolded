@@ -359,14 +359,6 @@ const BUTTON_SLICE: f32 = 8.;
 const BOX_SLICE: f32 = 8.;
 const SHEET_SLICE: f32 = 90.;
 
-fn sliced(slice: f32, unit: f32) -> NodeImageMode {
-    NodeImageMode::Sliced(TextureSlicer {
-        border: BorderRect::all(slice * 2.),
-        max_corner_scale: unit / 2.,
-        ..default()
-    })
-}
-
 /// Draws the four cards and the open sheet in the main view's `seats` area. The transfer
 /// modal's scrim covers the area, and the seats stay over it.
 pub(super) fn draw(

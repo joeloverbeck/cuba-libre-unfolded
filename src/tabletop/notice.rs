@@ -90,6 +90,10 @@ pub(super) fn refuse(ui: &mut Interface, reason: impl Into<String>) {
 /// The loading state's words, drawn until the match opens.
 pub(super) const LOADING: &str = "Loading selected assets; no save created.";
 
+/// The refusal of a decision while an edition is due or open (#208).
+pub(super) const EDITION_FIRST: &str =
+    "An edition comes first: read it and put it away, then decide.";
+
 /// What the slip shows, if anything: a launch error, else the loading state until the
 /// match opens, else the latest notice when it is a refusal or an error that has not
 /// been dismissed.

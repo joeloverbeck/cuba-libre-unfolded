@@ -4,9 +4,10 @@
 //! rules authority's. A faction seat's view gives the match's reports as its recent
 //! results, and an edition prints one.
 //!
-//! An action belongs to the faction that executes it, even while another faction decides
-//! inside it: a giver its Resource transfer, or 26July the free Rally that Directorio's
-//! Event grants it. Turning the card is in no action.
+//! An action belongs to the faction whose action it is, a Pass too (which is not
+//! executing), even while another faction decides inside it: a giver its Resource
+//! transfer, or 26July the free Rally that Directorio's Event grants it. Turning the card
+//! is in no action.
 //!
 //! [`Reports::since`] reports what followed a revision, so a report starts where the
 //! previous one ended and nothing is told twice. The words are fixed per kind of action
@@ -16,6 +17,10 @@
 //! one faction to another are told together, and so are a faction's own removed pieces.
 
 mod words;
+
+/// The table's notices list as the reports do.
+#[cfg(feature = "tabletop")]
+pub(crate) use words::listing;
 
 use crate::{
     ActionChoice, AssaultResolution, Choice, Eligibility, EventOutcome, EventProgress, Faction,
@@ -40,7 +45,7 @@ pub enum Action {
 /// What one faction's action did between two revisions of the match.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Report {
-    /// The executing faction.
+    /// The faction whose action it is.
     pub faction: Faction,
     pub action: Action,
     pub card: u8,
