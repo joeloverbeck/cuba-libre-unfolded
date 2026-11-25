@@ -1,0 +1,3121 @@
+{
+  "format": "vectorcraft",
+  "version": 4,
+  "generator": "VectorCraft 0.24.1",
+  "pdfCompatible": true,
+  "pdf": {
+    "mime": "application/pdf",
+    "data": "JVBERi0xLjcKJYCAgIAKCjEgMCBvYmoKPDwvVHlwZS9QYWdlcy9Db3VudCAxL0tpZHNbMyAwIFJdPj4KZW5kb2JqCjIgMCBvYmoKPDwvUHJvY1NldFsvUERGL1RleHQvSW1hZ2VDL0ltYWdlQl0+PgplbmRvYmoKMyAwIG9iago8PC9UeXBlL1BhZ2UvUmVzb3VyY2VzIDIgMCBSL01lZGlhQm94WzAgMCAxOTIwIDEyODBdL0JsZWVkQm94WzAgMCAxOTIwIDEyODBdL1RyaW1Cb3hbMCAwIDE5MjAgMTI4MF0vUGFyZW50IDEgMCBSL0NvbnRlbnRzIDQgMCBSPj4KZW5kb2JqCjQgMCBvYmoKPDwvTGVuZ3RoIDEzOTcvRmlsdGVyL0ZsYXRlRGVjb2RlPj4Kc3RyZWFtCnic7VlLji01DJ33KrwBSnb8zQoYP1jClQCh1wOYsH10ktTviY9EX4l+0HdSTsqO7TjnJJX7CwkxMX2Dh7RierwSb13HzyCKZnMn3ipamgv9+iMlk6VuzemVepFZbun0maQFmfJqOJNJQapGxg79z9S4kfaYOk2NjNuWkA/9Fo1M+9K3RuZtKB9uP1MTJqtYAzor/CTvkht54xFSI9c23XUmV/iCohuE2KBpc9Bhn4e8O3v56eWHl08vv/zxZElz69wg9eAsU+KtLZm++5aUfiOhn/+Hs/b9n8/a3y2xM8dXam6kKdODCpO6b300vEgtN0PDxEgd4RvHaWDSNiPtbZutIuM+5aZbkLUYLe1GZjplzOouY86Oec06Xtwn/KzDWZ0nLZz/yly8YTns+bySKaSaQWMyTKacTKprGVqeSj4mSQZa3Bqpr3XrGGmfGbfCzFSt5pGCe8fE6Oy1E7aughceywIojr7GteKNR3cEWbcZSdqJFJcilxV7QanmuEjKek5za42s8yo3qtLbhrA04USmicJk+MYiOELSzmcDM7hX617s2zK4L5D72llL6kmr+qOk76qkbwDnBVWvY8FrDLB1Pl0FXEXffDS0SAs7SQC1vW/YfgJz0draSMA0K7fUy26ZANT+AigNWy8wY2NvSwXOMGRau+xTWuS24kmvYzML8pghDMvMUY7EDpmygvSY8xeKTXBniX4ZcaBbfJHDFfY3PrjQxJ0/btxyI52Dir7gqDt/ncz2JIB+lPXdlfUNID1x80o5WASnwwKFRI7FXxZkmSO5wkFuJVp9h1MXXgfEbtcDIrBkfTWqLWB1oGMAqOMIWbX6gne9aGuWegSFLiB3Z8Bs+O4tKGzGBO/hADiWb9TcO6uCos/tvQL9q1ZIJ2KloHwMUxhGUarioJBFJQix7+SDHEbkN3I4KePGJHeOOajnpKMbS5309azPio/Cvr/CvgGoO2xeSRibTen6MuRo5H1u8MJY9rwO3CJIfSUsokbBObdaEa/LK4DuaHTM1wpfJO2AiAhgGuvYKU2MItbxVPBBebaGZudjhL7mS/AhG30ewUWkKDmPwPd+pLT327W/tUuDg1J8cgBiHu4GZexYH5Qxu2WP50oSF+q4EsqVaG4MdOOmk7JuNDbW0ZMw/FHzr6vmb4D3JbXXL5O2P4HGFTIXKN0hdkffCcs7XnF/cGllUeT6IhXF7OW4CcKH/jkaXqTOA/CwAWOuwfJkhawLs2T1eRUxwjxfIfze9rSyrxkfyReDvYXFqGRdWaEusx+lq7a+j7pCZ69pHQ6gPqNDvdLki9X0JMB+VPHfruJfQTBRRggeQB4Q2LkXax9Xi8bUAvAbkrTNtXWjVlOKcSWq6uP5IK3cLJJttE2vNqMVTo8hqeyap43GHAvPx8UH2vB/2uxxPZ6wRr+GHP95BVOcknEbCCmct9bNKN2nEMJU7OP5oHLbkh1HQqbqFwM0MM5jSviEgd5hgLMjxsHzcQ6P5ghhN9jjeUbl3nNu/7xiwsVUOve8YsrsW6a4k0izIVJiNQpeKhabNPWttVov2t2qrfEeS8QdaSvzi1nfx4PwuDgaL/hutcf3jBJ+Vcm+gUdxd8AKjsHlXuXmGsA4LiE1WEnTxz9ReD6oOVhAwQvoB/+cNmAdVmhBklqap42pzH+1VKB1+Bj9iOS0WXE9hUe/ghzfwKPjb75xIwRJOvzhU3c8nXN84uL5oAzfLMYfGJRZpzbkseaG5Dy0Du3QOUYg72Nk9MLjrr3ieAp/vsOc3sCbYm1tB0OMmt5EfAqRDWd/HgJwXzPI2Y+vgMMCJ6mxIUxRpuJhka3mSBAep4cc/QjjsFgxPYUr33uC3798+h2n1ZunCmVuZHN0cmVhbQplbmRvYmoKNSAwIG9iago8PC9UaXRsZShhLWF0bGFzKS9DcmVhdG9yKFZlY3RvckNyYWZ0KS9Qcm9kdWNlcihWZWN0b3JDcmFmdCkvTW9kRGF0ZShEOjIwMjYxMTI1MDgxNDQwWikvQ3JlYXRpb25EYXRlKEQ6MjAyNjExMTUwMDQ2NTVaKT4+CmVuZG9iago2IDAgb2JqCjw8L0xlbmd0aCAxMTI1L1R5cGUvTWV0YWRhdGEvU3VidHlwZS9YTUw+PgpzdHJlYW0KPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz48eDp4bXBtZXRhIHhtbG5zOng9ImFkb2JlOm5zOm1ldGEvIiB4OnhtcHRrPSJ4bXAtd3JpdGVyIj48cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPjxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PSIiIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIgIHhtbG5zOnhtcD0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wLyIgIHhtbG5zOnhtcE1NPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvbW0vIiAgeG1sbnM6eG1wVFBnPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvdC9wZy8iICB4bWxuczpwZGY9Imh0dHA6Ly9ucy5hZG9iZS5jb20vcGRmLzEuMy8iID48ZGM6dGl0bGU+PHJkZjpBbHQ+PHJkZjpsaSB4bWw6bGFuZz0ieC1kZWZhdWx0Ij5hLWF0bGFzPC9yZGY6bGk+PC9yZGY6QWx0PjwvZGM6dGl0bGU+PHhtcDpDcmVhdG9yVG9vbD5WZWN0b3JDcmFmdDwveG1wOkNyZWF0b3JUb29sPjxwZGY6UHJvZHVjZXI+VmVjdG9yQ3JhZnQ8L3BkZjpQcm9kdWNlcj48ZGM6bGFuZ3VhZ2U+PHJkZjpCYWc+PHJkZjpsaT5lbi1VUzwvcmRmOmxpPjwvcmRmOkJhZz48L2RjOmxhbmd1YWdlPjx4bXA6TW9kaWZ5RGF0ZT4yMDI2LTExLTI1VDA4OjE0OjQwKzAwOjAwPC94bXA6TW9kaWZ5RGF0ZT48eG1wOkNyZWF0ZURhdGU+MjAyNi0xMS0xNVQwMDo0Njo1NSswMDowMDwveG1wOkNyZWF0ZURhdGU+PHhtcFRQZzpOUGFnZXM+MTwveG1wVFBnOk5QYWdlcz48ZGM6Zm9ybWF0PmFwcGxpY2F0aW9uL3BkZjwvZGM6Zm9ybWF0Pjx4bXBNTTpJbnN0YW5jZUlEPkpyalBJc1E5L1d1SllhL1pLenZYUnc9PTwveG1wTU06SW5zdGFuY2VJRD48eG1wTU06RG9jdW1lbnRJRD5KcmpQSXNROS9XdUpZYS9aS3p2WFJ3PT08L3htcE1NOkRvY3VtZW50SUQ+PHhtcE1NOlJlbmRpdGlvbkNsYXNzPmRlZmF1bHQ8L3htcE1NOlJlbmRpdGlvbkNsYXNzPjxwZGY6UERGVmVyc2lvbj4xLjc8L3BkZjpQREZWZXJzaW9uPjwvcmRmOkRlc2NyaXB0aW9uPjwvcmRmOlJERj48L3g6eG1wbWV0YT48P3hwYWNrZXQgZW5kPSJyIj8+CmVuZHN0cmVhbQplbmRvYmoKNyAwIG9iago8PC9WaWV3ZXJQcmVmZXJlbmNlczw8L0Rpc3BsYXlEb2NUaXRsZSB0cnVlPj4vVHlwZS9DYXRhbG9nL1BhZ2VzIDEgMCBSL01ldGFkYXRhIDYgMCBSL0xhbmcoZW4tVVMpPj4KZW5kb2JqCnhyZWYKMCA4CjAwMDAwMDAwMDAgNjU1MzUgZg0KMDAwMDAwMDAxNiAwMDAwMCBuDQowMDAwMDAwMDY3IDAwMDAwIG4NCjAwMDAwMDAxMjAgMDAwMDAgbg0KMDAwMDAwMDI2NSAwMDAwMCBuDQowMDAwMDAxNzMxIDAwMDAwIG4NCjAwMDAwMDE4NjggMDAwMDAgbg0KMDAwMDAwMzA2OSAwMDAwMCBuDQp0cmFpbGVyCjw8L1NpemUgOC9Sb290IDcgMCBSL0luZm8gNSAwIFIvSURbKEpyalBJc1E5L1d1SllhL1pLenZYUnc9PSkoSnJqUElzUTkvV3VKWWEvWkt6dlhSdz09KV0+PgpzdGFydHhyZWYKMzE4NAolJUVPRg=="
+  },
+  "document": {
+    "version": 3,
+    "title": "a-atlas",
+    "units": "Pixels",
+    "rulers": "artboard",
+    "color_mode": "Rgb",
+    "artboards": [
+      {
+        "id": 1,
+        "name": "Artboard 1",
+        "rect": {
+          "x0": 0.0,
+          "y0": 0.0,
+          "x1": 1920.0,
+          "y1": 1280.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      }
+    ],
+    "layers": [
+      {
+        "id": 1,
+        "name": "Layer 1",
+        "kind": {
+          "type": "layer",
+          "color": {
+            "Preset": 0
+          },
+          "template": false,
+          "printable": true,
+          "children": [
+            {
+              "id": 38,
+              "name": "Pinar del Río",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.93333334,
+                        "g": 0.9137255,
+                        "b": 0.8627451
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 3.0,
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            70.0,
+                            473.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            98.0,
+                            447.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            126.0,
+                            430.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            150.0,
+                            418.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            182.0,
+                            405.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            202.0,
+                            396.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            234.0,
+                            402.7
+                          ]
+                        },
+                        {
+                          "p": [
+                            250.0,
+                            418.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            262.0,
+                            439.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            242.0,
+                            452.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            230.0,
+                            473.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            210.0,
+                            486.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            202.0,
+                            503.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            170.0,
+                            503.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            154.0,
+                            520.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            122.0,
+                            532.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            90.0,
+                            537.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            70.0,
+                            554.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            76.4,
+                            524.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            70.0,
+                            507.25
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 39,
+              "name": "La Habana",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.93333334,
+                        "g": 0.9137255,
+                        "b": 0.8627451
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 3.0,
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            234.0,
+                            402.7
+                          ]
+                        },
+                        {
+                          "p": [
+                            254.0,
+                            371.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            310.0,
+                            355.95
+                          ]
+                        },
+                        {
+                          "p": [
+                            358.0,
+                            347.45
+                          ]
+                        },
+                        {
+                          "p": [
+                            414.0,
+                            350.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            406.0,
+                            371.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            412.40000000000003,
+                            392.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            418.0,
+                            409.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            423.6,
+                            426.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            394.0,
+                            443.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            350.0,
+                            443.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            310.0,
+                            439.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            278.0,
+                            443.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            262.0,
+                            439.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            250.0,
+                            418.0
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 40,
+              "name": "Matanzas",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.93333334,
+                        "g": 0.9137255,
+                        "b": 0.8627451
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 3.0,
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            414.0,
+                            350.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            434.0,
+                            358.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            454.0,
+                            341.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            470.0,
+                            337.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            474.0,
+                            358.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            510.0,
+                            351.7
+                          ]
+                        },
+                        {
+                          "p": [
+                            542.0,
+                            354.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            534.0,
+                            371.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            548.4000000000001,
+                            388.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            550.0,
+                            418.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            559.6,
+                            435.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            554.0,
+                            447.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            531.6,
+                            456.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            526.0,
+                            469.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            534.0,
+                            480.04999999999995
+                          ]
+                        },
+                        {
+                          "p": [
+                            566.0,
+                            494.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            574.0,
+                            507.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            518.0,
+                            511.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            486.0,
+                            498.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            454.0,
+                            497.04999999999995
+                          ]
+                        },
+                        {
+                          "p": [
+                            422.0,
+                            490.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            394.0,
+                            492.79999999999995
+                          ]
+                        },
+                        {
+                          "p": [
+                            374.0,
+                            481.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            354.0,
+                            469.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            358.0,
+                            456.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            390.0,
+                            456.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            414.0,
+                            443.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            423.6,
+                            426.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            418.0,
+                            409.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            412.40000000000003,
+                            392.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            406.0,
+                            371.25
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 41,
+              "name": "Las Villas",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.93333334,
+                        "g": 0.9137255,
+                        "b": 0.8627451
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 3.0,
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            542.0,
+                            354.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            566.0,
+                            367.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            590.0,
+                            371.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            614.0,
+                            369.55
+                          ]
+                        },
+                        {
+                          "p": [
+                            638.0,
+                            384.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            670.0,
+                            399.3
+                          ]
+                        },
+                        {
+                          "p": [
+                            694.0,
+                            422.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            710.0,
+                            443.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            738.0,
+                            447.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            766.0,
+                            443.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            750.0,
+                            464.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            754.0,
+                            486.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            734.0,
+                            503.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            742.0,
+                            524.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            738.0,
+                            541.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            758.0,
+                            554.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            766.0,
+                            569.3
+                          ]
+                        },
+                        {
+                          "p": [
+                            734.0,
+                            577.8
+                          ]
+                        },
+                        {
+                          "p": [
+                            702.0,
+                            571.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            670.0,
+                            562.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            630.0,
+                            558.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            598.0,
+                            541.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            574.0,
+                            515.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            566.0,
+                            494.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            534.0,
+                            480.04999999999995
+                          ]
+                        },
+                        {
+                          "p": [
+                            526.0,
+                            469.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            531.6,
+                            456.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            554.0,
+                            447.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            559.6,
+                            435.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            550.0,
+                            418.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            548.4000000000001,
+                            388.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            534.0,
+                            371.25
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 42,
+              "name": "Camagüey Province",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.93333334,
+                        "g": 0.9137255,
+                        "b": 0.8627451
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 3.0,
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            766.0,
+                            443.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            790.0,
+                            452.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            814.0,
+                            467.3
+                          ]
+                        },
+                        {
+                          "p": [
+                            846.0,
+                            477.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            870.0,
+                            494.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            894.0,
+                            503.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            910.0,
+                            520.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            942.0,
+                            532.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            958.0,
+                            549.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            982.0,
+                            554.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            998.0,
+                            571.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            990.0,
+                            588.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            998.0,
+                            605.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            982.0,
+                            626.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            966.0,
+                            634.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            950.0,
+                            630.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            926.0,
+                            647.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            910.0,
+                            656.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            902.0,
+                            681.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            886.0,
+                            691.7
+                          ]
+                        },
+                        {
+                          "p": [
+                            862.0,
+                            685.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            846.0,
+                            664.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            830.0,
+                            647.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            810.0,
+                            639.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            806.0,
+                            613.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            790.0,
+                            592.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            782.0,
+                            571.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            766.0,
+                            569.3
+                          ]
+                        },
+                        {
+                          "p": [
+                            758.0,
+                            554.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            738.0,
+                            541.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            742.0,
+                            524.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            734.0,
+                            503.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            754.0,
+                            486.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            750.0,
+                            464.75
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 43,
+              "name": "Oriente",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.93333334,
+                        "g": 0.9137255,
+                        "b": 0.8627451
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 3.0,
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            998.0,
+                            571.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1030.0,
+                            583.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            1062.0,
+                            596.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1086.0,
+                            609.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            1110.0,
+                            613.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1134.0,
+                            607.55
+                          ]
+                        },
+                        {
+                          "p": [
+                            1158.0,
+                            613.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1182.0,
+                            613.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1190.0,
+                            634.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            1174.0,
+                            647.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1198.0,
+                            660.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            1214.0,
+                            668.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            1230.0,
+                            668.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            1198.0,
+                            690.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1174.0,
+                            694.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            1150.0,
+                            698.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1118.0,
+                            707.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1086.0,
+                            698.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1062.0,
+                            707.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1046.0,
+                            698.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1022.0,
+                            698.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1006.0,
+                            715.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            990.0,
+                            690.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            966.0,
+                            685.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            950.0,
+                            690.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            918.0,
+                            690.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            902.0,
+                            681.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            910.0,
+                            656.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            926.0,
+                            647.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            950.0,
+                            630.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            966.0,
+                            634.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            982.0,
+                            626.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            998.0,
+                            605.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            990.0,
+                            588.0
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 44,
+              "name": "Sierra Maestra",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.93333334,
+                        "g": 0.9137255,
+                        "b": 0.8627451
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 3.0,
+                    "join": "Round"
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1006.0,
+                            715.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1022.0,
+                            698.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1046.0,
+                            698.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1062.0,
+                            707.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1086.0,
+                            698.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1118.0,
+                            707.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1150.0,
+                            698.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1174.0,
+                            694.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            1198.0,
+                            690.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1230.0,
+                            668.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            1254.0,
+                            668.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            1278.0,
+                            677.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            1302.0,
+                            673.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1310.0,
+                            694.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            1302.0,
+                            732.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1278.0,
+                            758.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1254.0,
+                            775.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1230.0,
+                            783.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1190.0,
+                            789.45
+                          ]
+                        },
+                        {
+                          "p": [
+                            1150.0,
+                            783.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            1118.0,
+                            792.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1086.0,
+                            796.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            1046.0,
+                            809.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            1014.0,
+                            813.25
+                          ]
+                        },
+                        {
+                          "p": [
+                            982.0,
+                            809.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            950.0,
+                            821.75
+                          ]
+                        },
+                        {
+                          "p": [
+                            934.0,
+                            817.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            958.0,
+                            783.5
+                          ]
+                        },
+                        {
+                          "p": [
+                            982.0,
+                            758.0
+                          ]
+                        },
+                        {
+                          "p": [
+                            998.0,
+                            741.0
+                          ]
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 45,
+              "name": "Havana City",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 3.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            240.0,
+                            265.0
+                          ],
+                          "in": [
+                            240.0,
+                            317.467051231
+                          ],
+                          "out": [
+                            240.0,
+                            212.532948769
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            335.0,
+                            170.0
+                          ],
+                          "in": [
+                            282.532948769,
+                            170.0
+                          ],
+                          "out": [
+                            387.467051231,
+                            170.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            430.0,
+                            265.0
+                          ],
+                          "in": [
+                            430.0,
+                            212.532948769
+                          ],
+                          "out": [
+                            430.0,
+                            317.467051231
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            335.0,
+                            360.0
+                          ],
+                          "in": [
+                            387.467051231,
+                            360.0
+                          ],
+                          "out": [
+                            282.532948769,
+                            360.0
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 46,
+              "name": "Camagüey City",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 3.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            715.0,
+                            700.0
+                          ],
+                          "in": [
+                            715.0,
+                            749.705627482
+                          ],
+                          "out": [
+                            715.0,
+                            650.294372518
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            805.0,
+                            610.0
+                          ],
+                          "in": [
+                            755.294372518,
+                            610.0
+                          ],
+                          "out": [
+                            854.705627482,
+                            610.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            895.0,
+                            700.0
+                          ],
+                          "in": [
+                            895.0,
+                            650.294372518
+                          ],
+                          "out": [
+                            895.0,
+                            749.705627482
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            805.0,
+                            790.0
+                          ],
+                          "in": [
+                            854.705627482,
+                            790.0
+                          ],
+                          "out": [
+                            755.294372518,
+                            790.0
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 47,
+              "name": "Santiago de Cuba City",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 3.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1080.0,
+                            835.0
+                          ],
+                          "in": [
+                            1080.0,
+                            890.22847498
+                          ],
+                          "out": [
+                            1080.0,
+                            779.77152502
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            1180.0,
+                            735.0
+                          ],
+                          "in": [
+                            1124.77152502,
+                            735.0
+                          ],
+                          "out": [
+                            1235.22847498,
+                            735.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            1280.0,
+                            835.0
+                          ],
+                          "in": [
+                            1280.0,
+                            779.77152502
+                          ],
+                          "out": [
+                            1280.0,
+                            890.22847498
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            1180.0,
+                            935.0
+                          ],
+                          "in": [
+                            1235.22847498,
+                            935.0
+                          ],
+                          "out": [
+                            1124.77152502,
+                            935.0
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 48,
+              "name": "Economic Center 3",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 3.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            214.0,
+                            403.0
+                          ],
+                          "in": [
+                            214.0,
+                            418.4639729944
+                          ],
+                          "out": [
+                            214.0,
+                            387.5360270056
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            242.0,
+                            375.0
+                          ],
+                          "in": [
+                            226.5360270056,
+                            375.0
+                          ],
+                          "out": [
+                            257.4639729944,
+                            375.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            270.0,
+                            403.0
+                          ],
+                          "in": [
+                            270.0,
+                            387.5360270056
+                          ],
+                          "out": [
+                            270.0,
+                            418.4639729944
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            242.0,
+                            431.0
+                          ],
+                          "in": [
+                            257.4639729944,
+                            431.0
+                          ],
+                          "out": [
+                            226.5360270056,
+                            431.0
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 50,
+              "name": "Economic Center 3",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 3.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            722.0,
+                            535.0
+                          ],
+                          "in": [
+                            722.0,
+                            550.4639729944
+                          ],
+                          "out": [
+                            722.0,
+                            519.5360270056
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            750.0,
+                            507.0
+                          ],
+                          "in": [
+                            734.5360270056,
+                            507.0
+                          ],
+                          "out": [
+                            765.4639729944,
+                            507.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            778.0,
+                            535.0
+                          ],
+                          "in": [
+                            778.0,
+                            519.5360270056
+                          ],
+                          "out": [
+                            778.0,
+                            550.4639729944
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            750.0,
+                            563.0
+                          ],
+                          "in": [
+                            765.4639729944,
+                            563.0
+                          ],
+                          "out": [
+                            734.5360270056,
+                            563.0
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": 52,
+              "name": "Economic Center 2",
+              "appearance": {
+                "items": [
+                  {
+                    "kind": "fill",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.972549,
+                        "g": 0.95686275,
+                        "b": 0.9098039
+                      }
+                    }
+                  },
+                  {
+                    "kind": "stroke",
+                    "paint": {
+                      "type": "solid",
+                      "color": {
+                        "model": "rgb",
+                        "r": 0.1254902,
+                        "g": 0.19607843,
+                        "b": 0.21960784
+                      }
+                    },
+                    "width": 3.0
+                  }
+                ]
+              },
+              "kind": {
+                "type": "path",
+                "path": {
+                  "subpaths": [
+                    {
+                      "anchors": [
+                        {
+                          "p": [
+                            1142.0,
+                            700.0
+                          ],
+                          "in": [
+                            1142.0,
+                            715.4639729944
+                          ],
+                          "out": [
+                            1142.0,
+                            684.5360270056
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            1170.0,
+                            672.0
+                          ],
+                          "in": [
+                            1154.5360270056,
+                            672.0
+                          ],
+                          "out": [
+                            1185.4639729944,
+                            672.0
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            1198.0,
+                            700.0
+                          ],
+                          "in": [
+                            1198.0,
+                            684.5360270056
+                          ],
+                          "out": [
+                            1198.0,
+                            715.4639729944
+                          ],
+                          "kind": "Smooth"
+                        },
+                        {
+                          "p": [
+                            1170.0,
+                            728.0
+                          ],
+                          "in": [
+                            1185.4639729944,
+                            728.0
+                          ],
+                          "out": [
+                            1154.5360270056,
+                            728.0
+                          ],
+                          "kind": "Smooth"
+                        }
+                      ],
+                      "closed": true
+                    }
+                  ]
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "swatches": [
+      {
+        "name": "[None]",
+        "paint": {
+          "type": "none"
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "White",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 1.0,
+            "g": 1.0,
+            "b": 1.0
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Black",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Red",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.92941177,
+            "g": 0.10980392,
+            "b": 0.14117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Orange Red",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.94509804,
+            "g": 0.3529412,
+            "b": 0.14117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Orange",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.96862745,
+            "g": 0.5764706,
+            "b": 0.11764706
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Amber",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.9843137,
+            "g": 0.6901961,
+            "b": 0.23137255
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Yellow",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.9882353,
+            "g": 0.93333334,
+            "b": 0.12941177
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Yellow Green",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.8509804,
+            "g": 0.8784314,
+            "b": 0.12941177
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Lime",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.54901963,
+            "g": 0.7764706,
+            "b": 0.24705882
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Green",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.22352941,
+            "g": 0.70980394,
+            "b": 0.2901961
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Emerald",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.57254905,
+            "b": 0.27058825
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Teal",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.40784314,
+            "b": 0.21568628
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Aqua",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.13333334,
+            "g": 0.70980394,
+            "b": 0.4509804
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Cyan Green",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.6627451,
+            "b": 0.6156863
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Cyan",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.16078432,
+            "g": 0.67058825,
+            "b": 0.8862745
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Azure",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.44313726,
+            "b": 0.7372549
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Blue",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.18039216,
+            "g": 0.19215687,
+            "b": 0.57254905
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Indigo",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.105882354,
+            "g": 0.078431375,
+            "b": 0.39215687
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Violet",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.4,
+            "g": 0.1764706,
+            "b": 0.5686275
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Purple",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.5764706,
+            "g": 0.15294118,
+            "b": 0.56078434
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Magenta",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.61960787,
+            "g": 0.0,
+            "b": 0.3647059
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Rose",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.83137256,
+            "g": 0.078431375,
+            "b": 0.3529412
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Pink",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.92941177,
+            "g": 0.11764706,
+            "b": 0.4745098
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Brown",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.78039217,
+            "g": 0.69803923,
+            "b": 0.6
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Tan",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.6,
+            "g": 0.5254902,
+            "b": 0.45882353
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Coffee",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.4509804,
+            "g": 0.3882353,
+            "b": 0.34117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Chocolate",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.3254902,
+            "g": 0.2784314,
+            "b": 0.25490198
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Sand",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.7764706,
+            "g": 0.6117647,
+            "b": 0.42745098
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Copper",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.6509804,
+            "g": 0.4862745,
+            "b": 0.32156864
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Rust",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.54901963,
+            "g": 0.38431373,
+            "b": 0.22352941
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Walnut",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.45882353,
+            "g": 0.29803923,
+            "b": 0.14117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Espresso",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.3764706,
+            "g": 0.21960784,
+            "b": 0.07450981
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "White, Black",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Radial White, Black",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Radial",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Sunset",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.9843137,
+                  "g": 0.6901961,
+                  "b": 0.23137255
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.83137256,
+                  "g": 0.078431375,
+                  "b": 0.3529412
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Ocean",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.16078432,
+                  "g": 0.67058825,
+                  "b": 0.8862745
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.18039216,
+                  "g": 0.19215687,
+                  "b": 0.57254905
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      }
+    ],
+    "swatch_groups": [
+      {
+        "name": "Grays",
+        "swatches": [
+          {
+            "name": "K=90",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.9
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=80",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.8
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=70",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.7
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=60",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.6
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=50",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.5
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=40",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.4
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=30",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.3
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=20",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.2
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=10",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.1
+              }
+            },
+            "global": false,
+            "spot": false
+          }
+        ]
+      },
+      {
+        "name": "Brights",
+        "swatches": [
+          {
+            "name": "Bright Red",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 1.0,
+                "g": 0.11372549,
+                "b": 0.14509805
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Yellow",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 1.0,
+                "g": 0.9019608,
+                "b": 0.0
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Green",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 0.0,
+                "g": 0.9019608,
+                "b": 0.4627451
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Blue",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 0.16078432,
+                "g": 0.4745098,
+                "b": 1.0
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Violet",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 0.8352941,
+                "g": 0.0,
+                "b": 0.9764706
+              }
+            },
+            "global": false,
+            "spot": false
+          }
+        ]
+      }
+    ],
+    "graphic_styles": [
+      {
+        "name": "Default Graphic Style",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0
+                }
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                }
+              },
+              "width": 1.0
+            }
+          ]
+        },
+        "id": 1,
+        "unit_box": true
+      },
+      {
+        "name": "Black Outline",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "none"
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                }
+              },
+              "width": 1.0
+            }
+          ]
+        },
+        "id": 2,
+        "unit_box": true
+      },
+      {
+        "name": "Heavy Ink",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.105882354,
+                  "g": 0.078431375,
+                  "b": 0.39215687
+                }
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                }
+              },
+              "width": 4.0
+            }
+          ]
+        },
+        "id": 3,
+        "unit_box": true
+      },
+      {
+        "name": "Sunshine",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.9843137,
+                  "g": 0.6901961,
+                  "b": 0.23137255
+                }
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.94509804,
+                  "g": 0.3529412,
+                  "b": 0.14117648
+                }
+              },
+              "width": 2.0
+            }
+          ]
+        },
+        "id": 4,
+        "unit_box": true
+      }
+    ],
+    "symbols": [],
+    "guides": [],
+    "grid": {
+      "spacing": 72.0,
+      "subdivisions": 8
+    },
+    "raster_effects_ppi": 72.0,
+    "images": {},
+    "next_id": 167,
+    "metadata": {
+      "author": "",
+      "authorTitle": "",
+      "description": "",
+      "keywords": [],
+      "rating": 0,
+      "copyrightStatus": "unknown",
+      "copyrightNotice": "",
+      "copyrightUrl": "",
+      "created": 1794703615,
+      "modified": 1795594480
+    }
+  },
+  "images": {}
+}
