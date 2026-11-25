@@ -447,3 +447,46 @@ fn the_reserved_state_is_decided_by_26july_within_its_reserve() {
     choose(&mut reserved, "authorize:2");
     assert_eq!(reserved.observe().resources, [3, 1, 7, 15]);
 }
+
+/// Every option of the composer and of the giver's decision carries its rule, R 1.5.1, in
+/// the authority's words (#197's review; story 21).
+#[test]
+fn every_transfer_option_names_its_rule() {
+    let mut game = crate::terror_chosen(Game::opening());
+    choose(&mut game, "transfer");
+    let mut seen = vec![];
+    let mut check = |game: &Game| {
+        for choice in game.observe().choices {
+            let action = choice.action().to_owned();
+            // 26July's withdrawal is its Terror's, with Terror's rules.
+            if ["end-terror", "back-to-choice"].contains(&&*action) {
+                continue;
+            }
+            assert!(
+                choice.explanation.contains("R 1.5.1"),
+                "{action}: {}",
+                choice.explanation
+            );
+            seen.push(action.split(':').next().unwrap().to_owned());
+        }
+    };
+    check(&game);
+    choose(&mut game, "ask:3:2");
+    check(&game);
+    choose(&mut game, "wait");
+    check(&game);
+    seen.sort();
+    seen.dedup();
+    assert_eq!(
+        seen,
+        [
+            "ask",
+            "authorize",
+            "back",
+            "decline",
+            "give",
+            "reopen",
+            "wait"
+        ]
+    );
+}
