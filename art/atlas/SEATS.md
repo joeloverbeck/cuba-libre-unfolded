@@ -21,7 +21,7 @@ Four place cards stand on the sea along the bottom, between the Propaganda pips 
 
 ## The line to copy
 
-**Copy its line** puts the faction's one line on the clipboard and opens a sheet over its card: "Paste this in a terminal, in a Claude Code or Codex session", the line, "Copied. One session plays one seat." and **Copy again**. When the clipboard refuses, the sheet says why and still shows the line. The sheet starts at its own card's left or, for Syndicate, ends with the row. It keeps its foot and grows upward when the line needs more than three lines. Escape or a click on the map puts it away, and it goes when a session joins or the seat is taken back. It holds no agent's choice. The line's words and paths are a placeholder until #205, in one place (`faction_seats::line`).
+**Copy its line** puts the faction's one line on the clipboard and opens a sheet over its card: "Paste this in a terminal, in a Claude Code or Codex session", the line, "Copied. One session plays one seat." and **Copy again**. When the clipboard refuses, the sheet says why and still shows the line. The sheet starts at its own card's left or, for Syndicate, ends with the row. It keeps its foot and grows upward when the line needs more than three lines. Escape or a click on the map puts it away, and it goes when a session joins or the seat is taken back. It holds no agent's choice. The line names the faction, the game's socket and the folders whose instructions its session follows ([opening a session](../../docs/playing.md#opening-a-session)); its words are in one place (`faction_seats::line`).
 
 ## The decision panel while an agent decides
 

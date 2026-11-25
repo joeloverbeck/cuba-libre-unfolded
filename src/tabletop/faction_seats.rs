@@ -9,6 +9,7 @@
 use super::seat_cards::{Line, Press};
 use super::*;
 use crate::faction_seats::{self as seats, Answer, Host, Player, SeatState, Stands};
+use crate::player_folders::Places;
 use crate::reports::Report;
 use crate::save::Submit;
 use serde_json::{Value, json};
@@ -92,7 +93,7 @@ impl FactionSeats {
                 )))
             }
             Press::Copy(faction) if self.host.player(faction) == Player::Nobody => {
-                let text = seats::line(faction, &self.socket);
+                let text = seats::line(faction, &self.socket, Places::here().as_ref());
                 let failed = self.clipboard.copy(&text).err();
                 if let Some(failed) = &failed {
                     // The sheet says so, and shows the line to type.

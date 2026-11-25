@@ -44,6 +44,7 @@ mod persistence;
 mod pile_tags;
 mod piles;
 mod player_client;
+mod player_folders;
 mod popover;
 mod position;
 mod previews;

@@ -124,7 +124,7 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 
 ## Handing a faction to an agent
 
-An external Claude Code or Codex session can play a faction for you. The four cards along the bottom say who plays each faction ([SEATS.md](../art/atlas/SEATS.md)). **Hand over** gives a faction to an agent, **Copy its line** copies the one line to paste in its terminal, and **Take back** makes it yours again, all four if you like and at any time. F1 to F4 hand Government, 26July, Directorio and Syndicate over and take them back too. A session joins on the game's socket, by default `cuba-libre-players.sock` in `$XDG_RUNTIME_DIR`, or where you launched with `--player-socket`. The game starts no session.
+An external Claude Code or Codex session can play a faction for you. The four cards along the bottom say who plays each faction ([SEATS.md](../art/atlas/SEATS.md)). **Hand over** gives a faction to an agent, **Copy its line** copies the one line to [paste in its session](#opening-a-session), and **Take back** makes it yours again, all four if you like and at any time. F1 to F4 hand Government, 26July, Directorio and Syndicate over and take them back too. A session joins on the game's socket, by default `cuba-libre-players.sock` in `$XDG_RUNTIME_DIR`, or where you launched with `--player-socket`. The game starts no session.
 
 - **One session plays one faction.** A faction nobody joined as waits and never acts. A silent agent's card and panel say for how many minutes it was not heard from; nothing moves for it until it does, or you take its faction back. As it joins, a session is given its faction's seat brief: its objective and standing, its forces, its actions under the rules and which of them this build plays, and its rivals' standings. The brief gives no advice and tells nothing that faction may not know.
 - **While an agent's faction decides,** the panel says whose decision it is and its options can be read and not chosen; the map, with its popovers, the cards and the standings too. You turn the card yourself, whichever factions you play.
@@ -134,6 +134,16 @@ An external Claude Code or Codex session can play a faction for you. The four ca
 - **The socket's path:** `$CUBA_LIBRE_PLAYER_SOCKET`, when it is set, replaces the default for the game and for `cuba-player` alike, and without `$XDG_RUNTIME_DIR` the default is in the temporary directory. `--player-socket` overrides both for the game.
 - **Taking a faction back** works at any time. The session ends, and a choice of its that was not applied is cancelled.
 - **Save · quit** ends every session. Who plays which faction is not saved: after a relaunch you play all four. The save is the one the same decisions by your own hand would write.
+
+### Opening a session
+
+1. Once for each computer, and again when you update the checkout, run `cargo build --locked && cargo run --locked --bin cuba-tools -- player-folders`. It installs the session's program, `cuba-player`, and writes two folders, `claude-code` and `codex`, in `${XDG_DATA_HOME:-$HOME/.local/share}/cuba-libre-unfolded/player`. Each holds the [player instructions](player-instructions.md) and that tool's permission for that program alone. The paths of the data directory and the checkout may hold only ASCII letters, digits, `/`, `.`, `_` and `-`. A file the command did not write is refused and named, notes aside: look at it, then remove it.
+2. Open a terminal in the tool's folder and start the tool, `claude` or `codex`. It asks once whether it may trust the folder.
+3. In the game, hand the faction over, copy its line and paste it there. One session plays one faction; open another for the next, in the same folder.
+
+- **Waiting costs nothing.** A session waits inside one command until its faction decides ([ADR 0004](adr/0004-agent-sessions-are-woken-and-do-not-poll.md)). Keep a Codex window open and its turn running: an interrupted turn is not woken until you type.
+- **What a session may read.** The game tells it what its faction may know, and its instructions tell it to read nothing else. Claude Code's file tools are also denied the saves directory and the checkout, though not a save you keep elsewhere. Codex cannot be denied a file without losing the permission for its program, so there the instructions are all that keeps a session from the save, which holds the dice and the deck. Your own instructions for every session (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`) and your MCP servers reach a player too.
+- **What a session may do.** Codex's sandbox writes only its own folder, and nothing is escalated; an option on its command line can undo that. Claude Code runs no command but `cuba-player` where its sandbox cannot start, as on an Ubuntu that restricts user namespaces, and needs `bubblewrap` and `socat`; in `auto` mode its file tools may write elsewhere if its approval model agrees, but neither the program nor either tool's instructions and settings. [The shared library](https://github.com/joeloverbeck/unfolded-tabletop/blob/cb5c74a184339c39dc555608c92468a1193026b7/agent-players/src/folder.rs) says what was measured.
 
 ## The newspaper
 

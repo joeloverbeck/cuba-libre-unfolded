@@ -27,7 +27,7 @@ mod view;
 pub use brief::{Brief, Pieces};
 pub use view::{Stands, View};
 
-use crate::{Faction, Game, Observation, Transfer, reports::Report};
+use crate::{Faction, Game, Observation, Transfer, player_folders::Places, reports::Report};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
@@ -823,15 +823,15 @@ pub fn default_socket() -> PathBuf {
         .join("cuba-libre-players.sock")
 }
 
-/// Where a player's session finds its instructions. A placeholder until #205, which
-/// settles the folder and the line's words.
-const INSTRUCTIONS: &str = "~/.local/share/cuba-libre-unfolded/player/INSTRUCTIONS.md";
-
-/// The one line the human pastes to seat a session as `faction` at `socket`'s table. Its
-/// words and paths are a placeholder until #205, which replaces them here.
-pub fn line(faction: Faction, socket: &Path) -> String {
+/// The one line the human pastes, in a session started in its tool's folder, to seat that
+/// session as `faction` at `socket`'s table (#205).
+pub fn line(faction: Faction, socket: &Path, places: Option<&Places>) -> String {
+    let folders = places.map_or_else(
+        || "your data directory's cuba-libre-unfolded/player".to_owned(),
+        Places::folders_in_short,
+    );
     format!(
-        "Play {0} in Cuba Libre: read {INSTRUCTIONS}, then join {0} at {1}",
+        "Play {} in Cuba Libre at the socket {}, by the instructions in {folders}: claude-code/CLAUDE.md or codex/AGENTS.md.",
         faction.name(),
         socket.display()
     )
