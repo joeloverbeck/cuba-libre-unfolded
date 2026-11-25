@@ -1,8 +1,12 @@
 # Seat controls and the newspaper: three alternatives each
 
-Decision-only studies for [#200](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/200), part of spec [#197](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/197). The owner selects in one round; #206 builds the seat controls and #208 the newspaper from what is selected. Nothing here is adopted: no runtime code, save or admission manifest reads these files. [Foundation 4](../../../docs/foundation/04-art-and-assets.md) governs the round, and [foundation 5](../../../docs/foundation/05-players-and-proclamations.md) reserves the newspaper for the app's reports. The baseline is `38497ac`.
+Decision-only studies for [#200](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/200), part of spec [#197](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/197). The owner selects in one round; #206 builds the seat controls and #208 the newspaper from what is selected. Nothing here is adopted by itself: no runtime code, save or admission manifest reads these files. [Foundation 4](../../../docs/foundation/04-art-and-assets.md) governs the round, and [foundation 5](../../../docs/foundation/05-players-and-proclamations.md) reserves the newspaper for the app's reports. The baseline is `38497ac`.
 
-**Selection:** not made yet.
+**Selection ([the owner, 2026-11-25](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/197#issuecomment-7161227757)):**
+- **Seats: A1 · Tarjetas.** The owner took the recommendation: the cards are the physical table.
+- **Decision panel: same panel, inert,** drawn on A2's sheets, with A1's seats. The owner took the recommendation: it is the only form whose options can be read with their briefings while an agent decides.
+- **Newspaper: B1 · El Correo de la Isla,** which accepts its headline typeface, Noto Serif Display. The recommendation was B3; the owner chose B1 and gave no further reason.
+- **"Agent at the table"** and the Spanish masthead titles were presented as kept unless the owner said otherwise, and stand.
 
 ## The two subjects
 
