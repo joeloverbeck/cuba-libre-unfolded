@@ -141,7 +141,7 @@ pub(super) struct State {
     /// The pinned option, such as "pass", or during Terror the pinned step, such as
     /// "end-terror" (#84): its tag stays open and the commit reads it.
     pub pinned: Option<String>,
-    /// The pin is none the human made: the decision that opened the step drew its tag
+    /// The human did not make the pin: the decision that opened the step drew its tag
     /// pinned.
     drawn: bool,
     /// The control that has keyboard focus, by its seat name.

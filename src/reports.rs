@@ -5,8 +5,9 @@
 //! results, and an edition prints one.
 //!
 //! An action belongs to the faction whose action it is, a Pass too (which is not
-//! executing), even while another faction decides inside it: a giver its Resource transfer, or 26July the free Rally that Directorio's
-//! Event grants it. Turning the card is in no action.
+//! executing), even while another faction decides inside it: a giver its Resource
+//! transfer, or 26July the free Rally that Directorio's Event grants it. Turning the card
+//! is in no action.
 //!
 //! [`Reports::since`] reports what followed a revision, so a report starts where the
 //! previous one ended and nothing is told twice. The words are fixed per kind of action
