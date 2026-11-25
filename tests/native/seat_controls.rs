@@ -432,9 +432,32 @@ fn native_each_seat_state_is_shown_and_a_held_choice_is_taken_back() {
     assert_eq!(seat(&app.observe(), "Government")["state"], "human");
     app.press("seat:government:hand-over");
 
-    // Government's agent Passes, and the build ends at Syndicate.
+    // Government's agent opens Assault and removal mode, whose pieces and spaces are read
+    // on the map without a button; it ends the Operation, and the build ends at Syndicate.
     let government = app.join("government");
-    app.decide(&government, "government:pass", "applied");
+    app.decide(&government, "government:assault", "applied");
+    let view = app.settle();
+    assert_eq!(
+        says(&view, "seat-strip-title").unwrap(),
+        "Government: Thinking"
+    );
+    app.offers_nothing();
+    app.capture("an-agents-assault");
+    app.decide(&government, "remove", "applied");
+    let revision = app.revision();
+    app.activate("piece:santiago Government Troops Ordinary", revision);
+    let view = app.observe();
+    let piece = &view["table"]["popover"];
+    assert_eq!(piece["piece"], "santiago:troops", "{piece}");
+    assert!(piece["card"]["rows"][0]["button"].is_null(), "{piece}");
+    app.offers_nothing();
+    app.capture("an-agents-removal");
+    // Closing the popover lets the choice it holds be applied.
+    app.decide(&government, "done-removal", "held");
+    app.activate("piece:santiago Government Troops Ordinary", revision);
+    app.settle();
+    assert_eq!(decisions(&app.save).last().unwrap(), "done-removal");
+    app.decide(&government, "end-assault", "applied");
     let view = app.settle();
     assert_eq!(seat(&view, "Syndicate")["state"], "build-ends");
     assert_eq!(state_words(&view, "syndicate"), "Build ends here");
