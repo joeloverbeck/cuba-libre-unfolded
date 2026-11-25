@@ -42,10 +42,10 @@ if [[ -z ${CUBA_NATIVE_EVIDENCE:-} && $common != "$(git rev-parse --show-topleve
   export CUBA_NATIVE_EVIDENCE="$common/local/verification/native/${branch//\//-}/$run"
 fi
 
-# Four apps took up to 5.7 GB of anonymous memory, while launching together, so they fit
-# under the 6 GB limit of `scripts/heavy`'s memory scope (#190). Each app also takes up to
-# 1.8 GB of graphics memory (#187). The option is taken out of the arguments, because
-# libtest refuses it twice.
+# A suite of four apps took up to 5.6 GiB of anonymous memory, under the 6 GiB limit of
+# `scripts/heavy`'s memory scope (#190). Each app also takes up to 1.8 GB of graphics
+# memory (#187). The option is taken out of the arguments, because libtest refuses it
+# twice.
 apps=4
 args=()
 while (($#)); do
