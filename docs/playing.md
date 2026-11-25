@@ -131,6 +131,7 @@ An external Claude Code or Codex session can play a faction for you. The four ca
 - **The line to copy** stays on its sheet until a session joins, you take the faction back, you press Escape or you click the map.
 - **An agent's choice waits** for a card or the Kidnap die to come to rest, for a landed die to show its result for 2 seconds (Continue ends that sooner), and for what you have open: a popover, a pinned or opened briefing, a pinned card's tag, an [edition](#the-newspaper), or the transfer modal while it asks you to decide. If you decide first and the match moves on, its choice is dropped and it chooses again.
 - **Transfer requests** go to whoever plays the giver. An agent that plays 26July keeps its withdrawal while you, as the giver, decide, and you keep yours while an agent does.
+- **The socket's path:** `$CUBA_LIBRE_PLAYER_SOCKET`, when it is set, replaces the default for the game and for `cuba-player` alike, and without `$XDG_RUNTIME_DIR` the default is in the temporary directory. `--player-socket` overrides both for the game.
 - **Taking a faction back** works at any time. The session ends, and a choice of its that was not applied is cancelled.
 - **Save · quit** ends every session. Who plays which faction is not saved: after a relaunch you play all four. The save is the one the same decisions by your own hand would write.
 
