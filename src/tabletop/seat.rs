@@ -436,6 +436,7 @@ impl SeatGame for Table {
         let save_quit = save_quit::observe(world);
         let focus_mark = focus_mark::observe(world);
         let seats = faction_seats::observe(world);
+        let cards = seat_cards::observe(world);
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
         let pose = world.resource::<Orbit>().pose();
@@ -452,6 +453,8 @@ impl SeatGame for Table {
         table["save_quit"] = save_quit;
         table["focus_mark"] = focus_mark;
         table["faction_seats"] = seats;
+        // #206: the drawn seat cards, the open line sheet and the panel's strip.
+        table["seat_cards"] = cards;
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
             table,
@@ -561,9 +564,12 @@ impl SeatGame for Table {
             // The owner's click lands a card in the air wherever it falls, and does
             // nothing else there (#145, #137's review); a choice named by its id asks
             // for a decision instead, and waits.
+            // A faction is handed over and taken back at any time (#206).
+            Interrupt::Activate(TargetName::Component(name)) if seat_cards::is_control(name) => {
+                return true;
+            }
             Interrupt::Activate(TargetName::Component(name)) => (name == die::TRAY, true),
             Interrupt::Activate(TargetName::Choice(_)) => (false, false),
-            // A faction is handed over and taken back at any time (#203).
             Interrupt::Key(key) if faction_seats::KEY_NAMES.contains(&key) => return true,
             Interrupt::Key(key) => {
                 let key = matches!(key, "Enter" | "Space");
@@ -589,7 +595,8 @@ impl SeatGame for Table {
             });
         }
         let ui = world.resource::<Interface>();
-        let modal = transfer::shown(world.resource::<Play>().game().transfer.as_ref());
+        let game = world.resource::<Play>().game();
+        let modal = transfer::shown(game.transfer.as_ref(), game.owner(), ui);
         let focused = if modal {
             ui.transfer.focus.clone()
         } else {

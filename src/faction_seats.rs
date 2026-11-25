@@ -28,7 +28,7 @@ use crate::{Faction, Game, Observation, Transfer};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::{Duration, Instant},
 };
 use unfolded_agent_players::seats::{
@@ -49,9 +49,10 @@ pub enum Player {
 }
 
 /// What the table shows of one faction's seat.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case", tag = "state")]
 pub enum SeatState {
+    #[default]
     Human,
     /// Handed over, and waiting for a session to join.
     Awaiting,
@@ -60,9 +61,7 @@ pub enum SeatState {
     /// Its session's decision is open.
     Thinking,
     /// Its session's decision is open, and the session was not heard from for this long.
-    Silent {
-        minutes: u64,
-    },
+    Silent { minutes: u64 },
     /// It is the deciding faction, and this build plays none of its options.
     BuildEnds,
 }
@@ -315,6 +314,11 @@ impl<R> Host<R> {
             0 => SeatState::Thinking,
             minutes => SeatState::Silent { minutes },
         }
+    }
+
+    /// What the table shows of every seat, in `Faction::ALL`'s order.
+    pub fn states(&self, game: &Game, now: Instant) -> [SeatState; 4] {
+        Faction::ALL.map(|faction| self.state(faction, game, now))
     }
 
     /// Whether `faction`'s session has a choice that waits for the table to settle.
@@ -786,4 +790,18 @@ pub fn default_socket() -> PathBuf {
     std::env::var_os("XDG_RUNTIME_DIR")
         .map_or_else(std::env::temp_dir, PathBuf::from)
         .join("cuba-libre-players.sock")
+}
+
+/// Where a player's session finds its instructions. A placeholder until #205, which
+/// settles the folder and the line's words.
+const INSTRUCTIONS: &str = "~/.local/share/cuba-libre-unfolded/player/INSTRUCTIONS.md";
+
+/// The one line the human pastes to seat a session as `faction` at `socket`'s table. Its
+/// words and paths are a placeholder until #205, which replaces them here.
+pub fn line(faction: Faction, socket: &Path) -> String {
+    format!(
+        "Play {0} in Cuba Libre: read {INSTRUCTIONS}, then join {0} at {1}",
+        faction.name(),
+        socket.display()
+    )
 }

@@ -7,11 +7,12 @@ use std::{
     time::{Duration, Instant},
 };
 
-/// Handing Government, 26July, Directorio and Syndicate over, and taking them back.
-const GOVERNMENT: &str = "F1";
-const M26: &str = "F2";
-const DIRECTORIO: &str = "F3";
-const SYNDICATE: &str = "F4";
+/// Handing Government, 26July, Directorio and Syndicate over, and taking them back. The
+/// controls on their cards are `seat_controls`'s.
+pub(super) const GOVERNMENT: &str = "F1";
+pub(super) const M26: &str = "F2";
+pub(super) const DIRECTORIO: &str = "F3";
+pub(super) const SYNDICATE: &str = "F4";
 
 /// Keys that could be a generator's state or the face-down order.
 fn assert_hidden(answer: &Value) {
@@ -22,7 +23,7 @@ fn assert_hidden(answer: &Value) {
 }
 
 /// A session's command in progress.
-struct Asked(Child);
+pub(super) struct Asked(pub(super) Child);
 impl Drop for Asked {
     fn drop(&mut self) {
         let _ = self.0.kill();
@@ -31,7 +32,7 @@ impl Drop for Asked {
 }
 impl Asked {
     /// Its exit status and answer, when it has ended.
-    fn ended(&mut self) -> Option<(i32, Value)> {
+    pub(super) fn ended(&mut self) -> Option<(i32, Value)> {
         let status = self.0.try_wait().unwrap()?;
         let mut out = String::new();
         std::io::Read::read_to_string(self.0.stdout.as_mut().unwrap(), &mut out).unwrap();
@@ -42,11 +43,11 @@ impl Asked {
 }
 
 impl Native {
-    fn player_socket(&self) -> PathBuf {
+    pub(super) fn player_socket(&self) -> PathBuf {
         self.socket.with_file_name("players.sock")
     }
     /// Starts a session's command. `session` stands for its tool's own identifier.
-    fn player(&self, session: &str, args: &[&str]) -> Asked {
+    pub(super) fn player(&self, session: &str, args: &[&str]) -> Asked {
         Asked(
             Command::new(env!("CARGO_BIN_EXE_cuba-player"))
                 .arg("--socket")
@@ -60,11 +61,11 @@ impl Native {
                 .unwrap(),
         )
     }
-    fn settle(&mut self) -> Value {
+    pub(super) fn settle(&mut self) -> Value {
         self.request(json!({"op":"settle"}), true)
     }
     /// The answer to a command, with the table's frames run meanwhile.
-    fn answered(&mut self, asked: &mut Asked) -> (i32, Value) {
+    pub(super) fn answered(&mut self, asked: &mut Asked) -> (i32, Value) {
         let end = Instant::now() + Duration::from_secs(60);
         loop {
             self.settle();
@@ -87,12 +88,12 @@ impl Native {
             std::thread::sleep(Duration::from_millis(5));
         }
     }
-    fn ask(&mut self, args: &[&str]) -> (i32, Value) {
+    pub(super) fn ask(&mut self, args: &[&str]) -> (i32, Value) {
         let mut asked = self.player(args.get(1).copied().unwrap_or("none"), args);
         self.answered(&mut asked)
     }
     /// Runs frames until the faction's seat waits, as its command asked.
-    fn until_waiting(&mut self, faction: &str) {
+    pub(super) fn until_waiting(&mut self, faction: &str) {
         let end = Instant::now() + Duration::from_secs(30);
         loop {
             let view = self.settle();
@@ -103,23 +104,23 @@ impl Native {
             std::thread::sleep(Duration::from_millis(20));
         }
     }
-    fn key(&mut self, key: &str) -> Value {
+    pub(super) fn key(&mut self, key: &str) -> Value {
         let revision = self.revision();
         self.request(json!({"op":"key","revision":revision,"key":key}), true);
         self.settle()
     }
-    fn revision(&mut self) -> u64 {
+    pub(super) fn revision(&mut self) -> u64 {
         self.observe()["observation"]["revision"].as_u64().unwrap()
     }
     /// Hand a faction over and join as it: the session's identity.
-    fn seat_agent(&mut self, key: &str, faction: &str) -> String {
+    pub(super) fn seat_agent(&mut self, key: &str, faction: &str) -> String {
         self.key(key);
         let (code, joined) = self.ask(&["join", faction]);
         assert_eq!((code, &joined["status"]), (0, &json!("joined")), "{joined}");
         joined["player"].as_str().unwrap().to_owned()
     }
     /// A session's choice at the present revision.
-    fn decide(&mut self, player: &str, action: &str, status: &str) -> Value {
+    pub(super) fn decide(&mut self, player: &str, action: &str, status: &str) -> Value {
         let revision = self.revision().to_string();
         let id = format!("{revision}:{action}");
         let (code, answer) = self.ask(&["choose", player, &revision, &id]);
@@ -127,40 +128,46 @@ impl Native {
         assert_eq!(code, i32::from(status == "refused"));
         answer
     }
-    /// A human's input that must submit nothing for an agent's faction.
-    fn human_refused(&mut self, request: Value) {
-        let before = (self.observe()["observation"].clone(), self.save_bytes());
-        self.request(request.clone(), true);
-        let view = self.settle();
-        let notice = view["table"]["notice"].as_str().unwrap();
-        assert!(
-            notice.contains("is an agent's to play"),
-            "{request}: {notice}"
-        );
-        assert_eq!((view["observation"].clone(), self.save_bytes()), before);
+    /// While an agent's faction decides, no shown control submits anything (#206): none
+    /// names a choice, and the panel's, the popover's and the modal's buttons are gone.
+    pub(super) fn offers_nothing(&mut self) {
+        const ACTING: [&str; 4] = [
+            "choice-commit",
+            "execution-commit",
+            "popover:commit",
+            "transfer:primary",
+        ];
+        let view = self.observe();
+        let acting: Vec<&Value> = view["table"]["controls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter(|c| c["choice"] == true || ACTING.contains(&c["name"].as_str().unwrap()))
+            .collect();
+        assert!(acting.is_empty(), "{acting:?}");
     }
-    fn save_bytes(&self) -> Vec<u8> {
+    pub(super) fn save_bytes(&self) -> Vec<u8> {
         std::fs::read(&self.save).unwrap()
     }
 }
 
-fn seat<'a>(view: &'a Value, faction: &str) -> &'a Value {
+pub(super) fn seat<'a>(view: &'a Value, faction: &str) -> &'a Value {
     let seats = view["table"]["faction_seats"]["factions"]
         .as_array()
         .unwrap();
     seats.iter().find(|s| s["faction"] == faction).unwrap()
 }
-fn holding(view: &Value) -> Vec<String> {
+pub(super) fn holding(view: &Value) -> Vec<String> {
     serde_json::from_value(view["table"]["faction_seats"]["holding"].clone()).unwrap()
 }
 /// The decisions in a save.
-fn decisions(save: &Path) -> Vec<String> {
+pub(super) fn decisions(save: &Path) -> Vec<String> {
     let record: Value = serde_json::from_slice(&std::fs::read(save).unwrap()).unwrap();
     serde_json::from_value(record["payload"]["decisions"].clone()).unwrap()
 }
 
 /// The save is, byte for byte, what the same decisions by hand write.
-fn assert_by_hand(save: &Path) {
+pub(super) fn assert_by_hand(save: &Path) {
     use cuba_libre_unfolded::save::Session;
     let dir = tempfile::tempdir().unwrap();
     let by_hand = dir.path().join("by-hand.json");
@@ -250,15 +257,13 @@ fn native_an_agent_session_plays_a_handed_over_faction() {
     // The human may read the options, and submits none by a click or a key.
     let revision = app.revision();
     app.activate("option:event:shaded", revision);
-    let commit = format!("{revision}:event:shaded");
-    app.human_refused(json!({"op":"activate","revision":revision,"choice":commit}));
+    app.offers_nothing();
     app.capture("an-agent-decides");
     let mut view = app.observe();
-    while view["table"]["choice"]["focus"] != commit.as_str() {
+    while view["table"]["choice"]["focus"] != "seat-strip:take-back" {
         app.request(json!({"op":"key","revision":revision,"key":"Tab"}), true);
         view = app.settle();
     }
-    app.human_refused(json!({"op":"key","revision":revision,"key":"Enter","focused":commit}));
 
     // The pinned briefing holds the session's choice. Putting it away lets it be applied,
     // and the human's focus stays.
@@ -271,7 +276,7 @@ fn native_an_agent_session_plays_a_handed_over_faction() {
     assert_eq!(view["observation"]["revision"], revision);
     let view = app.key("Escape");
     assert_eq!(view["observation"]["revision"], revision + 1, "{view}");
-    assert_eq!(view["table"]["choice"]["focus"], commit.as_str());
+    assert_eq!(view["table"]["choice"]["focus"], "seat-strip:take-back");
     assert_eq!(decisions(&app.save).last().unwrap(), "event:unshaded");
 
     // A lost answer costs nothing: the identity gives the whole view again.
@@ -365,10 +370,10 @@ fn native_an_agents_choice_waits_for_the_table_and_the_human() {
     let view = app.settle();
     assert_eq!(view["table"]["choice"]["pinned"], Value::Null);
 
-    // A space popover, whose button submits nothing for 26July either.
+    // A space popover, whose rows are read and which has no button for 26July.
     app.activate("space:santiago", 1);
     app.activate("popover:row:kidnap", 1);
-    app.human_refused(json!({"op":"activate","revision":1,"component":"popover:commit"}));
+    app.offers_nothing();
     app.decide(&m26, "transfer", "held");
     assert_eq!(holding(&app.settle()), ["an open popover"]);
     // Looking around holds nothing more and lets nothing through.
@@ -376,11 +381,12 @@ fn native_an_agents_choice_waits_for_the_table_and_the_human() {
     let view = app.settle();
     assert_eq!(view["observation"]["revision"], 1);
     app.activate("space:santiago", 1);
-    // Its own transfer modal is drawn, and is not the human's to close.
+    // Its own transfer is not drawn as the modal, and no key of the human's closes it.
     let view = app.settle();
     assert_eq!(view["observation"]["revision"], 2, "{view}");
-    assert_eq!(view["table"]["transfer"]["state"]["shown"], true);
-    app.human_refused(json!({"op":"key","revision":2,"key":"Escape"}));
+    assert_eq!(view["table"]["transfer"]["state"]["shown"], false);
+    app.offers_nothing();
+    assert_eq!(app.key("Escape")["observation"]["revision"], 2);
 
     // It asks the human's Government, whose modal holds its withdrawal; the human's Wait
     // moves the match on, so that choice is released and not applied.
@@ -558,8 +564,7 @@ fn native_the_human_takes_a_seat_back_at_any_time() {
     // in the air it is still the human's to take back.
     app.key(M26);
     let revision = app.revision();
-    let cancel = format!("{revision}:kidnap:cancel");
-    app.human_refused(json!({"op":"activate","revision":revision,"choice":cancel}));
+    app.offers_nothing();
     assert_eq!(seat(&app.settle(), "M26")["state"], "awaiting");
     app.key(M26);
     let roll = format!("{revision}:kidnap:roll");

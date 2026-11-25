@@ -175,7 +175,16 @@ fn assert_areas_and_island(view: &Value, layout: &Value, width: f64, height: f64
     for (name, placed) in recorded {
         let [l, t, r, b] = edges(&placed["bounds"]);
         let anchor = placed["anchor"].as_str().unwrap();
-        let (left, right) = if anchor == "top-between" {
+        let mut up = (b - t) * unit;
+        let (left, right) = if anchor == "bottom-between" {
+            // #206: the second area's left edge, less the gap the layout draws, at the
+            // size the scale gives unless the first area is nearer than 24 units.
+            let [one, other] = [0, 1].map(|i| &recorded[placed["between"][i].as_str().unwrap()]);
+            let right = across(other)[0] - (edges(&other["bounds"])[0] - r) * unit;
+            let size = ((r - l) * unit).min(right - across(one)[1] - 24. * unit);
+            up *= size / ((r - l) * unit);
+            (right - size, right)
+        } else if anchor == "top-between" {
             // #172: centred between the right edge of one area and the left edge of
             // another, at the size the window's scale gives it.
             let [one, other] = [0, 1].map(|i| &recorded[placed["between"][i].as_str().unwrap()]);
@@ -189,7 +198,8 @@ fn assert_areas_and_island(view: &Value, layout: &Value, width: f64, height: f64
         let (top, bottom) = if anchor.starts_with("top") {
             (start(t), start(b))
         } else {
-            (end(t, frame[1], height), end(b, frame[1], height))
+            let foot = end(b, frame[1], height);
+            (foot - up, foot)
         };
         let native = drawn[name];
         for (n, e) in native.iter().zip([left, top, right, bottom]) {

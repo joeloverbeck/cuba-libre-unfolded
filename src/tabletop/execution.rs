@@ -160,6 +160,9 @@ impl StepId {
 /// The line under the first section's label that sends the player to the map, where
 /// each target space's popover holds the one button that pays and resolves its Terror.
 pub(super) const MAP_LINE: &str = "Choose a space on the map; its popover pays and resolves.";
+/// The same line while an agent's faction decides (#206).
+pub(super) const MAP_LINE_READING: &str =
+    "The spaces are on the map; click one to see what it would do.";
 
 /// The first section's lines under its label (#171): the line that sends the player
 /// to the map, then each resolved Terror with what the authority recorded it paid, in
@@ -528,16 +531,21 @@ fn cancel(view: &Observation) -> Option<&Choice> {
 
 /// The controls Tab moves through during Terror, in order: the steps that can be
 /// pinned, Kidnap's Cancel, then the commit. Each with what Enter does.
-pub(super) fn focusable(view: &Observation, pinned: Option<&str>) -> Vec<(String, Action)> {
+/// While the strip stands in the commit's place (#206), its control instead of them.
+pub(super) fn focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> {
     let mut controls: Vec<(String, Action)> = steps(view)
         .into_iter()
         .filter(|s| s.interactive)
         .map(|s| (format!("step:{}", s.action), Action::Pin(s.action.into())))
         .collect();
+    if super::seat_cards::strip(view, ui).is_some() {
+        controls.extend(super::seat_cards::strip_focusable(view, ui));
+        return controls;
+    }
     if let Some(c) = cancel(view) {
         controls.push((c.id.clone(), Action::Commit(c.owner, view.revision)));
     }
-    let commit = commit(view, pinned);
+    let commit = commit(view, ui.choice.pinned.as_deref());
     controls.push((commit.name, commit.action));
     controls
 }
@@ -780,12 +788,12 @@ pub(super) fn panel(
         return choice::panel(commands, art, view, ui, s, o);
     }
     if view.finished {
-        return ended(commands, art, view, s, o);
+        return ended(commands, art, view, ui, s, o);
     }
     match view.action {
         ActionChoice::Open => choice::panel(commands, art, view, ui, s, o),
         ActionChoice::Terror => terror(commands, art, view, ui, s, o),
-        ActionChoice::Pass => ended(commands, art, view, s, o),
+        ActionChoice::Pass => ended(commands, art, view, ui, s, o),
     }
 }
 
@@ -794,6 +802,14 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
     choice::ribbon(commands, art, s, o);
     let m26 = view.resources[Faction::M26.index()];
     let mode = mode(view);
+    // While an agent's faction decides, the panel is inert (#206): no plates but the
+    // human's own steps', and the strip in the commit's place.
+    let agent = super::seat_cards::deciding(view, ui);
+    let reads = if agent.is_some() {
+        ""
+    } else {
+        " · hover a step for its preview, click to pin it"
+    };
     let (heading, subtitle) = match mode {
         Mode::Kidnap => (
             "26July · Kidnap opened".to_owned(),
@@ -809,7 +825,7 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
         Mode::Steps | Mode::Transfer => (
             "26July · executing Terror".to_owned(),
             format!(
-                "Resource transfers open: 26July is executing Terror (R 1.5.1)\n26July has {} · hover a step for its preview, click to pin it",
+                "Resource transfers open: 26July is executing Terror (R 1.5.1)\n26July has {}{reads}",
                 resources(m26)
             ),
         ),
@@ -844,6 +860,11 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
     let [map_top, map_size] = fig::MAP_LINE;
     let [record_top, pitch, record_size, record_line] = fig::RECORD;
     for (i, (name, content)) in lines(view).into_iter().enumerate() {
+        let content = if i == 0 && agent.is_some() {
+            MAP_LINE_READING.to_owned()
+        } else {
+            content
+        };
         let (top, size, ink) = match i {
             0 => (map_top, map_size, QUIET),
             n => (record_top + pitch * (n - 1) as f32, record_size, INK),
@@ -871,12 +892,15 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
     for step in &steps {
         let top = step.id.row().0;
         let name = format!("step:{}", step.action);
+        let offered = step.bold
+            && (agent.is_none()
+                || listed(view, step.action).is_some_and(|c| c.supported && ui.plays(c.owner)));
         let area = rect(acb::ROW_X, top, acb::ROW_W, acb::ROW_H);
         // The open step is outlined; an offered step has the paper plate; the others
         // only their words.
         let node = if step.held {
             picture(commands, art, "atlas-choice-row-active.png", area, s, o, 4)
-        } else if step.bold {
+        } else if offered {
             let plate = picture(commands, art, "atlas-choice-row.png", area, s, o, 3);
             fade(commands, plate, Color::WHITE, step.dim, false);
             plate
@@ -910,7 +934,7 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
                 .observe(super::click);
         }
         let kidnap = step.id == StepId::Kidnap;
-        let (lx, ly, size) = match (kidnap, step.bold) {
+        let (lx, ly, size) = match (kidnap, offered) {
             (true, b) => (
                 fig::SA_LABEL_X[usize::from(b)],
                 if b {
@@ -946,7 +970,7 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
             Prose::named(&step.label),
             [acb::ROW_X + lx, top + ly, acb::ROW_W - lx, size],
             ink,
-            step.bold,
+            offered,
             0.,
             s,
             o,
@@ -996,6 +1020,10 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
                 commands.entity(note).insert(Part(format!("{name}-note")));
             }
         }
+    }
+    if let Some(strip) = super::seat_cards::strip(view, ui) {
+        let hint = strip_hint(view, ui, strip.0);
+        return super::seat_cards::panel_strip(commands, art, strip, Some(&hint), s, o);
     }
     if let Some(c) = cancel(view) {
         let [x, y, w, h] = fig::CANCEL;
@@ -1069,6 +1097,19 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
         s,
         o,
     );
+}
+
+/// The line above the strip during Terror: 26July's withdrawal while another giver
+/// answers is the human's own, if they play 26July.
+fn strip_hint(view: &Observation, ui: &Interface, faction: Faction) -> String {
+    if view.owner != Faction::M26 && ui.plays(Faction::M26) {
+        format!(
+            "Only {}'s seat can answer. Pin End Terror or Back to withdraw.",
+            faction.name()
+        )
+    } else {
+        super::seat_cards::hint(faction)
+    }
 }
 
 fn event_heading(faction: Faction) -> String {
@@ -1246,7 +1287,7 @@ pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)>
 }
 
 /// The ended panel: the header, then each entry's caps label and value lines.
-fn ended(commands: &mut Commands, art: &Art, view: &Observation, s: f32, o: Vec2) {
+fn ended(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface, s: f32, o: Vec2) {
     let Some((heading, subtitle, entries)) = ending(view) else {
         return;
     };
@@ -1296,6 +1337,9 @@ fn ended(commands: &mut Commands, art: &Art, view: &Observation, s: f32, o: Vec2
             Part(format!("ended-value:{}", e.label)),
         ));
         y += acb::ENTRY_VALUE_TOP + acb::VALUE_LINE * lines.len() as f32 + acb::GAP;
+    }
+    if let Some(strip) = super::seat_cards::strip(view, ui) {
+        super::seat_cards::panel_strip(commands, art, strip, None, s, o);
     }
     if let Some(advance) = view
         .choices
@@ -1767,7 +1811,10 @@ mod tests {
         assert!(!none.enabled);
         assert_eq!(none.name, "execution-commit");
         assert_eq!(none.label, "Click a step to choose it");
-        let order: Vec<String> = focusable(&view, None).into_iter().map(|c| c.0).collect();
+        let order: Vec<String> = focusable(&view, &Interface::default())
+            .into_iter()
+            .map(|c| c.0)
+            .collect();
         assert_eq!(
             order,
             [
@@ -1821,7 +1868,7 @@ mod tests {
             assert_eq!(panel.label, "Click a step to choose it");
         }
         assert!(
-            focusable(&view, None)
+            focusable(&view, &Interface::default())
                 .iter()
                 .all(|(name, _)| !name.contains("terror:"))
         );
@@ -1939,7 +1986,10 @@ mod tests {
             step(&steps, "back-to-choice").status,
             Status::Pill(Pill::Unavailable, "AFTER ROLL OR CANCEL".into())
         );
-        let order: Vec<String> = focusable(&view, None).into_iter().map(|c| c.0).collect();
+        let order: Vec<String> = focusable(&view, &Interface::default())
+            .into_iter()
+            .map(|c| c.0)
+            .collect();
         assert_eq!(order, ["step:kidnap", "2:kidnap:cancel", "2:kidnap:roll"]);
     }
 

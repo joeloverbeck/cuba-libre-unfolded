@@ -36,6 +36,8 @@ mod pile_tags;
 mod rally;
 #[path = "native/save_quit.rs"]
 mod save_quit;
+#[path = "native/seat_controls.rs"]
+mod seat_controls;
 #[path = "native/space_reason.rs"]
 mod space_reason;
 #[test]

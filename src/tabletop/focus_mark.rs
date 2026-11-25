@@ -85,7 +85,7 @@ fn marked(
             field: false,
         };
     }
-    if transfer::shown(view.transfer.as_ref()) {
+    if transfer::shown(view.transfer.as_ref(), view.owner, ui) {
         return Marked {
             pressed: Some(match transfer::pressed(view, ui) {
                 transfer::Pressed::Primary(_) => Target::Primary,
