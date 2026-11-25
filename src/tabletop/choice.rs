@@ -1485,7 +1485,7 @@ pub(super) fn draw(
     let content = if tabs || choosing {
         briefing::content(&view, &option)
     } else {
-        super::execution::tag(&view, &option)
+        super::execution::tag(&view, &ui, &option)
     };
     let Some(briefing) = content else {
         return;

@@ -118,6 +118,14 @@ fn native_the_seat_controls_match_the_selected_layout() {
         );
     }
     app.capture("every-faction-the-humans");
+    // A refusal's slip opens over the top right of Syndicate's card, above its buttons.
+    app.activate("option:rally", 0);
+    app.activate("choice-commit", 0);
+    let view = app.settle();
+    let slip = rect_of(&view["table"]["slip"]["bounds"]);
+    assert!(slip[3] < parts(&view)["seat:syndicate:hand-over"].1[1]);
+    app.capture("the-slip-over-the-seats");
+    app.activate("notice-slip", 0);
 
     for action in ["terror", "kidnap"] {
         app.choose(action);
@@ -226,7 +234,7 @@ fn native_the_seat_controls_match_the_selected_layout() {
         "{}",
         view["table"]["card"]
     );
-    let view = app.point("standing:government");
+    let view = app.point("standing:0");
     assert!(view["table"]["victory"].is_object());
 
     // Escape puts the sheet away; so does a click on the map.
@@ -452,6 +460,17 @@ fn native_each_seat_state_is_shown_and_a_held_choice_is_taken_back() {
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan"]
 fn native_a_seat_changes_hands_by_keyboard_and_at_any_time() {
     let mut app = start("seat-any-time-", "issue-206", "1920x1280");
+    // A socket where another table answers refuses the hand-over, as an error on the slip.
+    let other = std::os::unix::net::UnixListener::bind(app.player_socket()).unwrap();
+    let view = app.press("seat:government:hand-over");
+    assert_eq!(seat(&view, "Government")["state"], "human");
+    assert_eq!(view["table"]["slip"]["kind"], "error");
+    let refused = view["table"]["slip"]["text"].as_str().unwrap();
+    assert!(refused.contains("another game answers"), "{refused}");
+    drop(other);
+    std::fs::remove_file(app.player_socket()).unwrap();
+    app.activate("notice-slip", 0);
+
     // The keyboard reaches each control; focus goes to the one that takes its place.
     let view = app.press_by_keyboard("seat:government:hand-over");
     assert_eq!(seat(&view, "Government")["state"], "awaiting");
@@ -517,6 +536,7 @@ fn native_a_seat_changes_hands_by_keyboard_and_at_any_time() {
     app.activate("step:back-to-choice", revision);
     let view = app.settle();
     assert_eq!(says(&view, "seat-strip-title"), None);
+    app.capture("the-humans-withdrawal");
     app.request(
         json!({"op":"activate","revision":revision,"choice":format!("{revision}:back-to-choice")}),
         true,
@@ -525,10 +545,16 @@ fn native_a_seat_changes_hands_by_keyboard_and_at_any_time() {
     assert_eq!(view["observation"]["action"], "Open");
     assert_eq!(view["observation"]["transfer"], Value::Null);
 
-    // With the die in the air.
+    // An open Kidnap has neither Roll nor Cancel while an agent's 26July decides.
     for action in ["terror", "kidnap"] {
         app.choose(action);
     }
+    app.press("seat:26july:hand-over");
+    app.offers_nothing();
+    app.capture("an-agents-kidnap");
+    app.press("seat:26july:take-back");
+
+    // With the die in the air.
     let revision = app.revision();
     app.request(
         json!({"op":"activate","revision":revision,"choice":format!("{revision}:kidnap:roll")}),
@@ -549,6 +575,27 @@ fn native_a_seat_changes_hands_by_keyboard_and_at_any_time() {
     app.settle();
     app.quit();
     assert_by_hand(&app.save);
+
+    // After 26July's Pass nothing of Directorio's is in the build and no option is listed:
+    // the strip stands below what was recorded.
+    app.save = app.root.join("passed.json");
+    app.launch_size("3840x2160");
+    app.choose("pass");
+    let view = app.press("seat:directorio:hand-over");
+    assert_eq!(
+        says(&view, "seat-strip-title").unwrap(),
+        "Directorio: Build ends here"
+    );
+    assert_eq!(says(&view, "seat-strip-hint"), None);
+    let strip = parts(&view)["seat-strip"].1;
+    for part in view["table"]["choice_parts"].as_array().unwrap() {
+        let name = part["part"].as_str().unwrap();
+        if name.starts_with("ended-") {
+            assert!(rect_of(&part["bounds"])[3] < strip[1], "{name}");
+        }
+    }
+    app.capture("build-ends-after-pass");
+    app.quit();
 
     // The row keeps its place in a wider window and shrinks in a narrower one, clear of
     // its neighbours (`native_main_view_keeps_areas_and_picks_in_other_windows`).

@@ -54,9 +54,9 @@ mod fig {
     /// Above the title, above the line's box, and above the button.
     pub const SHEET_GAPS: [f32; 3] = [18., 14., 12.];
     pub const TITLE: [f32; 2] = [28., 34.];
-    /// The line's box: its least height, its padding to the left and above, and the type
-    /// with its line height.
-    pub const BOX: [f32; 3] = [106., 16., 12.];
+    /// The line's box: its least height, which holds three lines, and its padding to the
+    /// sides, above and below. Then the line's type and line height.
+    pub const BOX: [f32; 4] = [106., 16., 12., 10.];
     pub const LINE: [f32; 2] = [23., 28.];
     pub const NOTE: [f32; 2] = [6., 24.];
     pub const COPY_AGAIN: [f32; 2] = [200., 46.];
@@ -564,13 +564,13 @@ fn sheet(commands: &mut Commands, art: &Art, line: &Line, row: Place, window: &W
         INK,
         fig::TITLE,
     );
-    let [least, side, top] = fig::BOX;
+    let [least, side, top, foot_pad] = fig::BOX;
     let boxed = node(
         commands,
         sheet,
         Node {
             margin: UiRect::new(pad, pad, above_box, px(0.)),
-            padding: UiRect::axes(px(side * u), px(top * u)),
+            padding: UiRect::new(px(side * u), px(side * u), px(top * u), px(foot_pad * u)),
             min_height: px(least * u),
             ..default()
         },
@@ -844,6 +844,7 @@ mod tests {
         let [tx, ty, tw, th] = rect("text", "seat-line-text");
         assert_eq!([tx, ty], [bx + fig::BOX[1], by + fig::BOX[2]]);
         assert_eq!([tw, th], [bw - 2. * fig::BOX[1], 3. * fig::LINE[1]]);
+        assert_eq!(bh, fig::BOX[2] + th + fig::BOX[3]);
         let [cx, cy, cw, ch] = rect("parts", COPY_AGAIN);
         assert_eq!([cw, ch], fig::COPY_AGAIN);
         assert_eq!([cx + cw, cy], [bx + bw, by + bh + above_button]);

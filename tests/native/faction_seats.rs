@@ -374,6 +374,7 @@ fn native_an_agents_choice_waits_for_the_table_and_the_human() {
     app.activate("space:santiago", 1);
     app.activate("popover:row:kidnap", 1);
     app.offers_nothing();
+    app.capture("an-agents-popover");
     app.decide(&m26, "transfer", "held");
     assert_eq!(holding(&app.settle()), ["an open popover"]);
     // Looking around holds nothing more and lets nothing through.

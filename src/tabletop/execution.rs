@@ -1546,8 +1546,8 @@ pub(super) fn previewed(view: &Observation, preview: &Preview) -> (Vec<Entry>, V
 
 /// A step's tag: the rules authority's preview of the step, or its explanation and
 /// in-task remedies when it cannot be taken now. An open step's tag says what the
-/// open step does and how it ends.
-pub(super) fn tag(view: &Observation, action: &str) -> Option<Briefing> {
+/// open step does and how it ends. An agent's giver has no Open in the top band (#206).
+pub(super) fn tag(view: &Observation, ui: &Interface, action: &str) -> Option<Briefing> {
     if view.finished || view.action != ActionChoice::Terror {
         return None;
     }
@@ -1637,13 +1637,18 @@ pub(super) fn tag(view: &Observation, action: &str) -> Option<Briefing> {
                             None => "26July cannot withdraw the request now.".into(),
                         },
                     };
+                    let open = if ui.plays(*giver) {
+                        "; Open in the top band shows its decision"
+                    } else {
+                        ""
+                    };
                     briefing(
                         "Transfer request pending".into(),
                         vec![
                             entry(
                                 "REQUEST",
                                 format!(
-                                    "26July asked {g} for {amount}. Nothing moves until {g} authorizes; Open in the top band shows its decision."
+                                    "26July asked {g} for {amount}. Nothing moves until {g} authorizes{open}."
                                 ),
                             ),
                             entry("WITHDRAW", withdraw),
@@ -1731,7 +1736,8 @@ mod tests {
     use super::*;
 
     fn tag_of(game: &Game, action: &str) -> Briefing {
-        tag(&game.observe(), action).unwrap_or_else(|| panic!("no tag for {action}"))
+        tag(&game.observe(), &Interface::default(), action)
+            .unwrap_or_else(|| panic!("no tag for {action}"))
     }
     fn words(b: &Briefing) -> String {
         let mut all: Vec<String> = b
@@ -1791,7 +1797,10 @@ mod tests {
         for target in ["terror:santiago", "terror:oriente"] {
             assert!(listed(&view, target).is_some(), "{target}");
             assert_eq!(StepId::of(target), None, "{target}");
-            assert!(tag(&view, target).is_none(), "{target}");
+            assert!(
+                tag(&view, &Interface::default(), target).is_none(),
+                "{target}"
+            );
         }
         assert_eq!(
             lines(&view),
@@ -2281,7 +2290,7 @@ mod tests {
         // Kidnap has yet to end the Operation. Its preview still knows which
         // faction is 2nd Eligible, through the current eligibility record.
         view.eligibility.second = Some(Faction::Syndicate);
-        let kidnap = tag(&view, "kidnap").unwrap();
+        let kidnap = tag(&view, &Interface::default(), "kidnap").unwrap();
         assert!(
             kidnap
                 .entries
@@ -2300,7 +2309,7 @@ mod tests {
             .find(|c| c.action() == "end-terror")
             .unwrap();
         end.preview.as_mut().unwrap().next.as_mut().unwrap().faction = Faction::Government;
-        let end = tag(&view, "end-terror").unwrap();
+        let end = tag(&view, &Interface::default(), "end-terror").unwrap();
         assert!(
             end.entries
                 .iter()
