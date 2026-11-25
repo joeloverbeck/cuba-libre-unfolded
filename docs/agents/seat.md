@@ -131,7 +131,7 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `edition-tab:<n>` | A reopened edition's tab | Turns to the card's edition *n*; Tab turns to the next. |
 | `editions` | The pile of the current card's editions beside the Propaganda pips | Opens the latest again; a Tab stop. While an edition is open it puts it away. |
 | `quit` | Save · quit, the plate in the bottom-right corner (#174) | Hover or focus shows its hovered plate and opens its tag after the shared dwell. Activating it, or Enter naming it, closes the game: every decision is already saved, so the same `--save` resumes the match. The reply to that request is `exited`, and the session ends. |
-| `notice-slip` | The notice slip above Save · quit, while it is shown (#174) | Activating it dismisses the slip. `table.notice` keeps the words. |
+| `notice-slip` | The notice slip above the seat cards and Save · quit, while it is shown (#174) | Activating it dismisses the slip. `table.notice` keeps the words. |
 | `pile:played`, `pile:deck` | Card piles: each pile's count disc, its visible side and its caption. The seat rests on the disc first. While a card is in the air no disc is shown, and it rests on the middle of the pile's side and caption. | Hover target for the pile's tag, which focus opens too. Activating it changes nothing; the tag has no pin. |
 | `option:<option>`, `option:pass` … `option:terror:kidnap` | Action choice | Pins the option. |
 | `option:directorio:pass`, `option:directorio:limited-operation`, `option:event:unshaded`, `option:event:shaded` | Directorio's handoff after Kidnap | Opens or pins an option's briefing. |

@@ -54,7 +54,7 @@ The [main view layout](MAIN-VIEW.md) owns where every area sits: the 3D map fill
 | Card piles | bottom left | The played pile and the draw deck as solid cards, each with its top card's face, its count and its caption, and the Propaganda pips ([MAIN-VIEW.md](MAIN-VIEW.md#the-card-piles)). Each top card opens its [card tag](CARD-TAG.md), and each pile its [pile tag](PILE-TAGS.md). Never stretch or crop a face. |
 | Seats | bottom, between the pips and Save · quit | Who plays each faction, handing over and taking back ([SEATS.md](SEATS.md)). |
 | Editions | bottom left, beside the pips | The pile of the current card's editions; the page opens over the whole view ([NEWSPAPER.md](NEWSPAPER.md)). |
-| Save · quit and notice slip | bottom right | Save · quit, which closes the game, and above it the slip that shows a refusal, an error or the loading state ([MAIN-VIEW.md](MAIN-VIEW.md#save--quit-and-the-notice-slip)). The session panel is retired (#174). |
+| Save · quit and notice slip | bottom right | Save · quit, which closes the game, and above it and the seat cards the slip that shows a refusal, an error or the loading state ([MAIN-VIEW.md](MAIN-VIEW.md#save--quit-and-the-notice-slip)). The session panel is retired (#174). |
 
 Each area takes the pointer over its own rectangle, so a press or a scroll there never reaches the map.
 

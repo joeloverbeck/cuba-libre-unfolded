@@ -701,46 +701,60 @@ mod tests {
         }
     }
 
-    /// #174, layout A · Franja: the notice slip stands 14 reference pixels above Save ·
-    /// quit, their right edges aligned, at the space popover's width (340), and Save ·
-    /// quit's hover tag opens 8 above the plate, its right edge on the window's 40
-    /// margin, at the top display tag's width (468). In every window the slip clears
-    /// the decision panel with room for several lines, and neither covers the plate.
+    /// #174, layout A · Franja: the notice slip stands above Save · quit, their right edges
+    /// aligned, at the space popover's width (340), and Save · quit's hover tag opens above
+    /// the plate, its right edge on the window's 40 margin, at the top display tag's width
+    /// (468). They stood 14 and 8 reference pixels above the plate; since the owner's ruling
+    /// of 2026-11-25 (#206) both are 126 frame units higher. In every window neither covers
+    /// the plate, any other area, the seat cards whichever stands forward, or the decision
+    /// panel, which the slip clears with nine lines (25 of card and 15 a line).
     #[test]
-    fn the_slip_and_the_tag_stand_above_save_quit() {
+    fn the_slip_and_the_tag_stand_above_the_seat_cards_and_save_quit() {
         let layout = record();
         for (width, height) in [
-            (1920., 1280.),
             (3840., 2160.),
-            (2520., 1080.),
-            (1600., 1280.),
+            (4096., 2160.),
             (3440., 1440.),
+            (2560., 1080.),
+            (2520., 1080.),
+            (2160., 1440.),
+            (1920., 1280.),
+            (1920., 1080.),
+            (1600., 1280.),
+            (1440., 960.),
         ] {
             let window = window(width, height);
             let s = super::super::reference_pixel(&window);
+            let raised = 126. / 1.6875 * s;
             let plate = layout.area("save-quit", &window);
             let slip = layout.slip(&window);
             let tag = layout.save_quit_tag(&window);
             let at = format!("{width}x{height}");
             assert!((slip.max.x - plate.max.x).abs() < 0.02, "{at}");
-            assert!((plate.min.y - slip.max.y - 14. * s).abs() < 0.02, "{at}");
+            assert!(
+                (plate.min.y - slip.max.y - 14. * s - raised).abs() < 0.02,
+                "{at}"
+            );
             assert!((slip.width() - 340. * s).abs() < 0.02, "{at}");
             assert!((tag.max.x - (width - 40. * s)).abs() < 0.02, "{at}");
-            assert!((plate.min.y - tag.max.y - 8. * s).abs() < 0.02, "{at}");
+            assert!(
+                (plate.min.y - tag.max.y - 8. * s - raised).abs() < 0.02,
+                "{at}"
+            );
             assert!((tag.width() - 468. * s).abs() < 0.02, "{at}");
             let decision = layout.area("decision", &window);
-            assert!(
-                slip.max.y - decision.max.y > 150. * s,
-                "{at}: room for lines"
-            );
-            assert!(decision.max.y < tag.min.y, "{at}: the tag clears the panel");
-            // #206: above the seat cards' buttons, on a card that stands forward too.
-            let seats = layout.area("seats", &window);
-            let buttons = seats.min.y + 130. * seats.width() / 1940.;
-            assert!(
-                slip.max.y < buttons && tag.max.y < buttons,
-                "{at}: the buttons"
-            );
+            let nine = (25. + 9. * 15.) * s;
+            assert!(slip.max.y - nine > decision.max.y, "{at}: room for lines");
+            for (name, area) in layout.areas(&window) {
+                let slip = Rect {
+                    min: Vec2::new(slip.min.x, slip.max.y - nine),
+                    ..slip
+                };
+                for (what, open) in [("slip", slip), ("tag", tag)] {
+                    let shared = open.intersect(area);
+                    assert!(shared.is_empty(), "{at}: the {what} covers {name}");
+                }
+            }
         }
     }
 

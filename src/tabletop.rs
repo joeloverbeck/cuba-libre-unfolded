@@ -1723,8 +1723,8 @@ fn draw_ui(
     newspaper::pile(&mut commands, &art, &view, &ui, &main_view, &window);
     // #206: the four seats between the pips and Save · quit.
     seat_cards::draw(&mut commands, &art, &view, &ui, &main_view, &window);
-    // #174: Save · quit in the bottom-right corner, and above it the notice slip when
-    // a refusal, an error or the loading state is shown.
+    // #174: Save · quit in the bottom-right corner, and above it and the seats the notice
+    // slip when a refusal, an error or the loading state is shown.
     save_quit::draw(&mut commands, &art, &main_view, &window);
     notice::draw(
         &mut commands,
