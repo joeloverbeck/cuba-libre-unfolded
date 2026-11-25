@@ -28,6 +28,8 @@ The app loads table art from `art/atlas` relative to the checkout root. If you r
 
 ## Playing this build
 
+To have a Claude Code or Codex session play a faction, run `cargo build --locked && cargo run --locked --bin cuba-tools -- player-folders` once and after each update, then [open a session with one pasted line](docs/playing.md#opening-a-session).
+
 [Playing this build](docs/playing.md) covers the decisions, table, controls and save/resume.
 
 ## Checks and development seat

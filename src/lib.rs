@@ -4,6 +4,7 @@ pub use game::*;
 pub mod assets;
 pub mod editions;
 pub mod faction_seats;
+pub mod player_folders;
 pub mod reports;
 pub mod save;
 pub mod seat_brief;
