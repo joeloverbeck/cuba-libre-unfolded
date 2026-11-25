@@ -369,8 +369,9 @@ fn its_pieces_and_available_forces_are_those_of_the_position() {
 }
 
 const NOT: &str = "not in this build";
-const FREE: &str =
-    "on card 17, as the free Rally its unshaded Event grants where the faction has a Base";
+/// Card 17's unshaded text gives the free Rally to 26July or Directorio, in each space it
+/// has a Base, as if Neutral; the executing faction selects which (R 5.1), here Directorio.
+const FREE: &str = "on card 17, if Directorio executes the unshaded Event and selects this faction (R 5.1): free, in each space where it has a Base, whatever the Support or Opposition there";
 
 /// A name and its section, with where this build plays it.
 type Operation = (&'static str, &'static str, &'static str);
@@ -523,14 +524,14 @@ fn what_differs_by_faction_in_the_rules_differs_in_the_briefs() {
     }
 }
 
-/// The Operation or Special Activity `choice` takes, if it takes one. Every action the
-/// positions offer is named, so a new one fails here until it is.
+/// The Operation or Special Activity `choice` takes, if it takes one; granting the Event's
+/// Rally does not Rally anywhere. Every action the positions offer is named, so a new one
+/// fails here until it is.
 fn taken(choice: &Choice) -> Option<(Faction, &'static str)> {
     match choice.action() {
-        "rally:beneficiary:26july" => Some((M26, "Rally")),
-        "rally:beneficiary:directorio" => Some((Directorio, "Rally")),
         "government:assault" => Some((choice.owner, "Assault")),
         "government:pass" | "kidnap:cancel" => None,
+        beneficiary if beneficiary.starts_with("rally:beneficiary:") => None,
         action => match action.split(':').next().unwrap() {
             "terror" => Some((choice.owner, "Terror")),
             "kidnap" => Some((choice.owner, "Kidnap")),
@@ -544,14 +545,21 @@ fn taken(choice: &Choice) -> Option<(Faction, &'static str)> {
     }
 }
 
-/// A brief's marks are what the rules authority offers in play: an Operation or Special
-/// Activity is played on a card exactly when some reachable position of it offers a choice
-/// that takes it and can be chosen.
+/// A brief's marks are what the rules authority offers in play. An Operation or Special
+/// Activity is marked "on card N" exactly when some reachable position of that card offers a
+/// choice that takes it and can be chosen. The free Rally's mark has two conditions, and is
+/// on exactly the factions that Directorio may select in some position. Of them 26July meets
+/// the second, a Base, so its Rally is offered; Directorio has none in any position, and its
+/// Rally never is.
 #[test]
 fn what_a_brief_says_this_build_plays_is_what_the_authority_offers() {
     let explored = explore::all_explored().flat_map(|explored| &explored.nodes);
     let later = later_positions();
     let mut found: BTreeMap<(usize, &str), BTreeSet<u8>> = BTreeMap::new();
+    let mut selected = BTreeSet::new();
+    let mut with_base = BTreeSet::new();
+    // Where Resources may be transferred or own pieces removed: by whom, on which card.
+    let mut dealings: BTreeMap<&str, BTreeSet<(usize, u8)>> = BTreeMap::new();
     for game in explored.map(|node| &node.game).chain(&later) {
         let seen = game.observe();
         for choice in seen.choices.iter().filter(|choice| choice.supported) {
@@ -559,22 +567,96 @@ fn what_a_brief_says_this_build_plays_is_what_the_authority_offers() {
                 let cards = found.entry((faction.index(), name)).or_default();
                 cards.insert(seen.current_card);
             }
+            match choice.action() {
+                "rally:beneficiary:26july" => {
+                    selected.insert(M26.index());
+                }
+                "rally:beneficiary:directorio" => {
+                    selected.insert(Directorio.index());
+                }
+                action @ ("transfer" | "remove") => {
+                    let name = if action == "remove" {
+                        "remove"
+                    } else {
+                        "transfer"
+                    };
+                    let executing = seen.executing.expect("R 1.5.1, 1.4.1");
+                    assert_eq!(choice.owner, executing);
+                    let places = dealings.entry(name).or_default();
+                    places.insert((executing.index(), seen.current_card));
+                }
+                _ => {}
+            }
         }
-    }
-    let mut marked = BTreeMap::new();
-    for faction in Faction::ALL {
-        let brief = brief(&opening(), faction);
-        for action in brief.operations.iter().chain(&brief.special_activities) {
-            let cards: BTreeSet<u8> = [17, 18]
-                .into_iter()
-                .filter(|card| action.played.starts_with(&format!("on card {card}")))
-                .collect();
-            if !cards.is_empty() {
-                marked.insert((faction.index(), action.name), cards);
+        for group in seen.spaces.iter().flat_map(|space| &space.pieces) {
+            if group.kind == Kind::Base && group.count > 0 {
+                with_base.insert(group.faction.index());
             }
         }
     }
+    let mut marked = BTreeMap::new();
+    let mut free = BTreeSet::new();
+    for faction in Faction::ALL {
+        let brief = brief(&opening(), faction);
+        for action in brief.operations.iter().chain(&brief.special_activities) {
+            if action.played == FREE {
+                assert_eq!(action.name, "Rally");
+                free.insert(faction.index());
+            } else if let Some(card) = action.played.strip_prefix("on card ") {
+                let card: BTreeSet<u8> = [card.parse().unwrap()].into();
+                marked.insert((faction.index(), action.name), card);
+            }
+        }
+    }
+    let rally = found.remove(&(M26.index(), "Rally"));
+    assert_eq!(rally, Some([17].into()));
     assert_eq!(marked, found);
+    assert_eq!(free, selected);
+    assert!(with_base.contains(&M26.index()));
+    assert!(!with_base.contains(&Directorio.index()));
+
+    // What every brief says of transfers and of removing one's own pieces.
+    let places: BTreeSet<_> = [(M26, 17), (Directorio, 17), (Government, 18)]
+        .map(|(faction, card)| (faction.index(), card))
+        .into();
+    assert_eq!(dealings["transfer"], places);
+    assert_eq!(dealings["remove"], places);
+}
+
+/// What every brief says of this build's decisions beside its lists: when a Special Activity
+/// may accompany (R 4.1), what an act costs in eligibility (R 2.3.4, 2.3.7), transfers and
+/// agreements (R 1.5.1), removing one's own pieces (R 1.4.1), and that no Propaganda Round
+/// is played, where victory is checked (R 7.2).
+#[test]
+fn every_brief_says_what_bears_on_this_builds_decisions() {
+    for faction in Faction::ALL {
+        let brief = serde_json::to_value(brief(&opening(), faction)).unwrap();
+        for (field, said) in [
+            ("actions", "in its turn on an Event card (R 2.3)"),
+            ("actions", "a free Operation that an Event grants"),
+            ("actions", "Ineligible for the next card"),
+            (
+                "dealings",
+                "only while the giver or the receiver executes an Operation, Special Activity or Event",
+            ),
+            ("dealings", "the giver decides"),
+            ("dealings", "bind nobody"),
+            ("dealings", "R 1.5.1"),
+            ("dealings", "remove its own pieces"),
+            ("dealings", "R 1.4.1"),
+            (
+                "dealings",
+                "26July executes Terror or the Event's free Rally",
+            ),
+            ("dealings", "Directorio executes the Event"),
+            ("dealings", "the Government executes Assault"),
+            ("ranking", "no Propaganda Round"),
+            ("ranking", "a standing and not a result"),
+        ] {
+            let text = brief[field].as_str().unwrap_or_default();
+            assert!(text.contains(said), "{faction:?} {field}: {said}: {text}");
+        }
+    }
 }
 
 /// Each Operation and Special Activity the authority's own menus list is in the brief, by

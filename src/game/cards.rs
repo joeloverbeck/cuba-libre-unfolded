@@ -4,7 +4,8 @@
 //!
 //! The faces admitted in this build are cards 17, 18 and 19. Their titles, faction
 //! orders, Event layouts and lasting-effect boxes are transcribed from the supplied
-//! faces. The titles of all 52 cards are in `titles`.
+//! faces, and what their Events do is stated in this repository's own words. The titles of
+//! all 52 cards are in `titles`.
 use super::{ActionChoice, CARD_17_ORDER, EventOutcome, EventProgress, Faction, Game, SequenceBox};
 use serde::Serialize;
 
@@ -182,6 +183,67 @@ pub struct CardWords {
     pub status: String,
     pub lasting: String,
     pub rules: String,
+}
+
+/// What one text of a card's Event does, in this repository's own words (R 5.1).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct EventStatement {
+    /// Which text of a dual-use Event (R 5.2); none for a single text.
+    pub text: Option<EventText>,
+    pub statement: &'static str,
+    /// The card and the rules it rests on.
+    pub rules: &'static str,
+    /// Which factions may execute it in this build.
+    pub played: String,
+}
+
+impl EventStatement {
+    /// Each text of the Event of `card`, an admitted face.
+    pub fn of(card: u8) -> Vec<Self> {
+        use EventText::{Shaded, Unshaded};
+        let texts: &[(Option<EventText>, &str, &str)] = match card {
+            17 => &[
+                (
+                    Some(Unshaded),
+                    "The executing faction selects 26July or Directorio. That faction Rallies, free, in each space where it has a Base, whatever the Support or Opposition there.",
+                    "Card 17; R 3.3.1, 5.1, 5.2, 5.5",
+                ),
+                (
+                    Some(Shaded),
+                    "Every 26July Guerrilla on the map becomes Active, and 26July is Ineligible until card 18 has been played.",
+                    "Card 17; R 1.4.3, 2.3.7, 5.1, 5.2",
+                ),
+            ],
+            18 => &[(
+                None,
+                "An Insurgent Capability, in effect once the Event is executed: Operations and Special Activities of 26July and Directorio may not remove each other's pieces or alter Opposition already placed. One player of both may transfer between them. If one of the two removes 2 of its own Bases at once, the Capability ends. The executing faction stays Eligible for the next card.",
+                "Card 18; R 2.3.7, 5.1, 5.3",
+            )],
+            19 => &[(
+                None,
+                "Each faction in turn, in the card's faction order, may add 2 pieces other than Casinos to a space that already has a piece of its own. The executing faction stays Eligible.",
+                "Card 19; R 1.4.1, 5.1",
+            )],
+            _ => unreachable!("card {card} is not among the admitted faces"),
+        };
+        let by: Vec<_> = super::played::event_by(card)
+            .into_iter()
+            .map(Faction::name)
+            .collect();
+        let played = match by[..] {
+            [] => "not in this build".to_owned(),
+            _ => format!("in this build, by {}", by.join(" or ")),
+        };
+        texts
+            .iter()
+            .map(|(text, statement, rules)| Self {
+                text: *text,
+                statement,
+                rules,
+                played: played.clone(),
+            })
+            .collect()
+    }
 }
 
 /// One shown card: its printed facts and where its Event stands.

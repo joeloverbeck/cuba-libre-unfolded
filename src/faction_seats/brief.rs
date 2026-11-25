@@ -26,6 +26,8 @@ pub struct Brief {
     pub actions: &'static str,
     pub operations: Vec<Action>,
     pub special_activities: Vec<Action>,
+    /// What a faction may do beside its actions: transfers, and removing its own pieces.
+    pub dealings: &'static str,
     pub rivals: Vec<Victory>,
 }
 
@@ -110,6 +112,7 @@ impl Brief {
                     Action::new(faction, name, rule, purpose, Some(accompanies))
                 })
                 .collect(),
+            dealings: DEALINGS,
             rivals: Faction::ALL
                 .into_iter()
                 .filter(|rival| *rival != faction)
@@ -154,7 +157,7 @@ impl Action {
                 Played::Nowhere => "not in this build".into(),
                 Played::OnCard(card) => format!("on card {card}"),
                 Played::FreeRally(card) => format!(
-                    "on card {card}, as the free Rally its unshaded Event grants where the faction has a Base"
+                    "on card {card}, if Directorio executes the unshaded Event and selects this faction (R 5.1): free, in each space where it has a Base, whatever the Support or Opposition there"
                 ),
             },
         }
@@ -204,9 +207,11 @@ fn victory(faction: Faction) -> (&'static str, &'static str, &'static str) {
     }
 }
 
-const RANKING: &str = "Victory is checked at the start of each Propaganda Round: if a faction meets its condition, the game ends (R 6.1, 7.2). Otherwise it ends with the final Propaganda card (R 2.4.1, 6.3.5). Either way the faction with the highest victory margin comes first (R 7.1, 7.3), and ties go to the Syndicate, then Directorio, then 26July (R 7.1).";
+const RANKING: &str = "Victory is checked at the start of each Propaganda Round: if a faction meets its condition, the game ends (R 6.1, 7.2). Otherwise it ends with the final Propaganda card (R 2.4.1, 6.3.5). Either way the faction with the highest victory margin comes first (R 7.1, 7.3), and ties go to the Syndicate, then Directorio, then 26July (R 7.1). This build plays cards 17 and 18 and no Propaganda Round, so it checks no victory: a margin is a standing and not a result.";
 
-const ACTIONS: &str = "A faction that executes an Operation chooses 1 of these 4 (R 3.1). With an Operation in at least 1 space it may execute 1 type of Special Activity, at any one time immediately before, during or immediately after it; a Limited Operation, in 1 space, has none (R 2.3.5, 4.1). \"played\" says where this build plays each. Pass (R 2.3.3) and a card's Event (R 5.1) are neither: your view lists them when they are yours to choose.";
+const ACTIONS: &str = "A faction that executes an Operation chooses 1 of these 4 (R 3.1). When it executes one in its turn on an Event card (R 2.3), in at least 1 space, it may also execute 1 type of Special Activity, at any one time immediately before, during or immediately after it; a Limited Operation, in 1 space, has none, and neither has a free Operation that an Event grants unless the Event says so (R 2.3.5, 3.1.2, 4.1). A faction that executes the Event, or an Operation that is not free, is Ineligible for the next card unless the Event says otherwise, and after the 1st Eligible's Operation with a Special Activity the 2nd Eligible may execute the Event instead of a Limited Operation (R 2.3.4, 2.3.7, 5.5). \"played\" says where this build plays each. Pass (R 2.3.3) and a card's Event (R 5.1) are neither: your view lists them when they are yours to choose.";
+
+const DEALINGS: &str = "A faction may give another only Resources or Cash, and Resources only while the giver or the receiver executes an Operation, Special Activity or Event; the giver decides, negotiations are open, and agreements bind nobody (R 1.5.1). While it executes one, a faction may remove its own pieces from the map to its Available Forces (R 1.4.1). This build plays Resource transfers and such removal while 26July executes Terror or the Event's free Rally, while Directorio executes the Event, and while the Government executes Assault.";
 
 /// A name, its section and its purpose.
 type Operation = (&'static str, &'static str, &'static str);
