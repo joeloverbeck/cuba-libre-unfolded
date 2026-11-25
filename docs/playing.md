@@ -69,7 +69,7 @@ The Resource transfer step opens the transfer modal ([TRANSFER.md](../art/atlas/
 - **Ask** creates a Transfer request that moves nothing yet. The modal turns to the giver's colours. The giver authorizes any amount from 0 to its limit, declines, or waits.
 - **Wait** closes the modal and keeps the request pending, also across Save · quit; its tab in the top band reopens it.
 
-Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfer can fund either Terror target without Kidnap, or make Kidnap possible during or after Terror. 26July can transfer Resources once it chooses Terror. Going back or ending Terror withdraws a pending request. During the Event and the free Rally, the executing faction can transfer Resources. These decisions belong to the local player. [Transfer timing](local-rule-policies.md#transfers-open-once-terror-is-chosen) · [Withdrawing pending requests](local-rule-policies.md#a-pending-transfer-request-is-withdrawn)
+Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfer can fund either Terror target without Kidnap, or make Kidnap possible during or after Terror. 26July can transfer Resources once it chooses Terror. Going back or ending Terror withdraws a pending request. During the Event and the free Rally, the executing faction can transfer Resources. They are made by whoever plays the faction. [Transfer timing](local-rule-policies.md#transfers-open-once-terror-is-chosen) · [Withdrawing pending requests](local-rule-policies.md#a-pending-transfer-request-is-withdrawn)
 
 ## Removing your own pieces
 
@@ -122,6 +122,17 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 
 **Remove own pieces** opens the map's voluntary removal controls for Government. Click a marked Troop or Police stack, select a quantity and confirm to return it to Available Forces. Choose **Done** to return to Assault and inspect its removal capacity with the remaining cubes.
 
+## Handing a faction to an agent
+
+An external Claude Code or Codex session can play a faction for you. F1 hands Government over, F2 26July, F3 Directorio and F4 Syndicate; the same key takes the faction back. A session then joins on the game's socket, by default `cuba-libre-players.sock` in `$XDG_RUNTIME_DIR`, or where you launched with `--player-socket`. The game starts no session.
+
+- **One session plays one faction.** A faction nobody joined as waits and never acts.
+- **While an agent's faction decides,** you can read the map, the cards, the options and the standings. Your clicks and keys submit nothing for it, and a notice says so. You turn the card yourself, whichever factions you play.
+- **An agent's choice waits** for a card or the Kidnap die to come to rest, for a landed die to show its result for 2 seconds (Continue ends that sooner), and for what you have open: a popover, a pinned or opened briefing, a pinned card's tag, or the transfer modal while it asks you to decide. If you decide first and the match moves on, its choice is dropped and it chooses again.
+- **Transfer requests** go to whoever plays the giver. An agent that plays 26July keeps its withdrawal while you, as the giver, decide, and you keep yours while an agent does.
+- **Taking a faction back** works at any time. The session ends, and a choice of its that was not applied is cancelled.
+- **Save · quit** ends every session. Who plays which faction is not saved: after a relaunch you play all four. The save is the one the same decisions by your own hand would write.
+
 ## Camera and keys
 
 | Input | Effect |
@@ -132,6 +143,7 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 | `Home` | Restore the map framing; also brings back hover tags that extreme framing hid |
 | `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked, then no effect, then those nothing can pay for) and an open popover's rows and button, then the marker supply, the four Available Forces rows, the current and the preview card, the two piles and Save · quit |
 | `Enter`, `Space` | Activate the focused control. A dark line outside it ([FOCUS-MARK.md](../art/atlas/FOCUS-MARK.md)) marks the button, row or option that Enter would press; in the transfer modal that is the main button until Tab reaches another control, and in the amount field too. A focused space, card, pile, the marker supply or an Available Forces row shows its tag instead. While a played card is moving, land the cards instead |
+| `F1`, `F2`, `F3`, `F4` | Hand Government, 26July, Directorio or Syndicate to an agent, or take it back ([above](#handing-a-faction-to-an-agent)) |
 | `Escape` | Close a card's tag, unpin a briefing, cancel an open transfer, or close a tag or popover; a space popover closed from the keyboard leaves focus on its space |
 
 The camera answers wherever the pointer is over the map. A scroll, a drag or a click on a panel stays with that panel: it neither moves the camera nor reaches the space beneath. The transfer modal takes camera input while open.

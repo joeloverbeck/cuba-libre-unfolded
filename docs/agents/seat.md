@@ -6,7 +6,7 @@ It is distinct from a faction player's connection (foundation 5). It has no auth
 
 ## Launch and connect
 
-From the checkout root, use `jq`, the private card directory from the [README](../../README.md#build-and-launch), and an isolated verification save. Package the two binaries in the [managed build scope](parallel-work.md#builds) first, then run them directly, outside that scope. The detached seat keeps serving after the launcher exits.
+From the checkout root, use `jq`, the private card directory from the [README](../../README.md#build-and-launch), and an isolated verification save. Package the three binaries in the [managed build scope](parallel-work.md#builds) first, then run them directly, outside that scope. The detached seat keeps serving after the launcher exits.
 
 ```sh
 mkdir -p local/verification &&
@@ -44,7 +44,7 @@ Once the launcher reports `ready`, connect to the seat.
 
 ## Native owner handoff
 
-Build both executables from the reviewed checkout into the review package with `scripts/heavy scripts/package-review-binaries "$package"` (requires `jq`). Include both in the package manifest. Have the replay script launch the packaged game and call `"$package/cuba-tools" seat`. Keep the input and recovery saves with their recorded hashes, and run each branch on a fresh copy.
+Build the executables from the reviewed checkout into the review package with `scripts/heavy scripts/package-review-binaries "$package"` (requires `jq`). Include them all in the package manifest. Have the replay script launch the packaged game and call `"$package/cuba-tools" seat`. Keep the input and recovery saves with their recorded hashes, and run each branch on a fresh copy.
 
 Follow the owner’s launch instructions in order at their display size. Capture the first decision frame before hover, focus, pin or click. Compare what each instruction promises with the frame visible at that step, including the choices and their spacing. If a briefing requires input, name that input in the instructions. Inspect the result after committing. Run the packaged replay from outside the build checkout using its packaged executables.
 
@@ -102,6 +102,7 @@ Every full reply carries the whole rules observation and the whole table: many k
 | `Tab` | Moves keyboard focus through the action choice's options (`option:pass` … `option:terror:kidnap`) and its commit. During Terror it also moves through `briefing-ribbon`, `briefing-tab:kidnap`, `briefing-tab:terror` and the execution panel's steps. While map targeting is active (`table.map_targets` is not null), it then moves through the spaces as `space:<space>`: the selectable ones, then the blocked ones, then the no-effect ones (#169), then the unpayable ones (#180), each group in `observation.spaces` order (#168). A focused space opens its tag after the hover dwell. While a space's popover is open, its choosable rows `popover:row:<action>` and its button `popover:commit` follow that space. Then the marker supply `marker-supply` (#173), the Available Forces rows `available:government`, `available:26july`, `available:directorio` and `available:syndicate` (#160), `card:current`, `card:preview`, `pile:played` and `pile:deck`, whose tags focus opens after the hover dwell, and last `quit`, Save · quit, whose tag focus opens too (#174). |
 | `Escape` | Closes an open card tag, alone; otherwise unpins or closes the briefing; cancels an open transfer (Wait in a giver's decision); closes an open space popover, piece popover or briefing tag. Closing a space popover while keyboard focus is on its space, rows or button puts focus on its `space:<space>`; one the pointer opened leaves focus where it was. A focused or hovered card's tag stays closed until focus or the pointer moves on. |
 | `Backspace`, `0`–`9` | Edit the transfer amount. |
+| `F1`, `F2`, `F3`, `F4` | Hand Government, 26July, Directorio or Syndicate over to an agent, or take it back ([Hosting a faction's session](#hosting-a-factions-session)). Taken at any time, also while a die or a card is in the air. |
 | `Enter`, `Space` | Activate the focused control, which the request must name in `"focused"`, e.g. `{"op":"key","revision":0,"key":"Enter","focused":"option:pass"}`. On a focused space they open or close its popover as a click does, e.g. `{"op":"key","revision":1,"key":"Enter","focused":"space:santiago"}`; on a popover row they choose it; on `popover:commit` they commit. |
 
 - A landed Kidnap die closes with Enter naming its Continue: `{"op":"key","revision":4,"key":"Enter","focused":"kidnap-die:continue"}`.
@@ -216,6 +217,17 @@ From a fresh save:
 5. Syndicate decides at revision 3. Type its amount and activate `3:authorize:1` (Government/26July/Directorio/Syndicate Resources = 6/1/5/14), or `3:decline`, or `3:wait`.
 6. After Wait, the request is saved set aside at revision 4. The top band's pending tab (component `pending-open`, choice `4:reopen`) shows the decision again.
 
+## Hosting a faction's session
+
+The table the seat drives hosts agent sessions' faction seats (#203, [foundation 5](../foundation/05-players-and-proclamations.md)). Until the drawn controls exist (#206), F1 to F4 hand a faction over and take it back; [the play guide](../playing.md#handing-a-faction-to-an-agent) says what that does.
+
+- **Socket.** Launch with `--player-socket PATH`, beside `--socket`: without it the table listens on the default path, which the owner's game uses too. The path holds at most 107 bytes. It opens at the first hand-over; a path where another game answers refuses the hand-over, with the reason in `table.notice`.
+- **Client.** `cuba-player --socket PATH` joins as a faction, observes, waits, chooses and leaves; `cuba-player --help` gives its commands, answers and exit statuses.
+- **Frames.** A windowless table runs only inside the seat's requests, so a session is answered when one comes. While a session has work that only frames do, `pending` names `faction seats`, and `settle` runs it. `cuba-tools seat-wait SOCKET [--timeout SECONDS]` settles the table again and again (the shared loop of `unfolded-seat-client`) until it needs this seat: no agent's faction is awaited, or something opened here holds an agent's choice. Its requests keep the session from its 30-minute end; a faction session's do not.
+- **What holds an agent's choice.** A card or the Kidnap die in motion, a landed die for its first 2 seconds (or until Continue), and what this seat opened: a popover, the transfer modal while it asks for a decision of a faction the human plays, a pinned or opened briefing, a pinned card tag. A decision's own step holds nothing, and neither do a hover's dwell and the camera. `table.faction_seats.holding` lists it.
+- **The human's input.** An activation or a key that would submit for a handed-over faction is refused in `table.notice`, and changes nothing. `advance-card` stays the human's. Pinning, hovering and the camera work as always.
+- **Save.** Who plays which faction is in no save. After a relaunch every faction is the human's.
+
 ## What the table reports
 
 The full reply's `table` describes what is drawn. Drawn parts are reported by name; they are not activated.
@@ -238,6 +250,7 @@ The full reply's `table` describes what is drawn. Drawn parts are reported by na
 | `table.notice`, `table.error` | The latest notice's words, of every kind: the sentence of a decision that succeeded, a refusal, or a save error such as "Save changed in another session; reload before continuing". `table.error` is a launch error, which ends admission. Neither carries the loading state. |
 | `table.slip` | The notice slip as drawn (#174; [MAIN-VIEW.md](../../art/atlas/MAIN-VIEW.md#save--quit-and-the-notice-slip)): `shown`, and while it is shown its `kind` (`refusal`, `error` or `loading`), its `text` and its `bounds`, [left, top, right, bottom] in logical window pixels. A success never shows it. |
 | `table.focus_mark` | The drawn focus marks ([FOCUS-MARK.md](../../art/atlas/FOCUS-MARK.md)): each one's `control` (the component or choice it is on), its `form` (`full`, or `light` on the modal's amount field) and its `bounds`, [left, top, right, bottom]. `full` is on what Enter would press; in the modal that can be the primary while `table.transfer.state.focus` is null. |
+| `table.faction_seats` | Agent sessions at the table (#203). `factions`, one per faction in order (`Government`, `M26`, `Directorio`, `Syndicate`): its `state` (`human`; `awaiting`, handed over and joined by nobody; `at-table`, held with nothing asked of it; `thinking`; `silent` with its `minutes`, from the first minute without a word; or `build-ends`, the deciding faction with nothing this build plays), whether its session `waits`, and whether it `holds_choice` for the table to settle. `awaits` is the handed-over faction whose decision the table waits for, or null. `holding` lists what holds an agent's choice now, and is null before the first hand-over, as `socket` is. |
 | `table.save_quit` | Save · quit's plate: `hovered`, whether it shows its hovered export (pointer or keyboard focus). Its rectangle is the `save-quit` part in `table.main_view`. |
 | `table.main_view` | The main view against [its layout record](../../art/atlas/atlas-main-view.layout.json): each overlaid area's rectangle in `areas`, the Home `island` box, the `clear` rectangle where space and piece popovers open, each space's bounds on screen in `spaces`, and the drawn `parts` by their names in the record. Rectangles are [left, top, right, bottom] in logical window pixels. `table.map_viewport` is the whole window. |
 | `table.card` | The card tag: `shown` (the open tag's `card`, `pinned`, `number`, `title`, `mark`, `order`, `event`, `status`, `lasting`, `rules` and plate `bounds`, or null), its drawn `parts` by their names in [the layout record](../../art/atlas/atlas-card-tag.layout.json), and each card's target `bounds` in `cards`, which is its pile's top card. The facts come from `observation.cards`, whose `words` are the tag's text. |

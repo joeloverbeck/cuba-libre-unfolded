@@ -159,6 +159,15 @@ impl State {
             .map(str::to_owned);
         self.focus = None;
     }
+    /// An agent's decision committed: what the human pinned and focused stays (#197,
+    /// correction 2). A tag that only its open step kept pinned goes with the step.
+    pub fn agent_decided(&mut self, before: &Observation, after: &Observation) {
+        let step = super::execution::held(before);
+        if step.is_some() && self.pinned.as_deref() == step && super::execution::held(after) != step
+        {
+            self.pinned = None;
+        }
+    }
     fn tab(&self) -> &str {
         self.tab.as_deref().unwrap_or("terror")
     }
@@ -1212,22 +1221,9 @@ pub(super) fn keys(
 /// it. Returns the option or step, whether it is pinned, and whether it is the
 /// ribbon's tag.
 fn wanted(game: &Game, ui: &Interface, popover: bool) -> Option<(String, bool, bool)> {
-    let (prefix, ribbon) = match game.action {
-        _ if game.card_18 => ("option:", false),
-        ActionChoice::Open => ("option:", false),
-        ActionChoice::Terror if game.eligibility().directorio_handoff() => ("option:", false),
-        _ if game.event.as_ref().is_some_and(EventProgress::pending) => ("option:", false),
-        _ if game.m26_action_ended => return None,
-        ActionChoice::Terror if ui.choice.ribbon => {
-            return Some((ui.choice.tab().to_owned(), true, true));
-        }
-        ActionChoice::Terror => ("step:", true),
-        ActionChoice::Pass => return None,
-    };
-    if (ribbon || game.card_18 || game.event.as_ref().is_some_and(EventProgress::pending))
-        && (popover || super::transfer::shown(game.transfer.as_ref()))
-    {
-        return None;
+    let (prefix, tag) = kept(game, ui, popover)?;
+    if tag.as_ref().is_some_and(|(_, ribbon)| *ribbon) {
+        return tag.map(|(option, ribbon)| (option, true, ribbon));
     }
     let hovered = match ui.hover.visible() {
         Some(Target::Choice(name)) => name.strip_prefix(prefix).map(str::to_owned),
@@ -1239,9 +1235,52 @@ fn wanted(game: &Game, ui: &Interface, popover: bool) -> Option<(String, bool, b
         .as_deref()
         .and_then(|f| f.strip_prefix(prefix))
         .map(str::to_owned);
-    let option = hovered.or(focused).or_else(|| ui.choice.pinned.clone())?;
-    let pinned = ui.choice.pinned.as_ref() == Some(&option);
+    let pinned = tag.map(|(option, _)| option);
+    let option = hovered.or(focused).or_else(|| pinned.clone())?;
+    let pinned = pinned.as_ref() == Some(&option);
     Some((option, pinned, false))
+}
+
+/// Whether the human keeps a briefing open: the ribbon's tag, or a pinned option or step.
+/// A step the position itself holds open keeps its tag pinned and is not the human's.
+pub(super) fn opened(game: &Game, ui: &Interface, popover: bool) -> bool {
+    match kept(game, ui, popover) {
+        Some((_, Some((_, true)))) => true,
+        Some((_, Some((pinned, false)))) => {
+            super::execution::held(&game.observe()) != Some(pinned.as_str())
+        }
+        _ => false,
+    }
+}
+
+/// The prefix of the options a tag may show now, and the tag that stays open without a
+/// hover or focus: its option, and whether it is the ribbon's. `None` while no tag shows.
+fn kept(
+    game: &Game,
+    ui: &Interface,
+    popover: bool,
+) -> Option<(&'static str, Option<(String, bool)>)> {
+    let (prefix, ribbon) = match game.action {
+        _ if game.card_18 => ("option:", false),
+        ActionChoice::Open => ("option:", false),
+        ActionChoice::Terror if game.eligibility().directorio_handoff() => ("option:", false),
+        _ if game.event.as_ref().is_some_and(EventProgress::pending) => ("option:", false),
+        _ if game.m26_action_ended => return None,
+        ActionChoice::Terror if ui.choice.ribbon => {
+            return Some(("step:", Some((ui.choice.tab().to_owned(), true))));
+        }
+        ActionChoice::Terror => ("step:", true),
+        ActionChoice::Pass => return None,
+    };
+    if (ribbon || game.card_18 || game.event.as_ref().is_some_and(EventProgress::pending))
+        && (popover || super::transfer::shown(game.transfer.as_ref()))
+    {
+        return None;
+    }
+    Some((
+        prefix,
+        ui.choice.pinned.clone().map(|pinned| (pinned, false)),
+    ))
 }
 
 /// A text run of one briefing: faction names become emblems after the briefing's
