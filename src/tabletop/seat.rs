@@ -1010,9 +1010,9 @@ mod tests {
         };
         let [left, top, right, foot] = bounds.map(f64::round);
         // Clear of the ink of Syndicate's seat card, over which the slip opens (#206): between
-        // its colour and its name, and right of its name.
+        // its colour and its name, and below the foot right of its name.
         let row = foot - 33.;
-        let column = left + 24.;
+        let (column, below) = (left + 8., left + 24.);
         let first = |mut at: f64, step: f64, end: f64, hit: &dyn Fn(f64) -> bool| loop {
             if hit(at) {
                 return at;
@@ -1025,7 +1025,7 @@ mod tests {
             first(top - 20., 1., top + 8., &|y| dark(column, y)),
             // The last dark pixel's far side is the edge.
             first(right + 20., -1., right - 8., &|x| dark(x, row)) + 1.,
-            first(foot + 20., -1., foot - 8., &|y| dark(column, y)) + 1.,
+            first(foot + 20., -1., foot - 8., &|y| dark(below, y)) + 1.,
         ]
     }
 

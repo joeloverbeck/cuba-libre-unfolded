@@ -104,6 +104,9 @@ mod over_the_socket {
         fn game(&self) -> &Game {
             self.0.game()
         }
+        fn reports(&self) -> Vec<cuba_libre_unfolded::reports::Report> {
+            self.0.reports()
+        }
         fn settled(&self) -> bool {
             true
         }

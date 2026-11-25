@@ -8,6 +8,7 @@ use crate::explore::{self, parallel};
 use cuba_libre_unfolded::{
     Faction, Game,
     faction_seats::{Answer, Host, Player, SeatState, Stands, Table, View},
+    reports::{Report, Reports},
     save::Session,
 };
 use serde_json::{Value, json};
@@ -31,6 +32,9 @@ struct Room {
 impl Table for Room {
     fn game(&self) -> &Game {
         self.session.game()
+    }
+    fn reports(&self) -> Vec<Report> {
+        self.session.reports()
     }
     fn settled(&self) -> bool {
         self.settled
@@ -263,18 +267,22 @@ const TOLD: &[&str] = &[
     "alliance",
     "amount",
     "arithmetic",
+    "articles",
     "assault",
     "available",
     "balance",
     "beneficiary",
     "bound",
     "capabilities",
+    "card",
+    "card_title",
     "cards",
     "cash_available",
     "choice",
     "choices",
-    "closed",
     "commits_santiago",
+    "complete",
+    "continues",
     "contributions",
     "control",
     "count",
@@ -282,7 +290,6 @@ const TOLD: &[&str] = &[
     "current_card",
     "decision",
     "deck",
-    "detail",
     "die",
     "earliest",
     "economy",
@@ -304,10 +311,11 @@ const TOLD: &[&str] = &[
     "first",
     "flips",
     "from",
+    "from_revision",
     "giver",
     "government",
-    "government_before",
     "government_box",
+    "headline",
     "held",
     "id",
     "in_effect",
@@ -319,8 +327,8 @@ const TOLD: &[&str] = &[
     "lasting",
     "latest",
     "limit",
+    "lines",
     "m26_action_recorded",
-    "m26_before",
     "m26_box",
     "m26_next_card",
     "margin",
@@ -340,9 +348,7 @@ const TOLD: &[&str] = &[
     "options",
     "order",
     "owed_terror",
-    "paid",
     "passed",
-    "passes",
     "pieces",
     "piles",
     "played",
@@ -358,6 +364,7 @@ const TOLD: &[&str] = &[
     "read_at",
     "reason",
     "recipient",
+    "recorded",
     "records",
     "remedies",
     "removal",
@@ -366,7 +373,6 @@ const TOLD: &[&str] = &[
     "resolutions",
     "resources",
     "results",
-    "returned",
     "revision",
     "role",
     "room",
@@ -385,6 +391,7 @@ const TOLD: &[&str] = &[
     "stands",
     "state",
     "status",
+    "summary",
     "support",
     "support_level",
     "supported",
@@ -397,6 +404,7 @@ const TOLD: &[&str] = &[
     "through_card",
     "title",
     "to",
+    "to_revision",
     "transfer",
     "transfer_terms",
     "unavailable",
@@ -457,18 +465,32 @@ fn assert_no_order(value: &Value, face_down: &[u64]) {
     }
 }
 
-/// Positions on card 18 and at each end of the build, beside the explored ones.
-fn later_positions() -> Vec<Game> {
+/// A match's positions, from its opening to the one it stands at.
+type History = Vec<Game>;
+
+fn histories(seed: u64, actions: &[&str]) -> Vec<History> {
+    (0..=actions.len())
+        .map(|made| {
+            (0..=made)
+                .map(|made| played(seed, &actions[..made]))
+                .collect()
+        })
+        .collect()
+}
+
+/// Matches that stand on card 18, at each end of the build and on the way there, with
+/// every position since their opening.
+fn later_positions() -> Vec<History> {
     let mut found = vec![];
     for text in [
         &["event:shaded", "resolve-shaded"][..],
         &["event:unshaded", "rally:beneficiary:directorio"],
+        &[
+            "event:unshaded",
+            "rally:beneficiary:26july",
+            "rally:sierra-maestra:place:4",
+        ],
     ] {
-        let mut game = played(5, &HANDOFF);
-        for action in text.iter().chain(&["advance-card"]) {
-            explore::choose(&mut game, action);
-            found.push(game.clone());
-        }
         for actions in [
             &["government:pass"][..],
             &[
@@ -484,25 +506,32 @@ fn later_positions() -> Vec<Game> {
                 "end-assault",
             ],
         ] {
-            let mut path = game.clone();
-            for action in actions {
-                explore::choose(&mut path, action);
-                found.push(path.clone());
-            }
+            let path = [&HANDOFF[..], text, &["advance-card"], actions].concat();
+            found.extend(histories(5, &path));
         }
     }
-    found.push(played(5, &["pass"]));
-    found.push(played(5, &["terror", "end-terror"]));
+    found.extend(histories(5, &["pass"]));
+    found.extend(histories(5, &["terror", "end-terror"]));
     found
 }
 
-fn positions() -> Vec<Game> {
-    let mut all: Vec<Game> = explore::all_explored()
+/// The explored positions, each as if its match opened there, and the later ones.
+fn positions() -> Vec<History> {
+    let mut all: Vec<History> = explore::all_explored()
         .flat_map(|explored| &explored.nodes)
-        .map(|node| node.game.clone())
+        .map(|node| vec![node.game.clone()])
         .collect();
     all.extend(later_positions());
     all
+}
+
+/// The reports of a match that stood at each of `history` in turn.
+fn reports(history: &[Game]) -> Vec<Report> {
+    let mut reports = Reports::new(&history[0].observe());
+    for game in &history[1..] {
+        reports.record(&game.observe());
+    }
+    reports.all()
 }
 
 const PLAYERS: [Player; 4] = [Player::Human, Player::Agent, Player::Nobody, Player::Agent];
@@ -513,13 +542,16 @@ const PLAYERS: [Player; 4] = [Player::Human, Player::Agent, Player::Nobody, Play
 #[test]
 fn no_view_depends_on_what_is_hidden_and_together_they_carry_every_choice() {
     let positions = positions();
-    let found: Vec<(bool, BTreeSet<String>)> = parallel(&positions, |nth, game| {
+    let found: Vec<(bool, BTreeSet<String>)> = parallel(&positions, |nth, history| {
+        let game = history.last().unwrap();
         let seen = game.observe();
-        let other = unseen_changed(game).observe();
+        let others: History = history.iter().map(unseen_changed).collect();
+        let other = others.last().unwrap().observe();
+        let (told_of, others) = (reports(history), reports(&others));
         let mut told = BTreeSet::new();
         let mut offered = BTreeSet::new();
         for faction in Faction::ALL {
-            let view = View::of(&seen, faction, PLAYERS);
+            let view = View::of(&seen, told_of.clone(), faction, PLAYERS);
             for choice in &view.choices {
                 let whole = seen.choices.iter().find(|c| c.id == choice.id).unwrap();
                 assert_eq!(whole.owner, faction);
@@ -533,7 +565,8 @@ fn no_view_depends_on_what_is_hidden_and_together_they_carry_every_choice() {
             // four views of a position share their state.
             if faction == seen.owner || faction.index() == nth % 4 {
                 let view = serde_json::to_value(view).unwrap();
-                let same = serde_json::to_value(View::of(&other, faction, PLAYERS)).unwrap();
+                let same = serde_json::to_value(View::of(&other, others.clone(), faction, PLAYERS))
+                    .unwrap();
                 assert_eq!(view, same, "a view shows what is hidden");
                 assert_hidden(&view, game);
                 keys(&view, &mut told);
@@ -562,7 +595,7 @@ fn a_planted_leak_is_found() {
     let state = game.random_state();
     for leak in [
         json!({"choices": [{"explanation": format!("state {state}")}]}),
-        json!({"results": {"kidnap": {"random_before": 5}}}),
+        json!({"results": [{"articles": [{"random_before": 5}]}]}),
         json!({"deck": [19, 20, 21]}),
         json!({"deck": {"next": [36, 51]}}),
     ] {
@@ -794,13 +827,32 @@ fn a_view_is_whole_and_says_where_the_match_stands() {
     let mut s = Sitting::at_the_handoff();
     let player = s.seat(Directorio);
     let view = s.observe(&player);
+    let results = view["results"].as_array().unwrap();
+    assert_eq!(results.len(), 1, "one action so far");
+    assert_eq!(results[0]["faction"], "M26");
+    assert_eq!(results[0]["action"], "terror");
+    assert_eq!(results[0]["complete"], true);
+    assert_eq!(results[0]["articles"][0]["die"], 3);
     assert_eq!(
-        view["results"]["kidnap"],
-        json!({"die":3,"proceeds":3,"government_before":6,"m26_before":0,"revision":3})
+        results[0]["articles"][0]["lines"][1],
+        "26July takes 3 Resources from Government: Government 6 → 3, 26July 0 → 3."
     );
     assert_eq!(
-        view["results"]["terror"],
-        json!([{"space":"santiago","paid":1}])
+        results[0]["standings"][1]["resources"],
+        json!({"from": 0, "to": 2})
+    );
+    // Every seat reads the same reports, of an action in progress too.
+    s.human("event:unshaded");
+    s.human("rally:beneficiary:26july");
+    let government = s.seat(Government);
+    let results = s.observe(&government)["results"].clone();
+    assert_eq!(s.observe(&player)["results"], results);
+    assert_eq!(results[0], view["results"][0]);
+    assert_eq!(results[1]["faction"], "Directorio");
+    assert_eq!(results[1]["complete"], false);
+    assert_eq!(
+        results[1]["summary"],
+        "Directorio grants the free Rally to 26July."
     );
     assert_eq!(view["state"]["resources"], json!([3, 2, 5, 15]));
     assert_eq!(view["decision"]["yours"], true);

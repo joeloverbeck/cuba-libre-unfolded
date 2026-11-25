@@ -247,12 +247,9 @@ fn native_an_agent_session_plays_a_handed_over_faction() {
     assert_eq!(view["table"]["faction_seats"]["awaits"], "Directorio");
     // After a rolled Kidnap the observation holds the generator's state; no view does.
     assert!(view["observation"]["kidnap"]["random_before"].is_u64());
-    assert_eq!(told["view"]["results"]["kidnap"]["die"], 1);
-    assert!(
-        told["view"]["results"]["kidnap"]
-            .get("random_before")
-            .is_none()
-    );
+    let results = &told["view"]["results"];
+    assert_eq!(results[0]["articles"][0]["die"], 1);
+    assert!(!told.to_string().contains("random_before"));
 
     // The human may read the options, and submits none by a click or a key.
     let revision = app.revision();
