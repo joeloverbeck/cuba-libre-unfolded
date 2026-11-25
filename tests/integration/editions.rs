@@ -148,6 +148,10 @@ fn lines() -> Vec<Line> {
                 vec![
                     "event:unshaded",
                     "rally:beneficiary:26july",
+                    // 26July's own side decisions are in the Event, and no news to it.
+                    "remove",
+                    "remove:oriente:underground:1",
+                    "done-removal",
                     "rally:sierra-maestra:place:2",
                 ],
             ),
@@ -300,6 +304,8 @@ fn the_event_is_directorios_while_the_human_rallies() {
     table.none();
     table.play(&["rally:beneficiary:26july"]);
     assert!(!table.one().1, "partway");
+    table.play(&lines()[3][1].1[2..5]);
+    table.none();
     table.play(&["rally:sierra-maestra:place:2"]);
     let (faction, complete, ..) = table.one();
     assert_eq!((faction, complete), (Directorio, true));
@@ -330,16 +336,16 @@ fn the_cards_editions_are_reopened() {
     assert!(editions.open().is_none() && editions.pile() == 0);
     editions.open_next();
     assert_eq!(editions.pile(), 0, "the open one is not on the pile yet");
-    // The one just out stays: no tab turns it to another.
-    editions.show(1);
-    editions.step(false);
-    assert!(!editions.open().unwrap().0.reopened);
     editions.put_away();
     table.play(&["decline", "end-terror"]);
     let editions = &mut table.editions;
     editions.open_next();
-    assert_eq!(editions.open().unwrap().1.number, 2);
     assert_eq!(editions.pile(), 1);
+    // One just out stays: no tab turns it to another.
+    editions.show(1);
+    editions.step(false);
+    let (open, edition) = editions.open().unwrap();
+    assert!(!open.reopened && edition.number == 2);
     editions.put_away();
     assert_eq!(editions.pile(), 2);
     let number = |editions: &Editions| {
@@ -376,7 +382,20 @@ fn the_cards_editions_are_reopened() {
     assert_eq!(numbers, [2, 1]);
 
     table.play(&["event:shaded", "resolve-shaded"]);
-    table.one();
+    let editions = &mut table.editions;
+    editions.open_next();
+    editions.put_away();
+    // Of three, the latest first: to the older ones and round, or back.
+    for back in [false, true] {
+        editions.reopen();
+        let mut seen = vec![number(editions)];
+        for _ in 0..3 {
+            editions.step(back);
+            seen.push(number(editions));
+        }
+        assert_eq!(seen, if back { [3, 1, 2, 3] } else { [3, 2, 1, 3] });
+        editions.put_away();
+    }
     table.play(&["advance-card"]);
     table.none();
     assert_eq!(table.editions.pile(), 0);

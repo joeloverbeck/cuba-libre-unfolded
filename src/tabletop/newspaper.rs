@@ -456,8 +456,8 @@ struct Page {
 
 /// Fills three columns of `height` with blocks of the `heights`, the first being block
 /// `from`, in order. `first` says that the standings head the third column. What does not
-/// fit is left; of the `last` height, a block no empty column holds stands alone in one.
-fn filled(heights: &[f32], from: usize, height: f32, first: bool, last: bool) -> Vec<Stands> {
+/// fit is left; a block taller than the columns stands alone in an empty one.
+fn filled(heights: &[f32], from: usize, height: f32, first: bool) -> Vec<Stands> {
     let tops = [
         0.,
         0.,
@@ -470,7 +470,7 @@ fn filled(heights: &[f32], from: usize, height: f32, first: bool, last: bool) ->
     let mut stands = vec![];
     let (mut column, mut top) = (0, tops[0]);
     for (block, tall) in heights.iter().enumerate().skip(from) {
-        while top + tall > height && !(last && top == 0.) {
+        while top + tall > height && top > 0. {
             column += 1;
             if column == tops.len() {
                 return stands;
@@ -493,10 +493,10 @@ fn pages(heights: &[f32], tallest: [f32; 2]) -> Vec<Page> {
         let tallest = tallest[usize::from(!first)];
         let least = if first { fig::STANDINGS } else { 0. };
         let mut height = least;
-        let mut stands = filled(heights, from, height, first, height >= tallest);
+        let mut stands = filled(heights, from, height, first);
         while from + stands.len() < heights.len() && height < tallest {
             height = (height + 2.).min(tallest);
-            stands = filled(heights, from, height, first, height >= tallest);
+            stands = filled(heights, from, height, first);
         }
         let end = stands
             .iter()
@@ -1403,6 +1403,7 @@ mod tests {
             };
             let [px, py, pw, ph] = rect("parts", "edition-page");
             assert_eq!([px, py, pw], fig::PAGE);
+            assert_eq!(py + fig::TALLEST, fig::FRAME[1] - 42.);
             assert_eq!(sheet.pages.len(), 1);
             assert_eq!(ph, sheet.height(0), "{frame}");
             assert_eq!(rect("parts", "edition-folio-rule")[1] - py, fig::FOLIO_RULE);

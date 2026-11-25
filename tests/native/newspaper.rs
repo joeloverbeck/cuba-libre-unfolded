@@ -925,8 +925,10 @@ fn native_an_open_edition_holds_every_decision_until_it_is_put_away() {
     closed(&view);
     assert_eq!(paper(&view)["pile"], 0);
     assert_eq!(view["observation"]["revision"], 5);
-    // What follows is told from there. Save · quit itself leaves it as read.
+    // What follows is told from there, whoever played what led there.
     let mut sessions = Sessions::default();
+    sessions.join(&mut app, "M26");
+    closed(&app.settle());
     sessions.join(&mut app, "Directorio");
     sessions.play(&mut app, &["event:shaded", "resolve-shaded"]);
     let next = check(&mut app);
