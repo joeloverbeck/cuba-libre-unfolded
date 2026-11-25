@@ -2121,8 +2121,10 @@ mod tests {
             assert_eq!(drawn.is_some(), step != "remove");
             if drawn.is_some() {
                 // Closed and pinned again, it is the human's.
-                let mut pressed = Interface::default();
-                pressed.seats = ui.seats;
+                let mut pressed = Interface {
+                    seats: ui.seats,
+                    ..default()
+                };
                 pressed.choice.decided(&open);
                 for _ in 0..2 {
                     activate(&mut pressed, &Action::Pin(step.into()));
