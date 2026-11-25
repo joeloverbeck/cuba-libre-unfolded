@@ -5,10 +5,10 @@
 
 use super::Player;
 use crate::{
-    ActionChoice, AssaultResolution, CardFacts, Choice, DeckFacts, Eligibility, EventOutcome,
-    EventProgress, Faction, Game, Group, Kidnap, KidnapStakes, MarkerSupply, Next, Observation,
-    Piles, PlayedCard, Preview, Removal, Resolved, ResourceChange, Site, SpaceReason, Standing,
-    Terrain, Transfer, TransferTerms, UsAlliance, support_level,
+    ActionChoice, CardFacts, Choice, DeckFacts, Eligibility, EventProgress, Faction, Game, Group,
+    KidnapStakes, MarkerSupply, Next, Observation, Piles, PlayedCard, Preview, Removal, Site,
+    SpaceReason, Standing, Terrain, Transfer, TransferTerms, UsAlliance, reports::Report,
+    support_level,
 };
 use serde::Serialize;
 
@@ -38,8 +38,9 @@ pub struct View {
     pub factions: Vec<Seat>,
     pub decision: Decision,
     pub state: State,
-    /// What the factions' actions did, apart from the state.
-    pub results: Results,
+    /// What the factions' actions did, apart from the state: a report of each action of
+    /// the match so far, in order. The last may be in progress.
+    pub results: Vec<Report>,
     /// Every choice the rules offer this faction now, refused ones with the reason.
     pub choices: Vec<Offer>,
 }
@@ -136,28 +137,6 @@ pub struct Space {
     pub terror: u8,
 }
 
-/// What the actions did, as the rules authority records it: the Pass, each space a
-/// Terror or an Assault resolved, the Kidnap roll and the Event.
-#[derive(Debug, Serialize)]
-pub struct Results {
-    pub passes: Vec<ResourceChange>,
-    pub terror: Vec<Resolved>,
-    pub kidnap: Option<KidnapResult>,
-    pub event: Option<EventOutcome>,
-    pub assault: Vec<AssaultResolution>,
-}
-
-/// A committed Kidnap roll, without the generator's state it was rolled from.
-#[derive(Debug, Serialize)]
-pub struct KidnapResult {
-    pub die: u8,
-    pub proceeds: u8,
-    pub government_before: u8,
-    pub m26_before: u8,
-    /// The match revision the roll created.
-    pub revision: u64,
-}
-
 #[derive(Debug, Serialize)]
 pub struct Offer {
     pub id: String,
@@ -192,8 +171,14 @@ impl Stands {
 }
 
 impl View {
-    /// What `faction` may know of `seen`, with `players` playing the factions.
-    pub fn of(seen: &Observation, faction: Faction, players: [Player; 4]) -> Self {
+    /// What `faction` may know of `seen`, which the actions of `reports` led to, with
+    /// `players` playing the factions.
+    pub fn of(
+        seen: &Observation,
+        reports: Vec<Report>,
+        faction: Faction,
+        players: [Player; 4],
+    ) -> Self {
         let choices: Vec<Offer> = seen
             .choices
             .iter()
@@ -216,17 +201,7 @@ impl View {
                 .collect(),
             decision: Decision::of(seen, faction, &choices),
             state: State::of(seen),
-            results: Results {
-                passes: seen.recorded_resources.clone(),
-                terror: seen.resolved.clone(),
-                kidnap: seen.kidnap.as_ref().map(KidnapResult::of),
-                event: seen
-                    .event
-                    .as_ref()
-                    .and_then(EventProgress::outcome)
-                    .cloned(),
-                assault: seen.assault_paid.clone(),
-            },
+            results: reports,
             choices,
         }
     }
@@ -321,18 +296,6 @@ impl Space {
             control: space.control(),
             pieces: space.pieces.clone(),
             terror: space.terror,
-        }
-    }
-}
-
-impl KidnapResult {
-    fn of(kidnap: &Kidnap) -> Self {
-        Self {
-            die: kidnap.die,
-            proceeds: kidnap.proceeds,
-            government_before: kidnap.government_before,
-            m26_before: kidnap.m26_before,
-            revision: kidnap.revision,
         }
     }
 }
