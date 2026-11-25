@@ -205,10 +205,12 @@ mod over_the_socket {
         table.human(|host, _| host.hand_over(Faction::Directorio));
         let (code, joined) = ask(socket, &["join", "Directorio"]);
         assert_eq!((code, &joined["status"]), (0, &json!("joined")));
+        assert_eq!(joined["brief"]["faction"], "Directorio");
         let player = joined["player"].as_str().unwrap();
-        // It is known by its identity.
+        // It is known by its identity, and told its brief again.
         let (code, again) = ask(socket, &["join", "Directorio", "--player", player]);
         assert_eq!((code, &again["view"]["faction"]), (1, &json!("Directorio")));
+        assert_eq!(again["brief"], joined["brief"]);
 
         // A wait with a period, and one whose client died.
         let (code, answer) = ask(socket, &["wait", player, "--timeout", "1"]);

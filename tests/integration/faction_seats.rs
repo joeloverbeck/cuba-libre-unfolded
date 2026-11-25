@@ -7,7 +7,7 @@
 use crate::explore::{self, parallel};
 use cuba_libre_unfolded::{
     Faction, Game,
-    faction_seats::{Answer, Host, Player, SeatState, Stands, Table, View},
+    faction_seats::{Answer, Brief, Host, Player, SeatState, Stands, Table, View},
     save::Session,
 };
 use serde_json::{Value, json};
@@ -458,7 +458,7 @@ fn assert_no_order(value: &Value, face_down: &[u64]) {
 }
 
 /// Positions on card 18 and at each end of the build, beside the explored ones.
-fn later_positions() -> Vec<Game> {
+pub fn later_positions() -> Vec<Game> {
     let mut found = vec![];
     for text in [
         &["event:shaded", "resolve-shaded"][..],
@@ -552,6 +552,70 @@ fn no_view_depends_on_what_is_hidden_and_together_they_carry_every_choice() {
     assert!(rolled > 100, "{rolled} positions after a rolled Kidnap");
     let told: BTreeSet<String> = found.into_iter().flat_map(|(_, told)| told).collect();
     let listed: BTreeSet<String> = TOLD.iter().map(|key| (*key).to_owned()).collect();
+    assert_eq!(told, listed, "the fields told are not those listed");
+}
+
+/// Every object key that occurs in a seat brief, as `TOLD` lists a view's.
+const BRIEFED: &[&str] = &[
+    "accompanies",
+    "actions",
+    "available",
+    "condition",
+    "contributions",
+    "count",
+    "counts",
+    "edition",
+    "extra",
+    "faction",
+    "kind",
+    "margin",
+    "margin_rule",
+    "name",
+    "operations",
+    "pieces",
+    "played",
+    "purpose",
+    "ranking",
+    "read_at",
+    "revision",
+    "rivals",
+    "rule",
+    "rules",
+    "score",
+    "space",
+    "special_activities",
+    "standing",
+    "state",
+    "threshold",
+    "victory",
+    "who",
+];
+
+/// Every faction's seat brief (#204) in every explored position is the same whatever lies
+/// face down and whatever the generator's state is, holds neither, and names only listed
+/// fields.
+#[test]
+fn no_brief_depends_on_what_is_hidden() {
+    let positions = positions();
+    let found: Vec<BTreeSet<String>> = parallel(&positions, |_, game| {
+        let seen = game.observe();
+        let other = unseen_changed(game).observe();
+        let mut told = BTreeSet::new();
+        for faction in Faction::ALL {
+            let brief = Brief::of(&seen, faction);
+            assert_eq!(
+                brief,
+                Brief::of(&other, faction),
+                "a brief shows what is hidden"
+            );
+            let brief = serde_json::to_value(brief).unwrap();
+            assert_hidden(&brief, game);
+            keys(&brief, &mut told);
+        }
+        told
+    });
+    let told: BTreeSet<String> = found.into_iter().flatten().collect();
+    let listed: BTreeSet<String> = BRIEFED.iter().map(|key| (*key).to_owned()).collect();
     assert_eq!(told, listed, "the fields told are not those listed");
 }
 
@@ -1395,6 +1459,51 @@ fn a_session_that_lost_its_answer_comes_back_with_its_identity() {
     assert_eq!(answer["view"]["revision"], 6);
     assert_eq!(s.observe(&player)["revision"], 6);
     s.applied(&player, "resolve-shaded");
+}
+
+/// A session is given its own faction's brief as it joins, and again, as the match then
+/// stands, when it asks with its identity whether its seat is still its own: a restarted
+/// session need not remember it. No other answer holds one.
+#[test]
+fn a_session_is_given_its_seat_brief_as_it_joins() {
+    let mut s = Sitting::new();
+    for faction in Faction::ALL {
+        s.host.hand_over(faction);
+        let joined = s.ask(json!({"op":"join","faction":faction.name()}));
+        assert_eq!(joined["status"], "joined", "{joined}");
+        let brief = Brief::of(&s.room.session.observe(), faction);
+        assert_eq!(joined["brief"], serde_json::to_value(&brief).unwrap());
+        assert_eq!(joined["brief"]["revision"], joined["view"]["revision"]);
+    }
+
+    let mut s = Sitting::new();
+    let directorio = s.seat(Directorio);
+    let m26 = s.seat(M26);
+    for action in HANDOFF {
+        let applied = s.applied(&m26, action);
+        assert!(applied.get("brief").is_none(), "{applied}");
+    }
+    let waited = s.wait(&directorio);
+    assert!(s.answer(waited).unwrap().get("brief").is_none());
+    let seen = s.ask(json!({"op":"observe","player":directorio}));
+    assert!(seen.get("brief").is_none());
+
+    // It comes back after a compacted context: the brief of now, at 26July's 8 − 15.
+    for named in ["Directorio", "Government"] {
+        let again = s.refused(json!({"op":"join","faction":named,"player":directorio}));
+        assert_eq!(again["brief"]["faction"], "Directorio");
+        assert_eq!(again["brief"]["revision"], 5);
+        let rivals = again["brief"]["rivals"].as_array().unwrap();
+        let m26 = rivals.iter().find(|r| r["name"] == "26July").unwrap();
+        assert_eq!(m26["standing"]["margin"], -7);
+    }
+    // A stranger, and a session that does not give its identity, are told no brief.
+    let stranger = s.refused(json!({"op":"join","faction":"Directorio"}));
+    assert!(stranger.get("brief").is_none(), "{stranger}");
+    s.host.hand_over(Government);
+    s.ask(json!({"op":"join","faction":"Government","session":"tool=1"}));
+    let same = s.refused(json!({"op":"join","faction":"Government","session":"tool=1"}));
+    assert!(same.get("brief").is_none(), "{same}");
 }
 
 /// The save the sessions made is, byte for byte, the one the same decisions by hand

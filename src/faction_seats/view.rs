@@ -13,14 +13,14 @@ use crate::{
 use serde::Serialize;
 
 /// The rules that govern the match, and where they can be read.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub struct Rules {
     pub edition: &'static str,
     pub read_at: &'static str,
 }
 
 /// The accepted source (`docs/research/rules-baseline-and-candidates.md`).
-const RULES: Rules = Rules {
+pub(super) const RULES: Rules = Rules {
     edition: "GMT Cuba Libre, Living Rules of March 2019 (third printing). \"R 3.3.4\" names its rule 3.3.4",
     read_at: "https://s3-us-west-2.amazonaws.com/gmtwebsiteassets/cuba/CL-RULES-2019-LivingRules.pdf",
 };

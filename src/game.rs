@@ -5,6 +5,7 @@ use unfolded_random::SeededRandom;
 mod assault;
 mod cards;
 mod pile_facts;
+mod played;
 mod rally;
 mod titles;
 pub use assault::AssaultResolution;
@@ -16,6 +17,7 @@ pub use pile_facts::{
     DeckFacts, DeckWords, NextPropaganda, PlayedCard, PlayedPile, PlayedWords, next_propaganda,
     next_propaganda_words,
 };
+pub use played::Played;
 pub use rally::{Rally, RallyAction, RallyResolution};
 pub use titles::title;
 
