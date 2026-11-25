@@ -4,6 +4,7 @@ The owner selected **EX-A, Pinned step tag** in #83's round ([selection on #58](
 
 ## What it shows
 
+- **While an agent's faction decides** the panel is inert (#206): no plates but the human's own steps', and a strip in the commit's and Cancel's place ([SEATS.md](SEATS.md#the-decision-panel-while-an-agent-decides)).
 - **The steps:** a fixed list in AC-B's option rows, in three sections:
   - TERROR: Kidnap on its connector, under the section's lines (below);
   - WHILE 26JULY EXECUTES: Resource transfer and Remove own pieces;
