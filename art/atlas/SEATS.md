@@ -55,5 +55,5 @@ The panel stays where it is, with the same heading, sections, rows and places as
 
 ## Limits
 
-- **The notice slip and Save · quit's tag** open over the right of Syndicate's card while they are shown ("Save · quit and the notice slip" in MAIN-VIEW.md): the accepted places overlap. The card's buttons stay clear of the slip.
+- **The notice slip and Save · quit's tag** stand above the cards, clear of them whichever stands forward ([MAIN-VIEW.md](MAIN-VIEW.md#save--quit-and-the-notice-slip)). While Directorio's or Syndicate's line sheet is open, both open over the right of that sheet, in front of it, and can cover its **Copy again**: a click puts the slip away, and the tag goes with the pointer.
 - **The clipboard** is the desktop's X11 one, and holds the line while the game runs. The development seat's windowless table keeps its own and never touches the desktop's (`table.faction_seats.copied`).
