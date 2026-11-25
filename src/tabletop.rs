@@ -54,6 +54,7 @@ mod discovery;
 mod eligibility;
 mod emblems;
 mod execution;
+mod faction_seats;
 mod focus_mark;
 mod highlights;
 mod notice;
@@ -63,6 +64,7 @@ mod piles;
 mod popover;
 mod save_quit;
 pub mod seat;
+mod settled;
 mod status;
 mod supply;
 mod top;
@@ -76,6 +78,8 @@ pub struct Options {
     pub save: PathBuf,
     pub recover: Option<PathBuf>,
     pub socket: Option<PathBuf>,
+    /// Where agent sessions play handed-over factions, instead of the default.
+    pub players: Option<PathBuf>,
     pub agent: bool,
     pub seat_size: UVec2,
 }
@@ -162,6 +166,9 @@ struct Interface {
     dirty: bool,
     /// The action choice's pinned option, keyboard focus and briefing ribbon.
     choice: choice::State,
+    /// The factions handed over to agents, indexed like `Faction::ALL`: the human's input
+    /// submits nothing for them (`faction_seats`).
+    agents: [bool; 4],
     /// The transfer modal's counterpart, direction, typed amount and focus.
     transfer: transfer::State,
     /// The revision a Kidnap roll just created in this run, until the die's
@@ -392,6 +399,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             terror_clip: terror_clip.clone(),
             labels: labels.labels,
         })
+        .insert_resource(faction_seats::FactionSeats::new(options.players.clone()))
         .insert_resource(die_art)
         .insert_resource(main_view)
         .init_resource::<areas::Island>()
@@ -455,6 +463,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                     piles::keys,
                     choice::keys,
                     transfer::keys,
+                    faction_seats::serve,
                     die::present,
                     piles::follow,
                 )
@@ -490,7 +499,8 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 (animate_terror, die::animate).before(AnimationSystems),
                 emblems::ink,
             ),
-        );
+        )
+        .add_systems(Last, faction_seats::close);
     Ok(app)
 }
 /// How the table keeps an image it only draws. The renderer takes the pixels, so the app
@@ -1189,27 +1199,49 @@ fn map_click_closes_tag(
     ui.dirty = true;
 }
 /// Submits a decision through the checked game seam and words its outcome. Pointer
-/// clicks and the keyboard's Enter on a focused control both come here.
+/// clicks and the keyboard's Enter on a focused control both come here. It submits nothing
+/// for a faction handed over to an agent; turning the card is the human's, whichever
+/// faction the rules authority names for it (#197).
 fn decide(play: &mut Play, ui: &mut Interface, owner: Faction, rev: u64, name: &str) {
-    let previous = play.game().observe();
-    match play.session.as_mut().unwrap().submit(owner, rev, name) {
-        Ok(()) => {
-            let after = play.game().observe();
-            if name.ends_with(":kidnap:roll") {
-                // The result is saved; the tray shows it from this frame's clock
-                // (die::present), and the notice names it once the die lands.
-                ui.rolled = Some(after.revision);
-            }
-            // A played card is saved before it moves; the tray shows it cross from
-            // this frame's clock (piles::follow).
-            ui.played = piles::Played::between(&previous, &after);
-            ui.notice = notice::Notice::success(notice(&previous, &after, owner, name));
-        }
-        Err(failure) => ui.notice = notice::Notice::failed(&failure),
-    };
+    if ui.agents[owner.index()] && Choice::action_of(name) != crate::game::ADVANCE_CARD {
+        return notice::refuse(
+            ui,
+            format!(
+                "{0} is an agent's to play. Press {1} to take {0} back.",
+                owner.name(),
+                faction_seats::KEY_NAMES[owner.index()]
+            ),
+        );
+    }
+    if let Err(failure) = submit(play, ui, owner, rev, name) {
+        ui.notice = notice::Notice::failed(&failure);
+    }
     // A committed decision leaves its step; its pin and focus go with it, and a step
     // the decision opened holds the panel with its tag pinned (EX-A, #84).
     ui.choice.decided(&play.game().observe());
+}
+/// Submits a decision, the human's or an agent's, through the checked submission, which
+/// saves it, and has the table show it: the position it made.
+fn submit(
+    play: &mut Play,
+    ui: &mut Interface,
+    owner: Faction,
+    rev: u64,
+    name: &str,
+) -> Result<Observation, crate::save::Submit> {
+    let previous = play.game().observe();
+    play.session.as_mut().unwrap().submit(owner, rev, name)?;
+    let after = play.game().observe();
+    if name.ends_with(":kidnap:roll") {
+        // The result is saved; the tray shows it from this frame's clock
+        // (die::present), and the notice names it once the die lands.
+        ui.rolled = Some(after.revision);
+    }
+    // A played card is saved before it moves; the tray shows it cross from
+    // this frame's clock (piles::follow).
+    ui.played = piles::Played::between(&previous, &after);
+    ui.notice = notice::Notice::success(notice(&previous, &after, owner, name));
+    Ok(after)
 }
 /// "a, b and c".
 fn listing(parts: &[String]) -> String {
@@ -1636,6 +1668,7 @@ fn test_play(save: PathBuf) -> Play {
             save,
             recover: None,
             socket: None,
+            players: None,
             agent: false,
             seat_size: UVec2::new(1920, 1280),
         },

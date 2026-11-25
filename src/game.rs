@@ -376,6 +376,8 @@ fn remedy_line(remedies: &[String]) -> String {
     }
     .into()
 }
+/// The choice that makes the next card current.
+pub(crate) const ADVANCE_CARD: &str = "advance-card";
 /// The prepared position's Resources, indexed like `Faction::ALL`.
 const PREPARED_RESOURCES: [u8; 4] = [6, 0, 5, 15];
 /// The random state of `Game::opening`.
@@ -748,7 +750,7 @@ impl Choice {
     /// Whether the choice only makes the next card current. The human does that at the
     /// table, whichever faction the authority names for it (#197).
     pub fn turns_the_card(&self) -> bool {
-        self.action() == "advance-card"
+        self.action() == ADVANCE_CARD
     }
     /// The map space this choice acts on, as the authority states it in `site`, so
     /// the map can offer it there: a Terror target, opening Kidnap in its space, or an
@@ -2137,7 +2139,7 @@ impl Game {
                 .is_some()
             {
                 vec![self.offer(
-                    "advance-card",
+                    ADVANCE_CARD,
                     "Advance to Pact of Caracas",
                     true,
                     "Make Pact of Caracas current and reveal the draw deck's top card as the new preview (R 2.3.8).",

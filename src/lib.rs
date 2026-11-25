@@ -5,6 +5,7 @@ pub mod assets;
 pub mod faction_seats;
 pub mod save;
 pub mod seat_brief;
+pub mod seat_wait;
 #[cfg(feature = "tabletop")]
 pub mod tabletop;
 pub mod targets;

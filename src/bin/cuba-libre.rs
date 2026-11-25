@@ -9,6 +9,7 @@ fn run() -> Result<(), String> {
         save: PathBuf::new(),
         recover: None,
         socket: None,
+        players: None,
         agent: false,
         seat_size: bevy::prelude::UVec2::new(1920, 1280),
     };
@@ -25,6 +26,9 @@ fn run() -> Result<(), String> {
                 )
             }
             "--socket" => options.socket = Some(args.next().ok_or("--socket needs a path")?.into()),
+            "--player-socket" => {
+                options.players = Some(args.next().ok_or("--player-socket needs a path")?.into());
+            }
             "--agent-seat" => options.agent = true,
             "--seat-size" => {
                 sized_seat = true;
@@ -41,7 +45,7 @@ fn run() -> Result<(), String> {
             }
             "--help" => {
                 println!(
-                    "cuba-libre --cards DIRECTORY --save FILE [--art art/atlas] [--recover-from ORIGINAL] [--agent-seat [--socket SOCKET] [--seat-size WIDTHxHEIGHT]]\nPrepared Terror task candidate. Recovery reads ORIGINAL.previous into an unused FILE. Development sessions idle out after 30 minutes."
+                    "cuba-libre --cards DIRECTORY --save FILE [--art art/atlas] [--recover-from ORIGINAL] [--player-socket SOCKET] [--agent-seat [--socket SOCKET] [--seat-size WIDTHxHEIGHT]]\nPrepared Terror task candidate. Recovery reads ORIGINAL.previous into an unused FILE. Development sessions idle out after 30 minutes. --player-socket is where agent sessions play the factions handed over."
                 );
                 return Ok(());
             }
