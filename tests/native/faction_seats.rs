@@ -170,9 +170,15 @@ pub(super) fn decisions(save: &Path) -> Vec<String> {
 /// The save is, byte for byte, what the same decisions by hand write.
 pub(super) fn assert_by_hand(save: &Path) {
     use cuba_libre_unfolded::save::Session;
+    assert_by_hand_of(save, Session::KIDNAP_ROLLS_1);
+}
+
+/// The same of a match created with `seed`.
+pub(super) fn assert_by_hand_of(save: &Path, seed: u64) {
+    use cuba_libre_unfolded::save::Session;
     let dir = tempfile::tempdir().unwrap();
     let by_hand = dir.path().join("by-hand.json");
-    let mut session = Session::create_seeded(&by_hand, Session::KIDNAP_ROLLS_1).unwrap();
+    let mut session = Session::create_seeded(&by_hand, seed).unwrap();
     for action in decisions(save) {
         let seen = session.observe();
         let id = format!("{}:{action}", seen.revision);
@@ -293,6 +299,8 @@ fn native_an_agent_session_plays_a_handed_over_faction() {
     assert_eq!(view["observation"]["choices"][0]["id"], "7:advance-card");
     assert_eq!(view["table"]["faction_seats"]["awaits"], Value::Null);
     assert_eq!(seat(&view, "Directorio")["state"], "at-table");
+    // Its edition is put away (#208).
+    app.key("Escape");
     let (code, answer) = app.ask(&["choose", &player, "7", "7:advance-card"]);
     assert_eq!((code, &answer["status"]), (1, &json!("refused")));
     // The card is the human's, though the authority names Directorio. A session's choice
@@ -321,6 +329,7 @@ fn native_an_agent_session_plays_a_handed_over_faction() {
         &["choose", &government, "9", "9:end-assault", "--wait"],
     );
     app.until_waiting("Government");
+    app.key("Escape");
     let revision = app.revision();
     assert_eq!(revision, 10);
     let quit = app.request(
@@ -390,6 +399,11 @@ fn native_an_agents_choice_waits_for_the_table_and_the_human() {
     // It asks the human's Government, whose modal holds its withdrawal; the human's Wait
     // moves the match on, so that choice is released and not applied.
     app.decide(&m26, "ask:0:3", "applied");
+    // The edition that tells the human of it lies over the modal, and is put away (#208).
+    let view = app.settle();
+    assert_eq!(holding(&view), ["the transfer modal", "an edition"]);
+    let view = app.key("Escape");
+    assert_eq!(view["observation"]["revision"], 3);
     app.decide(&m26, "end-terror", "held");
     let view = app.settle();
     assert_eq!(holding(&view), ["the transfer modal"]);

@@ -17,3 +17,10 @@ pub mod targets;
 mod terror_chosen;
 #[cfg(test)]
 pub(crate) use terror_chosen::terror_chosen;
+// The longest actions, whose editions the newspaper sets.
+#[cfg(all(test, feature = "tabletop"))]
+#[path = "../tests/support/longest.rs"]
+mod longest;
+/// The longest actions' seed: its Kidnap die is a 3.
+#[cfg(all(test, feature = "tabletop"))]
+const SEED: u64 = 5;

@@ -1362,6 +1362,192 @@ mod tests {
         }
     }
 
+    fn record() -> serde_json::Value {
+        serde_json::from_str(include_str!("../../art/atlas/atlas-newspaper.layout.json")).unwrap()
+    }
+
+    /// The last report of a match played from `seed` by `decisions`.
+    fn report(seed: u64, decisions: &[String]) -> Report {
+        let mut game = Game::opening_with_seed(seed);
+        let mut reports = crate::reports::Reports::new(&game.observe());
+        for decision in decisions {
+            game.apply(decision).unwrap();
+            reports.record(&game.observe());
+        }
+        reports.all().pop().unwrap()
+    }
+
+    /// The layout's samples: their frame, and the report they print.
+    fn samples() -> [(&'static str, Report); 2] {
+        let decisions = |frame: &str| -> Vec<String> {
+            serde_json::from_value(record()[frame]["decisions"].clone()).unwrap()
+        };
+        let terror = decisions("terror");
+        let mut pass = terror.clone();
+        pass.extend(decisions("pass"));
+        [("terror", report(13, &terror)), ("pass", report(13, &pass))]
+    }
+
+    /// Set from the admitted fonts, each sample has the layout's lines, and its blocks,
+    /// rules and foot stand where the layout's frame has them.
+    #[test]
+    fn the_samples_are_set_as_the_layout_sets_them() {
+        let mut set = Set::new();
+        for (frame, report) in samples() {
+            let sheet = set.with(|setting, faces| Sheet::set(setting, faces, &report, &[]));
+            let record = record();
+            let rect = |group: &str, name: &str| -> [f32; 4] {
+                serde_json::from_value(record[frame][group][name].clone())
+                    .unwrap_or_else(|e| panic!("{frame} {name}: {e}"))
+            };
+            let [px, py, pw, ph] = rect("parts", "edition-page");
+            assert_eq!([px, py, pw], fig::PAGE);
+            assert_eq!(sheet.pages.len(), 1);
+            assert_eq!(ph, sheet.height(0), "{frame}");
+            assert_eq!(rect("parts", "edition-folio-rule")[1] - py, fig::FOLIO_RULE);
+            assert_eq!(
+                rect("parts", "edition-headline-rule")[1] - py,
+                sheet.headline_rule()
+            );
+            let tall = |lines: usize, [_, line]: [f32; 2]| lines as f32 * line;
+            let headline = rect("text", "edition-headline");
+            assert_eq!(headline[3], tall(sheet.headline.len(), fig::HEADLINE_TYPE));
+            let summary = rect("text", "edition-summary");
+            assert_eq!(summary[3], tall(sheet.summary.len(), fig::SUMMARY_TYPE));
+            assert_eq!(summary[1] - py, sheet.summary_top());
+            let top = sheet.columns(0);
+            for (i, left) in fig::COLUMN_RULES.into_iter().enumerate() {
+                let expected = [px + left, py + top, fig::RULE, sheet.rules_end(0) - top];
+                assert_eq!(rect("parts", &format!("edition-column-rule-{i}")), expected);
+            }
+            assert_eq!(rect("text", "edition-source")[1] - py, sheet.foot(0));
+            assert_eq!(rect("text", "edition-standings")[1] - py, top);
+            for stands in &sheet.pages[0].stands {
+                let block = &sheet.blocks[stands.block];
+                let name = format!("edition-block-{}", stands.block);
+                let (x, y) = (px + fig::COLUMNS[stands.column], py + top + stands.top);
+                let title = tall(block.title.len(), fig::TITLE_TYPE);
+                assert_eq!(
+                    rect("text", &format!("{name}-title")),
+                    [x, y, block.width, title],
+                    "{frame} {name}"
+                );
+                let mut y = y + block.text_top();
+                for (i, lines) in block.paragraphs.iter().enumerate() {
+                    let text = tall(lines.len(), fig::TEXT_TYPE);
+                    assert_eq!(
+                        rect("text", &format!("{name}-text-{i}")),
+                        [x, y, block.measure, text],
+                        "{frame} {name}"
+                    );
+                    y += text + fig::BETWEEN_SENTENCES;
+                }
+            }
+            assert_eq!(
+                sheet.pages[0].stands.len(),
+                report.articles.len() + report.notes.len()
+            );
+        }
+    }
+
+    /// Every export the page places is the record's, with its size, and admitted, as its
+    /// face is.
+    #[test]
+    fn the_exports_are_the_record_s_and_admitted() {
+        let manifest = crate::assets::NEWSPAPER_MANIFEST;
+        let exports = record()["exports"].as_object().unwrap().clone();
+        for (file, size) in &exports {
+            let bytes = std::fs::read(format!("art/atlas/{file}")).unwrap();
+            let image = image::load_from_memory(&bytes).unwrap();
+            let size: [u32; 2] = serde_json::from_value(size.clone()).unwrap();
+            assert_eq!([image.width(), image.height()], size, "{file}");
+            assert!(manifest.contains(&format!("art/atlas/{file}")), "{file}");
+        }
+        assert!(manifest.contains("art/atlas/NotoSerifDisplay-Bold.ttf"));
+        assert_eq!(manifest.lines().count(), exports.len() + 1);
+        // The plates' sizes hold their slices, at 2 px per unit.
+        let [_, t, _, b] = fig::SHADOW;
+        let shadow = fig::SHADOW[0].max(t).max(b);
+        assert!(PAGE_SLICE > shadow && 2. * PAGE_SLICE < 484.);
+    }
+
+    /// The longest editions found: each prints every block once, in order, within the
+    /// page, and only the unshaded Event's needs a second one.
+    #[test]
+    fn the_longest_editions_are_set_on_one_page_or_two() {
+        let mut set = Set::new();
+        let found: Vec<_> = crate::longest::longest()
+            .iter()
+            .map(|decisions| {
+                let report = report(crate::SEED, decisions);
+                let sheet = set.with(|setting, faces| Sheet::set(setting, faces, &report, &[]));
+                let blocks: Vec<usize> = sheet
+                    .pages
+                    .iter()
+                    .flat_map(|page| page.stands.iter().map(|stands| stands.block))
+                    .collect();
+                assert!(blocks.iter().copied().eq(0..sheet.blocks.len()));
+                let heights: Vec<f32> = (0..sheet.pages.len()).map(|p| sheet.height(p)).collect();
+                assert!(heights.iter().all(|height| *height <= fig::TALLEST));
+                heights
+            })
+            .collect();
+        assert_eq!(
+            found,
+            [vec![1898.], vec![1576.], vec![1886., 604.], vec![1862.]]
+        );
+    }
+
+    /// No edition can be cut: whatever the blocks' heights, each stands once, in order,
+    /// clear of the standings and of each other, and no page is taller than the tallest
+    /// but for a block taller than a column.
+    #[test]
+    fn every_block_stands_once_and_in_its_column() {
+        let tallest = [1224., 1506.];
+        let mut seed = 7_u32;
+        let mut next = |below: u32| {
+            seed = seed.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+            (seed >> 8) % below
+        };
+        let mut several = 0;
+        for _ in 0..400 {
+            let count = next(40);
+            let mut heights: Vec<f32> = (0..count).map(|_| 80. + next(400) as f32).collect();
+            if next(10) == 0 {
+                heights.push(2000.);
+            }
+            let pages = pages(&heights, tallest);
+            several += usize::from(pages.len() > 1);
+            let mut stood = vec![];
+            for (i, page) in pages.iter().enumerate() {
+                let tallest = tallest[usize::from(i > 0)];
+                let mut foot = [0., 0., if i == 0 { 328. } else { 0. }];
+                let mut column = 0;
+                for stands in &page.stands {
+                    assert!(stands.column >= column, "{page:?}");
+                    column = stands.column;
+                    assert!(stands.top >= foot[column], "{page:?}");
+                    let end = stands.top + heights[stands.block];
+                    assert!(end <= page.height.max(tallest.min(end)), "{page:?}");
+                    assert!(end <= tallest || stands.top == 0., "{page:?}");
+                    foot[column] = end + fig::BETWEEN;
+                    stood.push(stands.block);
+                }
+                assert!(i == 0 || !page.stands.is_empty());
+            }
+            assert!(stood.iter().copied().eq(0..heights.len()), "{heights:?}");
+        }
+        assert!(several > 100, "{several}");
+        // Nothing to tell but the standings.
+        assert_eq!(
+            pages(&[], tallest),
+            [Page {
+                stands: vec![],
+                height: fig::STANDINGS
+            }]
+        );
+    }
+
     #[test]
     fn a_number_stays_with_the_word_it_counts() {
         let lines = Set::new().with(|setting, faces| {
@@ -1373,5 +1559,79 @@ mod tests {
             )
         });
         assert_eq!(lines, ["Syndicate gives 26July", "2\u{a0}Resources"]);
+        let bound = bound("26July 4 → 3. 1 Terror marker in 12 spaces: Card 18.");
+        assert_eq!(
+            bound.replace('\u{a0}', "_"),
+            "26July 4_→_3. 1_Terror marker in 12_spaces: Card 18."
+        );
+        assert_eq!(
+            plain(&bound),
+            "26July 4 → 3. 1 Terror marker in 12 spaces: Card 18."
+        );
+    }
+
+    #[test]
+    fn the_folio_line_and_the_tabs_say_which_edition_it_is() {
+        let [(_, terror), (_, pass)] = samples();
+        let edition = |report: &Report, number| Edition {
+            number,
+            report: report.clone(),
+        };
+        assert_eq!(
+            folio(&edition(&terror, 1)),
+            "No. 1 · Card 17 · Alberto Bayo"
+        );
+        assert_eq!(
+            about(&terror),
+            "26July · 1st Eligible · Operation with Special Activity"
+        );
+        assert_eq!(tab(&edition(&terror, 1)), "No. 1 · Terror ends");
+        assert_eq!(about(&pass), "Government · 1st Eligible · Pass");
+        assert_eq!(tab(&edition(&pass, 3)), "No. 3 · Pass");
+        let partway = report(13, &["terror", "transfer", "ask:0:2"].map(String::from));
+        assert_eq!(
+            folio(&edition(&partway, 2)),
+            "No. 2 · partway · Card 17 · Alberto Bayo"
+        );
+        assert_eq!(
+            about(&partway),
+            "26July · 1st Eligible · Terror in progress"
+        );
+        assert_eq!(tab(&edition(&partway, 2)), "No. 2 · partway");
+        // No box is recorded for an Event.
+        let mut event = crate::longest::HANDOFF.map(String::from).to_vec();
+        event.extend(["event:shaded", "resolve-shaded"].map(String::from));
+        assert_eq!(
+            about(&report(13, &event)),
+            "Directorio · 2nd Eligible · Event"
+        );
+        assert_eq!(foot(0, 1), None);
+        assert_eq!(foot(1, 2).unwrap(), "Page 2 of 2 · Left and Right turn it");
+    }
+
+    /// A card's many editions have rows of tabs that say their numbers, each within the
+    /// page, and the rest moves down by the rows.
+    #[test]
+    fn many_tabs_stand_in_rows() {
+        let mut set = Set::new();
+        let [(_, terror), _] = samples();
+        for (count, rows, band) in [(2, 1, 74.), (5, 1, 74.), (6, 1, 74.), (30, 3, 210.)] {
+            let tabs: Vec<(usize, String)> = (1..=count)
+                .rev()
+                .map(|number| (number, format!("No. {number} · Terror ends")))
+                .collect();
+            let sheet = set.with(|setting, faces| Sheet::set(setting, faces, &terror, &tabs));
+            assert_eq!(sheet.tabs.len(), rows, "{count}");
+            assert_eq!(sheet.band(), band);
+            let mut seen = vec![];
+            for row in &sheet.tabs {
+                let wide: f32 = row.iter().map(|(.., width)| width + fig::TAB_GAP).sum();
+                assert!(wide - fig::TAB_GAP <= fig::FULL, "{wide}");
+                seen.extend(row.iter().map(|(number, ..)| *number));
+                assert_eq!(row[0].1.contains("Terror"), count <= 5);
+            }
+            assert!(seen.into_iter().eq((1..=count).rev()));
+            assert!((0..sheet.pages.len()).all(|page| sheet.height(page) <= fig::TALLEST));
+        }
     }
 }

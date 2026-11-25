@@ -744,6 +744,48 @@ mod tests {
         }
     }
 
+    /// #208: the pile of editions keeps its place beside the Propaganda pips wherever the
+    /// seat cards leave it 24 units, and stands 24 above the pips, on their left edge,
+    /// where they do not.
+    #[test]
+    fn the_pile_of_editions_stands_beside_the_pips_or_above_them() {
+        let layout = record();
+        let placed = &layout.areas["editions"];
+        assert_eq!(placed.anchor, Anchor::BottomBeside);
+        assert_eq!(
+            placed.between,
+            Some(["propaganda".to_string(), "seats".to_string()])
+        );
+        let [x, y, w, h] = placed.bounds;
+        for (width, height, beside) in [
+            (3840., 2160., true),
+            (1920., 1080., true),
+            (2520., 1080., true),
+            (1920., 1280., false),
+            (1440., 960., false),
+            (1600., 1280., false),
+        ] {
+            let window = window(width, height);
+            let k = super::super::reference_pixel(&window) / 1.6875;
+            let pile = layout.area("editions", &window);
+            let pips = layout.area("propaganda", &window);
+            let seats = layout.area("seats", &window);
+            let at = format!("{width}x{height}: {pile:?}");
+            assert!((pile.width() - w * k).abs() < 0.01 && (pile.height() - h * k).abs() < 0.01);
+            if beside {
+                assert!((pile.min.x - x * k).abs() < 0.01, "{at}");
+                assert!(
+                    (height - pile.max.y - (2160. - y - h) * k).abs() < 0.01,
+                    "{at}"
+                );
+                assert!(seats.min.x - pile.max.x >= 24. * k - 0.01, "{at}");
+            } else {
+                assert!((pile.min.x - pips.min.x).abs() < 0.01, "{at}");
+                assert!((pips.min.y - pile.max.y - 24. * k).abs() < 0.01, "{at}");
+            }
+        }
+    }
+
     /// #206: the seat cards keep their distance from Save · quit and from the bottom edge
     /// in every window, at the size the scale gives them, and shrink toward that corner
     /// only where they would come within 24 units of the Propaganda pips. On the owner's

@@ -154,7 +154,9 @@ fn assert_areas_and_island(view: &Value, layout: &Value, width: f64, height: f64
     ];
     let tolerance = layout["tolerance"].as_f64().unwrap();
     let drawn = areas(view);
-    let recorded = layout["areas"].as_object().unwrap();
+    // #208: the editions' area is there with their pile, which these tables have none of.
+    let mut recorded = layout["areas"].as_object().unwrap().clone();
+    recorded.remove("editions").unwrap();
     let mut names: Vec<&String> = recorded.keys().collect();
     names.sort_unstable();
     assert_eq!(drawn.keys().collect::<Vec<_>>(), names);
@@ -172,7 +174,7 @@ fn assert_areas_and_island(view: &Value, layout: &Value, width: f64, height: f64
             other => panic!("anchor {other}"),
         }
     };
-    for (name, placed) in recorded {
+    for (name, placed) in &recorded {
         let [l, t, r, b] = edges(&placed["bounds"]);
         let anchor = placed["anchor"].as_str().unwrap();
         let mut up = (b - t) * unit;
