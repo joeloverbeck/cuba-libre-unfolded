@@ -2,6 +2,9 @@
 # Run ignored regressions from both test binaries: those that launch the app, four at
 # once (`--test-threads=1` to 4 chooses), and the in-process ones serially.
 set -euo pipefail
+# Bash reads a script as it runs. The braces make it read all of this one first, so an edit to
+# this script during a run cannot change the run.
+{
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
 echo "revision: $(git rev-parse HEAD)"
@@ -42,10 +45,8 @@ if [[ -z ${CUBA_NATIVE_EVIDENCE:-} && $common != "$(git rev-parse --show-topleve
   export CUBA_NATIVE_EVIDENCE="$common/local/verification/native/${branch//\//-}/$run"
 fi
 
-# A suite of four apps took up to 5.6 GiB of anonymous memory, under the 6 GiB limit of
-# `scripts/heavy`'s memory scope (#190). Each app also takes up to 1.8 GB of graphics
-# memory (#187). The option is taken out of the arguments, because libtest refuses it
-# twice.
+# Four apps fit `scripts/heavy`'s memory scope (docs/agents/parallel-work.md, "Native
+# memory"). The option is taken out of the arguments, because libtest refuses it twice.
 apps=4
 args=()
 while (($#)); do
@@ -194,3 +195,5 @@ if "$whole"; then
     echo "suite inputs not named: files the suite reads differ from the revision or changed during the run"
   fi
 fi
+exit
+}

@@ -865,16 +865,24 @@ mod tests {
             .flatten()
             .cloned()
             .collect();
-        // The models hold four textures: three of the terrain and one of the die. Fewer
-        // would mean the search missed them.
+        // The models' own textures, so a search that missed them fails.
         let models: std::collections::BTreeSet<_> = textures
             .iter()
             .filter_map(Handle::path)
             .filter(|path| path.path().extension().is_some_and(|e| e == "glb"))
             .map(ToString::to_string)
             .collect();
-        assert_eq!(models.len(), 4, "{models:?}");
-        assert!(files.len() > 200, "{} files", files.len());
+        let expected = [
+            "atlas-kidnap-die.glb#Texture0",
+            "atlas-terrain-map.glb#Texture0",
+            "atlas-terrain-map.glb#Texture1",
+            "atlas-terrain-map.glb#Texture2",
+        ];
+        assert!(models.iter().eq(expected), "{models:?}");
+        let art = app.world().resource::<Art>();
+        for key in [assets::CARD_BACK.name, "water/water-c-00023.png"] {
+            assert!(art.images.contains_key(key), "{key}");
+        }
         let images = app.world().resource::<Assets<Image>>();
         for handle in files.iter().chain(&textures) {
             let image = images.get(handle).unwrap();

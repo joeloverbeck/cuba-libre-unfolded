@@ -6,6 +6,9 @@
 # `scripts/heavy --stop` ends this checkout's commands, running or waiting for the lock,
 # and any app they left.
 set -euo pipefail
+# The braces make bash read the whole script first: an edit to this script while it waits
+# for the lock cannot change the run.
+{
 
 if (($# == 0)); then
   echo "usage: scripts/heavy COMMAND [ARG ...] | scripts/heavy --stop" >&2
@@ -70,3 +73,4 @@ fi
 printf '%s\n' "$checkout" > "$stamp"
 
 exec "$@"
+}
