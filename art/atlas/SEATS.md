@@ -16,7 +16,7 @@ Four place cards stand on the sea along the bottom, between the Propaganda pips 
 | It decides, and this build plays none of its options | Build ends here | turned over on the floor | **Take back** |
 
 - **The deciding faction's card stands forward,** 36 up with an ink edge, whoever plays it. No card stands forward while the card is to be turned: that is the human's and no faction's seat.
-- **The controls work at any time:** over the transfer modal's scrim, while the Kidnap die or a card is in the air, and while an agent's choice waits. A click on one lands no card.
+- **The controls work at any time:** over the transfer modal's scrim, while the Kidnap die or a card is in the air, and while an agent's choice waits. A click on one acts at once and lands a card in the air, as any click does.
 - **No notice of a hand-over is drawn:** the card shows it. A socket that cannot be opened is an error on the [notice slip](MAIN-VIEW.md#save--quit-and-the-notice-slip).
 
 ## The line to copy

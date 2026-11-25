@@ -477,7 +477,7 @@ fn sheet(commands: &mut Commands, art: &Art, line: &Line, row: Place, window: &W
                  color: Color,
                  [size, line]: [f32; 2]| {
         let face = if bold { &art.bold } else { &art.font };
-        let mut words = commands.spawn((
+        let words = commands.spawn((
             Text::new(content),
             emblems::Plain(content.into()),
             TextFont {

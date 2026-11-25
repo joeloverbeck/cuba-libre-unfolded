@@ -1091,7 +1091,8 @@ fn click(
     if event.button != bevy::picking::pointer::PointerButton::Primary || play.session.is_none() {
         return;
     }
-    // A seat is handed over and taken back at any time, with a card in the air too.
+    // A seat is handed over and taken back at any time, with a card in the air too, which
+    // the click also lands.
     if let Ok(Control {
         action: Action::Seat(press),
         ..

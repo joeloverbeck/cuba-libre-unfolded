@@ -331,7 +331,8 @@ fn holding(world: &mut World) -> Option<Vec<String>> {
 }
 
 /// Whether the seats have work that only frames do: a request nobody read, a dead client's
-/// wait, an answer whose moment has come, or a held choice that waits only for time.
+/// wait, an answer whose moment has come, a held choice that waits only for time, or a
+/// state the window does not show yet, such as a silence a minute longer.
 pub(super) fn due(world: &mut World) -> bool {
     let Some(holding) = holding(world) else {
         return false;
@@ -344,11 +345,11 @@ pub(super) fn due(world: &mut World) -> bool {
     let held = Faction::ALL
         .into_iter()
         .any(|faction| seats.host.holds_choice(faction));
+    let now = Instant::now();
     seats.transport.as_ref().is_some_and(Transport::waiting)
+        || world.resource::<Interface>().seats != seats.host.states(session.game(), now)
         || seats.host.hung_up(Reply::hung_up)
-        || seats
-            .host
-            .due(session.game(), holding.is_empty(), Instant::now())
+        || seats.host.due(session.game(), holding.is_empty(), now)
         || (held && showing)
 }
 

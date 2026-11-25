@@ -213,8 +213,11 @@ fn native_the_seat_controls_match_the_selected_layout() {
     let view = app.point("option:event:unshaded");
     assert_eq!(view["table"]["briefing"]["option"], "event:unshaded");
     app.capture("an-option-read");
-    let view = app.point("option:limited-operation");
-    assert_eq!(view["table"]["briefing"]["option"], "limited-operation");
+    let view = app.point("option:directorio:limited-operation");
+    assert_eq!(
+        view["table"]["briefing"]["option"],
+        "directorio:limited-operation"
+    );
     let view = app.point("space:havana");
     assert_eq!(view["table"]["status"]["space"], "havana");
     let view = app.point("card:current");
@@ -379,8 +382,8 @@ fn native_each_seat_state_is_shown_and_a_held_choice_is_taken_back() {
         app.choose(choice);
     }
 
-    // Turning the card is the human's, whoever plays its factions; the card is in the air
-    // when Government is taken back and handed over again.
+    // Turning the card is the human's, whoever plays its factions. With the card in the
+    // air Government is taken back at once, by a click that also lands it as any does.
     let revision = app.revision();
     let turn = format!("{revision}:advance-card");
     app.press("seat:directorio:hand-over");
@@ -390,22 +393,12 @@ fn native_each_seat_state_is_shown_and_a_held_choice_is_taken_back() {
     );
     let view = app.observe();
     assert!(view["pending"].to_string().contains("card advance"));
-    for (control, state) in [
-        ("seat:government:take-back", "human"),
-        ("seat:government:hand-over", "awaiting"),
-    ] {
-        app.request(
-            json!({"op":"activate","revision":revision + 1,"component":control}),
-            true,
-        );
-        let view = app.observe();
-        assert_eq!(seat(&view, "Government")["state"], state, "{control}");
-        assert!(
-            view["pending"].to_string().contains("card advance"),
-            "{control}"
-        );
-    }
-    app.settle();
+    app.request(
+        json!({"op":"activate","revision":revision + 1,"component":"seat:government:take-back"}),
+        true,
+    );
+    assert_eq!(seat(&app.observe(), "Government")["state"], "human");
+    app.press("seat:government:hand-over");
 
     // Government's agent Passes, and the build ends at Syndicate.
     let government = app.join("government");
