@@ -28,13 +28,18 @@ pub(super) enum Anchor {
     /// [`BETWEEN_GAP`] of the first area's right edge (#206: the seat cards, between the
     /// Propaganda pips and Save · quit, in a window narrower than the display's shape).
     BottomBetween,
+    /// The bottom and the left edge, beside the first area `between` names, where that
+    /// keeps [`BETWEEN_GAP`] from the second; else as far above the first, on its left
+    /// edge (#208: the pile of editions, beside the Propaganda pips where the seat cards
+    /// leave room, and above the pips in a window narrower than the display's shape).
+    BottomBeside,
     BottomLeft,
     BottomRight,
     Edges,
 }
 
-/// How near an [`Anchor::BottomBetween`] area comes to the area on its left, in frame
-/// units.
+/// How near an [`Anchor::BottomBetween`] or [`Anchor::BottomBeside`] area comes to its
+/// neighbour, in frame units.
 const BETWEEN_GAP: f32 = 24.;
 
 #[derive(Clone, Debug, serde::Deserialize)]
@@ -42,8 +47,8 @@ pub(super) struct Placed {
     /// x, y, width and height in the layout's frame.
     pub bounds: [f32; 4],
     pub anchor: Anchor,
-    /// For [`Anchor::TopBetween`] and [`Anchor::BottomBetween`], the areas to its left
-    /// and its right.
+    /// For [`Anchor::TopBetween`], [`Anchor::BottomBetween`] and [`Anchor::BottomBeside`],
+    /// the areas to its left and its right.
     #[serde(default)]
     pub between: Option<[String; 2]>,
 }
@@ -91,7 +96,24 @@ impl Layout {
                         }
                     }
                 }
-                (Anchor::TopBetween | Anchor::BottomBetween, None) => {
+                // Beside an area placed by its own edges, clear of any other.
+                (Anchor::BottomBeside, Some([beside, other])) => {
+                    let placed = |name: &String| layout.areas.get(name).map(|o| o.anchor);
+                    let moves = |anchor: Anchor| {
+                        matches!(
+                            anchor,
+                            Anchor::TopBetween | Anchor::BottomBetween | Anchor::BottomBeside
+                        )
+                    };
+                    if placed(beside).is_none_or(moves)
+                        || placed(other).is_none_or(|o| o == Anchor::BottomBeside)
+                    {
+                        return Err(format!(
+                            "Main view layout record: {name} cannot lie beside {beside} and clear of {other}"
+                        ));
+                    }
+                }
+                (Anchor::TopBetween | Anchor::BottomBetween | Anchor::BottomBeside, None) => {
                     return Err(format!(
                         "Main view layout record: {name} names no areas it lies between"
                     ));
@@ -156,6 +178,19 @@ impl Layout {
                 let room = corner.x - self.place(left, window).max.x - BETWEEN_GAP * unit;
                 let fits = (room / (w * unit)).clamp(0., 1.);
                 (corner - Vec2::new(w, h) * unit * fits, corner)
+            }
+            Anchor::BottomBeside => {
+                let [beside, other] = self.neighbours(placed);
+                let size = Vec2::new(w, h) * unit;
+                let gap = BETWEEN_GAP * unit;
+                let here = Vec2::new(from_start(min).x, from_end(min).y);
+                let corner = if here.x + size.x + gap <= self.place(other, window).min.x {
+                    here
+                } else {
+                    let beside = self.place(beside, window).min;
+                    Vec2::new(beside.x, beside.y - gap - size.y)
+                };
+                (corner, corner + size)
             }
         };
         Rect { min, max }
@@ -258,8 +293,12 @@ impl Island {
     }
 }
 
-pub(super) fn draw(commands: &mut Commands, layout: &Layout, window: &Window) {
+/// Draws each area's rectangle. The editions' is there with the pile (`editions`).
+pub(super) fn draw(commands: &mut Commands, layout: &Layout, window: &Window, editions: bool) {
     for (name, rect) in layout.areas(window) {
+        if name == newspaper::AREA && !editions {
+            continue;
+        }
         commands.spawn((
             UiRoot,
             Area(name.into()),
@@ -702,6 +741,48 @@ mod tests {
                 slip.max.y < buttons && tag.max.y < buttons,
                 "{at}: the buttons"
             );
+        }
+    }
+
+    /// #208: the pile of editions keeps its place beside the Propaganda pips wherever the
+    /// seat cards leave it 24 units, and stands 24 above the pips, on their left edge,
+    /// where they do not.
+    #[test]
+    fn the_pile_of_editions_stands_beside_the_pips_or_above_them() {
+        let layout = record();
+        let placed = &layout.areas["editions"];
+        assert_eq!(placed.anchor, Anchor::BottomBeside);
+        assert_eq!(
+            placed.between,
+            Some(["propaganda".to_string(), "seats".to_string()])
+        );
+        let [x, y, w, h] = placed.bounds;
+        for (width, height, beside) in [
+            (3840., 2160., true),
+            (1920., 1080., true),
+            (2520., 1080., true),
+            (1920., 1280., false),
+            (1440., 960., false),
+            (1600., 1280., false),
+        ] {
+            let window = window(width, height);
+            let k = super::super::reference_pixel(&window) / 1.6875;
+            let pile = layout.area("editions", &window);
+            let pips = layout.area("propaganda", &window);
+            let seats = layout.area("seats", &window);
+            let at = format!("{width}x{height}: {pile:?}");
+            assert!((pile.width() - w * k).abs() < 0.01 && (pile.height() - h * k).abs() < 0.01);
+            if beside {
+                assert!((pile.min.x - x * k).abs() < 0.01, "{at}");
+                assert!(
+                    (height - pile.max.y - (2160. - y - h) * k).abs() < 0.01,
+                    "{at}"
+                );
+                assert!(seats.min.x - pile.max.x >= 24. * k - 0.01, "{at}");
+            } else {
+                assert!((pile.min.x - pips.min.x).abs() < 0.01, "{at}");
+                assert!((pips.min.y - pile.max.y - 24. * k).abs() < 0.01, "{at}");
+            }
         }
     }
 

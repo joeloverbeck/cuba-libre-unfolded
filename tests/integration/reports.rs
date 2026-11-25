@@ -16,7 +16,11 @@
 //! position before and compares the result with the position after, so it finds a number
 //! or place that is not the committed result's.
 
-use crate::explore::{choose, drained, parallel};
+use crate::{
+    SEED,
+    explore::{choose, drained, parallel},
+    longest::{self, CARD_18, HANDOFF},
+};
 use cuba_libre_unfolded::{
     ActionChoice, Choice, EventOutcome, Faction, Game, Kind, Observation, Space, State, Terrain,
     Transfer, TransferChoice,
@@ -84,16 +88,6 @@ impl Match {
         self.reports.all().pop().expect("A report")
     }
 }
-
-const HANDOFF: [&str; 5] = [
-    "terror",
-    "kidnap",
-    "kidnap:roll",
-    "terror:santiago",
-    "end-terror",
-];
-/// After the handoff, at Government's decision on card 18, the shaded text executed.
-const CARD_18: [&str; 3] = ["event:shaded", "resolve-shaded", "advance-card"];
 
 fn at_card_18() -> Match {
     let mut played = Match::played(5, &HANDOFF);
@@ -892,121 +886,15 @@ fn length(report: &Report) -> (usize, usize, usize) {
     (words, report.articles.len(), report.notes.len())
 }
 
-impl Match {
-    /// Every sentence a transfer article has, for `executor` and each other faction in both
-    /// directions: 10 requests met, 10 answered with nothing, and 1 gift.
-    fn circulate(&mut self, executor: Faction) {
-        let mut others: Vec<Faction> = Faction::ALL
-            .into_iter()
-            .filter(|f| *f != executor)
-            .collect();
-        others.sort_by_key(|f| std::cmp::Reverse(self.now().resources[f.index()]));
-        let mut given = vec![];
-        for other in &others {
-            let n = other.index();
-            if self.now().resources[n] < 10 {
-                self.play(&["transfer", &format!("give:{n}:10")]);
-                given.push(*other);
-            }
-            for answer in ["decline", "authorize:1"] {
-                for _ in 0..10 {
-                    self.play(&["transfer", &format!("ask:{n}:1"), answer]);
-                }
-            }
-        }
-        for other in others.iter().filter(|other| !given.contains(other)) {
-            self.play(&["transfer", &format!("give:{}:10", other.index())]);
-        }
-    }
-
-    /// The executing faction removes every piece of its own in `spaces`.
-    fn remove_all(&mut self, spaces: &[&str]) {
-        self.play(&["remove"]);
-        for space in spaces {
-            loop {
-                let all = self.now().choices.iter().rev().find(|c| {
-                    c.supported && c.removal().is_some_and(|(there, ..)| there == *space)
-                });
-                let Some(action) = all.map(|c| c.action().to_owned()) else {
-                    break;
-                };
-                self.play(&[&action]);
-            }
-        }
-        self.play(&["done-removal"]);
-    }
-}
-
-/// The longest report this build was found to make of each action but the Pass. Each has
-/// every article it can: a transfer article for each giver and recipient of which one
-/// executes (6, or 10 when both Directorio and 26July do), the removal of each executing
-/// faction, and the action's own. An Assault pays for at most 12 spaces at 2 each (R 6.3.1):
-/// card 18 follows Kidnap, whose Terror paid 1 of the 26 Resources, and nothing adds any.
-/// Only Havana and Santiago hold cubes beside a piece an Assault can affect (R 3.2.4).
+/// The longest report this build was found to make of each action but the Pass.
 fn longest() -> Vec<Match> {
-    let mut terror = Match::played(
-        5,
-        &[
-            "terror",
-            "kidnap",
-            "kidnap:roll",
-            "terror:santiago",
-            "terror:oriente",
-        ],
-    );
-    terror.play(&[
-        "transfer",
-        "ask:3:15",
-        "authorize:15",
-        "transfer",
-        "give:3:10",
-    ]);
-    terror.circulate(Faction::M26);
-    terror.remove_all(&["santiago", "oriente", "sierra-maestra"]);
-    terror.play(&["transfer", "ask:0:1", "end-terror"]);
-
-    let mut shaded = Match::played(5, &HANDOFF);
-    shaded.play(&["event:shaded"]);
-    shaded.circulate(Faction::Directorio);
-    shaded.remove_all(&["havana", "camaguey-province"]);
-    shaded.play(&["resolve-shaded"]);
-
-    let mut unshaded = Match::played(5, &HANDOFF);
-    unshaded.play(&["event:unshaded"]);
-    unshaded.circulate(Faction::Directorio);
-    unshaded.remove_all(&["havana", "camaguey-province"]);
-    unshaded.play(&["rally:beneficiary:26july"]);
-    unshaded.circulate(Faction::M26);
-    // Without its Base 26July Rallies nowhere, which ends the Event (R 3.3.1).
-    unshaded.remove_all(&["santiago", "oriente", "sierra-maestra"]);
-
-    let mut assault = at_card_18();
-    assault.play(&["government:assault"]);
-    assault.circulate(Faction::Government);
-    for other in [Faction::M26, Faction::Directorio, Faction::Syndicate] {
-        let due = 24 - assault.now().resources[0];
-        let all = assault.now().resources[other.index()].min(due);
-        let n = other.index();
-        assault.play(&[
-            "transfer",
-            &format!("ask:{n}:{all}"),
-            &format!("authorize:{all}"),
-        ]);
-    }
-    assault.play(&["assault:havana:syndicate", "assault:santiago:26july"]);
-    let rest: Vec<String> = assault
-        .now()
-        .spaces
+    longest::longest()
         .iter()
-        .map(|space| space.id.clone())
-        .filter(|id| !["havana", "santiago", "oriente"].contains(&id.as_str()))
-        .collect();
-    for id in &rest {
-        assault.play(&[&format!("assault:{id}:none")]);
-    }
-    assault.remove_all(&["havana", "camaguey-city", "santiago", "las-villas"]);
-    assault.play(&["end-assault"]);
-    vec![terror, shaded, unshaded, assault]
+        .map(|decisions| {
+            let decisions: Vec<&str> = decisions.iter().map(String::as_str).collect();
+            Match::played(SEED, &decisions)
+        })
+        .collect()
 }
 
 /// What #208 lays out: how long the longest and the shortest reports are. The counts of

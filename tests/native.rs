@@ -1,10 +1,15 @@
 #![cfg(feature = "tabletop")]
 //! Real application/seat/client regression. Requires the accepted local card faces.
+// Not unused: `longest` takes these from its includer, through `super::`.
+use cuba_libre_unfolded::{Faction, Game};
 use serde_json::{Value, json};
 use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+
+/// The longest actions' seed: its Kidnap die is a 3.
+const SEED: u64 = 5;
 
 #[path = "native/assault.rs"]
 mod assault;
@@ -24,12 +29,16 @@ mod card_tag;
 mod faction_seats;
 #[path = "native/focus_mark.rs"]
 mod focus_mark;
+#[path = "support/longest.rs"]
+mod longest;
 #[path = "native/main_view.rs"]
 mod main_view;
 #[path = "native/map_keys.rs"]
 mod map_keys;
 #[path = "native/marker_supply.rs"]
 mod marker_supply;
+#[path = "native/newspaper.rs"]
+mod newspaper;
 #[path = "native/pile_tags.rs"]
 mod pile_tags;
 #[path = "native/rally.rs"]

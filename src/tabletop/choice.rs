@@ -979,8 +979,8 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
 /// Enter does to it: the panel's; the spaces the map offers (#168); the marker supply
 /// (#173) and the Available Forces ledger's four rows above the panel, whose tags
 /// focus opens as hover does (#160); then the current and the preview card (#139) and
-/// the two piles (#144), whose tags it opens too; the seat controls (#206); and last Save
-/// · quit, whose tag focus opens too and which Enter activates (#174).
+/// the two piles (#144), whose tags it opens too; the card's editions (#208); the seat
+/// controls (#206); and last Save · quit, whose tag focus opens too and which Enter activates (#174).
 fn focusable(
     view: &Observation,
     ui: &Interface,
@@ -995,6 +995,7 @@ fn focusable(
         .extend(super::cards::Slot::ALL.map(|slot| (slot.name().to_owned(), Action::Card(slot))));
     controls
         .extend(super::piles::Pile::ALL.map(|pile| (pile.name().to_owned(), Action::Pile(pile))));
+    controls.extend(super::newspaper::focusable(ui));
     controls.extend(super::seat_cards::focusable(ui));
     controls.push((super::save_quit::NAME.to_owned(), Action::Quit));
     controls
@@ -1241,6 +1242,8 @@ pub(super) fn keys(
             ui.dirty = true;
         }
         Action::Row(action) => popover.choose_row(&action),
+        // Enter or Space on the pile takes its latest edition (#208).
+        Action::Edition(press) => super::newspaper::press(&mut ui, press),
         // `faction_seats::serve` reads it in this frame. Focus moves to the button that
         // takes the pressed one's place on the card.
         Action::Seat(press) => {

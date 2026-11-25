@@ -129,10 +129,19 @@ An external Claude Code or Codex session can play a faction for you. The four ca
 - **One session plays one faction.** A faction nobody joined as waits and never acts. A silent agent's card and panel say for how many minutes it was not heard from; nothing moves for it until it does, or you take its faction back. As it joins, a session is given its faction's seat brief: its objective and standing, its forces, its actions under the rules and which of them this build plays, and its rivals' standings. The brief gives no advice and tells nothing that faction may not know.
 - **While an agent's faction decides,** the panel says whose decision it is and its options can be read and not chosen; the map, with its popovers, the cards and the standings too. You turn the card yourself, whichever factions you play.
 - **The line to copy** stays on its sheet until a session joins, you take the faction back, you press Escape or you click the map.
-- **An agent's choice waits** for a card or the Kidnap die to come to rest, for a landed die to show its result for 2 seconds (Continue ends that sooner), and for what you have open: a popover, a pinned or opened briefing, a pinned card's tag, or the transfer modal while it asks you to decide. If you decide first and the match moves on, its choice is dropped and it chooses again.
+- **An agent's choice waits** for a card or the Kidnap die to come to rest, for a landed die to show its result for 2 seconds (Continue ends that sooner), and for what you have open: a popover, a pinned or opened briefing, a pinned card's tag, an [edition](#the-newspaper), or the transfer modal while it asks you to decide. If you decide first and the match moves on, its choice is dropped and it chooses again.
 - **Transfer requests** go to whoever plays the giver. An agent that plays 26July keeps its withdrawal while you, as the giver, decide, and you keep yours while an agent does.
 - **Taking a faction back** works at any time. The session ends, and a choice of its that was not applied is cancelled.
 - **Save · quit** ends every session. Who plays which faction is not saved: after a relaunch you play all four. The save is the one the same decisions by your own hand would write.
+
+## The newspaper
+
+When a faction you do not play completes an action, an edition of *El Correo de la Isla* opens over the table and says what changed ([NEWSPAPER.md](../art/atlas/NEWSPAPER.md)): the faction, the action and the spaces, the pieces, Resources, Support and Opposition, Control, markers, standings, eligibility and a die roll. The game writes it from the committed result. One opens partway when you must decide inside another faction's action, such as on a Transfer request or a Rally, and the next one tells only what followed. There is none for a faction you play. A faction that changes hands during its action is told from where it became an agent's, and one you take back is yours.
+
+- **It opens** once the pieces and the die have come to rest. While it is open, or about to open, nothing is decided: your controls, the camera and the keys beneath it do nothing, and an agent's next choice waits. F1 to F4 still hand factions over and take them back.
+- **Putting it away** takes a click anywhere, Escape, Enter or Space, and decides nothing. A long edition continues on a second page: Left and Right turn it.
+- **Reading it again:** the pile beside the Propaganda pips holds the current card's editions. Click it, or Tab to it and press Enter, for the latest. With more than one, each has a tab under the folio line: click one, or press Tab for the next. The pile goes when you turn the card.
+- **Editions are not saved.** One you had not read when you quit is not shown again.
 
 ## Camera and keys
 
@@ -142,12 +151,13 @@ An external Claude Code or Codex session can play a faction for you. The four ca
 | Wheel or `+`/`-` | Zoom |
 | `W` `A` `S` `D` | Pan |
 | `Home` | Restore the map framing; also brings back hover tags that extreme framing hid |
-| `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked, then no effect, then those nothing can pay for) and an open popover's rows and button, then the marker supply, the four Available Forces rows, the current and the preview card, the two piles, the seat cards' buttons and Save · quit |
+| `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked, then no effect, then those nothing can pay for) and an open popover's rows and button, then the marker supply, the four Available Forces rows, the current and the preview card, the two piles, the card's editions, the seat cards' buttons and Save · quit. A reopened edition turns to the card's next one |
 | `Enter`, `Space` | Activate the focused control. A dark line outside it ([FOCUS-MARK.md](../art/atlas/FOCUS-MARK.md)) marks the button, row or option that Enter would press; in the transfer modal that is the main button until Tab reaches another control, and in the amount field too. A focused space, card, pile, the marker supply or an Available Forces row shows its tag instead. While a played card is moving, land the cards instead |
+| `Left`, `Right` | Turn the pages of an open edition; otherwise they orbit |
 | `F1`, `F2`, `F3`, `F4` | Hand Government, 26July, Directorio or Syndicate to an agent, or take it back ([above](#handing-a-faction-to-an-agent)) |
-| `Escape` | Close a card's tag or the sheet with a seat's line, unpin a briefing, cancel an open transfer, or close a tag or popover; a space popover closed from the keyboard leaves focus on its space |
+| `Escape` | Put an open edition away, which Enter and Space do too; otherwise close a card's tag or the sheet with a seat's line, unpin a briefing, cancel an open transfer, or close a tag or popover; a space popover closed from the keyboard leaves focus on its space |
 
-The camera answers wherever the pointer is over the map. A scroll, a drag or a click on a panel stays with that panel: it neither moves the camera nor reaches the space beneath. The transfer modal takes camera input while open.
+The camera answers wherever the pointer is over the map. A scroll, a drag or a click on a panel stays with that panel: it neither moves the camera nor reaches the space beneath. The transfer modal and an open edition take camera input while open.
 
 ## Saving and quitting
 

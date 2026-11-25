@@ -366,6 +366,8 @@ fn native_each_seat_state_is_shown_and_a_held_choice_is_taken_back() {
         app.settle();
         assert_eq!(decisions(&app.save).last().unwrap(), action);
     }
+    // 26July's edition is put away.
+    app.key("Escape");
 
     let view = app.settle();
     assert_eq!(state_words(&view, "directorio"), "Thinking");
@@ -456,7 +458,8 @@ fn native_each_seat_state_is_shown_and_a_held_choice_is_taken_back() {
     app.settle();
     assert_eq!(decisions(&app.save).last().unwrap(), "done-removal");
     app.decide(&government, "end-assault", "applied");
-    let view = app.settle();
+    app.settle();
+    let view = app.key("Escape");
     assert_eq!(seat(&view, "Syndicate")["state"], "build-ends");
     assert_eq!(state_words(&view, "syndicate"), "Build ends here");
     assert_eq!(

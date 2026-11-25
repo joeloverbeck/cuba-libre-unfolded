@@ -57,6 +57,7 @@ mod execution;
 mod faction_seats;
 mod focus_mark;
 mod highlights;
+mod newspaper;
 mod notice;
 mod palette;
 mod pile_tags;
@@ -106,6 +107,8 @@ struct Art {
     /// Lato Bold, for the action choice's labels (FigCraft `Choice/*` styles) and the
     /// Kidnap result.
     bold: Handle<Font>,
+    /// Noto Serif Display Bold, the newspaper's headlines and titles.
+    headline: Handle<Font>,
     scene: Handle<WorldAsset>,
     terror: Handle<WorldAsset>,
     terror_clip: Handle<AnimationClip>,
@@ -174,6 +177,8 @@ struct Interface {
     presses: Vec<seat_cards::Press>,
     /// The open sheet with a seat's line to copy.
     line: Option<seat_cards::Line>,
+    /// The current card's editions (#208): while one is due or open nothing is decided.
+    editions: crate::editions::Editions,
     /// The transfer modal's counterpart, direction, typed amount and focus.
     transfer: transfer::State,
     /// The revision a Kidnap roll just created in this run, until the die's
@@ -187,6 +192,10 @@ impl Interface {
     /// Whether the human plays `faction`.
     fn plays(&self, faction: Faction) -> bool {
         self.seats[faction.index()] == crate::faction_seats::SeatState::Human
+    }
+    /// The factions the human plays, indexed like `Faction::ALL`.
+    fn played(&self) -> [bool; 4] {
+        Faction::ALL.map(|faction| self.plays(faction))
     }
 }
 #[derive(Component)]
@@ -261,6 +270,9 @@ enum Action {
     Transfer(transfer::Input),
     /// A seat control (#206): hands a faction over, takes it back or copies its line.
     Seat(seat_cards::Press),
+    /// The newspaper (#208): puts the open edition away, turns to another or takes the
+    /// latest from the pile. Decides nothing.
+    Edition(newspaper::Press),
 }
 #[derive(Resource, Clone)]
 struct RenderReady {
@@ -373,6 +385,12 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .world_mut()
         .resource_mut::<Assets<Font>>()
         .add(Font::from_bytes(verified.files["Lato-Bold.ttf"].clone()));
+    let headline = app
+        .world_mut()
+        .resource_mut::<Assets<Font>>()
+        .add(Font::from_bytes(
+            verified.files["NotoSerifDisplay-Bold.ttf"].clone(),
+        ));
     let die_art = die::DieArt::load(&mut app, &verified.files["kidnap-die.json"])?;
     let main_view = areas::Layout::read(&verified.files["atlas-main-view.layout.json"])?;
     let server = app.world().resource::<AssetServer>();
@@ -407,6 +425,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             images,
             font,
             bold,
+            headline,
             scene,
             terror,
             terror_clip: terror_clip.clone(),
@@ -422,6 +441,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .init_resource::<Counts>()
         .init_resource::<die::Roll>()
         .init_resource::<piles::Advance>()
+        .init_resource::<newspaper::Drawn>()
         .insert_resource(TerrorLoop {
             clip: terror_clip,
             graph,
@@ -472,16 +492,19 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 bind_spaces,
                 hover_disclosures,
                 // A playing card advance takes Space and Enter before anything else
-                // reads them. The presented die takes them too, so the action choice
-                // and the modal read the keyboard first and stand aside while it is
-                // shown. A decision any of them applied may have played a card.
+                // reads them, but an open edition, which takes every key. The presented
+                // die takes them too, so the action choice and the modal read the
+                // keyboard first and stand aside while it is shown. A decision any of
+                // them applied may have played a card, or have an edition to open.
                 (
+                    newspaper::keys,
                     piles::keys,
                     choice::keys,
                     transfer::keys,
                     faction_seats::serve,
                     die::present,
                     piles::follow,
+                    newspaper::open,
                 )
                     .chain(),
                 draw_ui,
@@ -502,6 +525,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                     pile_tags::draw,
                     piles::present,
                     save_quit::hover,
+                    newspaper::draw,
                     focus_mark::draw,
                 )
                     .chain(),
@@ -974,11 +998,13 @@ fn admit(
         ui.dirty = true;
         return;
     }
-    let font_ready = [&art.font, &art.bold].into_iter().all(|font| {
-        fonts
-            .get(font)
-            .is_some_and(|font| unfolded_tabletop::loading::font_registered(font, &mut context))
-    });
+    let font_ready = [&art.font, &art.bold, &art.headline]
+        .into_iter()
+        .all(|font| {
+            fonts
+                .get(font)
+                .is_some_and(|font| unfolded_tabletop::loading::font_registered(font, &mut context))
+        });
     if !report.loaded
         || !font_ready
         || !ready.ready.load(Ordering::Acquire)
@@ -999,7 +1025,10 @@ fn admit(
                 .map_err(|e| e.to_string())
         });
     match result {
-        Ok(session) => play.session = Some(session),
+        Ok(session) => {
+            ui.editions = crate::editions::Editions::from(&session.observe());
+            play.session = Some(session);
+        }
         Err(error) => play.error = Some(error),
     };
     ui.dirty = true;
@@ -1165,6 +1194,8 @@ fn click(
             return;
         }
         Action::Submit(..) | Action::Seat(_) => return,
+        // Reading an edition changes nothing in the match.
+        Action::Edition(press) => newspaper::press(&mut ui, *press),
         // Reading a card changes nothing in the match.
         Action::Card(slot) => cards::activate(&mut ui, *slot),
         Action::Decision(owner, rev) | Action::Commit(owner, rev) => {
@@ -1233,8 +1264,12 @@ fn map_click_closes_tag(
 /// Submits a decision through the checked game seam and words its outcome. Pointer
 /// clicks and the keyboard's Enter on a focused control both come here. It submits nothing
 /// for a faction handed over to an agent; turning the card is the human's, whichever
-/// faction the rules authority names for it (#197).
+/// faction the rules authority names for it (#197). While an edition is due or open it
+/// submits nothing: the human decides knowing what it says (#208).
 fn decide(play: &mut Play, ui: &mut Interface, owner: Faction, rev: u64, name: &str) {
+    if ui.editions.holds() {
+        return;
+    }
     if !ui.plays(owner) && Choice::action_of(name) != crate::game::ADVANCE_CARD {
         return notice::refuse(
             ui,
@@ -1261,8 +1296,12 @@ fn submit(
     name: &str,
 ) -> Result<Observation, crate::save::Submit> {
     let previous = play.game().observe();
-    play.session.as_mut().unwrap().submit(owner, rev, name)?;
-    let after = play.game().observe();
+    let session = play.session.as_mut().unwrap();
+    session.submit(owner, rev, name)?;
+    let after = session.observe();
+    let played = ui.played();
+    ui.editions
+        .decided(&after, |told| session.reports_since(told), played);
     if name.ends_with(":kidnap:roll") {
         // The result is saved; the tray shows it from this frame's clock
         // (die::present), and the notice names it once the die lands.
@@ -1473,8 +1512,8 @@ fn grow(bounds: Option<Rect>, p: Vec2) -> Option<Rect> {
 fn bottom(window: &Window) -> Vec2 {
     Vec2::new(0., window.height() - HEIGHT * reference_pixel(window))
 }
-/// What the table says to the shared camera: an unopened session, the transfer modal
-/// and a presented Kidnap die block it. The whole window shows the scene; the
+/// What the table says to the shared camera: an unopened session, the transfer modal, an
+/// open edition and a presented Kidnap die block it. The whole window shows the scene; the
 /// camera itself leaves the pointer to any interface node it is over, and each
 /// overlaid area has one (`areas::Area`). The die no longer needs the block for its
 /// counts (#177); lifting it is the owner's design decision.
@@ -1487,7 +1526,7 @@ fn camera_facts(play: &Play, ui: &Interface, roll: &die::Roll) -> TableFacts {
         )
     });
     TableFacts {
-        blocks_camera: play.session.is_none() || modal || die,
+        blocks_camera: play.session.is_none() || modal || die || ui.editions.open().is_some(),
         scene: Scene::WholeWindow,
         ..default()
     }
@@ -1641,7 +1680,7 @@ fn draw_ui(
     // The map fills the window (#142). Each area keeps its distance from the edge
     // or centre the main view's layout anchors it to, and takes the pointer over
     // its own rectangle.
-    areas::draw(&mut commands, &main_view, &window);
+    areas::draw(&mut commands, &main_view, &window, ui.editions.pile() > 0);
     let frame = picture(
         &mut commands,
         &art,
@@ -1680,6 +1719,8 @@ fn draw_ui(
     // The pips follow the cards while an advance is shown, and the count discs wait.
     let scene = advance.scene(&view, time.elapsed_secs_f64());
     piles::overlay(&mut commands, &art, &scene, &window);
+    // #208: the pile of this card's editions beside the pips.
+    newspaper::pile(&mut commands, &art, &view, &ui, &main_view, &window);
     // #206: the four seats between the pips and Save · quit.
     seat_cards::draw(&mut commands, &art, &view, &ui, &main_view, &window);
     // #174: Save · quit in the bottom-right corner, and above it the notice slip when
