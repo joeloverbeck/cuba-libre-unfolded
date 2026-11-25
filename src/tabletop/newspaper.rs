@@ -883,7 +883,8 @@ fn print(
                 height: px(height * u),
                 ..default()
             },
-            GlobalZIndex(LAYER + 2),
+            // Over the pile's three layers.
+            GlobalZIndex(LAYER + 4),
             Part {
                 name: "edition-page".into(),
                 words: None,
@@ -1216,7 +1217,7 @@ pub(super) fn pile(
         fig::DISC,
         u,
         area.min,
-        z,
+        z + 1,
     );
     commands.entity(disc).insert(part("editions-disc", None));
     let mut words = |name: &str, text: String, face, color, place: [f32; 4], line: f32| {
@@ -1230,7 +1231,7 @@ pub(super) fn pile(
             place,
             u,
             area.min,
-            z,
+            z + 2,
         );
         commands.entity(entity).insert((
             LineHeight::Px(line * u),
@@ -1412,6 +1413,20 @@ mod tests {
             let tall = |lines: usize, [_, line]: [f32; 2]| lines as f32 * line;
             let headline = rect("text", "edition-headline");
             assert_eq!(headline[3], tall(sheet.headline.len(), fig::HEADLINE_TYPE));
+            // Balanced, as the frame's are.
+            if frame == "terror" {
+                assert_eq!(
+                    sheet.headline,
+                    ["26July executes Terror in", "Oriente and Santiago de Cuba"]
+                );
+                assert_eq!(
+                    sheet.summary.iter().map(|l| plain(l)).collect::<Vec<_>>(),
+                    [
+                        "Kidnap in Santiago de Cuba: the die shows 2,",
+                        "and 26July takes 2 Resources from Government."
+                    ]
+                );
+            }
             let summary = rect("text", "edition-summary");
             assert_eq!(summary[3], tall(sheet.summary.len(), fig::SUMMARY_TYPE));
             assert_eq!(summary[1] - py, sheet.summary_top());
@@ -1469,6 +1484,29 @@ mod tests {
         let [_, t, _, b] = fig::SHADOW;
         let shadow = fig::SHADOW[0].max(t).max(b);
         assert!(PAGE_SLICE > shadow && 2. * PAGE_SLICE < 484.);
+    }
+
+    /// While an edition is due, before it opens too, the human submits nothing.
+    #[test]
+    fn nothing_is_submitted_while_an_edition_is_due() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut play = test_play(dir.path().join("match.json"));
+        let mut ui = Interface::default();
+        let seen = play.game().observe();
+        ui.editions = crate::editions::Editions::from(&seen);
+        ui.seats[Faction::M26.index()] = crate::faction_seats::SeatState::Thinking;
+        submit(&mut play, &mut ui, Faction::M26, 0, "0:pass").unwrap();
+        assert!(ui.editions.due() && ui.editions.open().is_none());
+        ui.seats = default();
+        let mut undecided = test_play(dir.path().join("other.json"));
+        decide(&mut undecided, &mut ui, Faction::M26, 0, "0:terror");
+        assert_eq!(undecided.game().observe().revision, 0);
+        ui.editions.open_next();
+        decide(&mut undecided, &mut ui, Faction::M26, 0, "0:terror");
+        assert_eq!(undecided.game().observe().revision, 0);
+        ui.editions.put_away();
+        decide(&mut undecided, &mut ui, Faction::M26, 0, "0:terror");
+        assert_eq!(undecided.game().observe().revision, 1);
     }
 
     /// The longest editions found: each prints every block once, in order, within the

@@ -299,7 +299,7 @@ fn the_event_is_directorios_while_the_human_rallies() {
     table.play(&["event:unshaded"]);
     table.none();
     table.play(&["rally:beneficiary:26july"]);
-    assert_eq!(table.one().1, false);
+    assert!(!table.one().1, "partway");
     table.play(&["rally:sierra-maestra:place:2"]);
     let (faction, complete, ..) = table.one();
     assert_eq!((faction, complete), (Directorio, true));

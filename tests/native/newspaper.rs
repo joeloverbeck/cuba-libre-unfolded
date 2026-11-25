@@ -516,10 +516,22 @@ fn native_an_edition_tells_each_action_of_a_faction_the_human_does_not_play() {
     );
     assert_eq!(report["articles"].as_array().unwrap().len(), 1, "told once");
     closed(&away(&mut app, "Space"));
-    sessions.play(&mut app, &["decline", "end-terror"]);
+    // It asks an agent's Syndicate, which the human then takes back: the decision is theirs
+    // from then, and has its edition.
+    sessions.play(&mut app, &["decline", "transfer", "ask:3:1"]);
+    closed(&app.settle());
+    app.key(SYNDICATE);
+    sessions.0.remove("Syndicate");
+    let report = check(&mut app);
+    assert_eq!(
+        report["summary"],
+        "26July asks Syndicate for 1 Resource. Syndicate decides."
+    );
+    app.key("Escape");
+    sessions.play(&mut app, &["authorize:1", "end-terror"]);
     let report = check(&mut app);
     assert_eq!(report["headline"], "26July ends Terror");
-    assert_eq!(paper(&app.settle())["open"]["number"], 3);
+    assert_eq!(paper(&app.settle())["open"]["number"], 4);
     app.key("Escape");
     // Directorio has nothing to choose after Terror without Kidnap: the build ends.
     sessions.join(&mut app, "Directorio");
@@ -663,7 +675,7 @@ fn native_an_edition_tells_each_action_of_a_faction_the_human_does_not_play() {
     assert_by_hand_of(&app.save, ROLLS_2);
     app.quit();
 
-    // Directorio's own Rally, and an Assault in no space.
+    // A Rally by an agent's 26July, and an Assault in no space.
     let (mut app, sessions) = start(
         "newspaper-none-",
         "1920x1080",
@@ -681,10 +693,34 @@ fn native_an_edition_tells_each_action_of_a_faction_the_human_does_not_play() {
         ],
     );
     app.key("Escape");
-    sessions.play(
-        &mut app,
-        &["event:unshaded", "rally:beneficiary:directorio"],
+    sessions.play(&mut app, &["event:unshaded", "rally:beneficiary:26july"]);
+    // The Rally that ends the Event places pieces: the edition opens once they have settled.
+    let at = app.revision();
+    let rally = format!("{at}:rally:sierra-maestra:place:2");
+    let mut placed = app.player(
+        "p",
+        &["choose", &sessions.0["M26"], &at.to_string(), &rally],
     );
+    let mut settling = 0;
+    let view = loop {
+        let view = app.request(json!({"op":"advance","steps":1}), true);
+        if view["observation"]["revision"] == at + 1 {
+            let pending = view["pending"].to_string();
+            if paper(&view)["open"].is_object() {
+                assert!(!pending.contains("piece counts"), "{pending}");
+                break view;
+            }
+            assert_eq!(paper(&view)["due"], true);
+            assert!(pending.contains("an edition to open"), "{pending}");
+            settling += usize::from(pending.contains("piece counts"));
+        }
+        assert!(app.step < 2000, "the edition does not open");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    };
+    assert!(settling > 1, "{settling}");
+    assert_eq!(paper(&view)["open"]["report"]["complete"], true);
+    let (_, answer) = app.answered(&mut placed);
+    assert_eq!(answer["status"], "applied", "{answer}");
     let report = check(&mut app);
     assert_eq!(
         report["headline"],
@@ -816,10 +852,7 @@ fn native_an_open_edition_holds_every_decision_until_it_is_put_away() {
     let view = app.key("Escape");
     untouched(&mut app, &view, "Escape");
     assert_eq!(paper(&view)["pile"], 2);
-    assert_eq!(
-        view["table"]["main_view"]["areas"]["editions"].is_array(),
-        true
-    );
+    assert!(view["table"]["main_view"]["areas"]["editions"].is_array());
     for way in ["Escape", "Enter", "Space"] {
         // Reopened by the keyboard, at the latest.
         for _ in 0..60 {
