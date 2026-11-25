@@ -759,6 +759,7 @@ fn a_view_is_whole_and_says_where_the_match_stands() {
     assert_eq!(view["state"]["current_card"]["number"], 17);
     assert_eq!(view["state"]["preview_card"]["number"], 18);
     assert_eq!(view["state"]["deck"]["face_down"], 33);
+    assert_eq!(view["state"]["played"][0]["number"], 17);
     assert!(
         view["rules"]["edition"]
             .as_str()
@@ -915,6 +916,48 @@ fn a_choice_waits_for_the_table_and_is_applied_when_it_settles() {
     // Its next decision is told by its wait.
     let waiting = s.wait(&player);
     assert_eq!(s.answer(waiting).unwrap()["status"], "decision");
+}
+
+/// A choice the rules refuse is not held for a moving table, and leaves the one held.
+#[test]
+fn an_illegal_choice_is_refused_while_the_table_moves() {
+    let mut s = Sitting::at_the_handoff();
+    let player = s.seat(Directorio);
+    let government = s.seat(Government);
+    s.room.settled = false;
+    assert_eq!(s.choose(&player, "event:shaded")["status"], "held");
+    for (who, action) in [
+        (&player, "directorio:pass"),
+        (&player, "terror"),
+        (&government, "event:shaded"),
+    ] {
+        let request = s.choice(who, action);
+        s.refused(request);
+    }
+    assert!(s.host.holds_choice(Directorio) && !s.host.holds_choice(Government));
+    s.room.settled = true;
+    s.poll();
+    assert_eq!(s.room.commits[0].1, "5:event:shaded");
+}
+
+/// A choice held first is applied first, also when the next arrives in the frame the
+/// table settles.
+#[test]
+fn choices_are_applied_in_the_order_they_were_made() {
+    let mut s = Sitting::new();
+    let m26 = s.seat(M26);
+    let syndicate = s.seat(Syndicate);
+    for action in ["terror", "transfer", "ask:3:2"] {
+        s.applied(&m26, action);
+    }
+    s.room.settled = false;
+    assert_eq!(s.choose(&m26, "end-terror")["status"], "held");
+    s.room.settled = true;
+    let late = s.choice(&syndicate, "authorize:2");
+    let answer = s.ask(late);
+    assert_eq!(answer["status"], "refused", "{answer}");
+    assert!(error(&answer).contains("the match is at revision 4"));
+    assert_eq!(s.room.session.observe().resources, [6, 0, 5, 15]);
 }
 
 #[test]
@@ -1266,6 +1309,10 @@ fn a_giver_that_set_its_decision_aside_is_held_and_not_told_again() {
     let reopened = s.applied(&syndicate, "reopen");
     assert_eq!(reopened["view"]["decision"]["yours"], true);
     assert!(s.answer(sent).is_none(), "its own answer told it");
+    // That wait cannot tell it the decision it was told, so it does not hide a silence.
+    assert!(s.host.waits(Syndicate));
+    s.pass(120);
+    assert_eq!(s.state(Syndicate), SeatState::Silent { minutes: 2 });
     // Held while the table moves, and set aside when it is applied.
     s.room.settled = false;
     assert_eq!(s.choose(&syndicate, "wait")["status"], "held");

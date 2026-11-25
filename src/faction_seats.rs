@@ -686,13 +686,10 @@ impl<R> Host<R> {
         (decides(game) == Some(faction) && !set_aside).then_some(revision)
     }
 
-    /// What there is for `faction`'s session as it waits. Its decision is no longer asked
-    /// of it once its choice in it is held.
+    /// What there is for `faction`'s session as it waits.
     fn pending(&self, faction: Faction, game: &Game) -> Pending {
-        match self.decision(faction, game) {
-            Some(revision) if !self.holds_choice(faction) => Pending::Decision(revision),
-            _ => Pending::Nothing,
-        }
+        self.decision(faction, game)
+            .map_or(Pending::Nothing, Pending::Decision)
     }
 
     /// What a held wait of the session `id` may be told, beside its released choices.
