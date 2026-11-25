@@ -356,9 +356,9 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
     let die_art = die::DieArt::load(&mut app, &verified.files["kidnap-die.json"])?;
     let main_view = areas::Layout::read(&verified.files["atlas-main-view.layout.json"])?;
     let server = app.world().resource::<AssetServer>();
-    let scene = model(server, "atlas-terrain-map.glb#Scene0");
-    let terror = model(server, "atlas-terror-token.glb#Scene0");
-    let terror_clip = model(server, "atlas-terror-token.glb#Animation0");
+    let scene = model_part(server, "atlas-terrain-map.glb#Scene0");
+    let terror = model_part(server, "atlas-terror-token.glb#Scene0");
+    let terror_clip = model_part(server, "atlas-terror-token.glb#Animation0");
     let (graph, node) = AnimationGraph::from_clip(terror_clip.clone());
     let graph = app
         .world_mut()
@@ -494,14 +494,14 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
     Ok(app)
 }
 /// How the table keeps an image it only draws. The renderer takes the pixels, so the app
-/// holds no second copy; the size and sampler stay, for the interface's layout. An image
-/// any system reads after it loads uses the default instead, and says why. Nothing can
+/// holds no second copy of them; the size stays, which the interface reads. An image any
+/// system reads after it loads uses the default instead, and says why. Nothing can
 /// upload these again from memory: a changed image must be loaded afresh.
 const DRAWN_ONLY: RenderAssetUsages = RenderAssetUsages::RENDER_WORLD;
 
 /// Loads one part of an authored model with `DRAWN_ONLY` textures. Its meshes keep their
-/// copies, because picking and the piece placement read them.
-fn model<A: Asset>(server: &AssetServer, part: impl Into<AssetPath<'static>>) -> Handle<A> {
+/// copies: picking, the island survey, the popovers and the space tags read them.
+fn model_part<A: Asset>(server: &AssetServer, part: impl Into<AssetPath<'static>>) -> Handle<A> {
     server
         .load_builder()
         .with_settings(|settings: &mut GltfLoaderSettings| settings.load_materials = DRAWN_ONLY)

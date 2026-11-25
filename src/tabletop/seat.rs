@@ -861,13 +861,20 @@ mod tests {
                     &m.normal_map_texture,
                     &m.occlusion_texture,
                 ]
-                .map(Clone::clone)
             })
             .flatten()
+            .cloned()
             .collect();
-        // A count that is too low would mean the search found nothing to check.
+        // The models hold four textures: three of the terrain and one of the die. Fewer
+        // would mean the search missed them.
+        let models: std::collections::BTreeSet<_> = textures
+            .iter()
+            .filter_map(Handle::path)
+            .filter(|path| path.path().extension().is_some_and(|e| e == "glb"))
+            .map(ToString::to_string)
+            .collect();
+        assert_eq!(models.len(), 4, "{models:?}");
         assert!(files.len() > 200, "{} files", files.len());
-        assert!(textures.len() > 4, "{} textures", textures.len());
         let images = app.world().resource::<Assets<Image>>();
         for handle in files.iter().chain(&textures) {
             let image = images.get(handle).unwrap();

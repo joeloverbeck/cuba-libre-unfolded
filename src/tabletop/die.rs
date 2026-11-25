@@ -198,10 +198,10 @@ impl DieArt {
             return Err("The Kidnap die record must list 4 tumbles and 6 faces".into());
         }
         let server = app.world().resource::<AssetServer>();
-        let die = model(server, "atlas-kidnap-die.glb#Scene0");
-        let tray = model(server, "atlas-kidnap-tray.glb#Scene0");
+        let die = model_part(server, "atlas-kidnap-die.glb#Scene0");
+        let tray = model_part(server, "atlas-kidnap-tray.glb#Scene0");
         let clips: Vec<Handle<AnimationClip>> = (0..CLIPS)
-            .map(|i| model(server, format!("atlas-kidnap-die.glb#Animation{i}")))
+            .map(|i| model_part(server, format!("atlas-kidnap-die.glb#Animation{i}")))
             .collect();
         let (graph, nodes) = AnimationGraph::from_clips(clips.iter().cloned());
         let graph = app
