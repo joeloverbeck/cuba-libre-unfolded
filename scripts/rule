@@ -19,12 +19,17 @@ for id in "$@"; do
   fi
   # A rule is a `### ID — title` heading and what follows it up to the next `##` or
   # `###` heading or the end of its file.
-  if ! awk -v id="$id" '
+  rc=0
+  awk -v id="$id" '
     FNR == 1 { printing = 0 }
     /^###? / { printing = ($1 == "###" && $2 == id); if (printing) found = 1 }
     printing
     END { exit !found }
-  ' docs/principles/*.md; then
+  ' docs/principles/*.md || rc=$?
+  # awk exits 1 for no such rule. Any other failure, such as a reader that closed the
+  # pipe (141), ends the run and is not reported as a missing rule.
+  if ((rc > 1)); then exit "$rc"; fi
+  if ((rc == 1)); then
     echo "scripts/rule: no rule $id in docs/principles/" >&2
     failed=1
   fi
