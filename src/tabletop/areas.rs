@@ -695,6 +695,58 @@ mod tests {
                 "{at}: room for lines"
             );
             assert!(decision.max.y < tag.min.y, "{at}: the tag clears the panel");
+            // #206: above the seat cards' buttons, on a card that stands forward too.
+            let seats = layout.area("seats", &window);
+            let buttons = seats.min.y + 130. * seats.width() / 1940.;
+            assert!(
+                slip.max.y < buttons && tag.max.y < buttons,
+                "{at}: the buttons"
+            );
+        }
+    }
+
+    /// #206: the seat cards keep their distance from Save · quit and from the bottom edge
+    /// in every window, at the size the scale gives them, and shrink toward that corner
+    /// only where they would come within 24 units of the Propaganda pips. On the owner's
+    /// display that is the frame's own place.
+    #[test]
+    fn the_seat_cards_stand_between_the_pips_and_save_quit() {
+        let layout = record();
+        let placed = &layout.areas["seats"];
+        assert_eq!(placed.anchor, Anchor::BottomBetween);
+        assert_eq!(
+            placed.between,
+            Some(["propaganda".to_string(), "save-quit".to_string()])
+        );
+        let [x, y, w, h] = placed.bounds;
+        for (width, height, shrinks) in [
+            (3840., 2160., false),
+            (1920., 1080., false),
+            (2520., 1080., false),
+            (3440., 1440., false),
+            (1920., 1280., true),
+            (1600., 1280., true),
+        ] {
+            let window = window(width, height);
+            let k = super::super::reference_pixel(&window) / 1.6875;
+            let pips = layout.area("propaganda", &window);
+            let quit = layout.area("save-quit", &window);
+            let area = layout.area("seats", &window);
+            let at = format!("{width}x{height}: {area:?}");
+            assert!(
+                (quit.min.x - area.max.x - (3516. - x - w) * k).abs() < 0.02,
+                "{at}"
+            );
+            assert!(
+                (height - area.max.y - (2160. - y - h) * k).abs() < 0.02,
+                "{at}"
+            );
+            assert!((area.width() / area.height() - w / h).abs() < 0.001, "{at}");
+            assert!(area.min.x - pips.max.x >= 24. * k - 0.02, "{at}");
+            assert_eq!(area.width() < w * k - 0.02, shrinks, "{at}");
+            if shrinks {
+                assert!((area.min.x - pips.max.x - 24. * k).abs() < 0.02, "{at}");
+            }
         }
     }
 

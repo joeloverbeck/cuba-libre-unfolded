@@ -1989,12 +1989,12 @@ mod tests {
         let view = Game::opening().observe();
         let ui = Interface::default();
         let order = names(&view, &ui);
-        assert_eq!(order.len(), 22);
+        assert_eq!(order.len(), 26);
         assert_eq!(order[0], "option:pass");
         assert_eq!(order[11], "choice-commit");
         // Then the marker supply (#173) and the Available Forces rows above the panel
-        // (#160), both cards and both piles, whose tags focus opens (#139, #144), and
-        // last Save · quit (#174).
+        // (#160), both cards and both piles, whose tags focus opens (#139, #144), the
+        // seat cards' buttons (#206), and last Save · quit (#174).
         assert_eq!(
             order[12..],
             [
@@ -2007,6 +2007,10 @@ mod tests {
                 "card:preview",
                 "pile:played",
                 "pile:deck",
+                "seat:government:hand-over",
+                "seat:26july:hand-over",
+                "seat:directorio:hand-over",
+                "seat:syndicate:hand-over",
                 "quit"
             ]
         );
@@ -2036,13 +2040,17 @@ mod tests {
                 "card:preview",
                 "pile:played",
                 "pile:deck",
+                "seat:government:hand-over",
+                "seat:26july:hand-over",
+                "seat:directorio:hand-over",
+                "seat:syndicate:hand-over",
                 "quit"
             ]
         );
         ui.choice.ribbon = true;
         let order = names(&game.observe(), &ui);
         assert_eq!(
-            order[order.len() - 15..],
+            order[order.len() - 19..],
             [
                 "briefing-ribbon",
                 "briefing-tab:kidnap",
@@ -2058,11 +2066,87 @@ mod tests {
                 "card:preview",
                 "pile:played",
                 "pile:deck",
+                "seat:government:hand-over",
+                "seat:26july:hand-over",
+                "seat:directorio:hand-over",
+                "seat:syndicate:hand-over",
                 "quit"
             ]
         );
         ui.choice.pinned = Some("end-terror".into());
         assert!(names(&game.observe(), &ui).contains(&"1:end-terror".to_owned()));
+    }
+
+    /// While an agent's faction decides, no stop submits anything: the strip's Take back
+    /// stands for the commit, the rows and the map's spaces stay to be read, and a seat's
+    /// buttons are stops whatever its state. At each of its decisions in card 17's play.
+    #[test]
+    fn tab_reaches_nothing_that_submits_for_an_agent() {
+        use crate::faction_seats::SeatState;
+        let mut game = Game::opening();
+        let mut seen = std::collections::BTreeSet::new();
+        for action in [
+            "terror",
+            "transfer",
+            "back",
+            "remove",
+            "done-removal",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:unshaded",
+            "",
+        ] {
+            let view = game.observe();
+            for pinned in [
+                None,
+                Some("terror"),
+                Some("end-terror"),
+                Some("event:shaded"),
+            ] {
+                let mut ui = Interface {
+                    seats: [SeatState::Thinking; 4],
+                    ..default()
+                };
+                ui.choice.pinned = pinned.map(Into::into);
+                let mut popover = Popover::default();
+                let targeting = aim(&view);
+                popover.click_space("santiago", &targeting);
+                for (name, action) in focusable(&view, &ui, &targeting, &popover) {
+                    assert!(
+                        !matches!(
+                            action,
+                            Action::Commit(..) | Action::Decision(..) | Action::Submit(..)
+                        ),
+                        "{name} at revision {}",
+                        view.revision
+                    );
+                    seen.insert(name);
+                }
+                // The human's own: the same stops submit again.
+                ui.seats = [SeatState::Human; 4];
+                let own = focusable(&view, &ui, &targeting, &popover);
+                assert!(
+                    own.iter().all(|(name, _)| name != "seat-strip:take-back"),
+                    "{own:?}",
+                    own = own.iter().map(|(name, _)| name).collect::<Vec<_>>()
+                );
+            }
+            if !action.is_empty() {
+                decide(&mut game, action);
+            }
+        }
+        for stop in [
+            "seat-strip:take-back",
+            "option:event:shaded",
+            "step:end-terror",
+            "space:santiago",
+            "popover:row:kidnap",
+            "seat:syndicate:take-back",
+        ] {
+            assert!(seen.contains(stop), "{stop}");
+        }
     }
 
     /// Card 18 with Government's Assault opened (#169). Seed 2's Kidnap roll takes 5

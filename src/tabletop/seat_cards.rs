@@ -477,7 +477,7 @@ fn sheet(commands: &mut Commands, art: &Art, line: &Line, row: Place, window: &W
                  color: Color,
                  [size, line]: [f32; 2]| {
         let face = if bold { &art.bold } else { &art.font };
-        commands.spawn((
+        let mut words = commands.spawn((
             Text::new(content),
             emblems::Plain(content.into()),
             TextFont {
@@ -495,6 +495,7 @@ fn sheet(commands: &mut Commands, art: &Art, line: &Line, row: Place, window: &W
             Pickable::IGNORE,
             ChildOf(parent),
         ));
+        words.id()
     };
     let sheet = commands
         .spawn((
@@ -649,7 +650,7 @@ fn sheet(commands: &mut Commands, art: &Art, line: &Line, row: Place, window: &W
         ))
         .observe(click)
         .id();
-    words(
+    let label = words(
         commands,
         again,
         "seat-line:copy-label",
@@ -658,6 +659,13 @@ fn sheet(commands: &mut Commands, art: &Art, line: &Line, row: Place, window: &W
         INK,
         [fig::BUTTON_SIZE, fig::BUTTON_LINE],
     );
+    commands.entity(label).insert((
+        TextLayout::justify(Justify::Center),
+        Node {
+            width: percent(100),
+            ..default()
+        },
+    ));
 }
 
 /// Draws the strip where the panel's commit stands, with the line above it, for the

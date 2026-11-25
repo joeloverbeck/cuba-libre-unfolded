@@ -287,6 +287,7 @@ fn native_each_seat_state_is_shown_and_a_held_choice_is_taken_back() {
         (before, saved)
     );
     let camera = view["table"]["camera"].clone();
+    app.point("space:las-villas");
     let zoomed = app.request(
         json!({"op":"scroll","revision":0,"component":"space:las-villas","y":4}),
         true,
