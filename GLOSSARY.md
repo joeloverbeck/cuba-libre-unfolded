@@ -29,8 +29,16 @@ The cards not yet played, face down except for the preview card on top. Its numb
 _Avoid_: Draw pile, stock
 
 **Faction seat**:
-The player role responsible for one faction's decisions, held by a human or an assigned external agent.
+The player role responsible for one faction's decisions, held by a human or by one external agent session, which holds no other faction seat.
 _Avoid_: Development seat, built-in bot
+
+**Seat brief**:
+What an agent session is given to play its faction seat: the information that seat needs to decide, and only the knowledge that seat may have. It is distinct from a briefing, the panel's explanation of an option, and from the brief form of a development seat's reply.
+_Avoid_: Faction brief, player brief
+
+**Edition**:
+A newspaper page the app writes, from committed results only, to tell the human what a faction the human does not play has done. It is distinct from a proclamation, which a faction writes, and from the edition of the rules.
+_Avoid_: Newspaper report, news page
 
 **Development seat**:
 The agent-operated playtesting role for inspecting and exercising the actual application, distinct from playing an assigned faction.
