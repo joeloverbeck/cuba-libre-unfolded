@@ -412,7 +412,26 @@ fn native_an_agents_choice_waits_for_the_table_and_the_human() {
     // Its own Kidnap step pins nothing of the human's.
     assert_eq!(view["table"]["choice"]["pinned"], Value::Null);
     app.decide(&m26, "kidnap:cancel", "applied");
-    let revision = app.revision();
+    // Two choices that reach one frame: the second waits for what the first changed.
+    app.settle();
+    let at = app.revision();
+    let mut pair = [(at, "kidnap"), (at + 1, "kidnap:cancel")].map(|(at, action)| {
+        let sent = app.player(
+            "p",
+            &["choose", &m26, &at.to_string(), &format!("{at}:{action}")],
+        );
+        std::thread::sleep(Duration::from_millis(300));
+        sent
+    });
+    app.request(json!({"op":"advance","steps":1}), true);
+    let [first, second] = pair.each_mut().map(|sent| app.answered(sent).1);
+    assert_eq!(
+        (&first["status"], &second["status"]),
+        (&json!("applied"), &json!("held")),
+        "{second}"
+    );
+    let revision = app.settle()["observation"]["revision"].as_u64().unwrap();
+    assert_eq!(revision, at + 2);
     app.activate("briefing-ribbon", revision);
     app.decide(&m26, "kidnap", "held");
     assert_eq!(holding(&app.settle()), ["a pinned or opened briefing"]);
@@ -512,6 +531,8 @@ fn native_the_human_takes_a_seat_back_at_any_time() {
     assert_eq!(seat(&view, "Syndicate")["state"], "human");
     let (_, told) = app.answered(&mut waiting);
     assert_eq!(told["status"], "closed", "{told}");
+    let reason = told["reason"].as_str().unwrap();
+    assert!(reason.contains("The human plays Syndicate now"), "{told}");
 
     // A held choice is not applied.
     app.decide(&m26, "terror", "applied");
@@ -554,8 +575,14 @@ fn native_the_human_takes_a_seat_back_at_any_time() {
     assert_eq!(seat(&app.observe(), "M26")["state"], "human");
     app.settle();
 
+    // The landed die's result holds an agent's choice for a while, which settling runs.
+    let m26 = app.seat_agent(M26, "26july");
+    app.decide(&m26, "terror:santiago", "held");
+    let view = app.settle();
+    assert_eq!(view["observation"]["revision"], revision + 2, "{view}");
+    app.key(M26);
+
     // A session whose command died keeps its seat, and its next wait is told.
-    app.activate("kidnap-die:continue", revision + 1);
     let directorio = app.seat_agent(DIRECTORIO, "directorio");
     let mut dead = app.player("d", &["wait", &directorio]);
     app.until_waiting("Directorio");
@@ -565,9 +592,7 @@ fn native_the_human_takes_a_seat_back_at_any_time() {
     while seat(&app.settle(), "Directorio")["waits"] == true {
         assert!(Instant::now() < end, "a dead client's wait is held");
     }
-    for action in ["terror:santiago", "end-terror"] {
-        app.choose(action);
-    }
+    app.choose("end-terror");
     assert_eq!(seat(&app.observe(), "Directorio")["state"], "thinking");
     let (_, told) = app.ask(&["wait", &directorio]);
     assert_eq!(told["status"], "decision");
