@@ -46,7 +46,7 @@ if [[ -z ${CUBA_NATIVE_EVIDENCE:-} && $common != "$(git rev-parse --show-topleve
 fi
 
 # Four apps fit `scripts/heavy`'s memory scope and the card's memory (measurements:
-# docs/agents/parallel-work.md, "Native suite"). The option is taken out of the arguments,
+# docs/agents/parallel-work.md, "Native memory"). The option is taken out of the arguments,
 # because libtest refuses it twice.
 apps=4
 args=()
