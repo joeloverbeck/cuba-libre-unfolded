@@ -86,9 +86,9 @@ fn native_construct_transfer_resumes_at_the_giver_and_finishes_after_spending() 
     );
 
     let syndicate = app.seat_agent(faction_seats::SYNDICATE, "syndicate");
-    app.decide(&syndicate, "syndicate:limited-operation", "applied");
-    app.decide(&syndicate, "transfer", "applied");
-    app.decide(&syndicate, "ask:1:2", "applied");
+    client_applies(&mut app, &syndicate, "syndicate:limited-operation");
+    client_applies(&mut app, &syndicate, "transfer");
+    client_applies(&mut app, &syndicate, "ask:1:2");
     let interrupted = app.observe()["table"]["newspaper"]["open"].clone();
     let report = &interrupted["report"];
     assert_eq!(report["action"], "construct");
@@ -140,7 +140,7 @@ fn native_construct_transfer_resumes_at_the_giver_and_finishes_after_spending() 
     app.decide(&giver, "authorize:5", "refused");
     let stale = app.revision().to_string();
     let choice = format!("{stale}:authorize:3");
-    let applied = app.decide(&giver, "authorize:3", "applied");
+    let applied = client_applies(&mut app, &giver, "authorize:3");
     assert_eq!(
         app.observe()["observation"]["resources"],
         json!([11, 1, 5, 6])
@@ -199,7 +199,7 @@ fn native_construct_transfer_resumes_at_the_giver_and_finishes_after_spending() 
     let previous = app.save_bytes();
     fs::write(app.root.join("before-finish.json"), &previous).unwrap();
     let syndicate = app.seat_agent(faction_seats::SYNDICATE, "syndicate-finish");
-    app.decide(&syndicate, "end-construct", "applied");
+    client_applies(&mut app, &syndicate, "end-construct");
     assert_eq!(fs::read(previous_path(&app.save)).unwrap(), previous);
     let (code, told) = app.ask(&["observe", &syndicate]);
     assert_eq!(code, 0, "{told}");
@@ -275,4 +275,26 @@ fn native_construct_transfer_resumes_at_the_giver_and_finishes_after_spending() 
     assert_eq!(fs::read(previous_path(&app.save)).unwrap(), previous);
     assert_eq!(fs::read(source).unwrap(), terminal);
     app.quit();
+}
+
+fn client_applies(app: &mut Native, player: &str, action: &str) -> Value {
+    let before = app.revision();
+    let (code, reply) = app.ask(&[
+        "choose",
+        player,
+        &before.to_string(),
+        &format!("{before}:{action}"),
+    ]);
+    assert_eq!(code, 0, "{action}: {reply}");
+    // A submission may arrive while the table still has a frame to settle.
+    assert!(
+        matches!(reply["status"].as_str(), Some("applied" | "held")),
+        "{action}: {reply}"
+    );
+    assert_eq!(
+        app.settle()["observation"]["revision"],
+        before + 1,
+        "{action}"
+    );
+    reply
 }
