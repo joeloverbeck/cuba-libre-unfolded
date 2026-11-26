@@ -46,6 +46,8 @@ Once the launcher reports `ready`, connect to the seat.
 
 Build the executables from the reviewed checkout into the review package with `scripts/heavy scripts/package-review-binaries "$package"` (requires `jq`). Include them all in the package manifest. Have the replay script launch the packaged game and call `"$package/cuba-tools" seat`. Keep the input and recovery saves with their recorded hashes, and run each branch on a fresh copy.
 
+For a faction-player handoff, put the runnable launcher commands in the message the owner receives. Give the actual package path so each command works from a fresh terminal. If the package provides `player.sh`, show the two alternatives (`player.sh codex` and `player.sh claude`) with their full paths. For a checkout install, use the commands from `cuba-tools player-folders`. Tell the owner to run one launcher per seat, then use **Hand over** and **Copy its line** and paste the line at that player's prompt. Label the proposed provider lineup as a suggestion unless the owner selected a particular lineup for the run.
+
 Follow the owner’s launch instructions in order at their display size. Capture the first decision frame before hover, focus, pin or click. Compare what each instruction promises with the frame visible at that step, including the choices and their spacing. If a briefing requires input, name that input in the instructions. Inspect the result after committing. Run the packaged replay from outside the build checkout using its packaged executables.
 
 Capture every briefing, tag and popover the steps open, and read each as a player would: a word alone on a line, a citation split across lines, and a preview that names pieces without saying which stay and why are findings, as illegible text is. #175 called every text legible; the owner then found a stranded word in a briefing it had not captured, and a preview that read as if it affected Guerrillas it could not.
@@ -238,6 +240,23 @@ The table the seat drives hosts agent sessions' faction seats (#203, [foundation
 - **A real session.** `cuba-tools player-folders` writes the folders a session runs in and installs its client, in `$XDG_DATA_HOME` or `~/.local/share` ([the play guide](../playing.md#opening-a-session)); `seat:<faction>:copy` gives the line to paste. A session runs its installed client, so run `player-folders` again after a change. Sessions cost quota: a ticket names the ones it starts.
 - **Clipboard.** The windowless table keeps the copied line itself, in `table.faction_seats.copied`; it never writes the desktop's clipboard.
 - **Save.** Who plays which faction is in no save. After a relaunch every faction is the human's.
+
+### Reporting a real session's call limits
+
+Report one seat and session at a time. Use the ticket's accepted limits for that run and count from its session and approval records. As soon as a bounded event is exercised, run `cuba-tools session-costs FILE` and put its four rows in the ticket's evidence. Keep the event times and trace references in the private handoff so another agent can reproduce each count.
+
+The input is a JSON file. For example, these are the measured Claude counts and original limits for #205:
+
+```json
+{
+  "idle":           {"observed": 0, "limit": 0},
+  "wait_per_event": {"observed": 1, "limit": 1},
+  "approval":       {"observed": 0, "limit": 0},
+  "close":          {"observed": 2, "limit": 1}
+}
+```
+
+Count model calls during the ticket's required quiet interval, the most waiting calls for any one gameplay event, approval-model calls for game commands, and model calls after the table closes. Count distinct provider responses, including a response that only reads the close result or writes notes. For a ceiling expressed per command, report the highest count for a single command. Use `null` for an observation without evidence, including an idle interval that ended early. Exit 0 means every row passed, 1 means a ceiling failed or the input was invalid, and 3 means observations are missing with no known failure. Surface a failed row before another live run that depends on it. Keep it with the limits under which the run took place when recording a later owner ruling.
 
 ## What the table reports
 

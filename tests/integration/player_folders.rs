@@ -53,6 +53,15 @@ fn each_tool_has_a_folder_of_the_instructions_and_its_permission() {
     let output = written(data.path());
     assert!(output.status.success(), "{output:?}");
     let root = data.path().join("cuba-libre-unfolded");
+    let launch = String::from_utf8(output.stdout).unwrap();
+    for (folder, tool) in [("claude-code", "claude"), ("codex", "codex")] {
+        let directory = root.join("player").join(folder);
+        let command = format!("cd -- '{}' && {tool}", directory.display());
+        assert!(
+            launch.lines().any(|line| line.trim() == command),
+            "{launch}"
+        );
+    }
     let client = root.join("client/cuba-player");
     let path = client.to_str().unwrap();
     assert_eq!(

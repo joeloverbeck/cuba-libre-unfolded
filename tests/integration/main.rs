@@ -54,6 +54,7 @@ mod save_quit;
 mod seat_brief;
 mod seat_briefs;
 mod seat_reference;
+mod session_costs;
 mod terror;
 mod terror_token;
 mod transfers;
