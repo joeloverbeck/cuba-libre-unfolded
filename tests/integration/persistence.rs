@@ -208,7 +208,8 @@ fn completed_alberto_bayo_advances_once_and_reloads_at_government_opening() {
             handoff
                 .choices
                 .iter()
-                .all(|choice| choice.owner == Faction::Syndicate && !choice.supported)
+                .all(|choice| choice.owner == Faction::Syndicate
+                    && choice.supported == (choice.action() == "syndicate:pass"))
         );
         assert!(
             handoff.choices[4]
@@ -713,7 +714,7 @@ fn new_sessions_seed_once_from_entropy_while_resume_preserves_the_exact_seed() {
 /// of only the format and the accepted rules source. A restart keeps the consumed
 /// randomness, and the match revision equals the number of decisions.
 #[test]
-fn a_save_holds_its_seed_decisions_and_position_under_format_2() {
+fn a_save_holds_its_seed_decisions_and_position_under_format_4() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("seeded.json");
     // Seed 5 rolls 3 (kidnap.rs's shared RNG cases).
@@ -730,7 +731,7 @@ fn a_save_holds_its_seed_decisions_and_position_under_format_2() {
     let saved = record(&path);
     assert_eq!(
         saved["identity"],
-        serde_json::json!({"format": "3", "source": cuba_libre_unfolded::assets::SOURCE})
+        serde_json::json!({"format": "4", "source": cuba_libre_unfolded::assets::SOURCE})
     );
     assert_eq!(saved["payload"]["seed"], 5);
     assert_eq!(
@@ -777,10 +778,9 @@ fn saves_this_build_cannot_continue_are_refused_with_every_file_unchanged() {
     });
     format_1["payload"] = valid["payload"]["position"].clone();
     cases.push(("another build", reseal(&format_1)));
-    // The same position under another format number: format 2, which builds before
-    // #171 wrote.
+    // A record under the previous format number.
     let mut other_format = valid.clone();
-    other_format["identity"]["format"] = "2".into();
+    other_format["identity"]["format"] = "3".into();
     cases.push(("another build", reseal(&other_format)));
     // The position does not follow from its decisions.
     let mut moved = valid.clone();

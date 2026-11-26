@@ -361,11 +361,11 @@ fn native_an_agent_session_plays_a_handed_over_faction() {
     let view = app.observe();
     assert_eq!(view["observation"]["revision"], revision);
     assert_eq!(seat(&view, "Government")["state"], "human");
-    // Syndicate's options are listed and none is played: the build ends here.
+    // Syndicate's Pass is playable after the reload of Government's decision.
     let syndicate = app.seat_agent(SYNDICATE, "syndicate");
     let (_, seen) = app.ask(&["observe", &syndicate]);
-    assert_eq!(seen["view"]["decision"]["stands"], "build-ends");
-    assert_eq!(seat(&app.settle(), "Syndicate")["state"], "build-ends");
+    assert_eq!(seen["view"]["decision"]["stands"], "open");
+    assert_eq!(seat(&app.settle(), "Syndicate")["state"], "thinking");
     let (code, _) = app.ask(&["observe", &government]);
     assert_eq!(code, 1, "an identity ends with its table");
     assert_eq!(app.save_bytes(), saved);

@@ -378,7 +378,7 @@ pub(super) fn draw(
     };
     let turning = view.choices.iter().any(Choice::turns_the_card);
     for faction in Faction::ALL {
-        let forward = faction == view.owner && !turning;
+        let forward = faction == view.owner && !turning && !view.card_18_complete();
         let by = Vec2::new(
             faction.index() as f32 * fig::PITCH,
             if forward { 0. } else { fig::FORWARD },

@@ -487,7 +487,9 @@ fn totals(first: &Moment, last: &Moment) -> Vec<String> {
 fn eligibility(first: &Moment, last: &Moment, faction: Faction) -> Vec<String> {
     let (was, is) = (&first.eligibility, &last.eligibility);
     let mut lines = vec![];
-    if let Some(recorded) = recorded(last, faction) {
+    if let Some(recorded) = recorded(last, faction)
+        && !(last.card == 18 && is.next_card.is_some())
+    {
         lines.push(format!("{} is in the {recorded} box.", faction.name()));
     }
     if was.m26_next_card != is.m26_next_card
@@ -507,12 +509,19 @@ fn eligibility(first: &Moment, last: &Moment, faction: Faction) -> Vec<String> {
                 .collect();
             listing(&names)
         };
-        lines.push(format!(
-            "Card {}: {} Eligible, {} Ineligible.",
-            last.next_card,
-            those(true),
-            those(false)
-        ));
+        let ineligible = those(false);
+        if ineligible.is_empty() {
+            lines.push(format!(
+                "All four factions are Eligible for card {}.",
+                last.next_card
+            ));
+        } else {
+            lines.push(format!(
+                "Card {}: {} Eligible, {ineligible} Ineligible.",
+                last.next_card,
+                those(true),
+            ));
+        }
     }
     if was.event_restriction != is.event_restriction
         && let Some(kept) = is.event_restriction

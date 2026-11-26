@@ -1,6 +1,7 @@
 //! Matched Santiago positions worked from R 3.1, 3.2.4, 6.3.1 and #130.
 use cuba_libre_unfolded::{
     AssaultPreview, Choice, Faction, Game, Kind, Observation, State,
+    reports::Reports,
     targets::{SpaceState, space_targets},
 };
 
@@ -550,6 +551,84 @@ const RALLY: [&str; 3] = [
     "rally:beneficiary:26july",
     "rally:sierra-maestra:place:4",
 ];
+
+#[test]
+fn syndicate_pass_finishes_card_18_after_havana_assault() {
+    let mut game = assault_after(4, &SHADED);
+    choose(&mut game, "assault:havana:syndicate");
+    choose(&mut game, "end-assault");
+    let before = game.observe();
+    assert_eq!(before.owner, Faction::Syndicate);
+    assert_eq!(before.next.as_ref().unwrap().role, "2nd Eligible");
+    assert_eq!(before.resources[Faction::Syndicate.index()], 15);
+    assert!(before.eligibility.event_restriction.is_some());
+    let mut reports = Reports::new(&before);
+
+    let pass = before
+        .choices
+        .iter()
+        .find(|choice| choice.action() == "syndicate:pass")
+        .unwrap();
+    assert!(pass.supported);
+    let balance = &pass.preview.as_ref().unwrap().resources[0];
+    assert_eq!(
+        (balance.faction, balance.from, balance.to),
+        (Faction::Syndicate, 15, 16)
+    );
+    choose(&mut game, pass.action());
+
+    let after = game.observe();
+    reports.record(&after);
+    let reports = reports.all();
+    assert_eq!(reports.len(), 1);
+    let report = &reports[0];
+    assert_eq!(report.headline, "Syndicate Passes");
+    assert!(report.complete);
+    assert_eq!(report.recorded, Some("Pass"));
+    assert_eq!(after.resources, [3, 0, 5, 16]);
+    assert!(after.passed[Faction::Syndicate.index()]);
+    assert_eq!(after.standings[Faction::Syndicate.index()].score, 2);
+    assert_eq!(
+        after
+            .available
+            .iter()
+            .find(|p| p.kind == Kind::Casino)
+            .unwrap()
+            .count,
+        7
+    );
+    assert_eq!(after.spaces, before.spaces);
+    assert_eq!(after.available, before.available);
+    assert_eq!(after.eligible, [false, true, true, true]);
+    assert_eq!(
+        after
+            .eligibility
+            .next_card
+            .unwrap()
+            .map(|entry| entry.eligible),
+        [false, true, true, true]
+    );
+    assert!(after.eligibility.event_restriction.is_none());
+    assert_eq!((after.current_card, after.preview_card), (18, 19));
+    assert_eq!(after.deck, before.deck);
+    assert_eq!(after.played_pile, before.played_pile);
+    assert!(after.capabilities.is_empty());
+    assert!(after.next.is_none() && after.choices.is_empty());
+
+    assert!(
+        game.submit(before.owner, before.revision, &pass.id)
+            .is_err()
+    );
+    assert!(
+        game.submit(
+            Faction::Syndicate,
+            after.revision,
+            &format!("{}:syndicate:pass", after.revision),
+        )
+        .is_err()
+    );
+    assert_eq!(game.observe(), after);
+}
 
 #[test]
 fn an_open_assault_offers_every_unpaid_space_s_plans_at_once_and_no_menu() {

@@ -444,6 +444,186 @@ fn native_government_pass_credits_once_and_hands_first_choice_to_syndicate() {
     }
 }
 
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the retained Pass preview and result"]
+fn native_syndicate_pass_finishes_card_18_and_replays_after_both_handoffs() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-216"));
+    fs::create_dir_all(&evidence).unwrap();
+    let evidence = evidence.canonicalize().unwrap();
+    for assault in [false, true] {
+        let name = if assault {
+            "after-assault-"
+        } else {
+            "after-pass-"
+        };
+        let root = tempfile::Builder::new()
+            .prefix(name)
+            .tempdir_in(&evidence)
+            .unwrap()
+            .keep();
+        let socket = tempfile::tempdir().unwrap();
+        let mut app = Native {
+            cards: std::env::var_os("CUBA_TEST_CARDS").unwrap().into(),
+            save: root.join("task.json"),
+            socket: socket.path().join("seat.sock"),
+            root,
+            step: 0,
+        };
+        eprintln!("Syndicate Pass evidence: {}", app.root.display());
+        if assault {
+            super::assault::fund_santiago(&app.save, 4);
+        } else {
+            finish_event(&app.save, "unshaded");
+        }
+        app.launch_size("3840x2160");
+        if assault {
+            for action in ["event:shaded", "resolve-shaded"] {
+                let revision = app.revision();
+                app.activate(&format!("option:{action}"), revision);
+                app.choose(action);
+            }
+        }
+        app.choose("advance-card");
+        if assault {
+            let revision = app.revision();
+            app.activate("option:government:assault", revision);
+            app.choose("government:assault");
+            app.choose("assault:havana:syndicate");
+            let revision = app.revision();
+            app.activate("option:end-assault", revision);
+            app.choose("end-assault");
+        } else {
+            let revision = app.revision();
+            app.activate("option:government:pass", revision);
+            app.choose("government:pass");
+        }
+        let before = app.observe()["observation"].clone();
+        let revision = before["revision"].as_u64().unwrap();
+        let pass_id = format!("{revision}:syndicate:pass");
+        let saved = fs::read(&app.save).unwrap();
+        let role = if assault {
+            "2nd Eligible"
+        } else {
+            "1st Eligible"
+        };
+        assert_eq!(before["next"]["role"], role);
+        assert_eq!(before["resources"][3], 15);
+        app.activate("option:syndicate:pass", revision);
+        let inspected = app.observe();
+        let briefing = tag_text(&inspected["table"]["briefing"]);
+        assert!(briefing.contains("15 → 16"), "{briefing}");
+        assert!(briefing.contains("ELIGIBILITY FOR CARD 19"), "{briefing}");
+        assert_eq!(inspected["observation"], before);
+        assert_eq!(fs::read(&app.save).unwrap(), saved);
+        app.capture("syndicate-pass-preview");
+        if assault {
+            let player = app.seat_agent(super::faction_seats::SYNDICATE, "syndicate");
+            let (code, told) = app.ask(&["observe", &player]);
+            assert_eq!(code, 0, "{told}");
+            assert_eq!(told["view"]["decision"]["yours"], true);
+            let pass = told["view"]["choices"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|choice| choice["id"] == pass_id)
+                .unwrap();
+            assert_eq!(pass["supported"], true);
+            assert_eq!(pass["preview"]["resources"][0]["to"], 16);
+            app.offers_nothing();
+            app.key("Escape");
+            app.decide(&player, "syndicate:pass", "applied");
+            let (code, told) = app.ask(&["observe", &player]);
+            assert_eq!(code, 0, "{told}");
+            assert_eq!(told["view"]["decision"]["stands"], "build-ends");
+            assert_eq!(told["view"]["decision"]["yours"], false);
+            let report = told["view"]["results"].as_array().unwrap().last().unwrap();
+            assert_eq!(report["headline"], "Syndicate Passes");
+            assert_eq!(report["role"], role);
+            assert_eq!(report["complete"], true);
+            assert_eq!(report["summary"], "Syndicate receives 1 Resource, 15 → 16.");
+            let edition = app.observe();
+            assert_eq!(edition["table"]["newspaper"]["open"]["report"], *report);
+            fs::write(
+                app.root.join("faction-client-after-pass.json"),
+                serde_json::to_vec_pretty(&told).unwrap(),
+            )
+            .unwrap();
+            app.capture("syndicate-pass-edition");
+            app.key("Escape");
+            app.decide(&player, "syndicate:pass", "refused");
+        } else {
+            let committed = app.press_by_keyboard(&pass_id);
+            assert!(committed["table"]["newspaper"]["open"].is_null());
+        }
+        let table = app.observe();
+        let after = &table["observation"];
+        assert_eq!(after["revision"], revision + 1);
+        assert_eq!(after["resources"][3], 16);
+        assert_eq!(after["standings"][3]["score"], if assault { 2 } else { 3 });
+        assert_eq!(after["eligible"], json!([!assault, true, true, true]));
+        assert!(after["eligibility"]["event_restriction"].is_null());
+        assert_eq!(after["choices"], json!([]));
+        assert_eq!(after["capabilities"], json!([]));
+        assert_eq!(after["cards"]["current"]["status"], "Unexecuted");
+        assert_eq!(
+            choice_part(&table, "execution-heading")["text"],
+            "Syndicate · passed"
+        );
+        let track = &table["table"]["eligibility"]["track"];
+        assert_eq!(track["adjusted"], true);
+        let rows = track["rows"].as_array().unwrap();
+        let statuses: Vec<_> = rows
+            .iter()
+            .map(|row| {
+                (
+                    row["faction"].as_str().unwrap(),
+                    row["eligible"].as_bool().unwrap(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            statuses,
+            [
+                ("M26", true),
+                ("Directorio", true),
+                ("Syndicate", true),
+                ("Government", !assault)
+            ]
+        );
+        for key in [
+            "current_card",
+            "preview_card",
+            "draw_count",
+            "deck",
+            "played_pile",
+            "spaces",
+            "available",
+        ] {
+            assert_eq!(after[key], before[key], "{key}");
+        }
+        assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
+        let committed = fs::read(&app.save).unwrap();
+        app.capture("syndicate-pass-complete");
+        app.quit();
+
+        app.launch_size("3840x2160");
+        assert_eq!(app.observe()["observation"], *after);
+        for (at, id) in [
+            (revision, pass_id),
+            (revision + 1, format!("{}:syndicate:pass", revision + 1)),
+        ] {
+            app.request(json!({"op":"activate","revision":at,"choice":id}), false);
+        }
+        assert_eq!(app.observe()["observation"], *after);
+        assert_eq!(fs::read(&app.save).unwrap(), committed);
+        assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
+        app.capture("syndicate-pass-restarted");
+        app.quit();
+    }
+}
+
 fn preview_notes(reply: &Value, action: &str) -> String {
     let view = &reply["observation"];
     let id = format!("{}:{action}", view["revision"]);
