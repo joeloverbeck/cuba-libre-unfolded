@@ -401,6 +401,7 @@ const TOLD: &[&str] = &[
     "support",
     "support_level",
     "supported",
+    "syndicate_box",
     "target",
     "terrain",
     "terror",

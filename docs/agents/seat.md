@@ -183,13 +183,14 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:government:assault` | Opens Operation Only Assault. |
 | `<revision>:assault:<space>:<plan>` | Pays for the space and resolves the plan at once (#169). Every unpaid space's plans are offered together while Assault is open. A plan names the factions it targets, only those with a piece Assault can affect there, with a short capacity's split: `assault:havana:syndicate` closes Havana's Casino. `assault:<space>:none` is the one plan that removes nothing; it pays the same cost and changes nothing else. Each choice's `site` states its `space` and whether it has an `effect` there. Commit it from the space's popover: pick `space:<space>`, choose its row, then `popover:commit`. |
 | `<revision>:end-assault` | Finishes Assault and records Operation Only. |
+| `<revision>:syndicate:construct` | Opens Construct as Operation Only after Government Passes. |
 | `<revision>:syndicate:limited-operation` | Opens Syndicate’s Limited Construct as 2nd Eligible after Operation Only. |
 | `<revision>:construct:<space>:open`, `<revision>:construct:<space>:place` | Pays for a Construct plan. Pick `space:<space>`, select the row and commit with `popover:commit`. |
-| `<revision>:end-construct` | Finishes Limited Construct after one paid space. |
+| `<revision>:end-construct` | Finishes Construct and adjusts Eligibility. Operation Only may finish with zero payments. Limited Construct requires one paid space. |
 | `<revision>:government:transport`, `<revision>:government:air-strike`, `<revision>:government:reprisal` | Government's Special Activity briefings, including the Operations each may accompany. |
 | `<revision>:syndicate:pass` | Pin `option:syndicate:pass` after either Government action to preview the Resource gain and the four factions’ Eligibility for card 19. Commit using the offered choice. |
 | `<revision>:syndicate:event` | Inspect Pact of Caracas after Government Passes. |
-| `<revision>:syndicate:rally`, `<revision>:syndicate:march`, `<revision>:syndicate:terror`, `<revision>:syndicate:construct` | Inspect Syndicate's 1st Eligible Operations. |
+| `<revision>:syndicate:rally`, `<revision>:syndicate:march`, `<revision>:syndicate:terror` | Inspect Syndicate's other 1st Eligible Operations. |
 | `<revision>:syndicate:profit`, `<revision>:syndicate:muscle`, `<revision>:syndicate:bribe` | Inspect Syndicate's Special Activities and which Operations they may accompany. |
 | `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so 26July's option set is complete; unsupported, with the reason in `explanation`. |
 | `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap` | Execution steps during Terror. |
@@ -216,6 +217,8 @@ decision to its giver.
 At the completed Event, activate the offered choice `<revision>:advance-card` through the primary button. The next observation shows `current_card: 18`, `preview_card: 19`, the updated public history and Government as the owner.
 
 After Government Passes, `recorded_resources` gives its before and after balances, `eligibility.government_box` records `Pass`, and `next` identifies Syndicate as 1st Eligible. `eligibility.second` is null because no Eligible faction follows Syndicate. Its `option:syndicate:…` components open the briefings.
+
+After Syndicate finishes, `eligibility.syndicate_box` records its action and `eligibility.next_card` gives each faction's adjusted Eligibility.
 
 ### Example: a Resource transfer
 

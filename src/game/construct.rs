@@ -2,11 +2,22 @@
 use super::*;
 
 pub const CONSTRUCT_COST: u8 = 5;
-const OPEN: &str = "syndicate:limited-operation";
+pub(super) const OPERATION_ONLY: &str = "syndicate:construct";
+pub(super) const LIMITED: &str = "syndicate:limited-operation";
 pub(super) const FINISH: &str = "end-construct";
+pub(super) const EMPTY_FINISH_POLICY: &str =
+    "Finishing with zero paid spaces earns no Pass income (local policy, #215).";
 const BACK: &str = "back-to-choice";
 const SYNDICATE: Faction = Faction::Syndicate;
 const CASINO_LIMIT: u8 = 2;
+
+pub(crate) fn construct_name(first_eligible: bool) -> &'static str {
+    if first_eligible {
+        "Construct"
+    } else {
+        "Limited Construct"
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -117,19 +128,37 @@ impl Game {
 
     pub(super) fn limited_construct_choice(&self) -> Choice {
         self.offer(
-            OPEN, "Limited Operation · Construct", true,
+            LIMITED, "Limited Operation · Construct", true,
             "Choose one Government- or Syndicate-controlled City or Province and pay 5 Resources to open or place a Casino. No Special Activity (R 2.3.4–5, 3.3.5).",
         )
     }
 
-    fn construct_limit(&self) -> Result<(), &'static str> {
-        if self.construct_paid().is_empty() {
-            Ok(())
+    pub(super) fn operation_only_construct_choice(&self) -> Choice {
+        self.offer(
+            OPERATION_ONLY, "Construct · Operation Only", true,
+            "Pay 5 Resources per distinct Government- or Syndicate-controlled City or Province to open or place a Casino. No Special Activity (R 2.3.4, 3.3.5).",
+        )
+    }
+
+    pub(super) fn construct_box(&self) -> SequenceBox {
+        if self.government_pass_from.is_some() {
+            SequenceBox::OperationOnly
         } else {
-            Err(
-                "Limited Construct pays in just one space. Finish Construct to record the Operation (R 2.3.5).",
-            )
+            SequenceBox::LimitedOperation
         }
+    }
+
+    fn construct_space_requirement(&self, space: &Space) -> Result<(), &'static str> {
+        let paid = self.construct_paid();
+        if !paid.is_empty() && self.construct_box() == SequenceBox::LimitedOperation {
+            return Err(
+                "Limited Construct pays in just one space. Finish Construct to record the Operation (R 2.3.5).",
+            );
+        }
+        if paid.iter().any(|result| result.space == space.id) {
+            return Err("Construct already paid in this space (R 3.1).");
+        }
+        qualifying_space(space)
     }
 
     fn casino_inventory(&self) -> u8 {
@@ -145,8 +174,7 @@ impl Game {
         space: &Space,
         plan: ConstructPlan,
     ) -> Result<(), &'static str> {
-        self.construct_limit()?;
-        qualifying_space(space)?;
+        self.construct_space_requirement(space)?;
         plan.requirement(space, self.casino_inventory())?;
         if self.construct_balance() < CONSTRUCT_COST {
             return Err("Syndicate needs 5 Resources to pay for Construct (R 3.3.5).");
@@ -169,7 +197,7 @@ impl Game {
     }
 
     pub(super) fn construct_reason(&self, space: &Space, here: &[&Choice]) -> String {
-        if let Err(reason) = qualifying_space(space) {
+        if let Err(reason) = self.construct_space_requirement(space) {
             return reason.into();
         }
         if let Some(choice) = here.first() {
@@ -187,56 +215,73 @@ impl Game {
 
     pub(super) fn construct_choices(&self) -> Vec<Choice> {
         let mut choices = vec![];
-        if self.construct_limit().is_ok() {
-            let available = self.casino_inventory();
-            for space in self
-                .spaces
-                .iter()
-                .filter(|space| qualifying_space(space).is_ok())
+        let available = self.casino_inventory();
+        let balance = self.construct_balance();
+        for space in self
+            .spaces
+            .iter()
+            .filter(|space| self.construct_space_requirement(space).is_ok())
+        {
+            for plan in ConstructPlan::ALL
+                .into_iter()
+                .filter(|plan| plan.requirement(space, available).is_ok())
             {
-                for plan in ConstructPlan::ALL
-                    .into_iter()
-                    .filter(|plan| plan.requirement(space, available).is_ok())
-                {
-                    let refusal = self.construct_payment_requirement(space, plan).err();
-                    let balance = self.construct_balance();
-                    let explanation = refusal.map_or_else(
-                        || {
-                            format!(
-                                "Pay {} ({balance} → {}). {} in {} (R 3.3.5).",
-                                resources(CONSTRUCT_COST),
-                                balance.saturating_sub(CONSTRUCT_COST),
-                                plan.label(),
-                                space.name
-                            )
-                        },
-                        str::to_owned,
-                    );
-                    choices.push(
-                        self.offer(
-                            &format!("construct:{}:{}", space.id, plan.id()),
+                let refusal = self.construct_payment_requirement(space, plan).err();
+                let explanation = refusal.map_or_else(
+                    || {
+                        format!(
+                            "Pay {} ({balance} → {}). {} in {} (R 3.3.5).",
+                            resources(CONSTRUCT_COST),
+                            balance - CONSTRUCT_COST,
                             plan.label(),
-                            refusal.is_none(),
-                            explanation,
+                            space.name
                         )
-                        .at(&space.id, true)
-                        .stopped_by_cost(refusal.is_some()),
-                    );
-                }
+                    },
+                    str::to_owned,
+                );
+                choices.push(
+                    self.offer(
+                        &format!("construct:{}:{}", space.id, plan.id()),
+                        plan.label(),
+                        refusal.is_none(),
+                        explanation,
+                    )
+                    .at(&space.id, true)
+                    .stopped_by_cost(refusal.is_some()),
+                );
             }
         }
         let paid = self.construct_paid();
-        let explanation = if let Some(result) = paid.last() {
-            let space = self.spaces.iter().find(|s| s.id == result.space).unwrap();
-            format!(
-                "{}. Syndicate becomes Ineligible for card 19 (R 2.3.7).",
-                result.summary(&space.name)
-            )
-        } else {
-            "Pay for one space on the map before finishing Limited Construct (R 2.3.5).".into()
+        let limited = self.construct_box() == SequenceBox::LimitedOperation;
+        let explanation = match (limited, paid.last()) {
+            (false, None) => format!(
+                "Record Operation Only. {EMPTY_FINISH_POLICY} Syndicate becomes Ineligible for card 19 (R 2.3.7)."
+            ),
+            (false, Some(_)) => {
+                let count = paid.len();
+                let unit = if count == 1 { "space" } else { "spaces" };
+                format!(
+                    "Record Operation Only after paying in {count} {unit}. Syndicate becomes Ineligible for card 19 (R 2.3.4, 2.3.7)."
+                )
+            }
+            (true, Some(result)) => {
+                let space = self.spaces.iter().find(|s| s.id == result.space).unwrap();
+                format!(
+                    "{}. Syndicate becomes Ineligible for card 19 (R 2.3.7).",
+                    result.summary(&space.name)
+                )
+            }
+            (true, None) => {
+                "Pay for one space on the map before finishing Limited Construct (R 2.3.5).".into()
+            }
         };
-        choices.push(self.offer(FINISH, "Finish Construct", !paid.is_empty(), explanation));
-        if paid.is_empty() {
+        choices.push(self.offer(
+            FINISH,
+            "Finish Construct",
+            !limited || !paid.is_empty(),
+            explanation,
+        ));
+        if limited && paid.is_empty() {
             choices.push(self.offer(
                 BACK, "Back to the action choice", true,
                 "Leave before committing a payment. Syndicate may choose Pass or Limited Construct.",
@@ -273,7 +318,7 @@ impl Game {
 
     pub(super) fn apply_construct(&mut self, action: &str) -> Result<(), String> {
         match action {
-            OPEN => self.construct = Some(Construct { paid: vec![] }),
+            OPERATION_ONLY | LIMITED => self.construct = Some(Construct { paid: vec![] }),
             BACK => self.construct = None,
             FINISH => self.card_18_completion = Some(Card18Completion::Construct),
             _ => {
