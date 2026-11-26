@@ -583,6 +583,7 @@ fn native_casino_management_compares_pinar_and_keeps_the_payment() {
             app.capture("pinar-adjacent-home");
             for (name, scroll) in [("near", 3), ("far", -5)] {
                 app.key("Home");
+                app.point("space:las-villas");
                 app.request(json!({"op":"scroll","revision":revision,"component":"space:las-villas","y":scroll}), true);
                 let zoomed = app.settle();
                 assert_ne!(zoomed["table"]["camera"], before["table"]["camera"]);
