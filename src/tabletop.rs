@@ -107,6 +107,8 @@ struct Art {
     /// Lato Bold, for the action choice's labels (FigCraft `Choice/*` styles) and the
     /// Kidnap result.
     bold: Handle<Font>,
+    /// Lato Black, the Broadsheet's issuer face.
+    black: Handle<Font>,
     /// Noto Serif Display Bold, the newspaper's headlines and titles.
     headline: Handle<Font>,
     scene: Handle<WorldAsset>,
@@ -385,6 +387,10 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .world_mut()
         .resource_mut::<Assets<Font>>()
         .add(Font::from_bytes(verified.files["Lato-Bold.ttf"].clone()));
+    let black = app
+        .world_mut()
+        .resource_mut::<Assets<Font>>()
+        .add(Font::from_bytes(verified.files["Lato-Black.ttf"].clone()));
     let headline = app
         .world_mut()
         .resource_mut::<Assets<Font>>()
@@ -425,6 +431,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             images,
             font,
             bold,
+            black,
             headline,
             scene,
             terror,
@@ -998,7 +1005,7 @@ fn admit(
         ui.dirty = true;
         return;
     }
-    let font_ready = [&art.font, &art.bold, &art.headline]
+    let font_ready = [&art.font, &art.bold, &art.black, &art.headline]
         .into_iter()
         .all(|font| {
             fonts
