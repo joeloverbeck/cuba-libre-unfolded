@@ -5,10 +5,10 @@
 
 use super::Player;
 use crate::{
-    ActionChoice, CardFacts, Choice, DeckFacts, Eligibility, EventProgress, EventStatement,
-    Faction, Game, Group, KidnapStakes, MarkerSupply, Next, Observation, Piles, PlayedCard,
-    Preview, Removal, Site, SpaceReason, Standing, Terrain, Transfer, TransferTerms, UsAlliance,
-    reports::Report, support_level,
+    ActionChoice, CardFacts, Choice, ConstructResolution, DeckFacts, Eligibility, EventProgress,
+    EventStatement, Faction, Game, Group, KidnapStakes, MarkerSupply, Next, Observation, Piles,
+    PlayedCard, Preview, Removal, Site, SpaceReason, Standing, Terrain, Transfer, TransferTerms,
+    UsAlliance, reports::Report, support_level,
 };
 use serde::Serialize;
 
@@ -106,6 +106,7 @@ pub struct State {
     pub spaces: Vec<Space>,
     /// Why each space is in its state, while a decision acts on spaces.
     pub space_reasons: Vec<SpaceReason>,
+    pub construct_paid: Vec<ConstructResolution>,
     pub available: Vec<Group>,
     pub current_card: Card,
     pub preview_card: Card,
@@ -279,6 +280,7 @@ impl State {
             standings: seen.standings.clone(),
             spaces: seen.spaces.iter().map(Space::of).collect(),
             space_reasons: seen.space_reasons.clone(),
+            construct_paid: seen.construct_paid.clone(),
             available: seen.available.clone(),
             current_card: Card::of(&seen.cards.current),
             preview_card: Card::of(&seen.cards.preview),

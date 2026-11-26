@@ -61,7 +61,9 @@ fn operation_spaces(items: &[Item]) -> Vec<String> {
     items
         .iter()
         .filter_map(|item| match item {
-            Item::Terror { space, .. } | Item::Assault { space, .. } => Some(space.clone()),
+            Item::Terror { space, .. }
+            | Item::Assault { space, .. }
+            | Item::Construct { space, .. } => Some(space.clone()),
             _ => None,
         })
         .collect()
@@ -83,6 +85,7 @@ pub(super) fn headline(
         Action::EventShaded => ("the Event, shaded text", false),
         Action::Terror => ("Terror", true),
         Action::Assault => ("Assault", true),
+        Action::Construct => ("Limited Construct", true),
     };
     let spaces = operation_spaces(items);
     let named = match spaces.len() {
@@ -221,6 +224,18 @@ pub(super) fn articles(faction: Faction, items: &[Item]) -> Vec<Article> {
                     }
                     Some(article(format!("Assault in {space}"), lines))
                 }
+                Item::Construct {
+                    space,
+                    paid,
+                    balance,
+                    plan,
+                } => Some(article(
+                    format!("Construct in {space}"),
+                    vec![
+                        pays(faction, *paid, *balance),
+                        format!("{} {}.", faction.name(), plan.result()),
+                    ],
+                )),
                 Item::Shaded { flips } => {
                     let mut lines: Vec<String> = flips
                         .iter()

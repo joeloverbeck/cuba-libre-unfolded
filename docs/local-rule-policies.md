@@ -33,7 +33,13 @@ The owner's [acceptance of the rules baseline and tactical scenario](https://git
 
 **Policy:** In this continuation Government may open Assault and deliberately finish without selecting a space, even with fewer Resources than the space cost. Finish records Operation Only, earns no Pass income, and preserves any side decisions already committed. Each selected space still requires its full payment. The owner accepted this interpretation for card 18. [Owner ruling on #127](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/127#issuecomment-7080815790)
 
-Syndicate becomes 2nd Eligible and may Pass or inspect a Limited Operation under R 2.3.4.
+Syndicate becomes 2nd Eligible and may Pass or choose a Limited Operation under R 2.3.4.
+
+### Leaving Limited Construct on card 18
+
+**Rules:** R 2.3.5 requires a Limited Operation to take place in one space. R 3.3.5 requires full payment in every selected space, and R 2.3.7 makes Syndicate Ineligible after it executes Construct.
+
+**Policy:** Before the first committed effect, Syndicate may choose **Back to the action choice** and reconsider. [Spec #215](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/215)
 
 ### Next Propaganda assumes equal piles
 

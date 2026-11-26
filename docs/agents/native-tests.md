@@ -2,6 +2,8 @@
 
 The [seat reference](seat.md) has the seat's requests, its component ids, what the table reports and how to judge a capture on the owner's display.
 
+- `native_limited_construct_pays_in_havana_and_resumes_at_finish` (#217) compares opening and placing in Havana from the same funded Assault handoff. It uses the map by keyboard for the opening payment and the real faction client for placement and Finish. It checks the committed outcomes, agent edition, process restarts, exact pre-Finish recovery and refusal of stale and repeat payments. Evidence goes to `local/verification/issue-217/` when run directly.
+
 - `native_syndicate_pass_finishes_card_18_and_replays_after_both_handoffs` (#216) uses the Pass control by keyboard after Government Pass. It uses the real faction client after Government closes Havana's Casino with Assault. It checks the preview, report and edition, adjusted Eligibility, same-build restart, and stale and repeat refusal. Evidence goes to `local/verification/issue-216/` when run directly.
 
 - `native_havana_and_santiago_assault_in_either_order_restarts_and_finishes` commits the two spaces in both orders, restarts after the first, checks stale and repeat refusal, and ends with Syndicate's 2nd Eligible decision while Government retains 2 Resources. It funds the position through checked decisions in a seeded save. Evidence goes to `local/verification/issue-131/`.

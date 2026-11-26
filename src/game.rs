@@ -4,6 +4,7 @@ use unfolded_random::SeededRandom;
 
 mod assault;
 mod cards;
+mod construct;
 mod pile_facts;
 mod played;
 mod rally;
@@ -13,6 +14,7 @@ pub use cards::{
     CardFacts, CardWords, DECK_CARDS, EventKind, EventStatement, EventStatus, EventText,
     LastingEffect, PROPAGANDA_CARDS, Piles, Role, ShownCards, is_propaganda,
 };
+pub use construct::{CONSTRUCT_COST, ConstructPlan, ConstructResolution};
 pub use pile_facts::{
     DeckFacts, DeckWords, NextPropaganda, PlayedCard, PlayedPile, PlayedWords, next_propaganda,
     next_propaganda_words,
@@ -265,6 +267,7 @@ pub enum SequenceBox {
     Pass,
     OperationOnly,
     OperationWithSpecialActivity,
+    LimitedOperation,
 }
 impl SequenceBox {
     /// The box's name, as a record states it.
@@ -272,6 +275,7 @@ impl SequenceBox {
         match self {
             Self::Pass => "Pass",
             Self::OperationOnly => "Operation Only",
+            Self::LimitedOperation => "Limited Operation",
             Self::OperationWithSpecialActivity => "Operation with Special Activity",
         }
     }
@@ -279,6 +283,7 @@ impl SequenceBox {
     pub fn rule(self) -> &'static str {
         match self {
             Self::Pass => "R 2.3.3",
+            Self::LimitedOperation => "R 2.3.4–5",
             Self::OperationOnly | Self::OperationWithSpecialActivity => "R 2.3.4",
         }
     }
@@ -329,6 +334,7 @@ pub enum EligibilityReason {
     ExecutedOperation,
     ExecutedEvent,
     ExecutedAssault,
+    ExecutedConstruct,
 }
 impl EligibilityReason {
     pub fn text(self) -> &'static str {
@@ -338,6 +344,7 @@ impl EligibilityReason {
             Self::ExecutedOperation => "executed Terror",
             Self::ExecutedEvent => "executed the Event",
             Self::ExecutedAssault => "executed Assault",
+            Self::ExecutedConstruct => "executed Limited Construct",
         }
     }
 }
@@ -428,6 +435,7 @@ pub enum EventOutcome {
 #[serde(deny_unknown_fields)]
 enum Card18Completion {
     Pass { from: u8 },
+    Construct,
 }
 
 /// The match's position. A saved position decodes only in this shape: every field is
@@ -468,6 +476,8 @@ pub struct Game {
     pub(crate) event: Option<EventProgress>,
     #[serde(deserialize_with = "Option::deserialize")]
     assault: Option<assault::Assault>,
+    #[serde(deserialize_with = "Option::deserialize")]
+    construct: Option<construct::Construct>,
     /// The spaces where 26July's Terror resolved, in the order resolved (#171): the
     /// execution panel lists them so, which the map's markers cannot tell.
     pub(crate) terror_resolved: Vec<String>,
@@ -674,6 +684,8 @@ pub struct Observation {
     /// What Government paid in each space it Assaulted on this card and what was
     /// removed or closed there, in the order paid (#169). Empty outside an Assault.
     pub assault_paid: Vec<AssaultResolution>,
+    /// Paid Construct spaces in order, with the Casino action that each payment resolved.
+    pub construct_paid: Vec<ConstructResolution>,
     pub special_activity: Option<String>,
     pub owed_terror: Option<String>,
     pub transfer: Option<Transfer>,
@@ -1193,6 +1205,7 @@ impl Game {
             kidnap_open: false,
             event: None,
             assault: None,
+            construct: None,
             terror_resolved: Vec::new(),
             available,
         }
@@ -1283,6 +1296,7 @@ impl Game {
             next: self.next(),
             operation: match self.action {
                 _ if self.card_18_completion.is_some() => "Card 18 ended: Eligibility adjusted",
+                _ if self.construct_is_open() => "Syndicate executes Limited Construct",
                 _ if self.government_pass_from.is_some() => {
                     "Government Passed: Syndicate is 1st Eligible on card 18"
                 }
@@ -1317,6 +1331,7 @@ impl Game {
                 ActionChoice::Terror => "executing Terror",
             },
             assault_paid: self.assault_paid(),
+            construct_paid: self.construct_paid().to_vec(),
             special_activity: self.kidnap.as_ref().map(|_| "Kidnap".into()),
             owed_terror: self.owes_santiago().then(|| "santiago".into()),
             transfer: self.transfer.clone(),
@@ -1324,7 +1339,11 @@ impl Game {
             kidnap: self.kidnap.clone(),
             kidnap_open: self.kidnap_open,
             removal: self.removal.clone(),
-            effected: self.effect,
+            effected: if self.construct_is_open() {
+                !self.construct_paid().is_empty()
+            } else {
+                self.effect
+            },
             recorded_resources: self.recorded_resources(),
             resolved: self
                 .terror_resolved
@@ -1351,7 +1370,9 @@ impl Game {
                     .iter()
                     .filter(|c| c.space() == Some(space.id.as_str()))
                     .collect();
-                let reason = if self.assault.is_some() {
+                let reason = if self.construct_is_open() {
+                    Some(self.construct_reason(space, &here))
+                } else if self.assault.is_some() {
                     self.assault_reason(space, &here)
                 } else {
                     self.terror_reason(space, &here)
@@ -1443,7 +1464,7 @@ impl Game {
     /// The next faction's role and options after the acting faction records a
     /// decision (R 2.3.3–2.3.4).
     fn next(&self) -> Option<Next> {
-        if self.card_18_completion.is_some() {
+        if self.card_18_completion.is_some() || self.construct_is_open() {
             return None;
         }
         if self.government_pass_from.is_some() {
@@ -1529,6 +1550,7 @@ impl Game {
                     && matches!(self.event, Some(EventProgress::Rally(_))))
                 || Self::assault_payment_space(action).is_some()
                 || action == "end-assault"
+                || Self::is_construct_action(action)
                 || choice.removal().is_some() =>
             {
                 &[action]
@@ -1653,8 +1675,12 @@ impl Game {
         if matches!(action, "government:pass" | "end-assault") {
             preview.records = after.eligibility().government_box;
             preview.next = after.next();
-        } else if action == "syndicate:pass" {
-            preview.records = Some(SequenceBox::Pass);
+        } else if matches!(action, "syndicate:pass" | construct::FINISH) {
+            preview.records = Some(if action == construct::FINISH {
+                SequenceBox::LimitedOperation
+            } else {
+                SequenceBox::Pass
+            });
             preview.next_card = after.eligibility().next_card;
         } else if after.m26_action_ended && !action.starts_with("remove:") {
             if matches!(
@@ -1756,6 +1782,10 @@ impl Game {
             match action {
                 "government:pass" => notes.push("Government stays Eligible for the next card. Syndicate now decides as 1st Eligible (R 2.3.3).".into()),
                 "syndicate:pass" => notes.push("Syndicate stays Eligible. Card 18 ends after Eligibility is adjusted. Card 19 stays in preview (R 2.3.3, 2.3.7).".into()),
+                construct::FINISH => notes.push("Card 18 ends after Eligibility is adjusted. Card 19 stays in preview (R 2.3.7).".into()),
+                _ if Self::is_construct_action(action) => {
+                    notes.extend(self.construct_payment_notes(after, action).unwrap_or_default());
+                }
                 "end-assault" => notes.push("Records Operation Only. Syndicate may Pass or choose a Limited Operation as 2nd Eligible (R 2.3.4–5).".into()),
                 _ if action.starts_with("remove:") => notes.push("R 1.4.1: after Done, Assault uses the remaining cubes.".into()),
                 _ if Self::assault_payment_space(action).is_some() => {
@@ -1831,6 +1861,9 @@ impl Game {
     }
     pub(crate) fn executing(&self) -> Option<Faction> {
         if self.card_18 {
+            if self.construct_is_open() {
+                return Some(Faction::Syndicate);
+            }
             return self
                 .assault
                 .as_ref()
@@ -1888,6 +1921,9 @@ impl Game {
                     let (eligible, reason) = match (faction, completion) {
                         (Faction::Government, _) if !government_passed => {
                             (false, EligibilityReason::ExecutedAssault)
+                        }
+                        (Faction::Syndicate, Card18Completion::Construct) => {
+                            (false, EligibilityReason::ExecutedConstruct)
                         }
                         (Faction::Government, _)
                         | (Faction::Syndicate, Card18Completion::Pass { .. }) => {
@@ -2200,6 +2236,9 @@ impl Game {
         if self.card_18 {
             if self.card_18_completion.is_some() {
                 return vec![];
+            }
+            if self.construct_is_open() {
+                return self.construct_choices();
             }
             if self.government_pass_from.is_some() {
                 return self.syndicate_choices();
@@ -2869,10 +2908,18 @@ impl Game {
             .into_iter()
             .find(|c| c.id == choice)
             .ok_or_else(|| {
-                // An amount beyond a transfer's limit is refused with its reason.
+                // Explain a refused transfer amount or Construct plan.
                 choice
                     .split_once(':')
-                    .and_then(|(_, action)| self.transfer_refusal(action))
+                    .and_then(|(seen, action)| {
+                        if let Some(reason) = self.transfer_refusal(action) {
+                            Some(reason)
+                        } else if seen.parse::<u64>() == Ok(revision) {
+                            self.construct_refusal(action).map(str::to_owned)
+                        } else {
+                            None
+                        }
+                    })
                     .unwrap_or_else(|| "Stale or unknown choice identity.".into())
             })?;
         if owner != offered.owner {
@@ -2912,6 +2959,8 @@ impl Game {
                 self.card_18_completion = Some(Card18Completion::Pass { from: *balance });
                 *balance = Self::syndicate_pass_balance(*balance);
             }
+            "syndicate:limited-operation" => return self.apply_construct(action),
+            _ if self.construct_is_open() => return self.apply_construct(action),
             _ if self.card_18 => return self.apply_assault(action, next_revision),
             "terror" if self.action == ActionChoice::Open => self.action = ActionChoice::Terror,
             // Local policy (#58): withdraws a pending request; nothing has moved.

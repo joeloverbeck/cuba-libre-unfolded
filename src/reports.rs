@@ -23,9 +23,9 @@ mod words;
 pub(crate) use words::listing;
 
 use crate::{
-    ActionChoice, AssaultResolution, Choice, Eligibility, EventOutcome, EventProgress, Faction,
-    Flip, Game, Group, Kidnap, Kind, Next, Observation, Rally, RallyAction, Removal, Resolved,
-    SequenceBox, Space, Standing, State, Transfer, title,
+    ActionChoice, AssaultResolution, Choice, ConstructPlan, ConstructResolution, Eligibility,
+    EventOutcome, EventProgress, Faction, Flip, Game, Group, Kidnap, Kind, Next, Observation,
+    Rally, RallyAction, Removal, Resolved, SequenceBox, Space, Standing, State, Transfer, title,
 };
 use serde::Serialize;
 
@@ -40,6 +40,7 @@ pub enum Action {
     EventUnshaded,
     EventShaded,
     Assault,
+    Construct,
 }
 
 /// What one faction's action did between two revisions of the match.
@@ -191,6 +192,7 @@ struct Moment {
     kidnap: Option<Kidnap>,
     resolved: Vec<Resolved>,
     assault_paid: Vec<AssaultResolution>,
+    construct_paid: Vec<ConstructResolution>,
 }
 
 impl Moment {
@@ -227,6 +229,7 @@ impl Moment {
             kidnap: seen.kidnap.clone(),
             resolved: seen.resolved.clone(),
             assault_paid: seen.assault_paid.clone(),
+            construct_paid: seen.construct_paid.clone(),
         }
     }
 
@@ -259,6 +262,11 @@ impl Moment {
                 if self.executing == Some(faction) || self.eligibility.government_box.is_some() =>
             {
                 Action::Assault
+            }
+            Faction::Syndicate
+                if self.executing == Some(faction) || !self.construct_paid.is_empty() =>
+            {
+                Action::Construct
             }
             _ => Action::Undecided,
         }
@@ -351,6 +359,12 @@ enum Item {
         /// The Casinos that closed.
         closed: u8,
     },
+    Construct {
+        space: String,
+        paid: u8,
+        balance: Balance,
+        plan: ConstructPlan,
+    },
     Shaded {
         /// A space and the Guerrillas Activated there.
         flips: Vec<(String, u8)>,
@@ -423,6 +437,11 @@ fn recorded(at: &Moment, faction: Faction) -> Option<&'static str> {
         Faction::M26 => at.eligibility.m26_box,
         Faction::Government => at.eligibility.government_box,
         Faction::Syndicate if at.passed[Faction::Syndicate.index()] => Some(SequenceBox::Pass),
+        Faction::Syndicate
+            if !at.construct_paid.is_empty() && at.eligibility.next_card.is_some() =>
+        {
+            Some(SequenceBox::LimitedOperation)
+        }
         _ => None,
     }
     .map(|recorded| recorded.name())
@@ -503,6 +522,18 @@ fn happened(before: &Moment, after: &Moment, continues: bool, items: &mut Vec<It
             balance: balance(before, after, Faction::Government),
             removed,
             closed: closed.iter().map(|group| group.count).sum(),
+        });
+    }
+    for paid in after
+        .construct_paid
+        .iter()
+        .skip(before.construct_paid.len())
+    {
+        items.push(Item::Construct {
+            space: name(&paid.space),
+            paid: paid.paid,
+            balance: balance(before, after, Faction::Syndicate),
+            plan: paid.plan,
         });
     }
     if let (None, Some(flips)) = (before.flips(), after.flips()) {
@@ -678,6 +709,7 @@ fn spaces(items: &[Item]) -> Vec<String> {
             Item::Kidnap { space, .. }
             | Item::Terror { space, .. }
             | Item::Assault { space, .. }
+            | Item::Construct { space, .. }
             | Item::Rally { space, .. } => vec![space],
             Item::Removed { groups, .. } => groups.iter().map(|(space, _)| space).collect(),
             Item::Shaded { flips } => flips.iter().map(|(space, _)| space).collect(),

@@ -596,11 +596,14 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
         .or_else(|| here.iter().find(|c| c.supported))
         .map(|c| c.id.clone());
     let assault = assault(view);
+    let construct = view.current_card == 18 && view.executing == Some(Faction::Syndicate);
     let head = |choice: &Choice| -> (String, String) {
         if assault {
             // The plan's own label: the factions targeted and a short capacity's
             // split, or "Removes nothing".
             (choice.label.clone(), "Assault".into())
+        } else if construct {
+            (choice.label.clone(), "Construct".into())
         } else if choice.action() == "kidnap" {
             ("Kidnap · from Government".into(), "Special Activity".into())
         } else {
@@ -638,6 +641,8 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
             button: is_chosen.then(|| {
                 if assault {
                     pay(choice)
+                } else if construct {
+                    format!("Pay {} · {}", crate::CONSTRUCT_COST, choice.label)
                 } else if choice.action() == "kidnap" {
                     "Open Kidnap · nothing rolled yet".into()
                 } else {
@@ -694,6 +699,7 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
     }
     // The rolled Kidnap is history of 26July's Terror: Assault's popover lists plans only.
     if !assault
+        && !construct
         && space == KIDNAP_SPACE
         && let Some(kidnap) = &view.kidnap
     {
@@ -725,6 +731,11 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
         format!(
             "{terrain} · Government executing Assault · Government has {}",
             plural(view.resources[Faction::Government.index()], "Resource")
+        )
+    } else if construct {
+        format!(
+            "{terrain} · Syndicate executing Construct · Syndicate has {}",
+            plural(view.resources[Faction::Syndicate.index()], "Resource")
         )
     } else {
         format!(

@@ -135,11 +135,13 @@ impl Slot {
             Self::OperationWithSpecialActivity => "eligibility:operation-special-activity",
         }
     }
-    fn of(record: SequenceBox) -> Self {
+    fn of(record: SequenceBox) -> Option<Self> {
         match record {
-            SequenceBox::Pass => Self::Pass,
-            SequenceBox::OperationOnly => Self::OperationOnly,
-            SequenceBox::OperationWithSpecialActivity => Self::OperationWithSpecialActivity,
+            SequenceBox::Pass => Some(Self::Pass),
+            SequenceBox::OperationOnly => Some(Self::OperationOnly),
+            SequenceBox::OperationWithSpecialActivity => Some(Self::OperationWithSpecialActivity),
+            // This row shows only the first faction's boxes.
+            SequenceBox::LimitedOperation => None,
         }
     }
     fn index(self) -> usize {
@@ -185,11 +187,13 @@ fn recorded(view: &Observation) -> Option<(Faction, Slot)> {
     let eligibility = &view.eligibility;
     eligibility
         .government_box
-        .map(|record| (Faction::Government, Slot::of(record)))
+        .and_then(Slot::of)
+        .map(|slot| (Faction::Government, slot))
         .or_else(|| {
             eligibility
                 .m26_box
-                .map(|record| (Faction::M26, Slot::of(record)))
+                .and_then(Slot::of)
+                .map(|slot| (Faction::M26, slot))
         })
 }
 

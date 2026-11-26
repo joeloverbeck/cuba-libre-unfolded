@@ -415,6 +415,26 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
                 rules: String::new(),
             });
         }
+        if view.executing == Some(Faction::Syndicate) {
+            let mut entries = vec![entry("RESULT", &choice.explanation)];
+            if let Some(adjusted) = choice
+                .preview
+                .as_ref()
+                .and_then(|preview| preview.next_card)
+            {
+                entries.push(super::eligibility::result_entry(
+                    view.preview_card,
+                    adjusted,
+                ));
+            }
+            return Some(Briefing {
+                option: option.into(),
+                title: choice.label.clone(),
+                rule: "R 2.3.5, 3.3.5",
+                entries,
+                rules: String::new(),
+            });
+        }
         if view.eligibility.government_box == Some(crate::SequenceBox::OperationOnly) {
             return Some(Briefing {
                 option: option.into(),
