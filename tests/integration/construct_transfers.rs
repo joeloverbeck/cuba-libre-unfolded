@@ -267,6 +267,29 @@ fn limited_construct_holds_insufficient_authorizations_until_they_can_fund_a_pay
     assert_eq!(funding.authorizations[0].amount, 1);
     assert!(reports.all().last().unwrap().articles.is_empty());
     refuse(&mut game, SYNDICATE, "construct:havana:open");
+    let mut management = game.clone();
+    choose(&mut management, "remove");
+    let close = "close-casino:pinar-del-rio:open-casino:1";
+    assert!(refuse(&mut management, SYNDICATE, close).contains("Fund and pay for Construct first"));
+    choose(&mut management, "done-removal");
+    assert_eq!(
+        management.observe().construct_funding,
+        game.observe().construct_funding
+    );
+    for action in [
+        "transfer",
+        "ask:2:1",
+        "authorize:1",
+        "remove",
+        close,
+        "done-removal",
+    ] {
+        choose(&mut management, action);
+    }
+    refuse(&mut management, SYNDICATE, "back-to-choice");
+    assert_eq!(management.observe().resources, [11, 3, 4, 5]);
+    choose(&mut management, "construct:havana:open");
+    choose(&mut management, "end-construct");
     assert!(
         game.submit(
             M26,
