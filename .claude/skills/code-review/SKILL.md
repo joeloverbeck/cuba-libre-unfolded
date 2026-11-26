@@ -44,6 +44,7 @@ Search the repo for every file that documents how code should be written. When `
 
 In this repository the list starts from:
 
+- `CODING_STANDARDS.md`: the judgement rules, accurate claims above all.
 - `CLAUDE.md`, project section: "Documenting a change", Rust-only code, and what stays out of Git.
 - `GLOSSARY.md` with `docs/agents/domain.md`: glossary terms in code and documents, each concept's `_Avoid_` terms included.
 - The foundations (`docs/foundation/`) and ADRs (`docs/adr/`) the change touches, and the constitution rules the spec cites (`scripts/rule ID…` prints them).
@@ -96,7 +97,7 @@ If the spec is missing, skip the Spec sub-agent and note this in the final repor
 
 **Large diffs.** When the diff is too large for 400 words to hold every finding, each sub-agent writes its full findings, most severe first, to a file under `local/handoffs/` and returns a summary within the limit. The summary keeps every hard violation (Standards) or every wrong implementation (Spec).
 
-**Fixes.** A commit made after a review, the caller's own fix included, is reviewed as a delta from the last reviewed commit, so that the head merged is a reviewed head (`docs/agents/issue-tracker.md`, "Merge"). Resume the sub-agent that raised the finding where the harness allows; it confirms each fix against the code.
+**Fixes.** A commit made after a review, the caller's own fix included, is reviewed as a delta from the last reviewed commit, so that the head merged is a reviewed head (`docs/agents/issue-tracker.md`, "Merge"). Resume the sub-agent that raised the finding where the harness allows; it confirms each fix against the code. A delta that changes only documents, comments or pull-request text goes to that reviewer alone; a delta that changes behaviour goes to both axes.
 
 ### 5. Aggregate
 

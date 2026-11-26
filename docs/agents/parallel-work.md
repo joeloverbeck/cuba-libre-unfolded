@@ -42,7 +42,7 @@ Give the Craft MCP editors to one ticket at a time. Why, their write root and th
 ## Briefs and ledgers
 
 - **Briefs.** An orchestrator's per-spec brief lives under `local/handoffs/<spec>/`, is filled in from `.claude/skills/implement-spec/BRIEF.md`, and points here rather than restating these rules. Anything a brief learns that holds beyond its own spec belongs in this file.
-- **Ledgers.** Count an appetite ("N active agent-hours") as wall-clock time since the activation comment, the owner's reading recorded in [#58's ledger correction](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/58#issuecomment-6942223994). Parallel agents' hours overlap, so their sum overstates the time spent. Compute the figure each time you state it; time spent waiting for the owner counts:
+- **Ledgers.** Count an appetite or allowance ("N active agent-hours") as wall-clock time since the activation comment, the owner's reading recorded in [#58's ledger correction](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/58#issuecomment-6942223994). Parallel agents' hours overlap, so their sum overstates the time spent. Compute the figure each time you state it. Time spent waiting for the owner counts; a pause the owner orders does not ([#197](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/197#issuecomment-7182212395)), so subtract each pause from its start to the resumption, both recorded on the spec:
 
   ```sh
   start=$(gh api repos/joeloverbeck/cuba-libre-unfolded/issues/comments/<activation comment id> --jq .created_at)
