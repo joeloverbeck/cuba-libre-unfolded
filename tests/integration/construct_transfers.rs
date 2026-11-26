@@ -244,3 +244,153 @@ fn construct_reports_transfers_in_order_even_when_the_same_giver_replies_twice()
     );
     assert_eq!(report.articles[3].lines, ["Syndicate 2 → 0, 26July 0 → 2."]);
 }
+
+#[test]
+fn limited_construct_holds_insufficient_authorizations_until_they_can_fund_a_payment() {
+    let mut game = underfunded_construct();
+    let mut reports = Reports::new(&game.observe());
+    for action in ["transfer", "ask:1:2"] {
+        choose(&mut game, action);
+        reports.record(&game.observe());
+    }
+    let pending = game.observe();
+    let funding = pending.construct_funding.as_ref().unwrap();
+    assert_eq!(funding.shortfall, 2);
+    assert!(funding.authorizations.is_empty());
+    choose(&mut game, "authorize:1");
+    reports.record(&game.observe());
+    assert_eq!(game.observe().resources, [11, 4, 5, 3]);
+    assert_eq!(game.observe().owner, SYNDICATE);
+    let funding = game.observe().construct_funding.unwrap();
+    assert_eq!(funding.shortfall, 1);
+    assert_eq!(funding.authorizations[0].giver, M26);
+    assert_eq!(funding.authorizations[0].amount, 1);
+    assert!(reports.all().last().unwrap().articles.is_empty());
+    refuse(&mut game, SYNDICATE, "construct:havana:open");
+    let mut management = game.clone();
+    choose(&mut management, "remove");
+    let close = "close-casino:pinar-del-rio:open-casino:1";
+    assert!(refuse(&mut management, SYNDICATE, close).contains("Fund and pay for Construct first"));
+    choose(&mut management, "done-removal");
+    assert_eq!(
+        management.observe().construct_funding,
+        game.observe().construct_funding
+    );
+    for action in [
+        "transfer",
+        "ask:2:1",
+        "authorize:1",
+        "remove",
+        close,
+        "done-removal",
+    ] {
+        choose(&mut management, action);
+    }
+    refuse(&mut management, SYNDICATE, "back-to-choice");
+    assert_eq!(management.observe().resources, [11, 3, 4, 5]);
+    choose(&mut management, "construct:havana:open");
+    choose(&mut management, "end-construct");
+    assert!(
+        game.submit(
+            M26,
+            pending.revision,
+            &format!("{}:authorize:1", pending.revision)
+        )
+        .unwrap_err()
+        .contains("Stale")
+    );
+    refuse(&mut game, M26, "authorize:1");
+
+    let mut same_giver = game.clone();
+    choose(&mut same_giver, "transfer");
+    assert!(refuse(&mut same_giver, SYNDICATE, "ask:1:4").contains("more than 3"));
+    choose(&mut same_giver, "ask:1:3");
+    assert_eq!(same_giver.observe().transfer_terms[0].limit, 3);
+    refuse(&mut same_giver, M26, "authorize:4");
+    let mut maximum = same_giver.clone();
+    choose(&mut maximum, "authorize:3");
+    assert_eq!(maximum.observe().resources, [11, 0, 5, 7]);
+    choose(&mut same_giver, "authorize:1");
+    assert_eq!(same_giver.observe().resources, [11, 2, 5, 5]);
+
+    let mut withdrawn = game.clone();
+    for action in ["transfer", "ask:2:5"] {
+        choose(&mut withdrawn, action);
+    }
+    let pending = withdrawn.observe();
+    withdrawn
+        .submit(
+            SYNDICATE,
+            pending.revision,
+            &format!("{}:back-to-choice", pending.revision),
+        )
+        .unwrap();
+    assert_eq!(withdrawn.observe().executing, None);
+    assert_eq!(withdrawn.observe().resources, [11, 4, 5, 3]);
+    assert!(withdrawn.observe().construct_funding.is_none());
+    assert!(
+        withdrawn
+            .submit(
+                Faction::Directorio,
+                pending.revision,
+                &format!("{}:authorize:2", pending.revision)
+            )
+            .unwrap_err()
+            .contains("Stale")
+    );
+
+    for answer in ["decline", "authorize:0"] {
+        let mut abandoned = game.clone();
+        for action in ["transfer", "ask:2:5", answer] {
+            choose(&mut abandoned, action);
+        }
+        assert_eq!(abandoned.observe().resources, [11, 4, 5, 3]);
+        choose(&mut abandoned, "back-to-choice");
+        assert_eq!(abandoned.observe().executing, None);
+        assert_eq!(abandoned.observe().resources, [11, 4, 5, 3]);
+        choose(&mut abandoned, "syndicate:limited-operation");
+        choose(&mut abandoned, "transfer");
+        choose(&mut abandoned, "ask:1:4");
+        assert_eq!(abandoned.observe().transfer_terms[0].limit, 4);
+    }
+
+    for action in [
+        "transfer",
+        "ask:2:5",
+        "decline",
+        "transfer",
+        "ask:2:5",
+        "authorize:2",
+    ] {
+        choose(&mut game, action);
+        reports.record(&game.observe());
+    }
+    assert_eq!(game.observe().resources, [11, 3, 3, 6]);
+    assert!(game.observe().construct_paid.is_empty());
+    refuse(&mut game, SYNDICATE, "back-to-choice");
+    for action in ["construct:havana:open", "end-construct"] {
+        choose(&mut game, action);
+        reports.record(&game.observe());
+    }
+    assert_eq!(game.observe().resources, [11, 3, 3, 1]);
+    let whole = reports.all();
+    let articles = &whole.last().unwrap().articles;
+    assert_eq!(articles[0].title, "Directorio gives Syndicate nothing");
+    assert_eq!(articles[1].title, "26July gives Syndicate 1 Resource");
+    assert_eq!(
+        articles[1].lines,
+        [
+            "Syndicate asked for 2 Resources.",
+            "26July 4 → 3, Syndicate 3 → 4."
+        ]
+    );
+    assert_eq!(articles[2].title, "Directorio gives Syndicate 2 Resources");
+    assert_eq!(
+        articles[2].lines,
+        [
+            "Syndicate asked for 5 Resources.",
+            "Directorio 5 → 3, Syndicate 4 → 6."
+        ]
+    );
+    assert_eq!(articles[3].title, "Construct in Havana");
+}

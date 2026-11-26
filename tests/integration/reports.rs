@@ -1459,6 +1459,10 @@ mod reader {
                     .find(|c| c.action() == action)
                     .and_then(Choice::transfer);
                 let group_transfers = seen.executing != Some(Faction::Syndicate);
+                let authorizations = seen
+                    .construct_funding
+                    .as_ref()
+                    .map_or(&[][..], |funding| &funding.authorizations);
                 match (parts[0], transfer) {
                     (_, Some(TransferChoice::Ask { giver, amount })) => {
                         let told = done.between((giver, seen.executing.unwrap()), group_transfers);
@@ -1468,6 +1472,42 @@ mod reader {
                     (_, Some(TransferChoice::Give { recipient, amount })) if amount > 0 => {
                         let pair = (seen.executing.unwrap(), recipient);
                         done.between(pair, group_transfers).moves.push(moving(pair));
+                    }
+                    (_, Some(TransferChoice::Authorize { amount }))
+                        if !group_transfers
+                            && amount > 0
+                            && (!authorizations.is_empty() || seen.resources == next.resources) =>
+                    {
+                        if let Some(index) = done
+                            .transfers
+                            .iter()
+                            .position(|(_, told)| told.pending.is_some())
+                        {
+                            done.transfers.remove(index);
+                        }
+                        if seen.resources != next.resources {
+                            let (giver, recipient) = request(seen).unwrap();
+                            let Some(Transfer::Authorizing { amount: asked, .. }) = seen.transfer
+                            else {
+                                unreachable!();
+                            };
+                            let mut balances = seen.resources.map(i32::from);
+                            for (giver, asked, given) in authorizations
+                                .iter()
+                                .map(|a| (a.giver, a.asked, a.amount))
+                                .chain([(giver, asked, amount)])
+                            {
+                                let from = balances[giver.index()];
+                                let to = balances[recipient.index()];
+                                let given = i32::from(given);
+                                let told = done.between((giver, recipient), false);
+                                told.asks.push(asked.into());
+                                told.moves.push([from, from - given, to, to + given]);
+                                balances[giver.index()] -= given;
+                                balances[recipient.index()] += given;
+                            }
+                            assert_eq!(balances, next.resources.map(i32::from));
+                        }
                     }
                     ("decline", _) | (_, Some(TransferChoice::Authorize { .. })) => {
                         let pair = request(seen).unwrap();
@@ -1780,7 +1820,15 @@ mod reader {
     fn summary(executor: Faction, done: &Done, after: &Observation) -> Option<String> {
         for ((giver, recipient), told) in &done.transfers {
             if told.pending.is_some() {
-                return pending(*giver, *recipient, told);
+                return pending(*giver, *recipient, told).map(|request| {
+                    if let Some(funding) = &after.construct_funding {
+                        let authorized: u8 = funding.authorizations.iter().map(|a| a.amount).sum();
+                        let needed = 5 - after.resources[Faction::Syndicate.index()] - authorized;
+                        format!("{request} {authorized} conditionally authorized · {needed} still needed. Resources move only when authorizations fund a legal payment.")
+                    } else {
+                        request
+                    }
+                });
             }
         }
         if let Some([from, to]) = done.passed {

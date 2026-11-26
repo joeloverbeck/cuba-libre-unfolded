@@ -415,7 +415,9 @@ fn payment_lines(view: &Observation) -> Vec<AssaultLine> {
     }
     let mut lines = vec![AssaultLine {
         name: "construct-map-line".into(),
-        words: if view.construct_paid.is_empty() {
+        words: if let Some(funding) = &view.construct_funding {
+            funding.summary()
+        } else if view.construct_paid.is_empty() {
             super::execution::MAP_LINE.into()
         } else if view.eligibility.government_box == Some(crate::SequenceBox::Pass) {
             if view

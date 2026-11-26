@@ -71,7 +71,7 @@ The Resource transfer step opens the transfer modal ([TRANSFER.md](../art/atlas/
 
 Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfer can fund either Terror target without Kidnap, or make Kidnap possible during or after Terror. 26July can transfer Resources once it chooses Terror. Going back or ending Terror withdraws a pending request. During the Event and the free Rally, the executing faction can transfer Resources. They are made by whoever plays the faction. [Transfer timing](local-rule-policies.md#transfers-open-once-terror-is-chosen) · [Withdrawing pending requests](local-rule-policies.md#a-pending-transfer-request-is-withdrawn)
 
-Syndicate can transfer Resources while Construct is open. A single authorization that covers the required payment moves its full amount. The transfer controls keep the 5 Resources needed for an unpaid Limited Construct. Pay for your chosen space, then you can give your remaining Resources up to the recipient's cap before Finish. [Limited Construct commitment](local-rule-policies.md#leaving-limited-construct-on-card-18)
+Syndicate can transfer Resources while Construct is open. If a Limited Construct needs funding, the request and giver's decision show the amount conditionally authorized and the amount still needed. Ask the same or another giver, or use **Back to the action choice** before committing. After the transfers move, choose where to pay. Pay for your chosen space before giving away the Resources needed for that payment. [Partial funding](local-rule-policies.md#partial-funding-for-limited-construct) · [Limited Construct commitment](local-rule-policies.md#leaving-limited-construct-on-card-18)
 
 ## Removing your own pieces
 
