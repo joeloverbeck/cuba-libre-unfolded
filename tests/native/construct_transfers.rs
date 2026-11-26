@@ -167,11 +167,14 @@ fn native_public_proclamations_preserve_the_givers_decision() {
     assert_eq!(new_card["view"]["proclamations"]["published"], words);
     assert_eq!(new_card["view"]["proclamations"]["can_publish"], true);
     refused_publication(&mut app, &successor, opened, 17, "Old card", "Stale");
+    // Government needs the human's Syndicate to answer its earlier request.
+    app.key(SYNDICATE);
     close_havana_with_assault(&mut app);
+    let syndicate = app.seat_agent(SYNDICATE, "syndicate");
     let syndicate_revision = app.revision();
     let renewed = published(
         &mut app,
-        &successor,
+        &syndicate,
         syndicate_revision,
         18,
         "We seek to reopen Havana.",
