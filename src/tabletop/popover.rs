@@ -393,6 +393,10 @@ fn assault(view: &Observation) -> bool {
     view.current_card == 18 && view.executing == Some(Faction::Government)
 }
 
+fn construct(view: &Observation) -> bool {
+    view.current_card == 18 && view.executing == Some(Faction::Syndicate)
+}
+
 /// An Assault plan's preview (#169), from the authority: the capacity arithmetic,
 /// the payment, whom the plan can affect, what it removes or closes, the Control and
 /// standings that change, and whether another space could still be paid. Each part is
@@ -498,7 +502,12 @@ fn preview_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
             ));
         }
     }
-    for f in &preview.flips {
+    // Construct's notes state both Casino counts in the space.
+    for f in preview
+        .flips
+        .iter()
+        .filter(|f| !construct(view) || f.kind != Kind::Casino)
+    {
         lines.push((
             Tone::Plain,
             format!(
@@ -596,11 +605,14 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
         .or_else(|| here.iter().find(|c| c.supported))
         .map(|c| c.id.clone());
     let assault = assault(view);
+    let construct = construct(view);
     let head = |choice: &Choice| -> (String, String) {
         if assault {
             // The plan's own label: the factions targeted and a short capacity's
             // split, or "Removes nothing".
             (choice.label.clone(), "Assault".into())
+        } else if construct {
+            (choice.label.clone(), "Construct".into())
         } else if choice.action() == "kidnap" {
             ("Kidnap · from Government".into(), "Special Activity".into())
         } else {
@@ -638,6 +650,8 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
             button: is_chosen.then(|| {
                 if assault {
                     pay(choice)
+                } else if construct {
+                    format!("Pay {} · {}", crate::CONSTRUCT_COST, choice.label)
                 } else if choice.action() == "kidnap" {
                     "Open Kidnap · nothing rolled yet".into()
                 } else {
@@ -694,6 +708,7 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
     }
     // The rolled Kidnap is history of 26July's Terror: Assault's popover lists plans only.
     if !assault
+        && !construct
         && space == KIDNAP_SPACE
         && let Some(kidnap) = &view.kidnap
     {
@@ -725,6 +740,11 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
         format!(
             "{terrain} · Government executing Assault · Government has {}",
             plural(view.resources[Faction::Government.index()], "Resource")
+        )
+    } else if construct {
+        format!(
+            "{terrain} · Syndicate executing Construct · Syndicate has {}",
+            plural(view.resources[Faction::Syndicate.index()], "Resource")
         )
     } else {
         format!(

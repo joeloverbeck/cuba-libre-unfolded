@@ -861,6 +861,7 @@ fn every_report_of_random_matches_says_what_was_committed() {
         ("EventShaded", 1000),
         ("EventUnshaded", 1000),
         ("Assault", 1000),
+        ("Construct", 100),
     ] {
         assert!(
             all.get(kind).is_some_and(|count| *count >= least),
@@ -1387,8 +1388,10 @@ mod reader {
     struct Done {
         transfers: Vec<((Faction, Faction), Between)>,
         spaces: Vec<String>,
-        /// The spaces Terror or Assault was executed in, with the payer's balance before.
+        /// The spaces the Operation was executed in, with the payer's balance before.
         executed: Vec<(String, i32)>,
+        /// The Casino effect of this Limited Construct's payment, keyed by its space.
+        constructed: Option<(String, bool)>,
         /// Those of an Assault in which no piece changed.
         unchanged: Vec<String>,
         removers: Vec<Faction>,
@@ -1505,6 +1508,12 @@ mod reader {
                             done.unchanged.push(here);
                         }
                     }
+                    ("construct", _) => {
+                        let here = name(parts[1]);
+                        done.at(&here);
+                        done.executed.push((here.clone(), held(Faction::Syndicate)));
+                        done.constructed = Some((here, parts[2] == "open"));
+                    }
                     ("remove", _) if parts.len() == 4 => {
                         done.at(&name(parts[1]));
                         let remover = seen.executing.unwrap();
@@ -1575,7 +1584,10 @@ mod reader {
                 Faction::Directorio => made("event:unshaded").then_some("the Event, unshaded text"),
                 Faction::Government if made("government:pass") => Some("Pass"),
                 Faction::Government => made("government:assault").then_some("Assault"),
-                Faction::Syndicate => made("syndicate:pass").then_some("Pass"),
+                Faction::Syndicate if made("syndicate:pass") => Some("Pass"),
+                Faction::Syndicate => (seen.executing == Some(Faction::Syndicate)
+                    || made("end-construct"))
+                .then_some("Limited Construct"),
             }
         };
         // Where the action began: at the opening, or after the decision that ended the last.
@@ -1597,7 +1609,12 @@ mod reader {
         let last = decisions.last().map_or("", |(_, a)| a.as_str());
         let complete = matches!(
             last,
-            "pass" | "end-terror" | "government:pass" | "end-assault" | "syndicate:pass"
+            "pass"
+                | "end-terror"
+                | "government:pass"
+                | "end-assault"
+                | "syndicate:pass"
+                | "end-construct"
         ) || (executor == Faction::Directorio && ended(after));
         let kidnapped = all().any(|a| a == "kidnap:roll");
         // R 2.3.4: the box of a recorded action. Directorio's Event has none in this build.
@@ -1605,6 +1622,7 @@ mod reader {
             "pass" | "government:pass" | "syndicate:pass" => Some("Pass"),
             "end-terror" if kidnapped => Some("Operation with Special Activity"),
             "end-terror" | "end-assault" => Some("Operation Only"),
+            "end-construct" => Some("Limited Operation"),
             _ => None,
         };
         same("faction", &report.faction, &executor)?;
@@ -1780,10 +1798,10 @@ mod reader {
         if done.kidnapped {
             due.push("Kidnap in Santiago de Cuba".into());
         }
-        let operation = if executor == Faction::M26 {
-            "Terror"
-        } else {
-            "Assault"
+        let operation = match executor {
+            Faction::M26 => "Terror",
+            Faction::Syndicate => "Construct",
+            _ => "Assault",
         };
         for (space, _) in &done.executed {
             if !done.unchanged.contains(space) {
@@ -1889,6 +1907,9 @@ mod reader {
         if title == "Back to the action choice" {
             let expected = match done.back.flatten() {
                 Some(giver) => format!("26July withdraws its request to {}.", giver.name()),
+                None if after.current_card == 18 => {
+                    "Syndicate goes back to its action choice.".into()
+                }
                 None => "26July goes back to its action choice.".into(),
             };
             return same("sentences", &article.lines, &vec![expected]);
@@ -1957,6 +1978,28 @@ mod reader {
                 }
             }
             return Ok(());
+        }
+        if let Some(held) = scan(title, "Construct in {}") {
+            let space = held[0];
+            let (where_paid, opens) = done.constructed.as_ref().ok_or("no Construct payment")?;
+            same("space", &space, &where_paid.as_str())?;
+            let [payment, outcome] = lines.as_slice() else {
+                return Err("two sentences are due".into());
+            };
+            let payer = Faction::Syndicate;
+            let from = balance(space)?;
+            let expected_payment = format!("Syndicate pays 5 Resources, {from} → {}.", from - 5);
+            same("payment", payment, &expected_payment.as_str())?;
+            position.pay(payer, 5);
+            let expected = if *opens {
+                position.add(space, payer, Kind::Casino, State::Closed, -1);
+                position.add(space, payer, Kind::Casino, State::Open, 1);
+                "Syndicate opened 1 closed Casino."
+            } else {
+                position.add(space, payer, Kind::Casino, State::Closed, 1);
+                "Syndicate placed 1 closed Casino."
+            };
+            return same("Casino effect", outcome, &expected);
         }
         const NOTHING: &str = "No piece is removed or closed.";
         if scan(title, "Assault in {} spaces").is_some() {
@@ -2158,6 +2201,11 @@ mod reader {
         }
         let mut say = |line: &str| eligibility.push(line.to_owned());
         match (complete, executor, recorded) {
+            (false, Faction::Syndicate, _)
+                if before.executing == Some(Faction::Syndicate) && after.executing.is_none() =>
+            {
+                say("Next: Syndicate, 2nd Eligible.");
+            }
             (false, ..) => {}
             (_, Faction::M26, Some("Pass")) => {
                 say("26July is Eligible for the next card.");
@@ -2177,6 +2225,11 @@ mod reader {
                 ) {
                     say("The Event keeps 26July Ineligible through card 18.");
                 }
+            }
+            (_, Faction::Syndicate, Some("Limited Operation")) => {
+                say(
+                    "Card 19: 26July and Directorio Eligible, Government and Syndicate Ineligible.",
+                );
             }
             (_, Faction::Syndicate, _) => {
                 if before.passed[Faction::Government.index()] {

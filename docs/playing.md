@@ -116,7 +116,7 @@ With the inherited cubes still in place, targeting Syndicate in Havana closes th
 
 The panel keeps what is not a place: Government's Resources and the cost per space, one line for each space already assaulted, in the order paid, with what it paid and what was removed or closed, and the rows **Finish Assault**, **Resource transfer** and **Remove own pieces**.
 
-Under Firm US Alliance, each payment costs 2 Resources and resolves that space once. Continue in any order you can afford, or choose **Finish Assault**. Government may finish without paying for a space under the [card 18 local policy](local-rule-policies.md#zero-space-government-assault-on-card-18). Government earns no Pass income. Syndicate can Pass or inspect Limited Operation as 2nd Eligible.
+Under Firm US Alliance, each payment costs 2 Resources and resolves that space once. Continue in any order you can afford, or choose **Finish Assault**. Government may finish without paying for a space under the [card 18 local policy](local-rule-policies.md#zero-space-government-assault-on-card-18). Government earns no Pass income. Syndicate can Pass or choose Limited Construct as 2nd Eligible.
 
 Once Government opens Assault, **Resource transfer** lets Government give or request Resources. Pending requests keep their giver's decision across a restart. The authorized amount changes the balance available for the next space, and a blocked space turns selectable as soon as Government can pay. While a transfer is under way or removal mode is open, the map marks no space.
 
@@ -125,6 +125,12 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 ### Syndicate passes
 
 Pin **Pass** to preview the balance after gaining 1 Resource, up to 49, and see the four factions’ Eligibility for card 19. Select the **Pass** button to commit. Syndicate, Directorio and 26July are Eligible. Government is Eligible if it Passed and Ineligible if it executed Assault. Pact of Caracas stays current and Sierra Maestra Manifesto stays in preview. The saved result is ready to inspect again after restarting the game.
+
+### Syndicate chooses Limited Construct
+
+After Government finishes Assault, choose **Limited Operation · Construct**. Click a marked city or province, or reach it with Tab and press Enter. The popover offers each legal plan. Select **Open 1 closed Casino** or **Place 1 closed Casino** when available, then use its **Pay 5** button. Check the payment and Casino counts before committing.
+
+The panel records the paid space and the Casino action. Choose **Finish Construct** to end card 18 and make both Government and Syndicate Ineligible for card 19. A saved payment resumes at the same Finish decision. Before paying, **Back to the action choice** lets you reconsider.
 
 ## Handing a faction to an agent
 

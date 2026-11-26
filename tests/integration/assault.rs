@@ -631,6 +631,104 @@ fn syndicate_pass_finishes_card_18_after_havana_assault() {
 }
 
 #[test]
+fn limited_construct_pays_once_and_distinguishes_the_two_havana_plans() {
+    let mut game = assault_after(4, &SHADED);
+    choose(&mut game, "assault:havana:syndicate");
+    choose(&mut game, "end-assault");
+    let handoff = game.observe();
+    let casino_counts = |view: &Observation| {
+        let havana = view
+            .spaces
+            .iter()
+            .find(|space| space.id == "havana")
+            .unwrap();
+        let in_havana = |state| {
+            havana
+                .pieces
+                .iter()
+                .filter(|piece| piece.kind == Kind::Casino && piece.state == state)
+                .map(|piece| piece.count)
+                .sum::<u8>()
+        };
+        assert_eq!(havana.control(), Some(Faction::Government));
+        (
+            in_havana(State::Open),
+            in_havana(State::Closed),
+            view.standings[Faction::Syndicate.index()].score,
+            view.available
+                .iter()
+                .find(|piece| piece.kind == Kind::Casino)
+                .unwrap()
+                .count,
+        )
+    };
+    assert_eq!(handoff.resources[3], 15);
+    assert_eq!(casino_counts(&handoff), (0, 1, 2, 7));
+
+    choose(&mut game, "syndicate:limited-operation");
+    let open = game.observe();
+    assert_eq!(open.executing, Some(Faction::Syndicate));
+    let finish = open
+        .choices
+        .iter()
+        .find(|c| c.action() == "end-construct")
+        .unwrap();
+    assert!(!finish.supported);
+    assert!(game.submit(open.owner, open.revision, &finish.id).is_err());
+    assert_eq!(game.observe(), open);
+    let offered: Vec<_> = plans(&open, "havana")
+        .into_iter()
+        .filter(|c| c.supported)
+        .collect();
+    assert_eq!(
+        offered.iter().map(|c| c.action()).collect::<Vec<_>>(),
+        ["construct:havana:open", "construct:havana:place"],
+    );
+
+    for (plan, expected) in offered.into_iter().zip([(1, 0, 3, 7), (0, 2, 2, 6)]) {
+        let mut branch = game.clone();
+        let price = &plan.preview.as_ref().unwrap().resources[0];
+        assert_eq!(
+            (price.faction, price.from, price.to),
+            (Faction::Syndicate, 15, 10)
+        );
+        choose(&mut branch, plan.action());
+        let paid = branch.observe();
+        assert_eq!(paid.resources, [3, 0, 5, 10]);
+        assert_eq!(casino_counts(&paid), expected);
+        assert!(
+            paid.choices
+                .iter()
+                .all(|c| c.space().is_none() || !c.supported)
+        );
+        let refusal = branch
+            .submit(
+                Faction::Syndicate,
+                paid.revision,
+                &format!("{}:{}", paid.revision, plan.action()),
+            )
+            .unwrap_err();
+        assert!(refusal.contains("one space"), "{refusal}");
+        assert_eq!(branch.observe(), paid);
+        let another_space = format!("{}:construct:matanzas:place", paid.revision);
+        let refusal = branch
+            .submit(paid.owner, paid.revision, &another_space)
+            .unwrap_err();
+        assert!(refusal.contains("one space"), "{refusal}");
+        let leave = format!("{}:back-to-choice", paid.revision);
+        assert!(branch.submit(paid.owner, paid.revision, &leave).is_err());
+        assert_eq!(branch.observe(), paid);
+        choose(&mut branch, "end-construct");
+        let finished = branch.observe();
+        assert_eq!(finished.eligible, [false, true, true, false]);
+        assert_eq!((finished.current_card, finished.preview_card), (18, 19));
+        assert_eq!(finished.resources, paid.resources);
+        assert_eq!(casino_counts(&finished), expected);
+        assert!(finished.next.is_none() && finished.choices.is_empty());
+    }
+}
+
+#[test]
 fn an_open_assault_offers_every_unpaid_space_s_plans_at_once_and_no_menu() {
     let game = assault_after(4, &RALLY);
     let view = game.observe();

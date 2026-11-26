@@ -599,7 +599,7 @@ impl Game {
         if self.assault_finished() {
             return vec![
                 self.syndicate_pass_choice(),
-                self.offer("syndicate:limited-operation", "Limited Operation", false, "Syndicate may choose one space and has no Special Activity. Inspect only (R 2.3.4–5)."),
+                self.limited_construct_choice(),
             ];
         }
         if let Some(choices) = self.transfer_choices() {

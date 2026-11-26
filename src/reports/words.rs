@@ -61,7 +61,9 @@ fn operation_spaces(items: &[Item]) -> Vec<String> {
     items
         .iter()
         .filter_map(|item| match item {
-            Item::Terror { space, .. } | Item::Assault { space, .. } => Some(space.clone()),
+            Item::Terror { space, .. }
+            | Item::Assault { space, .. }
+            | Item::Construct { space, .. } => Some(space.clone()),
             _ => None,
         })
         .collect()
@@ -83,6 +85,7 @@ pub(super) fn headline(
         Action::EventShaded => ("the Event, shaded text", false),
         Action::Terror => ("Terror", true),
         Action::Assault => ("Assault", true),
+        Action::Construct => ("Limited Construct", true),
     };
     let spaces = operation_spaces(items);
     let named = match spaces.len() {
@@ -164,8 +167,12 @@ pub(super) fn articles(faction: Faction, items: &[Item]) -> Vec<Article> {
                 Item::WentBack { request } => Some(article(
                     "Back to the action choice",
                     vec![match request {
-                        Some(giver) => format!("26July withdraws its request to {}.", giver.name()),
-                        None => "26July goes back to its action choice.".into(),
+                        Some(giver) => format!(
+                            "{} withdraws its request to {}.",
+                            faction.name(),
+                            giver.name()
+                        ),
+                        None => format!("{} goes back to its action choice.", faction.name()),
                     }],
                 )),
                 Item::Transfers(told) => transfers(told),
@@ -221,6 +228,18 @@ pub(super) fn articles(faction: Faction, items: &[Item]) -> Vec<Article> {
                     }
                     Some(article(format!("Assault in {space}"), lines))
                 }
+                Item::Construct {
+                    space,
+                    paid,
+                    balance,
+                    plan,
+                } => Some(article(
+                    format!("Construct in {space}"),
+                    vec![
+                        pays(faction, *paid, *balance),
+                        format!("{} {}.", faction.name(), plan.result()),
+                    ],
+                )),
                 Item::Shaded { flips } => {
                     let mut lines: Vec<String> = flips
                         .iter()

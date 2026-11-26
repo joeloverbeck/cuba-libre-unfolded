@@ -25,6 +25,8 @@ mod card_advance;
 mod card_piles;
 #[path = "native/card_tag.rs"]
 mod card_tag;
+#[path = "native/construct.rs"]
+mod construct;
 #[path = "native/faction_seats.rs"]
 mod faction_seats;
 #[path = "native/focus_mark.rs"]

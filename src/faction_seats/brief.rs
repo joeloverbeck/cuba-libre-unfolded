@@ -292,7 +292,7 @@ fn operations(faction: Faction) -> [Operation; 4] {
             (
                 "Construct",
                 "R 3.3.5",
-                "In Cities and Provinces that the Government or the Syndicate Controls: places a closed Casino or opens a closed one.",
+                "In Cities and Provinces that the Government or the Syndicate Controls: places a closed Casino or opens a closed one. On card 18 after Government Assault, Syndicate may take it as a Limited Operation (R 2.3.5).",
             ),
         ],
     }

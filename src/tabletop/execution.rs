@@ -1127,6 +1127,28 @@ fn event_heading(faction: Faction) -> String {
 pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)> {
     let e = &view.eligibility;
     if view.card_18_complete() {
+        if !view.construct_paid.is_empty() {
+            let paid = view
+                .construct_paid
+                .iter()
+                .map(|paid| paid.summary(space_name(view, &paid.space)))
+                .collect::<Vec<_>>()
+                .join("\n");
+            return Some((
+                "Syndicate · Limited Construct".into(),
+                "Card 18 complete · Eligibility adjusted\nCard 19 remains the preview".into(),
+                vec![
+                    entry(
+                        "RESULT",
+                        format!(
+                            "{paid}. Syndicate has {} left.",
+                            resources(view.resources[Faction::Syndicate.index()])
+                        ),
+                    ),
+                    super::eligibility::result_entry(view.preview_card, e.next_card?),
+                ],
+            ));
+        }
         let balance = view
             .recorded_resources
             .iter()

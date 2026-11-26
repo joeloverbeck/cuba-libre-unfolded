@@ -272,6 +272,7 @@ fn action(report: &Report) -> Option<&'static str> {
         Did::Terror => Some("Terror"),
         Did::EventUnshaded | Did::EventShaded => Some("Event"),
         Did::Assault => Some("Assault"),
+        Did::Construct => Some("Limited Construct"),
     }
 }
 

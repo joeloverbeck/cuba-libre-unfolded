@@ -43,6 +43,13 @@ fn family(choice: &Choice) -> String {
     {
         return "assault:<space>:<plan>".into();
     }
+    if let Some((space, plan)) = action
+        .strip_prefix("construct:")
+        .and_then(|rest| rest.split_once(':'))
+        && choice.space() == Some(space)
+    {
+        return format!("construct:<space>:{plan}");
+    }
     action.into()
 }
 
@@ -94,6 +101,18 @@ fn card_18_families() -> BTreeSet<String> {
             }
         }
     }
+    let mut construct = assault.clone();
+    for action in [
+        "assault:havana:syndicate",
+        "end-assault",
+        "syndicate:limited-operation",
+        "construct:havana:open",
+        "end-construct",
+    ] {
+        explore::choose(&mut construct, action);
+        offered.extend(families(&construct));
+    }
+
     explore::choose(&mut assault, "assault:santiago:26july");
     offered.extend(families(&assault));
     explore::choose(&mut assault, "end-assault");

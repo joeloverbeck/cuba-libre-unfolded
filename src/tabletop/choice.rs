@@ -286,7 +286,9 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
             enabled: true,
         },
         Some(c) => {
-            let label = if view.current_card == 18 {
+            let label = if c.action() == "end-construct" {
+                "Pay for one space first".into()
+            } else if view.current_card == 18 {
                 "Inspection only".into()
             } else if view.eligibility.directorio_handoff() {
                 format!("{} is outside this task", c.label)
@@ -347,7 +349,7 @@ fn panel_rows(view: &Observation) -> impl Iterator<Item = (&Choice, f32)> {
     let tops = if view.current_card == 18 || view.event.as_ref().is_some_and(EventProgress::pending)
     {
         let within_section_pitch = fig::ROWS[2] - fig::ROWS[1];
-        let first = assault_rows_top(view).unwrap_or(fig::ROWS[0]);
+        let first = payment_rows_top(view).unwrap_or(fig::ROWS[0]);
         std::array::from_fn(|i| first + i as f32 * within_section_pitch)
     } else {
         fig::ROWS
@@ -402,11 +404,49 @@ pub(super) fn assault_lines(view: &Observation) -> Vec<AssaultLine> {
     lines
 }
 
+/// Construct uses the existing payment and outcome column above the action rows.
+fn payment_lines(view: &Observation) -> Vec<AssaultLine> {
+    if view.current_card != 18
+        || view.executing != Some(Faction::Syndicate)
+        || view.transfer.is_some()
+        || view.removal.is_some()
+    {
+        return assault_lines(view);
+    }
+    let mut lines = vec![AssaultLine {
+        name: "construct-map-line".into(),
+        words: if view.construct_paid.is_empty() {
+            super::execution::MAP_LINE.into()
+        } else {
+            "One space paid. Finish to record the Limited Operation.".into()
+        },
+        top: fig::ASSAULT_MAP_LINE[0],
+    }];
+    let [mut top, pitch, ..] = fig::ASSAULT_RECORD;
+    for paid in &view.construct_paid {
+        let space = view
+            .spaces
+            .iter()
+            .find(|space| space.id == paid.space)
+            .unwrap();
+        let words =
+            briefing::wrap(&paid.summary(&space.name), fig::ASSAULT_RECORD_CHARS).join("\n");
+        let height = pitch * words.lines().count() as f32;
+        lines.push(AssaultLine {
+            name: format!("construct-record:{}", paid.space),
+            words,
+            top,
+        });
+        top += height;
+    }
+    lines
+}
+
 /// The first row's top during Assault. With nothing paid the rows stand where the
 /// record would start; a record moves them down by one line pitch for each of its
 /// lines, and the column's gap follows it.
-fn assault_rows_top(view: &Observation) -> Option<f32> {
-    let lines = assault_lines(view);
+fn payment_rows_top(view: &Observation) -> Option<f32> {
+    let lines = payment_lines(view);
     let record: usize = lines.iter().skip(1).map(|l| l.words.lines().count()).sum();
     (!lines.is_empty()).then(|| assault_rows_after(record))
 }
@@ -456,6 +496,12 @@ fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool, agent
         }
         if view.removal.is_some() {
             return "Select a marked piece on the map.\nChoose Done to return to Assault.".into();
+        }
+        if view.executing == Some(Faction::Syndicate) {
+            return format!(
+                "{balance} · {} for one space",
+                resources(crate::CONSTRUCT_COST)
+            );
         }
         if executor == Faction::Government && view.executing.is_some() {
             // The cost lines: the balance and what each space costs (R 6.3.1).
@@ -558,6 +604,9 @@ pub(super) fn panel(
         _ if card_18 && view.executing == Some(Faction::Government) => {
             "Government · Assault".into()
         }
+        _ if card_18 && view.executing == Some(Faction::Syndicate) => {
+            "Syndicate · Limited Construct".into()
+        }
         _ if card_18 => format!("{}'s decision", view.owner.name()),
         Some(EventProgress::ExecuteShaded) => "Directorio · Shaded Event".into(),
         Some(EventProgress::ChooseRallyBeneficiary) => "Choose who Rallies".into(),
@@ -637,15 +686,15 @@ pub(super) fn panel(
         );
         part(commands, label, name);
     }
-    for line in assault_lines(view) {
-        let record = line.name != "assault-map-line";
+    for line in payment_lines(view) {
+        let record = !line.name.ends_with("-map-line");
         let [_, _, size, height] = if record {
             fig::ASSAULT_RECORD
         } else {
             let [_, size] = fig::ASSAULT_MAP_LINE;
             [0., 0., size, fig::SUBTITLE_LINE]
         };
-        let content = if agent && !record {
+        let content = if agent && line.words == super::execution::MAP_LINE {
             super::execution::MAP_LINE_READING.to_owned()
         } else {
             line.words
@@ -674,10 +723,12 @@ pub(super) fn panel(
         let (label, pill) = if act == "government:pass" {
             ("Pass", None)
         } else if card_18 {
-            (
-                choice.label.as_str(),
-                (!choice.supported).then_some("INSPECT"),
-            )
+            let pill = if act == "end-construct" {
+                "PAY FIRST"
+            } else {
+                "INSPECT"
+            };
+            (choice.label.as_str(), (!choice.supported).then_some(pill))
         } else if directorio || event_pending {
             let status = (!choice.supported).then_some("NOT IN THIS TASK");
             (choice.label.as_str(), status)
