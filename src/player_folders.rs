@@ -8,6 +8,7 @@ use anyhow::{Context, Result, bail};
 use serde_json::{Value, json};
 use std::{
     fs,
+    io::Write,
     path::{Path, PathBuf},
 };
 use unfolded_agent_players::folder::{self, CODEX_WAIT, Folders};
@@ -75,10 +76,18 @@ impl Places {
     /// Write both folders, deny Claude Code's file tools the saves and the checkout, and
     /// install the `built` client. A folder that holds anything else is refused first.
     pub fn write(&self, built: &Path) -> Result<()> {
-        let unread = [
-            unreadable(&self.data.join("saves"))?,
-            unreadable(&checkout())?,
-        ];
+        let saves = self.data.join("saves");
+        let mut unread = vec![unreadable(&saves)?, unreadable(&checkout())?];
+        // The launch instructions use this directory even with a separate XDG data home.
+        if let Some(home) = std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .filter(|p| p.is_absolute())
+        {
+            let documented = home.join(".local/share/cuba-libre-unfolded/saves");
+            if documented != saves {
+                unread.push(unreadable(&documented)?);
+            }
+        }
         Folders {
             claude_code: &self.claude_code(),
             codex: &self.codex(),
@@ -102,7 +111,11 @@ impl Places {
             .and_then(Value::as_array_mut)
             .context("the folder's settings list no denials")?
             .extend(unread.iter().map(|rule| json!(rule)));
-        fs::write(&path, format!("{settings:#}\n"))?;
+        // Replace the library's file as its writer does. Setup can recreate a missing
+        // or incomplete settings file on retry.
+        fs::remove_file(&path)?;
+        let mut file = fs::File::create_new(&path)?;
+        writeln!(file, "{settings:#}")?;
         Ok(())
     }
 }
