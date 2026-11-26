@@ -1,7 +1,9 @@
 use super::{faction_seats, *};
 use cuba_libre_unfolded::save::Session;
 use faction_seats::{DIRECTORIO, M26, SYNDICATE, holding, seat};
+use std::fs;
 use std::time::{Duration, Instant};
+use unfolded_record_replacement::previous_path;
 
 const RETURN: &str = "proclamation:return";
 const INBOX: &str = "proclamations";
@@ -188,8 +190,156 @@ fn native_rechecks_a_givers_held_choice_after_reading() {
     }
 }
 
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan"]
+fn native_resume_and_recovery_preserve_proclamations_and_the_pending_giver() {
+    let mut app = pending_giver_in("proclamation-resume-", "issue-232");
+    let m26 = app.seat_agent(M26, "26july");
+    let directorio = app.seat_agent(DIRECTORIO, "directorio");
+    let revision = app.revision();
+    let first = "Authorize 2 Resources. 26July will hear your request on the next card.";
+    let second = "Directorio heard the offer.\nThe choice remains with Syndicate.";
+    publish(&mut app, &m26, revision, first);
+    publish(&mut app, &directorio, revision, second);
+    app.activate(RETURN, revision);
+    app.choose("wait");
+
+    let before = app.observe();
+    let pending = &before["observation"];
+    let request = &pending["transfer"]["Authorizing"];
+    assert_eq!(pending["owner"], "Syndicate");
+    assert_eq!(pending["resources"], json!([1, 4, 5, 15]));
+    assert_eq!(request["amount"], 2, "{request}");
+    assert_eq!(request["waited"], true);
+    let documents = json!([
+        {"number":1,"card":17,"author":"M26","text":first,"read":true},
+        {"number":2,"card":17,"author":"Directorio","text":second,"read":false}
+    ]);
+    let reader =
+        json!({"documents":documents,"open":null,"scroll":0.0,"unread":1,"save_error":null});
+    assert_eq!(before["table"]["proclamations"], reader);
+    app.capture("before-save-quit-with-unread-proclamation");
+    let waiting_save = app.save_bytes();
+    let before_quit_previous = fs::read(previous_path(&app.save)).unwrap();
+
+    let resumed = super::save_quit::save_quit_and_resume(&mut app, false);
+    assert_eq!(resumed["observation"], *pending);
+    assert_eq!(resumed["table"]["proclamations"], reader);
+    assert_eq!(app.save_bytes(), waiting_save);
+    assert_eq!(
+        fs::read(previous_path(&app.save)).unwrap(),
+        before_quit_previous
+    );
+    assert_allowances_and_reset_seats(&mut app, &resumed, first, second);
+    app.capture("reopened-pending-giver-with-unread-proclamation");
+
+    let revision = app.revision();
+    app.activate(INBOX, revision);
+    let unread = app.observe();
+    assert_eq!(unread["table"]["proclamations"]["open"], 2);
+    let reread = app.key("ArrowLeft");
+    assert_eq!(reread["table"]["proclamations"]["open"], 1);
+    assert_eq!(
+        reread["table"]["proclamations"]["documents"][0]["text"],
+        first
+    );
+    assert_eq!(reread["observation"], *pending);
+    app.capture("reread-original-offer-before-authorizing");
+    let both_read = app.save_bytes();
+    assert_eq!(fs::read(previous_path(&app.save)).unwrap(), waiting_save);
+    app.key("Escape");
+    assert_eq!(app.save_bytes(), both_read, "rereading replaced the save");
+    assert_eq!(fs::read(previous_path(&app.save)).unwrap(), waiting_save);
+    let mut reader_after_reading = reader;
+    reader_after_reading["unread"] = 0.into();
+    reader_after_reading["documents"][1]["read"] = true.into();
+
+    app.choose("reopen");
+    let before_authorizing = app.observe();
+    assert_eq!(
+        before_authorizing["observation"]["transfer"]["Authorizing"]["amount"],
+        2
+    );
+    assert_eq!(
+        before_authorizing["table"]["proclamations"],
+        reader_after_reading
+    );
+    let before_authorizing_save = app.save_bytes();
+    let giver_revision = app.revision();
+    let authorization = format!("{giver_revision}:authorize:2");
+    app.choose("authorize:2");
+    let applied = app.observe();
+    assert_eq!(applied["observation"]["resources"], json!([1, 6, 5, 13]));
+    assert_eq!(applied["table"]["proclamations"], reader_after_reading);
+    app.capture("authorized-once-after-reopen");
+    let committed = app.save_bytes();
+    assert_eq!(
+        fs::read(previous_path(&app.save)).unwrap(),
+        before_authorizing_save
+    );
+    app.quit();
+
+    app.launch_size("3840x2160");
+    let committed_again = app.observe();
+    assert_eq!(committed_again["observation"], applied["observation"]);
+    assert_eq!(
+        committed_again["table"]["proclamations"],
+        reader_after_reading
+    );
+    app.request(
+        json!({"op":"activate","revision":giver_revision,"choice":authorization}),
+        false,
+    );
+    assert_eq!(app.save_bytes(), committed);
+    app.quit();
+
+    let source = super::construct_transfers::launch_recovered(&mut app);
+    let recovered = app.observe();
+    assert_eq!(recovered["observation"], before_authorizing["observation"]);
+    assert_eq!(recovered["table"]["proclamations"], reader_after_reading);
+    assert_eq!(app.save_bytes(), before_authorizing_save);
+    assert_allowances_and_reset_seats(&mut app, &recovered, first, second);
+    app.capture("recovered-exact-giver-decision");
+    app.choose("authorize:2");
+    assert_eq!(app.save_bytes(), committed);
+    assert_eq!(fs::read(&source).unwrap(), committed);
+    assert_eq!(
+        fs::read(previous_path(&source)).unwrap(),
+        before_authorizing_save
+    );
+
+    app.quit();
+}
+
+fn assert_allowances_and_reset_seats(app: &mut Native, view: &Value, first: &str, second: &str) {
+    for (faction, key, name, can_publish) in [
+        ("Government", faction_seats::GOVERNMENT, "government", true),
+        ("M26", M26, "26july", false),
+        ("Directorio", DIRECTORIO, "directorio", false),
+        ("Syndicate", SYNDICATE, "syndicate", true),
+    ] {
+        assert_eq!(seat(view, faction)["state"], "human");
+        let player = app.seat_agent(key, name);
+        let (code, seen) = app.ask(&["observe", &player]);
+        assert_eq!(code, 0, "{seen}");
+        assert_eq!(seen["view"]["proclamations"]["can_publish"], can_publish);
+        assert_eq!(
+            seen["view"]["proclamations"]["published"],
+            json!([
+                {"card":17,"author":"M26","text":first},
+                {"card":17,"author":"Directorio","text":second}
+            ])
+        );
+        app.key(key);
+    }
+}
+
 fn pending_giver(prefix: &str) -> NativeRun {
-    let mut app = super::available_forces::unlaunched(prefix, "issue-231");
+    pending_giver_in(prefix, "issue-231")
+}
+
+fn pending_giver_in(prefix: &str, issue: &str) -> NativeRun {
+    let mut app = super::available_forces::unlaunched(prefix, issue);
     let mut seed = Session::create_seeded(&app.save, 2).unwrap();
     for action in ["terror", "kidnap", "kidnap:roll", "terror:santiago"] {
         let view = seed.observe();

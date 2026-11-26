@@ -259,8 +259,8 @@ impl seats::Table for Sitting<'_> {
             .publish(faction, revision, card, text);
         match &result {
             Ok(()) => {
-                let newest = self.session().proclamations().len() - 1;
-                self.ui.proclamation_reader.receive(newest);
+                let session = self.play.session.as_ref().expect("An admitted match");
+                self.ui.proclamation_reader.receive(session);
                 self.ui.dirty = true;
             }
             Err(failure @ Submit::Save(_)) => {

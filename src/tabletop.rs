@@ -1138,13 +1138,8 @@ fn click(
             ..
         }) = controls.get(event.entity)
         {
-            let count = play
-                .session
-                .as_ref()
-                .expect("An admitted match")
-                .proclamations()
-                .len();
-            proclamation_reader::press(&mut ui, *press, count);
+            let session = play.session.as_mut().expect("An admitted match");
+            proclamation_reader::press(&mut ui, *press, session);
         }
         return;
     }
@@ -1225,13 +1220,8 @@ fn click(
         // Reading an edition changes nothing in the match.
         Action::Edition(press) => newspaper::press(&mut ui, *press),
         Action::ReadProclamation(press) => {
-            let count = play
-                .session
-                .as_ref()
-                .expect("An admitted match")
-                .proclamations()
-                .len();
-            proclamation_reader::press(&mut ui, *press, count);
+            let session = play.session.as_mut().expect("An admitted match");
+            proclamation_reader::press(&mut ui, *press, session);
         }
         // Reading a card changes nothing in the match.
         Action::Card(slot) => cards::activate(&mut ui, *slot),

@@ -8,7 +8,6 @@ use bevy::input::{
 use bevy::text::{LineBreak, TextLayout};
 use bevy::ui::widget::NodeImageMode;
 use serde_json::json;
-use std::collections::{BTreeSet, VecDeque};
 
 const LAYER: i32 = 55;
 const LINE: f32 = 73.;
@@ -33,10 +32,9 @@ struct Open {
 
 #[derive(Default)]
 pub(super) struct State {
-    read: BTreeSet<usize>,
-    queued: VecDeque<usize>,
     open: Option<Open>,
     scroll: f32,
+    save_error: Option<String>,
 }
 
 impl State {
@@ -45,24 +43,30 @@ impl State {
     }
 
     /// The end of the authoritative record just received a faction publication.
-    pub(super) fn receive(&mut self, index: usize) {
-        self.queued.push_back(index);
+    pub(super) fn receive(&mut self, session: &Session) {
         if self.open.is_none() {
-            self.open = self.next_delivery();
+            self.open = self.next_delivery(session);
         }
     }
 
-    fn next_delivery(&mut self) -> Option<Open> {
-        self.queued.pop_front().map(|index| Open {
+    fn next_unread(&self, session: &Session) -> Option<usize> {
+        let open = self.open.map(|open| open.index);
+        (0..session.proclamations().len())
+            .find(|&index| Some(index) != open && !session.proclamation_is_read(index))
+    }
+
+    fn next_delivery(&self, session: &Session) -> Option<Open> {
+        self.next_unread(session).map(|index| Open {
             index,
             archive: false,
         })
     }
 
-    fn press(&mut self, press: Press, count: usize) -> bool {
+    fn press(&mut self, press: Press, session: &mut Session) -> bool {
+        let count = session.proclamations().len();
         let next = match (press, self.open) {
             (Press::Open, None) if count > 0 => Some(Open {
-                index: self.queued.front().copied().unwrap_or(0),
+                index: self.next_unread(session).unwrap_or(0),
                 archive: true,
             }),
             (Press::Return, Some(_)) => None,
@@ -74,34 +78,42 @@ impl State {
                 index: open.index + 1,
                 ..open
             }),
-            (Press::Next, Some(open)) if !open.archive && !self.queued.is_empty() => {
-                self.next_delivery()
+            (Press::Next, Some(open)) if !open.archive => {
+                let Some(next) = self.next_delivery(session) else {
+                    return false;
+                };
+                Some(next)
             }
             _ => return false,
         };
-        if let Some(open) = self.open {
-            self.read.insert(open.index);
-            self.queued.retain(|queued| *queued != open.index);
+        if let Some(open) = self.open
+            && let Err(error) = session.read_proclamation(open.index)
+        {
+            self.save_error = Some(error.to_string());
+            return true;
         }
+        self.save_error = None;
         self.open = next;
         self.scroll = 0.;
         true
     }
-
-    fn unread(&self, count: usize) -> usize {
-        count - self.read.len()
-    }
 }
 
-pub(super) fn press(ui: &mut Interface, press: Press, count: usize) {
-    ui.dirty |= ui.proclamation_reader.press(press, count);
+fn unread(session: &Session) -> usize {
+    (0..session.proclamations().len())
+        .filter(|&index| !session.proclamation_is_read(index))
+        .count()
+}
+
+pub(super) fn press(ui: &mut Interface, press: Press, session: &mut Session) {
+    ui.dirty |= ui.proclamation_reader.press(press, session);
 }
 
 #[derive(Component)]
 pub(super) struct Body;
 
 pub(super) fn keys(
-    play: Res<Play>,
+    mut play: ResMut<Play>,
     mut ui: ResMut<Interface>,
     mut keys: ResMut<ButtonInput<KeyCode>>,
     mut keyboard: ResMut<Messages<KeyboardInput>>,
@@ -109,7 +121,7 @@ pub(super) fn keys(
     body: Query<&ComputedNode, With<Body>>,
     window: Single<&Window, With<PrimaryWindow>>,
 ) {
-    let Some(session) = &play.session else {
+    let Some(session) = &mut play.session else {
         return;
     };
     let count = session.proclamations().len();
@@ -120,7 +132,7 @@ pub(super) fn keys(
             && ui.line.is_none()
             && count > 0
         {
-            press(&mut ui, Press::Open, count);
+            press(&mut ui, Press::Open, session);
         }
         return;
     }
@@ -132,13 +144,13 @@ pub(super) fn keys(
         KeyCode::Space,
     ];
     if keys.any_just_pressed(DISMISS) {
-        press(&mut ui, Press::Return, count);
+        press(&mut ui, Press::Return, session);
         wheel.clear();
     } else if keys.just_pressed(KeyCode::ArrowLeft) {
-        press(&mut ui, Press::Previous, count);
+        press(&mut ui, Press::Previous, session);
         wheel.clear();
     } else if keys.just_pressed(KeyCode::ArrowRight) {
-        press(&mut ui, Press::Next, count);
+        press(&mut ui, Press::Next, session);
         wheel.clear();
     } else {
         let scale = broadsheet::Layout::new(&window).scale;
@@ -190,7 +202,7 @@ pub(super) fn draw(
     let state = &ui.proclamation_reader;
     let Some(open) = state.open else {
         // The archive is above the seat cards, clear of the edition pile and the transfer.
-        let unread = state.unread(documents.len());
+        let unread = unread(session);
         let label = if unread == 0 {
             "Proclamations · R".to_owned()
         } else {
@@ -307,8 +319,14 @@ pub(super) fn draw(
         LAYER + 2,
     );
     commands.entity(caption).insert(UiRoot);
-    if let Some(Transfer::Authorizing { giver, .. }) = &session.game().transfer {
-        let words = format!("{} is deciding the Resource request", giver.name());
+    let pending = if state.save_error.is_some() {
+        Some("Could not save this acknowledgement. Try again.".to_owned())
+    } else if let Some(Transfer::Authorizing { giver, .. }) = &session.game().transfer {
+        Some(format!("{} is deciding the Resource request", giver.name()))
+    } else {
+        None
+    };
+    if let Some(words) = pending {
         let pending = broadsheet::text(
             commands,
             layout,
@@ -335,7 +353,7 @@ pub(super) fn draw(
         );
     }
     if (open.archive && open.index + 1 < documents.len())
-        || (!open.archive && !state.queued.is_empty())
+        || (!open.archive && state.next_unread(session).is_some())
     {
         button(
             commands,
@@ -422,13 +440,13 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
         .map(|(index, document)| {
             json!({
                 "number": index + 1, "card": document.card, "author": document.author,
-                "text": document.text, "read": state.read.contains(&index),
+                "text": document.text, "read": session.proclamation_is_read(index),
             })
         })
         .collect::<Vec<_>>();
     json!({
-        "documents": listed, "unread": state.unread(documents.len()),
+        "documents": listed, "unread": unread(session),
         "open": state.open.map(|open| open.index + 1),
-        "scroll": state.scroll,
+        "scroll": state.scroll, "save_error": state.save_error,
     })
 }

@@ -1066,7 +1066,7 @@ fn close_havana_with_assault(app: &mut Native) {
     );
 }
 
-fn launch_recovered(app: &mut Native) -> PathBuf {
+pub(super) fn launch_recovered(app: &mut Native) -> PathBuf {
     let source = app.save.clone();
     app.save = app.root.join("recovered.json");
     let output = Command::new(env!("CARGO_BIN_EXE_cuba-libre"))

@@ -96,7 +96,7 @@ fn focus_save_quit(app: &mut Native) -> Value {
 /// Ends the app through Save · quit, by Enter on its focus or by a click, and waits
 /// for it to close its log; then relaunches it on the same save and returns the
 /// resumed view. The match, and the save's bytes, are as they were.
-fn save_quit_and_resume(app: &mut Native, by_enter: bool) -> Value {
+pub(super) fn save_quit_and_resume(app: &mut Native, by_enter: bool) -> Value {
     use rustix::{
         event::{PollFd, PollFlags, Timespec, poll},
         fs::inotify::{self, CreateFlags, WatchFlags},
