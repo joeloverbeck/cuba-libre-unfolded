@@ -161,8 +161,10 @@ fn native_public_proclamations_preserve_the_givers_decision() {
     assert_eq!((code, &next["status"]), (0, &json!("decision")));
     assert_eq!(next["view"]["decision"]["faction"], "Directorio");
     assert_eq!(next["view"]["proclamations"]["published"], words);
-    app.decide(&directorio, "event:shaded", "applied");
-    let silent = app.decide(&directorio, "resolve-shaded", "applied");
+    client_applies(&mut app, &directorio, "event:shaded");
+    client_applies(&mut app, &directorio, "resolve-shaded");
+    let (code, silent) = app.ask(&["observe", &directorio]);
+    assert_eq!(code, 0);
     assert_eq!(silent["view"]["proclamations"]["published"], words);
     // The committed Event earns the ordinary edition. The received speech
     // required no acknowledgement before either decision.
