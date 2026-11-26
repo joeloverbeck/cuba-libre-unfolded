@@ -16,6 +16,8 @@ Use `gh` from this clone. Before creating an issue, verify the target with `gh r
 
 Write multiline bodies to a file and use `--body-file`. When a skill says to publish to the tracker, create an issue; when it says to fetch a ticket, read the issue.
 
+Run `scripts/wait-ci <n>` through the same execution context that can read the PR with `gh pr view <n>`. If the sandbox denies API access, use the approved host execution route for the watcher. A returned head SHA or a pending check uses the watcher's propagation wait.
+
 Prefer native sub-issues and blocking dependencies when supported by the installed CLI and repository. Otherwise use `Part of #<parent>` and `Blocked by: #<number>` lines with a parent task list. Closed blockers alone do not authorize activation; verify their accepted outcomes and the dependent issue's readiness.
 
 GitHub issues and PRs share a number space. Resolve a bare number before acting, using `gh pr view` and then `gh issue view` if it is not a PR.
