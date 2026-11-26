@@ -17,6 +17,7 @@ use unfolded_agent_players::folder::CODEX_WAIT;
 fn written(data: &Path) -> Output {
     Command::new(env!("CARGO_BIN_EXE_cuba-tools"))
         .arg("player-folders")
+        .env("HOME", data.join("home"))
         .env("XDG_DATA_HOME", data)
         .output()
         .unwrap()
@@ -124,6 +125,10 @@ fn claude_code_is_denied_reading_the_saves_and_the_checkout() {
         [
             format!("Read(/{}/**)", saves.display()),
             format!("Read(/{}/**)", checkout().display()),
+            format!(
+                "Read(/{}/home/.local/share/cuba-libre-unfolded/saves/**)",
+                data.path().display()
+            ),
         ]
     );
     assert!(writes.contains(&"Edit(/.claude/**)"), "{writes:?}");
