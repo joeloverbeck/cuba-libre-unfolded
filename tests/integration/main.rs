@@ -29,6 +29,7 @@ mod assault_side;
 mod available_forces;
 mod card_facts;
 mod change_texts;
+mod construct_transfers;
 mod editions;
 mod eligibility;
 mod faction_seats;

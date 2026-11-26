@@ -731,7 +731,7 @@ fn a_save_holds_its_seed_decisions_and_position_under_format_5() {
     let saved = record(&path);
     assert_eq!(
         saved["identity"],
-        serde_json::json!({"format": "5", "source": cuba_libre_unfolded::assets::SOURCE})
+        serde_json::json!({"format": "6", "source": cuba_libre_unfolded::assets::SOURCE})
     );
     assert_eq!(saved["payload"]["seed"], 5);
     assert_eq!(
