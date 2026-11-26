@@ -44,7 +44,7 @@ Once the launcher reports `ready`, connect to the seat.
 
 ## Native owner handoff
 
-Before exact review of changed table text, capture the affected surfaces at 3840×2160. Include a representative blocked or unavailable map hover when changing Operation reasons, and the affected refusals and editions when changing their text. For a fixed tag row, reuse the native hover test's drawn-bounds assertion with the actual text and emblems. Put the passing run and captures in the ticket handoff.
+Before exact review of changed table text, capture the affected surfaces at 3840×2160 and inspect them at 1:1. Include a representative blocked or unavailable map hover when changing Operation reasons, and the affected refusals and editions when changing their text. For a fixed tag row, reuse the native hover test's drawn-bounds assertion with the actual text and emblems. Put the passing run and captures in the ticket handoff.
 
 Build the executables from the reviewed checkout into the review package with `scripts/heavy scripts/package-review-binaries "$package"` (requires `jq`). Include them all in the package manifest. Have the replay script launch the packaged game and call `"$package/cuba-tools" seat`. Keep the input and recovery saves with their recorded hashes, and run each branch on a fresh copy.
 

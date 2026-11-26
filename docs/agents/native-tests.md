@@ -7,7 +7,7 @@ Run affected integration selectors when changing a report article, choice family
 | Change | Selectors |
 |---|---|
 | Report articles, summaries, or committed facts | `reports::` |
-| Choice families or faction briefs | `seat_reference::`, `seat_briefs::` |
+| Choice families or seat briefs | `seat_reference::`, `seat_briefs::` |
 | Faction-view projection or choice ownership | `faction_seats::` |
 
 ## Regression catalogue
