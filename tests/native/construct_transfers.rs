@@ -378,7 +378,7 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
     app.type_amount("2");
     let draft = app.observe();
     let condition = "Resources move only when authorizations fund a legal payment.";
-    let modal_condition = "Funds move once authorizations cover a legal payment.";
+    let modal_condition = "Resources move if authorizations fund a legal payment.";
     assert!(transfer_part(&draft, "construct-funding").contains(modal_condition));
     assert!(
         transfer_part(&draft, "construct-funding")

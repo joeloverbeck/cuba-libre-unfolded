@@ -2040,7 +2040,7 @@ fn footer(
         .filter(|_| shown.giver != view.executing);
     let note = if let Some(funding) = funding {
         format!(
-            "{}\nFunds move once authorizations cover a legal payment.",
+            "{}\nResources move if authorizations fund a legal payment.",
             funding.summary()
         )
     } else {
