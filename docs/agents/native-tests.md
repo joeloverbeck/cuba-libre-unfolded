@@ -14,7 +14,8 @@ Run affected integration selectors when changing a report article, choice family
 
 The [seat reference](seat.md) has the seat's requests, its component ids, what the table reports and how to judge a capture on the owner's display.
 
-- `native_human_composes_a_proclamation_for_the_selected_faction` and `native_human_publication_preserves_the_pending_havana_request` (#230) select a human author, play on in silence, and type the full 400-character Broadsheet at 3840×2160. They check the rendered bounds, retained drafts after refusals, the allowance across takeover, and the exact publication in the real Directorio client while 26July’s transfer choice stays pending. Evidence goes to `local/verification/issue-230/` when run directly.
+- `native_human_composes_a_proclamation_for_the_selected_faction` (#230) selects a human author from the author controls, closes the sheet, and plays the pending decision in silence.
+- `native_human_publication_preserves_the_pending_havana_request` (#230) types the exact 400-character Broadsheet at 3840×2160. It checks the rendered bounds, retained drafts after refusals, the allowance across takeover, and the exact publication in the real Directorio client while 26July’s transfer choice stays pending. Evidence goes to `local/verification/issue-230/` when run directly.
 
 - `native_public_proclamations_preserve_the_givers_decision` (#229) runs four real faction clients. It checks the same 400-character Syndicate proclamation in every view, Directorio's eventual decision, refused writes and retries, and the allowance after seat takeover and card advance. At the card 18 Havana request, it checks the pending choice, balances, closed Casino and factual reports around 26July's publication and a same-build restart. It then authorizes two Resources and pays separately to open the Casino. Evidence goes to `local/verification/issue-229/` when run directly.
 
