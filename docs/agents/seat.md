@@ -245,7 +245,7 @@ The table the seat drives hosts agent sessions' faction seats (#203, [foundation
 
 Report one seat and session at a time. Use the ticket's accepted limits for that run and count from its session and approval records. As soon as a bounded event is exercised, run `cuba-tools session-costs FILE` and put its four rows in the ticket's evidence. Keep the event times and trace references in the private handoff so another agent can reproduce each count.
 
-The input is a JSON file. For example, these are the measured Claude counts and original limits for #205:
+The JSON below uses the 25 November 2026 session with Claude Code 2.1.332, Opus 5.5 high and the owner’s auto mode. Its two table-close calls exceeded the original one-call limit. [#205 measurements](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/205#issuecomment-7176804956) · [#197 event limits](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/197)
 
 ```json
 {
@@ -256,7 +256,7 @@ The input is a JSON file. For example, these are the measured Claude counts and 
 }
 ```
 
-Count model calls during the ticket's required quiet interval, the most waiting calls for any one gameplay event, approval-model calls for game commands, and model calls after the table closes. Count distinct provider responses, including a response that only reads the close result or writes notes. For a ceiling expressed per command, report the highest count for a single command. Use `null` for an observation without evidence, including an idle interval that ended early. Exit 0 means every row passed, 1 means a ceiling failed or the input was invalid, and 3 means observations are missing with no known failure. Surface a failed row before another live run that depends on it. Keep it with the limits under which the run took place when recording a later owner ruling.
+Count model calls during the ticket's required quiet interval, the most waiting calls for any one event covered by the ticket, approval-model calls for game commands, and model calls after the table closes. Count distinct provider responses, including a response that only reads the close result or writes notes. For a ceiling expressed per command, report the highest count for a single command. Use `null` for an observation without evidence, including an idle interval that ended early. Exit 0 means every row passed, 1 means a ceiling failed or the input was invalid, and 3 means observations are missing with no known failure. Surface a failed row before another live run that depends on it. Keep it with the limits under which the run took place when recording a later owner ruling.
 
 ## What the table reports
 

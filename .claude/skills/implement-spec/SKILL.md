@@ -55,7 +55,7 @@ Ask the activation's other questions in the same round as the role table: the al
 
 ## Resuming
 
-A spec already under way has an activation comment, an integration branch and, after a pause, a state record and a resumption note in the spec. Read them and continue from the state record's next step, on the existing integration branch and its worktree. Record the resumption time on the spec, for the ledger (`docs/agents/parallel-work.md`, "Ledgers"). The role table and the owner's rulings stand; ask only for what they lack. Before a pause, record its start and leave that state record: what is done and closed, what remains in order, the branch, worktree and warm target, and what awaits the owner.
+A spec already under way has an activation comment, an integration branch and, after a pause, a state record and a resumption note in the spec. Read them and continue from the state record's next step, on the existing integration branch and its worktree. Record the resumption time on the spec, for the ledger (`docs/agents/parallel-work.md`, "Ledgers"). The role table and the owner's rulings stand; ask only for what they lack. Before a pause, update the same issue handoff linked from the draft PR with the pause start and current state: what is done and closed, what remains in order, the branch, worktree and warm target, and what awaits the owner.
 
 ## Small follow-up
 
