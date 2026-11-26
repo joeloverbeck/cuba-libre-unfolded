@@ -15,13 +15,13 @@ tabletop = ["dep:arboard", "dep:bevy", "dep:unfolded-hover", "unfolded-tabletop/
 # patch below. The game, its saves and `cuba-tools` take only the packages that cannot
 # depend on Bevy; `unfolded-hover`, which only the table uses, and `unfolded-tabletop`
 # come with `tabletop`.
-unfolded-agent-players = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "a7342b4ed9c343af2d2b8473cc17db4275556efb" }
-unfolded-assets = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "a7342b4ed9c343af2d2b8473cc17db4275556efb" }
-unfolded-hover = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "a7342b4ed9c343af2d2b8473cc17db4275556efb", optional = true }
-unfolded-random = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "a7342b4ed9c343af2d2b8473cc17db4275556efb" }
-unfolded-record-replacement = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "a7342b4ed9c343af2d2b8473cc17db4275556efb" }
-unfolded-seat-client = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "a7342b4ed9c343af2d2b8473cc17db4275556efb" }
-unfolded-tabletop = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "a7342b4ed9c343af2d2b8473cc17db4275556efb", optional = true }
+unfolded-agent-players = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "11ce364e471f1c16e112f960298c38fea3490f8f" }
+unfolded-assets = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "11ce364e471f1c16e112f960298c38fea3490f8f" }
+unfolded-hover = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "11ce364e471f1c16e112f960298c38fea3490f8f", optional = true }
+unfolded-random = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "11ce364e471f1c16e112f960298c38fea3490f8f" }
+unfolded-record-replacement = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "11ce364e471f1c16e112f960298c38fea3490f8f" }
+unfolded-seat-client = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "11ce364e471f1c16e112f960298c38fea3490f8f" }
+unfolded-tabletop = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "11ce364e471f1c16e112f960298c38fea3490f8f", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
@@ -52,4 +52,4 @@ debug = 0
 opt-level = 3
 
 [patch.crates-io]
-wgpu-hal = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "a7342b4ed9c343af2d2b8473cc17db4275556efb" }
+wgpu-hal = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "11ce364e471f1c16e112f960298c38fea3490f8f" }

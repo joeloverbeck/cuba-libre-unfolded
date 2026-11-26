@@ -4755,7 +4755,7 @@ checksum = "214ca0b2191785cbc06209b9ca1861e048e39b5ba33574b3cedd58363d5bb5f6"
 [[package]]
 name = "unfolded-agent-players"
 version = "0.1.0"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=a7342b4ed9c343af2d2b8473cc17db4275556efb#a7342b4ed9c343af2d2b8473cc17db4275556efb"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=11ce364e471f1c16e112f960298c38fea3490f8f#11ce364e471f1c16e112f960298c38fea3490f8f"
 dependencies = [
  "serde_json",
  "unfolded-seat-client",
@@ -4764,7 +4764,7 @@ dependencies = [
 [[package]]
 name = "unfolded-assets"
 version = "0.1.0"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=a7342b4ed9c343af2d2b8473cc17db4275556efb#a7342b4ed9c343af2d2b8473cc17db4275556efb"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=11ce364e471f1c16e112f960298c38fea3490f8f#11ce364e471f1c16e112f960298c38fea3490f8f"
 dependencies = [
  "image",
  "rustix 1.1.6",
@@ -4774,17 +4774,17 @@ dependencies = [
 [[package]]
 name = "unfolded-hover"
 version = "0.1.0"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=a7342b4ed9c343af2d2b8473cc17db4275556efb#a7342b4ed9c343af2d2b8473cc17db4275556efb"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=11ce364e471f1c16e112f960298c38fea3490f8f#11ce364e471f1c16e112f960298c38fea3490f8f"
 
 [[package]]
 name = "unfolded-random"
 version = "0.1.0"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=a7342b4ed9c343af2d2b8473cc17db4275556efb#a7342b4ed9c343af2d2b8473cc17db4275556efb"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=11ce364e471f1c16e112f960298c38fea3490f8f#11ce364e471f1c16e112f960298c38fea3490f8f"
 
 [[package]]
 name = "unfolded-record-replacement"
 version = "0.1.0"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=a7342b4ed9c343af2d2b8473cc17db4275556efb#a7342b4ed9c343af2d2b8473cc17db4275556efb"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=11ce364e471f1c16e112f960298c38fea3490f8f#11ce364e471f1c16e112f960298c38fea3490f8f"
 dependencies = [
  "serde",
  "serde_json",
@@ -4795,7 +4795,7 @@ dependencies = [
 [[package]]
 name = "unfolded-seat-client"
 version = "0.1.0"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=a7342b4ed9c343af2d2b8473cc17db4275556efb#a7342b4ed9c343af2d2b8473cc17db4275556efb"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=11ce364e471f1c16e112f960298c38fea3490f8f#11ce364e471f1c16e112f960298c38fea3490f8f"
 dependencies = [
  "anyhow",
  "serde_json",
@@ -4806,7 +4806,7 @@ dependencies = [
 [[package]]
 name = "unfolded-seat-protocol"
 version = "0.1.0"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=a7342b4ed9c343af2d2b8473cc17db4275556efb#a7342b4ed9c343af2d2b8473cc17db4275556efb"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=11ce364e471f1c16e112f960298c38fea3490f8f#11ce364e471f1c16e112f960298c38fea3490f8f"
 dependencies = [
  "serde",
  "serde_json",
@@ -4815,7 +4815,7 @@ dependencies = [
 [[package]]
 name = "unfolded-tabletop"
 version = "0.1.0"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=a7342b4ed9c343af2d2b8473cc17db4275556efb#a7342b4ed9c343af2d2b8473cc17db4275556efb"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=11ce364e471f1c16e112f960298c38fea3490f8f#11ce364e471f1c16e112f960298c38fea3490f8f"
 dependencies = [
  "bevy",
  "image",
@@ -5132,7 +5132,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "30.0.1"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=a7342b4ed9c343af2d2b8473cc17db4275556efb#a7342b4ed9c343af2d2b8473cc17db4275556efb"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=11ce364e471f1c16e112f960298c38fea3490f8f#11ce364e471f1c16e112f960298c38fea3490f8f"
 dependencies = [
  "android_system_properties",
  "arrayvec",
