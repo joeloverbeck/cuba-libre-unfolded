@@ -113,6 +113,7 @@ static KEYS: LazyLock<Vec<SeatKey>> = LazyLock::new(|| {
         key("Delete", KeyCode::Delete, Key::Delete, false),
         key("End", KeyCode::End, Key::End, false),
         key("KeyP", KeyCode::KeyP, Key::Character("p".into()), false),
+        key("KeyR", KeyCode::KeyR, Key::Character("r".into()), false),
         // Each hands a faction over to an agent, or takes it back (`faction_seats`).
         key("F1", KeyCode::F1, Key::F1, false),
         key("F2", KeyCode::F2, Key::F2, false),
@@ -500,6 +501,7 @@ impl SeatGame for Table {
         let cards = seat_cards::observe(world);
         let newspaper = newspaper::observe(world);
         let composer = proclamation_composer::observe(world);
+        let proclamations = proclamation_reader::observe(world);
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
         let pose = world.resource::<Orbit>().pose();
@@ -521,6 +523,7 @@ impl SeatGame for Table {
         // #208: the newspaper.
         table["newspaper"] = newspaper;
         table["proclamation_composer"] = composer;
+        table["proclamations"] = proclamations;
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
             table,
@@ -648,6 +651,12 @@ impl SeatGame for Table {
         (skips && die::focus(world) == Some(die::TRAY)) || (lands && piles::playing(world))
     }
     fn focus(&self, world: &mut World) -> Focus {
+        if world.resource::<Interface>().proclamation_reader.is_open() {
+            return Focus::Control {
+                choice: None,
+                label: proclamation_reader::RETURN.into(),
+            };
+        }
         // A card in the air holds the keyboard: Enter or Space lands it (#145).
         if piles::playing(world) {
             return Focus::Control {

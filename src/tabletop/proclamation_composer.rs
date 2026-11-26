@@ -17,7 +17,7 @@ use unfolded_tabletop::seat::Focus;
 pub(super) const WRITE: &str = "proclamation:write";
 const FIELD: &str = "proclamation:field";
 const FIELD_PLATE: &str = "proclamation-broadsheet-field.png";
-const RETURN: &str = "proclamation:return";
+const RETURN: &str = "proclamation:compose:return";
 const PUBLISH: &str = "proclamation:publish";
 const LAYER: i32 = 49;
 const INK_RED: Color = Color::srgb(0.45, 0.16, 0.07); // own colour: dark red for refusals on Broadsheet paper
@@ -88,13 +88,16 @@ pub(super) struct Sheet {
     length: usize,
     human: [bool; 4],
     spent: bool,
+    interrupted: bool,
 }
 
 fn available(play: &Play, ui: &Interface) -> bool {
     play.session.as_ref().is_some_and(|session| {
         Stands::of(session.game()) == Stands::Open
             && ui.played().into_iter().any(|played| played)
+            && ui.line.is_none()
             && !ui.editions.holds()
+            && !ui.proclamation_reader.is_open()
     })
 }
 
@@ -156,10 +159,21 @@ fn tabs() -> [Press; 7] {
     ]
 }
 
-/// The shared seat puts a named printable key in the logical key, with no winit
-/// text payload. Complete that event before Bevy's focused editor dispatch.
-pub(super) fn seat_text(mut events: MessageMutator<KeyboardInput>, ui: Res<Interface>) {
-    if !ui.composer.is_open() {
+/// Keep a reader's input outside the editor. The shared development seat puts a
+/// printable key in the logical key without a winit text payload, so complete
+/// that event before Bevy's focused editor dispatch.
+pub(super) fn prepare_input(
+    mut events: MessageMutator<KeyboardInput>,
+    ui: Res<Interface>,
+    play: Res<Play>,
+    fields: Query<Entity, With<Editor>>,
+    mut focus: ResMut<InputFocus>,
+) {
+    let interrupted = ui.proclamation_reader.is_open();
+    if interrupted && focus.get().is_some_and(|entity| fields.contains(entity)) {
+        focus.clear();
+    }
+    if interrupted || !ui.composer.is_open() || !play.options.agent {
         events.clear();
         return;
     }
@@ -182,6 +196,9 @@ pub(super) fn keys(
     advance: Res<piles::Advance>,
     time: Res<Time>,
 ) {
+    if ui.proclamation_reader.is_open() {
+        return;
+    }
     if !ui.composer.is_open() {
         if keys.just_pressed(KeyCode::KeyP) && available(&play, &ui) {
             let game = play.game();
@@ -252,7 +269,7 @@ pub(super) fn publish(
     field: Query<(Entity, &Editor, &EditableText)>,
 ) {
     keep_draft(&mut ui.composer, &field);
-    if !std::mem::take(&mut ui.composer.publishing) {
+    if !std::mem::take(&mut ui.composer.publishing) || ui.proclamation_reader.is_open() {
         return;
     }
     let Some(page) = ui.composer.page.as_ref() else {
@@ -286,6 +303,7 @@ pub(super) fn publish(
     }
 }
 
+#[allow(clippy::too_many_arguments)] // The Bevy system reads table state and owns the editor focus.
 pub(super) fn draw(
     mut commands: Commands,
     art: Res<Art>,
@@ -306,6 +324,7 @@ pub(super) fn draw(
             length: ui.composer.draft(page.author).chars().count(),
             human: ui.played(),
             spent: Proclamation::spent(session.proclamations(), page.card, page.author),
+            interrupted: ui.proclamation_reader.is_open(),
         })
     });
     if next == *last {
@@ -338,7 +357,7 @@ pub(super) fn draw(
             field.single().expect("The current writing field").0
         };
         match (
-            sheet.page.focus == Press::Field,
+            sheet.page.focus == Press::Field && !sheet.interrupted,
             focus.get() == Some(entity),
         ) {
             (true, false) => focus.set(entity, FocusCause::Navigated),

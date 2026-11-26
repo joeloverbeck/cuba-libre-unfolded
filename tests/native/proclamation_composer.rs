@@ -128,11 +128,11 @@ fn native_human_publication_preserves_the_pending_havana_request() {
         app.observe()["table"]["proclamation_composer"]["spent"],
         true
     );
-    type_text(&app, revision, "Keep  this.\n");
+    type_text(&app, revision, "Keep  this record.\n");
     let saved = app.save_bytes();
     app.activate("proclamation:publish", revision);
     let duplicate = app.observe()["table"]["proclamation_composer"].clone();
-    assert_eq!(duplicate["draft"], "Keep  this.\n");
+    assert_eq!(duplicate["draft"], "Keep  this record.\n");
     assert!(
         duplicate["refusal"]
             .as_str()
@@ -142,7 +142,7 @@ fn native_human_publication_preserves_the_pending_havana_request() {
     assert_eq!(app.save_bytes(), saved);
     app.capture("spent-faction-retains-new-draft");
 
-    app.activate("proclamation:return", revision);
+    app.activate("proclamation:compose:return", revision);
     assert_eq!(app.observe()["observation"], pending);
     app.choose("authorize:2");
     let funded = app.observe()["observation"].clone();

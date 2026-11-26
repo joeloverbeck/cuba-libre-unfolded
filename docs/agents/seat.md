@@ -118,7 +118,7 @@ Every full reply carries the whole rules observation and the whole table: many k
 
 Activate `proclamation:write` or press `KeyP` during an open card. Select `proclamation:author:<faction>` using `government`, `26july`, `directorio` or `syndicate`. The writing field is `proclamation:field`. It accepts letter keys named by case, digits, punctuation, `Space`, `Enter` for a line break, arrows, `Home`, `End`, `Backspace` and `Delete`. Name the field in `focused` for Space and Enter.
 
-Tab cycles the authors, field, `proclamation:return` and `proclamation:publish`. Press Enter naming the focused control to activate it. Escape returns to the choice, preserving the draft for the open card. `table.proclamation_composer` gives the selected author, card and opened revision, current draft and count, spent allowance, focus, refusal and the rendered bounds of named parts. It is null when the sheet is closed.
+Tab cycles the authors, field, `proclamation:compose:return` and `proclamation:publish`. Press Enter naming the focused control to activate it. Escape returns to the choice, preserving the draft for the open card. `table.proclamation_composer` gives the selected author, card and opened revision, current draft and count, spent allowance, focus, refusal and the rendered bounds of named parts. It is null when the sheet is closed.
 
 ## Components
 
@@ -171,6 +171,8 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `own-piece:<space>:<group>` | Removal mode | Opens an executing faction's piece popover. This is the focused name in Construct's management. Pointer activation uses `piece:<space> <faction> <Kind> <State>`, for example `piece:pinar-del-rio Syndicate Casino Open`. Use `M26` for 26July and `Directorio` for Directorio. |
 
 [`art/atlas/EXECUTION.md`](../../art/atlas/EXECUTION.md) lists every name in the execution panel.
+
+The proclamation reader exposes `proclamations` to open the public record, `proclamation:previous` and `proclamation:next` when there is another archived page in that direction, and `proclamation:return` to acknowledge and close the shown page, leaving later arrivals unread. R is `KeyR`. Enter and Space name `proclamation:return` as their focused control. `table.proclamations` reports the publication-ordered `documents` with their author, card, exact text and read state, the `unread` count, and the one-based `open` document number. An open page adds `a proclamation` to the faction seats' `holding` list.
 
 ## Choices
 

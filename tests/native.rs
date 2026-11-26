@@ -47,6 +47,8 @@ mod newspaper;
 mod pile_tags;
 #[path = "native/proclamation_composer.rs"]
 mod proclamation_composer;
+#[path = "native/proclamation_reader.rs"]
+mod proclamation_reader;
 #[path = "native/rally.rs"]
 mod rally;
 #[path = "native/save_quit.rs"]

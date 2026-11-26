@@ -167,7 +167,11 @@ pub(super) fn focusable(ui: &Interface) -> Option<(String, Action)> {
 /// dwell or the camera, does not delay it.
 pub(super) fn open(world: &mut World) {
     let ui = world.resource::<Interface>();
-    if !ui.editions.due() || ui.editions.open().is_some() || ui.composer.is_open() {
+    if !ui.editions.due()
+        || ui.editions.open().is_some()
+        || ui.composer.is_open()
+        || ui.proclamation_reader.is_open()
+    {
         return;
     }
     if !settled::resting(world).is_empty() {
@@ -183,7 +187,10 @@ pub(super) fn open(world: &mut World) {
 pub(super) fn unsettled(world: &World) -> bool {
     let ui = world.resource::<Interface>();
     let editions = &ui.editions;
-    (!ui.composer.is_open() && editions.due() && editions.open().is_none())
+    (!ui.composer.is_open()
+        && !ui.proclamation_reader.is_open()
+        && editions.due()
+        && editions.open().is_none())
         || editions.open().is_some_and(|(open, edition)| {
             world.resource::<Drawn>().page != Some((edition.number, open))
         })

@@ -178,6 +178,12 @@ When a faction you do not play completes an action, an edition of *El Correo de 
 - **Reading it again:** the pile beside the Propaganda pips holds the current card's editions. Click it, or Tab to it and press Enter, for the latest. With more than one, each has a tab under the folio line: click one, or press Tab for the next. The pile goes when you turn the card.
 - **Editions are not saved.** One you had not read when you quit is not shown again.
 
+## Read faction proclamations
+
+A faction player's publication opens as a public Broadsheet. Read the issuer, card and the faction's own words. **Return to choice**, Escape, Enter or Space acknowledges it. If another proclamation is waiting, **Next proclamation** opens it in publication order. You can return to the table with later proclamations still unread. While the page is open, agent choices wait. Your pending decision and keyboard focus resume when you return to the table.
+
+Select **Proclamations** or press R to reread the public record. Use the previous and next buttons or Left and Right to browse it. If a proclamation extends below the reading area, use the wheel or Up and Down. The factual newspaper reports committed actions under its own masthead.
+
 ## Camera and keys
 
 | Input | Effect |
