@@ -373,12 +373,22 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
     assert_eq!(pending["observation"]["owner"], "Directorio");
     assert_eq!(
         transfer_part(&pending, "pending-construct-funding"),
-        "1 authorized · 1 needed"
+        "1 authorized · need 1"
     );
     assert_eq!(
         transfer_part(&pending, "pending-construct-giver"),
         "Directorio decides · 5 requested"
     );
+    let bounds = |name| {
+        let part = drawn_transfer_part(&pending, name);
+        let limits = part["bounds"].as_array().unwrap();
+        std::array::from_fn::<_, 4, _>(|i| limits[i].as_f64().unwrap())
+    };
+    let [left, top, right, bottom] = bounds("pending-tab");
+    for name in ["pending-construct-funding", "pending-construct-giver"] {
+        let [l, t, r, b] = bounds(name);
+        assert!(l > left && t > top && r < right && b < bottom, "{name}");
+    }
     app.capture("wait-on-directorio");
     let pending_bytes = app.save_bytes();
     fs::write(app.root.join("pending-before-restart.json"), &pending_bytes).unwrap();
@@ -503,14 +513,16 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
 }
 
 fn transfer_part<'a>(seen: &'a Value, name: &str) -> &'a str {
+    drawn_transfer_part(seen, name)["text"].as_str().unwrap()
+}
+
+fn drawn_transfer_part<'a>(seen: &'a Value, name: &str) -> &'a Value {
     seen["table"]["transfer"]["parts"]
         .as_array()
         .unwrap()
         .iter()
         .find(|part| part["part"] == name)
-        .unwrap_or_else(|| panic!("{name} not drawn"))["text"]
-        .as_str()
-        .unwrap()
+        .unwrap_or_else(|| panic!("{name} not drawn"))
 }
 
 fn underfunded_handoff(app: &mut Native) {

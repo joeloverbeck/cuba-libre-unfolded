@@ -2255,7 +2255,7 @@ fn pending(
             || format!("{amount} requested · pending"),
             |funding| {
                 format!(
-                    "{} authorized · {} needed",
+                    "{} authorized · need {}",
                     funding.authorized(),
                     funding.shortfall
                 )
