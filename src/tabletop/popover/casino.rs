@@ -3,6 +3,7 @@
 use super::*;
 
 pub(super) const WIDTH: f32 = 354.;
+pub(super) const ANCHOR_FROM_TOP: f32 = 26.;
 const INSET: f32 = 14.;
 const INNER: f32 = 326.;
 const LINE: f32 = 17.;
@@ -291,13 +292,8 @@ fn caption(
 
 fn divider(commands: &mut Commands, ink: &Ink, body: Entity, s: f32, y: f32) {
     let node = slot(commands, body, s, [INSET, y, INNER, 1.]);
-    rule(
-        commands,
-        ink.art,
-        node,
-        s,
-        plate::DIVIDER,
-        "popover-casino-divider".into(),
+    commands.entity(node).insert(
+        ImageNode::new(ink.art.images[plate::DIVIDER].clone()).with_mode(NodeImageMode::Stretch),
     );
 }
 
@@ -393,14 +389,11 @@ pub(super) fn draw(
     let regular = &ink.art.font;
     let layout = Layout::new(card);
     let bar = slot(commands, body, s, [0., 0., WIDTH, 3.]);
-    rule(
-        commands,
-        ink.art,
-        bar,
-        3. * s,
-        plate::RULE_PRIMARY,
-        "popover-rule".into(),
-    );
+    commands.entity(bar).insert((
+        ImageNode::new(ink.art.images[plate::RULE_PRIMARY].clone())
+            .with_mode(NodeImageMode::Stretch),
+        Part("popover-rule".into()),
+    ));
     let graphic = slot(commands, body, s, [14., 16., 36., 22.]);
     let file = if card.kind == CardKind::OpenCasino {
         "atlas-casino-open.png"

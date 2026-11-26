@@ -773,7 +773,8 @@ fn native_casino_management_compares_pinar_and_keeps_the_payment() {
         fs::write(app.root.join("before-finish.json"), &pre_finish).unwrap();
         let complete = app.observe()["observation"].clone();
         assert_eq!(complete["eligible"], json!([false, true, true, false]));
-        super::faction_seats::assert_by_hand_of(&app.save, 4);
+        // fund_santiago creates the seed-2 opening and gives Government 4 Resources.
+        super::faction_seats::assert_by_hand_of(&app.save, 2);
         app.quit();
         app.launch_size("3840x2160");
         assert_eq!(app.observe()["observation"], complete);
@@ -805,6 +806,9 @@ fn compare_casino_layout(native: &Value) {
     let tolerance = source["tolerance"].as_f64().unwrap();
     let popover = &native["table"]["popover"];
     let [x, y, ..] = rect_of(&popover["bounds"]);
+    let anchor_y = popover["anchor"][1].as_f64().unwrap();
+    let anchor_from_top = source["anchor_from_top"].as_f64().unwrap();
+    assert!((anchor_y - y - anchor_from_top).abs() <= tolerance);
     for (name, reference) in source["parts"].as_object().unwrap() {
         let [left, top, width, height] = rect_of(reference);
         let expected = [x + left, y + top, x + left + width, y + top + height];

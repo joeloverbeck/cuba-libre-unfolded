@@ -1113,6 +1113,7 @@ pub(super) struct Root {
     ends: [Vec3; 2],
     card: Entity,
     leader: Entity,
+    anchor_from_top: Option<f32>,
     pub placed: bool,
 }
 
@@ -1382,6 +1383,7 @@ fn spawn(
         ends,
         card: body,
         leader,
+        anchor_from_top: casino.then_some(casino::ANCHOR_FROM_TOP),
         placed: false,
     });
     if casino {
@@ -2198,8 +2200,9 @@ pub(super) fn place(
         } else {
             (left_end, left_at, -1.)
         };
-        // Centered on the anchor where the map allows, else inside its top or bottom.
-        let top = (at.y - height / 2.)
+        // The Casino card uses C's leader position. Other cards center on the anchor.
+        let anchor_from_top = root.anchor_from_top.map_or(height / 2., |y| y * s);
+        let top = (at.y - anchor_from_top)
             .min(map.max.y - margin - height)
             .max(map.min.y + margin)
             - at.y;

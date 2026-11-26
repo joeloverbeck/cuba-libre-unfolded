@@ -3,6 +3,7 @@
   "frame": "C · Separate actions",
   "scale": 1.6875,
   "tolerance": 2,
+  "anchor_from_top": 43.875,
   "parts": {
     "popover-card": [
       0,
