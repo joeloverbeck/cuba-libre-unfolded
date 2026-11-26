@@ -293,7 +293,13 @@ fn native_public_proclamations_preserve_the_givers_decision() {
     app.quit();
 }
 
-fn published(app: &mut Native, player: &str, revision: u64, card: u8, text: &str) -> Value {
+pub(super) fn published(
+    app: &mut Native,
+    player: &str,
+    revision: u64,
+    card: u8,
+    text: &str,
+) -> Value {
     let (code, answer) = app.ask(&[
         "publish",
         player,
@@ -336,7 +342,7 @@ fn refused_publication(
     answer
 }
 
-fn havana_casino(view: &Value) -> &Value {
+pub(super) fn havana_casino(view: &Value) -> &Value {
     let havana = view["state"]["spaces"]
         .as_array()
         .unwrap()
