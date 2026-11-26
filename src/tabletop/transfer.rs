@@ -598,7 +598,7 @@ pub(super) fn keys(
 /// The slider's changes set the amount, within the giver's limit; the hatched
 /// reserved unit cannot be dragged into.
 fn slide(change: On<ValueChange<f32>>, mut ui: ResMut<Interface>, play: Res<Play>) {
-    if ui.proclamation_reader.is_open() {
+    if ui.proclamation_reader.is_open() || ui.composer.is_open() {
         return;
     }
     let view = play.game().observe();

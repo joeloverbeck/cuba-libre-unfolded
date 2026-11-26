@@ -128,6 +128,7 @@ pub(super) fn keys(
     if !ui.proclamation_reader.is_open() {
         wheel.clear();
         if keys.just_pressed(KeyCode::KeyR)
+            && !ui.composer.is_open()
             && ui.editions.open().is_none()
             && ui.line.is_none()
             && count > 0
