@@ -13,8 +13,8 @@
 //! previous one ended and nothing is told twice. The words are fixed per kind of action
 //! (`words`): they state what changed and judge nothing.
 //!
-//! A report does not grow with the number of side decisions: the Resource transfers from
-//! one faction to another are told together, and so are a faction's own removed pieces.
+//! Resource transfers within Construct are reported as they occurred, alongside payments.
+//! Other actions gather transfers by direction, and voluntary removals by faction.
 
 mod words;
 
@@ -609,15 +609,16 @@ fn rallied(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
 }
 
 fn transferred(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
+    let gather = before.executing != Some(Faction::Syndicate);
     match (before.request(), after.request()) {
         (None, Some((giver, recipient, amount))) => {
-            let told = between(items, giver, recipient);
+            let told = between(items, giver, recipient, gather);
             told.asked.get_or_insert(amount);
             told.asks += 1;
             told.pending = Some(amount);
         }
         (Some((giver, recipient, _)), None) => {
-            let told = between(items, giver, recipient);
+            let told = between(items, giver, recipient, true);
             told.pending = None;
             // 26July may end Terror while the giver still decides (local policy, #61).
             if after.executing.is_none() {
@@ -638,7 +639,7 @@ fn transferred(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
                 holds(std::cmp::Ordering::Less),
                 holds(std::cmp::Ordering::Greater),
             ) {
-                moved(before, after, between(items, giver, recipient));
+                moved(before, after, between(items, giver, recipient, gather));
             }
         }
         _ => {}
@@ -652,11 +653,20 @@ fn moved(before: &Moment, after: &Moment, told: &mut Transfers) {
     told.balances = Some((giver, balance(before, after, told.recipient)));
 }
 
-/// What is told of `giver` and `recipient`, which starts here if nothing was.
-fn between(items: &mut Vec<Item>, giver: Faction, recipient: Faction) -> &mut Transfers {
-    let known = items.iter().position(|item| {
-        matches!(item, Item::Transfers(told) if (told.giver, told.recipient) == (giver, recipient))
-    });
+/// The last transfer in this direction if it is being continued, or a new entry.
+fn between(
+    items: &mut Vec<Item>,
+    giver: Faction,
+    recipient: Faction,
+    continue_previous: bool,
+) -> &mut Transfers {
+    let known = continue_previous
+        .then(|| {
+            items.iter().rposition(|item| {
+                matches!(item, Item::Transfers(told) if (told.giver, told.recipient) == (giver, recipient))
+            })
+        })
+        .flatten();
     let at = known.unwrap_or_else(|| {
         items.push(Item::Transfers(Transfers {
             giver,

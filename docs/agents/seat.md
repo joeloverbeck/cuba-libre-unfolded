@@ -194,8 +194,9 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:syndicate:profit`, `<revision>:syndicate:muscle`, `<revision>:syndicate:bribe` | Inspect Syndicate's Special Activities and which Operations they may accompany. |
 | `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so 26July's option set is complete; unsupported, with the reason in `explanation`. |
 | `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap` | Execution steps during Terror. |
-| `<revision>:transfer`, `<revision>:remove` | Opens a Resource transfer or voluntary removal during Terror, Directorio's Event choices, the free Rally or Government's Assault. |
-| `<revision>:back-to-choice` | Goes back to the action choice, until the first effect: from Terror or Limited Construct, or while a Terror Transfer request awaits another faction, which withdraws it. Not offered in removal mode or while Kidnap is open. |
+| `<revision>:transfer` | Opens a Resource transfer during Terror, Directorio's Event choices, the free Rally, Government's Assault or Syndicate's Construct. |
+| `<revision>:remove` | Opens voluntary removal during Terror, Directorio's Event choices, the free Rally or Government's Assault. |
+| `<revision>:back-to-choice` | Goes back to the action choice from Terror or Limited Construct until the first effect. The executing faction can use it to withdraw its pending request. Unavailable in removal mode or while Kidnap is open. |
 | `<revision>:kidnap:roll`, `<revision>:kidnap:cancel` | Kidnap's Roll and Cancel. |
 | `<revision>:remove:<space>:<group>:<n>` | In removal mode, removes `n` pieces of a stack. |
 | `<revision>:done-removal` | Leaves removal mode; removed pieces stay in Available. |

@@ -23,6 +23,7 @@ pub(crate) fn construct_name(first_eligible: bool) -> &'static str {
 #[serde(deny_unknown_fields)]
 pub(super) struct Construct {
     paid: Vec<ConstructResolution>,
+    pub(super) side_effect_committed: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -126,6 +127,55 @@ impl Game {
         self.construct.as_ref().map_or(&[], |op| op.paid.as_slice())
     }
 
+    pub(super) fn mark_construct_side_effect(&mut self) {
+        if let Some(construct) = &mut self.construct {
+            construct.side_effect_committed = true;
+        }
+    }
+
+    pub(super) fn construct_committed(&self) -> bool {
+        self.construct
+            .as_ref()
+            .is_some_and(|op| !op.paid.is_empty() || op.side_effect_committed)
+    }
+
+    pub(super) fn construct_may_go_back(&self) -> bool {
+        self.construct_is_open()
+            && self.construct_box() == SequenceBox::LimitedOperation
+            && !self.construct_committed()
+    }
+
+    pub(super) fn construct_payment_owed(&self) -> bool {
+        self.construct_is_open()
+            && self.construct_box() == SequenceBox::LimitedOperation
+            && self.construct_paid().is_empty()
+    }
+
+    pub(super) fn can_afford_construct_payment(&self, balance: u8) -> bool {
+        self.spaces.iter().any(|space| {
+            ConstructPlan::ALL.into_iter().any(|plan| {
+                self.construct_payment_requirement(space, plan, balance)
+                    .is_ok()
+            })
+        })
+    }
+
+    pub(super) fn construct_authorization_refusal(&self, amount: u8) -> Option<String> {
+        if !self.construct_payment_owed() || amount == 0 {
+            return None;
+        }
+        let needed = CONSTRUCT_COST.saturating_sub(self.construct_balance());
+        if amount < needed {
+            return Some(format!(
+                "Syndicate needs {} more for its required Limited Construct payment. Authorize at least {needed} to fund it, or decline (local policy, #215).",
+                resources(needed)
+            ));
+        }
+        (!self.can_afford_construct_payment(self.construct_balance() + amount)).then(|| {
+            "Syndicate needs a legal space for its required Limited Construct payment (local policy, #215).".into()
+        })
+    }
+
     pub(super) fn limited_construct_choice(&self) -> Choice {
         self.offer(
             LIMITED, "Limited Operation · Construct", true,
@@ -173,10 +223,11 @@ impl Game {
         &self,
         space: &Space,
         plan: ConstructPlan,
+        balance: u8,
     ) -> Result<(), &'static str> {
         self.construct_space_requirement(space)?;
         plan.requirement(space, self.casino_inventory())?;
-        if self.construct_balance() < CONSTRUCT_COST {
+        if balance < CONSTRUCT_COST {
             return Err("Syndicate needs 5 Resources to pay for Construct (R 3.3.5).");
         }
         Ok(())
@@ -186,14 +237,17 @@ impl Game {
         if !self.construct_is_open() {
             return None;
         }
-        if action == BACK && !self.construct_paid().is_empty() {
-            return Some(
-                "The Construct payment has committed. Finish Construct to record the Operation.",
-            );
+        if action == BACK && self.construct_committed() {
+            return Some(if self.construct_payment_owed() {
+                "A Construct effect has committed. Finish Construct after paying in one space (local policy, #215)."
+            } else {
+                "A Construct effect has committed. Finish Construct to record the Operation."
+            });
         }
         let (space, plan) = payment(action)?;
         let spot = self.spaces.iter().find(|s| s.id == space)?;
-        self.construct_payment_requirement(spot, plan).err()
+        self.construct_payment_requirement(spot, plan, self.construct_balance())
+            .err()
     }
 
     pub(super) fn construct_reason(&self, space: &Space, here: &[&Choice]) -> String {
@@ -203,6 +257,9 @@ impl Game {
         if let Some(choice) = here.first() {
             if choice.supported {
                 return format!("Construct costs {}", resources(CONSTRUCT_COST));
+            }
+            if !choice.remedies.is_empty() {
+                return remedy_line(&choice.remedies);
             }
             return choice.explanation.clone();
         }
@@ -214,9 +271,16 @@ impl Game {
     }
 
     pub(super) fn construct_choices(&self) -> Vec<Choice> {
+        if let Some(choices) = self.transfer_choices() {
+            return choices;
+        }
         let mut choices = vec![];
         let available = self.casino_inventory();
         let balance = self.construct_balance();
+        let transfer_helps = balance < CONSTRUCT_COST
+            && Faction::ALL.into_iter().any(|giver| {
+                giver != SYNDICATE && self.terms(giver, SYNDICATE).limit >= CONSTRUCT_COST - balance
+            });
         for space in self
             .spaces
             .iter()
@@ -226,7 +290,9 @@ impl Game {
                 .into_iter()
                 .filter(|plan| plan.requirement(space, available).is_ok())
             {
-                let refusal = self.construct_payment_requirement(space, plan).err();
+                let refusal = self
+                    .construct_payment_requirement(space, plan, balance)
+                    .err();
                 let explanation = refusal.map_or_else(
                     || {
                         format!(
@@ -239,16 +305,19 @@ impl Game {
                     },
                     str::to_owned,
                 );
-                choices.push(
-                    self.offer(
+                let mut choice = self
+                    .offer(
                         &format!("construct:{}:{}", space.id, plan.id()),
                         plan.label(),
                         refusal.is_none(),
                         explanation,
                     )
                     .at(&space.id, true)
-                    .stopped_by_cost(refusal.is_some()),
-                );
+                    .stopped_by_cost(refusal.is_some() && !transfer_helps);
+                if refusal.is_some() && transfer_helps {
+                    choice.remedies.push(TRANSFER_REMEDY.to_owned());
+                }
+                choices.push(choice);
             }
         }
         let paid = self.construct_paid();
@@ -281,13 +350,31 @@ impl Game {
             !limited || !paid.is_empty(),
             explanation,
         ));
-        if limited && paid.is_empty() {
-            choices.push(self.offer(
-                BACK, "Back to the action choice", true,
-                "Leave before committing a payment. Syndicate may choose Pass or Limited Construct.",
-            ));
+        choices.push(self.offer(
+            "transfer",
+            "Resource transfer",
+            true,
+            "Syndicate may give Resources or ask another faction for Resources. The giver decides how much to transfer (R 1.5.1, 1.8).",
+        ));
+        if self.construct_may_go_back() {
+            choices.push(self.construct_back_choice());
         }
         choices
+    }
+
+    pub(super) fn construct_back_choice(&self) -> Choice {
+        let mut choice = self.offer(
+            BACK,
+            "Back to the action choice",
+            true,
+            if self.transfer.is_some() {
+                "Withdraw the pending request and leave before committing any effect. Syndicate may choose Pass or Limited Construct (local policy, #215)."
+            } else {
+                "Leave before committing any effect. Syndicate may choose Pass or Limited Construct (local policy, #215)."
+            },
+        );
+        choice.owner = SYNDICATE;
+        choice
     }
 
     pub(super) fn is_construct_action(action: &str) -> bool {
@@ -316,11 +403,29 @@ impl Game {
         ])
     }
 
-    pub(super) fn apply_construct(&mut self, action: &str) -> Result<(), String> {
+    pub(super) fn apply_construct(
+        &mut self,
+        action: &str,
+        next_revision: u64,
+    ) -> Result<(), String> {
         match action {
-            OPERATION_ONLY | LIMITED => self.construct = Some(Construct { paid: vec![] }),
-            BACK => self.construct = None,
-            FINISH => self.card_18_completion = Some(Card18Completion::Construct),
+            OPERATION_ONLY | LIMITED => {
+                self.construct = Some(Construct {
+                    paid: vec![],
+                    side_effect_committed: false,
+                });
+            }
+            BACK => {
+                self.construct = None;
+                self.transfer = None;
+            }
+            FINISH => {
+                self.card_18_completion = Some(Card18Completion::Construct);
+                self.transfer = None;
+            }
+            _ if self.transfer.is_some() || action == "transfer" => {
+                self.execute(action, next_revision)?;
+            }
             _ => {
                 let (id, plan) = payment(action).ok_or("Unsupported Construct decision.")?;
                 let index = self
@@ -328,7 +433,11 @@ impl Game {
                     .iter()
                     .position(|s| s.id == id)
                     .ok_or("Unknown Construct space.")?;
-                self.construct_payment_requirement(&self.spaces[index], plan)?;
+                self.construct_payment_requirement(
+                    &self.spaces[index],
+                    plan,
+                    self.construct_balance(),
+                )?;
                 let pieces = &mut self.spaces[index].pieces;
                 let state = match plan {
                     ConstructPlan::Open => {
@@ -381,6 +490,62 @@ impl Game {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn construct_transfer_enforces_recipient_cap_in_both_directions() {
+        let mut game = Game::opening_with_seed(2);
+        for action in [
+            "terror",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+            "event:shaded",
+            "resolve-shaded",
+            "advance-card",
+            "government:assault",
+            "end-assault",
+            "syndicate:limited-operation",
+        ] {
+            game.apply(action).unwrap();
+        }
+        // R 1.8 permits these balances, beyond the Resources available in this
+        // two-card slice. This rules-only position tests both directions at 48/49.
+        game.resources = [2, 48, 5, 48];
+        game.apply("transfer").unwrap();
+        let selecting = game.observe();
+        assert_eq!(selecting.transfer_terms.len(), 6);
+        let from_government = &selecting.transfer_terms[0];
+        assert_eq!((from_government.held, from_government.limit), (48, 1));
+        game.apply("ask:0:1").unwrap();
+        let pending = game.observe();
+        assert_eq!(pending.owner, Faction::Government);
+        let over_cap = game
+            .submit(
+                pending.owner,
+                pending.revision,
+                &format!("{}:authorize:2", pending.revision),
+            )
+            .unwrap_err();
+        assert!(over_cap.contains("Syndicate holds 48 of at most 49 Resources"));
+        assert_eq!(game.observe(), pending);
+        game.apply("authorize:1").unwrap();
+        assert_eq!(game.observe().resources, [1, 48, 5, 49]);
+
+        game.apply("transfer").unwrap();
+        let outbound = game.observe();
+        let over_cap = game
+            .submit(
+                outbound.owner,
+                outbound.revision,
+                &format!("{}:give:1:2", outbound.revision),
+            )
+            .unwrap_err();
+        assert!(over_cap.contains("26July holds 48 of at most 49 Resources"));
+        assert_eq!(game.observe(), outbound);
+        game.apply("give:1:1").unwrap();
+        assert_eq!(game.observe().resources, [1, 49, 5, 48]);
+    }
 
     #[test]
     fn construct_stacks_casinos_separately_and_opens_even_when_inventory_is_empty() {
