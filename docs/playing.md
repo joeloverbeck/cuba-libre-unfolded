@@ -73,6 +73,12 @@ Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfe
 
 Syndicate can transfer Resources while Construct is open. If Limited Construct needs funding, the transfer surfaces show the amount held and how much more authorization will move the Resources. Ask the same or another giver, or use **Back to the action choice** before committing. With a request pending, select **Wait** if the giver's modal is open, then select **Syndicate withdraws · back to action choice** in the decision panel to leave and release any held authorizations. After the transfers move, choose where to pay. Pay for your chosen space before giving away the Resources needed for that payment. [Partial funding](local-rule-policies.md#partial-funding-for-limited-construct) · [Limited Construct commitment](local-rule-policies.md#leaving-limited-construct-on-card-18)
 
+## Writing a proclamation
+
+While a card is open, choose **Write a proclamation** or press **P**. Select your faction under **Writing as**. The sheet shows that faction's allowance for the card and counts the draft as you type, up to 400 characters for publication.
+
+Choose **Publish proclamation** to send the exact wording to all four factions. A refusal appears below the field and keeps the draft there. **Return to choice** or **Escape** keeps the draft for this card. Publication leaves the pending decision in place, so a Resource promise still needs the giver's authorization and a separate legal payment.
+
 ## Removing your own pieces
 
 "Remove own pieces" opens removal mode (#73). The map marks the executing faction's removable pieces and dims spaces holding none of its pieces ([HIGHLIGHTS.md, "Removal mode"](../art/atlas/HIGHLIGHTS.md#removal-mode-73)). Click a marked piece for the preview, Remove and Cancel, and a quantity selector when it is in a stack. Each Remove returns that many pieces to Available. The mode stays open until Done and survives Save · quit. After resuming, click a piece to reopen its popover.
