@@ -136,6 +136,9 @@ fn native_public_proclamations_preserve_the_givers_decision() {
 
     assert_eq!(app.settle()["table"]["proclamations"]["open"], 1);
     app.key("Escape");
+    let acknowledged = app.save_bytes();
+    assert_ne!(acknowledged, written);
+    assert_eq!(fs::read(&previous).unwrap(), written);
     app.key(SYNDICATE);
     let (code, ended) = app.ask(&["publish", &syndicate, &revision_arg, "17", "Again"]);
     assert_eq!((code, &ended["status"]), (0, &json!("closed")));
@@ -149,7 +152,7 @@ fn native_public_proclamations_preserve_the_givers_decision() {
         "Again",
         "already published",
     );
-    assert_eq!(app.save_bytes(), written);
+    assert_eq!(app.save_bytes(), acknowledged);
     app.key(M26);
     app.key(GOVERNMENT);
     // The game follows the checked amount, even though the published offer said two.
