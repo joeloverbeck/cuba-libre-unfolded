@@ -160,7 +160,7 @@ fn taken(kidnap: &Kidnap) -> String {
 
 /// What happened, in order. The Pass, the grant of the Rally and a pending request are in
 /// the summary alone.
-pub(super) fn articles(faction: Faction, items: &[Item]) -> Vec<Article> {
+pub(super) fn articles(faction: Faction, action: Action, items: &[Item]) -> Vec<Article> {
     let mut articles: Vec<Article> =
         items
             .iter()
@@ -177,7 +177,7 @@ pub(super) fn articles(faction: Faction, items: &[Item]) -> Vec<Article> {
                         None => format!("{} goes back to its action choice.", faction.name()),
                     }],
                 )),
-                Item::Transfers(told) => transfers(told),
+                Item::Transfers(told) => transfers(told, action),
                 Item::Removed { faction, groups } => Some(removed(*faction, groups)),
                 Item::ManagedCasinos {
                     space,
@@ -413,9 +413,11 @@ fn rally(action: RallyAction) -> String {
 }
 
 /// What was asked and given, less a request still pending, which is in the summary.
-fn transfers(told: &Transfers) -> Option<Article> {
+fn transfers(told: &Transfers, action: Action) -> Option<Article> {
     let (giver, recipient) = (told.giver.name(), told.recipient.name());
+    let no_move = action == Action::Construct && told.given == 0 && told.unmet > 0;
     let title = match told.given {
+        0 if no_move => "No Resources moved".into(),
         0 if told.unmet > 0 => format!("{giver} gives {recipient} nothing"),
         0 if told.withdrawn > 0 => format!("{recipient} asks {giver} for Resources"),
         0 => return None,
@@ -440,7 +442,9 @@ fn transfers(told: &Transfers) -> Option<Article> {
         (moves, _) => lines.push(format!("They move in {moves} transfers.")),
     }
     let requests = |n: u16| format!("{n} request{}", if n == 1 { "" } else { "s" });
-    if told.unmet > 0 {
+    if no_move {
+        lines.push(format!("{giver} answered {}.", requests(told.unmet)));
+    } else if told.unmet > 0 {
         lines.push(format!(
             "{giver} answers {} with nothing.",
             requests(told.unmet)

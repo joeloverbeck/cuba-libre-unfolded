@@ -26,7 +26,7 @@ use super::emblems;
 use super::palette::{INK, PAPER, PRIMARY, QUIET};
 use super::*;
 use crate::{Bound, ConstructFunding, Observation, Transfer, TransferTerms};
-use bevy::text::{Justify, LetterSpacing};
+use bevy::text::{Justify, LetterSpacing, TextLayoutInfo};
 use bevy::ui::widget::NodeImageMode;
 use bevy::ui_widgets::{
     Slider, SliderDragState, SliderPrecision, SliderRange, SliderStep, SliderThumb, SliderValue,
@@ -259,12 +259,17 @@ pub(super) fn content(view: &Observation, state: &State) -> Shown {
                     .filter(|choice| !choice.supported)
                     .map(|choice| choice.explanation.clone())
             });
+            let commit = offered.filter(|choice| choice.supported);
             Shown {
                 giver: Some(*giver),
                 recipient: Some(*recipient),
-                commit: offered.filter(|choice| choice.supported),
+                label: if commit.is_none() && view.construct_funding.is_some() {
+                    format!("Authorize {amount}")
+                } else {
+                    format!("{} authorizes {amount}", giver.name())
+                },
+                commit,
                 blocked: refusal.clone(),
-                label: format!("{} authorizes {amount}", giver.name()),
                 terms,
                 amount,
                 refusal,
@@ -2034,7 +2039,10 @@ fn footer(
         .as_ref()
         .filter(|_| shown.giver != view.executing);
     let note = if let Some(funding) = funding {
-        format!("{}\n{}", funding.summary(), ConstructFunding::CONDITION)
+        format!(
+            "{}\nResources move if authorizations fund a legal payment.",
+            funding.summary()
+        )
     } else {
         note
     };
@@ -2134,7 +2142,7 @@ fn footer(
         (true, Some(_)) => Prose::named(&shown.label),
         (false, _) => Prose::from(&shown.label),
     };
-    words(
+    let label = words(
         commands,
         art,
         primary,
@@ -2145,6 +2153,9 @@ fn footer(
         0.,
         s,
     );
+    if funding.is_some() {
+        part(commands, label, "primary-label");
+    }
 }
 
 /// After Wait: a tab in the top band, right of the standings, names the pending
@@ -2325,12 +2336,25 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
         "focus": ui.transfer.focus,
     });
     let mut parts = world
-        .query::<(&Part, &ComputedNode, &UiGlobalTransform, Option<&emblems::Plain>)>()
+        .query::<(
+            &Part,
+            &ComputedNode,
+            &UiGlobalTransform,
+            Option<&emblems::Plain>,
+            Option<&TextLayoutInfo>,
+        )>()
         .iter(world)
-        .map(|(part, node, at, text)| {
+        .map(|(part, node, at, text, layout)| {
+            let lines = layout
+                .and_then(|layout| layout.glyphs.iter().map(|glyph| glyph.line_index + 1).max());
             (
                 part.0.clone(),
-                serde_json::json!({"part":part.0,"text":text.map(|t| &t.0),"bounds":seat::logical_bounds(node, at)}),
+                serde_json::json!({
+                    "part": part.0,
+                    "text": text.map(|t| &t.0),
+                    "bounds": seat::logical_bounds(node, at),
+                    "lines": lines,
+                }),
             )
         })
         .collect::<Vec<_>>();

@@ -450,11 +450,11 @@ fn native_syndicate_pass_finishes_card_18_and_replays_after_both_handoffs() {
         .unwrap_or_else(|| PathBuf::from("local/verification/issue-216"));
     fs::create_dir_all(&evidence).unwrap();
     let evidence = evidence.canonicalize().unwrap();
-    for assault in [false, true] {
-        let name = if assault {
-            "after-assault-"
-        } else {
-            "after-pass-"
+    for (assault, agent) in [(false, false), (true, true), (true, false)] {
+        let name = match (assault, agent) {
+            (true, true) => "after-assault-",
+            (true, false) => "after-assault-human-",
+            _ => "after-pass-",
         };
         let root = tempfile::Builder::new()
             .prefix(name)
@@ -508,6 +508,42 @@ fn native_syndicate_pass_finishes_card_18_and_replays_after_both_handoffs() {
         };
         assert_eq!(before["next"]["role"], role);
         assert_eq!(before["resources"][3], 15);
+        if assault && !agent {
+            app.point("eligibility:operation-only");
+            let observed = app.observe();
+            let parts = observed["table"]["eligibility"]["parts"]
+                .as_array()
+                .unwrap();
+            let part = |name| parts.iter().find(|p| p["part"] == name).unwrap();
+            let note = part("eligibility-tag-note");
+            assert_eq!(
+                note["text"],
+                "Card 18 Eligibility set after card 17 (R 2.3.7)."
+            );
+            let [l, t, r, b] = rect_of(&note["bounds"]);
+            let tag = part("eligibility-tag");
+            let [tl, tt, tr, tb] = rect_of(&tag["bounds"]);
+            assert!(
+                l > tl && t > tt && r < tr && b < tb && b - t < 30.,
+                "{note}"
+            );
+            app.capture("government-action");
+
+            app.activate("option:syndicate:limited-operation", revision);
+            let observed = app.observe();
+            assert_briefing_lines_fit(&observed);
+            let options = choice_part(&observed, "briefing-value:2ND ELIGIBLE");
+            assert_eq!(
+                options["text"],
+                "Government recorded Operation Only.\nSyndicate may Pass or take a Limited Operation."
+            );
+            app.capture("construct-briefing");
+            fs::write(
+                app.root.join("assault-handoff-copy-bounds.json"),
+                serde_json::to_vec_pretty(&json!([tag, note, options])).unwrap(),
+            )
+            .unwrap();
+        }
         app.activate("option:syndicate:pass", revision);
         let inspected = app.observe();
         let briefing = tag_text(&inspected["table"]["briefing"]);
@@ -516,7 +552,7 @@ fn native_syndicate_pass_finishes_card_18_and_replays_after_both_handoffs() {
         assert_eq!(inspected["observation"], before);
         assert_eq!(fs::read(&app.save).unwrap(), saved);
         app.capture("syndicate-pass-preview");
-        if assault {
+        if agent {
             let player = app.seat_agent(super::faction_seats::SYNDICATE, "syndicate");
             let (code, told) = app.ask(&["observe", &player]);
             assert_eq!(code, 0, "{told}");
@@ -569,6 +605,20 @@ fn native_syndicate_pass_finishes_card_18_and_replays_after_both_handoffs() {
             choice_part(&table, "execution-heading")["text"],
             "Syndicate · passed"
         );
+        let result = choice_part(&table, "ended-value:RESULT");
+        assert_eq!(
+            result["text"],
+            "Syndicate Resources: 15 → 16. Pact Capability inactive."
+        );
+        let [_, top, _, bottom] = rect_of(&result["bounds"]);
+        assert!(bottom - top < 40., "{result}");
+        if assault && !agent {
+            fs::write(
+                app.root.join("pass-result-copy-bounds.json"),
+                serde_json::to_vec_pretty(result).unwrap(),
+            )
+            .unwrap();
+        }
         let track = &table["table"]["eligibility"]["track"];
         assert_eq!(track["adjusted"], true);
         let rows = track["rows"].as_array().unwrap();
