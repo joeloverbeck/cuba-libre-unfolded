@@ -73,13 +73,14 @@ fn operation_only_construct_can_transfer_its_last_resource_and_finish() {
     ] {
         choose(&mut game, action);
     }
-    assert_eq!(game.observe().resources, [2, 19, 4, 1]);
+    // Government's Pass adds 3 (R 2.3.3).
+    assert_eq!(game.observe().resources, [4, 19, 4, 1]);
     assert!(game.observe().construct_paid.is_empty());
     for action in ["transfer", "give:0:1", "end-construct"] {
         choose(&mut game, action);
     }
     let complete = game.observe();
-    assert_eq!(complete.resources, [3, 19, 4, 0]);
+    assert_eq!(complete.resources, [5, 19, 4, 0]);
     assert_eq!(complete.eligible, [true, true, true, false]);
     assert!(complete.construct_paid.is_empty());
 }

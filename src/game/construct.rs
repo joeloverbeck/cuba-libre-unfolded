@@ -237,13 +237,12 @@ impl Game {
         if !self.construct_is_open() {
             return None;
         }
-        if action == BACK
-            && self.construct_box() == SequenceBox::LimitedOperation
-            && self.construct_committed()
-        {
-            return Some(
-                "A Construct effect has committed. Finish Construct after paying in one space (local policy, #215).",
-            );
+        if action == BACK && self.construct_committed() {
+            return Some(if self.construct_payment_owed() {
+                "A Construct effect has committed. Finish Construct after paying in one space (local policy, #215)."
+            } else {
+                "A Construct effect has committed. Finish Construct to record the Operation."
+            });
         }
         let (space, plan) = payment(action)?;
         let spot = self.spaces.iter().find(|s| s.id == space)?;
