@@ -131,12 +131,10 @@ fn native_construct_transfer_resumes_at_the_giver_and_finishes_after_spending() 
     let (code, observed) = app.ask(&["observe", &giver]);
     assert_eq!(code, 0, "{observed}");
     assert_eq!(observed["view"]["decision"]["faction"], "M26");
-    assert_eq!(observed["view"]["transfer_terms"][0]["giver"], "M26");
-    assert_eq!(
-        observed["view"]["transfer_terms"][0]["recipient"],
-        "Syndicate"
-    );
-    assert_eq!(observed["view"]["transfer_terms"][0]["limit"], 4);
+    let terms = &observed["view"]["state"]["transfer_terms"][0];
+    assert_eq!(terms["giver"], "M26");
+    assert_eq!(terms["recipient"], "Syndicate");
+    assert_eq!(terms["limit"], 4);
     app.decide(&giver, "authorize:5", "refused");
     let stale = app.revision().to_string();
     let choice = format!("{stale}:authorize:3");

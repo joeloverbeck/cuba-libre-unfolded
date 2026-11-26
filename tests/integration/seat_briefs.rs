@@ -622,11 +622,12 @@ fn what_a_brief_says_this_build_plays_is_what_the_authority_offers() {
     assert!(!with_base.contains(&Directorio.index()));
 
     // What every brief says of transfers and of removing one's own pieces.
-    let places: BTreeSet<_> = [(M26, 17), (Directorio, 17), (Government, 18)]
+    let mut places: BTreeSet<_> = [(M26, 17), (Directorio, 17), (Government, 18)]
         .map(|(faction, card)| (faction.index(), card))
         .into();
-    assert_eq!(dealings["transfer"], places);
     assert_eq!(dealings["remove"], places);
+    places.insert((Syndicate.index(), 18));
+    assert_eq!(dealings["transfer"], places);
 }
 
 /// What every brief says of this build's decisions beside its lists: when a Special Activity

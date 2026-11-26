@@ -39,7 +39,7 @@ Syndicate becomes 2nd Eligible and may Pass or choose a Limited Operation under 
 
 **Rules:** R 2.3.5 requires a Limited Operation to take place in one space. R 3.3.5 requires full payment in every selected space, and R 2.3.7 makes Syndicate Ineligible after it executes Construct.
 
-**Policy:** Before the first committed effect, Syndicate may choose **Back to the action choice** and reconsider. A nonzero Resource transfer commits the attempt and stands. A request, a decline or an answer of zero leaves Syndicate free to go back if it has already committed no effect. Going back withdraws any pending request. An outgoing transfer before the required payment must leave at least one legal plan and 5 Resources to pay for it. After payment, the ordinary transfer limits apply. [Spec #215](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/215)
+**Policy:** Before the first committed effect, Syndicate may choose **Back to the action choice** and reconsider. A nonzero Resource transfer commits the attempt and stands. A request, a decline or an answer of zero leaves Syndicate free to go back if it has already committed no effect. Going back withdraws any pending request. Before payment, a side decision that commits the attempt or changes the committed position must leave at least one legal plan and 5 Resources to pay for it. This applies to outgoing transfers and Casino management. After payment, the ordinary transfer limits apply. [Spec #215](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/215)
 
 ### Next Propaganda assumes equal piles
 
