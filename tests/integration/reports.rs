@@ -1424,8 +1424,9 @@ mod reader {
     }
 
     impl Done {
-        fn between(&mut self, pair: (Faction, Faction)) -> &mut Between {
-            if let Some(at) = self.transfers.iter().position(|(known, _)| *known == pair) {
+        fn between(&mut self, pair: (Faction, Faction), reuse: bool) -> &mut Between {
+            if reuse && let Some(at) = self.transfers.iter().rposition(|(known, _)| *known == pair)
+            {
                 return &mut self.transfers[at].1;
             }
             self.transfers.push((pair, Between::default()));
@@ -1457,19 +1458,20 @@ mod reader {
                     .iter()
                     .find(|c| c.action() == action)
                     .and_then(Choice::transfer);
+                let group_transfers = seen.executing != Some(Faction::Syndicate);
                 match (parts[0], transfer) {
                     (_, Some(TransferChoice::Ask { giver, amount })) => {
-                        let told = done.between((giver, seen.executing.unwrap()));
+                        let told = done.between((giver, seen.executing.unwrap()), group_transfers);
                         told.asks.push(amount.into());
                         told.pending = Some(amount.into());
                     }
                     (_, Some(TransferChoice::Give { recipient, amount })) if amount > 0 => {
                         let pair = (seen.executing.unwrap(), recipient);
-                        done.between(pair).moves.push(moving(pair));
+                        done.between(pair, group_transfers).moves.push(moving(pair));
                     }
                     ("decline", _) | (_, Some(TransferChoice::Authorize { .. })) => {
                         let pair = request(seen).unwrap();
-                        let told = done.between(pair);
+                        let told = done.between(pair, true);
                         told.pending = None;
                         if matches!(transfer, Some(TransferChoice::Authorize { amount }) if amount > 0)
                         {
@@ -1485,7 +1487,7 @@ mod reader {
                     }
                     ("end-terror", _) => {
                         if let Some(pair) = request(seen) {
-                            let told = done.between(pair);
+                            let told = done.between(pair, true);
                             told.pending = None;
                             told.withdrawn += 1;
                         }
@@ -1690,6 +1692,7 @@ mod reader {
 
         // The titles the decisions call for, and the sentences, replayed.
         let mut due: Vec<String> = titles(executor, &done);
+        let mut transfers = done.transfers.iter().collect::<Vec<_>>();
         let mut position = Position::of(before);
         let mut casinos = done.casino_management.iter();
         for article in &report.articles {
@@ -1705,7 +1708,7 @@ mod reader {
                     &mut position,
                 )
             } else {
-                read(article, &done, after, &mut position)
+                read(article, &done, after, &mut position, &mut transfers)
             };
             result.map_err(|why| format!("{}: {why}", article.title))?;
         }
@@ -1950,7 +1953,45 @@ mod reader {
         Ok(())
     }
 
-    fn read(article: &Article, done: &Done, after: &Observation, position: &mut Position) -> Check {
+    fn transfer_lines(pair: (Faction, Faction), told: &Between) -> Vec<String> {
+        let (giver, recipient) = (pair.0.name(), pair.1.name());
+        let mut expected = vec![];
+        let asks = &told.asks[..told.asks.len() - usize::from(told.pending.is_some())];
+        match asks {
+            [] => {}
+            [one] => expected.push(format!("{recipient} asked for {}.", resources(*one))),
+            _ => expected.push(format!("{recipient} asked {} times.", asks.len())),
+        }
+        match told.moves[..] {
+            [] => {}
+            [[a, b, c, d]] => {
+                expected.push(format!("{giver} {a} → {b}, {recipient} {c} → {d}."));
+            }
+            _ => expected.push(format!("They move in {} transfers.", told.moves.len())),
+        }
+        let requests = |n| several(n, "request", "requests");
+        if told.unmet > 0 {
+            expected.push(format!(
+                "{giver} answers {} with nothing.",
+                requests(told.unmet)
+            ));
+        }
+        if told.withdrawn > 0 {
+            expected.push(format!(
+                "{recipient} withdraws {}.",
+                requests(told.withdrawn)
+            ));
+        }
+        expected
+    }
+
+    fn read(
+        article: &Article,
+        done: &Done,
+        after: &Observation,
+        position: &mut Position,
+        transfers: &mut Vec<&((Faction, Faction), Between)>,
+    ) -> Check {
         let lines: Vec<&str> = article.lines.iter().map(String::as_str).collect();
         let title = article.title.as_str();
         let balance = |space: &str| {
@@ -1963,51 +2004,32 @@ mod reader {
         if !title.starts_with("Kidnap") {
             same("die", &article.die, &None)?;
         }
-        for (pair, told) in &done.transfers {
-            if title == title_of(*pair, told) {
-                for m in &told.moves {
-                    position.pay(pair.0, m[0] - m[1]);
-                    position.pay(pair.1, m[2] - m[3]);
-                }
-                let (giver, recipient) = (pair.0.name(), pair.1.name());
-                let mut expected = vec![];
-                let asks = &told.asks[..told.asks.len() - usize::from(told.pending.is_some())];
-                match asks {
-                    [] => {}
-                    [one] => expected.push(format!("{recipient} asked for {}.", resources(*one))),
-                    _ => expected.push(format!("{recipient} asked {} times.", asks.len())),
-                }
-                match told.moves[..] {
-                    [] => {}
-                    [[a, b, c, d]] => {
-                        expected.push(format!("{giver} {a} → {b}, {recipient} {c} → {d}."));
-                    }
-                    _ => expected.push(format!("They move in {} transfers.", told.moves.len())),
-                }
-                let requests = |n| several(n, "request", "requests");
-                if told.unmet > 0 {
-                    expected.push(format!(
-                        "{giver} answers {} with nothing.",
-                        requests(told.unmet)
-                    ));
-                }
-                if told.withdrawn > 0 {
-                    expected.push(format!(
-                        "{recipient} withdraws {}.",
-                        requests(told.withdrawn)
-                    ));
-                }
-                return same("sentences", &article.lines, &expected);
+        if let Some(at) = transfers.iter().position(|(pair, told)| {
+            title == title_of(*pair, told) && article.lines == transfer_lines(*pair, told)
+        }) {
+            let (pair, told) = transfers.remove(at);
+            for m in &told.moves {
+                position.pay(pair.0, m[0] - m[1]);
+                position.pay(pair.1, m[2] - m[3]);
             }
+            return Ok(());
         }
         if title == "Back to the action choice" {
-            let expected = match done.back.flatten() {
-                Some(giver) => format!("26July withdraws its request to {}.", giver.name()),
-                None if after.current_card == 18 => {
-                    "Syndicate goes back to its action choice.".into()
-                }
-                None => "26July goes back to its action choice.".into(),
+            let executor = if after.current_card == 18 {
+                Faction::Syndicate
+            } else {
+                Faction::M26
             };
+            let expected = done.back.flatten().map_or_else(
+                || format!("{} goes back to its action choice.", executor.name()),
+                |giver| {
+                    format!(
+                        "{} withdraws its request to {}.",
+                        executor.name(),
+                        giver.name()
+                    )
+                },
+            );
             return same("sentences", &article.lines, &vec![expected]);
         }
         if title == "The free Rally" {

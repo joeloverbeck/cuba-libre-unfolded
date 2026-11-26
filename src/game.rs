@@ -597,6 +597,8 @@ pub enum Bound {
     /// The Resource 26July keeps for an owed Santiago Terror (accepted commitment
     /// policy, local).
     Reserve,
+    /// The Resources Syndicate keeps for its required Limited Construct payment.
+    ConstructPayment,
 }
 /// The terms of one transfer direction now: what the giver holds, what the recipient
 /// can still receive, what is held back and the largest amount that may move.
@@ -610,7 +612,7 @@ pub struct TransferTerms {
     pub held: u8,
     /// What the recipient can receive before it holds 49 (R 1.8).
     pub room: u8,
-    /// Kept by 26July for an owed Santiago Terror when it gives: 0 or 1.
+    /// Kept by the giver for a required payment.
     pub reserved: u8,
     /// The largest amount that may move: the least of the three limits.
     pub limit: u8,
@@ -636,6 +638,12 @@ impl TransferTerms {
                 self.reserved,
                 resources(self.balance)
             ),
+            Bound::ConstructPayment => {
+                return Some(format!(
+                    "{amount} is more than {}. Limited Construct needs a legal space and 5 Resources. Pay first to give more (local policy, #215).",
+                    self.limit
+                ));
+            }
         };
         Some(format!("{amount} is more than {}: {why}.", self.limit))
     }
@@ -1365,7 +1373,7 @@ impl Game {
             kidnap_open: self.kidnap_open,
             removal: self.removal.clone(),
             effected: if self.construct_is_open() {
-                !self.construct_paid().is_empty()
+                self.construct_committed()
             } else {
                 self.effect
             },
@@ -2617,15 +2625,31 @@ impl Game {
                 ));
                 Some(choices)
             }
-            Some(Transfer::Authorizing { giver, waited, .. }) => {
+            Some(Transfer::Authorizing {
+                giver,
+                recipient,
+                waited,
+                ..
+            }) => {
                 let limit = self.transfer_terms()[0].limit;
                 let mut choices: Vec<_> = (0..=limit)
                     .map(|n| {
+                        let refusal = self.construct_authorization_refusal(n);
                         self.offer(
                             &format!("authorize:{n}"),
                             format!("{} authorizes {n}", giver.name()),
-                            true,
-                            "Only the giver decides the actual amount, from 0 to its limit; it moves on authorization (R 1.5.1).",
+                            refusal.is_none(),
+                            refusal.unwrap_or_else(|| {
+                                if self.construct_is_open() {
+                                    if n == 0 {
+                                        "Authorize 0. No Resources move (R 1.5.1).".into()
+                                    } else {
+                                        format!("{} moves from {} to {} on authorization (R 1.5.1).", resources(n), giver.name(), recipient.name())
+                                    }
+                                } else {
+                                    "Only the giver decides the actual amount, from 0 to its limit; it moves on authorization (R 1.5.1).".into()
+                                }
+                            }),
                         )
                     })
                     .collect();
@@ -2671,6 +2695,11 @@ impl Game {
                         *remedy = format!("{remedy} once {} has decided", giver.name());
                     }
                     choices.push(end);
+                }
+                if self.construct_may_go_back() {
+                    let mut back = self.construct_back_choice();
+                    back.label = "Syndicate withdraws · back to action choice".into();
+                    choices.push(back);
                 }
                 Some(choices)
             }
@@ -3003,8 +3032,10 @@ impl Game {
                 self.card_18_completion = Some(Card18Completion::Pass { from: *balance });
                 *balance = Self::syndicate_pass_balance(*balance);
             }
-            construct::OPERATION_ONLY | construct::LIMITED => return self.apply_construct(action),
-            _ if self.construct_is_open() => return self.apply_construct(action),
+            construct::OPERATION_ONLY | construct::LIMITED => {
+                return self.apply_construct(action, next_revision);
+            }
+            _ if self.construct_is_open() => return self.apply_construct(action, next_revision),
             _ if self.card_18 => return self.apply_assault(action, next_revision),
             "terror" if self.action == ActionChoice::Open => self.action = ActionChoice::Terror,
             // Local policy (#58): withdraws a pending request; nothing has moved.
@@ -3170,6 +3201,9 @@ impl Game {
         self.resources[recipient.index()] += amount;
         // Zero is a deliberate non-transfer, not an effect.
         self.effect |= amount > 0 && !self.card_18;
+        if amount > 0 && self.construct_is_open() {
+            self.mark_construct_side_effect();
+        }
     }
     /// The terms of the transfers the executing faction may make now (R 1.5.1, 1.8 and the accepted
     /// commitment policy's reserve).
@@ -3198,12 +3232,26 @@ impl Game {
         let balance = self.resources[giver.index()];
         let held = self.resources[recipient.index()];
         let room = RESOURCE_CAP.saturating_sub(held);
-        let reserved = u8::from(giver == Faction::M26 && self.owes_santiago());
+        let (reserve, reserve_bound) =
+            if giver == Faction::Syndicate && self.construct_payment_owed() {
+                let minimum = if self.can_afford_construct_payment(CONSTRUCT_COST) {
+                    CONSTRUCT_COST
+                } else {
+                    balance
+                };
+                (minimum, Bound::ConstructPayment)
+            } else {
+                (
+                    u8::from(giver == Faction::M26 && self.owes_santiago()),
+                    Bound::Reserve,
+                )
+            };
+        let reserved = reserve.min(balance);
         let spendable = balance.saturating_sub(reserved);
         let bound = if spendable > room {
             Bound::Cap
         } else if reserved > 0 && balance > 0 {
-            Bound::Reserve
+            reserve_bound
         } else {
             Bound::Balance
         };

@@ -1463,7 +1463,18 @@ fn unpaid_limited_construct_loses_pinar_but_can_pay_in_havana_after_management()
         .unwrap_err();
     assert!(refusal.contains("committed"));
     assert_eq!(game.observe(), committed);
+    choose(&mut game, "transfer");
+    let selecting = game.observe();
+    let too_much = format!("{}:give:0:11", selecting.revision);
+    let refused = game
+        .submit(selecting.owner, selecting.revision, &too_much)
+        .unwrap_err();
+    assert!(refused.contains("Limited Construct"), "{refused}");
+    assert_eq!(game.observe(), selecting);
+    choose(&mut game, "give:0:10");
+    assert_eq!(game.observe().resources[3], 5);
     choose(&mut game, "construct:havana:open");
+    assert_eq!(game.observe().resources[3], 0);
     choose(&mut game, "end-construct");
 }
 

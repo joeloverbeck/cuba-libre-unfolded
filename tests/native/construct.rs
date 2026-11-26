@@ -516,7 +516,7 @@ fn native_limited_construct_pays_in_havana_and_resumes_at_finish() {
     }
 }
 
-fn choose_row(app: &mut Native, action: &str) {
+pub(super) fn choose_row(app: &mut Native, action: &str) {
     let revision = app.revision();
     app.activate(&format!("option:{action}"), revision);
     app.choose(action);

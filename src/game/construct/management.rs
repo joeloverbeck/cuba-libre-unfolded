@@ -152,7 +152,10 @@ impl Game {
         let was_legal = |game: &Self, here: &Space| {
             ConstructPlan::ALL
                 .into_iter()
-                .filter(|plan| game.construct_payment_requirement(here, *plan).is_ok())
+                .filter(|plan| {
+                    game.construct_payment_requirement(here, *plan, game.construct_balance())
+                        .is_ok()
+                })
                 .collect::<Vec<_>>()
         };
         let mut opened = vec![];

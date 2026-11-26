@@ -231,14 +231,17 @@ pub(super) fn content(view: &Observation, state: &State) -> Shown {
             giver, recipient, ..
         }) => {
             let terms = view.transfer_terms.first().cloned();
-            let refusal = terms.as_ref().and_then(|t| t.refusal(amount));
+            let offered = offered(format!("authorize:{amount}"));
+            let refusal = terms.as_ref().and_then(|t| t.refusal(amount)).or_else(|| {
+                offered
+                    .as_ref()
+                    .filter(|choice| !choice.supported)
+                    .map(|choice| choice.explanation.clone())
+            });
             Shown {
                 giver: Some(*giver),
                 recipient: Some(*recipient),
-                commit: refusal
-                    .is_none()
-                    .then(|| offered(format!("authorize:{amount}")))
-                    .flatten(),
+                commit: offered.filter(|choice| choice.supported),
                 blocked: refusal.clone(),
                 label: format!("{} authorizes {amount}", giver.name()),
                 terms,
@@ -298,7 +301,7 @@ pub(super) fn content(view: &Observation, state: &State) -> Shown {
 }
 
 /// The limits strip: the three bounds, the binding one in bold.
-fn limits(terms: &TransferTerms) -> [(&'static str, String, bool); 3] {
+fn limits(terms: &TransferTerms, executor: Option<Faction>) -> [(&'static str, String, bool); 3] {
     let (g, r) = (terms.giver.name(), terms.recipient.name());
     let binding = |bound| terms.bound == bound;
     [
@@ -324,17 +327,28 @@ fn limits(terms: &TransferTerms) -> [(&'static str, String, bool); 3] {
         ),
         (
             "reserve",
-            if binding(Bound::Reserve) {
+            if binding(Bound::ConstructPayment) {
+                format!(
+                    "Limit {}: pay for Limited Construct first to give more",
+                    terms.limit
+                )
+            } else if binding(Bound::Reserve) {
                 format!(
                     "Limit {}: {} reserved for owed Terror",
                     terms.limit, terms.reserved
                 )
+            } else if executor == Some(Faction::Syndicate) {
+                if terms.reserved > 0 {
+                    format!("{} kept for Limited Construct", resources(terms.reserved))
+                } else {
+                    "No Resources held for Construct".into()
+                }
             } else if terms.giver == Faction::M26 || terms.reserved == 0 {
                 "No Terror owed: nothing reserved".into()
             } else {
                 "Nothing reserved from this giver".into()
             },
-            binding(Bound::Reserve),
+            binding(Bound::Reserve) || binding(Bound::ConstructPayment),
         ),
     ]
 }
@@ -1069,6 +1083,7 @@ fn modal(
     // Header band, in the deciding faction's colour.
     let executor = view.executing.unwrap_or(view.owner);
     let activity = match (view.current_card, &view.event) {
+        (18, _) if executor == Faction::Syndicate => "Construct",
         (18, _) => "Assault",
         (_, Some(crate::EventProgress::Rally(_))) => "the free Rally",
         (_, Some(_)) => "Alberto Bayo",
@@ -1331,6 +1346,9 @@ fn modal(
         ));
     }
     let caption = match (&view.transfer, shown.giver) {
+        (Some(Transfer::Authorizing { giver, .. }), _) if executor == Faction::Syndicate => {
+            format!("{} chooses how much\nto authorize", giver.name())
+        }
         (Some(Transfer::Authorizing { giver, .. }), _) => format!(
             "{} sets what moves:\nanything from 0 to {}",
             giver.name(),
@@ -1887,9 +1905,13 @@ fn amount(
         .id();
     part(commands, strip, "limits");
     let entries: Vec<(&str, String, bool)> = match terms {
-        Some(t) => limits(t)
+        Some(t) => limits(t, view.executing)
             .into_iter()
-            .filter(|(icon, ..)| view.current_card != 18 || *icon != "reserve")
+            .filter(|(icon, ..)| {
+                view.current_card != 18
+                    || *icon != "reserve"
+                    || (view.executing == Some(Faction::Syndicate) && t.reserved > 0)
+            })
             .collect(),
         None => vec![(
             "balance",
@@ -2356,7 +2378,7 @@ mod tests {
             .find(|t| t.giver == Faction::Syndicate)
             .unwrap();
         assert_eq!(
-            limits(ask).map(|(_, t, b)| (t, b)),
+            limits(ask, view.executing).map(|(_, t, b)| (t, b)),
             [
                 ("Limit 15: Syndicate's balance".into(), true),
                 ("26July holds at most 49".into(), false),
@@ -2374,7 +2396,7 @@ mod tests {
             .find(|t| t.recipient == Faction::Directorio)
             .unwrap();
         assert_eq!(
-            limits(give).map(|(_, t, b)| (t, b)),
+            limits(give, view.executing).map(|(_, t, b)| (t, b)),
             [
                 ("26July's balance: 3".into(), false),
                 ("Directorio has room for 44".into(), false),

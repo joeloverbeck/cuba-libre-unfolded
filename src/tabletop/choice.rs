@@ -494,11 +494,15 @@ fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool, agent
                 };
             return format!("{} on card 18 · {balance}{result}", next.role);
         }
-        if let Some(Transfer::Authorizing { giver, .. }) = view.transfer {
+        if let Some(Transfer::Authorizing {
+            giver, recipient, ..
+        }) = view.transfer
+        {
             return format!(
-                "{} decides the Resource transfer\nGovernment has {}",
+                "{} decides the Resource transfer\n{} has {}",
                 giver.name(),
-                resources(view.resources[Faction::Government.index()])
+                recipient.name(),
+                resources(view.resources[recipient.index()])
             );
         }
         if view.removal.is_some() && view.executing == Some(Faction::Syndicate) {
