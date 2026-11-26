@@ -166,6 +166,8 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 
 [`art/atlas/EXECUTION.md`](../../art/atlas/EXECUTION.md) lists every name in the execution panel.
 
+The proclamation reader exposes `proclamations` to open the public record, `proclamation:previous` and `proclamation:next` when there is another archived page in that direction, and `proclamation:return` to acknowledge and close the shown page, leaving later arrivals unread. R is `KeyR`. Enter and Space name `proclamation:return` as their focused control. `table.proclamations` reports the publication-ordered `documents` with their author, card, exact text and read state, the `unread` count, and the one-based `open` document number. An open page adds `a proclamation` to the faction seats' `holding` list.
+
 ## Choices
 
 Each choice id starts with the revision it was offered at. Submit supported ids from the observation's `choices` (or a `--brief` reply). To preview an option, use its component.
