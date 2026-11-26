@@ -196,7 +196,7 @@ fn native_construct_transfer_resumes_at_the_giver_and_finishes_after_spending() 
     assert_eq!(before_finish["resources"], json!([11, 2, 5, 0]));
     let previous = app.save_bytes();
     fs::write(app.root.join("before-finish.json"), &previous).unwrap();
-    let syndicate = app.seat_agent(faction_seats::SYNDICATE, "syndicate-finish");
+    let syndicate = app.seat_agent(faction_seats::SYNDICATE, "syndicate");
     client_applies(&mut app, &syndicate, "end-construct");
     assert_eq!(fs::read(previous_path(&app.save)).unwrap(), previous);
     let (code, told) = app.ask(&["observe", &syndicate]);

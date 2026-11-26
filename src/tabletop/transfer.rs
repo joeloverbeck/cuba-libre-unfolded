@@ -1346,6 +1346,9 @@ fn modal(
         ));
     }
     let caption = match (&view.transfer, shown.giver) {
+        (Some(Transfer::Authorizing { giver, .. }), _) if executor == Faction::Syndicate => {
+            format!("{} chooses how much\nto authorize", giver.name())
+        }
         (Some(Transfer::Authorizing { giver, .. }), _) => format!(
             "{} sets what moves:\nanything from 0 to {}",
             giver.name(),
