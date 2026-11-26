@@ -2641,7 +2641,7 @@ impl Game {
                                 format!("Ask {} for {n}", other.name()),
                                 true,
                                 match &funding {
-                                    Some(funding) => format!("{explanation} {}. {}", funding.summary(), ConstructFunding::CONDITION),
+                                    Some(funding) => format!("{explanation} {}. {} (Local policy, #215.)", funding.summary(), ConstructFunding::CONDITION),
                                     None => explanation,
                                 },
                             )

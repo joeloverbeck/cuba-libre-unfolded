@@ -23,10 +23,10 @@ mod words;
 pub(crate) use words::listing;
 
 use crate::{
-    ActionChoice, AssaultResolution, Choice, ConstructFunding, ConstructPlan, ConstructResolution,
-    Eligibility, EventOutcome, EventProgress, Faction, Flip, Game, Group, Kidnap, Kind, Next,
-    Observation, Rally, RallyAction, Removal, Resolved, SequenceBox, Space, Standing, State,
-    Transfer, title,
+    ActionChoice, AssaultResolution, Choice, ConstructAuthorization, ConstructFunding,
+    ConstructPlan, ConstructResolution, Eligibility, EventOutcome, EventProgress, Faction, Flip,
+    Game, Group, Kidnap, Kind, Next, Observation, Rally, RallyAction, Removal, Resolved,
+    SequenceBox, Space, Standing, State, Transfer, title,
 };
 use serde::Serialize;
 
@@ -322,6 +322,12 @@ impl Moment {
 
     fn resources(&self, faction: Faction) -> u8 {
         self.resources[faction.index()]
+    }
+
+    fn construct_authorizations(&self) -> &[ConstructAuthorization] {
+        self.construct_funding
+            .as_ref()
+            .map_or(&[], |funding| &funding.authorizations)
     }
 }
 
@@ -637,7 +643,10 @@ fn transferred(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
             told.asks += 1;
             told.pending = Some(amount);
         }
-        (Some((giver, recipient, asked)), None) if !gather => {
+        (Some((giver, recipient, asked)), None)
+            if before.construct_authorizations().len()
+                != after.construct_authorizations().len() =>
+        {
             if let Some(index) = items
                 .iter()
                 .rposition(|item| matches!(item, Item::Transfers(told) if told.pending.is_some()))
@@ -648,33 +657,18 @@ fn transferred(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
                 // A single reply can settle every conditional authorization. Reconstruct their
                 // individual balances in authorization order from the preceding position.
                 let mut balances = before.resources;
-                if let Some(funding) = &before.construct_funding {
-                    for authorization in &funding.authorizations {
-                        construct_transfer(
-                            items,
-                            &mut balances,
-                            authorization.giver,
-                            recipient,
-                            authorization.asked,
-                            authorization.amount,
-                        );
-                    }
+                for authorization in before.construct_authorizations() {
+                    construct_transfer(
+                        items,
+                        &mut balances,
+                        authorization.giver,
+                        recipient,
+                        authorization.asked,
+                        authorization.amount,
+                    );
                 }
                 let amount = after.resources(recipient) - balances[recipient.index()];
                 construct_transfer(items, &mut balances, giver, recipient, asked, amount);
-            } else {
-                let held = |moment: &Moment| {
-                    moment
-                        .construct_funding
-                        .as_ref()
-                        .map_or(0, |funding| funding.authorizations.len())
-                };
-                if held(before) == held(after) {
-                    let told = between(items, giver, recipient, false);
-                    told.asked = Some(asked);
-                    told.asks = 1;
-                    told.unmet = 1;
-                }
             }
         }
         (Some((giver, recipient, _)), None) => {

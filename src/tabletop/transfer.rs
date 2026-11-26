@@ -1623,6 +1623,12 @@ fn amount(
         },
     );
     let label = match (&view.transfer, terms) {
+        (Some(Transfer::Authorizing { giver, .. }), _) if view.construct_funding.is_some() => {
+            format!(
+                "AMOUNT {} AUTHORIZES  ·  prefilled with the request",
+                giver.name().to_uppercase()
+            )
+        }
         (Some(Transfer::Authorizing { giver, .. }), _) => format!(
             "AMOUNT {} GIVES  ·  prefilled with the request",
             giver.name().to_uppercase()

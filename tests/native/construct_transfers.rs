@@ -381,6 +381,7 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
     );
     app.capture("wait-on-directorio");
     let pending_bytes = app.save_bytes();
+    fs::write(app.root.join("pending-before-restart.json"), &pending_bytes).unwrap();
     app.quit();
 
     app.launch_size("3840x2160");
@@ -399,7 +400,12 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
     );
     let revision = app.revision().to_string();
     let previous_choice = format!("{revision}:authorize:2");
-    client_applies(&mut app, &directorio, "authorize:2");
+    let reply = client_applies(&mut app, &directorio, "authorize:2");
+    fs::write(
+        app.root.join("directorio-client-settlement.json"),
+        serde_json::to_vec_pretty(&reply).unwrap(),
+    )
+    .unwrap();
     let settled = app.observe();
     assert_eq!(settled["observation"]["resources"], json!([11, 3, 3, 6]));
     assert_eq!(settled["observation"]["owner"], "Syndicate");
@@ -461,6 +467,11 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
         "Syndicate pays 5 Resources, 6 → 1."
     );
     assert_eq!(articles[4]["title"], "Syndicate gives 26July 1 Resource");
+    fs::write(
+        app.root.join("syndicate-client-after-finish.json"),
+        serde_json::to_vec_pretty(&told).unwrap(),
+    )
+    .unwrap();
     let finished = app.observe();
     assert_eq!(
         finished["observation"]["eligible"],
