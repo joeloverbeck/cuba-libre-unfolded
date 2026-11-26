@@ -16,10 +16,11 @@ use unfolded_tabletop::seat::Focus;
 
 pub(super) const WRITE: &str = "proclamation:write";
 const FIELD: &str = "proclamation:field";
+const FIELD_PLATE: &str = "proclamation-broadsheet-field.png";
 const RETURN: &str = "proclamation:return";
 const PUBLISH: &str = "proclamation:publish";
 const LAYER: i32 = 49;
-const INK_RED: Color = Color::srgb(0.45, 0.16, 0.07);
+const INK_RED: Color = Color::srgb(0.45, 0.16, 0.07); // own colour: dark red for refusals on Broadsheet paper
 const FIELD_BOX: [f32; 4] = [332., 548., 1851., 538.];
 const WORDS_BOX: [f32; 4] = [370., 568., 1775., 505.];
 
@@ -230,7 +231,58 @@ pub(super) fn focus(ui: &Interface) -> Option<Focus> {
 /// represents the newly selected author. It stays alive across count redraws.
 fn keep_draft(state: &mut State, field: &Query<(Entity, &Editor, &EditableText)>) {
     if let Ok((_, editor, text)) = field.single() {
-        state.drafts[editor.0.index()] = text.value().to_string();
+        let old = &mut state.drafts[editor.0.index()];
+        let edited = text.value().to_string();
+        if *old != edited {
+            *old = edited;
+            if let Some(page) = &mut state.page
+                && page.author == editor.0
+            {
+                page.refusal = None;
+            }
+        }
+    }
+}
+
+/// Seat handovers are processed first, so the same frame's custody change
+/// also governs a queued Publish press. Both controllers use Session::publish.
+pub(super) fn publish(
+    mut play: ResMut<Play>,
+    mut ui: ResMut<Interface>,
+    field: Query<(Entity, &Editor, &EditableText)>,
+) {
+    keep_draft(&mut ui.composer, &field);
+    if !std::mem::take(&mut ui.composer.publishing) {
+        return;
+    }
+    let Some(page) = ui.composer.page.as_ref() else {
+        return;
+    };
+    let (author, revision, card) = (page.author, page.revision, page.card);
+    let result = if ui.plays(author) {
+        play.session
+            .as_mut()
+            .expect("An admitted match")
+            .publish(author, revision, card, ui.composer.draft(author))
+            .map_err(|failure| failure.to_string())
+    } else {
+        Err(format!("{} is controlled by another seat.", author.name()))
+    };
+    match result {
+        Ok(()) => {
+            ui.composer.drafts[author.index()].clear();
+            ui.composer.page = None;
+            ui.notice =
+                notice::Notice::success(format!("{} published a proclamation.", author.name()));
+            ui.dirty = true;
+        }
+        Err(refused) => {
+            ui.composer
+                .page
+                .as_mut()
+                .expect("The open composer")
+                .refusal = Some(refused);
+        }
     }
 }
 
@@ -238,14 +290,13 @@ pub(super) fn draw(
     mut commands: Commands,
     art: Res<Art>,
     play: Res<Play>,
-    mut ui: ResMut<Interface>,
+    ui: Res<Interface>,
     window: Single<&Window, With<PrimaryWindow>>,
     field: Query<(Entity, &Editor, &EditableText)>,
     printed: Query<Entity, With<Printed>>,
     mut focus: ResMut<InputFocus>,
     mut last: Local<Option<Sheet>>,
 ) {
-    keep_draft(&mut ui.composer, &field);
     let layout = Layout::new(&window);
     let next = ui.composer.page.as_ref().and_then(|page| {
         let session = play.session.as_ref()?;
@@ -366,7 +417,7 @@ fn print(commands: &mut Commands, art: &Art, sheet: &Sheet) {
         LAYER + 1,
     );
     commands.entity(plate).insert((Printed, Part("plate")));
-    let field = paper::image(commands, art, paper::FIELD, layout, FIELD_BOX, LAYER + 2);
+    let field = paper::image(commands, art, FIELD_PLATE, layout, FIELD_BOX, LAYER + 2);
     commands.entity(field).insert((Printed, Part("field")));
     for row in paper::header(
         commands,
@@ -471,26 +522,18 @@ impl SheetPrint<'_, '_, '_> {
         let press = Press::Author(faction);
         let selected = page.author == faction;
         let rect = [124. + 320. * faction.index() as f32, 390., 300., 60.];
-        let mut node = self.layout.at(rect);
-        node.border = UiRect::all(px(2. * self.layout.scale));
-        let border = if page.focus == press { LIGHT } else { GOLD };
-        self.commands
-            .spawn((
-                Printed,
-                node,
-                control(press),
-                BorderColor::all(if human || selected { border } else { INK }),
-                BackgroundColor(if selected { GOLD } else { INK }),
-                GlobalZIndex(LAYER + 2),
-            ))
-            .observe(click);
+        self.control_plate(press, rect, !selected, page.focus == press);
         let [x, y, width, _] = rect;
         let words = if human {
             faction.name().into()
         } else {
             format!("{} · held", faction.name())
         };
-        let ink = if selected { INK } else { GOLD };
+        let ink = match (selected, human) {
+            (true, _) => INK,
+            (false, true) => LIGHT,
+            (false, false) => GOLD,
+        };
         self.label(
             "author",
             words,
@@ -500,7 +543,7 @@ impl SheetPrint<'_, '_, '_> {
         );
     }
 
-    fn button(&mut self, press: Press, words: &str, rect: [f32; 4], primary: bool, focused: bool) {
+    fn control_plate(&mut self, press: Press, rect: [f32; 4], primary: bool, focused: bool) {
         let file = if primary {
             paper::PRIMARY
         } else {
@@ -512,18 +555,25 @@ impl SheetPrint<'_, '_, '_> {
             .remove::<Pickable>()
             .insert((Printed, control(press)))
             .observe(click);
-        let [x, y, width, height] = rect;
         if focused {
-            let mut outline = self.layout.at([x + 6., y + 6., width - 12., height - 12.]);
-            outline.border = UiRect::all(px(3. * self.layout.scale));
-            self.commands.spawn((
-                Printed,
-                outline,
-                BorderColor::all(if primary { GOLD } else { INK }),
-                GlobalZIndex(LAYER + 3),
-                Pickable::IGNORE,
-            ));
+            let mark = if primary {
+                "atlas-focus-mark-field.png"
+            } else {
+                "atlas-focus-mark.png"
+            };
+            popover::plate(
+                self.commands,
+                self.art,
+                fill,
+                (mark, Some(9.), [4.; 4]),
+                self.layout.scale,
+            );
         }
+    }
+
+    fn button(&mut self, press: Press, words: &str, rect: [f32; 4], primary: bool, focused: bool) {
+        self.control_plate(press, rect, primary, focused);
+        let [x, y, width, _] = rect;
         self.label(
             match press {
                 Press::Return => "return",

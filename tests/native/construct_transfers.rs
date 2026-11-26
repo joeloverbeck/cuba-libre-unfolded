@@ -1037,7 +1037,7 @@ fn drawn_transfer_part<'a>(seen: &'a Value, name: &str) -> &'a Value {
         .unwrap_or_else(|| panic!("{name} not drawn"))
 }
 
-fn underfunded_handoff(app: &mut Native) {
+pub(super) fn underfunded_handoff(app: &mut Native) {
     super::assault::fund_santiago(&app.save, 0);
     app.launch_size("3840x2160");
     for action in ["event:shaded", "resolve-shaded"] {

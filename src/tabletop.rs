@@ -521,6 +521,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                     choice::keys,
                     transfer::keys,
                     faction_seats::serve,
+                    proclamation_composer::publish,
                     die::present,
                     piles::follow,
                     newspaper::open,

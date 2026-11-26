@@ -114,6 +114,12 @@ Every full reply carries the whole rules observation and the whole table: many k
 - While the die is in the air, Enter or Space naming `kidnap-die` skips the tumble; the seat refuses other input as busy (#87).
 - While a played card is in the air (`table.pending` names `card advance`), the keyboard is on `card-advance`: Enter or Space naming it lands the cards at once, e.g. `{"op":"key","revision":12,"key":"Space","focused":"card-advance"}`. An `activate` naming any shown component lands them too, as the owner's click anywhere does: on `area:cards`, a card, a pile, a space of the map or a decision's control. Either does nothing else: no choice is committed, no space picked, no option pinned and no tag opened or closed. An `activate` naming a choice, and any other input, is refused as busy (#145).
 
+### Proclamation composer
+
+Activate `proclamation:write` or press `KeyP` during an open card. Select `proclamation:author:<faction>` using `government`, `26july`, `directorio` or `syndicate`. The writing field is `proclamation:field`. It accepts letter keys named by case, digits, punctuation, `Space`, `Enter` for a line break, arrows, `Home`, `End`, `Backspace` and `Delete`. Name the field in `focused` for Space and Enter.
+
+Tab cycles the authors, field, `proclamation:return` and `proclamation:publish`. Press Enter naming the focused control to activate it. Escape returns to the choice, preserving the draft for the open card. `table.proclamation_composer` gives the selected author, card and opened revision, current draft and count, spent allowance, focus, refusal and the rendered bounds of named parts. It is null when the sheet is closed.
+
 ## Components
 
 Name these in a request's `"component"`. Families use `<…>` for the varying part.

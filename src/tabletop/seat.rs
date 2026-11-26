@@ -45,6 +45,50 @@ const DIGITS: [(&str, KeyCode, &str); 10] = [
     ("8", KeyCode::Digit8, "8"),
     ("9", KeyCode::Digit9, "9"),
 ];
+// Names for the same printable keys the native proclamation field takes.
+const LETTERS: [(KeyCode, &str, &str); 26] = [
+    (KeyCode::KeyA, "a", "A"),
+    (KeyCode::KeyB, "b", "B"),
+    (KeyCode::KeyC, "c", "C"),
+    (KeyCode::KeyD, "d", "D"),
+    (KeyCode::KeyE, "e", "E"),
+    (KeyCode::KeyF, "f", "F"),
+    (KeyCode::KeyG, "g", "G"),
+    (KeyCode::KeyH, "h", "H"),
+    (KeyCode::KeyI, "i", "I"),
+    (KeyCode::KeyJ, "j", "J"),
+    (KeyCode::KeyK, "k", "K"),
+    (KeyCode::KeyL, "l", "L"),
+    (KeyCode::KeyM, "m", "M"),
+    (KeyCode::KeyN, "n", "N"),
+    (KeyCode::KeyO, "o", "O"),
+    (KeyCode::KeyP, "p", "P"),
+    (KeyCode::KeyQ, "q", "Q"),
+    (KeyCode::KeyR, "r", "R"),
+    (KeyCode::KeyS, "s", "S"),
+    (KeyCode::KeyT, "t", "T"),
+    (KeyCode::KeyU, "u", "U"),
+    (KeyCode::KeyV, "v", "V"),
+    (KeyCode::KeyW, "w", "W"),
+    (KeyCode::KeyX, "x", "X"),
+    (KeyCode::KeyY, "y", "Y"),
+    (KeyCode::KeyZ, "z", "Z"),
+];
+const PUNCTUATION: [(KeyCode, &str); 13] = [
+    (KeyCode::Digit1, "!"),
+    (KeyCode::Digit2, "@"),
+    (KeyCode::Digit9, "("),
+    (KeyCode::Digit0, ")"),
+    (KeyCode::Comma, ","),
+    (KeyCode::Period, "."),
+    (KeyCode::Quote, "'"),
+    (KeyCode::Quote, "\""),
+    (KeyCode::Semicolon, ";"),
+    (KeyCode::Semicolon, ":"),
+    (KeyCode::Slash, "/"),
+    (KeyCode::Slash, "?"),
+    (KeyCode::Minus, "-"),
+];
 /// The keys the seat may press: Tab moves keyboard focus through the action choice,
 /// the BRIEFING ribbon and its tabs, or the transfer modal; Enter and Space activate
 /// the focused control and can commit, so a request names that control (they skip
@@ -66,6 +110,8 @@ static KEYS: LazyLock<Vec<SeatKey>> = LazyLock::new(|| {
         key("Space", KeyCode::Space, Key::Space, true),
         key("Escape", KeyCode::Escape, Key::Escape, false),
         key("Backspace", KeyCode::Backspace, Key::Backspace, false),
+        key("Delete", KeyCode::Delete, Key::Delete, false),
+        key("End", KeyCode::End, Key::End, false),
         key("KeyP", KeyCode::KeyP, Key::Character("p".into()), false),
         // Each hands a faction over to an agent, or takes it back (`faction_seats`).
         key("F1", KeyCode::F1, Key::F1, false),
@@ -77,6 +123,20 @@ static KEYS: LazyLock<Vec<SeatKey>> = LazyLock::new(|| {
     // The transfer modal's amount field takes typed digits.
     .chain(DIGITS.iter().map(|&(name, code, typed)| SeatKey {
         name,
+        code,
+        logical: Logical::Typed(typed),
+        commits: false,
+    }))
+    .chain(LETTERS.iter().flat_map(|&(code, lower, upper)| {
+        [lower, upper].map(|typed| SeatKey {
+            name: typed,
+            code,
+            logical: Logical::Typed(typed),
+            commits: false,
+        })
+    }))
+    .chain(PUNCTUATION.iter().map(|&(code, typed)| SeatKey {
+        name: typed,
         code,
         logical: Logical::Typed(typed),
         commits: false,

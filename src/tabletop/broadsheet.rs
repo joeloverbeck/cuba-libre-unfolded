@@ -5,14 +5,13 @@ use bevy::text::{Justify, LetterSpacing, LineHeight};
 use bevy::ui::widget::NodeImageMode;
 
 pub(super) const PLATE: &str = "proclamation-broadsheet-plate.png";
-pub(super) const FIELD: &str = "proclamation-broadsheet-field.png";
 pub(super) const PRIMARY: &str = "proclamation-primary.png";
 pub(super) const SECONDARY: &str = "proclamation-secondary.png";
 pub(super) const SCRIM: &str = "atlas-newspaper-scrim.png";
 pub(super) const PLATE_BOX: [f32; 4] = [0., 0., 2320., 1400.];
-pub(super) const INK: Color = Color::srgb(23. / 255., 63. / 255., 50. / 255.);
-pub(super) const GOLD: Color = Color::srgb(244. / 255., 215. / 255., 139. / 255.);
-pub(super) const LIGHT: Color = Color::srgb(246. / 255., 240. / 255., 221. / 255.);
+pub(super) const INK: Color = Color::srgb(23. / 255., 63. / 255., 50. / 255.); // own colour: Proclamations variables in havana-proclamations.figcraft.
+pub(super) const GOLD: Color = Color::srgb(244. / 255., 215. / 255., 139. / 255.); // own colour: Proclamations variables in havana-proclamations.figcraft.
+pub(super) const LIGHT: Color = Color::srgb(246. / 255., 240. / 255., 221. / 255.); // own colour: Proclamations variables in havana-proclamations.figcraft.
 
 #[derive(Clone, Copy, PartialEq)]
 pub(super) struct Layout {
