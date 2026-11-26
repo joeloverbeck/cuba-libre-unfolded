@@ -123,6 +123,13 @@ fn native_public_proclamations_preserve_the_givers_decision() {
         let (code, refreshed) = app.ask(&["observe", player]);
         assert_eq!(code, 0);
         assert_eq!(refreshed["view"]["proclamations"]["published"], words);
+        let faction = refreshed["view"]["faction"].as_str().unwrap();
+        let public_view = &refreshed["view"]["proclamations"];
+        fs::write(
+            app.root.join(format!("card-17-public-{faction}.json")),
+            serde_json::to_vec_pretty(public_view).unwrap(),
+        )
+        .unwrap();
     }
     assert!(idle.ended().is_none(), "publication woke the idle seat");
     assert_eq!(seat(&app.settle(), "Directorio")["waits"], true);
@@ -154,10 +161,14 @@ fn native_public_proclamations_preserve_the_givers_decision() {
     assert_eq!((code, &next["status"]), (0, &json!("decision")));
     assert_eq!(next["view"]["decision"]["faction"], "Directorio");
     assert_eq!(next["view"]["proclamations"]["published"], words);
+    app.decide(&directorio, "event:shaded", "applied");
+    let silent = app.decide(&directorio, "resolve-shaded", "applied");
+    assert_eq!(silent["view"]["proclamations"]["published"], words);
+    // The committed Event earns the ordinary edition. The received speech
+    // required no acknowledgement before either decision.
+    assert!(!app.settle()["table"]["newspaper"]["open"].is_null());
+    app.key("Escape");
     app.key(DIRECTORIO);
-    for action in ["event:shaded", "resolve-shaded"] {
-        choose_row(&mut app, action);
-    }
     let closed = app.revision();
     refused_publication(&mut app, &successor, closed, 17, "Again", "card is closed");
     app.choose("advance-card");
@@ -257,6 +268,7 @@ fn native_public_proclamations_preserve_the_givers_decision() {
     app.capture("havana-reopened-by-the-construct-payment");
     for (name, answer) in [
         ("card-17-silent-seat-decision", next),
+        ("card-17-silent-seat-resolves-event", silent),
         ("card-17-retry", repeated),
         ("card-18-giver-publication", offered),
         ("card-18-giver-reopened", after),
