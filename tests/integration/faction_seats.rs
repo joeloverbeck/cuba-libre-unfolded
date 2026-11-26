@@ -1230,6 +1230,64 @@ fn at_each_end_of_the_build_the_seat_is_told_and_not_woken() {
 // --- Held choices -------------------------------------------------------------------
 
 #[test]
+fn a_wait_reports_the_replacement_committed_when_the_table_settles() {
+    let mut s = Sitting::at_the_handoff();
+    let player = s.seat(Directorio);
+    s.room.settled = false;
+    let waiting = s.choose_and_wait(&player, "event:shaded");
+    assert!(s.answer(waiting).is_none());
+    assert_eq!(s.choose(&player, "event:unshaded")["status"], "held");
+
+    s.room.settled = true;
+    s.poll();
+    assert_eq!(s.room.commits.len(), 1);
+    assert_eq!(s.room.commits[0].1, "5:event:unshaded");
+    assert_eq!(
+        decisions(&s.room.path).last().map(String::as_str),
+        Some("event:unshaded")
+    );
+    let answer = s.answer(waiting).expect("The next decision was told");
+    assert_eq!(answer["status"], "decision");
+    assert_eq!(
+        answer["choice"],
+        json!({"id":"5:event:unshaded","label":"Event · unshaded","status":"applied"})
+    );
+}
+
+#[test]
+fn a_wait_that_expires_reports_the_replacement_still_held() {
+    let mut s = Sitting::at_the_handoff();
+    let player = s.seat(Directorio);
+    s.room.settled = false;
+    let before = decisions(&s.room.path);
+    let mut request = s.choice(&player, "event:shaded");
+    request["wait"] = json!(true);
+    request["timeout_seconds"] = json!(10);
+    let waiting = s.send(request);
+    assert!(s.answer(waiting).is_none());
+    assert_eq!(s.choose(&player, "event:unshaded")["status"], "held");
+
+    s.pass(10);
+    assert!(s.room.commits.is_empty());
+    assert_eq!(decisions(&s.room.path), before);
+    let answer = s.answer(waiting).expect("The wait expired");
+    assert_eq!(answer["status"], "nothing_yet");
+
+    s.room.settled = true;
+    s.poll();
+    assert_eq!(s.room.commits.len(), 1);
+    assert_eq!(s.room.commits[0].1, "5:event:unshaded");
+    assert_eq!(
+        decisions(&s.room.path).last().map(String::as_str),
+        Some("event:unshaded")
+    );
+    assert_eq!(
+        answer["choice"],
+        json!({"id":"5:event:unshaded","label":"Event · unshaded","status":"held"})
+    );
+}
+
+#[test]
 fn a_choice_waits_for_the_table_and_is_applied_when_it_settles() {
     let mut s = Sitting::at_the_handoff();
     let player = s.seat(Directorio);
