@@ -54,8 +54,10 @@ mod discovery;
 mod eligibility;
 mod emblems;
 mod execution;
+mod faction_seats;
 mod focus_mark;
 mod highlights;
+mod newspaper;
 mod notice;
 mod palette;
 mod pile_tags;
@@ -63,6 +65,8 @@ mod piles;
 mod popover;
 mod save_quit;
 pub mod seat;
+mod seat_cards;
+mod settled;
 mod status;
 mod supply;
 mod top;
@@ -76,6 +80,8 @@ pub struct Options {
     pub save: PathBuf,
     pub recover: Option<PathBuf>,
     pub socket: Option<PathBuf>,
+    /// Where agent sessions play handed-over factions, instead of the default.
+    pub players: Option<PathBuf>,
     pub agent: bool,
     pub seat_size: UVec2,
 }
@@ -101,6 +107,8 @@ struct Art {
     /// Lato Bold, for the action choice's labels (FigCraft `Choice/*` styles) and the
     /// Kidnap result.
     bold: Handle<Font>,
+    /// Noto Serif Display Bold, the newspaper's headlines and titles.
+    headline: Handle<Font>,
     scene: Handle<WorldAsset>,
     terror: Handle<WorldAsset>,
     terror_clip: Handle<AnimationClip>,
@@ -162,6 +170,15 @@ struct Interface {
     dirty: bool,
     /// The action choice's pinned option, keyboard focus and briefing ribbon.
     choice: choice::State,
+    /// Each faction's seat, indexed like `Faction::ALL`: the human's input submits nothing
+    /// for one that is not the human's (`faction_seats`).
+    seats: [crate::faction_seats::SeatState; 4],
+    /// The seat controls pressed in this frame, until `faction_seats::serve` reads them.
+    presses: Vec<seat_cards::Press>,
+    /// The open sheet with a seat's line to copy.
+    line: Option<seat_cards::Line>,
+    /// The current card's editions (#208): while one is due or open nothing is decided.
+    editions: crate::editions::Editions,
     /// The transfer modal's counterpart, direction, typed amount and focus.
     transfer: transfer::State,
     /// The revision a Kidnap roll just created in this run, until the die's
@@ -170,6 +187,16 @@ struct Interface {
     /// The card a decision just played in this run, until the tray starts showing its
     /// advance from the shared clock in the same frame (`piles::follow`).
     played: Option<piles::Played>,
+}
+impl Interface {
+    /// Whether the human plays `faction`.
+    fn plays(&self, faction: Faction) -> bool {
+        self.seats[faction.index()] == crate::faction_seats::SeatState::Human
+    }
+    /// The factions the human plays, indexed like `Faction::ALL`.
+    fn played(&self) -> [bool; 4] {
+        Faction::ALL.map(|faction| self.plays(faction))
+    }
 }
 #[derive(Component)]
 struct UiRoot;
@@ -241,6 +268,11 @@ enum Action {
     /// A transfer modal control that decides nothing: a counterpart tab, the
     /// direction, a quick value, the amount field or the pending tab's Open.
     Transfer(transfer::Input),
+    /// A seat control (#206): hands a faction over, takes it back or copies its line.
+    Seat(seat_cards::Press),
+    /// The newspaper (#208): puts the open edition away, turns to another or takes the
+    /// latest from the pile. Decides nothing.
+    Edition(newspaper::Press),
 }
 #[derive(Resource, Clone)]
 struct RenderReady {
@@ -353,6 +385,12 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .world_mut()
         .resource_mut::<Assets<Font>>()
         .add(Font::from_bytes(verified.files["Lato-Bold.ttf"].clone()));
+    let headline = app
+        .world_mut()
+        .resource_mut::<Assets<Font>>()
+        .add(Font::from_bytes(
+            verified.files["NotoSerifDisplay-Bold.ttf"].clone(),
+        ));
     let die_art = die::DieArt::load(&mut app, &verified.files["kidnap-die.json"])?;
     let main_view = areas::Layout::read(&verified.files["atlas-main-view.layout.json"])?;
     let server = app.world().resource::<AssetServer>();
@@ -387,17 +425,23 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             images,
             font,
             bold,
+            headline,
             scene,
             terror,
             terror_clip: terror_clip.clone(),
             labels: labels.labels,
         })
+        .insert_resource(faction_seats::FactionSeats::new(
+            options.players.clone(),
+            windowless,
+        ))
         .insert_resource(die_art)
         .insert_resource(main_view)
         .init_resource::<areas::Island>()
         .init_resource::<Counts>()
         .init_resource::<die::Roll>()
         .init_resource::<piles::Advance>()
+        .init_resource::<newspaper::Drawn>()
         .insert_resource(TerrorLoop {
             clip: terror_clip,
             graph,
@@ -448,15 +492,19 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 bind_spaces,
                 hover_disclosures,
                 // A playing card advance takes Space and Enter before anything else
-                // reads them. The presented die takes them too, so the action choice
-                // and the modal read the keyboard first and stand aside while it is
-                // shown. A decision any of them applied may have played a card.
+                // reads them, but an open edition, which takes every key. The presented
+                // die takes them too, so the action choice and the modal read the
+                // keyboard first and stand aside while it is shown. A decision any of
+                // them applied may have played a card, or have an edition to open.
                 (
+                    newspaper::keys,
                     piles::keys,
                     choice::keys,
                     transfer::keys,
+                    faction_seats::serve,
                     die::present,
                     piles::follow,
+                    newspaper::open,
                 )
                     .chain(),
                 draw_ui,
@@ -477,6 +525,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                     pile_tags::draw,
                     piles::present,
                     save_quit::hover,
+                    newspaper::draw,
                     focus_mark::draw,
                 )
                     .chain(),
@@ -490,7 +539,8 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 (animate_terror, die::animate).before(AnimationSystems),
                 emblems::ink,
             ),
-        );
+        )
+        .add_systems(Last, faction_seats::close);
     Ok(app)
 }
 /// How the table keeps an image it only draws. The renderer takes the pixels, so the app
@@ -948,11 +998,13 @@ fn admit(
         ui.dirty = true;
         return;
     }
-    let font_ready = [&art.font, &art.bold].into_iter().all(|font| {
-        fonts
-            .get(font)
-            .is_some_and(|font| unfolded_tabletop::loading::font_registered(font, &mut context))
-    });
+    let font_ready = [&art.font, &art.bold, &art.headline]
+        .into_iter()
+        .all(|font| {
+            fonts
+                .get(font)
+                .is_some_and(|font| unfolded_tabletop::loading::font_registered(font, &mut context))
+        });
     if !report.loaded
         || !font_ready
         || !ready.ready.load(Ordering::Acquire)
@@ -973,7 +1025,10 @@ fn admit(
                 .map_err(|e| e.to_string())
         });
     match result {
-        Ok(session) => play.session = Some(session),
+        Ok(session) => {
+            ui.editions = crate::editions::Editions::from(&session.observe());
+            play.session = Some(session);
+        }
         Err(error) => play.error = Some(error),
     };
     ui.dirty = true;
@@ -1065,6 +1120,17 @@ fn click(
     if event.button != bevy::picking::pointer::PointerButton::Primary || play.session.is_none() {
         return;
     }
+    // A seat is handed over and taken back at any time, with a card in the air too, which
+    // the click also lands.
+    if let Ok(Control {
+        action: Action::Seat(press),
+        ..
+    }) = controls.get(event.entity)
+    {
+        ui.clicked = true;
+        ui.presses.push(*press);
+        return;
+    }
     // A click while a played card is in the air lands the cards and does nothing
     // else (presentation only: the advance was saved before anything moved).
     if advance.lands(&play.game().observe(), time.elapsed_secs_f64(), frame.0) {
@@ -1097,7 +1163,8 @@ fn click(
         // BRIEFING ribbon (owner's clash rule, #58).
         Action::Space(space) => {
             // The transfer modal's scrim takes the map's input beneath it.
-            if transfer::shown(play.game().transfer.as_ref()) {
+            let game = play.game();
+            if transfer::shown(game.transfer.as_ref(), game.owner(), &ui) {
                 return;
             }
             if popover.click_space(space, &targeting) {
@@ -1126,7 +1193,9 @@ fn click(
             popover.close();
             return;
         }
-        Action::Submit(..) => return,
+        Action::Submit(..) | Action::Seat(_) => return,
+        // Reading an edition changes nothing in the match.
+        Action::Edition(press) => newspaper::press(&mut ui, *press),
         // Reading a card changes nothing in the match.
         Action::Card(slot) => cards::activate(&mut ui, *slot),
         Action::Decision(owner, rev) | Action::Commit(owner, rev) => {
@@ -1181,6 +1250,10 @@ fn map_click_closes_tag(
     if advance.lands(&play.game().observe(), time.elapsed_secs_f64(), frame.0) {
         return;
     }
+    // A click on the map puts the sheet with a seat's line away.
+    if ui.line.take().is_some() {
+        ui.dirty = true;
+    }
     let step = play.game().action == crate::ActionChoice::Terror && ui.choice.pinned.is_some();
     if !(ui.choice.ribbon || step) {
         return;
@@ -1189,35 +1262,65 @@ fn map_click_closes_tag(
     ui.dirty = true;
 }
 /// Submits a decision through the checked game seam and words its outcome. Pointer
-/// clicks and the keyboard's Enter on a focused control both come here.
+/// clicks and the keyboard's Enter on a focused control both come here. It submits nothing
+/// for a faction handed over to an agent; turning the card is the human's, whichever
+/// faction the rules authority names for it (#197). While an edition is due or open it
+/// refuses: the human decides knowing what it says (#208).
 fn decide(play: &mut Play, ui: &mut Interface, owner: Faction, rev: u64, name: &str) {
-    let previous = play.game().observe();
-    match play.session.as_mut().unwrap().submit(owner, rev, name) {
-        Ok(()) => {
-            let after = play.game().observe();
-            if name.ends_with(":kidnap:roll") {
-                // The result is saved; the tray shows it from this frame's clock
-                // (die::present), and the notice names it once the die lands.
-                ui.rolled = Some(after.revision);
-            }
-            // A played card is saved before it moves; the tray shows it cross from
-            // this frame's clock (piles::follow).
-            ui.played = piles::Played::between(&previous, &after);
-            ui.notice = notice::Notice::success(notice(&previous, &after, owner, name));
-        }
-        Err(failure) => ui.notice = notice::Notice::failed(&failure),
-    };
+    if ui.editions.holds() {
+        return notice::refuse(ui, notice::EDITION_FIRST);
+    }
+    if !ui.plays(owner) && Choice::action_of(name) != crate::game::ADVANCE_CARD {
+        return notice::refuse(
+            ui,
+            format!(
+                "{0} is an agent's to play. Take {0} back on its card to decide.",
+                owner.name()
+            ),
+        );
+    }
+    if let Err(failure) = submit(play, ui, owner, rev, name) {
+        ui.notice = notice::Notice::failed(&failure);
+    }
     // A committed decision leaves its step; its pin and focus go with it, and a step
     // the decision opened holds the panel with its tag pinned (EX-A, #84).
     ui.choice.decided(&play.game().observe());
 }
-/// "a, b and c".
-fn listing(parts: &[String]) -> String {
-    match parts {
-        [] => String::new(),
-        [one] => one.clone(),
-        [rest @ .., last] => format!("{} and {last}", rest.join(", ")),
+/// Submits a decision, the human's or an agent's, through the checked submission, which
+/// saves it, and has the table show it: the position it made.
+fn submit(
+    play: &mut Play,
+    ui: &mut Interface,
+    owner: Faction,
+    rev: u64,
+    name: &str,
+) -> Result<Observation, crate::save::Submit> {
+    let previous = play.game().observe();
+    let session = play.session.as_mut().unwrap();
+    session.submit(owner, rev, name)?;
+    let after = session.observe();
+    let played = ui.played();
+    ui.editions
+        .decided(&after, owner, |told| session.reports_since(told), played);
+    if name.ends_with(":kidnap:roll") {
+        // The result is saved; the tray shows it from this frame's clock
+        // (die::present), and the notice names it once the die lands.
+        ui.rolled = Some(after.revision);
     }
+    // A played card is saved before it moves; the tray shows it cross from
+    // this frame's clock (piles::follow).
+    ui.played = piles::Played::between(&previous, &after);
+    ui.notice = notice::Notice::success(notice(&previous, &after, owner, name));
+    Ok(after)
+}
+/// A plate drawn in nine slices, its corners `slice` frame units at `unit` window pixels
+/// a unit: the seat cards' and the newspaper's.
+fn sliced(slice: f32, unit: f32) -> NodeImageMode {
+    NodeImageMode::Sliced(TextureSlicer {
+        border: BorderRect::all(slice * 2.),
+        max_corner_scale: unit / 2.,
+        ..default()
+    })
 }
 /// The notice for the committed decision `name`, a success: the seat reads it and no
 /// slip draws it (#174). Every rules fact it states is the authority's (foundation 2,
@@ -1310,7 +1413,11 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
         for shift in &preview.support {
             done.push(format!("shifted {}", shift.label));
         }
-        return format!("Terror saved in {}: {}.", place(space), listing(&done));
+        return format!(
+            "Terror saved in {}: {}.",
+            place(space),
+            crate::reports::listing(&done)
+        );
     }
     match action {
         "decline" => format!("{} declined. No resources moved.", owner.name()),
@@ -1349,7 +1456,7 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
             });
             format!(
                 "26July passed: {}{eligibility}.{next} Saved.",
-                listing(&gained)
+                crate::reports::listing(&gained)
             )
         }
         "terror" => match after.executing {
@@ -1410,27 +1517,32 @@ fn grow(bounds: Option<Rect>, p: Vec2) -> Option<Rect> {
 fn bottom(window: &Window) -> Vec2 {
     Vec2::new(0., window.height() - HEIGHT * reference_pixel(window))
 }
-/// What the table says to the shared camera: an unopened session, the transfer modal
-/// and a presented Kidnap die block it. The whole window shows the scene; the
+/// What the table says to the shared camera: an unopened session, the transfer modal, an
+/// open edition and a presented Kidnap die block it. The whole window shows the scene; the
 /// camera itself leaves the pointer to any interface node it is over, and each
 /// overlaid area has one (`areas::Area`). The die no longer needs the block for its
 /// counts (#177); lifting it is the owner's design decision.
-fn camera_facts(play: &Play, roll: &die::Roll) -> TableFacts {
+fn camera_facts(play: &Play, ui: &Interface, roll: &die::Roll) -> TableFacts {
     let (modal, die) = play.session.as_ref().map_or((false, false), |session| {
         let game = session.game();
         (
-            transfer::shown(game.transfer.as_ref()),
+            transfer::shown(game.transfer.as_ref(), game.owner(), ui),
             die::presented(game.revision, game.kidnap.as_ref(), roll).is_some(),
         )
     });
     TableFacts {
-        blocks_camera: play.session.is_none() || modal || die,
+        blocks_camera: play.session.is_none() || modal || die || ui.editions.open().is_some(),
         scene: Scene::WholeWindow,
         ..default()
     }
 }
-fn write_camera_facts(play: Res<Play>, roll: Res<die::Roll>, mut table: ResMut<TableFacts>) {
-    *table = camera_facts(&play, &roll);
+fn write_camera_facts(
+    play: Res<Play>,
+    ui: Res<Interface>,
+    roll: Res<die::Roll>,
+    mut table: ResMut<TableFacts>,
+) {
+    *table = camera_facts(&play, &ui, &roll);
 }
 #[allow(clippy::too_many_arguments)] // Authored rectangle, type size and letterboxing coordinates.
 fn text(
@@ -1573,7 +1685,7 @@ fn draw_ui(
     // The map fills the window (#142). Each area keeps its distance from the edge
     // or centre the main view's layout anchors it to, and takes the pointer over
     // its own rectangle.
-    areas::draw(&mut commands, &main_view, &window);
+    areas::draw(&mut commands, &main_view, &window, ui.editions.pile() > 0);
     let frame = picture(
         &mut commands,
         &art,
@@ -1612,8 +1724,12 @@ fn draw_ui(
     // The pips follow the cards while an advance is shown, and the count discs wait.
     let scene = advance.scene(&view, time.elapsed_secs_f64());
     piles::overlay(&mut commands, &art, &scene, &window);
-    // #174: Save · quit in the bottom-right corner, and above it the notice slip when
-    // a refusal, an error or the loading state is shown.
+    // #208: the pile of this card's editions beside the pips.
+    newspaper::pile(&mut commands, &art, &view, &ui, &main_view, &window);
+    // #206: the four seats between the pips and Save · quit.
+    seat_cards::draw(&mut commands, &art, &view, &ui, &main_view, &window);
+    // #174: Save · quit in the bottom-right corner, and above it and the seats the notice
+    // slip when a refusal, an error or the loading state is shown.
     save_quit::draw(&mut commands, &art, &main_view, &window);
     notice::draw(
         &mut commands,
@@ -1636,6 +1752,7 @@ fn test_play(save: PathBuf) -> Play {
             save,
             recover: None,
             socket: None,
+            players: None,
             agent: false,
             seat_size: UVec2::new(1920, 1280),
         },
@@ -1880,7 +1997,8 @@ mod tests {
             ..default()
         };
         let roll = die::Roll::default();
-        assert_eq!(camera_facts(&play, &roll).scene, Scene::WholeWindow);
+        let ui = Interface::default();
+        assert_eq!(camera_facts(&play, &ui, &roll).scene, Scene::WholeWindow);
         let mut orbit = Orbit::new(Framing::new(Vec3::ZERO, 10.));
         let keys = ButtonInput::default();
         let mut distance = 10.;
@@ -1893,12 +2011,24 @@ mod tests {
             Vec2::new(2., 2.),
         ] {
             window.set_cursor_position(Some(at));
-            drive(&mut orbit, &window, &keys, 1., camera_facts(&play, &roll));
+            drive(
+                &mut orbit,
+                &window,
+                &keys,
+                1.,
+                camera_facts(&play, &ui, &roll),
+            );
             assert!(orbit.pose().distance < distance, "no zoom at {at}");
             distance = orbit.pose().distance;
         }
         play.session = None;
-        drive(&mut orbit, &window, &keys, 1., camera_facts(&play, &roll));
+        drive(
+            &mut orbit,
+            &window,
+            &keys,
+            1.,
+            camera_facts(&play, &ui, &roll),
+        );
         assert_eq!(
             orbit.pose().distance,
             distance,

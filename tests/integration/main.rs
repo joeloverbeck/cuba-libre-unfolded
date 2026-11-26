@@ -10,12 +10,17 @@
 /// is loaded once here: Clippy refuses one file loaded as two modules of a binary.
 #[path = "../support/explore.rs"]
 mod explore;
+/// The longest actions, which the native tests play too.
+#[path = "../support/longest.rs"]
+mod longest;
 #[path = "../support/terror_chosen.rs"]
 mod terror_chosen;
-// Not unused: `explore` and `terror_chosen` take these from their includer,
+// Not unused: `explore`, `longest` and `terror_chosen` take these from their includer,
 // through `super::`.
 use cuba_libre_unfolded::{Choice, Faction, Game, TransferChoice};
 use terror_chosen::terror_chosen;
+/// The longest actions' seed: its Kidnap die is a 3.
+const SEED: u64 = 5;
 
 mod action_choice;
 mod admission;
@@ -24,7 +29,9 @@ mod assault_side;
 mod available_forces;
 mod card_facts;
 mod change_texts;
+mod editions;
 mod eligibility;
+mod faction_seats;
 mod focus_mark;
 mod highlights;
 mod honest_hints;
@@ -36,12 +43,16 @@ mod marker_supply;
 mod persistence;
 mod pile_tags;
 mod piles;
+mod player_client;
+mod player_folders;
 mod popover;
 mod position;
 mod previews;
 mod removal;
+mod reports;
 mod save_quit;
 mod seat_brief;
+mod seat_briefs;
 mod seat_reference;
 mod terror;
 mod terror_token;

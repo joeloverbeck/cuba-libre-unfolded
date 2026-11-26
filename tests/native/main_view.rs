@@ -154,7 +154,9 @@ fn assert_areas_and_island(view: &Value, layout: &Value, width: f64, height: f64
     ];
     let tolerance = layout["tolerance"].as_f64().unwrap();
     let drawn = areas(view);
-    let recorded = layout["areas"].as_object().unwrap();
+    // #208: the editions' area is there with their pile, which these tables have none of.
+    let mut recorded = layout["areas"].as_object().unwrap().clone();
+    recorded.remove("editions").unwrap();
     let mut names: Vec<&String> = recorded.keys().collect();
     names.sort_unstable();
     assert_eq!(drawn.keys().collect::<Vec<_>>(), names);
@@ -172,10 +174,19 @@ fn assert_areas_and_island(view: &Value, layout: &Value, width: f64, height: f64
             other => panic!("anchor {other}"),
         }
     };
-    for (name, placed) in recorded {
+    for (name, placed) in &recorded {
         let [l, t, r, b] = edges(&placed["bounds"]);
         let anchor = placed["anchor"].as_str().unwrap();
-        let (left, right) = if anchor == "top-between" {
+        let mut up = (b - t) * unit;
+        let (left, right) = if anchor == "bottom-between" {
+            // #206: the second area's left edge, less the gap the layout draws, at the
+            // size the scale gives unless the first area is nearer than 24 units.
+            let [one, other] = [0, 1].map(|i| &recorded[placed["between"][i].as_str().unwrap()]);
+            let right = across(other)[0] - (edges(&other["bounds"])[0] - r) * unit;
+            let size = ((r - l) * unit).min(right - across(one)[1] - 24. * unit);
+            up *= size / ((r - l) * unit);
+            (right - size, right)
+        } else if anchor == "top-between" {
             // #172: centred between the right edge of one area and the left edge of
             // another, at the size the window's scale gives it.
             let [one, other] = [0, 1].map(|i| &recorded[placed["between"][i].as_str().unwrap()]);
@@ -189,7 +200,8 @@ fn assert_areas_and_island(view: &Value, layout: &Value, width: f64, height: f64
         let (top, bottom) = if anchor.starts_with("top") {
             (start(t), start(b))
         } else {
-            (end(t, frame[1], height), end(b, frame[1], height))
+            let foot = end(b, frame[1], height);
+            (foot - up, foot)
         };
         let native = drawn[name];
         for (n, e) in native.iter().zip([left, top, right, bottom]) {
@@ -411,9 +423,10 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
         [1500, 1700],
         [2000, 2100],
         [2895, 1900],
-        // #174: the session panel's place, now sea, with the slip hidden.
+        // #174: the session panel's place, now sea, with the slip hidden, and since #206
+        // between the seat cards and Save · quit.
         [3300, 1750],
-        [3100, 2050],
+        [3478, 2050],
         // The title, the key's five entries and the adjacency line.
         [145, 275],
         [150, 1483],

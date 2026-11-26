@@ -65,7 +65,8 @@ fn carries(action: &Action) -> bool {
 }
 
 /// What is marked, from the same orders and defaults that the keyboard reads. A card in
-/// the air (`flying`) and a presented die take Enter before any control does.
+/// the air (`flying`), an open edition and a presented die take Enter before any control
+/// does.
 fn marked(
     view: &Observation,
     ui: &Interface,
@@ -74,7 +75,7 @@ fn marked(
     roll: &die::Roll,
     flying: bool,
 ) -> Marked {
-    if flying {
+    if flying || ui.editions.open().is_some() {
         return Marked::default();
     }
     if die::presented(view.revision, view.kidnap.as_ref(), roll).is_some() {
@@ -85,7 +86,7 @@ fn marked(
             field: false,
         };
     }
-    if transfer::shown(view.transfer.as_ref()) {
+    if transfer::shown(view.transfer.as_ref(), view.owner, ui) {
         return Marked {
             pressed: Some(match transfer::pressed(view, ui) {
                 transfer::Pressed::Primary(_) => Target::Primary,

@@ -228,6 +228,8 @@ pub(super) struct Roll {
     closed: Option<u64>,
     /// Whether the shown die has landed, as of this frame.
     landed: bool,
+    /// The clock time when it landed.
+    landed_at: Option<f64>,
 }
 impl Roll {
     /// The running app applied a roll that created `revision`, at clock time `now`.
@@ -236,6 +238,7 @@ impl Roll {
             start: Some((revision, now)),
             closed: None,
             landed: false,
+            landed_at: None,
         };
     }
     pub fn skip(&mut self) {
@@ -246,6 +249,10 @@ impl Roll {
     }
     pub fn landed(&self) -> bool {
         self.landed
+    }
+    /// When the shown die landed, if it has.
+    pub fn landed_at(&self) -> Option<f64> {
+        self.landed_at.filter(|_| self.landed)
     }
     #[cfg(test)]
     pub fn land(&mut self) {
@@ -523,6 +530,7 @@ pub(super) fn present(
     if landed && !roll.landed {
         ui.notice = landed_notice(&play.game().observe(), kidnap);
         ui.dirty = true;
+        roll.landed_at = Some(time.elapsed_secs_f64());
     }
     roll.landed = landed;
     for mut camera in &mut cameras {

@@ -245,6 +245,11 @@ impl Popover {
     pub fn open(&self) -> bool {
         self.pinned.is_some() || self.piece.is_some()
     }
+    /// Whether one is open at `revision`: a decision closes it when it is next drawn.
+    pub fn open_at(&self, revision: u64) -> bool {
+        let at = |kept: &Option<(String, u64)>| kept.as_ref().is_some_and(|(_, r)| *r == revision);
+        at(&self.pinned) || at(&self.piece)
+    }
     /// Closes any kept-open popover: the AC-B briefing tag opened after it wins
     /// (orchestrator implementation judgement, #58 carry-forward).
     pub fn close_all(&mut self) {
@@ -334,6 +339,31 @@ pub(super) struct Card {
 }
 
 const FOOTER: &str = "Choose a row to see what it does; only the button acts.";
+
+impl Card {
+    /// The card to read while `ui` gives its faction to an agent (#206): the rows with
+    /// their previews, and no button that acts.
+    fn read_by(mut self, ui: &Interface) -> Self {
+        let Some(agent) = self
+            .rows
+            .iter()
+            .map(|row| row.owner)
+            .find(|owner| !ui.plays(*owner))
+        else {
+            return self;
+        };
+        for row in &mut self.rows {
+            row.button = None;
+        }
+        if self.footer == FOOTER {
+            self.footer = format!(
+                "Choose a row to see what it does; only {}'s seat can act.",
+                agent.name()
+            );
+        }
+        self
+    }
+}
 const NO_REMEDY: &str = "Nothing in this task can change this, so no remedy is offered.";
 
 /// "R 3.3.4. Cost: …" reads as "Cost: … R 3.3.4", as the layout's reason line does.
@@ -724,10 +754,11 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
 /// chosen row's choice as a click on it does.
 pub(super) fn focusable(
     view: &Observation,
+    ui: &Interface,
     space: &str,
     selected: Option<&str>,
 ) -> Vec<(String, Action)> {
-    let Some(card) = content(view, space, selected) else {
+    let Some(card) = content(view, space, selected).map(|card| card.read_by(ui)) else {
         return vec![];
     };
     let mut stops: Vec<(String, Action)> = card
@@ -1951,12 +1982,12 @@ pub(super) fn draw(
                 1
             };
             piece_content(view, targeting.piece(&key)?, quantity)
-                .map(|card| (card, kept.is_some(), s))
+                .map(|card| (card.read_by(&ui), kept.is_some(), s))
         })
     } else {
         space.and_then(|space| {
             content(view, &space, popover.selected.as_deref())
-                .map(|card| (card, pinned.is_some(), s))
+                .map(|card| (card.read_by(&ui), pinned.is_some(), s))
         })
     };
     let bold_ready = fonts

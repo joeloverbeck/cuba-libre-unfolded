@@ -14,7 +14,10 @@
 //! position exactly ([ADR 0003](../docs/adr/0003-a-save-opens-by-exact-replay.md)).
 //! The shared record runs that check on load, on each candidate before it is
 //! written and on the kept `.previous` before it is rotated.
-use crate::{Choice, Faction, Game, Observation, assets};
+use crate::{
+    Choice, Faction, Game, Observation, assets,
+    reports::{Report, Reports},
+};
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -194,6 +197,8 @@ pub struct Session {
     path: PathBuf,
     baseline: Baseline,
     payload: Payload,
+    /// What the decisions did (#207). In no save: an opened one's follow from its own.
+    reports: Reports,
 }
 impl Session {
     /// Opens the save at `path`, recovers `recover_from`'s previous record into it,
@@ -227,9 +232,11 @@ impl Session {
         Ok(Self::new(path, baseline, payload))
     }
     fn new(path: &Path, baseline: Baseline, payload: Payload) -> Self {
+        let opening = Game::opening_with_seed(payload.seed);
         Self {
             path: path.to_path_buf(),
             baseline,
+            reports: Reports::replayed(opening, &payload.decisions),
             payload,
         }
     }
@@ -238,6 +245,15 @@ impl Session {
     }
     pub fn observe(&self) -> Observation {
         self.payload.position.observe()
+    }
+    /// A report of each action of the match so far, whole, in order (#207).
+    pub fn reports(&self) -> Vec<Report> {
+        self.reports.all()
+    }
+    /// The reports of what followed `revision`, the first of which may continue an action
+    /// already reported up to there.
+    pub fn reports_since(&self, revision: u64) -> Vec<Report> {
+        self.reports.since(revision)
     }
     /// Submits a decision through the checked submission and saves it, with its
     /// place in the decision list, before the changed position is published. A
@@ -260,6 +276,7 @@ impl Session {
             .push(Choice::action_of(choice).to_owned());
         self.persist(&candidate).map_err(Submit::Save)?;
         self.payload = candidate;
+        self.reports.record(&self.observe());
         Ok(())
     }
     pub fn save(&mut self) -> Result<()> {

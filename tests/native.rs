@@ -1,10 +1,15 @@
 #![cfg(feature = "tabletop")]
 //! Real application/seat/client regression. Requires the accepted local card faces.
+// Not unused: `longest` takes these from its includer, through `super::`.
+use cuba_libre_unfolded::{Faction, Game};
 use serde_json::{Value, json};
 use std::{
     path::{Path, PathBuf},
     process::Command,
 };
+
+/// The longest actions' seed: its Kidnap die is a 3.
+const SEED: u64 = 5;
 
 #[path = "native/assault.rs"]
 mod assault;
@@ -20,20 +25,28 @@ mod card_advance;
 mod card_piles;
 #[path = "native/card_tag.rs"]
 mod card_tag;
+#[path = "native/faction_seats.rs"]
+mod faction_seats;
 #[path = "native/focus_mark.rs"]
 mod focus_mark;
+#[path = "support/longest.rs"]
+mod longest;
 #[path = "native/main_view.rs"]
 mod main_view;
 #[path = "native/map_keys.rs"]
 mod map_keys;
 #[path = "native/marker_supply.rs"]
 mod marker_supply;
+#[path = "native/newspaper.rs"]
+mod newspaper;
 #[path = "native/pile_tags.rs"]
 mod pile_tags;
 #[path = "native/rally.rs"]
 mod rally;
 #[path = "native/save_quit.rs"]
 mod save_quit;
+#[path = "native/seat_controls.rs"]
+mod seat_controls;
 #[path = "native/space_reason.rs"]
 mod space_reason;
 #[test]
@@ -472,6 +485,8 @@ impl Native {
                 size,
                 "--socket",
                 self.socket.to_str().unwrap(),
+                "--player-socket",
+                self.socket.with_file_name("players.sock").to_str().unwrap(),
             ])
             .output()
             .unwrap();

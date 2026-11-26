@@ -63,7 +63,7 @@ fn the_framed_map_s_chrome_is_retired() {
     }
 }
 
-/// The record places the ten areas apart from each other and from the island box,
+/// The record places the eleven areas apart from each other and from the island box,
 /// all inside the 16:9 frame, and the card tray with its two piles, their labels,
 /// count discs, captions and the Propaganda pips, and says where the card tag opens.
 #[test]
@@ -84,6 +84,8 @@ fn the_record_places_the_areas_the_island_and_the_piles() {
             ("available-forces", "top-right"),
             ("cards", "bottom-left"),
             ("decision", "top-right"),
+            // #208: the pile of editions, beside the pips or above them.
+            ("editions", "bottom-beside"),
             // #172: centred between outside-influence and the standings.
             ("marker-supply", "top-between"),
             ("outside-influence", "top-left"),
@@ -91,6 +93,8 @@ fn the_record_places_the_areas_the_island_and_the_piles() {
             ("resources", "top-right"),
             // #174: Save · quit in place of the session panel.
             ("save-quit", "bottom-right"),
+            // #206: the seat cards, between the Propaganda pips and Save · quit.
+            ("seats", "bottom-between"),
             ("sequence-of-play", "top-left"),
             ("standings", "top"),
         ]

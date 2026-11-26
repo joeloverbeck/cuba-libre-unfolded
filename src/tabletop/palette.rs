@@ -76,8 +76,16 @@ mod tests {
             include_str!("../../art/atlas/atlas-main-view.variables.json"),
         ),
         (
+            "atlas-newspaper.figcraft",
+            include_str!("../../art/atlas/atlas-newspaper.variables.json"),
+        ),
+        (
             "atlas-popover.figcraft",
             include_str!("../../art/atlas/atlas-popover.variables.json"),
+        ),
+        (
+            "atlas-seats.figcraft",
+            include_str!("../../art/atlas/atlas-seats.variables.json"),
         ),
         (
             "atlas-top-display.figcraft",

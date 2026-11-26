@@ -12,7 +12,7 @@ The source scenario remains `deacd635db5f71f4d3f092bd9cc99a9d96bb7aab`. The orig
 - `atlas-active-star` and `atlas-closed-slash` are transparent PNG/SVG exports of the selected state marks, from state-study objects 121 and 125. They are authored marks for solid piece faces, not pieces themselves.
 - Thirteen `atlas-label-*.png` files contain the selected static geography labels, terrain/population or EC economy. [labels.json](labels.json) records their source object IDs and current placement bounds. `atlas-labels.vectorcraft` contains their editable text after the owner-directed refinement. PNGs use twice the original coordinate resolution; positions and physical sizes use the recorded bounds, not PNG pixel dimensions.
 - `atlas-map.glb` contains exactly thirteen named solid region meshes, PBR materials and source-ID extras, with no images, external buffers, cameras or lights. `atlas-map.blend` is the editable mesh source; `atlas-map-preview.png` is an inspected **Blender authoring preview**, not a game screenshot. Pieces and dynamic quantities are deliberately absent from this static map asset.
-- `Lato-Regular.ttf` and `Lato-Bold.ttf` are unchanged installed Lato font files for dynamic text. [FONT-NOTICE.txt](FONT-NOTICE.txt) preserves their OFL notice. The static title is outlined in the SVG and does not require a second runtime typeface.
+- `Lato-Regular.ttf` and `Lato-Bold.ttf` are unchanged installed Lato font files for dynamic text. [FONT-NOTICE.txt](FONT-NOTICE.txt) preserves their OFL notice. `NotoSerifDisplay-Bold.ttf`, the newspaper's headline face, is recorded in [NEWSPAPER.md](NEWSPAPER.md#files). The static title is outlined in the SVG and does not require a second runtime typeface.
 
 The native renderer may load the PNGs and standard glTF2 GLB directly; SVG rendering is not a new runtime requirement. Neither the full study PNGs nor state-sheet example text is a runtime input. All asset identity is bound by this Git commit; local import identities below additionally bind private card inputs.
 
@@ -52,7 +52,9 @@ The [main view layout](MAIN-VIEW.md) owns where every area sits: the 3D map fill
 | Decision | top right | Current actor, operation, Resources, choices, cost, target, legal/refused explanation and actual roll/owed Terror. |
 | Primary action | in the decision panel | Dynamic Finish/resolve label and enabled state; no example outcome remains baked. |
 | Card piles | bottom left | The played pile and the draw deck as solid cards, each with its top card's face, its count and its caption, and the Propaganda pips ([MAIN-VIEW.md](MAIN-VIEW.md#the-card-piles)). Each top card opens its [card tag](CARD-TAG.md), and each pile its [pile tag](PILE-TAGS.md). Never stretch or crop a face. |
-| Save · quit and notice slip | bottom right | Save · quit, which closes the game, and above it the slip that shows a refusal, an error or the loading state ([MAIN-VIEW.md](MAIN-VIEW.md#save--quit-and-the-notice-slip)). The session panel is retired (#174). |
+| Seats | bottom, between the pips and Save · quit | Who plays each faction, handing over and taking back ([SEATS.md](SEATS.md)). |
+| Editions | bottom left, beside the pips | The pile of the current card's editions; the page opens over the whole view ([NEWSPAPER.md](NEWSPAPER.md)). |
+| Save · quit and notice slip | bottom right | Save · quit, which closes the game, and above it and the seat cards the slip that shows a refusal, an error or the loading state ([MAIN-VIEW.md](MAIN-VIEW.md#save--quit-and-the-notice-slip)). The session panel is retired (#174). |
 
 Each area takes the pointer over its own rectangle, so a press or a scroll there never reaches the map.
 

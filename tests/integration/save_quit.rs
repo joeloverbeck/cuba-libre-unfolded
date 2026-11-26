@@ -30,8 +30,9 @@ fn disjoint(a: [f64; 4], b: [f64; 4]) -> bool {
 /// Layout A · Franja on the owner's display: the plate 67.5 (40 reference pixels)
 /// from the right and bottom edges; the slip above it, right edges aligned, at the
 /// popover's width (340 reference pixels); the tag above the plate at the top display
-/// tag's width (468). Neither covers the plate, the decision panel or the island box,
-/// and nothing of the session panel is left in the record.
+/// tag's width (468). Neither covers the plate, the decision panel, the island box or
+/// any other area, the seat cards' included (#206). Nothing of the session panel is left
+/// in the record.
 #[test]
 fn the_record_places_the_plate_the_slip_and_the_tag_in_the_corner() {
     let layout: Value =

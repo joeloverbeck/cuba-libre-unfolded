@@ -69,7 +69,7 @@ The Resource transfer step opens the transfer modal ([TRANSFER.md](../art/atlas/
 - **Ask** creates a Transfer request that moves nothing yet. The modal turns to the giver's colours. The giver authorizes any amount from 0 to its limit, declines, or waits.
 - **Wait** closes the modal and keeps the request pending, also across Save · quit; its tab in the top band reopens it.
 
-Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfer can fund either Terror target without Kidnap, or make Kidnap possible during or after Terror. 26July can transfer Resources once it chooses Terror. Going back or ending Terror withdraws a pending request. During the Event and the free Rally, the executing faction can transfer Resources. These decisions belong to the local player. [Transfer timing](local-rule-policies.md#transfers-open-once-terror-is-chosen) · [Withdrawing pending requests](local-rule-policies.md#a-pending-transfer-request-is-withdrawn)
+Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfer can fund either Terror target without Kidnap, or make Kidnap possible during or after Terror. 26July can transfer Resources once it chooses Terror. Going back or ending Terror withdraws a pending request. During the Event and the free Rally, the executing faction can transfer Resources. They are made by whoever plays the faction. [Transfer timing](local-rule-policies.md#transfers-open-once-terror-is-chosen) · [Withdrawing pending requests](local-rule-policies.md#a-pending-transfer-request-is-withdrawn)
 
 ## Removing your own pieces
 
@@ -122,6 +122,38 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 
 **Remove own pieces** opens the map's voluntary removal controls for Government. Click a marked Troop or Police stack, select a quantity and confirm to return it to Available Forces. Choose **Done** to return to Assault and inspect its removal capacity with the remaining cubes.
 
+## Handing a faction to an agent
+
+An external Claude Code or Codex session can play a faction for you. The four cards along the bottom say who plays each faction ([SEATS.md](../art/atlas/SEATS.md)). **Hand over** gives a faction to an agent, **Copy its line** copies the one line to [paste in its session](#opening-a-session), and **Take back** makes it yours again, all four if you like and at any time. F1 to F4 hand Government, 26July, Directorio and Syndicate over and take them back too. A session joins on the game's socket, by default `cuba-libre-players.sock` in `$XDG_RUNTIME_DIR`, or where you launched with `--player-socket`. The game starts no session.
+
+- **One session plays one faction.** A faction nobody joined as waits and never acts. A silent agent's card and panel say for how many minutes it was not heard from; nothing moves for it until it does, or you take its faction back. As it joins, a session is given its faction's seat brief: its objective and standing, its forces, its actions under the rules and which of them this build plays, and its rivals' standings. The brief gives no advice and tells nothing that faction may not know.
+- **While an agent's faction decides,** the panel says whose decision it is and its options can be read and not chosen; the map, with its popovers, the cards and the standings too. You turn the card yourself, whichever factions you play.
+- **The line to copy** stays on its sheet until a session joins, you take the faction back, you press Escape or you click the map.
+- **An agent's choice waits** for a card or the Kidnap die to come to rest, for a landed die to show its result for 2 seconds (Continue ends that sooner), and for what you have open: a popover, a pinned or opened briefing, a pinned card's tag, an [edition](#the-newspaper), or the transfer modal while it asks you to decide. If you decide first and the match moves on, its choice is dropped and it chooses again.
+- **Transfer requests** go to whoever plays the giver. An agent that plays 26July keeps its withdrawal while you, as the giver, decide, and you keep yours while an agent does.
+- **The socket's path:** `$CUBA_LIBRE_PLAYER_SOCKET`, when it is set, replaces the default for the game and for `cuba-player` alike, and without `$XDG_RUNTIME_DIR` the default is in the temporary directory. `--player-socket` overrides both for the game.
+- **Taking a faction back** works at any time. The session ends, and a choice of its that was not applied is cancelled.
+- **Save · quit** ends every session. Who plays which faction is not saved: after a relaunch you play all four. The save is the one the same decisions by your own hand would write.
+
+### Opening a session
+
+1. Once for each computer, and again when you update the checkout, run `cargo build --locked && cargo run --locked --bin cuba-tools -- player-folders`. It installs the session's program, `cuba-player`, and writes two folders, `claude-code` and `codex`, in `${XDG_DATA_HOME:-$HOME/.local/share}/cuba-libre-unfolded/player`. Each holds the [player instructions](player-instructions.md) and that tool's permission for that program alone. The paths of the data directory, the checkout and your home directory may hold only ASCII letters, digits, `/`, `.`, `_` and `-`. A file the command did not write is refused and named, notes aside: look at it, then remove it.
+2. Open a terminal in the tool's folder and start the tool, `claude` or `codex`. It asks once whether it may trust the folder.
+3. In the game, hand the faction over, copy its line and paste it there. One session plays one faction; open another for the next, in the same folder.
+
+- **Waiting costs nothing.** A session waits inside one command until its faction decides ([ADR 0004](adr/0004-agent-sessions-are-woken-and-do-not-poll.md)). Keep a Codex window open and its turn running: an interrupted turn is not woken until you type.
+- **What a session may read.** The game tells it what its faction may know, and its instructions tell it to read nothing else. Claude Code's file tools are also denied the checkout, the saves directory beside the player folder, and the saves directory in the README launch command. A save elsewhere can still be read. Codex cannot be denied a file without losing the permission for its program, so there the instructions are all that keeps a session from the save, which holds the dice and the deck. Your own instructions for every session (`~/.claude/CLAUDE.md`, `~/.codex/AGENTS.md`) and your MCP servers reach a player too.
+- **What a session may do.** Codex's sandbox writes only its own folder, and nothing is escalated; an option on its command line can undo that. Claude Code runs no command but `cuba-player` where its sandbox cannot start, as on an Ubuntu that restricts user namespaces, and needs `bubblewrap` and `socat`; in `auto` mode its file tools may write elsewhere if its approval model agrees. In the measured sessions the tools refused writes to the protected files that were tried, including the client program. The checks did not cover `.agents`, `.claude.json` or `AGENTS.md`. [The shared library](https://github.com/joeloverbeck/unfolded-tabletop/blob/cb5c74a184339c39dc555608c92468a1193026b7/agent-players/src/folder.rs) says what was measured.
+
+## The newspaper
+
+When a faction you do not play completes an action, an edition of *El Correo de la Isla* opens over the table and says what changed ([NEWSPAPER.md](../art/atlas/NEWSPAPER.md)): the faction, the action and the spaces, the pieces, Resources, Support and Opposition, Control, markers, standings, eligibility and a die roll. The game writes it from the committed result. One opens partway when you must decide inside another faction's action, such as on a Transfer request or a Rally, and the next one tells only what followed. There is none for a faction you play. A faction that changes hands during its action is told from where it became an agent's, and one you take back is yours from your first decision for it. Until then nothing its agent did is lost: the next edition tells it if you hand the faction over again, or if agents end the action.
+
+- **It opens** once the pieces and the die have come to rest; a hover or the camera does not delay it. While it is open, your controls, the camera and the keys beneath it do nothing, and an agent's next choice waits. F1 to F4 still hand factions over and take them back. A decision you make before it opens is refused with a notice, and nothing is decided.
+- **Putting it away** takes a click anywhere, Escape, Enter or Space, and decides nothing. A long edition continues on a second page: Left and Right turn it.
+- **Reading it again:** the pile beside the Propaganda pips holds the current card's editions. Click it, or Tab to it and press Enter, for the latest. With more than one, each has a tab under the folio line: click one, or press Tab for the next. The pile goes when you turn the card.
+- **Editions are not saved.** One you had not read when you quit is not shown again.
+
 ## Camera and keys
 
 | Input | Effect |
@@ -130,11 +162,13 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 | Wheel or `+`/`-` | Zoom |
 | `W` `A` `S` `D` | Pan |
 | `Home` | Restore the map framing; also brings back hover tags that extreme framing hid |
-| `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked, then no effect, then those nothing can pay for) and an open popover's rows and button, then the marker supply, the four Available Forces rows, the current and the preview card, the two piles and Save · quit |
+| `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked, then no effect, then those nothing can pay for) and an open popover's rows and button, then the marker supply, the four Available Forces rows, the current and the preview card, the two piles, the card's editions, the seat cards' buttons and Save · quit. A reopened edition turns to the card's next one |
 | `Enter`, `Space` | Activate the focused control. A dark line outside it ([FOCUS-MARK.md](../art/atlas/FOCUS-MARK.md)) marks the button, row or option that Enter would press; in the transfer modal that is the main button until Tab reaches another control, and in the amount field too. A focused space, card, pile, the marker supply or an Available Forces row shows its tag instead. While a played card is moving, land the cards instead |
-| `Escape` | Close a card's tag, unpin a briefing, cancel an open transfer, or close a tag or popover; a space popover closed from the keyboard leaves focus on its space |
+| `Left`, `Right` | Turn the pages of an open edition; otherwise they orbit |
+| `F1`, `F2`, `F3`, `F4` | Hand Government, 26July, Directorio or Syndicate to an agent, or take it back ([above](#handing-a-faction-to-an-agent)) |
+| `Escape` | Put an open edition away, which Enter and Space do too; otherwise close a card's tag or the sheet with a seat's line, unpin a briefing, cancel an open transfer, or close a tag or popover; a space popover closed from the keyboard leaves focus on its space |
 
-The camera answers wherever the pointer is over the map. A scroll, a drag or a click on a panel stays with that panel: it neither moves the camera nor reaches the space beneath. The transfer modal takes camera input while open.
+The camera answers wherever the pointer is over the map. A scroll, a drag or a click on a panel stays with that panel: it neither moves the camera nor reaches the space beneath. The transfer modal and an open edition take camera input while open.
 
 ## Saving and quitting
 
@@ -142,4 +176,4 @@ Every decision is saved as it is made. Reading, previews, camera moves and cance
 
 **Save · quit**, in the bottom-right corner, closes the game. Hover it, or focus it with Tab, for its tag; click it, or press Enter on it, to quit. Relaunching with the same `--save` resumes that record, including an open Kidnap, a landed die and a pending request. A card that was still moving when you quit is already played: the cards lie at rest and nothing is replayed. README covers recovering a damaged save.
 
-**Notices.** A slip above Save · quit says why a decision or a control was refused, shows an error such as a save changed in another session (reload before continuing), and before the match opens says that the assets are loading and no save has been created, or why launch stopped. A decision that succeeded shows no slip: its result is on the map, the ledgers and the Sequence of Play track. Click the slip to dismiss it; the next notice replaces it. The loading state and a launch error stay until the match opens or you quit ([MAIN-VIEW.md, "Save · quit and the notice slip"](../art/atlas/MAIN-VIEW.md#save--quit-and-the-notice-slip)).
+**Notices.** A slip above the seat cards and Save · quit says why a decision or a control was refused, shows an error such as a save changed in another session (reload before continuing), and before the match opens says that the assets are loading and no save has been created, or why launch stopped. A decision that succeeded shows no slip: its result is on the map, the ledgers and the Sequence of Play track. Click the slip to dismiss it; the next notice replaces it. The loading state and a launch error stay until the match opens or you quit ([MAIN-VIEW.md, "Save · quit and the notice slip"](../art/atlas/MAIN-VIEW.md#save--quit-and-the-notice-slip)).

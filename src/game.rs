@@ -5,17 +5,19 @@ use unfolded_random::SeededRandom;
 mod assault;
 mod cards;
 mod pile_facts;
+mod played;
 mod rally;
 mod titles;
 pub use assault::AssaultResolution;
 pub use cards::{
-    CardFacts, CardWords, DECK_CARDS, EventKind, EventStatus, EventText, LastingEffect,
-    PROPAGANDA_CARDS, Piles, Role, ShownCards, is_propaganda,
+    CardFacts, CardWords, DECK_CARDS, EventKind, EventStatement, EventStatus, EventText,
+    LastingEffect, PROPAGANDA_CARDS, Piles, Role, ShownCards, is_propaganda,
 };
 pub use pile_facts::{
     DeckFacts, DeckWords, NextPropaganda, PlayedCard, PlayedPile, PlayedWords, next_propaganda,
     next_propaganda_words,
 };
+pub use played::Played;
 pub use rally::{Rally, RallyAction, RallyResolution};
 pub use titles::title;
 
@@ -43,6 +45,13 @@ impl Faction {
             Self::Directorio => "Directorio",
             Self::Syndicate => "Syndicate",
         }
+    }
+    /// The faction of this name, in either case: "26July", or `M26` as states spell it.
+    pub fn named(name: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|faction| {
+            faction.name().eq_ignore_ascii_case(name)
+                || format!("{faction:?}").eq_ignore_ascii_case(name)
+        })
     }
 }
 /// The US Alliance track, best level first (R 6.3.1).
@@ -369,6 +378,8 @@ fn remedy_line(remedies: &[String]) -> String {
     }
     .into()
 }
+/// The choice that makes the next card current.
+pub(crate) const ADVANCE_CARD: &str = "advance-card";
 /// The prepared position's Resources, indexed like `Faction::ALL`.
 const PREPARED_RESOURCES: [u8; 4] = [6, 0, 5, 15];
 /// The random state of `Game::opening`.
@@ -737,6 +748,21 @@ impl Choice {
     /// The action in the choice id `id`, without its match revision.
     pub(crate) fn action_of(id: &str) -> &str {
         id.split_once(':').map_or(id, |(_, action)| action)
+    }
+    /// Whether the choice only makes the next card current. The human does that at the
+    /// table, whichever faction the authority names for it (#197).
+    pub fn turns_the_card(&self) -> bool {
+        self.action() == ADVANCE_CARD
+    }
+    /// The text of the current card's Event that this choice executes: one of a dual-use
+    /// Event's two (R 5.2), or `Some(None)` for a single text.
+    pub fn event_text(&self) -> Option<Option<EventText>> {
+        match self.action() {
+            "event:unshaded" => Some(Some(EventText::Unshaded)),
+            "event:shaded" => Some(Some(EventText::Shaded)),
+            "government:event" | "syndicate:event" => Some(None),
+            _ => None,
+        }
     }
     /// The map space this choice acts on, as the authority states it in `site`, so
     /// the map can offer it there: a Terror target, opening Kidnap in its space, or an
@@ -1971,7 +1997,7 @@ impl Game {
     }
     /// Who decides now: the giver of a pending authorization, the faction directing
     /// a free Rally, or the faction whose card action is open.
-    fn owner(&self) -> Faction {
+    pub(crate) fn owner(&self) -> Faction {
         if let Some(Transfer::Authorizing { giver, .. }) = self.transfer {
             giver
         } else if self.assault_finished() {
@@ -2104,7 +2130,7 @@ impl Game {
         .map(|(id, label, explanation)| self.offer(id, label, id.starts_with("event:"), explanation))
         .collect()
     }
-    fn choices(&self) -> Vec<Choice> {
+    pub(crate) fn choices(&self) -> Vec<Choice> {
         if self.card_18 {
             if self.government_pass_from.is_some() {
                 return self.syndicate_choices();
@@ -2125,7 +2151,7 @@ impl Game {
                 .is_some()
             {
                 vec![self.offer(
-                    "advance-card",
+                    ADVANCE_CARD,
                     "Advance to Pact of Caracas",
                     true,
                     "Make Pact of Caracas current and reveal the draw deck's top card as the new preview (R 2.3.8).",
@@ -2435,7 +2461,7 @@ impl Game {
                     "back",
                     "Cancel · nothing moves",
                     true,
-                    "Closes the transfer without moving anything.",
+                    "Closes the transfer without moving anything (R 1.5.1).",
                 ));
                 Some(choices)
             }
@@ -2447,7 +2473,7 @@ impl Game {
                             &format!("authorize:{n}"),
                             format!("{} authorizes {n}", giver.name()),
                             true,
-                            "Only the giver decides the actual amount, from 0 to its limit; it moves on authorization.",
+                            "Only the giver decides the actual amount, from 0 to its limit; it moves on authorization (R 1.5.1).",
                         )
                     })
                     .collect();
@@ -2455,7 +2481,10 @@ impl Game {
                     "decline",
                     format!("{} declines", giver.name()),
                     true,
-                    format!("Nothing moves, and {} decides again.", executor.name()),
+                    format!(
+                        "Nothing moves, and {} decides again: a request binds no one (R 1.5.1).",
+                        executor.name()
+                    ),
                 ));
                 // Wait sets the decision aside and Open brings it back; each is
                 // saved, so a restart shows the request as it was left (#75).
@@ -2464,14 +2493,14 @@ impl Game {
                         "reopen",
                         format!("Open · {} decides", giver.name()),
                         true,
-                        "Shows the giver's decision again; the request is unchanged.",
+                        "Shows the giver's decision again; the request is unchanged, and only the giver decides it (R 1.5.1).",
                     )
                 } else {
                     self.offer(
                         "wait",
                         "Wait · keep this decision",
                         true,
-                        "The request stays pending, also across save and quit.",
+                        "The request stays pending, also across save and quit, until the giver decides it (R 1.5.1).",
                     )
                 });
                 // Local policy (#58): 26July's request does not hold 26July's own

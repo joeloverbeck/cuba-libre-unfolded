@@ -45,7 +45,7 @@ dependencies = [
  "accesskit_consumer",
  "hashbrown 0.16.1",
  "objc2 0.5.3",
- "objc2-app-kit",
+ "objc2-app-kit 0.2.2",
  "objc2-foundation 0.2.2",
 ]
 
@@ -212,6 +212,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cab112f0a86d568ea0e627cc1d6be74a1e9cd55214684db5561995f6dad897c6"
 dependencies = [
  "num-traits",
+]
+
+[[package]]
+name = "arboard"
+version = "3.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "aeb9553e62312c8756a5979254fc6d7da8bbeb5986a1e17037fab932f7037917"
+dependencies = [
+ "clipboard-win",
+ "log",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+ "parking_lot",
+ "percent-encoding",
+ "windows-sys 0.61.2",
+ "x11rb",
 ]
 
 [[package]]
@@ -1938,6 +1955,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f079e83a288787bcd14a6aea84cee5c87a67c5a3e660c30f557a3d24761b3527"
 
 [[package]]
+name = "clipboard-win"
+version = "5.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "052af7878466feccda12ba7a6a67d019d712f296809559b47c12c8cc196d3a9a"
+dependencies = [
+ "error-code",
+]
+
+[[package]]
 name = "codespan-reporting"
 version = "0.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2157,6 +2183,7 @@ version = "0.1.0"
 dependencies = [
  "anstream",
  "anyhow",
+ "arboard",
  "bevy",
  "image",
  "rustix 1.1.6",
@@ -2164,6 +2191,7 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+ "unfolded-agent-players",
  "unfolded-assets",
  "unfolded-hover",
  "unfolded-random",
@@ -2339,6 +2367,12 @@ dependencies = [
  "libc",
  "windows-sys 0.61.2",
 ]
+
+[[package]]
+name = "error-code"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b5343afd4a8365a643ac588dab4cf234a190c7f6c88c9f6dd6ffe00837661b7"
 
 [[package]]
 name = "euclid"
@@ -3460,6 +3494,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "objc2-app-kit"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d49e936b501e5c5bf01fda3a9452ff86dc3ea98ad5f283e1455153142d97518c"
+dependencies = [
+ "bitflags 2.13.2",
+ "objc2 0.6.5",
+ "objc2-core-graphics",
+ "objc2-foundation 0.3.2",
+]
+
+[[package]]
 name = "objc2-cloud-kit"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3512,6 +3558,7 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e022c9d066895efa1345f8e33e584b9f958da2fd4cd116792e15e07e4720a807"
 dependencies = [
+ "bitflags 2.13.2",
  "dispatch2",
  "objc2 0.6.5",
  "objc2-core-foundation",
@@ -3591,7 +3638,7 @@ checksum = "a1a1ae721c5e35be65f01a03b6d2ac13a54cb4fa70d8a5da293d7b0020261398"
 dependencies = [
  "block2 0.5.1",
  "objc2 0.5.3",
- "objc2-app-kit",
+ "objc2-app-kit 0.2.2",
  "objc2-foundation 0.2.2",
 ]
 
@@ -4706,9 +4753,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "214ca0b2191785cbc06209b9ca1861e048e39b5ba33574b3cedd58363d5bb5f6"
 
 [[package]]
+name = "unfolded-agent-players"
+version = "0.1.0"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=cb5c74a184339c39dc555608c92468a1193026b7#cb5c74a184339c39dc555608c92468a1193026b7"
+dependencies = [
+ "serde_json",
+ "unfolded-seat-client",
+]
+
+[[package]]
 name = "unfolded-assets"
 version = "0.1.0"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=13e724017311d002aced80c525ff4e3921880304#13e724017311d002aced80c525ff4e3921880304"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=cb5c74a184339c39dc555608c92468a1193026b7#cb5c74a184339c39dc555608c92468a1193026b7"
 dependencies = [
  "image",
  "rustix 1.1.6",
@@ -4718,17 +4774,17 @@ dependencies = [
 [[package]]
 name = "unfolded-hover"
 version = "0.1.0"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=13e724017311d002aced80c525ff4e3921880304#13e724017311d002aced80c525ff4e3921880304"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=cb5c74a184339c39dc555608c92468a1193026b7#cb5c74a184339c39dc555608c92468a1193026b7"
 
 [[package]]
 name = "unfolded-random"
 version = "0.1.0"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=13e724017311d002aced80c525ff4e3921880304#13e724017311d002aced80c525ff4e3921880304"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=cb5c74a184339c39dc555608c92468a1193026b7#cb5c74a184339c39dc555608c92468a1193026b7"
 
 [[package]]
 name = "unfolded-record-replacement"
 version = "0.1.0"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=13e724017311d002aced80c525ff4e3921880304#13e724017311d002aced80c525ff4e3921880304"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=cb5c74a184339c39dc555608c92468a1193026b7#cb5c74a184339c39dc555608c92468a1193026b7"
 dependencies = [
  "serde",
  "serde_json",
@@ -4739,7 +4795,7 @@ dependencies = [
 [[package]]
 name = "unfolded-seat-client"
 version = "0.1.0"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=13e724017311d002aced80c525ff4e3921880304#13e724017311d002aced80c525ff4e3921880304"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=cb5c74a184339c39dc555608c92468a1193026b7#cb5c74a184339c39dc555608c92468a1193026b7"
 dependencies = [
  "anyhow",
  "serde_json",
@@ -4750,7 +4806,7 @@ dependencies = [
 [[package]]
 name = "unfolded-seat-protocol"
 version = "0.1.0"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=13e724017311d002aced80c525ff4e3921880304#13e724017311d002aced80c525ff4e3921880304"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=cb5c74a184339c39dc555608c92468a1193026b7#cb5c74a184339c39dc555608c92468a1193026b7"
 dependencies = [
  "serde",
  "serde_json",
@@ -4759,7 +4815,7 @@ dependencies = [
 [[package]]
 name = "unfolded-tabletop"
 version = "0.1.0"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=13e724017311d002aced80c525ff4e3921880304#13e724017311d002aced80c525ff4e3921880304"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=cb5c74a184339c39dc555608c92468a1193026b7#cb5c74a184339c39dc555608c92468a1193026b7"
 dependencies = [
  "bevy",
  "image",
@@ -5076,7 +5132,7 @@ dependencies = [
 [[package]]
 name = "wgpu-hal"
 version = "30.0.1"
-source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=13e724017311d002aced80c525ff4e3921880304#13e724017311d002aced80c525ff4e3921880304"
+source = "git+https://github.com/joeloverbeck/unfolded-tabletop?rev=cb5c74a184339c39dc555608c92468a1193026b7#cb5c74a184339c39dc555608c92468a1193026b7"
 dependencies = [
  "android_system_properties",
  "arrayvec",
@@ -5405,7 +5461,7 @@ dependencies = [
  "libc",
  "ndk",
  "objc2 0.5.3",
- "objc2-app-kit",
+ "objc2-app-kit 0.2.2",
  "objc2-foundation 0.2.2",
  "objc2-ui-kit",
  "orbclient",

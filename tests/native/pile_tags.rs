@@ -341,11 +341,14 @@ fn native_pile_tags_match_layout_and_read_the_model() {
     assert_played_states_the_model(&focused, 18, 1);
     let focused = focus(&mut app, "pile:deck", &rest);
     assert_deck_states_the_model(&focused);
-    // Focus moves on; the pointer leaves: no tag.
+    // Focus moves on, past the seat cards to Save · quit; the pointer leaves: no tag.
     let revision = rest["observation"]["revision"].as_u64().unwrap();
-    app.request(json!({"op":"key","revision":revision,"key":"Tab"}), true);
-    app.request(json!({"op":"settle"}), true);
-    assert!(app.observe()["table"]["pile_tag"]["shown"].is_null());
+    for _ in 0..5 {
+        app.request(json!({"op":"key","revision":revision,"key":"Tab"}), true);
+        app.request(json!({"op":"settle"}), true);
+        assert!(app.observe()["table"]["pile_tag"]["shown"].is_null());
+    }
+    assert_eq!(app.observe()["table"]["choice"]["focus"], "quit");
     // Story 35, "hover the played pile": a pile is what the owner sees of it, its
     // visible side and its caption as well as its disc. The pointer comes to rest on
     // each from Save · quit, carried there by a middle-button drag,

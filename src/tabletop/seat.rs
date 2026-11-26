@@ -66,6 +66,11 @@ static KEYS: LazyLock<Vec<SeatKey>> = LazyLock::new(|| {
         key("Space", KeyCode::Space, Key::Space, true),
         key("Escape", KeyCode::Escape, Key::Escape, false),
         key("Backspace", KeyCode::Backspace, Key::Backspace, false),
+        // Each hands a faction over to an agent, or takes it back (`faction_seats`).
+        key("F1", KeyCode::F1, Key::F1, false),
+        key("F2", KeyCode::F2, Key::F2, false),
+        key("F3", KeyCode::F3, Key::F3, false),
+        key("F4", KeyCode::F4, Key::F4, false),
     ]
     .into_iter()
     // The transfer modal's amount field takes typed digits.
@@ -430,6 +435,9 @@ impl SeatGame for Table {
         let slip = notice::observe(world);
         let save_quit = save_quit::observe(world);
         let focus_mark = focus_mark::observe(world);
+        let seats = faction_seats::observe(world);
+        let cards = seat_cards::observe(world);
+        let newspaper = newspaper::observe(world);
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
         let pose = world.resource::<Orbit>().pose();
@@ -445,6 +453,11 @@ impl SeatGame for Table {
         table["slip"] = slip;
         table["save_quit"] = save_quit;
         table["focus_mark"] = focus_mark;
+        table["faction_seats"] = seats;
+        // #206: the drawn seat cards, the open line sheet and the panel's strip.
+        table["seat_cards"] = cards;
+        // #208: the newspaper.
+        table["newspaper"] = newspaper;
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
             table,
@@ -521,40 +534,16 @@ impl SeatGame for Table {
         }
     }
     fn unsettled(&self, world: &mut World) -> Vec<String> {
-        let play = world.resource::<Play>();
-        let ui = world.resource::<Interface>();
-        let mut pending = vec![];
-        if play.session.is_none() {
-            pending.push("asset/save admission".into());
+        let mut pending: Vec<String> = settled::unsettled(world)
+            .into_iter()
+            .map(settled::Unsettled::words)
+            .collect();
+        if faction_seats::due(world) {
+            pending.push("faction seats".into());
         }
-        if ui.hover.waiting() {
-            pending.push("standing hover dwell".into());
+        if newspaper::unsettled(world) {
+            pending.push("an edition to open".into());
         }
-        if ui.status.waiting() {
-            pending.push("region status hover dwell".into());
-        }
-        if ui.dirty {
-            pending.push("control redraw".into());
-        }
-        if play.session.is_some() && !world.resource::<areas::Island>().surveyed() {
-            pending.push("Home framing".into());
-        }
-        if world.resource::<Counts>().settling > 0 {
-            pending.push("piece counts".into());
-        }
-        if world.resource::<Orbit>().is_moving() {
-            pending.push("camera movement".into());
-        }
-        // A newly placed bell is ready once its glTF scene spawned and plays the
-        // loop. The loop itself never holds the table unsettled.
-        let tokens = world.query::<&TerrorToken>().iter(world).count();
-        let playing = world.query::<&TerrorPlayer>().iter(world).count();
-        if playing < tokens {
-            pending.push("Terror token spawn".into());
-        }
-        pending.extend(popover::unsettled(world));
-        pending.extend(die::unsettled(world));
-        pending.extend(piles::unsettled(world));
         pending
     }
     fn admission(&self, world: &World) -> shared::Admission {
@@ -581,8 +570,13 @@ impl SeatGame for Table {
             // The owner's click lands a card in the air wherever it falls, and does
             // nothing else there (#145, #137's review); a choice named by its id asks
             // for a decision instead, and waits.
+            // A faction is handed over and taken back at any time (#206).
+            Interrupt::Activate(TargetName::Component(name)) if seat_cards::is_control(name) => {
+                return true;
+            }
             Interrupt::Activate(TargetName::Component(name)) => (name == die::TRAY, true),
             Interrupt::Activate(TargetName::Choice(_)) => (false, false),
+            Interrupt::Key(key) if faction_seats::KEY_NAMES.contains(&key) => return true,
             Interrupt::Key(key) => {
                 let key = matches!(key, "Enter" | "Space");
                 (key, key)
@@ -598,6 +592,13 @@ impl SeatGame for Table {
                 label: piles::ADVANCE.into(),
             };
         }
+        // An open edition holds it too: Enter or Space puts it away (#208).
+        if world.resource::<Interface>().editions.open().is_some() {
+            return Focus::Control {
+                choice: None,
+                label: newspaper::NAME.into(),
+            };
+        }
         // A presented Kidnap die holds the keyboard: Enter reaches the tray's skip while
         // the die is in the air, and Continue once it has landed (#74, #87).
         if die::shown(world) {
@@ -607,7 +608,8 @@ impl SeatGame for Table {
             });
         }
         let ui = world.resource::<Interface>();
-        let modal = transfer::shown(world.resource::<Play>().game().transfer.as_ref());
+        let game = world.resource::<Play>().game();
+        let modal = transfer::shown(game.transfer.as_ref(), game.owner(), ui);
         let focused = if modal {
             ui.transfer.focus.clone()
         } else {
@@ -656,6 +658,7 @@ mod tests {
                 save: save.into(),
                 recover: None,
                 socket: None,
+                players: None,
                 agent: true,
                 seat_size: size,
             },
@@ -1095,6 +1098,7 @@ mod tests {
                 save: save.clone(),
                 recover: None,
                 socket: None,
+                players: None,
                 agent: true,
                 seat_size: size,
             },

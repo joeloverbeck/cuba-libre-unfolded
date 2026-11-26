@@ -8,23 +8,26 @@ publish = false
 
 [features]
 default = []
-tabletop = ["dep:bevy", "dep:unfolded-hover", "unfolded-tabletop/seat"]
+tabletop = ["dep:arboard", "dep:bevy", "dep:unfolded-hover", "unfolded-tabletop/seat"]
 
 [dependencies]
 # Shared packages, all at one revision of one repository, the same as the `wgpu-hal`
 # patch below. The game, its saves and `cuba-tools` take only the packages that cannot
 # depend on Bevy; `unfolded-hover`, which only the table uses, and `unfolded-tabletop`
 # come with `tabletop`.
-unfolded-assets = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "13e724017311d002aced80c525ff4e3921880304" }
-unfolded-hover = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "13e724017311d002aced80c525ff4e3921880304", optional = true }
-unfolded-random = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "13e724017311d002aced80c525ff4e3921880304" }
-unfolded-record-replacement = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "13e724017311d002aced80c525ff4e3921880304" }
-unfolded-seat-client = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "13e724017311d002aced80c525ff4e3921880304" }
-unfolded-tabletop = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "13e724017311d002aced80c525ff4e3921880304", optional = true }
+unfolded-agent-players = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "cb5c74a184339c39dc555608c92468a1193026b7" }
+unfolded-assets = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "cb5c74a184339c39dc555608c92468a1193026b7" }
+unfolded-hover = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "cb5c74a184339c39dc555608c92468a1193026b7", optional = true }
+unfolded-random = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "cb5c74a184339c39dc555608c92468a1193026b7" }
+unfolded-record-replacement = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "cb5c74a184339c39dc555608c92468a1193026b7" }
+unfolded-seat-client = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "cb5c74a184339c39dc555608c92468a1193026b7" }
+unfolded-tabletop = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "cb5c74a184339c39dc555608c92468a1193026b7", optional = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 anyhow = "1"
+# The desktop's clipboard, for a seat's line (#206): text only.
+arboard = { version = "3.6", optional = true, default-features = false }
 image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg"] }
 bevy = { version = "=0.20.0", optional = true, default-features = false, features = [
   "std", "async_executor", "multi_threaded", "bevy_asset", "bevy_log",
@@ -49,4 +52,4 @@ debug = 0
 opt-level = 3
 
 [patch.crates-io]
-wgpu-hal = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "13e724017311d002aced80c525ff4e3921880304" }
+wgpu-hal = { git = "https://github.com/joeloverbeck/unfolded-tabletop", rev = "cb5c74a184339c39dc555608c92468a1193026b7" }

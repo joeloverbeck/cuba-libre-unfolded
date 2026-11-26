@@ -86,14 +86,14 @@ fn surface(view: &Observation, choice: &Choice) -> Option<&'static str> {
     if submits(&execution::commit(view, None)) {
         return Some("panel commit");
     }
-    if execution::focusable(view, None)
+    if execution::focusable(view, &Interface::default())
         .iter()
         .any(|(name, _)| *name == choice.id)
     {
         return Some("panel control");
     }
-    if transfer::shown(view.transfer.as_ref()) {
-        let ui = Interface::default();
+    let ui = Interface::default();
+    if transfer::shown(view.transfer.as_ref(), view.owner, &ui) {
         if transfer::focusable(view, &ui).contains(&choice.id) {
             return Some("transfer modal control");
         }

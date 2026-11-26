@@ -7,13 +7,14 @@ if (($# != 1)); then
 fi
 
 # Use Cargo's actual executable paths even with a private target or target triple.
-artifacts=$(cargo build --locked --features tabletop --bin cuba-libre --bin cuba-tools \
+artifacts=$(cargo build --locked --features tabletop --bin cuba-libre --bin cuba-tools --bin cuba-player \
   --message-format=json-render-diagnostics |
   jq -r 'select(.reason == "compiler-artifact" and .executable != null and
-    (.target.name == "cuba-libre" or .target.name == "cuba-tools")) | .executable')
+    (.target.name == "cuba-libre" or .target.name == "cuba-tools" or
+      .target.name == "cuba-player")) | .executable')
 mapfile -t bins <<<"$artifacts"
-if ((${#bins[@]} != 2)); then
-  echo "Expected Cargo to produce both cuba-libre and cuba-tools." >&2
+if ((${#bins[@]} != 3)); then
+  echo "Expected Cargo to produce cuba-libre, cuba-tools and cuba-player." >&2
   exit 1
 fi
 mkdir -p -- "$1"

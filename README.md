@@ -28,6 +28,8 @@ The app loads table art from `art/atlas` relative to the checkout root. If you r
 
 ## Playing this build
 
+To have a Claude Code or Codex session play a faction, run `cargo build --locked && cargo run --locked --bin cuba-tools -- player-folders` once and after each update, then [open a session with one pasted line](docs/playing.md#opening-a-session).
+
 [Playing this build](docs/playing.md) covers the decisions, table, controls and save/resume.
 
 ## Checks and development seat
@@ -94,4 +96,4 @@ The app implements the accepted authored specification, not a Markdown interpret
 
 ## License and third-party material
 
-Original executable code is [MIT licensed](LICENSE), as selected in #8. This independent project is not a GMT product or endorsement. MIT does not relicense Cuba Libre's rules, names, card faces or other third-party material. Lato keeps its [OFL notice](art/atlas/FONT-NOTICE.txt). The external Pictures collection is reference material: its scripts are not executed and its original art is not committed.
+Original executable code is [MIT licensed](LICENSE), as selected in #8. This independent project is not a GMT product or endorsement. MIT does not relicense Cuba Libre's rules, names, card faces or other third-party material. Lato and Noto Serif Display keep their OFL notices ([Lato](art/atlas/FONT-NOTICE.txt), [Noto Serif Display](art/atlas/FONT-NOTICE-NOTO-SERIF-DISPLAY.txt)). The external Pictures collection is reference material: its scripts are not executed and its original art is not committed.
