@@ -10,7 +10,7 @@ use cuba_libre_unfolded::{
     faction_seats::{Answer, Brief, Host, Player, SeatState, Stands, Table, View},
     is_propaganda,
     reports::{Report, Reports},
-    save::Session,
+    save::{Proclamation, Session},
     title,
 };
 use serde_json::{Value, json};
@@ -38,6 +38,9 @@ impl Table for Room {
     fn reports(&self) -> Vec<Report> {
         self.session.reports()
     }
+    fn proclamations(&self) -> &[Proclamation] {
+        self.session.proclamations()
+    }
     fn settled(&self) -> bool {
         self.settled
     }
@@ -48,6 +51,17 @@ impl Table for Room {
         self.commits
             .push((faction, choice.to_owned(), decisions(&self.path)));
         Ok(())
+    }
+    fn publish(
+        &mut self,
+        faction: Faction,
+        revision: u64,
+        card: u8,
+        text: &str,
+    ) -> Result<(), String> {
+        self.session
+            .publish(faction, revision, card, text)
+            .map_err(|refused| refused.to_string())
     }
 }
 
@@ -230,6 +244,47 @@ fn error(answer: &Value) -> &str {
     answer["error"].as_str().unwrap()
 }
 
+#[test]
+fn publication_uses_the_held_author_and_leaves_an_queued_choice_held() {
+    let mut sitting = Sitting::new();
+    for action in ["terror", "transfer", "ask:3:2"] {
+        sitting.human(action);
+    }
+    let giver = sitting.seat(Syndicate);
+    let revision = sitting.revision();
+    sitting.room.settled = false;
+    let pending = sitting.choose_and_wait(&giver, "authorize:2");
+    assert!(sitting.answer(pending).is_none());
+    assert!(sitting.host.holds_choice(Syndicate));
+    let publication = json!({
+        "op": "publish", "player": giver, "revision": revision, "card": 17,
+        "text": "We authorize two Resources."
+    });
+    let mut impersonation = publication.clone();
+    impersonation["author"] = json!("Government");
+    let refused = sitting.refused(impersonation);
+    assert!(error(&refused).contains("unknown field `author`"));
+    assert_eq!(refused["view"]["proclamations"]["published"], json!([]));
+
+    let published = sitting.ask(publication);
+    assert_eq!(published["status"], "published");
+    assert_eq!(
+        published["view"]["proclamations"]["published"][0]["author"],
+        "Syndicate"
+    );
+    assert_eq!(published["view"]["revision"], revision);
+    assert!(sitting.host.holds_choice(Syndicate));
+    assert!(sitting.answer(pending).is_none());
+    sitting.room.settled = true;
+    sitting.poll();
+    assert_eq!(sitting.revision(), revision + 1);
+    assert!(!sitting.host.holds_choice(Syndicate));
+    assert_eq!(
+        sitting.observe(&giver)["state"]["resources"],
+        json!([6, 2, 5, 13])
+    );
+}
+
 // --- What is hidden -----------------------------------------------------------------
 
 /// The same match with another generator's state and another order of the cards under
@@ -276,6 +331,7 @@ const TOLD: &[&str] = &[
     "beneficiary",
     "bound",
     "capabilities",
+    "can_publish",
     "card",
     "card_title",
     "cards",
@@ -362,10 +418,12 @@ const TOLD: &[&str] = &[
     "preview",
     "preview_card",
     "proceeds",
+    "proclamations",
     "propaganda",
     "propaganda_cards",
     "propaganda_left",
     "propaganda_played",
+    "published",
     "read_at",
     "reason",
     "recipient",
@@ -574,7 +632,7 @@ fn no_view_depends_on_what_is_hidden_and_together_they_carry_every_choice() {
         let mut told = BTreeSet::new();
         let mut offered = BTreeSet::new();
         for faction in Faction::ALL {
-            let view = View::of(&seen, told_of.clone(), faction, PLAYERS);
+            let view = View::of(&seen, told_of.clone(), &[], faction, PLAYERS);
             for choice in &view.choices {
                 let whole = seen.choices.iter().find(|c| c.id == choice.id).unwrap();
                 assert_eq!(whole.owner, faction);
@@ -602,8 +660,9 @@ fn no_view_depends_on_what_is_hidden_and_together_they_carry_every_choice() {
             // four views of a position share their state.
             if faction == seen.owner || faction.index() == nth % 4 {
                 let view = serde_json::to_value(view).unwrap();
-                let same = serde_json::to_value(View::of(&other, others.clone(), faction, PLAYERS))
-                    .unwrap();
+                let same =
+                    serde_json::to_value(View::of(&other, others.clone(), &[], faction, PLAYERS))
+                        .unwrap();
                 assert_eq!(view, same, "a view shows what is hidden");
                 assert_hidden(&view, game);
                 keys(&view, &mut told);

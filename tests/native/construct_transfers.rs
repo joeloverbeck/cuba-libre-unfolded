@@ -3,6 +3,329 @@ use std::fs;
 use unfolded_record_replacement::previous_path;
 
 #[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; drives held seats and same-build reopening"]
+fn native_public_proclamations_preserve_the_givers_decision() {
+    use cuba_libre_unfolded::save::Session;
+    use faction_seats::{DIRECTORIO, GOVERNMENT, M26, SYNDICATE, seat};
+    use std::time::{Duration, Instant};
+
+    let mut app = super::available_forces::unlaunched("held-publication-", "issue-229");
+    let mut seed = Session::create_seeded(&app.save, 2).unwrap();
+    for action in ["terror", "kidnap", "kidnap:roll", "terror:santiago"] {
+        let seen = seed.observe();
+        seed.submit(
+            seen.owner,
+            seen.revision,
+            &format!("{}:{action}", seen.revision),
+        )
+        .unwrap();
+    }
+    drop(seed);
+    app.launch_size("3840x2160");
+    let syndicate = app.seat_agent(SYNDICATE, "syndicate");
+    let directorio = app.seat_agent(DIRECTORIO, "directorio");
+    let mut giver = app.player("giver-17", &["wait", &syndicate]);
+    let mut idle = app.player("idle-17", &["wait", &directorio]);
+    app.until_waiting("Syndicate");
+    app.until_waiting("Directorio");
+    app.choose("transfer");
+    app.choose("ask:3:2");
+    let (code, wake) = app.answered(&mut giver);
+    assert_eq!((code, &wake["status"]), (0, &json!("decision")));
+    let government = app.seat_agent(GOVERNMENT, "government");
+    let m26 = app.seat_agent(M26, "26july");
+    let before = wake["view"].clone();
+    assert_eq!(before["decision"]["yours"], true);
+    assert_eq!(before["decision"]["faction"], "Syndicate");
+    assert_eq!(before["state"]["resources"], json!([1, 4, 5, 15]));
+    let revision = before["revision"].as_u64().unwrap();
+    let revision_arg = revision.to_string();
+    let pending = app.observe()["observation"].clone();
+    let saved = app.save_bytes();
+    let previous = previous_path(&app.save);
+    let kept = fs::read(&previous).unwrap();
+    app.capture("card-17-giver-before-publication");
+
+    // 400 Unicode scalar values, with combining marks and UTF-8 beyond one byte.
+    // The fixture includes command-like text and whitespace that must survive.
+    let opening = "--  Havana, mañana.\n\nWe offer two Resources.\n";
+    let wording = format!(
+        "{opening}{}! ",
+        "e\u{301}".repeat((398 - opening.chars().count()) / 2)
+    );
+    let wording = format!("{wording}{}", " ".repeat(400 - wording.chars().count()));
+    assert_eq!(wording.chars().count(), 400);
+    assert!(wording.len() > 400);
+    for (id, at, card, text, expected) in [
+        (
+            &syndicate[..],
+            revision,
+            17,
+            &format!("{wording}x")[..],
+            "400",
+        ),
+        (&syndicate, revision - 1, 17, &wording, "Stale"),
+        (&syndicate, revision, 18, &wording, "Stale"),
+        ("unseated", revision, 17, &wording, "holds a seat"),
+    ] {
+        refused_publication(&mut app, id, at, card, text, expected);
+        assert_eq!(app.save_bytes(), saved);
+        assert_eq!(fs::read(&previous).unwrap(), kept);
+    }
+
+    // Refuse the write while another writer holds the ordinary save lock.
+    let lock = fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .open(unfolded_record_replacement::lock_path(&app.save))
+        .unwrap();
+    lock.try_lock().unwrap();
+    let blocked = refused_publication(&mut app, &syndicate, revision, 17, &wording, "save is busy");
+    assert_eq!(blocked["view"]["proclamations"]["published"], json!([]));
+    assert_eq!(blocked["view"]["proclamations"]["can_publish"], true);
+    assert_eq!(app.save_bytes(), saved);
+    assert_eq!(fs::read(&previous).unwrap(), kept);
+    assert_eq!(app.observe()["observation"], pending);
+    app.capture("save-busy-before-publication");
+    lock.unlock().unwrap();
+
+    // Discard the original command's output as soon as persistence proves it wrote.
+    let lost = app.player(
+        "giver-17",
+        &["publish", &syndicate, &revision_arg, "17", &wording],
+    );
+    let end = Instant::now() + Duration::from_secs(30);
+    while app.save_bytes() == saved {
+        app.settle();
+        assert!(Instant::now() < end, "publication never reached the save");
+        std::thread::sleep(Duration::from_millis(20));
+    }
+    drop(lost);
+    let written = app.save_bytes();
+    assert_eq!(fs::read(&previous).unwrap(), saved);
+    let repeated = refused_publication(
+        &mut app,
+        &syndicate,
+        revision,
+        17,
+        &wording,
+        "already published",
+    );
+    assert_eq!(app.save_bytes(), written);
+    let words = json!([{"card": 17, "author": "Syndicate", "text": wording}]);
+    assert_eq!(repeated["view"]["proclamations"]["can_publish"], false);
+    for field in ["revision", "decision", "choices", "state", "results"] {
+        assert_eq!(repeated["view"][field], before[field], "{field}");
+    }
+    assert_eq!(app.observe()["observation"], pending);
+    app.capture("card-17-giver-after-publication");
+    for player in [&government, &m26, &directorio, &syndicate] {
+        let (code, refreshed) = app.ask(&["observe", player]);
+        assert_eq!(code, 0);
+        assert_eq!(refreshed["view"]["proclamations"]["published"], words);
+    }
+    assert!(idle.ended().is_none(), "publication woke the idle seat");
+    assert_eq!(seat(&app.settle(), "Directorio")["waits"], true);
+
+    app.key(SYNDICATE);
+    let (code, ended) = app.ask(&["publish", &syndicate, &revision_arg, "17", "Again"]);
+    assert_eq!((code, &ended["status"]), (0, &json!("closed")));
+    let successor = app.seat_agent(SYNDICATE, "syndicate");
+    assert_ne!(successor, syndicate);
+    refused_publication(
+        &mut app,
+        &successor,
+        revision,
+        17,
+        "Again",
+        "already published",
+    );
+    assert_eq!(app.save_bytes(), written);
+    app.key(M26);
+    app.key(GOVERNMENT);
+    // The game follows the checked amount, even though the published offer said two.
+    app.decide(&successor, "authorize:0", "applied");
+    assert_eq!(
+        app.observe()["observation"]["resources"],
+        json!([1, 4, 5, 15])
+    );
+    app.choose("end-terror");
+    let (code, next) = app.answered(&mut idle);
+    assert_eq!((code, &next["status"]), (0, &json!("decision")));
+    assert_eq!(next["view"]["decision"]["faction"], "Directorio");
+    assert_eq!(next["view"]["proclamations"]["published"], words);
+    app.key(DIRECTORIO);
+    for action in ["event:shaded", "resolve-shaded"] {
+        choose_row(&mut app, action);
+    }
+    let closed = app.revision();
+    refused_publication(&mut app, &successor, closed, 17, "Again", "card is closed");
+    app.choose("advance-card");
+    let opened = app.revision();
+    let (_, new_card) = app.ask(&["observe", &successor]);
+    assert_eq!(new_card["view"]["state"]["current_card"]["number"], 18);
+    assert_eq!(new_card["view"]["proclamations"]["published"], words);
+    assert_eq!(new_card["view"]["proclamations"]["can_publish"], true);
+    refused_publication(&mut app, &successor, opened, 17, "Old card", "Stale");
+    close_havana_with_assault(&mut app);
+    let syndicate_revision = app.revision();
+    let renewed = published(
+        &mut app,
+        &successor,
+        syndicate_revision,
+        18,
+        "We seek to reopen Havana.",
+    );
+    assert_eq!(renewed["view"]["decision"]["yours"], true);
+    assert_eq!(
+        renewed["view"]["proclamations"]["published"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    app.key(SYNDICATE);
+
+    let m26 = app.seat_agent(M26, "26july");
+    let mut giver = app.player("giver-18", &["wait", &m26]);
+    app.until_waiting("M26");
+    choose_row(&mut app, "syndicate:limited-operation");
+    choose_row(&mut app, "transfer");
+    app.choose("ask:1:2");
+    let (code, wake) = app.answered(&mut giver);
+    assert_eq!((code, &wake["status"]), (0, &json!("decision")));
+    let before = &wake["view"];
+    assert_eq!(before["decision"]["faction"], "M26");
+    assert_eq!(before["decision"]["yours"], true);
+    assert_eq!(before["state"]["resources"], json!([11, 4, 5, 3]));
+    assert_eq!(havana_casino(before)["state"], "Closed");
+    let revision = before["revision"].as_u64().unwrap();
+    let pending = app.observe()["observation"].clone();
+    app.capture("havana-closed-with-giver-decision");
+    let offered = published(
+        &mut app,
+        &m26,
+        revision,
+        18,
+        "Havana may count on us for two Resources.",
+    );
+    let offered_view = &offered["view"];
+    for field in ["revision", "decision", "choices", "state", "results"] {
+        assert_eq!(offered_view[field], before[field], "{field}");
+    }
+    assert_eq!(
+        offered_view["proclamations"]["published"][2]["author"],
+        "M26"
+    );
+    assert_eq!(app.observe()["observation"], pending);
+    let saved = app.save_bytes();
+    app.quit();
+
+    app.launch_size("3840x2160");
+    assert_eq!(app.save_bytes(), saved);
+    assert_eq!(app.observe()["observation"], pending);
+    let resumed = app.seat_agent(M26, "26july");
+    let (code, after) = app.ask(&["observe", &resumed]);
+    assert_eq!(code, 0);
+    for field in [
+        "revision",
+        "decision",
+        "choices",
+        "state",
+        "results",
+        "proclamations",
+    ] {
+        assert_eq!(after["view"][field], offered_view[field], "{field}");
+    }
+    app.capture("havana-closed-with-restored-giver-decision");
+    let authorized = app.decide(&resumed, "authorize:2", "applied");
+    assert_eq!(
+        authorized["view"]["state"]["resources"],
+        json!([11, 2, 5, 5])
+    );
+    assert_eq!(havana_casino(&authorized["view"])["state"], "Closed");
+    app.press_by_keyboard("space:havana");
+    app.press_by_keyboard("popover:commit");
+    let paid = app.observe();
+    assert_eq!(paid["observation"]["resources"], json!([11, 2, 5, 0]));
+    // The five-Resource payment is a separate choice from authorization.
+    let (_, seen) = app.ask(&["observe", &resumed]);
+    assert_eq!(havana_casino(&seen["view"])["state"], "Open");
+    app.capture("havana-reopened-by-the-construct-payment");
+    for (name, answer) in [
+        ("card-17-silent-seat-decision", next),
+        ("card-17-retry", repeated),
+        ("card-18-giver-publication", offered),
+        ("card-18-giver-reopened", after),
+    ] {
+        fs::write(
+            app.root.join(format!("{name}.json")),
+            serde_json::to_vec_pretty(&answer).unwrap(),
+        )
+        .unwrap();
+    }
+    app.quit();
+}
+
+fn published(app: &mut Native, player: &str, revision: u64, card: u8, text: &str) -> Value {
+    let (code, answer) = app.ask(&[
+        "publish",
+        player,
+        &revision.to_string(),
+        &card.to_string(),
+        text,
+    ]);
+    assert_eq!(
+        (code, &answer["status"]),
+        (0, &json!("published")),
+        "{answer}"
+    );
+    answer
+}
+
+fn refused_publication(
+    app: &mut Native,
+    player: &str,
+    revision: u64,
+    card: u8,
+    text: &str,
+    reason: &str,
+) -> Value {
+    let (code, answer) = app.ask(&[
+        "publish",
+        player,
+        &revision.to_string(),
+        &card.to_string(),
+        text,
+    ]);
+    assert_eq!(
+        (code, &answer["status"]),
+        (1, &json!("refused")),
+        "{answer}"
+    );
+    assert!(
+        answer["error"].as_str().unwrap().contains(reason),
+        "{answer}"
+    );
+    answer
+}
+
+fn havana_casino(view: &Value) -> &Value {
+    let havana = view["state"]["spaces"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|space| space["id"] == "havana")
+        .unwrap();
+    havana["pieces"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|group| group["kind"] == "Casino")
+        .unwrap()
+}
+
+#[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained transfer and Construct evidence"]
 fn native_construct_transfer_resumes_at_the_giver_and_finishes_after_spending() {
     let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
@@ -704,6 +1027,10 @@ fn underfunded_handoff(app: &mut Native) {
         choose_row(app, action);
     }
     app.choose("advance-card");
+    close_havana_with_assault(app);
+}
+
+fn close_havana_with_assault(app: &mut Native) {
     choose_row(app, "government:assault");
     choose_row(app, "transfer");
     app.choose("ask:3:12");
