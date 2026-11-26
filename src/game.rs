@@ -604,8 +604,9 @@ pub enum Bound {
     /// A giver's existing conditional authorization for Limited Construct.
     ConstructAuthorization,
 }
-/// The terms of one transfer direction now: what the giver holds, what the recipient
-/// can still receive, what is held back and the largest amount that may move.
+/// The terms of one transfer direction now: what the giver holds, how much room the
+/// recipient has, what is reserved and how much the giver may authorize. A Construct
+/// authorization can remain conditional without changing either balance.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct TransferTerms {
     pub giver: Faction,
@@ -614,18 +615,18 @@ pub struct TransferTerms {
     pub balance: u8,
     /// The recipient's Resources.
     pub held: u8,
-    /// What the recipient can receive before it holds 49 (R 1.8).
+    /// What the recipient can receive before it holds 49, allowing for conditional authorizations (R 1.8).
     pub room: u8,
     /// Kept by the giver for a required payment or already conditionally authorized.
     pub reserved: u8,
-    /// The largest amount that may move: the least of the three limits.
+    /// The largest amount the giver can authorize given the balance, reserve and recipient cap.
     pub limit: u8,
     /// The limit that binds.
     pub bound: Bound,
 }
 impl TransferTerms {
-    /// Why `amount` cannot move, or `None` when it can. The rules authority refuses
-    /// with the same words.
+    /// Why the giver cannot authorize `amount`, or `None` when the amount is allowed.
+    /// The rules authority refuses with the same words.
     pub fn refusal(&self, amount: u8) -> Option<String> {
         if amount <= self.limit {
             return None;
@@ -1496,18 +1497,22 @@ impl Game {
     }
     /// Balance changes from Passes recorded on the current card, in play order.
     fn recorded_resources(&self) -> Vec<ResourceChange> {
-        let change = |faction: Faction, from| ResourceChange {
-            faction,
-            from,
-            to: self.resources[faction.index()],
-        };
+        let change = |faction, from, to| ResourceChange { faction, from, to };
         if self.card_18 {
             let mut changes = vec![];
             if let Some(from) = self.government_pass_from {
-                changes.push(change(Faction::Government, from));
+                changes.push(change(
+                    Faction::Government,
+                    from,
+                    Self::government_pass_balance(from),
+                ));
             }
             if let Some(Card18Completion::Pass { from }) = self.card_18_completion {
-                changes.push(change(Faction::Syndicate, from));
+                changes.push(change(
+                    Faction::Syndicate,
+                    from,
+                    Self::syndicate_pass_balance(from),
+                ));
             }
             return changes;
         }
@@ -1515,6 +1520,7 @@ impl Game {
             vec![change(
                 Faction::M26,
                 PREPARED_RESOURCES[Faction::M26.index()],
+                self.resources[Faction::M26.index()],
             )]
         } else {
             vec![]

@@ -258,6 +258,94 @@ fn client_applies(app: &mut Native, player: &str, action: &str) -> Value {
 }
 
 #[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; exercise withdrawal from the pending native panel"]
+fn native_syndicate_withdraws_its_pending_limited_construct_request() {
+    for held in [false, true] {
+        let mut app = super::available_forces::unlaunched("withdraw-construct-", "issue-215");
+        underfunded_handoff(&mut app);
+        choose_row(&mut app, "syndicate:limited-operation");
+        if held {
+            choose_row(&mut app, "transfer");
+            app.choose("ask:1:2");
+            app.choose("authorize:1");
+        }
+
+        let directorio = held.then(|| app.seat_agent(faction_seats::DIRECTORIO, "directorio"));
+        choose_row(&mut app, "transfer");
+        app.choose("ask:2:5");
+        if directorio.is_none() {
+            app.choose("wait");
+        }
+        let pending = app.observe();
+        assert_eq!(pending["table"]["transfer"]["state"]["pending"], true);
+        assert_eq!(pending["observation"]["owner"], "Directorio");
+        assert_eq!(pending["observation"]["resources"], json!([11, 4, 5, 3]));
+        let pending_revision = app.revision();
+        if let Some(player) = &directorio {
+            let (code, seen) = app.ask(&["observe", player]);
+            assert_eq!(code, 0, "{seen}");
+            let choices = seen["view"]["choices"].to_string();
+            assert!(choices.contains(&format!("{pending_revision}:authorize:2")));
+            assert!(!choices.contains("back-to-choice"));
+        }
+        let withdraw = format!("{pending_revision}:back-to-choice");
+        assert_eq!(
+            choice_part(&pending, "option:back-to-choice-label")["text"],
+            "Syndicate withdraws · back to action choice"
+        );
+        assert!(
+            pending["table"]["controls"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|c| c["name"] == withdraw),
+            "Syndicate needs a native withdrawal control"
+        );
+        app.capture(if held {
+            "held-pending-withdrawal"
+        } else {
+            "pending-withdrawal"
+        });
+        if held {
+            app.press_by_keyboard(&withdraw);
+        } else {
+            app.request(
+                json!({"op":"activate", "choice":withdraw, "revision":pending_revision}),
+                true,
+            );
+            app.settle();
+        }
+        let withdrew = app.observe();
+        assert_eq!(withdrew["observation"]["owner"], "Syndicate");
+        assert!(withdrew["observation"]["executing"].is_null());
+        assert!(withdrew["observation"]["transfer"].is_null());
+        assert!(withdrew["observation"]["construct_funding"].is_null());
+        assert_eq!(withdrew["observation"]["resources"], json!([11, 4, 5, 3]));
+        let saved = app.save_bytes();
+        if let Some(player) = &directorio {
+            let (code, reply) = app.ask(&[
+                "choose",
+                player,
+                &pending_revision.to_string(),
+                &format!("{pending_revision}:authorize:2"),
+            ]);
+            assert_eq!(code, 1, "{reply}");
+            assert!(reply["error"].as_str().unwrap().contains("Stale"));
+        }
+        assert_eq!(app.save_bytes(), saved);
+        app.capture("syndicate-choice-restored");
+        choose_row(&mut app, "syndicate:limited-operation");
+        choose_row(&mut app, "transfer");
+        app.choose("ask:1:4");
+        assert_eq!(
+            app.observe()["observation"]["transfer_terms"][0]["limit"],
+            4
+        );
+        app.quit();
+    }
+}
+
+#[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect pending funding and settlement"]
 fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_recovery() {
     let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
@@ -338,11 +426,11 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
         seen["view"]["state"]["construct_funding"],
         held["observation"]["construct_funding"]
     );
-    assert!(
-        seen["view"]["results"].as_array().unwrap().last().unwrap()["articles"]
-            .as_array()
-            .unwrap()
-            .is_empty()
+    let held_report = seen["view"]["results"].as_array().unwrap().last().unwrap();
+    assert_eq!(held_report["articles"], json!([]));
+    assert_eq!(
+        held_report["summary"],
+        format!("1 conditionally authorized · 1 still needed. {condition}")
     );
 
     client_applies(&mut app, &syndicate, "transfer");
@@ -350,6 +438,17 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
     let refusing = app.observe();
     assert_eq!(refusing["observation"]["transfer_terms"][0]["limit"], 3);
     app.key("Escape"); // Close the interrupted edition and answer as 26July.
+    app.type_amount("5");
+    let refused = app.observe();
+    let transfer = &refused["table"]["transfer"]["state"];
+    assert!(transfer["commit"].is_null());
+    assert!(
+        transfer["refusal"]
+            .as_str()
+            .unwrap()
+            .contains("already conditionally authorized 1 Resource")
+    );
+    app.capture("same-giver-signed-refusal");
     app.choose("decline");
     assert_eq!(
         app.observe()["observation"]["resources"],
@@ -375,9 +474,18 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
     app.choose("wait");
     let pending = app.observe();
     assert_eq!(pending["observation"]["owner"], "Directorio");
+    let withdraw = format!("{}:back-to-choice", app.revision());
+    assert!(
+        !pending["table"]["controls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|control| control["name"] == withdraw),
+        "the human giver cannot withdraw on behalf of the Syndicate agent"
+    );
     assert_eq!(
         transfer_part(&pending, "pending-construct-funding"),
-        "1 authorized · need 1"
+        "1 held · +1 moves all"
     );
     assert_eq!(
         transfer_part(&pending, "pending-construct-giver"),

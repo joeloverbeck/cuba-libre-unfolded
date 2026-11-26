@@ -104,6 +104,10 @@ pub enum EventStatus {
         executed: Faction,
         second: Option<Faction>,
     },
+    /// The last Eligible faction is executing an Operation Only (R 2.3.4).
+    ChosenOperationOnly {
+        faction: Faction,
+    },
     InProgress {
         faction: Faction,
         text: EventText,
@@ -159,6 +163,9 @@ impl EventStatus {
                 "Event not open this card: no Eligible faction follows {}",
                 executed.name()
             ),
+            Self::ChosenOperationOnly { faction } => {
+                format!("Event closed: {} chose Operation Only", faction.name())
+            }
             Self::InProgress { faction, text } => format!(
                 "Event in progress: {} is executing the {} text",
                 faction.name(),
@@ -394,6 +401,10 @@ impl Game {
                 EventStatus::Closed {
                     executed: Faction::Government,
                     second: Some(Faction::Syndicate),
+                }
+            } else if self.construct_is_open() {
+                EventStatus::ChosenOperationOnly {
+                    faction: Faction::Syndicate,
                 }
             } else {
                 EventStatus::Open {

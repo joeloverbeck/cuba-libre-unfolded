@@ -1388,6 +1388,13 @@ mod reader {
         state: State,
         count: i32,
         closes: bool,
+        effects: Vec<String>,
+    }
+
+    struct ConstructPayment {
+        space: String,
+        opens: bool,
+        effects: Vec<String>,
     }
 
     /// What the decisions of a span did, in order.
@@ -1398,7 +1405,7 @@ mod reader {
         /// The spaces the Operation was executed in, with the payer's balance before.
         executed: Vec<(String, i32)>,
         /// The Casino effects of this Construct's payments, keyed by space.
-        constructed: Vec<(String, bool)>,
+        constructed: Vec<ConstructPayment>,
         casino_management: Vec<CasinoAction>,
         /// Those of an Assault in which no piece changed.
         unchanged: Vec<String>,
@@ -1562,7 +1569,11 @@ mod reader {
                         let here = name(parts[1]);
                         done.at(&here);
                         done.executed.push((here.clone(), held(Faction::Syndicate)));
-                        done.constructed.push((here, parts[2] == "open"));
+                        done.constructed.push(ConstructPayment {
+                            space: here,
+                            opens: parts[2] == "open",
+                            effects: casino_words(seen, next, parts[1]),
+                        });
                     }
                     ("close-casino" | "remove", _)
                         if parts.len() == 4
@@ -1579,6 +1590,7 @@ mod reader {
                             },
                             count: parts[3].parse().unwrap(),
                             closes: parts[0] == "close-casino",
+                            effects: casino_words(seen, next, parts[1]),
                         });
                     }
                     ("remove", _) if parts.len() == 4 => {
@@ -1818,18 +1830,24 @@ mod reader {
     }
 
     fn summary(executor: Faction, done: &Done, after: &Observation) -> Option<String> {
+        let held = after.construct_funding.as_ref().filter(|funding| {
+            executor == Faction::Syndicate
+                && (request(after).is_some() || !funding.authorizations.is_empty())
+        }).map(|funding| {
+            let authorized: u8 = funding.authorizations.iter().map(|a| a.amount).sum();
+            let needed = 5 - after.resources[Faction::Syndicate.index()] - authorized;
+            format!("{authorized} conditionally authorized · {needed} still needed. Resources move only when authorizations fund a legal payment.")
+        });
         for ((giver, recipient), told) in &done.transfers {
-            if told.pending.is_some() {
-                return pending(*giver, *recipient, told).map(|request| {
-                    if let Some(funding) = &after.construct_funding {
-                        let authorized: u8 = funding.authorizations.iter().map(|a| a.amount).sum();
-                        let needed = 5 - after.resources[Faction::Syndicate.index()] - authorized;
-                        format!("{request} {authorized} conditionally authorized · {needed} still needed. Resources move only when authorizations fund a legal payment.")
-                    } else {
-                        request
-                    }
+            if let Some(request) = pending(*giver, *recipient, told) {
+                return Some(match held {
+                    Some(held) => format!("{request} {held}"),
+                    None => request,
                 });
             }
+        }
+        if held.is_some() {
+            return held;
         }
         if let Some([from, to]) = done.passed {
             let gained = resources(to - from);
@@ -1976,11 +1994,9 @@ mod reader {
         } else {
             format!("Syndicate returns {casinos} to Available Forces.")
         };
-        same(
-            "sentences",
-            &article.lines,
-            &vec![expected, "0 Resources · no Profit.".into()],
-        )?;
+        let mut sentences = vec![expected, "0 Resources · no Profit.".into()];
+        sentences.extend(action.effects.iter().cloned());
+        same("sentences", &article.lines, &sentences)?;
         let faction = Faction::Syndicate;
         position.add(
             &action.space,
@@ -2147,20 +2163,16 @@ mod reader {
         }
         if let Some(held) = scan(title, "Construct in {}") {
             let space = held[0];
-            let (_, opens) = done
+            let constructed = done
                 .constructed
                 .iter()
-                .find(|(where_paid, _)| where_paid == space)
+                .find(|payment| payment.space == space)
                 .ok_or("no Construct payment in this space")?;
-            let [payment, outcome] = lines.as_slice() else {
-                return Err("two sentences are due".into());
-            };
             let payer = Faction::Syndicate;
             let from = balance(space)?;
             let expected_payment = format!("Syndicate pays 5 Resources, {from} → {}.", from - 5);
-            same("payment", payment, &expected_payment.as_str())?;
             position.pay(payer, 5);
-            let expected = if *opens {
+            let outcome = if constructed.opens {
                 position.add(space, payer, Kind::Casino, State::Closed, -1);
                 position.add(space, payer, Kind::Casino, State::Open, 1);
                 "Syndicate opened 1 closed Casino."
@@ -2168,7 +2180,9 @@ mod reader {
                 position.add(space, payer, Kind::Casino, State::Closed, 1);
                 "Syndicate placed 1 closed Casino."
             };
-            return same("Casino effect", outcome, &expected);
+            let mut expected = vec![expected_payment, outcome.to_owned()];
+            expected.extend(constructed.effects.iter().cloned());
+            return same("sentences", &article.lines, &expected);
         }
         const NOTHING: &str = "No piece is removed or closed.";
         if scan(title, "Assault in {} spaces").is_some() {
@@ -2289,6 +2303,29 @@ mod reader {
             }
         };
         (score, margin)
+    }
+
+    /// Compute the consequences of this decision from the observed pieces and R 1.7/7.2.
+    fn casino_words(before: &Observation, after: &Observation, id: &str) -> Vec<String> {
+        let (earlier, _) = standing(before, Faction::Syndicate);
+        let (later, _) = standing(after, Faction::Syndicate);
+        let mut expected = vec![];
+        if earlier != later {
+            expected.push(format!("Syndicate open Casinos: {earlier} → {later}."));
+        }
+        let space = after.spaces.iter().find(|s| s.id == id).unwrap();
+        let before = before.spaces.iter().find(|s| s.id == id).unwrap();
+        let named = |f: Option<Faction>| f.map_or("none", Faction::name);
+        let (from, to) = (controls(before), controls(space));
+        if from != to {
+            expected.push(format!(
+                "{} Control: {} → {}.",
+                space.name,
+                named(from),
+                named(to)
+            ));
+        }
+        expected
     }
 
     fn notes(

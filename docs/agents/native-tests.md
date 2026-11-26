@@ -2,7 +2,10 @@
 
 The [seat reference](seat.md) has the seat's requests, its component ids, what the table reports and how to judge a capture on the owner's display.
 
-- `native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_recovery` (#221) authorizes one Resource in the modal, requests more through the real Syndicate client, and saves while Directorio decides. Its client settles both authorizations after restart. The test checks an earlier refusal, stale and repeat replies, Havana's payment, a second restart, committed transfers in the report, and exact pre-Finish recovery. Evidence goes to `local/verification/issue-221/` when run directly.
+- `native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_recovery` (#221) authorizes one Resource in the modal, reads its held status in the action report, requests more through the real Syndicate client, and saves while Directorio decides. It checks the pending condition fits the tab and that Directorio's client settles both authorizations after restart. It also checks refusal, stale and repeat replies, Havana's payment, a second restart, committed transfers in the report, and exact pre-Finish recovery. Evidence goes to `local/verification/issue-221/` when run directly.
+
+- `native_syndicate_withdraws_its_pending_limited_construct_request` uses the native withdrawal row by pointer and keyboard, with a human and then a faction-client giver. It checks release of a held authorization, retention of earlier transfers and refusal of the stale giver reply. Evidence goes to `local/verification/issue-215/` when run directly.
+- `native_construct_inspects_pass_pact_and_unavailable_plan` checks the Government Pass and Pact tags and matches Havana's displayed plan refusal to the faction client and checked choice. Evidence goes to `local/verification/issue-215/` when run directly.
 
 - `native_operation_only_construct_resumes_the_map_and_finishes_in_payment_order` (#218) pays in Camagüey City by keyboard, restarts, then uses the faction client to pay in Havana and finish. It checks the map, ordered record, report, adjusted Eligibility and exact pre-Finish recovery. Evidence goes to `local/verification/issue-218/` when run directly.
 

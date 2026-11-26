@@ -226,15 +226,11 @@ impl Shown {
             if self.amount < funding.shortfall {
                 return balances(terms, 0);
             }
-            let previously_authorized = funding
-                .authorizations
-                .iter()
-                .filter(|a| a.giver == terms.giver)
-                .map(|a| i16::from(a.amount))
-                .sum::<i16>();
             let (giver, recipient) = balances(terms, self.amount);
+            // The incoming Construct terms already hold back this giver's
+            // committed authorizations. Keep the signed balances for typed refusals.
             return (
-                giver - previously_authorized,
+                giver - i16::from(terms.reserved),
                 recipient + i16::from(funding.authorized()),
             );
         }
@@ -2255,7 +2251,7 @@ fn pending(
             || format!("{amount} requested · pending"),
             |funding| {
                 format!(
-                    "{} authorized · need {}",
+                    "{} held · +{} moves all",
                     funding.authorized(),
                     funding.shortfall
                 )

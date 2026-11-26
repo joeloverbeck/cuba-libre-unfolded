@@ -60,6 +60,57 @@ fn underfunded_construct() -> Game {
 }
 
 #[test]
+fn government_pass_and_pact_status_remain_accurate_during_construct() {
+    let mut game = Game::opening_with_seed(2);
+    // Bring Government from 1 to 5 before Pass. A later gift must not rewrite
+    // that 5 → 8 Pass or make it look like a loss of Resources.
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "transfer",
+        "give:0:4",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:pass",
+    ] {
+        choose(&mut game, action);
+    }
+    let handoff = game.observe();
+    assert!(
+        handoff
+            .cards
+            .current
+            .words
+            .status
+            .contains("Event open to Syndicate")
+    );
+    assert!(
+        handoff
+            .choices
+            .iter()
+            .any(|choice| { choice.label.contains("Pact of Caracas") && !choice.supported })
+    );
+    for action in ["syndicate:construct", "transfer", "ask:0:4", "authorize:4"] {
+        choose(&mut game, action);
+    }
+    let constructing = game.observe();
+    assert_eq!(constructing.resources[0], 4);
+    let pass = &constructing.recorded_resources[0];
+    assert_eq!(
+        (pass.faction, pass.from, pass.to),
+        (Faction::Government, 5, 8)
+    );
+    assert_eq!(
+        constructing.cards.current.words.status,
+        "Event closed: Syndicate chose Operation Only"
+    );
+}
+
+#[test]
 fn operation_only_construct_can_transfer_its_last_resource_and_finish() {
     let mut game = card_18();
     for action in [
@@ -246,6 +297,66 @@ fn construct_reports_transfers_in_order_even_when_the_same_giver_replies_twice()
 }
 
 #[test]
+fn construct_reports_each_open_casino_change_even_when_the_total_returns_to_two() {
+    let mut game = underfunded_construct();
+    let start = game.observe();
+    assert_eq!(start.standings[3].score, 2);
+    let mut reports = Reports::new(&start);
+    for action in ["transfer", "ask:1:2", "authorize:2"] {
+        choose(&mut game, action);
+        reports.record(&game.observe());
+    }
+    let before_payment = game.observe().revision;
+    choose(&mut game, "construct:havana:open");
+    assert_eq!(game.observe().standings[3].score, 3);
+    reports.record(&game.observe());
+    for action in [
+        "remove",
+        "close-casino:pinar-del-rio:open-casino:1",
+        "done-removal",
+        "end-construct",
+    ] {
+        choose(&mut game, action);
+        reports.record(&game.observe());
+    }
+    let end = game.observe();
+    assert_eq!(end.standings[3].score, 2);
+    assert_eq!(
+        end.spaces
+            .iter()
+            .find(|space| space.id == "pinar-del-rio")
+            .unwrap()
+            .control(),
+        None
+    );
+    for (pages, first_article) in [(reports.all(), 1), (reports.since(before_payment), 0)] {
+        let report = pages.last().unwrap();
+        let opened = &report.articles[first_article];
+        let closed = &report.articles[first_article + 1];
+        assert_eq!(opened.title, "Construct in Havana");
+        assert!(
+            opened
+                .lines
+                .iter()
+                .any(|line| line == "Syndicate open Casinos: 2 → 3.")
+        );
+        assert_eq!(closed.title, "Casino management in Pinar del Río");
+        assert!(
+            closed
+                .lines
+                .iter()
+                .any(|line| line == "Syndicate open Casinos: 3 → 2.")
+        );
+        assert!(
+            closed
+                .lines
+                .iter()
+                .any(|line| line == "Pinar del Río Control: Syndicate → none.")
+        );
+    }
+}
+
+#[test]
 fn limited_construct_holds_insufficient_authorizations_until_they_can_fund_a_payment() {
     let mut game = underfunded_construct();
     let mut reports = Reports::new(&game.observe());
@@ -265,7 +376,22 @@ fn limited_construct_holds_insufficient_authorizations_until_they_can_fund_a_pay
     assert_eq!(funding.shortfall, 1);
     assert_eq!(funding.authorizations[0].giver, M26);
     assert_eq!(funding.authorizations[0].amount, 1);
-    assert!(reports.all().last().unwrap().articles.is_empty());
+    for pages in [reports.all(), reports.since(pending.revision)] {
+        let report = pages.last().expect("the held reply has a report");
+        assert!(report.articles.is_empty());
+        assert_eq!(
+            report.summary.as_deref(),
+            Some(
+                "1 conditionally authorized · 1 still needed. Resources move only when authorizations fund a legal payment."
+            )
+        );
+        assert!(
+            report
+                .standings
+                .iter()
+                .all(|row| row.resources.from == row.resources.to)
+        );
+    }
     refuse(&mut game, SYNDICATE, "construct:havana:open");
     let mut management = game.clone();
     choose(&mut management, "remove");

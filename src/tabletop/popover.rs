@@ -219,8 +219,8 @@ impl Popover {
             .filter(|(_, at)| *at == revision)
             .map(|(space, _)| (space.as_str(), self.selected.as_deref()))
     }
-    /// A click on a 26July piece in removal mode: a removable group's popover opens,
-    /// or closes when it is the open one; a protected piece opens nothing.
+    /// A click in piece management opens or closes the group's popover. A protected
+    /// Casino still opens for inspection.
     pub fn click_piece(&mut self, key: &str, targeting: &Targeting) {
         let Some(revision) = targeting.view.as_ref().map(|v| v.revision) else {
             return;
@@ -238,7 +238,8 @@ impl Popover {
             self.quantity = 1;
         }
     }
-    /// The stepper: one more or one fewer, within 1 and what may be removed now.
+    /// The stepper moves between one piece and the group's preview limit. Casinos
+    /// can preview any quantity in the stack; other groups stop at the legal maximum.
     pub fn step(&mut self, delta: i8, targeting: &Targeting) {
         if let Some(target) = self.piece.as_ref().and_then(|(k, _)| targeting.piece(k)) {
             self.quantity = (i16::from(self.quantity) + i16::from(delta))

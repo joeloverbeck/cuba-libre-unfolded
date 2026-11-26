@@ -1,7 +1,8 @@
 //! A report's words, fixed per kind of action. They state what changed and judge nothing.
 
 use super::{
-    Action, Article, Balance, FromTo, Item, Moment, Transfers, kind_name, recorded, standings,
+    Action, Article, Balance, CasinoEffects, FromTo, Item, Moment, Transfers, kind_name, recorded,
+    standings,
 };
 use crate::{
     Faction, Group, Kidnap, Kind, MARKER_SUPPLY, RallyAction, State, resources, support_level,
@@ -182,6 +183,7 @@ pub(super) fn articles(faction: Faction, items: &[Item]) -> Vec<Article> {
                     space,
                     group,
                     closed_in_place,
+                    effects,
                 } => {
                     let state = if group.state == State::Open {
                         "open"
@@ -200,10 +202,9 @@ pub(super) fn articles(faction: Faction, items: &[Item]) -> Vec<Article> {
                             group.count
                         )
                     };
-                    Some(article(
-                        format!("Casino management in {space}"),
-                        vec![effect, "0 Resources · no Profit.".into()],
-                    ))
+                    let mut lines = vec![effect, "0 Resources · no Profit.".into()];
+                    lines.extend(casino_effects(space, effects));
+                    Some(article(format!("Casino management in {space}"), lines))
                 }
                 Item::Kidnap { space, kidnap } => Some(kidnapped(space, kidnap)),
                 Item::Terror {
@@ -261,13 +262,15 @@ pub(super) fn articles(faction: Faction, items: &[Item]) -> Vec<Article> {
                     paid,
                     balance,
                     plan,
-                } => Some(article(
-                    format!("Construct in {space}"),
-                    vec![
+                    effects,
+                } => {
+                    let mut lines = vec![
                         pays(faction, *paid, *balance),
                         format!("{} {}.", faction.name(), plan.result()),
-                    ],
-                )),
+                    ];
+                    lines.extend(casino_effects(space, effects));
+                    Some(article(format!("Construct in {space}"), lines))
+                }
                 Item::Shaded { flips } => {
                     let mut lines: Vec<String> = flips
                         .iter()
@@ -467,8 +470,25 @@ pub(super) fn notes(first: &Moment, last: &Moment, faction: Faction) -> Vec<Arti
     .collect()
 }
 
+fn control_name(control: Option<Faction>) -> &'static str {
+    control.map_or("none", Faction::name)
+}
+
+fn casino_effects(space: &str, effects: &CasinoEffects) -> impl Iterator<Item = String> {
+    let open = effects
+        .open
+        .map(|FromTo { from, to }| format!("Syndicate open Casinos: {from} → {to}."));
+    let control = effects.control.map(|(from, to)| {
+        format!(
+            "{space} Control: {} → {}.",
+            control_name(from),
+            control_name(to)
+        )
+    });
+    open.into_iter().chain(control)
+}
+
 fn control(first: &Moment, last: &Moment) -> Vec<String> {
-    let name = |control: Option<Faction>| control.map_or("none", Faction::name);
     first
         .spaces
         .iter()
@@ -478,8 +498,8 @@ fn control(first: &Moment, last: &Moment) -> Vec<String> {
             format!(
                 "{}: {} → {}.",
                 is.name,
-                name(was.control()),
-                name(is.control())
+                control_name(was.control()),
+                control_name(is.control())
             )
         })
         .collect()

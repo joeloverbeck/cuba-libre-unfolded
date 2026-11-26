@@ -4,6 +4,78 @@ use std::fs;
 use unfolded_record_replacement::previous_path;
 
 #[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect Government Pass and Construct plan explanations"]
+fn native_construct_inspects_pass_pact_and_unavailable_plan() {
+    let mut app = super::available_forces::unlaunched("construct-inspection-", "issue-215");
+    super::assault::fund_santiago(&app.save, 4);
+    app.launch_size("3840x2160");
+    for action in ["event:shaded", "resolve-shaded"] {
+        choose_row(&mut app, action);
+    }
+    app.choose("advance-card");
+    choose_row(&mut app, "government:pass");
+    app.point("card:current");
+    let status = |seen: &Value| seen["table"]["card"]["shown"]["status"].clone();
+    assert_eq!(
+        status(&app.observe()),
+        "Event open to Syndicate as 1st Eligible"
+    );
+    choose_row(&mut app, "syndicate:construct");
+    choose_row(&mut app, "transfer");
+    app.choose("ask:0:4");
+    app.choose("authorize:4");
+    assert_eq!(app.observe()["observation"]["resources"][0], 4);
+    app.point("eligibility:pass");
+    let pass = app.observe()["table"]["eligibility"]["tag"]["body"].clone();
+    assert!(pass.as_str().unwrap().contains("+3 Resources (5 → 8)"));
+    app.capture("government-pass-after-transfer");
+    app.point("card:current");
+    assert_eq!(
+        status(&app.observe()),
+        "Event closed: Syndicate chose Operation Only"
+    );
+    app.capture("pact-closed-by-construct");
+    app.key("Escape");
+
+    let saved = app.save_bytes();
+    let shown = app.press_by_keyboard("space:havana");
+    let rows = shown["table"]["popover"]["card"]["rows"]
+        .as_array()
+        .unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["button"], "Pay 5 · Place 1 closed Casino");
+    let reason = "No closed Casino to open here (R 3.3.5).";
+    assert!(rows[0]["lines"].to_string().contains(reason), "{rows:?}");
+    assert_eq!(app.save_bytes(), saved);
+    app.capture("havana-placement-and-opening-refusal");
+
+    let syndicate = app.seat_agent(faction_seats::SYNDICATE, "syndicate");
+    let (code, view) = app.ask(&["observe", &syndicate]);
+    assert_eq!(code, 0, "{view}");
+    let revision = app.revision();
+    let choices = view["view"]["choices"].as_array().unwrap();
+    let place = choices
+        .iter()
+        .find(|c| c["id"] == format!("{revision}:construct:havana:place"))
+        .unwrap();
+    assert!(place["preview"]["notes"].to_string().contains(reason));
+    assert_eq!(
+        view["view"]["state"]["current_card"]["words"]["status"],
+        "Event closed: Syndicate chose Operation Only"
+    );
+    let (code, refused) = app.ask(&[
+        "choose",
+        &syndicate,
+        &revision.to_string(),
+        &format!("{revision}:construct:havana:open"),
+    ]);
+    assert_eq!(code, 1, "{refused}");
+    assert!(refused["error"].as_str().unwrap().contains(reason));
+    assert_eq!(app.save_bytes(), saved);
+    app.quit();
+}
+
+#[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained Construct previews and results"]
 fn native_operation_only_construct_resumes_the_map_and_finishes_in_payment_order() {
     let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
@@ -746,6 +818,26 @@ fn native_casino_management_compares_pinar_and_keeps_the_payment() {
                 edition["articles"].to_string().contains(return_written),
                 "{edition}"
             );
+            let report_articles = report["articles"].as_array().unwrap();
+            assert!(
+                report_articles[0]["lines"]
+                    .to_string()
+                    .contains("Syndicate open Casinos: 2 → 3.")
+            );
+            for articles in [&report["articles"], &edition["articles"]] {
+                let management = articles
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .find(|article| article["title"] == "Casino management in Pinar del Río")
+                    .unwrap();
+                let lines = management["lines"].to_string();
+                assert!(lines.contains("Syndicate open Casinos: 3 → 2."), "{lines}");
+                assert!(
+                    lines.contains("Pinar del Río Control: Syndicate → none."),
+                    "{lines}"
+                );
+            }
             fs::write(
                 app.root.join("faction-and-report.json"),
                 serde_json::to_vec_pretty(&seen).unwrap(),
