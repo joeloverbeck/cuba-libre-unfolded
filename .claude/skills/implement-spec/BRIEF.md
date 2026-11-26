@@ -20,9 +20,11 @@ Main checkout: `<absolute path>` (stays on `main`; edit tracked files and switch
 - Implementer for ticket N: from the main checkout, `git worktree add -b ticket/<N>-<slug> local/worktrees/ticket/<N>-<slug> integration/spec-<SPEC>`.
 - Commit on your own branch with `For #<N>` in the message, ending with `<attribution line>`. Pushing, pull requests and closing issues are the orchestrator's.
 - Build target: <each worktree's own, or the spec's one target as parallel-work.md, "One target for tickets in turn", describes, with the exact `CARGO_TARGET_DIR=…` prefix; for a ticket handed a warm target, its exact branch name>.
-- Leave your worktree and target in place when you finish.
+- Keep the worktree and target available for the merger's handoff. After that handoff, the cleanup scope in the activation record controls removal under [parallel-work.md, "Disk"](../../../docs/agents/parallel-work.md#builds).
 
 ## Private inputs and evidence
+
+- For changes to reports, choice families or faction-view fields, name the applicable [integration selectors](../../../docs/agents/native-tests.md#before-vulkan) in the ticket brief and run them before Vulkan. For changed table text, include the [pre-review captures](../../../docs/agents/seat.md#native-owner-handoff) in the handoff.
 
 - Private card directory: `~/.local/share/cuba-libre-unfolded/cards`, read-only. Native runs: `CUBA_TEST_CARDS="$HOME/.local/share/cuba-libre-unfolded/cards" scripts/heavy scripts/native <filter>`; the whole suite runs in one foreground call, after a build (`docs/agents/parallel-work.md`, "Builds").
 - The owner's saves in `~/.local/share/cuba-libre-unfolded/saves/` are read-only: copy one into your run directory and use the copy.

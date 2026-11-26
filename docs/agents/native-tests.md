@@ -1,5 +1,17 @@
 # Native regressions
 
+## Before Vulkan
+
+Run affected integration selectors when changing a report article, choice family, or faction-view field. Use `scripts/heavy cargo test --locked --test integration <selector>` with one selector per command. Keep the full `scripts/check` in the ticket's final checks.
+
+| Change | Selectors |
+|---|---|
+| Report articles, summaries, or committed facts | `reports::` |
+| Choice families or faction briefs | `seat_reference::`, `seat_briefs::` |
+| Faction-view projection or choice ownership | `faction_seats::` |
+
+## Regression catalogue
+
 The [seat reference](seat.md) has the seat's requests, its component ids, what the table reports and how to judge a capture on the owner's display.
 
 - `native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_recovery` (#221) authorizes one Resource in the modal, reads its held status in the action report, requests more through the real Syndicate client, and saves while Directorio decides. It checks the pending condition fits the tab and that Directorio's client settles both authorizations after restart. It also checks refusal, stale and repeat replies, Havana's payment, a second restart, committed transfers in the report, and exact pre-Finish recovery. Evidence goes to `local/verification/issue-221/` when run directly.
@@ -20,7 +32,7 @@ The [seat reference](seat.md) has the seat's requests, its component ids, what t
 - `native_space_tags_say_why_each_space_is_in_its_state` (#170) hovers one space of each state at 3840×2160, during Terror (blocked, selectable, not involved on a Province and on an Economic center, owed after Kidnap, resolved, and refused after a removal) and during Assault (blocked, no effect on two Provinces (La Habana among them), a Mountain and an Economic center, selectable after a transfer, paid, and unpayable (#180): that space's popover opens by a click and by Tab and Enter, lists its plans without a button, and leaves the save as it was). At 3:2 and 21:9 it checks that four spaces' tags keep off every area, region and piece. It reads `table.status.reason` against `observation.space_reasons` and the expected line, checks that the drawn line lies inside its row and that the tag keeps off every area, and keeps each capture with a 1:1 crop of the tag (`*-tag.png`). Evidence: `local/verification/issue-170/space-reason-*`.
 - `native_funded_santiago_assault_carries_each_event_and_restarts` plays both Event texts and the funded Santiago Assault. It checks the payment, removal, process restarts, duplicate refusal and Syndicate's 2nd Eligible options. It funds the match through checked decisions in a save seeded so the Kidnap die rolls 5. Evidence goes to `local/verification/issue-130/`.
 - `native_assault_resumes_giver_and_government_side_decisions` checks a transfer authorization and a voluntary Troop removal across restart, recalculated payment and removal capacity, and Syndicate's 2nd Eligible handoff. It funds the match through checked decisions in the same seeded save, and keeps evidence under `local/verification/issue-132/`.
-- `native_construct_transfer_resumes_at_the_giver_and_finishes_after_spending` requests Resources in the modal, checks an agent's request interrupts Construct with an edition, restarts at the giver and uses `cuba-player` to authorize 3 after a request for 2. It checks stale refusal, the reserve before paying, Havana's payment, a restart after payment, the outgoing transfer after paying, and exact pre-Finish recovery. Retained frames and client replies accompany the native result.
+- `native_construct_transfer_resumes_at_the_giver_and_finishes_after_spending` first checks the underfunded Havana hover reason fits its row at 3840×2160. It requests Resources in the modal, checks an agent's request interrupts Construct with an edition, restarts at the giver and uses `cuba-player` to authorize 3 after a request for 2. It checks stale refusal, the reserve before paying, Havana's payment, a restart after payment, the outgoing transfer after paying, and exact pre-Finish recovery. Retained frames and client replies accompany the native result.
 
 - `native_main_view_fills_the_window_and_matches_its_layout`: the main view at 3840×2160. The session panel is gone (#174): no part is drawn under its names, no drawn text states the saved revision or repeats the marker supply's count, no notice slip is drawn at rest, and the capture shows sea in its place. Evidence: `local/verification/issue-142/main-view-*`.
   - The map camera draws the whole window, and the capture shows sea where the desk, the "CUBA" title, the terrain key and the adjacency line were.
