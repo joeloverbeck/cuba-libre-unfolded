@@ -28,7 +28,7 @@ Every view is whole. `decision` says who decides, `state` is the position, `resu
 cuba-player --socket SOCKET choose PLAYER REVISION ID
 ```
 
-`REVISION` is your view's, and `ID` the choice's `id` as listed. The answer carries your view as it then is:
+`REVISION` is your view's, and `ID` the choice's `id` as listed. Run the command on its own as shown and read the JSON reply directly in the tool output. The answer carries your view as it then is:
 
 | Status | What happened | What you do |
 | --- | --- | --- |
@@ -58,7 +58,7 @@ When a view says that the build stops here, nothing more will come, but wait all
 
 ### In Claude Code
 
-Make every choice without `--wait`, in the foreground. Run `wait` with the Bash tool's `run_in_background` option and without a timeout, then end your turn. You are called again when it ends: read the output file the notice names, unless the notice shows the output. Use the file tools for your notes.
+Make every choice without `--wait`, in the foreground. Run `wait` with the Bash tool's `run_in_background` option and without a timeout, then end your turn. You are called again when it ends. Read the reply in the notice when it is shown. Otherwise open the notice's output file with Claude Code's `Read` tool. Use the file tools for your notes.
 
 ### In Codex
 
