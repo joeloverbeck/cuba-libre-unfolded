@@ -14,6 +14,8 @@ Run affected integration selectors when changing a report article, choice family
 
 The [seat reference](seat.md) has the seat's requests, its component ids, what the table reports and how to judge a capture on the owner's display.
 
+- `native_resume_and_recovery_preserve_proclamations_and_the_pending_giver` (#232) uses Save · quit with a read offer, an unread document and Syndicate's two-Resource decision pending. It checks the reopened text, seat reset, faction allowances and exact request, rereads the offer and authorizes the transfer once. It recovers both an earlier record with one document still unread and the exact pre-authorization record, then repeats the authorization from that copy and compares the saved result byte for byte. Evidence goes to `local/verification/issue-232/` when run directly.
+
 - `native_human_composes_a_proclamation_for_the_selected_faction` (#230) selects a human author from the author controls, closes the sheet, and plays the pending decision in silence.
 - `native_human_publication_preserves_the_pending_havana_request` (#230) types the exact 400-character Broadsheet at 3840×2160. It checks the rendered bounds, retained drafts after refusals, the allowance across takeover, and the exact publication in the real Directorio client while 26July’s transfer choice stays pending. Evidence goes to `local/verification/issue-230/` when run directly.
 

@@ -578,7 +578,7 @@ fn native_construct_transfer_resumes_at_the_giver_and_finishes_after_spending() 
     assert_eq!(fs::read(previous_path(&app.save)).unwrap(), previous);
     app.quit();
 
-    let source = launch_recovered(&mut app);
+    let source = launch_recovered(&mut app, "recovered.json");
     assert_eq!(app.save_bytes(), previous);
     assert_eq!(app.observe()["observation"], before_finish);
     choose_row(&mut app, "end-construct");
@@ -1019,7 +1019,7 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
     assert_eq!(app.observe()["observation"], finished["observation"]);
     assert_eq!(app.save_bytes(), terminal);
     app.quit();
-    let source = launch_recovered(&mut app);
+    let source = launch_recovered(&mut app, "recovered.json");
     assert_eq!(app.save_bytes(), previous);
     assert_eq!(app.observe()["observation"], before_finish);
     choose_row(&mut app, "end-construct");
@@ -1066,9 +1066,10 @@ fn close_havana_with_assault(app: &mut Native) {
     );
 }
 
-pub(super) fn launch_recovered(app: &mut Native) -> PathBuf {
+pub(super) fn launch_recovered(app: &mut Native, destination: &str) -> PathBuf {
     let source = app.save.clone();
-    app.save = app.root.join("recovered.json");
+    app.save = app.root.join(destination);
+    assert!(!app.save.exists());
     let output = Command::new(env!("CARGO_BIN_EXE_cuba-libre"))
         .args([
             "--cards",
@@ -1092,6 +1093,6 @@ pub(super) fn launch_recovered(app: &mut Native) -> PathBuf {
         "{}",
         String::from_utf8_lossy(&output.stderr)
     );
-    fs::write(app.root.join("recovery-launch.jsonl"), output.stdout).unwrap();
+    fs::write(app.save.with_extension("launch.jsonl"), output.stdout).unwrap();
     source
 }

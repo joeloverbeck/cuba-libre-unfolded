@@ -157,7 +157,7 @@ An external Claude Code or Codex session can play a faction for you. The four ca
 - **Transfer requests** go to whoever plays the giver. An agent that plays 26July keeps its withdrawal while you, as the giver, decide, and you keep yours while an agent does.
 - **The socket's path:** `$CUBA_LIBRE_PLAYER_SOCKET`, when it is set, replaces the default for the game and for `cuba-player` alike, and without `$XDG_RUNTIME_DIR` the default is in the temporary directory. `--player-socket` overrides both for the game.
 - **Taking a faction back** works at any time. The session ends, and a choice of its that was not applied is cancelled.
-- **Save · quit** ends every session. Who plays which faction is not saved: after a relaunch you play all four. The save is the one the same decisions by your own hand would write.
+- **Save · quit** ends every session. After a relaunch you play all four factions. The same decisions produce the same game position whoever made them.
 
 ### Opening a session
 
@@ -183,6 +183,8 @@ When a faction you do not play completes an action, an edition of *El Correo de 
 A faction player's publication opens as a public Broadsheet. Read the issuer, card and the faction's own words. **Return to choice**, Escape, Enter or Space acknowledges it. If another proclamation is waiting, **Next proclamation** opens it in publication order. You can return to the table with later proclamations still unread. While the page is open, agent choices wait. Your pending decision and keyboard focus resume when you return to the table.
 
 Select **Proclamations** or press R to reread the public record. Use the previous and next buttons or Left and Right to browse it. If a proclamation extends below the reading area, use the wheel or Up and Down. The factual newspaper reports committed actions under its own masthead.
+
+Reopening a match restores the public record and its unread count. **Proclamations** opens the first unread document, or the first in the record if all have been read. A proclamation you publish is already read. If the table cannot save an acknowledgement, the document stays open so you can retry.
 
 ## Camera and keys
 

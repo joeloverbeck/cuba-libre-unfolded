@@ -176,8 +176,33 @@ fn native_rechecks_a_givers_held_choice_after_reading() {
             assert_eq!(app.settle()["observation"], position);
             app.capture("reclaimed-giver-choice-still-pending");
         } else {
+            // A missing main record makes the shared replacement refuse. The
+            // published words and held choice must survive the failed click.
+            let saved = app.save_bytes();
+            let previous = fs::read(previous_path(&app.save)).unwrap();
+            let preserved = app
+                .root
+                .join("preserved-during-failed-acknowledgement.json");
+            fs::rename(&app.save, &preserved).unwrap();
+            app.activate(RETURN, revision);
+            fs::rename(&preserved, &app.save).unwrap();
+            let failed = app.observe();
+            assert_eq!(failed["observation"], position);
+            let reader = &failed["table"]["proclamations"];
+            assert_eq!(reader["open"], 1);
+            assert_eq!(reader["unread"], 1);
+            assert_eq!(reader["documents"][0]["read"], false);
+            assert!(reader["save_error"].is_string(), "{reader}");
+            assert_eq!(seat(&failed, "Syndicate")["holds_choice"], true);
+            assert_eq!(holding(&failed), ["a proclamation"]);
+            assert_eq!(app.save_bytes(), saved);
+            assert_eq!(fs::read(previous_path(&app.save)).unwrap(), previous);
+            app.capture("failed-acknowledgement-keeps-choice-held");
+
             app.key("Escape");
             let applied = app.settle();
+            assert!(applied["table"]["proclamations"]["save_error"].is_null());
+            assert_eq!(applied["table"]["proclamations"]["unread"], 0);
             assert_eq!(applied["observation"]["revision"], revision + 1);
             assert_eq!(applied["observation"]["resources"], json!([1, 6, 5, 13]));
             assert_eq!(seat(&applied, "Syndicate")["holds_choice"], false);
@@ -254,6 +279,26 @@ fn native_resume_and_recovery_preserve_proclamations_and_the_pending_giver() {
     reader_after_reading["unread"] = 0.into();
     reader_after_reading["documents"][1]["read"] = true.into();
 
+    // This particular previous record still has one unread document, even
+    // though the source now records both. Recover it without changing either.
+    app.quit();
+    let source =
+        super::construct_transfers::launch_recovered(&mut app, "recovered-one-unread.json");
+    let earlier = app.observe();
+    assert_eq!(earlier["observation"], *pending);
+    assert_eq!(
+        earlier["table"]["proclamations"],
+        before["table"]["proclamations"]
+    );
+    assert_eq!(app.save_bytes(), waiting_save);
+    assert_eq!(fs::read(&source).unwrap(), both_read);
+    assert_eq!(fs::read(previous_path(&source)).unwrap(), waiting_save);
+    app.capture("recovered-record-with-one-unread-proclamation");
+    app.quit();
+    app.save = source;
+    app.launch_size("3840x2160");
+    assert_eq!(app.save_bytes(), both_read);
+
     app.choose("reopen");
     let before_authorizing = app.observe();
     assert_eq!(
@@ -269,6 +314,8 @@ fn native_resume_and_recovery_preserve_proclamations_and_the_pending_giver() {
     let authorization = format!("{giver_revision}:authorize:2");
     app.choose("authorize:2");
     let applied = app.observe();
+    assert_eq!(applied["observation"]["revision"], giver_revision + 1);
+    assert!(applied["observation"]["transfer"].is_null());
     assert_eq!(applied["observation"]["resources"], json!([1, 6, 5, 13]));
     assert_eq!(applied["table"]["proclamations"], reader_after_reading);
     app.capture("authorized-once-after-reopen");
@@ -290,10 +337,11 @@ fn native_resume_and_recovery_preserve_proclamations_and_the_pending_giver() {
         json!({"op":"activate","revision":giver_revision,"choice":authorization}),
         false,
     );
+    assert_allowances_and_reset_seats(&mut app, &committed_again, first, second);
     assert_eq!(app.save_bytes(), committed);
     app.quit();
 
-    let source = super::construct_transfers::launch_recovered(&mut app);
+    let source = super::construct_transfers::launch_recovered(&mut app, "recovered.json");
     let recovered = app.observe();
     assert_eq!(recovered["observation"], before_authorizing["observation"]);
     assert_eq!(recovered["table"]["proclamations"], reader_after_reading);

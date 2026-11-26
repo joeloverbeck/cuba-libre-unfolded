@@ -104,8 +104,17 @@ fn native_human_publication_preserves_the_pending_havana_request() {
         }),
         true,
     );
-    assert!(app.observe()["table"]["proclamation_composer"].is_null());
-    assert_eq!(app.observe()["observation"], pending);
+    let published = app.observe();
+    assert!(published["table"]["proclamation_composer"].is_null());
+    assert_eq!(published["observation"], pending);
+    let reader = &published["table"]["proclamations"];
+    assert_eq!(reader["open"], Value::Null);
+    assert_eq!(reader["unread"], 0);
+    assert_eq!(reader["documents"][0]["read"], true);
+    assert_eq!(
+        std::fs::read(unfolded_record_replacement::previous_path(&app.save)).unwrap(),
+        before
+    );
     let (code, seen) = app.ask(&["observe", &directorio]);
     assert_eq!(code, 0, "{seen}");
     assert_eq!(
@@ -157,6 +166,9 @@ fn native_human_publication_preserves_the_pending_havana_request() {
     assert!(havana["pieces"].as_array().unwrap().iter().any(|piece| {
         piece["faction"] == "Syndicate" && piece["kind"] == "Casino" && piece["state"] == "Closed"
     }));
+    app.quit();
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["table"]["proclamations"], *reader);
     app.quit();
 }
 
