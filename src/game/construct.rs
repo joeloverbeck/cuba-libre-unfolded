@@ -1,6 +1,8 @@
 //! Syndicate Construct (R 2.3.5, 3.3.5).
 use super::*;
 
+mod management;
+
 pub const CONSTRUCT_COST: u8 = 5;
 const OPEN: &str = "syndicate:limited-operation";
 pub(super) const FINISH: &str = "end-construct";
@@ -12,6 +14,7 @@ const CASINO_LIMIT: u8 = 2;
 #[serde(deny_unknown_fields)]
 pub(super) struct Construct {
     paid: Vec<ConstructResolution>,
+    side_effect_committed: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -115,6 +118,30 @@ impl Game {
         self.construct.as_ref().map_or(&[], |op| op.paid.as_slice())
     }
 
+    pub(super) fn mark_construct_side_effect(&mut self) {
+        self.construct.as_mut().unwrap().side_effect_committed = true;
+    }
+
+    pub(super) fn construct_payment_owed(&self) -> bool {
+        self.construct_is_open() && self.construct_paid().is_empty()
+    }
+
+    pub(super) fn can_afford_construct_payment(&self, balance: u8) -> bool {
+        balance >= CONSTRUCT_COST
+            && self.spaces.iter().any(|space| {
+                qualifying_space(space).is_ok()
+                    && ConstructPlan::ALL
+                        .into_iter()
+                        .any(|plan| plan.requirement(space, self.casino_inventory()).is_ok())
+            })
+    }
+
+    pub(super) fn construct_may_go_back(&self) -> bool {
+        self.construct
+            .as_ref()
+            .is_some_and(|op| op.paid.is_empty() && !op.side_effect_committed)
+    }
+
     pub(super) fn limited_construct_choice(&self) -> Choice {
         self.offer(
             OPEN, "Limited Operation · Construct", true,
@@ -158,12 +185,13 @@ impl Game {
         if !self.construct_is_open() {
             return None;
         }
-        if action == BACK && !self.construct_paid().is_empty() {
-            return Some(
-                "The Construct payment has committed. Finish Construct to record the Operation.",
-            );
+        if action == BACK && !self.construct_may_go_back() {
+            return Some("Construct is committed. Finish Construct to record the Operation.");
         }
         let (space, plan) = payment(action)?;
+        if self.removal.is_some() {
+            return Some("Choose Done to leave piece management before paying for Construct.");
+        }
         let spot = self.spaces.iter().find(|s| s.id == space)?;
         self.construct_payment_requirement(spot, plan).err()
     }
@@ -186,6 +214,9 @@ impl Game {
     }
 
     pub(super) fn construct_choices(&self) -> Vec<Choice> {
+        if self.removal.is_some() {
+            return self.construct_management_choices();
+        }
         let mut choices = vec![];
         if self.construct_limit().is_ok() {
             let available = self.casino_inventory();
@@ -236,7 +267,8 @@ impl Game {
             "Pay for one space on the map before finishing Limited Construct (R 2.3.5).".into()
         };
         choices.push(self.offer(FINISH, "Finish Construct", !paid.is_empty(), explanation));
-        if paid.is_empty() {
+        choices.push(self.construct_manage_choice());
+        if self.construct_may_go_back() {
             choices.push(self.offer(
                 BACK, "Back to the action choice", true,
                 "Leave before committing a payment. Syndicate may choose Pass or Limited Construct.",
@@ -273,7 +305,14 @@ impl Game {
 
     pub(super) fn apply_construct(&mut self, action: &str) -> Result<(), String> {
         match action {
-            OPEN => self.construct = Some(Construct { paid: vec![] }),
+            _ if self.removal.is_some() => return self.apply_construct_management(action),
+            OPEN => {
+                self.construct = Some(Construct {
+                    paid: vec![],
+                    side_effect_committed: false,
+                })
+            }
+            "remove" => self.removal = Some(Removal::Selecting),
             BACK => self.construct = None,
             FINISH => self.card_18_completion = Some(Card18Completion::Construct),
             _ => {

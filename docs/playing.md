@@ -130,7 +130,11 @@ Pin **Pass** to preview the balance after gaining 1 Resource, up to 49, and see 
 
 After Government finishes Assault, choose **Limited Operation · Construct**. Click a marked city or province, or reach it with Tab and press Enter. The popover offers each legal plan. Select **Open 1 closed Casino** or **Place 1 closed Casino** when available, then use its **Pay 5** button. Check the payment and Casino counts before committing.
 
-The panel records the paid space and the Casino action. Choose **Finish Construct** to end card 18 and make both Government and Syndicate Ineligible for card 19. A saved payment resumes at the same Finish decision. Before paying, **Back to the action choice** lets you reconsider.
+The panel records the paid space and the Casino action. Choose **Finish Construct** to end card 18 and make both Government and Syndicate Ineligible for card 19. A saved payment resumes at the same Finish decision. **Back to the action choice** is available before the first committed effect.
+
+**Manage own pieces** opens the Syndicate's piece controls. Select an open Casino on the map to compare **Close 1 Casino in place** with **Return 1 Casino to Available**. Closing leaves a closed Casino in that space. Returning frees its slot and increases the Available Forces count. The popover shows changes to Control, open Casinos and the remaining Construct plans. Select a closed Casino to return it, and use the stepper when the selected group holds more than one piece. Tab reaches the group and its controls, and Enter or Space activates each control. **Cancel** or Escape closes the popover without committing. Select **Done** to return to Construct.
+
+An unpaid Limited Construct can refuse a piece action that would leave no affordable legal payment. The popover explains when to pay first. Management stays available after payment, and a paid space remains used even when its Casino changes.
 
 ## Handing a faction to an agent
 

@@ -157,6 +157,7 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `pending-open` | Top band | Shows a waiting transfer decision again (choice `<revision>:reopen`). |
 | `popover:row:<action>` | Space popover | The row for `<action>`. |
 | `popover:commit` | Space or piece popover | Commits. |
+| `popover:casino-close`, `popover:casino-return` | Casino popover during Construct | Commit closing the selected quantity in place or returning it to Available. A closed group offers return. |
 | `popover:quantity:minus`, `popover:quantity:plus` | Piece popover | Steps the quantity. |
 | `popover:cancel` | Piece popover | Cancels. |
 | `own-piece:<space>:<group>` | Removal mode | Opens an executing faction's piece popover. The seat reaches it as `piece:<space> <faction> <Kind> <State>`, for example `piece:santiago Government Troops Ordinary`. Use `M26` for 26July and `Directorio` for Directorio. |
@@ -193,10 +194,11 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:syndicate:profit`, `<revision>:syndicate:muscle`, `<revision>:syndicate:bribe` | Inspect Syndicate's Special Activities and which Operations they may accompany. |
 | `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so 26July's option set is complete; unsupported, with the reason in `explanation`. |
 | `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap` | Execution steps during Terror. |
-| `<revision>:transfer`, `<revision>:remove` | Opens a Resource transfer or voluntary removal during Terror, Directorio's Event choices, the free Rally or Government's Assault. |
+| `<revision>:transfer`, `<revision>:remove` | Opens a Resource transfer or voluntary removal during Terror, Directorio's Event choices, the free Rally or Government's Assault. During Construct, `remove` opens **Manage own pieces**. |
 | `<revision>:back-to-choice` | Goes back to the action choice, until the first effect: from Terror or Limited Construct, or while a Terror Transfer request awaits another faction, which withdraws it. Not offered in removal mode or while Kidnap is open. |
 | `<revision>:kidnap:roll`, `<revision>:kidnap:cancel` | Kidnap's Roll and Cancel. |
 | `<revision>:remove:<space>:<group>:<n>` | In removal mode, removes `n` pieces of a stack. |
+| `<revision>:close-casino:<space>:open-casino:<n>` | In Construct's piece management, closes `n` open Casinos in place. Use `open-casino` or `closed-casino` for the groups in a return choice. |
 | `<revision>:done-removal` | Leaves removal mode; removed pieces stay in Available. |
 | `<revision>:give:<faction>:<amount>` | The executing faction gives its own Resources immediately. |
 | `<revision>:ask:<faction>:<amount>` | The executing faction asks another faction for Resources. The giver decides how much moves. |

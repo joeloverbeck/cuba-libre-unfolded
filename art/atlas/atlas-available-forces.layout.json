@@ -48,7 +48,7 @@
     "atlas-available-directorio-guerrilla.png": {"artboard": "directorio-guerrilla", "tool": "VectorCraft", "size": [52, 82]},
     "atlas-available-directorio-base.png": {"artboard": "directorio-base", "tool": "VectorCraft", "size": [100, 61]},
     "atlas-available-syndicate-guerrilla.png": {"artboard": "syndicate-guerrilla", "tool": "VectorCraft", "size": [52, 82]},
-    "atlas-available-syndicate-casino.png": {"artboard": "syndicate-casino", "tool": "VectorCraft", "size": [100, 61]}
+    "atlas-casino-plain.png": {"artboard": "Closed or in supply", "tool": "VectorCraft", "size": [300, 183]}
   },
   "tag": {
     "note": "#160: a faction's tag. 'rows' are the hover and focus targets in the frame '16:9 available forces' (hidden rectangles '<faction>-row'): each row's band across the plate, between the rules around it. 'frame' is the FigCraft frame 'hover tag \u00b7 Government', the accepted top-display tag (TOP.md) at 1.6875 units per reference pixel: 'parts' and 'text' are relative to its top left; the plate is atlas-top-tag.png stretched to the tag and the rule atlas-victory-rule.png; text styles Tag/title (Lato 45.5625, ink), Tag/row (30.375; labels ink, values ink-secondary) and Tag/note (28.6875, 38.8125 per line, ink-secondary). The tag grows with its rows and note lines as the top-display tag does: rows from 128.25, 47.25 apart; notes 20.25 below the rows; 23.625 below the notes. 'open' is where every faction's tag opens (the hidden 'government-tag' in the 16:9 frame): 13.5 left of the ledger, its top 13.5 below the standings area's foot, anchored top right. 'export' is the frame's export, for review; it is not admitted.",

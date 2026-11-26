@@ -18,7 +18,7 @@ fn the_ledger_s_plate_and_pieces_are_admitted() {
             "atlas-available-directorio-guerrilla.png",
             "atlas-available-directorio-base.png",
             "atlas-available-syndicate-guerrilla.png",
-            "atlas-available-syndicate-casino.png",
+            "atlas-casino-plain.png",
         ]
     );
 }

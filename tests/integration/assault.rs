@@ -1143,3 +1143,138 @@ fn each_of_the_thirteen_spaces_has_the_reason_r_3_2_4_gives_its_state() {
         assert!(reason.is_none_or(|r| r.chars().count() <= 33));
     }
 }
+
+#[test]
+fn casino_management_closes_or_returns_the_selected_open_casino() {
+    // R 1.4.1, 1.4.4–5, 1.7, 3.3.5: the only piece in Pinar is an open Casino.
+    // Closing removes its Control and score but leaves a Casino in the space.
+    // Returning also adds one to Available Forces. Neither is Profit or a payment.
+    let mut game = assault_after(4, &SHADED);
+    choose(&mut game, "assault:havana:syndicate");
+    choose(&mut game, "end-assault");
+    choose(&mut game, "syndicate:limited-operation");
+    choose(&mut game, "construct:havana:open");
+    choose(&mut game, "remove");
+    let start = game.observe();
+    let pinar = |view: &Observation| {
+        view.spaces
+            .iter()
+            .find(|s| s.id == "pinar-del-rio")
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(pinar(&start).control(), Some(Faction::Syndicate));
+    assert_eq!(start.standings[3].score, 3);
+    for (action, label, count, available) in [
+        (
+            "close-casino:pinar-del-rio:open-casino:1",
+            "Close 1 Casino in place",
+            1,
+            7,
+        ),
+        (
+            "remove:pinar-del-rio:open-casino:1",
+            "Return 1 Casino to Available",
+            0,
+            8,
+        ),
+    ] {
+        let mut branch = game.clone();
+        let selected = start.choices.iter().find(|c| c.action() == action).unwrap();
+        assert_eq!(selected.label, label);
+        let preview = selected.preview.as_ref().unwrap();
+        assert!(preview.resources.is_empty());
+        assert_eq!(preview.control[0].space, "pinar-del-rio");
+        assert_eq!(preview.control[0].from, Some(Faction::Syndicate));
+        assert_eq!(preview.control[0].to, None);
+        assert_eq!(
+            (
+                preview.standings[0].score_from,
+                preview.standings[0].score_to
+            ),
+            (3, 2)
+        );
+        choose(&mut branch, action);
+        let changed = branch.observe();
+        assert_eq!(changed.resources, start.resources);
+        assert_eq!(changed.standings[3].score, 2);
+        assert_eq!(changed.construct_paid, start.construct_paid);
+        assert_eq!(pinar(&changed).control(), None);
+        assert_eq!(pinar(&changed).pieces.len(), count);
+        assert!(
+            pinar(&changed)
+                .pieces
+                .iter()
+                .all(|p| p.state == State::Closed && p.count == 1)
+        );
+        assert_eq!(
+            changed
+                .available
+                .iter()
+                .find(|p| p.kind == Kind::Casino)
+                .unwrap()
+                .count,
+            available
+        );
+        assert!(changed.removal.is_some());
+        let stale = branch
+            .submit(start.owner, start.revision, &selected.id)
+            .unwrap_err();
+        assert!(stale.contains("Stale match revision"));
+        assert_eq!(branch.observe(), changed);
+        choose(&mut branch, "done-removal");
+        choose(&mut branch, "end-construct");
+    }
+}
+
+#[test]
+fn unpaid_limited_construct_loses_pinar_but_can_pay_in_havana_after_management() {
+    let mut game = assault_after(4, &SHADED);
+    choose(&mut game, "assault:havana:syndicate");
+    choose(&mut game, "end-assault");
+    choose(&mut game, "syndicate:limited-operation");
+    choose(&mut game, "remove");
+    choose(&mut game, "done-removal");
+    assert!(
+        game.observe()
+            .choices
+            .iter()
+            .any(|c| c.action() == "back-to-choice")
+    );
+    choose(&mut game, "remove");
+    let preview = game
+        .observe()
+        .choices
+        .into_iter()
+        .find(|c| c.action() == "close-casino:pinar-del-rio:open-casino:1")
+        .unwrap()
+        .preview
+        .unwrap();
+    assert_eq!(
+        preview.management.unwrap().construct_options,
+        ["After Done, unavailable: Place 1 closed Casino in Pinar del Río."]
+    );
+    choose(&mut game, "close-casino:pinar-del-rio:open-casino:1");
+    choose(&mut game, "done-removal");
+    let committed = game.observe();
+    assert!(plans(&committed, "pinar-del-rio").is_empty());
+    assert!(
+        plans(&committed, "havana")
+            .into_iter()
+            .any(|c| c.supported && c.action() == "construct:havana:open")
+    );
+    assert!(
+        !committed
+            .choices
+            .iter()
+            .any(|c| c.action() == "back-to-choice")
+    );
+    let back = format!("{}:back-to-choice", committed.revision);
+    let refusal = game
+        .submit(committed.owner, committed.revision, &back)
+        .unwrap_err();
+    assert!(refusal.contains("committed"));
+    assert_eq!(game.observe(), committed);
+    choose(&mut game, "construct:havana:open");
+    choose(&mut game, "end-construct");
+}

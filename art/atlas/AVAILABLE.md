@@ -23,7 +23,7 @@ The study's [`hover-tag.png`](../proposals/available-forces/hover-tag.png) drew 
 
 ## Files
 
-- **Graphics source:** `atlas-available-forces.vectorcraft`, authored through the VectorCraft MCP from the study's `available-forces-graphics.vectorcraft`: G1's nine pieces, copied and scaled with their strokes. Each artboard is drawn at 6× the 1920×1280 reference and exported at 0.5, which is 3× the reference, as the top display's are ([TOP.md](TOP.md)). Each piece fills its artboard's height (the bases its width) and is centred in it.
+- **Graphics source:** `atlas-available-forces.vectorcraft`, authored through the VectorCraft MCP from the study's `available-forces-graphics.vectorcraft`: G1's pieces, copied and scaled with their strokes. Each artboard is drawn at 6× the 1920×1280 reference and exported at 0.5, which is 3× the reference, as the top display's are ([TOP.md](TOP.md)). Each piece fills its artboard's height (the bases its width) and is centred in it. The Casino cell uses the [selected plain icon](CASINOS.md).
 - **Layout source:** `atlas-available-forces.figcraft`, authored through the FigCraft MCP from the study's `available-forces-layouts.figcraft`, with the other studies, the study's hover tag and the crop removed. Three frames:
   - **`16:9 available forces` (3840×2160):** the owner's display. The other areas are the study's locked context. The ledger's nodes are named as the runtime names its parts. `plate` groups the panel (fill `paper`, inside stroke `rule`, 2 wide, corner radius 10), the header rule (`ink`, 2 high) and the three row rules (`rule`, 1.5 high).
   - **`zero state`:** the Government's row with its Bases at 0: the piece at opacity 0.4 beside "0".
@@ -39,7 +39,7 @@ The study's [`hover-tag.png`](../proposals/available-forces/hover-tag.png) drew 
 | `atlas-available-police.png` | artboard `police` | 77×81 | 3157.25, 128.25, 43.31×45.56 |
 | `atlas-available-<faction>-base.png` (government, 26july, directorio) | artboard `<faction>-base` | 100×61 | 3280.75, 134.25, 56.25×34.31 |
 | `atlas-available-<faction>-guerrilla.png` (26july, directorio, syndicate) | artboard `<faction>-guerrilla` | 52×82 | 3034.25, 180.56, 29.25×46.13 |
-| `atlas-available-syndicate-casino.png` | artboard `syndicate-casino` | 100×61 | 3280.75, 291.19, 56.25×34.31 |
+| `atlas-casino-plain.png` | [Casino artboard `Closed or in supply`](CASINOS.md) | 300×183 | 3280.75, 291.19, 56.25×34.31 |
 
 Rows lie 52.31 apart (31 reference pixels), from the Government's emblem at 2952.75, 128.25, 45.56×45.56. A Base or Casino sits 6 below its row's top; a count's box starts 3.375 above it, at x 3082.75, 3212.75 or 3346.75. In reference pixels the plate is 1380, 20, 292.74×190, right-anchored: the decision panel's left edge, and the Resources ledger's top and height.
 

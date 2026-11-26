@@ -177,6 +177,33 @@ pub(super) fn articles(faction: Faction, items: &[Item]) -> Vec<Article> {
                 )),
                 Item::Transfers(told) => transfers(told),
                 Item::Removed { faction, groups } => Some(removed(*faction, groups)),
+                Item::ManagedCasinos {
+                    space,
+                    group,
+                    closed_in_place,
+                } => {
+                    let state = if group.state == State::Open {
+                        "open"
+                    } else {
+                        "closed"
+                    };
+                    let casinos = kind_name(Kind::Casino, group.count);
+                    let effect = if *closed_in_place {
+                        format!(
+                            "Syndicate closes {} {state} {casinos} in place.",
+                            group.count
+                        )
+                    } else {
+                        format!(
+                            "Syndicate returns {} {state} {casinos} to Available Forces.",
+                            group.count
+                        )
+                    };
+                    Some(article(
+                        format!("Casino management in {space}"),
+                        vec![effect, "0 Resources · no Profit.".into()],
+                    ))
+                }
                 Item::Kidnap { space, kidnap } => Some(kidnapped(space, kidnap)),
                 Item::Terror {
                     space,

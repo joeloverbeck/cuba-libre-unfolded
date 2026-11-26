@@ -64,7 +64,7 @@ fn assert_line(app: &Native, view: &Value, capture: &str) {
 }
 
 /// Only `control` carries the mark, and the capture shows it there.
-fn assert_marked(app: &mut Native, control: &str, capture: &str) -> Value {
+pub(super) fn assert_marked(app: &mut Native, control: &str, capture: &str) -> Value {
     app.request(json!({"op":"settle"}), true);
     let view = app.observe();
     assert_eq!(

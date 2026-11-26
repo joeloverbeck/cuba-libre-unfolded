@@ -130,6 +130,7 @@ fn part(faction: Faction, kind: Kind) -> String {
 fn export_file(faction: Faction, kind: Kind) -> String {
     match kind {
         Kind::Troops | Kind::Police => format!("atlas-available-{}.png", kind_name(kind)),
+        Kind::Casino => "atlas-casino-plain.png".into(),
         _ => format!("atlas-available-{}.png", part(faction, kind)),
     }
 }

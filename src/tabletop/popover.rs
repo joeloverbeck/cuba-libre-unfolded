@@ -30,6 +30,8 @@ use crate::{
     targets::{PieceState, PieceTarget, SpaceState},
 };
 use bevy::ui::FlexWrap;
+
+mod casino;
 use bevy::ui::widget::NodeImageMode;
 use emblems::Naming;
 use highlights::Targeting;
@@ -169,6 +171,13 @@ pub(super) struct Popover {
 }
 
 impl Popover {
+    pub(super) fn piece(&self, revision: u64) -> Option<&str> {
+        self.piece
+            .as_ref()
+            .filter(|(_, at)| *at == revision)
+            .map(|(key, _)| key.as_str())
+    }
+
     /// A region click while targeting. Outside targeting states it does nothing.
     /// Returns whether the click opened (kept open) a space's popover.
     pub fn click_space(&mut self, space: &str, targeting: &Targeting) -> bool {
@@ -218,7 +227,7 @@ impl Popover {
         };
         if targeting
             .piece(key)
-            .is_none_or(|t| t.mark != PieceState::Removable)
+            .is_none_or(|target| !piece_opens(target))
         {
             return;
         }
@@ -233,7 +242,8 @@ impl Popover {
     pub fn step(&mut self, delta: i8, targeting: &Targeting) {
         if let Some(target) = self.piece.as_ref().and_then(|(k, _)| targeting.piece(k)) {
             self.quantity = (i16::from(self.quantity) + i16::from(delta))
-                .clamp(1, i16::from(target.removable.max(1))) as u8;
+                .clamp(1, i16::from(quantity_limit(target).max(1)))
+                as u8;
         }
     }
     /// Cancel: closes the piece popover; nothing is decided.
@@ -290,6 +300,8 @@ pub(super) enum CardKind {
     Space,
     /// A removable 26July group in removal mode (A-P5, A-P7).
     Piece,
+    OpenCasino,
+    ClosedCasino,
     /// The protected Guerrilla's hover tag (A-P6).
     Protected,
 }
@@ -805,6 +817,58 @@ pub(super) fn focusable(
 const PIECE_FOOTER: &str = "Removal stays open for more pieces until Done.";
 const PROTECTED_FOOTER: &str = "Shown on hover; a click opens nothing.";
 
+fn piece_opens(target: &PieceTarget) -> bool {
+    target.mark == PieceState::Removable || target.kind == Kind::Casino
+}
+
+fn quantity_limit(target: &PieceTarget) -> u8 {
+    if target.kind == Kind::Casino {
+        target.count
+    } else {
+        target.removable
+    }
+}
+
+pub(super) fn pieces_focusable(
+    view: &Observation,
+    ui: &Interface,
+    targets: &crate::targets::RemovalTargets,
+    popover: &Popover,
+) -> Vec<(String, Action)> {
+    let mut stops = vec![];
+    for target in targets.pieces.iter().filter(|target| piece_opens(target)) {
+        let key = format!("{}:{}", target.space, target.group);
+        stops.push((format!("own-piece:{key}"), Action::Piece(key.clone())));
+        if popover.piece(view.revision) != Some(key.as_str()) {
+            continue;
+        }
+        let Some(card) = piece_content(view, target, popover.quantity).map(|card| card.read_by(ui))
+        else {
+            continue;
+        };
+        if let Some(stepper) = card.stepper {
+            if stepper.value > 1 {
+                stops.push(("popover:quantity:minus".into(), Action::Quantity(-1)));
+            }
+            if stepper.value < stepper.max {
+                stops.push(("popover:quantity:plus".into(), Action::Quantity(1)));
+            }
+        }
+        if target.kind == Kind::Casino {
+            stops.extend(casino::controls(&card));
+        } else if let Some(row) = card.rows.first()
+            && let (Some(choice), Some(_)) = (&row.choice, &row.button)
+        {
+            stops.push((
+                "popover:commit".into(),
+                Action::Submit(row.owner, card.revision, choice.clone()),
+            ));
+        }
+        stops.push(("popover:cancel".into(), Action::Dismiss));
+    }
+    stops
+}
+
 /// A removal's consequences as the layout words them: what returns, Control and what
 /// the Operation still offers, the standings, then the rule's notes.
 fn removal_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
@@ -908,6 +972,15 @@ fn removal_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
         };
         lines.push((tone, note.clone()));
     }
+    if let Some(change) = &preview.management {
+        lines.extend(
+            change
+                .construct_options
+                .iter()
+                .cloned()
+                .map(|note| (Tone::Plain, note)),
+        );
+    }
     lines
 }
 
@@ -919,6 +992,9 @@ pub(super) fn piece_content(
     target: &PieceTarget,
     quantity: u8,
 ) -> Option<Card> {
+    if target.kind == Kind::Casino {
+        return casino::content(view, target, quantity);
+    }
     let place = view.spaces.iter().find(|s| s.id == target.space)?;
     let choice = |n: u8| {
         target
@@ -1268,10 +1344,11 @@ fn spawn(
             ChildOf(root),
         ))
         .id();
-    let width = if card.kind == CardKind::Protected {
-        frame::TAG_WIDTH
-    } else {
-        frame::WIDTH
+    let casino = matches!(card.kind, CardKind::OpenCasino | CardKind::ClosedCasino);
+    let width = match card.kind {
+        CardKind::Protected => frame::TAG_WIDTH,
+        CardKind::OpenCasino | CardKind::ClosedCasino => casino::WIDTH,
+        _ => frame::WIDTH,
     };
     let body = commands
         .spawn((
@@ -1281,9 +1358,18 @@ fn spawn(
                 left: px(frame::LEADER * s),
                 top: px(0.),
                 width: px(width * s),
+                height: if casino {
+                    px(casino::height(card) * s)
+                } else {
+                    Val::Auto
+                },
                 flex_direction: FlexDirection::Column,
                 // The plate draws the 1 px stroke inside this padding; then 10 below.
-                padding: UiRect::new(px(s), px(s), px(s), px(11. * s)),
+                padding: if casino {
+                    UiRect::ZERO
+                } else {
+                    UiRect::new(px(s), px(s), px(s), px(11. * s))
+                },
                 ..default()
             },
             Part("popover-card".into()),
@@ -1292,6 +1378,16 @@ fn spawn(
         ))
         .id();
     plate(commands, art, body, plate::CARD, s);
+    commands.entity(root).insert(Root {
+        ends,
+        card: body,
+        leader,
+        placed: false,
+    });
+    if casino {
+        casino::draw(commands, &ink, body, card, bold, s);
+        return;
+    }
     // A-P6's tag carries an ink rule: it informs, and nothing on it acts.
     rule(
         commands,
@@ -1351,6 +1447,7 @@ fn spawn(
     match card.kind {
         CardKind::Space => space_rows(commands, &ink, body, card, bold, s),
         CardKind::Piece | CardKind::Protected => piece_body(commands, &ink, body, card, bold, s),
+        CardKind::OpenCasino | CardKind::ClosedCasino => unreachable!(),
     }
     let footer = commands
         .spawn((
@@ -1375,12 +1472,6 @@ fn spawn(
         QUIET,
         false,
     );
-    commands.entity(root).insert(Root {
-        ends,
-        card: body,
-        leader,
-        placed: false,
-    });
 }
 
 /// The preview or reason lines of a row, in the layout's tones.
@@ -1672,6 +1763,133 @@ fn space_rows(
 
 /// A-P5/A-P7: the stack's quantity, the removal's consequences, Remove and Cancel;
 /// A-P6: the protected Guerrilla's reason. One divider above the body.
+#[allow(clippy::too_many_arguments)]
+fn quantity_stepper(
+    commands: &mut Commands,
+    ink: &Ink,
+    node: Entity,
+    stepper: Stepper,
+    label: &str,
+    bold: &Handle<Font>,
+    s: f32,
+) {
+    let regular = ink.art.font.clone();
+    let head = commands
+        .spawn((
+            Node {
+                flex_direction: FlexDirection::Row,
+                column_gap: px(8. * s),
+                align_items: AlignItems::Center,
+                ..default()
+            },
+            Pickable::IGNORE,
+            ChildOf(node),
+        ))
+        .id();
+    words(
+        commands,
+        ink,
+        head,
+        label,
+        Naming::Emblems,
+        false,
+        bold,
+        13. * s,
+        INK,
+        false,
+    );
+    // 80 × 26, radius 2, `paper` with a 1 px `ink` stroke: −, the value in a
+    // `rule`-boxed cell, +. A step past the bounds is drawn in `rule` and inert.
+    let frame = commands
+        .spawn((
+            Node {
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Center,
+                // Inside the plate's 1 px stroke.
+                padding: UiRect::all(px(s)),
+                ..default()
+            },
+            Pickable::IGNORE,
+            ChildOf(head),
+        ))
+        .id();
+    plate(commands, ink.art, frame, plate::STEPPER, s);
+    for (glyph, width, step) in [("−", 24., Some(-1)), ("", 30., None), ("+", 24., Some(1))] {
+        let enabled = match step {
+            Some(-1) => stepper.value > 1,
+            Some(_) => stepper.value < stepper.max,
+            None => true,
+        };
+        let cell = commands
+            .spawn((
+                Node {
+                    width: px(width * s),
+                    height: px(24. * s),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    padding: if step.is_none() {
+                        UiRect::all(px(s))
+                    } else {
+                        UiRect::ZERO
+                    },
+                    ..default()
+                },
+                ChildOf(frame),
+            ))
+            .id();
+        if step.is_none() {
+            plate(commands, ink.art, cell, plate::STEPPER_VALUE, s);
+        }
+        match step {
+            Some(step) if enabled => {
+                commands
+                    .entity(cell)
+                    .insert(Control {
+                        name: format!(
+                            "popover:quantity:{}",
+                            if step < 0 { "minus" } else { "plus" }
+                        ),
+                        choice: false,
+                        action: Action::Quantity(step),
+                    })
+                    .observe(click);
+            }
+            _ => {
+                commands.entity(cell).insert(Pickable::IGNORE);
+            }
+        }
+        let text = if step.is_none() {
+            stepper.value.to_string()
+        } else {
+            glyph.to_owned()
+        };
+        words(
+            commands,
+            ink,
+            cell,
+            &text,
+            Naming::Emblems,
+            false,
+            bold,
+            14. * s,
+            if enabled { INK } else { RULE },
+            false,
+        );
+    }
+    words(
+        commands,
+        ink,
+        head,
+        &format!("of {}", stepper.count),
+        Naming::Emblems,
+        false,
+        &regular,
+        13. * s,
+        INK,
+        false,
+    );
+}
+
 fn piece_body(
     commands: &mut Commands,
     ink: &Ink,
@@ -1702,120 +1920,7 @@ fn piece_body(
         ))
         .id();
     if let Some(stepper) = card.stepper {
-        let head = commands
-            .spawn((
-                Node {
-                    flex_direction: FlexDirection::Row,
-                    column_gap: px(8. * s),
-                    align_items: AlignItems::Center,
-                    ..default()
-                },
-                Pickable::IGNORE,
-                ChildOf(node),
-            ))
-            .id();
-        words(
-            commands,
-            ink,
-            head,
-            "Remove",
-            Naming::Emblems,
-            false,
-            bold,
-            13. * s,
-            INK,
-            false,
-        );
-        // 80 × 26, radius 2, `paper` with a 1 px `ink` stroke: −, the value in a
-        // `rule`-boxed cell, +. A step past the bounds is drawn in `rule` and inert.
-        let frame = commands
-            .spawn((
-                Node {
-                    flex_direction: FlexDirection::Row,
-                    align_items: AlignItems::Center,
-                    // Inside the plate's 1 px stroke.
-                    padding: UiRect::all(px(s)),
-                    ..default()
-                },
-                Pickable::IGNORE,
-                ChildOf(head),
-            ))
-            .id();
-        plate(commands, ink.art, frame, plate::STEPPER, s);
-        for (glyph, width, step) in [("−", 24., Some(-1)), ("", 30., None), ("+", 24., Some(1))] {
-            let enabled = match step {
-                Some(-1) => stepper.value > 1,
-                Some(_) => stepper.value < stepper.max,
-                None => true,
-            };
-            let cell = commands
-                .spawn((
-                    Node {
-                        width: px(width * s),
-                        height: px(24. * s),
-                        justify_content: JustifyContent::Center,
-                        align_items: AlignItems::Center,
-                        padding: if step.is_none() {
-                            UiRect::all(px(s))
-                        } else {
-                            UiRect::ZERO
-                        },
-                        ..default()
-                    },
-                    ChildOf(frame),
-                ))
-                .id();
-            if step.is_none() {
-                plate(commands, ink.art, cell, plate::STEPPER_VALUE, s);
-            }
-            match step {
-                Some(step) if enabled => {
-                    commands
-                        .entity(cell)
-                        .insert(Control {
-                            name: format!(
-                                "popover:quantity:{}",
-                                if step < 0 { "minus" } else { "plus" }
-                            ),
-                            choice: false,
-                            action: Action::Quantity(step),
-                        })
-                        .observe(click);
-                }
-                _ => {
-                    commands.entity(cell).insert(Pickable::IGNORE);
-                }
-            }
-            let text = if step.is_none() {
-                stepper.value.to_string()
-            } else {
-                glyph.to_owned()
-            };
-            words(
-                commands,
-                ink,
-                cell,
-                &text,
-                Naming::Emblems,
-                false,
-                bold,
-                14. * s,
-                if enabled { INK } else { RULE },
-                false,
-            );
-        }
-        words(
-            commands,
-            ink,
-            head,
-            &format!("of {}", stepper.count),
-            Naming::Emblems,
-            false,
-            &regular,
-            13. * s,
-            INK,
-            false,
-        );
+        quantity_stepper(commands, ink, node, stepper, "Remove", bold, s);
     }
     let Some(row) = card.rows.first() else {
         return;
@@ -1957,11 +2062,7 @@ pub(super) fn draw(
         return;
     };
     // Removal mode (#73): the piece popover replaces the space popover.
-    let removable = |key: &str| {
-        targeting
-            .piece(key)
-            .is_some_and(|t| t.mark == PieceState::Removable)
-    };
+    let removable = |key: &str| targeting.piece(key).is_some_and(piece_opens);
     if popover
         .piece
         .as_ref()
