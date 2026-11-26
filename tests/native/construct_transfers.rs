@@ -314,6 +314,10 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
     assert_eq!(held["observation"]["resources"], json!([11, 4, 5, 3]));
     assert_eq!(held["observation"]["owner"], "Syndicate");
     assert_eq!(
+        held["table"]["notice"],
+        "26July conditionally authorized 1 Resource for Syndicate. Syndicate still needs 1 Resource. Saved."
+    );
+    assert_eq!(
         held["observation"]["construct_funding"],
         json!({
             "authorizations": [{"giver": "M26", "asked": 2, "amount": 1}],
@@ -418,6 +422,10 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
     .unwrap();
     let settled = app.observe();
     assert_eq!(settled["observation"]["resources"], json!([11, 3, 3, 6]));
+    assert_eq!(
+        settled["table"]["notice"],
+        "Directorio authorized 2 Resources. Syndicate received 3 Resources from the combined authorizations. Saved."
+    );
     assert_eq!(settled["observation"]["owner"], "Syndicate");
     assert_eq!(settled["observation"]["construct_funding"], Value::Null);
     assert_eq!(settled["observation"]["construct_paid"], json!([]));

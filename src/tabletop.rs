@@ -1352,6 +1352,17 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
                     recipient,
                     amount,
                     ..
+                }) if after.construct_funding.is_some() => format!(
+                    "Transfer request saved. {} asks {} for {amount}. {}",
+                    recipient.name(),
+                    giver.name(),
+                    crate::ConstructFunding::CONDITION
+                ),
+                Some(Transfer::Authorizing {
+                    giver,
+                    recipient,
+                    amount,
+                    ..
                 }) => format!(
                     "Transfer request saved: {} asks {} for {amount}. Nothing moves until {} decides.",
                     recipient.name(),
@@ -1361,6 +1372,36 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
                 _ => "Transfer request saved.".into(),
             },
             TransferChoice::Authorize { amount } => match previous.transfer {
+                Some(Transfer::Authorizing {
+                    giver, recipient, ..
+                }) if amount > 0
+                    && let Some(funding) = &after.construct_funding =>
+                {
+                    format!(
+                        "{} conditionally authorized {} for {}. {} still needs {}. Saved.",
+                        giver.name(),
+                        resources(amount),
+                        recipient.name(),
+                        recipient.name(),
+                        resources(funding.shortfall),
+                    )
+                }
+                Some(Transfer::Authorizing {
+                    giver, recipient, ..
+                }) if let Some(funding) = &previous.construct_funding
+                    && funding.authorized() > 0
+                    && after.construct_funding.is_none() =>
+                {
+                    let received =
+                        after.resources[recipient.index()] - previous.resources[recipient.index()];
+                    format!(
+                        "{} authorized {}. {} received {} from the combined authorizations. Saved.",
+                        giver.name(),
+                        resources(amount),
+                        recipient.name(),
+                        resources(received),
+                    )
+                }
                 Some(Transfer::Authorizing {
                     giver, recipient, ..
                 }) => format!(
@@ -1495,6 +1536,11 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
             }
             None => "Terror chosen. Saved.".into(),
         },
+        "back-to-choice"
+            if previous.construct_funding.as_ref().is_some_and(|funding| funding.authorized() > 0) =>
+        {
+            "Back at the action choice. Pending requests and conditional authorizations are cleared. Saved.".into()
+        }
         "back-to-choice" => "Back at the action choice. Nothing had happened; any pending request is withdrawn. Saved.".into(),
         "end-terror" => match after.eligibility.m26_box {
             Some(record) => format!("Terror ended: {} recorded. Saved.", record.name()),
