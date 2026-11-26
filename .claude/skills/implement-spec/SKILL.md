@@ -18,7 +18,9 @@ Communication to and from subagents should be sparse. Communicate primarily thro
 
 At activation, present one **role table** for the owner’s model and effort choices: an implementer for each ticket, the merger, both reviewers, the review-fix implementer, the explorer, and an extraction ticket’s reviewers and sibling merger. By [the owner’s standing choice of 2026-11-23](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/137#issuecomment-7101635096), a repair runs on its implementer’s settings and a re-review or resumed reviewer on its reviewer’s: say so when you launch one. Ask again only for a role the table lacks. A launch on Fable, or at `xhigh` or `max`, prompts the owner and holds the whole session until they answer: launch it last, in its own message, once every other ready agent and merge is under way, and send a push notification first (`PushNotification`). Run ready implementers in the background where possible. Start their merger when its dependencies are ready. While an agent runs, do independent work and let its completion notification resume the dependent step. A notice that an agent is waiting on its own background work needs no action and no message to the owner.
 
-Ask the activation's other questions in the same round as the role table: the allowance, publication, sibling merges, and, for a spec with extractions, whether an extraction may merge when a native window is the only path left unexercised. Bring the owner's remaining usage with them: the Codex meter and, where the owner's status line writes it, Claude's weekly usage in `~/.cache/claude-usage.json`, beside what the remaining tickets need. Read both again before each batch of agents. A decision that blocks every ready ticket goes to the owner through `AskUserQuestion`; one that blocks nothing goes in a message. A recommendation to accept an exception to a binding rule follows `CODING_STANDARDS.md`, "Exceptions".
+Ask the activation's other questions in the same round as the role table. Record the allowance, publication, sibling merges, and the scope of authorized cleanup for clean merged worktrees, branches and targets. For a spec with extractions, ask whether an extraction may merge when a native window is the only path left unexercised.
+
+Bring the owner's remaining usage with them: the Codex meter and, where the owner's status line writes it, Claude's weekly usage in `~/.cache/claude-usage.json`, beside what the remaining tickets need. Read both again before each batch of agents. A decision that blocks every ready ticket goes to the owner through `AskUserQuestion`; one that blocks nothing goes in a message. A recommendation to accept an exception to a binding rule follows `CODING_STANDARDS.md`, "Exceptions".
 
 ## Steps
 
@@ -41,7 +43,7 @@ Ask the activation's other questions in the same round as the role table: the al
 
 5. Once an **implementer subagent** completes, merge its work to the integration branch with a **merger subagent**, which then clears disk as `docs/agents/parallel-work.md`, "Disk", says.
 
-   A ticket needs no merger when its checks already cover the tree the merge will produce. Before merging, confirm both: its branch contains the integration tip (`git merge-base --is-ancestor integration/spec-<N> <ticket head>` succeeds), and `git diff <revision the ticket's checks ran on> <ticket head>` prints nothing. Then merge it yourself with `--no-ff`, push and clear disk. Otherwise the merger subagent merges and checks it.
+   A ticket needs no merger when its checks already cover the tree the merge will produce. Before merging, confirm both: its branch contains the integration tip (`git merge-base --is-ancestor integration/spec-<N> <ticket head>` succeeds), and `git diff <revision the ticket's checks ran on> <ticket head>` prints nothing. Then merge it yourself with `--no-ff`, push and apply the "Disk" checks and recorded cleanup scope. Otherwise the merger subagent merges and checks it.
 
 6. If this changes the **frontier** of available tickets, kick off more **implementer subagents** to work on the new tickets. This allows for maximum concurrency. Give each a warm target before its first build, as `docs/agents/parallel-work.md`, "Warm targets", describes.
 
@@ -51,7 +53,7 @@ Ask the activation's other questions in the same round as the role table: the al
 
 8. Report the artifact revision, checks and remaining evidence limits. Source review does not establish execution in a consumer or native usability. If a draft PR exists, replace its draft summary with the final reviewed revision, verified results, evidence limits and outstanding owner decisions before marking it ready for review; otherwise report the integration branch. Resolve tickets only when their recorded acceptance conditions are met, closing them after the merge as `docs/agents/issue-tracker.md`, "Closing issues", describes. Carry existing authorization through without duplicate confirmation, while preserving any outstanding owner acceptance or publication boundary.
 
-9. Clean up what remains: worktrees, the last warm target, merged local branches and superseded native captures (`docs/agents/parallel-work.md`, "Disk").
+9. Apply the recorded cleanup scope to remaining worktrees, merged local branches and the last warm target. Verify retained evidence before pruning superseded native captures (`docs/agents/parallel-work.md`, "Disk").
 
 ## Resuming
 

@@ -30,6 +30,13 @@ fn native_construct_transfer_resumes_at_the_giver_and_finishes_after_spending() 
     let handoff = app.save_bytes();
 
     choose_row(&mut app, "syndicate:limited-operation");
+    super::space_reason::hover(
+        &mut app,
+        "havana",
+        "blocked",
+        Some("A Resource transfer opens it"),
+        "construct-havana-blocked",
+    );
     choose_row(&mut app, "transfer");
     let revision = app.revision();
     app.activate("transfer:tab:26july", revision);
