@@ -262,7 +262,7 @@ fn keep_draft(state: &mut State, field: &Query<(Entity, &Editor, &EditableText)>
 }
 
 /// Seat handovers are processed first, so the same frame's custody change
-/// also governs a queued Publish press. Both controllers use Session::publish.
+/// also governs a queued Publish press.
 pub(super) fn publish(
     mut play: ResMut<Play>,
     mut ui: ResMut<Interface>,
@@ -280,7 +280,7 @@ pub(super) fn publish(
         play.session
             .as_mut()
             .expect("An admitted match")
-            .publish(author, revision, card, ui.composer.draft(author))
+            .publish_as_human(author, revision, card, ui.composer.draft(author))
             .map_err(|failure| failure.to_string())
     } else {
         Err(format!("{} is controlled by another seat.", author.name()))

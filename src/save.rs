@@ -9,7 +9,7 @@
 //! module's words.
 //!
 //! A save holds the seed the match opened with, every decision in order, the
-//! position they produce and the public proclamations. Admission requires exact
+//! position they produce, public proclamations and the human's read state. Admission requires exact
 //! decision replay ([ADR 0003](../docs/adr/0003-a-save-opens-by-exact-replay.md))
 //! and a valid publication record.
 //! The shared record runs that check on load, on each candidate before it is
@@ -21,12 +21,15 @@ use crate::{
 };
 use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::{
+    collections::BTreeSet,
+    path::{Path, PathBuf},
+};
 use unfolded_record_replacement::save::{self, Baseline, Format, Identity, Write};
 /// About 4 MiB, far above a full game; a save at the limit is refused plainly.
 const LIMIT: u64 = 4 * 1024 * 1024;
 /// The save's shape. It changes whenever what a save holds changes shape.
-const FORMAT: &str = "8";
+const FORMAT: &str = "9";
 /// Marks a refusal from exact-replay admission.
 const REPLAY: &str = "cuba-replay:";
 
@@ -102,6 +105,8 @@ struct Payload {
     position: Game,
     /// Public words in publication order, separate from the replayed decisions.
     proclamations: Vec<Proclamation>,
+    /// Publication indices the human has acknowledged or authored.
+    read_proclamations: BTreeSet<usize>,
 }
 impl Payload {
     fn opening(seed: u64) -> Self {
@@ -110,6 +115,7 @@ impl Payload {
             decisions: vec![],
             position: Game::opening_with_seed(seed),
             proclamations: vec![],
+            read_proclamations: BTreeSet::new(),
         }
     }
     /// Exact replay: each decision, submitted at the then-current match revision
@@ -137,6 +143,13 @@ impl Payload {
     }
 
     fn validate_proclamations(&self, played: std::ops::RangeInclusive<u8>) -> Result<(), String> {
+        if self
+            .read_proclamations
+            .last()
+            .is_some_and(|index| *index >= self.proclamations.len())
+        {
+            return Err("The human's read record names an unpublished proclamation.".to_owned());
+        }
         let mut latest = *played.start();
         for (index, document) in self.proclamations.iter().enumerate() {
             if !played.contains(&document.card) || document.card < latest {
@@ -314,6 +327,24 @@ impl Session {
     pub fn proclamations(&self) -> &[Proclamation] {
         &self.payload.proclamations
     }
+    /// Whether the human has already acknowledged or authored this publication.
+    pub fn proclamation_is_read(&self, index: usize) -> bool {
+        self.payload.read_proclamations.contains(&index)
+    }
+    /// Acknowledges a publication for the human. Rereading never replaces a save.
+    pub fn read_proclamation(&mut self, index: usize) -> Result<()> {
+        if index >= self.proclamations().len() {
+            return Err(anyhow!("No proclamation at that index."));
+        }
+        if self.proclamation_is_read(index) {
+            return Ok(());
+        }
+        let mut candidate = self.payload.clone();
+        candidate.read_proclamations.insert(index);
+        self.persist(&candidate)?;
+        self.payload = candidate;
+        Ok(())
+    }
     /// A report of each action of the match so far, whole, in order (#207).
     pub fn reports(&self) -> Vec<Report> {
         self.reports.all()
@@ -357,6 +388,26 @@ impl Session {
         card: u8,
         text: &str,
     ) -> std::result::Result<(), Submit> {
+        self.publish_with_read_state(author, revision, card, text, false)
+    }
+    /// Publishes the human controller's own words as already read in the same save.
+    pub fn publish_as_human(
+        &mut self,
+        author: Faction,
+        revision: u64,
+        card: u8,
+        text: &str,
+    ) -> std::result::Result<(), Submit> {
+        self.publish_with_read_state(author, revision, card, text, true)
+    }
+    fn publish_with_read_state(
+        &mut self,
+        author: Faction,
+        revision: u64,
+        card: u8,
+        text: &str,
+        read: bool,
+    ) -> std::result::Result<(), Submit> {
         let game = self.game();
         if revision != game.revision || card != game.current_card() {
             return Err(Submit::Refused(
@@ -375,6 +426,11 @@ impl Session {
         }
         Proclamation::check_length(text).map_err(Submit::Refused)?;
         let mut candidate = self.payload.clone();
+        if read {
+            candidate
+                .read_proclamations
+                .insert(candidate.proclamations.len());
+        }
         candidate.proclamations.push(Proclamation {
             author,
             card,
