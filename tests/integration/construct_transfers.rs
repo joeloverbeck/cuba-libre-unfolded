@@ -501,7 +501,12 @@ fn limited_construct_holds_insufficient_authorizations_until_they_can_fund_a_pay
     assert_eq!(game.observe().resources, [11, 3, 3, 1]);
     let whole = reports.all();
     let articles = &whole.last().unwrap().articles;
-    assert_eq!(articles[0].title, "Directorio gives Syndicate nothing");
+    assert_eq!(articles[0].title, "No Resources moved");
+    assert!(
+        articles[0]
+            .lines
+            .contains(&"Directorio answered 1 request.".to_owned())
+    );
     assert_eq!(articles[1].title, "26July gives Syndicate 1 Resource");
     assert_eq!(
         articles[1].lines,

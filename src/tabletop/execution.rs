@@ -1167,7 +1167,7 @@ pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)>
                 entry(
                     "RESULT",
                     format!(
-                        "Syndicate Resources: {} → {}. The Pact’s Capability stays inactive.",
+                        "Syndicate Resources: {} → {}. Pact Capability inactive.",
                         balance.from, balance.to
                     ),
                 ),

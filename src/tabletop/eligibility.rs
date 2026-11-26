@@ -369,7 +369,7 @@ pub(super) fn content(view: &Observation, slot: Slot) -> Shown {
         note: if view.card_18_complete() {
             "Eligibility for card 19 was adjusted after card 18 (R 2.3.7)."
         } else if e.next_card.is_some() || view.current_card == 18 {
-            "Eligibility for card 18 was adjusted after card 17 (R 2.3.7)."
+            "Card 18 Eligibility set after card 17 (R 2.3.7)."
         } else {
             AFTER_THE_CARD
         },

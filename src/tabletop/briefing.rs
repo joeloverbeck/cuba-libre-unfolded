@@ -448,7 +448,7 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
                     entry("OPTION", &choice.explanation),
                     entry(
                         "2ND ELIGIBLE",
-                        "Government recorded Operation Only. Syndicate may Pass or choose a Limited Operation.",
+                        "Government recorded Operation Only.\nSyndicate may Pass or take a Limited Operation.",
                     ),
                 ],
                 rules: String::new(),

@@ -378,7 +378,8 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
     app.type_amount("2");
     let draft = app.observe();
     let condition = "Resources move only when authorizations fund a legal payment.";
-    assert!(transfer_part(&draft, "construct-funding").contains(condition));
+    let modal_condition = "Funds move once authorizations cover a legal payment.";
+    assert!(transfer_part(&draft, "construct-funding").contains(modal_condition));
     assert!(
         transfer_part(&draft, "construct-funding")
             .contains("0 conditionally authorized · 2 still needed")
@@ -442,12 +443,42 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
     let refused = app.observe();
     let transfer = &refused["table"]["transfer"]["state"];
     assert!(transfer["commit"].is_null());
+    assert_eq!(refused["observation"]["owner"], "M26");
     assert!(
         transfer["refusal"]
             .as_str()
             .unwrap()
             .contains("already conditionally authorized 1 Resource")
     );
+    let title = drawn_transfer_part(&refused, "title");
+    assert_eq!(title["text"], "26JULY DECIDES");
+    let label = drawn_transfer_part(&refused, "primary-label");
+    assert_eq!(label["text"], "Authorize 5");
+    assert_eq!(label["lines"], 1);
+    let status = drawn_transfer_part(&refused, "construct-funding");
+    assert_eq!(
+        status["text"],
+        format!("1 conditionally authorized · 1 still needed\n{modal_condition}")
+    );
+    assert_eq!(status["lines"], 2);
+    let primary = drawn_transfer_part(&refused, "button:primary");
+    let wait = drawn_transfer_part(&refused, "button:wait");
+    let modal = drawn_transfer_part(&refused, "transfer-modal");
+    let [l, t, r, b] = rect_of(&label["bounds"]);
+    let [pl, pt, pr, pb] = rect_of(&primary["bounds"]);
+    assert!(l > pl && t > pt && r < pr && b < pb, "{label} in {primary}");
+    let [l, _, r, b] = rect_of(&status["bounds"]);
+    let [ml, _, _, mb] = rect_of(&modal["bounds"]);
+    let [wl, ..] = rect_of(&wait["bounds"]);
+    assert!(
+        l > ml && r < wl && b < mb,
+        "{status} beside {wait} in {modal}"
+    );
+    fs::write(
+        app.root.join("same-giver-copy-bounds.json"),
+        serde_json::to_vec_pretty(&json!([title, modal, wait, primary, label, status])).unwrap(),
+    )
+    .unwrap();
     app.capture("same-giver-signed-refusal");
     app.choose("decline");
     assert_eq!(
@@ -458,7 +489,8 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
 
     client_applies(&mut app, &syndicate, "transfer");
     client_applies(&mut app, &syndicate, "ask:2:5");
-    let interrupted = app.observe()["table"]["newspaper"]["open"].clone();
+    let edition = app.observe()["table"]["newspaper"].clone();
+    let interrupted = &edition["open"];
     assert_eq!(interrupted["report"]["faction"], "Syndicate");
     let summary = interrupted["report"]["summary"].as_str().unwrap();
     assert!(summary.contains("Directorio decides"));
@@ -469,7 +501,24 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
             .to_string()
             .contains("gives Syndicate 1 Resource")
     );
+    let parts = edition["parts"].as_array().unwrap();
+    let part = |name| parts.iter().find(|p| p["part"] == name).unwrap();
+    let title = part("edition-block-0-title");
+    let count = part("edition-block-0-text-0");
+    fs::write(
+        app.root.join("interruption-copy-bounds.json"),
+        serde_json::to_vec_pretty(&json!([title, count])).unwrap(),
+    )
+    .unwrap();
     app.capture("edition-pending-directorio");
+    assert_eq!(title["text"], "No Resources moved");
+    assert_eq!(count["text"], "26July answered 1 request.");
+    for part in [title, count] {
+        assert_eq!(part["lines"], 1, "{part}");
+        let [l, _, r, _] = rect_of(&part["ink"]);
+        let [bl, _, br, _] = rect_of(&part["bounds"]);
+        assert!(l >= bl - 0.5 && r <= br + 0.5, "{part}");
+    }
     app.key("Escape");
     app.choose("wait");
     let pending = app.observe();
@@ -576,7 +625,7 @@ fn native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_r
     let report = told["view"]["results"].as_array().unwrap().last().unwrap();
     assert_eq!(report["recorded"], "Limited Operation");
     let articles = report["articles"].as_array().unwrap();
-    assert_eq!(articles[0]["title"], "26July gives Syndicate nothing");
+    assert_eq!(articles[0]["title"], "No Resources moved");
     assert_eq!(articles[1]["title"], "26July gives Syndicate 1 Resource");
     assert_eq!(articles[1]["lines"][1], "26July 4 → 3, Syndicate 3 → 4.");
     assert_eq!(

@@ -481,7 +481,7 @@ fn span(moments: &[Moment], faction: Faction, continues: bool) -> Option<Report>
         spaces: spaces(&items),
         headline: words::headline(faction, action, first_eligible, again, complete, &items),
         summary,
-        articles: words::articles(faction, &items),
+        articles: words::articles(faction, action, &items),
         standings: standings(first, last),
         notes: words::notes(first, last, faction),
     })
