@@ -17,13 +17,16 @@ use unfolded_seat_client::{
 const USAGE: &str = "Usage: cuba-tools seat [--brief] SOCKET [JSON_REQUEST ...]
        cuba-tools seat-wait SOCKET [--timeout SECONDS]
        cuba-tools player-folders
+       cuba-tools session-costs FILE
 
 seat: Without requests, reads JSON lines from stdin. Exits nonzero for refused/missed/skipped/malformed or missing replies.
 --brief prints each reply as one short JSON line: its status, revision, settled and error, and each rules choice's id, label and supported, with the explanation of an unsupported one.
 
 seat-wait: keeps a held seat's windowless table running, so that agent sessions can play its handed-over factions, and answers nothing itself. Prints a line whenever the revision, the faction the table waits for or what holds an agent's choice changes, and returns when the table needs this seat: no agent's faction is awaited, or something opened here holds an agent's choice. Exits 0 then, 3 when the time (240 s unless given) is up, 4 when no seat listens there, 1 otherwise.
 
-player-folders: writes the folders an agent player's sessions run in, one for Claude Code and one for Codex, and installs their client, the cuba-player beside this program. Refuses, and names, any file it did not write.";
+player-folders: writes the folders an agent player's sessions run in, one for Claude Code and one for Codex, and installs their client, the cuba-player beside this program. Refuses, and names, any file it did not write.
+
+session-costs: reports observed model calls against this session's limits from a JSON file (docs/agents/seat.md, Reporting a real session's call limits). Exits 0 for a pass, 1 for failure or invalid input, 3 for incomplete evidence.";
 
 /// How long past its time a seat that stopped answering is waited for.
 const GRACE: Duration = Duration::from_secs(10);
@@ -118,12 +121,68 @@ fn player_folders() -> Result<u8> {
     }
     places.write(&built)?;
     println!(
-        "Claude Code's folder: {}\nCodex's folder: {}\nClient: {}",
+        "Claude Code's folder: {}\nCodex's folder: {}\nClient: {}\n\nIn a new terminal for each seat, run either command:\n  cd -- '{}' && claude\n  cd -- '{}' && codex\nThen paste that faction's copied game line at the player prompt.",
         places.claude_code().display(),
         places.codex().display(),
-        places.client().display()
+        places.client().display(),
+        places.claude_code().display(),
+        places.codex().display()
     );
     Ok(0)
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CallCount {
+    observed: Option<u64>,
+    limit: u64,
+}
+
+#[derive(serde::Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SessionCosts {
+    idle: CallCount,
+    wait_per_event: CallCount,
+    approval: CallCount,
+    close: CallCount,
+}
+
+fn session_costs(file: &Path) -> Result<u8> {
+    let input = std::fs::read(file).with_context(|| format!("Reading {}", file.display()))?;
+    let counts: SessionCosts = serde_json::from_slice(&input).context("Invalid session costs")?;
+    let mut failed = false;
+    let mut incomplete = false;
+    println!("| Event | Observed | Allowed | Result |");
+    println!("| --- | ---: | ---: | --- |");
+    for (event, count) in [
+        ("Idle", counts.idle),
+        ("Waiting per event", counts.wait_per_event),
+        ("Approval", counts.approval),
+        ("Table close", counts.close),
+    ] {
+        let verdict = match count.observed {
+            None => {
+                incomplete = true;
+                "unmeasured"
+            }
+            Some(calls) if calls > count.limit => {
+                failed = true;
+                "failed"
+            }
+            Some(_) => "passed",
+        };
+        let observed = count
+            .observed
+            .map_or_else(|| "—".to_owned(), |n| n.to_string());
+        println!("| {event} | {observed} | {} | {verdict} |", count.limit);
+    }
+    Ok(if failed {
+        1
+    } else if incomplete {
+        3
+    } else {
+        0
+    })
 }
 
 fn run() -> Result<u8> {
@@ -136,6 +195,7 @@ fn run() -> Result<u8> {
         "seat" => seat(args),
         "seat-wait" => wait(&args),
         "player-folders" if args.is_empty() => player_folders(),
+        "session-costs" if args.len() == 1 => session_costs(Path::new(&args[0])),
         _ => bail!("{USAGE}"),
     }
 }
