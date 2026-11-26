@@ -261,7 +261,7 @@ impl Game {
         let after_available = after.casino_inventory();
         Some(vec![
             format!(
-                "Open Casinos here {} → {}. Closed Casinos here {} → {}.",
+                "Casinos here · {} → {} open · {} → {} closed.",
                 casinos(space, State::Open),
                 casinos(result, State::Open),
                 casinos(space, State::Closed),

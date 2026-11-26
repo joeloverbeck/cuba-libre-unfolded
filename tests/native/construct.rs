@@ -15,7 +15,7 @@ fn native_limited_construct_pays_in_havana_and_resumes_at_finish() {
         (
             "open",
             "Open 1 closed Casino",
-            "Open Casinos here 0 → 1. Closed Casinos here 1 → 0.",
+            "Casinos here · 0 → 1 open · 1 → 0 closed.",
             7,
             3,
             false,
@@ -23,7 +23,7 @@ fn native_limited_construct_pays_in_havana_and_resumes_at_finish() {
         (
             "place",
             "Place 1 closed Casino",
-            "Open Casinos here 0 → 0. Closed Casinos here 1 → 2.",
+            "Casinos here · 0 → 0 open · 1 → 2 closed.",
             6,
             2,
             true,
