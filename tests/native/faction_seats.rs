@@ -371,6 +371,59 @@ fn native_an_agent_session_plays_a_handed_over_faction() {
     assert_eq!(app.save_bytes(), saved);
 }
 
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan"]
+fn native_closing_the_table_answers_a_queued_player_choice() {
+    let mut app = start("queued-player-close-", "issue-224", "1920x1280");
+    let player = app.seat_agent(M26, "m26");
+    let (code, observed) = app.ask(&["observe", &player]);
+    assert_eq!(code, 0, "{observed}");
+    assert_eq!(observed["view"]["decision"]["yours"], true, "{observed}");
+    let settled = app.settle();
+    assert_eq!(settled["pending"], json!([]), "{settled}");
+    let revision = settled["observation"]["revision"].as_u64().unwrap();
+    let choice = format!("{revision}:pass");
+    assert!(
+        observed["view"]["choices"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|offered| offered["id"] == choice && offered["supported"] == true),
+        "{observed}"
+    );
+    let saved = app.save_bytes();
+    let mut queued = app.player("m26", &["choose", &player, &revision.to_string(), &choice]);
+
+    // Observe runs no frame. With the settled table otherwise unchanged, this
+    // pending reason means the transport has admitted the request.
+    let end = Instant::now() + Duration::from_secs(10);
+    while app.observe()["pending"] != json!(["faction seats"]) {
+        assert!(
+            Instant::now() < end,
+            "the choice did not reach the frame queue"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    }
+    // The development seat's quit drops the real table without another frame.
+    app.quit();
+    let end = Instant::now() + Duration::from_secs(10);
+    let (code, answer) = loop {
+        if let Some(ended) = queued.ended() {
+            break ended;
+        }
+        assert!(
+            Instant::now() < end,
+            "the closed socket did not end the command"
+        );
+        std::thread::sleep(Duration::from_millis(10));
+    };
+    assert_eq!(code, 0, "{answer}");
+    assert_eq!(answer["status"], "closed", "{answer}");
+    assert_eq!(answer["reason"], "The table closed.", "{answer}");
+    assert!(!app.player_socket().exists());
+    assert_eq!(app.save_bytes(), saved);
+}
+
 /// 26July's choices wait for what moves and for what the human opened, and for nothing
 /// its own steps drew.
 #[test]

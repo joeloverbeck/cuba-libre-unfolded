@@ -135,10 +135,7 @@ impl FactionSeats {
         const REASON: &str = "The table closed.";
         send(self.host.close(REASON));
         if let Some(transport) = self.transport.take() {
-            // What arrived and no frame will read.
-            for incoming in transport.take() {
-                incoming.reply.send(seats::closed(REASON).to_string());
-            }
+            transport.close();
         }
     }
 }
