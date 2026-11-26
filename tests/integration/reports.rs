@@ -1484,6 +1484,10 @@ mod reader {
                         let g = Faction::Government;
                         done.passed = Some([held(g), holds(g)]);
                     }
+                    ("syndicate", _) if parts[1] == "pass" => {
+                        let s = Faction::Syndicate;
+                        done.passed = Some([held(s), holds(s)]);
+                    }
                     ("kidnap", _) if parts.get(1) == Some(&"roll") => {
                         done.kidnapped = true;
                         done.at("Santiago de Cuba");
@@ -1546,8 +1550,15 @@ mod reader {
         let (before, after) = (&played.seen[from], &played.seen[to]);
         let decisions = &played.decisions[from..to];
         let card = before.current_card;
+        let syndicate_handoff = played.decisions[..from]
+            .iter()
+            .position(|(_, a)| matches!(a.as_str(), "government:pass" | "end-assault"));
         let executor = if card == 18 {
-            Faction::Government
+            if syndicate_handoff.is_some() {
+                Faction::Syndicate
+            } else {
+                Faction::Government
+            }
         } else if before.finished {
             Faction::Directorio
         } else {
@@ -1562,15 +1573,17 @@ mod reader {
                 Faction::M26 => (seen.action == ActionChoice::Terror).then_some("Terror"),
                 Faction::Directorio if made("event:shaded") => Some("the Event, shaded text"),
                 Faction::Directorio => made("event:unshaded").then_some("the Event, unshaded text"),
-                _ if made("government:pass") => Some("Pass"),
-                _ => made("government:assault").then_some("Assault"),
+                Faction::Government if made("government:pass") => Some("Pass"),
+                Faction::Government => made("government:assault").then_some("Assault"),
+                Faction::Syndicate => made("syndicate:pass").then_some("Pass"),
             }
         };
         // Where the action began: at the opening, or after the decision that ended the last.
         let began = match executor {
             Faction::M26 => 0,
             Faction::Directorio => 1 + all().position(|a| a == "end-terror").unwrap_or(0),
-            _ => 1 + all().position(|a| a == "advance-card").unwrap_or(0),
+            Faction::Government => 1 + all().position(|a| a == "advance-card").unwrap_or(0),
+            Faction::Syndicate => 1 + syndicate_handoff.unwrap(),
         };
         let continues = from > began;
         let ended = |seen: &Observation| seen.event.as_ref().is_some_and(|e| e.outcome().is_some());
@@ -1584,12 +1597,12 @@ mod reader {
         let last = decisions.last().map_or("", |(_, a)| a.as_str());
         let complete = matches!(
             last,
-            "pass" | "end-terror" | "government:pass" | "end-assault"
+            "pass" | "end-terror" | "government:pass" | "end-assault" | "syndicate:pass"
         ) || (executor == Faction::Directorio && ended(after));
         let kidnapped = all().any(|a| a == "kidnap:roll");
         // R 2.3.4: the box of a recorded action. Directorio's Event has none in this build.
         let recorded = match last {
-            "pass" | "government:pass" => Some("Pass"),
+            "pass" | "government:pass" | "syndicate:pass" => Some("Pass"),
             "end-terror" if kidnapped => Some("Operation with Special Activity"),
             "end-terror" | "end-assault" => Some("Operation Only"),
             _ => None,
@@ -1602,7 +1615,9 @@ mod reader {
             "Pact of Caracas"
         };
         same("card title", &report.card_title, &title)?;
-        let role = if executor == Faction::Directorio {
+        let role = if executor == Faction::Directorio
+            || syndicate_handoff.is_some_and(|index| played.decisions[index].1 == "end-assault")
+        {
             "2nd Eligible"
         } else {
             "1st Eligible"
@@ -2136,7 +2151,9 @@ mod reader {
         .collect();
         // R 2.3.3, 2.3.4 and 2.3.7, and the shaded text of card 17.
         let mut eligibility: Vec<String> = vec![];
-        if let Some(recorded) = recorded {
+        if let Some(recorded) = recorded
+            && executor != Faction::Syndicate
+        {
             eligibility.push(format!("{} is in the {recorded} box.", executor.name()));
         }
         let mut say = |line: &str| eligibility.push(line.to_owned());
@@ -2159,6 +2176,15 @@ mod reader {
                     Some(EventOutcome::Shaded { .. })
                 ) {
                     say("The Event keeps 26July Ineligible through card 18.");
+                }
+            }
+            (_, Faction::Syndicate, _) => {
+                if before.passed[Faction::Government.index()] {
+                    say("All four factions are Eligible for card 19.");
+                } else {
+                    say(
+                        "Card 19: 26July, Directorio and Syndicate Eligible, Government Ineligible.",
+                    );
                 }
             }
             (_, _, Some("Pass")) => say("Next: Syndicate, 1st Eligible."),

@@ -509,12 +509,19 @@ fn eligibility(first: &Moment, last: &Moment, faction: Faction) -> Vec<String> {
                 .collect();
             listing(&names)
         };
-        lines.push(format!(
-            "Card {}: {} Eligible, {} Ineligible.",
-            last.next_card,
-            those(true),
-            those(false)
-        ));
+        let ineligible = those(false);
+        if ineligible.is_empty() {
+            lines.push(format!(
+                "All four factions are Eligible for card {}.",
+                last.next_card
+            ));
+        } else {
+            lines.push(format!(
+                "Card {}: {} Eligible, {ineligible} Ineligible.",
+                last.next_card,
+                those(true),
+            ));
+        }
     }
     if was.event_restriction != is.event_restriction
         && let Some(kept) = is.event_restriction
