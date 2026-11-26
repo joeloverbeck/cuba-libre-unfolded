@@ -264,7 +264,11 @@ impl Moment {
                 Action::Assault
             }
             Faction::Syndicate
-                if self.executing == Some(faction) || !self.construct_paid.is_empty() =>
+                if self.executing == Some(faction)
+                    || matches!(
+                        self.eligibility.syndicate_box,
+                        Some(SequenceBox::OperationOnly | SequenceBox::LimitedOperation)
+                    ) =>
             {
                 Action::Construct
             }
@@ -412,12 +416,13 @@ fn span(moments: &[Moment], faction: Faction, continues: bool) -> Option<Report>
     let action = last.action_of(faction);
     let told = !items.is_empty() || complete || (!continues && action != Action::Undecided);
     let again = continues && first.action_of(faction) == action;
+    let first_eligible = first.eligibility.first == faction;
     told.then(|| Report {
         faction,
         action,
         card: first.card,
         card_title: title(first.card),
-        role: if first.eligibility.first == faction {
+        role: if first_eligible {
             "1st Eligible"
         } else {
             "2nd Eligible"
@@ -428,7 +433,7 @@ fn span(moments: &[Moment], faction: Faction, continues: bool) -> Option<Report>
         continues,
         complete,
         spaces: spaces(&items),
-        headline: words::headline(faction, action, again, complete, &items),
+        headline: words::headline(faction, action, first_eligible, again, complete, &items),
         summary: words::summary(faction, &items),
         articles: words::articles(faction, &items),
         standings: standings(first, last),
@@ -441,12 +446,7 @@ fn recorded(at: &Moment, faction: Faction) -> Option<&'static str> {
     match faction {
         Faction::M26 => at.eligibility.m26_box,
         Faction::Government => at.eligibility.government_box,
-        Faction::Syndicate if at.passed[Faction::Syndicate.index()] => Some(SequenceBox::Pass),
-        Faction::Syndicate
-            if !at.construct_paid.is_empty() && at.eligibility.next_card.is_some() =>
-        {
-            Some(SequenceBox::LimitedOperation)
-        }
+        Faction::Syndicate => at.eligibility.syndicate_box,
         _ => None,
     }
     .map(|recorded| recorded.name())

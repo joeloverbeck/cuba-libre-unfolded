@@ -26,8 +26,10 @@ pub(super) fn content(view: &Observation, target: &PieceTarget, quantity: u8) ->
     actions.sort_by_key(|choice| choice.casino_closure().is_none());
 
     let pivot = actions.iter().find_map(|choice| choice.preview.as_ref());
+    let both = actions.len() == 2 && actions.iter().all(|choice| choice.supported);
     let control = pivot.map(|preview| match preview.control.first() {
         Some(change) => match (change.from, change.to) {
+            (Some(from), None) if both => format!("Both choices end {} Control here.", from.name()),
             (Some(from), None) => format!("{} Control here ends.", from.name()),
             (_, Some(to)) => format!("{} takes Control here.", to.name()),
             (None, None) => "This space stays uncontrolled.".into(),
@@ -321,7 +323,7 @@ fn action(
             line,
             [INSET, copy_y + at as f32 * LINE, INNER],
             regular,
-            12.5,
+            13.,
             if *tone == Tone::Secondary { QUIET } else { INK },
         );
     }
@@ -454,7 +456,7 @@ pub(super) fn draw(
             line,
             [INSET, y + layout.stepper, INNER],
             font,
-            12.5,
+            13.,
             color,
         );
     }
@@ -502,7 +504,7 @@ pub(super) fn draw(
         Naming::Names,
         false,
         bold,
-        12.5 * s,
+        13. * s,
         QUIET,
         false,
     );

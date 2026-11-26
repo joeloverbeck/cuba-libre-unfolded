@@ -150,14 +150,10 @@ impl Game {
             .or_else(|| action.strip_prefix(RETURN))
             .and_then(piece_selection)?;
         let was_legal = |game: &Self, here: &Space| {
-            if game.construct_payment_owed() {
-                ConstructPlan::ALL
-                    .into_iter()
-                    .filter(|plan| game.construct_payment_requirement(here, *plan).is_ok())
-                    .collect::<Vec<_>>()
-            } else {
-                vec![]
-            }
+            ConstructPlan::ALL
+                .into_iter()
+                .filter(|plan| game.construct_payment_requirement(here, *plan).is_ok())
+                .collect::<Vec<_>>()
         };
         let mut opened = vec![];
         let mut withheld = vec![];
@@ -219,9 +215,9 @@ mod tests {
             game.apply(action).unwrap();
         }
 
-        // Authority fixture: move Government's on-map pieces into Havana. Put two
-        // open Casinos there. Havana can neither place nor reopen, La Habana has
-        // Directorio Control, and Pinar's sole open Casino gives the only legal site.
+        // Move Government's on-map pieces into Havana. Keep Havana and La Habana
+        // full with two open Casinos each. Pinar's sole open Casino controls the
+        // only remaining legal space.
         let mut government = vec![];
         for space in &mut game.spaces {
             space.pieces.retain(|group| {
@@ -243,18 +239,21 @@ mod tests {
                 count,
             });
         }
-        let casino = havana
-            .pieces
-            .iter_mut()
-            .find(|p| p.kind == Kind::Casino)
-            .unwrap();
-        casino.state = State::Open;
-        casino.count = 2;
+        for id in ["havana", "la-habana"] {
+            let space = game.spaces.iter_mut().find(|space| space.id == id).unwrap();
+            let casino = space
+                .pieces
+                .iter_mut()
+                .find(|piece| piece.kind == Kind::Casino)
+                .unwrap();
+            casino.state = State::Open;
+            casino.count = 2;
+        }
         game.available
             .iter_mut()
             .find(|p| p.kind == Kind::Casino)
             .unwrap()
-            .count -= 1;
+            .count -= 2;
         let legal: Vec<_> = game
             .choices()
             .into_iter()

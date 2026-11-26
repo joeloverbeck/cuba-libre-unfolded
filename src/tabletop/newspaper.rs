@@ -272,7 +272,7 @@ fn action(report: &Report) -> Option<&'static str> {
         Did::Terror => Some("Terror"),
         Did::EventUnshaded | Did::EventShaded => Some("Event"),
         Did::Assault => Some("Assault"),
-        Did::Construct => Some("Limited Construct"),
+        Did::Construct => Some(crate::game::construct_name(report.role == "1st Eligible")),
     }
 }
 

@@ -35,6 +35,12 @@ The owner's [acceptance of the rules baseline and tactical scenario](https://git
 
 Syndicate becomes 2nd Eligible and may Pass or choose a Limited Operation under R 2.3.4.
 
+### Zero-space Syndicate Construct on card 18
+
+**Rules:** R 3.1 and 3.3.5 allow selection of qualifying spaces and require payment in each selected space. They state no minimum for Operation Only.
+
+**Policy:** After Government Passes, Syndicate may finish Construct with zero payments. It records Operation Only, earns no Pass income, and keeps any side effects already committed. Syndicate becomes Ineligible and Government stays Eligible for card 19 (R 2.3.7). [Spec #215](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/215)
+
 ### Leaving Limited Construct on card 18
 
 **Rules:** R 2.3.5 requires a Limited Operation to take place in one space. R 3.3.5 requires full payment in every selected space, and R 2.3.7 makes Syndicate Ineligible after it executes Construct.

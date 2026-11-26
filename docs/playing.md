@@ -98,7 +98,7 @@ Government is 1st Eligible and Syndicate is 2nd Eligible. Both skipped an Operat
 
 Hover or focus Government's options to see what the rules allow and why a choice is unavailable. Pin **Pass** to review the current balance, the 3-Resource income and the balance after the 49-Resource cap. Select the **Pass** button to commit. Government's marker moves to the Pass box, and the next decision shows the credited income.
 
-Syndicate takes over as 1st Eligible on Pact of Caracas. It can Pass or inspect its Event, Operations and Special Activities.
+Syndicate takes over as 1st Eligible on Pact of Caracas. It can Pass, choose Construct as Operation Only, or inspect its other options.
 
 Choose **Assault · Operation Only**. The space is then chosen on the map and nowhere else. The map marks every space for the open Assault ([HIGHLIGHTS.md](../art/atlas/HIGHLIGHTS.md) shows how each state is drawn):
 
@@ -126,11 +126,13 @@ Once Government opens Assault, **Resource transfer** lets Government give or req
 
 Pin **Pass** to preview the balance after gaining 1 Resource, up to 49, and see the four factions’ Eligibility for card 19. Select the **Pass** button to commit. Syndicate, Directorio and 26July are Eligible. Government is Eligible if it Passed and Ineligible if it executed Assault. Pact of Caracas stays current and Sierra Maestra Manifesto stays in preview. The saved result is ready to inspect again after restarting the game.
 
-### Syndicate chooses Limited Construct
+### Syndicate chooses Construct
 
-After Government finishes Assault, choose **Limited Operation · Construct**. Click a marked city or province, or reach it with Tab and press Enter. The popover offers each legal plan. Select **Open 1 closed Casino** or **Place 1 closed Casino** when available, then use its **Pay 5** button. Check the payment and Casino counts before committing.
+After Government Passes, choose **Construct · Operation Only**. After Government finishes Assault, choose **Limited Operation · Construct**. Click a marked city or province, or reach it with Tab and press Enter. Select **Open 1 closed Casino** or **Place 1 closed Casino** when offered, then use the **Pay 5** button. Check the payment and Casino counts before committing.
 
-The panel records the paid space and the Casino action. Choose **Finish Construct** to end card 18 and make both Government and Syndicate Ineligible for card 19. A saved payment resumes at the same Finish decision. **Back to the action choice** is available before the first committed effect.
+The panel shows the remaining balance and records each payment in order. In Operation Only, select another unpaid space or choose **Finish Construct**, [including with zero payments](local-rule-policies.md#zero-space-syndicate-construct-on-card-18). Government stays Eligible. In Limited Construct, pay in one space, then choose **Finish Construct**. Government becomes Ineligible. **Back to the action choice** is available before the first committed effect in Limited Construct.
+
+Finishing makes Syndicate Ineligible for card 19. A restarted game restores the paid spaces, balance and remaining choices.
 
 **Manage own pieces** opens the Syndicate's piece controls. Select an open Casino on the map to compare **Close 1 Casino in place** with **Return 1 Casino to Available**. Closing leaves a closed Casino in that space. Returning frees its slot and increases the Available Forces count. The popover shows changes to Control, open Casinos and the remaining Construct plans. Select a closed Casino to return it, and use the stepper when the selected group holds more than one piece. Tab reaches the group and its controls, and Enter or Space activates each control. **Cancel** or Escape closes the popover without committing. Select **Done** to return to Construct.
 

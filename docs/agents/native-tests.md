@@ -2,6 +2,8 @@
 
 The [seat reference](seat.md) has the seat's requests, its component ids, what the table reports and how to judge a capture on the owner's display.
 
+- `native_operation_only_construct_resumes_the_map_and_finishes_in_payment_order` (#218) pays in Camagüey City by keyboard, restarts, then uses the faction client to pay in Havana and finish. It checks the map, ordered record, report, adjusted Eligibility and exact pre-Finish recovery. Evidence goes to `local/verification/issue-218/` when run directly.
+
 - `native_limited_construct_pays_in_havana_and_resumes_at_finish` (#217) compares opening and placing in Havana from the same funded Assault handoff. It uses the map by keyboard for the opening payment and the real faction client for placement and Finish. It checks the committed outcomes, agent edition, process restarts, exact pre-Finish recovery and refusal of stale and repeat payments. Evidence goes to `local/verification/issue-217/` when run directly.
 - `native_casino_management_compares_pinar_and_keeps_the_payment` (#219) compares closing and returning the one open Casino in Pinar del Río from the same paid position. It checks the authored button bounds at 3840×2160, focus, keyboard and pointer controls, cancellation, both agent previews, the committed return's report and edition, and exact replay. A separate payment in Pinar exercises adjacent open and closed groups, zoom, and a two-Casino return from the paid space. Evidence goes to `local/verification/issue-219/` when run directly.
 

@@ -400,21 +400,6 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
                 rules: String::new(),
             });
         }
-        if view.passed[Faction::Government.index()] {
-            return Some(Briefing {
-                option: option.into(),
-                title: choice.label.clone(),
-                rule: "R 2.3.3–4",
-                entries: vec![
-                    entry("OPTION", &choice.explanation),
-                    entry(
-                        "WHY SYNDICATE IS FIRST",
-                        "Government Passed. Syndicate is the next Eligible faction in card order and inherits the 1st Eligible options.",
-                    ),
-                ],
-                rules: String::new(),
-            });
-        }
         if view.executing == Some(Faction::Syndicate) {
             let mut entries = vec![entry("RESULT", &choice.explanation)];
             if let Some(adjusted) = choice
@@ -430,8 +415,27 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
             return Some(Briefing {
                 option: option.into(),
                 title: choice.label.clone(),
-                rule: "R 2.3.5, 3.3.5",
+                rule: if view.passed[Faction::Government.index()] {
+                    "R 2.3.4, 3.3.5"
+                } else {
+                    "R 2.3.5, 3.3.5"
+                },
                 entries,
+                rules: String::new(),
+            });
+        }
+        if view.passed[Faction::Government.index()] {
+            return Some(Briefing {
+                option: option.into(),
+                title: choice.label.clone(),
+                rule: "R 2.3.3–4",
+                entries: vec![
+                    entry("OPTION", &choice.explanation),
+                    entry(
+                        "WHY SYNDICATE IS FIRST",
+                        "Government Passed. Syndicate is the next Eligible faction in card order and inherits the 1st Eligible options.",
+                    ),
+                ],
                 rules: String::new(),
             });
         }

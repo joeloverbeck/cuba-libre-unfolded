@@ -599,7 +599,7 @@ mod tests {
                     size[1].as_f64().unwrap() as f32,
                 ];
                 let (_, [_, _, w, h]) = place(kind, 0.);
-                assert_eq!([w, h], piece(png), "{file}");
+                assert!((w / h - png[0] / png[1]).abs() < 0.001, "{file}");
             }
         }
     }

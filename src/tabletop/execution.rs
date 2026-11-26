@@ -1127,21 +1127,28 @@ fn event_heading(faction: Faction) -> String {
 pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)> {
     let e = &view.eligibility;
     if view.card_18_complete() {
-        if !view.construct_paid.is_empty() {
-            let paid = view
-                .construct_paid
-                .iter()
-                .map(|paid| paid.summary(space_name(view, &paid.space)))
-                .collect::<Vec<_>>()
-                .join("\n");
+        if let Some(
+            recorded @ (crate::SequenceBox::OperationOnly | crate::SequenceBox::LimitedOperation),
+        ) = e.syndicate_box
+        {
+            let paid = if view.construct_paid.is_empty() {
+                "No spaces paid".into()
+            } else {
+                view.construct_paid
+                    .iter()
+                    .map(|paid| paid.summary(space_name(view, &paid.space)))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            };
             return Some((
-                "Syndicate · Limited Construct".into(),
+                format!("Syndicate · {}", e.construct_name()),
                 "Card 18 complete · Eligibility adjusted\nCard 19 remains the preview".into(),
                 vec![
                     entry(
                         "RESULT",
                         format!(
-                            "{paid}. Syndicate has {} left.",
+                            "{}\n{paid}\nSyndicate has {} left.",
+                            recorded.name(),
                             resources(view.resources[Faction::Syndicate.index()])
                         ),
                     ),
