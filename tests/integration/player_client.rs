@@ -35,6 +35,8 @@ fn a_command_the_client_cannot_send_says_why() {
     let nowhere = Path::new("/nonexistent/cuba.sock");
     let (code, _) = ask(nowhere, &["observe", "p"]);
     assert_eq!(code, 4);
+    let (code, _) = ask(nowhere, &["publish", "p", "5", "17", "--help"]);
+    assert_eq!(code, 4, "publication text is a positional argument");
     for wrong in [
         &["join"][..],
         &["join", "directorio", "government"],
@@ -79,7 +81,7 @@ mod over_the_socket {
     use cuba_libre_unfolded::{
         Faction, Game,
         faction_seats::{Answer, Host, Player, Table, closed},
-        save::Session,
+        save::{Proclamation, Session},
     };
     use std::{
         process::Child,
@@ -107,12 +109,26 @@ mod over_the_socket {
         fn reports(&self) -> Vec<cuba_libre_unfolded::reports::Report> {
             self.0.reports()
         }
+        fn proclamations(&self) -> &[Proclamation] {
+            self.0.proclamations()
+        }
         fn settled(&self) -> bool {
             true
         }
         fn commit(&mut self, faction: Faction, revision: u64, choice: &str) -> Result<(), String> {
             let submitted = self.0.submit(faction, revision, choice);
             submitted.map_err(|refused| refused.to_string())
+        }
+        fn publish(
+            &mut self,
+            faction: Faction,
+            revision: u64,
+            card: u8,
+            text: &str,
+        ) -> Result<(), String> {
+            self.0
+                .publish(faction, revision, card, text)
+                .map_err(|refused| refused.to_string())
         }
     }
 
@@ -210,6 +226,53 @@ mod over_the_socket {
 
     fn spawn(socket: &Path, args: &[&str]) -> Child {
         client(socket, args).spawn().unwrap()
+    }
+
+    #[test]
+    fn a_giver_publishes_public_words_and_keeps_its_choice() {
+        let dir = tempfile::tempdir().unwrap();
+        let socket = dir.path().join("players.sock");
+        let save = dir.path().join("match.json");
+        let table = Running::open(&socket, Session::create_seeded(&save, 5).unwrap());
+        table.human(|host, _| host.hand_over(Faction::Syndicate));
+        let (_, joined) = ask(&socket, &["join", "Syndicate"]);
+        let giver = joined["player"].as_str().unwrap();
+        let waiting = spawn(&socket, &["wait", giver]);
+        table.until_waits(Faction::Syndicate, true);
+        table.play(&["terror", "transfer", "ask:3:2"]);
+        let (code, wake) = ended(&waiting.wait_with_output().unwrap());
+        assert_eq!((code, &wake["status"]), (0, &json!("decision")), "{wake}");
+        let before = &wake["view"];
+        assert_eq!(before["decision"]["faction"], "Syndicate");
+        assert_eq!(before["decision"]["yours"], true);
+        assert_eq!(before["state"]["resources"], json!([6, 0, 5, 15]));
+        let wording = "--  Havana, mañana.\n  I offer two Resources.  ";
+        let (code, published) = ask(&socket, &["publish", giver, "3", "17", wording]);
+        assert_eq!(
+            (code, &published["status"]),
+            (0, &json!("published")),
+            "{published}"
+        );
+        let after = &published["view"];
+        for field in ["revision", "decision", "choices", "state", "results"] {
+            assert_eq!(after[field], before[field], "{field}");
+        }
+        assert_eq!(
+            after["proclamations"],
+            json!({
+                "limit": 400,
+                "can_publish": false,
+                "note": "Public faction speech (R 1.5.1). Agreements are nonbinding.",
+                "published": [{"card": 17, "author": "Syndicate", "text": wording}]
+            })
+        );
+        let (code, applied) = ask(&socket, &["choose", giver, "3", "3:authorize:1"]);
+        assert_eq!(
+            (code, &applied["status"]),
+            (0, &json!("applied")),
+            "{applied}"
+        );
+        assert_eq!(applied["view"]["state"]["resources"], json!([6, 1, 5, 14]));
     }
 
     #[test]

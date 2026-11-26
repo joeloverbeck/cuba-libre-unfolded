@@ -11,7 +11,7 @@ use super::*;
 use crate::faction_seats::{self as seats, Answer, Host, Player, SeatState, Stands};
 use crate::player_folders::Places;
 use crate::reports::Report;
-use crate::save::Submit;
+use crate::save::{Proclamation, Submit};
 use serde_json::{Value, json};
 use std::{path::Path, time::Instant};
 use unfolded_tabletop::agent_transport::{Protocol, Reply, Transport, Unopened, window_waker};
@@ -215,6 +215,10 @@ impl seats::Table for Sitting<'_> {
         self.session().reports()
     }
 
+    fn proclamations(&self) -> &[Proclamation] {
+        self.session().proclamations()
+    }
+
     fn settled(&self) -> bool {
         self.settled
     }
@@ -237,6 +241,25 @@ impl seats::Table for Sitting<'_> {
                 Err(failure.to_string())
             }
         }
+    }
+    fn publish(
+        &mut self,
+        faction: Faction,
+        revision: u64,
+        card: u8,
+        text: &str,
+    ) -> Result<(), String> {
+        let result = self
+            .play
+            .session
+            .as_mut()
+            .expect("An admitted match")
+            .publish(faction, revision, card, text);
+        if let Err(failure @ Submit::Save(_)) = &result {
+            self.ui.notice = notice::Notice::failed(failure);
+            self.ui.dirty = true;
+        }
+        result.map_err(|failure| failure.to_string())
     }
 }
 

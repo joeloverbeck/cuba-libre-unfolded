@@ -1084,6 +1084,10 @@ fn group(faction: Faction, kind: Kind, count: u8) -> Group {
     }
 }
 impl Game {
+    pub(crate) fn current_card(&self) -> u8 {
+        if self.card_18 { 18 } else { 17 }
+    }
+
     /// The opening position: the accepted prepared position at 26July's 1st Eligible
     /// action choice, at revision 0, with the given random state. Every match and
     /// every save starts here, from a seed drawn once from the OS or a given one.
@@ -1283,7 +1287,7 @@ impl Game {
             played_cards.push(17);
         }
         let eligibility = self.eligibility();
-        let current_card = if self.card_18 { 18 } else { 17 };
+        let current_card = self.current_card();
         let piles = Piles::new(&played_cards, current_card, self.draw_deck.len());
         let played_pile = pile_facts::played_pile(&played_cards, current_card);
         // Only the deck's number and its face-up top card are public (R 2.2, 2.3.8).

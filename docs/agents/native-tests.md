@@ -14,6 +14,8 @@ Run affected integration selectors when changing a report article, choice family
 
 The [seat reference](seat.md) has the seat's requests, its component ids, what the table reports and how to judge a capture on the owner's display.
 
+- `native_public_proclamations_preserve_the_givers_decision` (#229) runs four real faction clients. It checks the same 400-character Syndicate proclamation in every view, Directorio's eventual decision, refused writes and retries, and the allowance after seat takeover and card advance. At the card 18 Havana request, it checks the pending choice, balances, closed Casino and factual reports around 26July's publication and a same-build restart. It then authorizes two Resources and pays separately to open the Casino. Evidence goes to `local/verification/issue-229/` when run directly.
+
 - `native_partial_construct_funding_survives_a_pending_reply_and_finishes_from_recovery` (#221) authorizes one Resource in the modal, reads its held status in the action report, requests more through the real Syndicate client, and saves while Directorio decides. It checks the pending condition fits the tab and that Directorio's client settles both authorizations after restart. It also checks refusal, stale and repeat replies, Havana's payment, a second restart, committed transfers in the report, and exact pre-Finish recovery. Evidence goes to `local/verification/issue-221/` when run directly.
 
 - `native_syndicate_withdraws_its_pending_limited_construct_request` uses the native withdrawal row by pointer and keyboard, with a human and then a faction-client giver. It checks release of a held authorization, retention of earlier transfers and refusal of the stale giver reply. Evidence goes to `local/verification/issue-215/` when run directly.
