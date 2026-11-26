@@ -181,7 +181,7 @@ fn part<'a>(view: &'a Value, name: &str) -> &'a Value {
         .unwrap()
 }
 
-fn type_text(app: &Native, revision: u64, text: &str) {
+pub(super) fn type_text(app: &Native, revision: u64, text: &str) {
     let requests = text.chars().map(|character| {
         let key = match character {
             ' ' => "Space".into(),

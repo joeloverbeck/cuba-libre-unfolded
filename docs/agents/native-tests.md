@@ -14,6 +14,9 @@ Run affected integration selectors when changing a report article, choice family
 
 The [seat reference](seat.md) has the seat's requests, its component ids, what the table reports and how to judge a capture on the owner's display.
 
+- `native_havana_numeric_request_and_public_bargain` (#233) compares a silent and an explained request from the same Havana decision through all four real client views. It branches at the giver's answer, checks the transfer and separate five-Resource payment, and resumes the recovered and completed positions. Evidence goes to `local/verification/issue-233/` when run directly.
+- `native_havana_draft_resumes_after_consecutive_proclamations` (#233) interrupts a selected draft with two faction publications at the Havana giver decision. It exercises both dismissal inputs, quiet delivery and held authorizations before and after a seat takeover. Evidence goes to `local/verification/issue-233/` when run directly.
+
 - `native_resume_and_recovery_preserve_proclamations_and_the_pending_giver` (#232) uses Save · quit with a read offer, an unread document and Syndicate's two-Resource decision pending. It checks the reopened text, seat reset, faction allowances and exact request, rereads the offer and authorizes the transfer once. It recovers both an earlier record with one document still unread and the exact pre-authorization record, then repeats the authorization from that copy and compares the saved result byte for byte. Evidence goes to `local/verification/issue-232/` when run directly.
 
 - `native_human_composes_a_proclamation_for_the_selected_faction` (#230) selects a human author from the author controls, closes the sheet, and plays the pending decision in silence.

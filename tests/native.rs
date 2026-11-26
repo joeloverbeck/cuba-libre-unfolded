@@ -33,6 +33,8 @@ mod construct_transfers;
 mod faction_seats;
 #[path = "native/focus_mark.rs"]
 mod focus_mark;
+#[path = "native/havana_negotiation.rs"]
+mod havana_negotiation;
 #[path = "support/longest.rs"]
 mod longest;
 #[path = "native/main_view.rs"]
