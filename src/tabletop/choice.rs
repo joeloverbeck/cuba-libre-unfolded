@@ -343,6 +343,19 @@ fn panel_options(view: &Observation) -> impl Iterator<Item = &Choice> {
     })
 }
 
+/// Once the giver's modal is set aside, the human requester can withdraw a Limited Construct.
+fn pending_withdrawal<'a>(view: &'a Observation, ui: &Interface) -> Option<&'a Choice> {
+    if !matches!(view.transfer, Some(Transfer::Authorizing { .. }))
+        || view.executing != Some(Faction::Syndicate)
+        || super::transfer::shown(view.transfer.as_ref(), view.owner, ui)
+    {
+        return None;
+    }
+    view.choices.iter().find(|choice| {
+        choice.action() == "back-to-choice" && choice.supported && ui.plays(choice.owner)
+    })
+}
+
 /// Event execution and the card 18 decisions use rows without section headings.
 /// During Assault the rows follow the map line and the record of paid spaces (#169).
 fn panel_rows(view: &Observation) -> impl Iterator<Item = (&Choice, f32)> {
@@ -377,6 +390,17 @@ pub(super) struct AssaultLine {
     pub top: f32,
 }
 
+fn payment_record(name: String, summary: &str, top: &mut f32) -> AssaultLine {
+    let words = briefing::wrap(summary, fig::ASSAULT_RECORD_CHARS).join("\n");
+    let line = AssaultLine {
+        name,
+        words,
+        top: *top,
+    };
+    *top += fig::ASSAULT_RECORD[1] * line.words.lines().count() as f32;
+    line
+}
+
 /// The Assault panel's lines under its cost lines (#169): the line that sends the
 /// player to the map, then each paid space in the order paid, with the authority's
 /// summary of what it paid and what was removed or closed. Empty while the panel
@@ -390,16 +414,13 @@ pub(super) fn assault_lines(view: &Observation) -> Vec<AssaultLine> {
         words: super::execution::MAP_LINE.into(),
         top: fig::ASSAULT_MAP_LINE[0],
     }];
-    let [mut top, pitch, ..] = fig::ASSAULT_RECORD;
+    let mut top = fig::ASSAULT_RECORD[0];
     for paid in &view.assault_paid {
-        let words = briefing::wrap(&paid.summary(), fig::ASSAULT_RECORD_CHARS).join("\n");
-        let height = pitch * words.lines().count() as f32;
-        lines.push(AssaultLine {
-            name: format!("assault-record:{}", paid.space),
-            words,
-            top,
-        });
-        top += height;
+        lines.push(payment_record(
+            format!("assault-record:{}", paid.space),
+            &paid.summary(),
+            &mut top,
+        ));
     }
     lines
 }
@@ -434,22 +455,18 @@ fn payment_lines(view: &Observation) -> Vec<AssaultLine> {
         },
         top: fig::ASSAULT_MAP_LINE[0],
     }];
-    let [mut top, pitch, ..] = fig::ASSAULT_RECORD;
+    let mut top = fig::ASSAULT_RECORD[0];
     for paid in &view.construct_paid {
         let space = view
             .spaces
             .iter()
             .find(|space| space.id == paid.space)
             .unwrap();
-        let words =
-            briefing::wrap(&paid.summary(&space.name), fig::ASSAULT_RECORD_CHARS).join("\n");
-        let height = pitch * words.lines().count() as f32;
-        lines.push(AssaultLine {
-            name: format!("construct-record:{}", paid.space),
-            words,
-            top,
-        });
-        top += height;
+        lines.push(payment_record(
+            format!("construct-record:{}", paid.space),
+            &paid.summary(&space.name),
+            &mut top,
+        ));
     }
     lines
 }
@@ -745,7 +762,8 @@ pub(super) fn panel(
         style(commands, words, art, false, 0., 0., Some(rs(height) * s));
         part(commands, words, &line.name);
     }
-    for (choice, top) in panel_rows(view) {
+    let withdrawal = pending_withdrawal(view, ui);
+    for (choice, top) in panel_rows(view).chain(withdrawal.map(|c| (c, fig::ROWS[0]))) {
         let act = choice.action();
         let name = format!("option:{act}");
         let (label, pill) = if act == "government:pass" {
@@ -787,16 +805,22 @@ pub(super) fn panel(
                 ))
                 .id()
         };
+        let control = if withdrawal.is_some_and(|withdraw| withdraw.id == choice.id) {
+            Control {
+                name: choice.id.clone(),
+                choice: true,
+                action: Action::Decision(choice.owner, view.revision),
+            }
+        } else {
+            Control {
+                name: name.clone(),
+                choice: false,
+                action: Action::Pin(act.into()),
+            }
+        };
         commands
             .entity(node)
-            .insert((
-                Control {
-                    name: name.clone(),
-                    choice: false,
-                    action: Action::Pin(act.into()),
-                },
-                Part(name.clone()),
-            ))
+            .insert((control, Part(name.clone())))
             .observe(super::click);
         let accompanies = choice.accompanies.is_some();
         let (lx, ly, size) = if offered {
@@ -1132,6 +1156,8 @@ fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> 
             || view.eligibility.directorio_handoff()
             || view.event.as_ref().is_some_and(EventProgress::pending) =>
         {
+            let withdrawal = pending_withdrawal(view, ui)
+                .map(|c| (c.id.clone(), Action::Decision(c.owner, view.revision)));
             if matches!(
                 view.transfer,
                 Some(Transfer::Authorizing { waited: true, .. })
@@ -1140,10 +1166,12 @@ fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> 
                 .iter()
                 .find(|choice| choice.action() == "reopen" && ui.plays(choice.owner))
             {
-                return vec![(
+                return std::iter::once((
                     choice.id.clone(),
                     Action::Decision(choice.owner, view.revision),
-                )];
+                ))
+                .chain(withdrawal)
+                .collect();
             }
             // The commit, or the strip that stands there (#206).
             let foot = match super::seat_cards::strip(view, ui) {
@@ -1160,6 +1188,7 @@ fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> 
                         Action::Pin(c.action().into()),
                     )
                 })
+                .chain(withdrawal)
                 .chain(foot)
                 .collect()
         }

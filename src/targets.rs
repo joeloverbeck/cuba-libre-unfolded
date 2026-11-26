@@ -137,9 +137,9 @@ pub fn space_targets(view: &Observation) -> Option<Vec<SpaceTarget>> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PieceState {
-    /// At least one of the group may be removed now.
+    /// At least one piece can be returned to Available Forces or closed in place.
     Removable,
-    /// None may: the owed Terror keeps Santiago's last Underground Guerrilla.
+    /// Every action on this group is refused. Protected Casinos can still preview why.
     Protected,
 }
 
@@ -152,7 +152,7 @@ pub struct PieceTarget {
     pub kind: Kind,
     pub state: State,
     pub count: u8,
-    /// How many may be removed in one decision now.
+    /// The largest quantity a supported action can return or close now.
     pub removable: u8,
     pub mark: PieceState,
     /// The choice IDs for each action and quantity in the rules menu.

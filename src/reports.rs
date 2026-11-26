@@ -355,6 +355,7 @@ enum Item {
         space: String,
         group: Group,
         closed_in_place: bool,
+        effects: CasinoEffects,
     },
     Kidnap {
         space: String,
@@ -382,6 +383,7 @@ enum Item {
         paid: u8,
         balance: Balance,
         plan: ConstructPlan,
+        effects: CasinoEffects,
     },
     Shaded {
         /// A space and the Guerrillas Activated there.
@@ -394,6 +396,25 @@ enum Item {
         action: RallyAction,
     },
     NoRally(Faction),
+}
+
+/// Standing and Control changes at the decision that changed a Casino.
+struct CasinoEffects {
+    open: Option<FromTo>,
+    control: Option<(Option<Faction>, Option<Faction>)>,
+}
+
+impl CasinoEffects {
+    fn between(before: &Moment, after: &Moment, was: &Space, is: &Space) -> Self {
+        let syndicate = Faction::Syndicate.index();
+        let from = before.standings[syndicate].score;
+        let to = after.standings[syndicate].score;
+        let control = (was.control(), is.control());
+        Self {
+            open: (from != to).then_some(FromTo { from, to }),
+            control: (control.0 != control.1).then_some(control),
+        }
+    }
 }
 
 /// What was asked and given between one giver and one recipient.
@@ -423,9 +444,25 @@ fn span(moments: &[Moment], faction: Faction, continues: bool) -> Option<Report>
         happened(&step[0], &step[1], continues, &mut items);
     }
     let action = last.action_of(faction);
-    let told = !items.is_empty() || complete || (!continues && action != Action::Undecided);
+    let new_authorization =
+        last.construct_authorizations().len() > first.construct_authorizations().len();
+    let told = new_authorization
+        || !items.is_empty()
+        || complete
+        || (!continues && action != Action::Undecided);
     let again = continues && first.action_of(faction) == action;
     let first_eligible = first.eligibility.first == faction;
+    let mut summary = words::summary(faction, &items);
+    if faction == Faction::Syndicate
+        && let Some(funding) = &last.construct_funding
+        && (last.request().is_some() || !funding.authorizations.is_empty())
+    {
+        let status = format!("{}. {}", funding.summary(), ConstructFunding::CONDITION);
+        summary = Some(match summary {
+            Some(text) => format!("{text} {status}"),
+            None => status,
+        });
+    }
     told.then(|| Report {
         faction,
         action,
@@ -443,19 +480,7 @@ fn span(moments: &[Moment], faction: Faction, continues: bool) -> Option<Report>
         complete,
         spaces: spaces(&items),
         headline: words::headline(faction, action, first_eligible, again, complete, &items),
-        summary: words::summary(faction, &items).map(|summary| {
-            if last.request().is_some()
-                && let Some(funding) = &last.construct_funding
-            {
-                format!(
-                    "{summary} {}. {}",
-                    funding.summary(),
-                    ConstructFunding::CONDITION
-                )
-            } else {
-                summary
-            }
-        }),
+        summary,
         articles: words::articles(faction, &items),
         standings: standings(first, last),
         notes: words::notes(first, last, faction),
@@ -559,11 +584,13 @@ fn happened(before: &Moment, after: &Moment, continues: bool, items: &mut Vec<It
         .iter()
         .skip(before.construct_paid.len())
     {
+        let (was, is) = (before.space(&paid.space), after.space(&paid.space));
         items.push(Item::Construct {
-            space: name(&paid.space),
+            space: is.name.clone(),
             paid: paid.paid,
             balance: balance(before, after, Faction::Syndicate),
             plan: paid.plan,
+            effects: CasinoEffects::between(before, after, was, is),
         });
     }
     if let (None, Some(flips)) = (before.flips(), after.flips()) {
@@ -790,6 +817,7 @@ fn removed(before: &Moment, after: &Moment, faction: Faction, items: &mut Vec<It
                     space: is.name.clone(),
                     closed_in_place: closed(is) > closed(was),
                     group,
+                    effects: CasinoEffects::between(before, after, was, is),
                 });
                 continue;
             }

@@ -71,7 +71,7 @@ The Resource transfer step opens the transfer modal ([TRANSFER.md](../art/atlas/
 
 Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfer can fund either Terror target without Kidnap, or make Kidnap possible during or after Terror. 26July can transfer Resources once it chooses Terror. Going back or ending Terror withdraws a pending request. During the Event and the free Rally, the executing faction can transfer Resources. They are made by whoever plays the faction. [Transfer timing](local-rule-policies.md#transfers-open-once-terror-is-chosen) · [Withdrawing pending requests](local-rule-policies.md#a-pending-transfer-request-is-withdrawn)
 
-Syndicate can transfer Resources while Construct is open. If a Limited Construct needs funding, the request and giver's decision show the amount conditionally authorized and the amount still needed. Ask the same or another giver, or use **Back to the action choice** before committing. After the transfers move, choose where to pay. Pay for your chosen space before giving away the Resources needed for that payment. [Partial funding](local-rule-policies.md#partial-funding-for-limited-construct) · [Limited Construct commitment](local-rule-policies.md#leaving-limited-construct-on-card-18)
+Syndicate can transfer Resources while Construct is open. If Limited Construct needs funding, the transfer surfaces show the amount held and how much more authorization will move the Resources. Ask the same or another giver, or use **Back to the action choice** before committing. With a request pending, select **Wait** if the giver's modal is open, then select **Syndicate withdraws · back to action choice** in the decision panel to leave and release any held authorizations. After the transfers move, choose where to pay. Pay for your chosen space before giving away the Resources needed for that payment. [Partial funding](local-rule-policies.md#partial-funding-for-limited-construct) · [Limited Construct commitment](local-rule-policies.md#leaving-limited-construct-on-card-18)
 
 ## Removing your own pieces
 
@@ -130,7 +130,7 @@ Pin **Pass** to preview the balance after gaining 1 Resource, up to 49, and see 
 
 ### Syndicate chooses Construct
 
-After Government Passes, choose **Construct · Operation Only**. After Government finishes Assault, choose **Limited Operation · Construct**. Click a marked city or province, or reach it with Tab and press Enter. Select **Open 1 closed Casino** or **Place 1 closed Casino** when offered, then use the **Pay 5** button. Check the payment and Casino counts before committing.
+After Government Passes, choose **Construct · Operation Only**. After Government finishes Assault, choose **Limited Operation · Construct**. Click a marked city or province, or reach it with Tab and press Enter. Select **Open 1 closed Casino** or **Place 1 closed Casino** when offered, then use the **Pay 5** button. Check the payment and Casino counts before committing. The preview explains when the other plan is unavailable.
 
 The panel shows the remaining balance and records each payment in order. In Operation Only, select another unpaid space or choose **Finish Construct**, [including with zero payments](local-rule-policies.md#zero-space-syndicate-construct-on-card-18). Government stays Eligible. In Limited Construct, pay in one space, then choose **Finish Construct**. Government becomes Ineligible. **Back to the action choice** is available before the first committed effect in Limited Construct.
 

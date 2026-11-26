@@ -520,12 +520,12 @@ impl Game {
         after: &Self,
         action: &str,
     ) -> Option<Vec<String>> {
-        let (id, _) = payment(action)?;
+        let (id, plan) = payment(action)?;
         let space = self.spaces.iter().find(|s| s.id == id)?;
         let result = after.spaces.iter().find(|s| s.id == id)?;
         let before_available = self.casino_inventory();
         let after_available = after.casino_inventory();
-        Some(vec![
+        let mut notes = vec![
             format!(
                 "Casinos here · {} → {} open · {} → {} closed.",
                 casinos(space, State::Open),
@@ -534,7 +534,15 @@ impl Game {
                 casinos(result, State::Closed)
             ),
             format!("Casinos in Available Forces: {before_available} → {after_available}."),
-        ])
+        ];
+        notes.extend(
+            ConstructPlan::ALL
+                .into_iter()
+                .filter(|other| *other != plan)
+                .filter_map(|other| other.requirement(space, before_available).err())
+                .map(str::to_owned),
+        );
+        Some(notes)
     }
 
     pub(super) fn apply_construct(

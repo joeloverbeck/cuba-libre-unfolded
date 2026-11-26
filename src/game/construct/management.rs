@@ -29,7 +29,8 @@ impl Game {
                         _ => unreachable!("Syndicate pieces are Casinos or Guerrillas"),
                     };
                     let selection = format!("{}:{group}:{n}", space.id);
-                    let closed = piece.kind == Kind::Casino && piece.state == State::Open;
+                    let can_close_in_place =
+                        piece.kind == Kind::Casino && piece.state == State::Open;
                     let actions = [
                         (
                             CLOSE,
@@ -38,7 +39,9 @@ impl Game {
                         ),
                         (RETURN, format!("Return {n} {name} to Available"), "R 1.4.1"),
                     ];
-                    for (prefix, label, rule) in actions.into_iter().skip(usize::from(!closed)) {
+                    for (prefix, label, rule) in
+                        actions.into_iter().skip(usize::from(!can_close_in_place))
+                    {
                         let action = format!("{prefix}{selection}");
                         let refusal = self.management_refusal(&action);
                         choices.push(

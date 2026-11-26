@@ -1517,7 +1517,9 @@ fn operation_only_can_manage_casinos_after_spending_its_last_resource() {
         casino.lines,
         [
             "Syndicate closes 1 open Casino in place.",
-            "0 Resources · no Profit."
+            "0 Resources · no Profit.",
+            "Syndicate open Casinos: 3 → 2.",
+            "Pinar del Río Control: Syndicate → none."
         ]
     );
 }
