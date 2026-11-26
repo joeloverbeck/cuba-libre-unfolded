@@ -46,6 +46,7 @@ use unfolded_tabletop::{
 mod areas;
 mod available;
 mod briefing;
+mod broadsheet;
 mod cards;
 mod choice;
 pub mod die;
@@ -63,6 +64,7 @@ mod palette;
 mod pile_tags;
 mod piles;
 mod popover;
+mod proclamation_composer;
 mod save_quit;
 pub mod seat;
 mod seat_cards;
@@ -181,6 +183,7 @@ struct Interface {
     line: Option<seat_cards::Line>,
     /// The current card's editions (#208): while one is due or open nothing is decided.
     editions: crate::editions::Editions,
+    composer: proclamation_composer::State,
     /// The transfer modal's counterpart, direction, typed amount and focus.
     transfer: transfer::State,
     /// The revision a Kidnap roll just created in this run, until the die's
@@ -275,6 +278,7 @@ enum Action {
     /// The newspaper (#208): puts the open edition away, turns to another or takes the
     /// latest from the pile. Decides nothing.
     Edition(newspaper::Press),
+    ComposeProclamation(proclamation_composer::Press),
 }
 #[derive(Resource, Clone)]
 struct RenderReady {
@@ -485,6 +489,13 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .init_resource::<highlights::Targeting>()
         .init_resource::<popover::Popover>()
         .add_systems(Startup, (setup, highlights::setup, popover::setup))
+        .add_systems(
+            PreUpdate,
+            proclamation_composer::seat_text
+                .after(bevy::input::InputSystems)
+                .before(bevy::input_focus::InputFocusSystems::Dispatch)
+                .run_if(move || windowless),
+        )
         .add_observer(map_click_closes_tag)
         .add_observer(piles::land_on_click)
         .add_systems(
@@ -504,6 +515,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 // keyboard first and stand aside while it is shown. A decision any of
                 // them applied may have played a card, or have an edition to open.
                 (
+                    proclamation_composer::keys,
                     newspaper::keys,
                     piles::keys,
                     choice::keys,
@@ -533,6 +545,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                     piles::present,
                     save_quit::hover,
                     newspaper::draw,
+                    proclamation_composer::draw,
                     focus_mark::draw,
                 )
                     .chain(),
@@ -1203,6 +1216,10 @@ fn click(
         Action::Submit(..) | Action::Seat(_) => return,
         // Reading an edition changes nothing in the match.
         Action::Edition(press) => newspaper::press(&mut ui, *press),
+        Action::ComposeProclamation(press) => {
+            proclamation_composer::press(&play, &mut ui, *press);
+            return;
+        }
         // Reading a card changes nothing in the match.
         Action::Card(slot) => cards::activate(&mut ui, *slot),
         Action::Decision(owner, rev) | Action::Commit(owner, rev) => {
@@ -1606,7 +1623,11 @@ fn camera_facts(play: &Play, ui: &Interface, roll: &die::Roll) -> TableFacts {
         )
     });
     TableFacts {
-        blocks_camera: play.session.is_none() || modal || die || ui.editions.open().is_some(),
+        blocks_camera: play.session.is_none()
+            || modal
+            || die
+            || ui.editions.open().is_some()
+            || ui.composer.is_open(),
         scene: Scene::WholeWindow,
         ..default()
     }
@@ -1801,6 +1822,7 @@ fn draw_ui(
     piles::overlay(&mut commands, &art, &scene, &window);
     // #208: the pile of this card's editions beside the pips.
     newspaper::pile(&mut commands, &art, &view, &ui, &main_view, &window);
+    proclamation_composer::entry(&mut commands, &art, &play, &ui, &window);
     // #206: the four seats between the pips and Save · quit.
     seat_cards::draw(&mut commands, &art, &view, &ui, &main_view, &window);
     // #174: Save · quit in the bottom-right corner, and above it and the seats the notice

@@ -66,6 +66,7 @@ static KEYS: LazyLock<Vec<SeatKey>> = LazyLock::new(|| {
         key("Space", KeyCode::Space, Key::Space, true),
         key("Escape", KeyCode::Escape, Key::Escape, false),
         key("Backspace", KeyCode::Backspace, Key::Backspace, false),
+        key("KeyP", KeyCode::KeyP, Key::Character("p".into()), false),
         // Each hands a faction over to an agent, or takes it back (`faction_seats`).
         key("F1", KeyCode::F1, Key::F1, false),
         key("F2", KeyCode::F2, Key::F2, false),
@@ -438,6 +439,7 @@ impl SeatGame for Table {
         let seats = faction_seats::observe(world);
         let cards = seat_cards::observe(world);
         let newspaper = newspaper::observe(world);
+        let composer = proclamation_composer::observe(world);
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
         let pose = world.resource::<Orbit>().pose();
@@ -458,6 +460,7 @@ impl SeatGame for Table {
         table["seat_cards"] = cards;
         // #208: the newspaper.
         table["newspaper"] = newspaper;
+        table["proclamation_composer"] = composer;
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
             table,
@@ -608,6 +611,9 @@ impl SeatGame for Table {
             });
         }
         let ui = world.resource::<Interface>();
+        if let Some(focus) = proclamation_composer::focus(ui) {
+            return focus;
+        }
         let game = world.resource::<Play>().game();
         let modal = transfer::shown(game.transfer.as_ref(), game.owner(), ui);
         let focused = if modal {
