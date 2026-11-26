@@ -113,8 +113,6 @@ impl Standing {
 /// What the host keeps of a session beside its seat.
 struct Session {
     id: String,
-    /// The submission its held wait follows, when the request both submitted and waited.
-    follows: Option<(Chosen, Standing)>,
     /// The revision its own Wait on a Transfer request made, while nothing else has
     /// happened: its faction still decides, and it has no new decision.
     set_aside: Option<u64>,
@@ -158,14 +156,14 @@ enum Request {
 /// The faction seats of one table, the sessions that hold them and their requests in
 /// progress. `R` is how the transport answers a request.
 pub struct Host<R> {
-    seats: Seats<Faction, Chosen, R>,
+    seats: Seats<Faction, Chosen, R, (Chosen, Standing)>,
     sessions: Vec<Session>,
 }
 
 impl<R> Default for Host<R> {
     fn default() -> Self {
         Self {
-            seats: Seats::new(Faction::ALL),
+            seats: Seats::with_following(Faction::ALL),
             sessions: Vec::new(),
         }
     }
@@ -344,9 +342,7 @@ impl<R> Host<R> {
     /// End each held wait whose client has died, before anything is told to it: its seat's
     /// silence counts from now, and what it would have been told stays to be told.
     pub fn end_hung_up(&mut self, hung_up: impl Fn(&R) -> bool, now: Instant) {
-        for id in self.seats.end_hung_up(hung_up, now) {
-            self.follow(&id, None);
-        }
+        self.seats.end_hung_up(hung_up, now);
     }
 
     /// Whether [`poll`](Self::poll) would do anything now at a table that is `settled` or
@@ -444,7 +440,6 @@ impl<R> Host<R> {
                         )]
                     }
                     Waiting::Held { replaced } => {
-                        self.follow(&id, None);
                         let mut answers: Vec<_> = replaced
                             .map(|older| (older, replaced_by(&id)))
                             .into_iter()
@@ -478,16 +473,15 @@ impl<R> Host<R> {
         let waiting: Vec<String> = self.seats.sessions().map(str::to_owned).collect();
         for id in waiting {
             let events = self.events(&id, game);
-            let Some((reply, told)) = self.seats.tell(&id, events, now) else {
+            let Some((reply, told, following)) = self.seats.tell_following(&id, events, now) else {
                 continue;
             };
-            let follows = self.follow(&id, None);
             let (status, reason) = match told {
                 Told::Decision { .. } => ("decision", None),
                 Told::Released { released, .. } => ("released", Some(unapplied(&released))),
                 Told::Elapsed => {
                     let mut answer = nothing_yet(&id);
-                    said_of(&mut answer, follows);
+                    said_of(&mut answer, following);
                     answers.push((reply, answer));
                     continue;
                 }
@@ -498,7 +492,7 @@ impl<R> Host<R> {
             if let Some(reason) = reason {
                 answer["reason"] = json!(reason);
             }
-            said_of(&mut answer, follows);
+            said_of(&mut answer, following);
             answers.push((reply, answer));
         }
         answers
@@ -554,7 +548,6 @@ impl<R> Host<R> {
         };
         self.sessions.push(Session {
             id: id.clone(),
-            follows: None,
             set_aside: None,
         });
         self.briefed(&id, "joined", None, table)
@@ -612,16 +605,21 @@ impl<R> Host<R> {
             Err(reason) => ("refused", Some(reason.clone())),
         };
         let mut answers = Vec::new();
-        if let (Ok((chosen, standing)), Some(period)) = (submitted, then) {
-            let pending = self.pending(faction, table.game());
-            match self.seats.wait(id, reply, period, pending, now) {
-                Waiting::Held { replaced } => {
-                    answers.extend(replaced.map(|older| (older, replaced_by(id))));
-                    self.follow(id, Some((chosen, standing)));
-                    answers.extend(self.poll(table, now));
-                    return answers;
+        if let Ok(submission) = submitted {
+            self.seats.accepted_submission(id, &submission);
+            if let Some(period) = then {
+                let pending = self.pending(faction, table.game());
+                match self
+                    .seats
+                    .wait_following(id, (reply, submission), period, pending, now)
+                {
+                    Waiting::Held { replaced } => {
+                        answers.extend(replaced.map(|older| (older, replaced_by(id))));
+                        answers.extend(self.poll(table, now));
+                        return answers;
+                    }
+                    Waiting::Refused(told) => reply = told,
                 }
-                Waiting::Refused(told) => reply = told,
             }
         }
         answers.push((reply, self.answer(id, status, error, table)));
@@ -646,9 +644,7 @@ impl<R> Host<R> {
         let set_aside = rules.set_aside;
         self.keep_aside(set_aside);
         for settled in settled {
-            if let Some(session) = self.session_mut(&settled.identity)
-                && let Some((_, standing)) = &mut session.follows
-            {
+            if let Some((_, standing)) = self.seats.following_mut(&settled.identity) {
                 *standing = if settled.applied {
                     Standing::Applied
                 } else {
@@ -669,16 +665,6 @@ impl<R> Host<R> {
 
     fn session_mut(&mut self, id: &str) -> Option<&mut Session> {
         self.sessions.iter_mut().find(|known| known.id == id)
-    }
-
-    /// Set what the held wait of the session `id` follows: what it followed.
-    fn follow(
-        &mut self,
-        id: &str,
-        follows: Option<(Chosen, Standing)>,
-    ) -> Option<(Chosen, Standing)> {
-        let session = self.session_mut(id)?;
-        std::mem::replace(&mut session.follows, follows)
     }
 
     /// The revision of `faction`'s own decision that its session may be told of.
@@ -785,8 +771,8 @@ fn replaced_by(player: &str) -> Value {
 }
 
 /// Say in the answer to a wait that followed a submission how the submission stands.
-fn said_of(answer: &mut Value, follows: Option<(Chosen, Standing)>) {
-    if let Some((chosen, standing)) = follows {
+fn said_of(answer: &mut Value, following: Option<(Chosen, Standing)>) {
+    if let Some((chosen, standing)) = following {
         answer["choice"] =
             json!({"id": chosen.id, "label": chosen.label, "status": standing.word()});
     }
