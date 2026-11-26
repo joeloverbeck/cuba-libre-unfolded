@@ -84,6 +84,8 @@ pub enum EventStatus {
     Preview {
         after: u8,
     },
+    /// The card ended without anyone executing its Event.
+    Unexecuted,
     /// An Eligible faction may execute the Event now (R 2.3.4).
     Open {
         faction: Faction,
@@ -102,6 +104,10 @@ pub enum EventStatus {
         executed: Faction,
         second: Option<Faction>,
     },
+    /// The last Eligible faction is executing an Operation Only (R 2.3.4).
+    ChosenOperationOnly {
+        faction: Faction,
+    },
     InProgress {
         faction: Faction,
         text: EventText,
@@ -117,6 +123,7 @@ impl EventStatus {
             Self::Preview { after } => {
                 format!("Event not yet open: this card is played after card {after}")
             }
+            Self::Unexecuted => "The card ended without executing its Event".into(),
             Self::Open { faction, role } => format!(
                 "Event open to {} as {} Eligible",
                 faction.name(),
@@ -156,6 +163,9 @@ impl EventStatus {
                 "Event not open this card: no Eligible faction follows {}",
                 executed.name()
             ),
+            Self::ChosenOperationOnly { faction } => {
+                format!("Event closed: {} chose Operation Only", faction.name())
+            }
             Self::InProgress { faction, text } => format!(
                 "Event in progress: {} is executing the {} text",
                 faction.name(),
@@ -382,13 +392,19 @@ impl Game {
         let eligibility = self.eligibility();
         let second = eligibility.second;
         if self.card_18 {
-            return if self.assault.is_some()
+            return if self.card_18_completion.is_some() {
+                EventStatus::Unexecuted
+            } else if self.assault.is_some()
                 || eligibility.government_box == Some(SequenceBox::OperationOnly)
             {
                 // Government's Assault is an Operation Only in this build.
                 EventStatus::Closed {
                     executed: Faction::Government,
                     second: Some(Faction::Syndicate),
+                }
+            } else if self.construct_is_open() {
+                EventStatus::ChosenOperationOnly {
+                    faction: Faction::Syndicate,
                 }
             } else {
                 EventStatus::Open {

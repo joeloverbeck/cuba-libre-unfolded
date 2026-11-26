@@ -17,7 +17,7 @@
 use super::emblems::{self, Naming};
 use super::palette::{INK, QUIET};
 use super::*;
-use crate::{ActionChoice, Observation, SequenceBox, resources};
+use crate::{ActionChoice, CardEndEligibility, Observation, SequenceBox, resources};
 use bevy::text::{Justify, LetterSpacing, LineHeight};
 
 /// Node coordinates in the FigCraft 16:9 frame, `art/atlas/atlas-eligibility.figcraft`.
@@ -135,11 +135,13 @@ impl Slot {
             Self::OperationWithSpecialActivity => "eligibility:operation-special-activity",
         }
     }
-    fn of(record: SequenceBox) -> Self {
+    fn of(record: SequenceBox) -> Option<Self> {
         match record {
-            SequenceBox::Pass => Self::Pass,
-            SequenceBox::OperationOnly => Self::OperationOnly,
-            SequenceBox::OperationWithSpecialActivity => Self::OperationWithSpecialActivity,
+            SequenceBox::Pass => Some(Self::Pass),
+            SequenceBox::OperationOnly => Some(Self::OperationOnly),
+            SequenceBox::OperationWithSpecialActivity => Some(Self::OperationWithSpecialActivity),
+            // This row shows only the first faction's boxes.
+            SequenceBox::LimitedOperation => None,
         }
     }
     fn index(self) -> usize {
@@ -171,7 +173,7 @@ pub(super) struct Row {
 pub(super) struct Track {
     /// The factions in printed card order.
     pub rows: Vec<Row>,
-    /// The cylinders now govern card 18 under R 2.3.7.
+    /// The cylinders now govern the preview card under R 2.3.7.
     pub adjusted: bool,
     /// The box the first action was recorded in, if any.
     pub occupied: Option<Slot>,
@@ -185,11 +187,13 @@ fn recorded(view: &Observation) -> Option<(Faction, Slot)> {
     let eligibility = &view.eligibility;
     eligibility
         .government_box
-        .map(|record| (Faction::Government, Slot::of(record)))
+        .and_then(Slot::of)
+        .map(|slot| (Faction::Government, slot))
         .or_else(|| {
             eligibility
                 .m26_box
-                .map(|record| (Faction::M26, Slot::of(record)))
+                .and_then(Slot::of)
+                .map(|slot| (Faction::M26, slot))
         })
 }
 
@@ -198,8 +202,12 @@ pub(super) fn track(view: &Observation) -> Track {
     let adjusted = e.next_card.is_some();
     let (occupant, occupied) =
         recorded(view).map_or((None, None), |(faction, slot)| (Some(faction), Some(slot)));
-    let rows = e
-        .order
+    let order = if adjusted {
+        view.cards.preview.order
+    } else {
+        e.order
+    };
+    let rows = order
         .iter()
         .map(|&faction| Row {
             faction,
@@ -221,8 +229,7 @@ pub(super) fn track(view: &Observation) -> Track {
         adjusted,
         occupied,
         occupant,
-        ineligible: e
-            .order
+        ineligible: order
             .iter()
             .copied()
             .filter(|f| !e.eligible[f.index()])
@@ -231,9 +238,13 @@ pub(super) fn track(view: &Observation) -> Track {
 }
 
 /// The Ineligible box's note.
-fn ineligible_note(track: &Track) -> String {
+fn ineligible_note(track: &Track, card: u8) -> String {
     if track.ineligible.is_empty() {
-        "None on card 17: Eligibility changes after the card (R 2.3.7).".into()
+        if track.adjusted {
+            "All factions are Eligible for the preview card.".into()
+        } else {
+            format!("None on card {card}: Eligibility changes after the card (R 2.3.7).")
+        }
     } else {
         track
             .ineligible
@@ -242,6 +253,27 @@ fn ineligible_note(track: &Track) -> String {
             .collect::<Vec<_>>()
             .join(", ")
     }
+}
+
+/// The card's four adjustments, shown in its completion preview and result.
+pub(super) fn result_entry(card: u8, results: [CardEndEligibility; 4]) -> super::briefing::Entry {
+    let lines = results
+        .into_iter()
+        .map(|result| {
+            let status = if result.eligible {
+                "Eligible"
+            } else {
+                "Ineligible"
+            };
+            format!(
+                "{} · {status} · {}",
+                result.faction.name(),
+                result.reason.text()
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    super::briefing::entry(format!("ELIGIBILITY FOR CARD {card} · R 2.3.7"), lines)
 }
 
 /// What a box's hover tag says.
@@ -334,8 +366,10 @@ pub(super) fn content(view: &Observation, slot: Slot) -> Shown {
         title,
         rule,
         body,
-        note: if e.next_card.is_some() || view.current_card == 18 {
-            "Eligibility for card 18 was adjusted after card 17 (R 2.3.7)."
+        note: if view.card_18_complete() {
+            "Eligibility for card 19 was adjusted after card 18 (R 2.3.7)."
+        } else if e.next_card.is_some() || view.current_card == 18 {
+            "Card 18 Eligibility set after card 17 (R 2.3.7)."
         } else {
             AFTER_THE_CARD
         },
@@ -466,7 +500,7 @@ pub(super) fn indicator(commands: &mut Commands, art: &Art, view: &Observation, 
         commands,
         art,
         &if track.adjusted {
-            "CARD 18 · ELIGIBILITY".to_owned()
+            format!("CARD {} · ELIGIBILITY", view.preview_card)
         } else {
             format!("CARD {} · SEQUENCE OF PLAY", view.current_card)
         },
@@ -486,10 +520,10 @@ pub(super) fn indicator(commands: &mut Commands, art: &Art, view: &Observation, 
     let eligible = label(
         commands,
         art,
-        if track.adjusted {
-            "AFTER CARD 17"
+        &if track.adjusted {
+            format!("AFTER CARD {}", view.current_card)
         } else {
-            "ELIGIBLE FACTIONS · CARD ORDER"
+            "ELIGIBLE FACTIONS · CARD ORDER".to_owned()
         },
         [x, y, fig::BOX_W],
         fig::CAPS_SIZE,
@@ -624,10 +658,10 @@ pub(super) fn indicator(commands: &mut Commands, art: &Art, view: &Observation, 
     let recorded = label(
         commands,
         art,
-        if track.adjusted {
-            "CARD 17 · RECORDED ACTION"
+        &if track.adjusted {
+            format!("CARD {} · RECORDED ACTION", view.current_card)
         } else {
-            "1ST ELIGIBLE · ACTION RECORDED"
+            "1ST ELIGIBLE · ACTION RECORDED".to_owned()
         },
         [x, y + shift, fig::BOX_W],
         fig::CAPS_SIZE,
@@ -739,7 +773,7 @@ pub(super) fn indicator(commands: &mut Commands, art: &Art, view: &Observation, 
     let note = label(
         commands,
         art,
-        &ineligible_note(&track),
+        &ineligible_note(&track, view.current_card),
         [fig::BOX_X + nx, top + shift + ny, nw],
         fig::NOTE_SIZE,
         0.,
@@ -1044,7 +1078,7 @@ mod tests {
             assert_eq!(track.occupied, None);
             assert!(track.ineligible.is_empty());
             assert_eq!(
-                ineligible_note(&track),
+                ineligible_note(&track, 17),
                 "None on card 17: Eligibility changes after the card (R 2.3.7)."
             );
         }

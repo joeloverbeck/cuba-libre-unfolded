@@ -33,7 +33,25 @@ The owner's [acceptance of the rules baseline and tactical scenario](https://git
 
 **Policy:** In this continuation Government may open Assault and deliberately finish without selecting a space, even with fewer Resources than the space cost. Finish records Operation Only, earns no Pass income, and preserves any side decisions already committed. Each selected space still requires its full payment. The owner accepted this interpretation for card 18. [Owner ruling on #127](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/127#issuecomment-7080815790)
 
-Syndicate becomes 2nd Eligible and may inspect Pass or Limited Operation under R 2.3.4.
+Syndicate becomes 2nd Eligible and may Pass or choose a Limited Operation under R 2.3.4.
+
+### Zero-space Syndicate Construct on card 18
+
+**Rules:** R 3.1 and 3.3.5 allow selection of qualifying spaces and require payment in each selected space. They state no minimum for Operation Only.
+
+**Policy:** After Government Passes, Syndicate may finish Construct with zero payments. It records Operation Only, earns no Pass income, and keeps any side effects already committed. Syndicate becomes Ineligible and Government stays Eligible for card 19 (R 2.3.7). [Spec #215](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/215)
+
+### Leaving Limited Construct on card 18
+
+**Rules:** R 2.3.5 requires a Limited Operation to take place in one space. R 3.3.5 requires full payment in every selected space, and R 2.3.7 makes Syndicate Ineligible after it executes Construct.
+
+**Policy:** Before the first committed effect, Syndicate may choose **Back to the action choice** and reconsider. A nonzero Resource transfer commits the attempt and stands. A request, a decline or an answer of zero leaves Syndicate free to go back if it has already committed no effect. Going back withdraws any pending request. Before payment, a side decision that commits the attempt or changes the committed position must leave at least one legal plan and 5 Resources to pay for it. This applies to outgoing transfers and Casino management. After payment, the ordinary transfer limits apply. [Spec #215](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/215)
+
+### Partial funding for Limited Construct
+
+**Rules:** R 1.5.1 gives the giver control of the actual amount. R 1.8 caps the recipient at 49 Resources, and R 2.3.5 and 3.3.5 require one paid space in Limited Construct.
+
+**Policy:** While an uncommitted Limited Construct needs Resources for its first legal payment, an insufficient authorization holds its amount conditionally. It uses the giver's uncommitted balance and reserves that much room under Syndicate's cap. As soon as the actual authorizations can fund a legal plan, every held amount and the final reply move together. Syndicate then chooses where to pay and keeps any excess. Leaving Limited Construct releases every unspent authorization. [Spec #215](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/215)
 
 ### Next Propaganda assumes equal piles
 

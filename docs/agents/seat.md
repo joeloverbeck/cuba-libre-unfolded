@@ -157,9 +157,10 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `pending-open` | Top band | Shows a waiting transfer decision again (choice `<revision>:reopen`). |
 | `popover:row:<action>` | Space popover | The row for `<action>`. |
 | `popover:commit` | Space or piece popover | Commits. |
+| `popover:casino-close`, `popover:casino-return` | Casino popover during Construct | Commit closing the selected quantity in place or returning it to Available. A closed group offers return. |
 | `popover:quantity:minus`, `popover:quantity:plus` | Piece popover | Steps the quantity. |
 | `popover:cancel` | Piece popover | Cancels. |
-| `own-piece:<space>:<group>` | Removal mode | Opens an executing faction's piece popover. The seat reaches it as `piece:<space> <faction> <Kind> <State>`, for example `piece:santiago Government Troops Ordinary`. Use `M26` for 26July and `Directorio` for Directorio. |
+| `own-piece:<space>:<group>` | Removal mode | Opens an executing faction's piece popover. This is the focused name in Construct's management. Pointer activation uses `piece:<space> <faction> <Kind> <State>`, for example `piece:pinar-del-rio Syndicate Casino Open`. Use `M26` for 26July and `Directorio` for Directorio. |
 
 [`art/atlas/EXECUTION.md`](../../art/atlas/EXECUTION.md) lists every name in the execution panel.
 
@@ -183,18 +184,23 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:government:assault` | Opens Operation Only Assault. |
 | `<revision>:assault:<space>:<plan>` | Pays for the space and resolves the plan at once (#169). Every unpaid space's plans are offered together while Assault is open. A plan names the factions it targets, only those with a piece Assault can affect there, with a short capacity's split: `assault:havana:syndicate` closes Havana's Casino. `assault:<space>:none` is the one plan that removes nothing; it pays the same cost and changes nothing else. Each choice's `site` states its `space` and whether it has an `effect` there. Commit it from the space's popover: pick `space:<space>`, choose its row, then `popover:commit`. |
 | `<revision>:end-assault` | Finishes Assault and records Operation Only. |
-| `<revision>:syndicate:limited-operation` | Inspect Syndicate's Limited Operation as 2nd Eligible after Operation Only. |
+| `<revision>:syndicate:construct` | Opens Construct as Operation Only after Government Passes. |
+| `<revision>:syndicate:limited-operation` | Opens Syndicate’s Limited Construct as 2nd Eligible after Operation Only. |
+| `<revision>:construct:<space>:open`, `<revision>:construct:<space>:place` | Pays for a Construct plan. Pick `space:<space>`, select the row and commit with `popover:commit`. |
+| `<revision>:end-construct` | Finishes Construct and adjusts Eligibility. Operation Only may finish with zero payments. Limited Construct requires one paid space. |
 | `<revision>:government:transport`, `<revision>:government:air-strike`, `<revision>:government:reprisal` | Government's Special Activity briefings, including the Operations each may accompany. |
-| `<revision>:syndicate:pass` | Inspect Syndicate's Pass after Government Passes or records Operation Only. |
+| `<revision>:syndicate:pass` | Pin `option:syndicate:pass` after either Government action to preview the Resource gain and the four factions’ Eligibility for card 19. Commit using the offered choice. |
 | `<revision>:syndicate:event` | Inspect Pact of Caracas after Government Passes. |
-| `<revision>:syndicate:rally`, `<revision>:syndicate:march`, `<revision>:syndicate:terror`, `<revision>:syndicate:construct` | Inspect Syndicate's 1st Eligible Operations. |
+| `<revision>:syndicate:rally`, `<revision>:syndicate:march`, `<revision>:syndicate:terror` | Inspect Syndicate's other 1st Eligible Operations. |
 | `<revision>:syndicate:profit`, `<revision>:syndicate:muscle`, `<revision>:syndicate:bribe` | Inspect Syndicate's Special Activities and which Operations they may accompany. |
 | `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so 26July's option set is complete; unsupported, with the reason in `explanation`. |
 | `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap` | Execution steps during Terror. |
-| `<revision>:transfer`, `<revision>:remove` | Opens a Resource transfer or voluntary removal during Terror, Directorio's Event choices, the free Rally or Government's Assault. |
-| `<revision>:back-to-choice` | Goes back to the action choice, until the first effect: from the Operation menu, or while a Transfer request awaits another faction, which withdraws it. Not offered in removal mode or while Kidnap is open. |
+| `<revision>:transfer` | Opens a Resource transfer during Terror, Directorio's Event choices, the free Rally, Government's Assault or Syndicate's Construct. |
+| `<revision>:remove` | Opens voluntary removal during Terror, Directorio's Event choices, the free Rally or Government's Assault. During Construct, it opens **Manage own pieces**. |
+| `<revision>:back-to-choice` | Goes back to the action choice from Terror or Limited Construct until the first effect. During a pending Limited Construct request, the human requester can activate the choice from **Syndicate withdraws · back to action choice** once the pending tab is showing. Unavailable in removal mode or while Kidnap is open. |
 | `<revision>:kidnap:roll`, `<revision>:kidnap:cancel` | Kidnap's Roll and Cancel. |
 | `<revision>:remove:<space>:<group>:<n>` | In removal mode, removes `n` pieces of a stack. |
+| `<revision>:close-casino:<space>:open-casino:<n>` | In Construct's piece management, closes `n` open Casinos in place. Use `open-casino` or `closed-casino` for the groups in a return choice. |
 | `<revision>:done-removal` | Leaves removal mode; removed pieces stay in Available. |
 | `<revision>:give:<faction>:<amount>` | The executing faction gives its own Resources immediately. |
 | `<revision>:ask:<faction>:<amount>` | The executing faction asks another faction for Resources. The giver decides how much moves. |
@@ -214,6 +220,8 @@ decision to its giver.
 At the completed Event, activate the offered choice `<revision>:advance-card` through the primary button. The next observation shows `current_card: 18`, `preview_card: 19`, the updated public history and Government as the owner.
 
 After Government Passes, `recorded_resources` gives its before and after balances, `eligibility.government_box` records `Pass`, and `next` identifies Syndicate as 1st Eligible. `eligibility.second` is null because no Eligible faction follows Syndicate. Its `option:syndicate:…` components open the briefings.
+
+After Syndicate finishes, `eligibility.syndicate_box` records its action and `eligibility.next_card` gives each faction's adjusted Eligibility.
 
 ### Example: a Resource transfer
 
@@ -264,13 +272,14 @@ The full reply's `table` describes what is drawn. Drawn parts are reported by na
 
 | Field | Reports |
 |---|---|
-| `table.briefing`, `table.choice`, `table.choice_parts` | The briefing; the action choice's pinned option, focus, ribbon and tab, and in `table.choice.focused_space` the space that has keyboard focus, or null; its drawn parts. During Terror the parts include the line that directs the player to the map, `terror-map-line`, and one `terror-record:<space>` for each resolved space, in the order resolved (#171). During Assault the parts include the line that directs the player to the map, `assault-map-line`, and one `assault-record:<space>` for each paid space, in the order paid from top to bottom (#169). `observation.assault_paid` holds the same record: each paid space's `space`, what it `paid`, how many pieces `returned`, and what was removed or closed. |
+| `table.briefing`, `table.choice`, `table.choice_parts` | The briefing; the action choice's pinned option, focus, ribbon and tab, and in `table.choice.focused_space` the space that has keyboard focus, or null; its drawn parts. During Terror the parts include the line that directs the player to the map, `terror-map-line`, and one `terror-record:<space>` for each resolved space, in the order resolved (#171). During Assault the parts include the line that directs the player to the map, `assault-map-line`, and one `assault-record:<space>` for each paid space, in the order paid from top to bottom (#169). `observation.assault_paid` holds the same record: each paid space's `space`, what it `paid`, how many pieces `returned`, and what was removed or closed. During Construct, `construct-map-line` and `construct-record:<space>` give the next step and the paid result. `observation.construct_paid` records the `space`, `paid` and `plan` (`Open` or `Place`). |
 | `table.eligibility` | The drawn `track`, the shown `tag` and the drawn `parts`. |
 | `table.die` | The presented Kidnap roll. |
 | `table.map_targets`, `table.highlights` | Map states and visible highlights. `map_targets` is null while no choice acts on a space. Otherwise it lists all 13 spaces, each with its `state` and the ids of the `choices` behind it: `selectable` (a supported choice there changes something), `blocked` (none is supported, and one names an in-task remedy), `no-effect` (its only choices change nothing on the map, as Assault's plan that removes nothing; the space stays choosable, #169), `unpayable` (a choice there would change something, and only its cost stops it: nothing in this task can pay and no remedy is named; the space stays choosable, #180) or `not-involved` (no choice acts there, or none could for another reason: a space already paid in this Assault, a resolved Terror, or a Terror with no Underground Guerrilla; its `choices` still lists them, and it is not choosable). A no-effect or unpayable space shows its veil, as a not-involved one does. The states are read from each choice's `site`: its `space`, whether it has an `effect` there, and whether it is `unpayable`. |
-| `table.popover` | The open popover's `kind`, its `space`, its `piece` group ID when applicable, and `parts` for its layout. Its `card` has the `title`, the `subtitle` and the `rows`: each row's `choice` id, `head`, `mark` (`selectable`, `not-yet`, `unavailable` or `done`), whether it is `chosen`, its `lines` (the chosen row's preview or a refused row's reason), its `remedies` and, on the chosen row, the `button`'s words. During Assault the rows are the space's plans (#169). |
+| `table.popover` | The open popover's `kind`, `space`, optional `piece` group ID and drawn `parts`. Each `card.rows` entry gives its `choice` id, `head`, `mark` (`selectable`, `not-yet`, `unavailable` or `done`), `chosen`, preview or refusal `lines`, `remedies` and any `button`. A space popover has one commit on the chosen row. An open Casino shows shared consequences with separate Close and Return rows and their own commits. A closed Casino shows the Return action. The Casino `stepper` reaches every quantity in the stack, including quantities whose rows explain a refusal. Protected Casino groups open for inspection. |
 | `table.removal`, `table.markers` | Removal-mode `pieces` with each group's `state`, `mark` and `choices`, the `dimmed` spaces, and the drawn piece markers. |
 | `table.transfer.state` | The transfer modal: shown, pending, counterpart, direction, entry, limit, refusal, commit. |
+| `observation.construct_funding`, `table.transfer.parts` | During unfunded Limited Construct, the observation lists the ordered conditional replies (`giver`, `asked`, `amount`) and current `shortfall`. The modal's `construct-funding` text shows the condition and totals. Its `primary-label` gives the primary button's drawn label and bounds, including disabled prompts. Text parts have a `lines` count from the rendered glyphs. When the request is set aside or the giver is an agent, `pending-construct-funding` gives the amount held and the additional authorization that moves it. `pending-construct-giver` shows who decides and the amount requested. |
 | `table.inline_text` | Inline emblem geometry. |
 | `table.status` | The open space tag: its `space`, `terrain` (`City`, `Province · Forest`, `Province · Grassland`, `Province · Mountain` or `Economic center`), `control`, `opinion` and `contribution` (null for an Economic center), its `reason`, the open decision's line, and that line's row in `reason_bounds` (both null outside a decision that offers spaces, #170), and its `bounds`, `region_bounds`, `occupied_bounds`, `viewport` and `leader`. `table.status_text` lists the tag's drawn texts with their laid-out `bounds`, the line marked `"reason": true`: a line that wrapped would be twice as tall. `observation.space_reasons` holds the rules authority's reasons the line draws, one `{space, reason}` per space that has one, in the map's order, and is empty while no choice acts on a space. |
 | `table.counts` | Each piece and Terror count: its `name` (as its control is named), `text`, `font_size` and logical `bounds`. |
@@ -294,4 +303,4 @@ Drawn-part names:
 
 - **Transfer modal** (`table.transfer.parts`): `account:26july`, `account:counterpart`, `header`, `direction-toggle`, `flow-band`, `number-field`, `track`, `limits`, `limit:<icon>` and `button:<action>`.
 - **Eligibility indicator** (`table.eligibility.parts`): `eligibility-row:<faction>:<part>`, where the part is `number`, `emblem`, `name`, `acted`, `1st` or `2nd`, `eligible` or `ineligible`. Also `eligibility-box:ineligible` with its `:label` and `:note`, `eligibility-label:eligible` and `eligibility-label:recorded`.
-- **Card-end eligibility** (`table.eligibility.track.adjusted`): the track's rows now show eligibility for card 18. `observation.eligibility.next_card` gives the four ordinary reasons. `observation.eligibility.event_restriction` reports the separate restriction on the shaded branch. The result text is among the `table.choice_parts` with names beginning `ended-value:`.
+- **Card-end Eligibility** (`table.eligibility.track.adjusted`): the track's rows show Eligibility for the preview card. `observation.eligibility.next_card` gives the four reasons. On the shaded branch `observation.eligibility.event_restriction` reports Alberto Bayo's separate restriction until card 18 ends. The result text is among the `table.choice_parts` with names beginning `ended-value:`.

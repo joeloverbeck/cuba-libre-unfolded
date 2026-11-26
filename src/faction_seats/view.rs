@@ -5,10 +5,10 @@
 
 use super::Player;
 use crate::{
-    ActionChoice, CardFacts, Choice, DeckFacts, Eligibility, EventProgress, EventStatement,
-    Faction, Game, Group, KidnapStakes, MarkerSupply, Next, Observation, Piles, PlayedCard,
-    Preview, Removal, Site, SpaceReason, Standing, Terrain, Transfer, TransferTerms, UsAlliance,
-    reports::Report, support_level,
+    ActionChoice, CardFacts, Choice, ConstructResolution, DeckFacts, Eligibility, EventProgress,
+    EventStatement, Faction, Game, Group, KidnapStakes, MarkerSupply, Next, Observation, Piles,
+    PlayedCard, Preview, Removal, Site, SpaceReason, Standing, Terrain, Transfer, TransferTerms,
+    UsAlliance, reports::Report, support_level,
 };
 use serde::Serialize;
 
@@ -100,12 +100,15 @@ pub struct State {
     pub removal: Option<Removal>,
     pub transfer: Option<Transfer>,
     pub transfer_terms: Vec<TransferTerms>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub construct_funding: Option<crate::ConstructFunding>,
     /// Indexed by a faction's number.
     pub resources: [u8; 4],
     pub standings: Vec<Standing>,
     pub spaces: Vec<Space>,
     /// Why each space is in its state, while a decision acts on spaces.
     pub space_reasons: Vec<SpaceReason>,
+    pub construct_paid: Vec<ConstructResolution>,
     pub available: Vec<Group>,
     pub current_card: Card,
     pub preview_card: Card,
@@ -226,7 +229,10 @@ impl Decision {
             &seen.transfer,
             Some(Transfer::Authorizing { waited: true, .. })
         );
-        let note = match stands {
+        let mut note = match stands {
+            Stands::BuildEnds if seen.card_18_complete() => {
+                "Card 18 is complete and Eligibility has been adjusted. Card 19 stays in preview. No faction has a choice to make.".to_owned()
+            }
             Stands::BuildEnds => format!(
                 "The build stops here: {decider} would decide next, and this build plays none of its options. No faction can act, and nothing more will come."
             ),
@@ -243,6 +249,13 @@ impl Decision {
             ),
             Stands::Open => format!("{decider} decides."),
         };
+        if let Some(funding) = &seen.construct_funding {
+            note.push_str(&format!(
+                " {}. {}",
+                funding.summary(),
+                crate::ConstructFunding::CONDITION
+            ));
+        }
         Self {
             faction: seen.owner,
             stands,
@@ -272,10 +285,12 @@ impl State {
             removal: seen.removal.clone(),
             transfer: seen.transfer.clone(),
             transfer_terms: seen.transfer_terms.clone(),
+            construct_funding: seen.construct_funding.clone(),
             resources: seen.resources,
             standings: seen.standings.clone(),
             spaces: seen.spaces.iter().map(Space::of).collect(),
             space_reasons: seen.space_reasons.clone(),
+            construct_paid: seen.construct_paid.clone(),
             available: seen.available.clone(),
             current_card: Card::of(&seen.cards.current),
             preview_card: Card::of(&seen.cards.preview),

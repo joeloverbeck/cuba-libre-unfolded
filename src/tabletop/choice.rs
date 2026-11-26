@@ -263,7 +263,7 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
         Some(c) if c.supported => Commit {
             label: match c.action() {
                 // The gain the authority previews, possibly zero at the cap.
-                "pass" | "government:pass" => c
+                "pass" | "government:pass" | "syndicate:pass" => c
                     .preview
                     .iter()
                     .flat_map(|p| &p.resources)
@@ -286,7 +286,9 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
             enabled: true,
         },
         Some(c) => {
-            let label = if view.current_card == 18 {
+            let label = if c.action() == "end-construct" {
+                "Pay for one space first".into()
+            } else if view.current_card == 18 {
                 "Inspection only".into()
             } else if view.eligibility.directorio_handoff() {
                 format!("{} is outside this task", c.label)
@@ -341,13 +343,26 @@ fn panel_options(view: &Observation) -> impl Iterator<Item = &Choice> {
     })
 }
 
+/// Once the giver's modal is set aside, the human requester can withdraw a Limited Construct.
+fn pending_withdrawal<'a>(view: &'a Observation, ui: &Interface) -> Option<&'a Choice> {
+    if !matches!(view.transfer, Some(Transfer::Authorizing { .. }))
+        || view.executing != Some(Faction::Syndicate)
+        || super::transfer::shown(view.transfer.as_ref(), view.owner, ui)
+    {
+        return None;
+    }
+    view.choices.iter().find(|choice| {
+        choice.action() == "back-to-choice" && choice.supported && ui.plays(choice.owner)
+    })
+}
+
 /// Event execution and the card 18 decisions use rows without section headings.
 /// During Assault the rows follow the map line and the record of paid spaces (#169).
 fn panel_rows(view: &Observation) -> impl Iterator<Item = (&Choice, f32)> {
     let tops = if view.current_card == 18 || view.event.as_ref().is_some_and(EventProgress::pending)
     {
         let within_section_pitch = fig::ROWS[2] - fig::ROWS[1];
-        let first = assault_rows_top(view).unwrap_or(fig::ROWS[0]);
+        let first = payment_rows_top(view).unwrap_or(fig::ROWS[0]);
         std::array::from_fn(|i| first + i as f32 * within_section_pitch)
     } else {
         fig::ROWS
@@ -375,6 +390,17 @@ pub(super) struct AssaultLine {
     pub top: f32,
 }
 
+fn payment_record(name: String, summary: &str, top: &mut f32) -> AssaultLine {
+    let words = briefing::wrap(summary, fig::ASSAULT_RECORD_CHARS).join("\n");
+    let line = AssaultLine {
+        name,
+        words,
+        top: *top,
+    };
+    *top += fig::ASSAULT_RECORD[1] * line.words.lines().count() as f32;
+    line
+}
+
 /// The Assault panel's lines under its cost lines (#169): the line that sends the
 /// player to the map, then each paid space in the order paid, with the authority's
 /// summary of what it paid and what was removed or closed. Empty while the panel
@@ -388,16 +414,59 @@ pub(super) fn assault_lines(view: &Observation) -> Vec<AssaultLine> {
         words: super::execution::MAP_LINE.into(),
         top: fig::ASSAULT_MAP_LINE[0],
     }];
-    let [mut top, pitch, ..] = fig::ASSAULT_RECORD;
+    let mut top = fig::ASSAULT_RECORD[0];
     for paid in &view.assault_paid {
-        let words = briefing::wrap(&paid.summary(), fig::ASSAULT_RECORD_CHARS).join("\n");
-        let height = pitch * words.lines().count() as f32;
-        lines.push(AssaultLine {
-            name: format!("assault-record:{}", paid.space),
-            words,
-            top,
-        });
-        top += height;
+        lines.push(payment_record(
+            format!("assault-record:{}", paid.space),
+            &paid.summary(),
+            &mut top,
+        ));
+    }
+    lines
+}
+
+/// Construct uses the existing payment and outcome column above the action rows.
+fn payment_lines(view: &Observation) -> Vec<AssaultLine> {
+    if view.current_card != 18
+        || view.executing != Some(Faction::Syndicate)
+        || view.transfer.is_some()
+        || view.removal.is_some()
+    {
+        return assault_lines(view);
+    }
+    let mut lines = vec![AssaultLine {
+        name: "construct-map-line".into(),
+        words: if let Some(funding) = &view.construct_funding {
+            funding.summary()
+        } else if view.construct_paid.is_empty() {
+            super::execution::MAP_LINE.into()
+        } else if view.eligibility.government_box == Some(crate::SequenceBox::Pass) {
+            if view
+                .choices
+                .iter()
+                .any(|c| c.supported && c.space().is_some())
+            {
+                "Choose another space or finish Construct.".into()
+            } else {
+                "Finish to record Operation Only.".into()
+            }
+        } else {
+            "One space paid. Finish to record the Limited Operation.".into()
+        },
+        top: fig::ASSAULT_MAP_LINE[0],
+    }];
+    let mut top = fig::ASSAULT_RECORD[0];
+    for paid in &view.construct_paid {
+        let space = view
+            .spaces
+            .iter()
+            .find(|space| space.id == paid.space)
+            .unwrap();
+        lines.push(payment_record(
+            format!("construct-record:{}", paid.space),
+            &paid.summary(&space.name),
+            &mut top,
+        ));
     }
     lines
 }
@@ -405,8 +474,8 @@ pub(super) fn assault_lines(view: &Observation) -> Vec<AssaultLine> {
 /// The first row's top during Assault. With nothing paid the rows stand where the
 /// record would start; a record moves them down by one line pitch for each of its
 /// lines, and the column's gap follows it.
-fn assault_rows_top(view: &Observation) -> Option<f32> {
-    let lines = assault_lines(view);
+fn payment_rows_top(view: &Observation) -> Option<f32> {
+    let lines = payment_lines(view);
     let record: usize = lines.iter().skip(1).map(|l| l.words.lines().count()).sum();
     (!lines.is_empty()).then(|| assault_rows_after(record))
 }
@@ -444,18 +513,37 @@ fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool, agent
                 };
             return format!("{} on card 18 · {balance}{result}", next.role);
         }
-        if let Some(Transfer::Authorizing { giver, .. }) = view.transfer {
+        if let Some(Transfer::Authorizing {
+            giver, recipient, ..
+        }) = view.transfer
+        {
             return format!(
-                "{} decides the Resource transfer\nGovernment has {}",
+                "{} decides the Resource transfer\n{} has {}",
                 giver.name(),
-                resources(view.resources[Faction::Government.index()])
+                recipient.name(),
+                resources(view.resources[recipient.index()])
             );
+        }
+        if view.removal.is_some() && view.executing == Some(Faction::Syndicate) {
+            return "Select a Syndicate piece on the map.\nChoose Done to return to Construct."
+                .into();
         }
         if view.removal.is_some() && agent {
             return "Removal mode is on until Done.".into();
         }
         if view.removal.is_some() {
             return "Select a marked piece on the map.\nChoose Done to return to Assault.".into();
+        }
+        if view.executing == Some(Faction::Syndicate) {
+            let per_space = if view.eligibility.government_box == Some(crate::SequenceBox::Pass) {
+                "per space"
+            } else {
+                "for one space"
+            };
+            return format!(
+                "{balance} · {} {per_space}",
+                resources(crate::CONSTRUCT_COST)
+            );
         }
         if executor == Faction::Government && view.executing.is_some() {
             // The cost lines: the balance and what each space costs (R 6.3.1).
@@ -554,9 +642,15 @@ pub(super) fn panel(
     part(commands, emblem, "choice-heading-emblem");
     let [x, y, w] = fig::HEADING;
     let title = match &view.event {
+        _ if view.removal.is_some() && executor == Faction::Syndicate => {
+            "Syndicate · Manage own pieces".into()
+        }
         _ if view.removal.is_some() => format!("{} · Voluntary removal", executor.name()),
         _ if card_18 && view.executing == Some(Faction::Government) => {
             "Government · Assault".into()
+        }
+        _ if card_18 && view.executing == Some(Faction::Syndicate) => {
+            format!("Syndicate · {}", view.eligibility.construct_name())
         }
         _ if card_18 => format!("{}'s decision", view.owner.name()),
         Some(EventProgress::ExecuteShaded) => "Directorio · Shaded Event".into(),
@@ -637,15 +731,15 @@ pub(super) fn panel(
         );
         part(commands, label, name);
     }
-    for line in assault_lines(view) {
-        let record = line.name != "assault-map-line";
+    for line in payment_lines(view) {
+        let record = !line.name.ends_with("-map-line");
         let [_, _, size, height] = if record {
             fig::ASSAULT_RECORD
         } else {
             let [_, size] = fig::ASSAULT_MAP_LINE;
             [0., 0., size, fig::SUBTITLE_LINE]
         };
-        let content = if agent && !record {
+        let content = if agent && line.words == super::execution::MAP_LINE {
             super::execution::MAP_LINE_READING.to_owned()
         } else {
             line.words
@@ -668,16 +762,19 @@ pub(super) fn panel(
         style(commands, words, art, false, 0., 0., Some(rs(height) * s));
         part(commands, words, &line.name);
     }
-    for (choice, top) in panel_rows(view) {
+    let withdrawal = pending_withdrawal(view, ui);
+    for (choice, top) in panel_rows(view).chain(withdrawal.map(|c| (c, fig::ROWS[0]))) {
         let act = choice.action();
         let name = format!("option:{act}");
         let (label, pill) = if act == "government:pass" {
             ("Pass", None)
         } else if card_18 {
-            (
-                choice.label.as_str(),
-                (!choice.supported).then_some("INSPECT"),
-            )
+            let pill = if act == "end-construct" {
+                "PAY FIRST"
+            } else {
+                "INSPECT"
+            };
+            (choice.label.as_str(), (!choice.supported).then_some(pill))
         } else if directorio || event_pending {
             let status = (!choice.supported).then_some("NOT IN THIS TASK");
             (choice.label.as_str(), status)
@@ -708,16 +805,22 @@ pub(super) fn panel(
                 ))
                 .id()
         };
+        let control = if withdrawal.is_some_and(|withdraw| withdraw.id == choice.id) {
+            Control {
+                name: choice.id.clone(),
+                choice: true,
+                action: Action::Decision(choice.owner, view.revision),
+            }
+        } else {
+            Control {
+                name: name.clone(),
+                choice: false,
+                action: Action::Pin(act.into()),
+            }
+        };
         commands
             .entity(node)
-            .insert((
-                Control {
-                    name: name.clone(),
-                    choice: false,
-                    action: Action::Pin(act.into()),
-                },
-                Part(name.clone()),
-            ))
+            .insert((control, Part(name.clone())))
             .observe(super::click);
         let accompanies = choice.accompanies.is_some();
         let (lx, ly, size) = if offered {
@@ -1015,6 +1118,11 @@ fn map_focusable(
     targeting: &Targeting,
     popover: &Popover,
 ) -> Vec<(String, Action)> {
+    if view.executing == Some(Faction::Syndicate)
+        && let Some(removal) = targeting.removal.as_ref()
+    {
+        return super::popover::pieces_focusable(view, ui, removal, popover);
+    }
     let Some(targets) = targeting.targets.as_deref() else {
         return vec![];
     };
@@ -1033,6 +1141,9 @@ fn map_focusable(
 
 /// The panel's controls Tab moves through.
 fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> {
+    if view.card_18_complete() {
+        return vec![];
+    }
     if let Some(advance) = view.choices.iter().find(|c| c.action() == "advance-card") {
         return vec![(
             advance.id.clone(),
@@ -1045,6 +1156,8 @@ fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> 
             || view.eligibility.directorio_handoff()
             || view.event.as_ref().is_some_and(EventProgress::pending) =>
         {
+            let withdrawal = pending_withdrawal(view, ui)
+                .map(|c| (c.id.clone(), Action::Decision(c.owner, view.revision)));
             if matches!(
                 view.transfer,
                 Some(Transfer::Authorizing { waited: true, .. })
@@ -1053,10 +1166,12 @@ fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> 
                 .iter()
                 .find(|choice| choice.action() == "reopen" && ui.plays(choice.owner))
             {
-                return vec![(
+                return std::iter::once((
                     choice.id.clone(),
                     Action::Decision(choice.owner, view.revision),
-                )];
+                ))
+                .chain(withdrawal)
+                .collect();
             }
             // The commit, or the strip that stands there (#206).
             let foot = match super::seat_cards::strip(view, ui) {
@@ -1073,6 +1188,7 @@ fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> 
                         Action::Pin(c.action().into()),
                     )
                 })
+                .chain(withdrawal)
                 .chain(foot)
                 .collect()
         }
@@ -1165,16 +1281,22 @@ pub(super) fn keys(
         // An open space or piece popover closes as the tag does (#75); nothing is
         // decided. Keyboard focus on the space or in its popover returns to the space
         // (#168); a popover the pointer opened leaves focus where it was.
-        if let Some((space, _)) = popover.space(view.revision) {
-            let stop = format!("space:{space}");
-            if ui
+        let popover_target = popover
+            .space(view.revision)
+            .map(|(space, _)| format!("space:{space}"))
+            .or_else(|| {
+                popover
+                    .piece(view.revision)
+                    .map(|key| format!("own-piece:{key}"))
+            });
+        if let Some(stop) = popover_target
+            && ui
                 .choice
                 .focus
                 .as_deref()
                 .is_some_and(|f| f == stop || f.starts_with("popover:"))
-            {
-                ui.choice.focus = Some(stop);
-            }
+        {
+            ui.choice.focus = Some(stop);
         }
         popover.close_all();
         if ui.choice.pinned.is_some() {
@@ -1247,6 +1369,31 @@ pub(super) fn keys(
             ui.dirty = true;
         }
         Action::Row(action) => popover.choose_row(&action),
+        Action::Piece(key) => {
+            popover.click_piece(&key, &targeting);
+            if popover.open() {
+                ui.choice.close();
+            }
+            ui.dirty = true;
+        }
+        Action::Quantity(step) => {
+            popover.step(step, &targeting);
+            if let Some(key) = popover.piece(view.revision)
+                && !focusable(&view, &ui, &targeting, &popover)
+                    .iter()
+                    .any(|(name, _)| name == &focused)
+            {
+                ui.choice.focus = Some(format!("own-piece:{key}"));
+            }
+            ui.dirty = true;
+        }
+        Action::Dismiss => {
+            if let Some(key) = popover.piece(view.revision) {
+                ui.choice.focus = Some(format!("own-piece:{key}"));
+            }
+            popover.close();
+            ui.dirty = true;
+        }
         // Enter or Space on the pile takes its latest edition (#208).
         Action::Edition(press) => super::newspaper::press(&mut ui, press),
         // `faction_seats::serve` reads it in this frame. Focus moves to the button that

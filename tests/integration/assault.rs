@@ -1,6 +1,7 @@
 //! Matched Santiago positions worked from R 3.1, 3.2.4, 6.3.1 and #130.
 use cuba_libre_unfolded::{
-    AssaultPreview, Choice, Faction, Game, Kind, Observation, State,
+    AssaultPreview, Choice, Faction, Game, Kind, Observation, SequenceBox, State,
+    reports::Reports,
     targets::{SpaceState, space_targets},
 };
 
@@ -527,6 +528,12 @@ fn worked(
 /// Card 18 with Assault opened, after `event` on card 17 and `give` Resources from
 /// 26July to Government during Terror.
 fn assault_after(give: u8, event: &[&str]) -> Game {
+    let mut game = card_18_after(give, event);
+    choose(&mut game, "government:assault");
+    game
+}
+
+fn card_18_after(give: u8, event: &[&str]) -> Game {
     let mut game = crate::terror_chosen(Game::opening_with_seed(2));
     for action in TERROR {
         choose(&mut game, action);
@@ -540,7 +547,6 @@ fn assault_after(give: u8, event: &[&str]) -> Game {
         choose(&mut game, action);
     }
     choose(&mut game, "advance-card");
-    choose(&mut game, "government:assault");
     game
 }
 
@@ -550,6 +556,365 @@ const RALLY: [&str; 3] = [
     "rally:beneficiary:26july",
     "rally:sierra-maestra:place:4",
 ];
+
+#[test]
+fn syndicate_pass_finishes_card_18_after_havana_assault() {
+    let mut game = assault_after(4, &SHADED);
+    choose(&mut game, "assault:havana:syndicate");
+    choose(&mut game, "end-assault");
+    let before = game.observe();
+    assert_eq!(before.owner, Faction::Syndicate);
+    assert_eq!(before.next.as_ref().unwrap().role, "2nd Eligible");
+    assert_eq!(before.resources[Faction::Syndicate.index()], 15);
+    assert!(before.eligibility.event_restriction.is_some());
+    let mut reports = Reports::new(&before);
+
+    let pass = before
+        .choices
+        .iter()
+        .find(|choice| choice.action() == "syndicate:pass")
+        .unwrap();
+    assert!(pass.supported);
+    let balance = &pass.preview.as_ref().unwrap().resources[0];
+    assert_eq!(
+        (balance.faction, balance.from, balance.to),
+        (Faction::Syndicate, 15, 16)
+    );
+    choose(&mut game, pass.action());
+
+    let after = game.observe();
+    reports.record(&after);
+    let reports = reports.all();
+    assert_eq!(reports.len(), 1);
+    let report = &reports[0];
+    assert_eq!(report.headline, "Syndicate Passes");
+    assert!(report.complete);
+    assert_eq!(report.recorded, Some("Pass"));
+    assert_eq!(after.resources, [3, 0, 5, 16]);
+    assert!(after.passed[Faction::Syndicate.index()]);
+    assert_eq!(after.standings[Faction::Syndicate.index()].score, 2);
+    assert_eq!(
+        after
+            .available
+            .iter()
+            .find(|p| p.kind == Kind::Casino)
+            .unwrap()
+            .count,
+        7
+    );
+    assert_eq!(after.spaces, before.spaces);
+    assert_eq!(after.available, before.available);
+    assert_eq!(after.eligible, [false, true, true, true]);
+    assert_eq!(
+        after
+            .eligibility
+            .next_card
+            .unwrap()
+            .map(|entry| entry.eligible),
+        [false, true, true, true]
+    );
+    assert!(after.eligibility.event_restriction.is_none());
+    assert_eq!((after.current_card, after.preview_card), (18, 19));
+    assert_eq!(after.deck, before.deck);
+    assert_eq!(after.played_pile, before.played_pile);
+    assert!(after.capabilities.is_empty());
+    assert!(after.next.is_none() && after.choices.is_empty());
+
+    assert!(
+        game.submit(before.owner, before.revision, &pass.id)
+            .is_err()
+    );
+    assert!(
+        game.submit(
+            Faction::Syndicate,
+            after.revision,
+            &format!("{}:syndicate:pass", after.revision),
+        )
+        .is_err()
+    );
+    assert_eq!(game.observe(), after);
+}
+
+#[test]
+fn operation_only_construct_pays_for_distinct_spaces_in_the_chosen_order() {
+    let mut game = card_18_after(0, &SHADED);
+    choose(&mut game, "government:pass");
+    let before = game.observe();
+    assert_eq!(before.next.as_ref().unwrap().role, "1st Eligible");
+    assert_eq!(before.resources, [4, 4, 5, 15]);
+    let mut reports = Reports::new(&before);
+    choose(&mut game, "syndicate:construct");
+    reports.record(&game.observe());
+
+    let refuse = |game: &mut Game, action: &str, reason: &str| {
+        let before = game.observe();
+        let id = format!("{}:{action}", before.revision);
+        let refusal = game.submit(before.owner, before.revision, &id).unwrap_err();
+        assert!(refusal.contains(reason), "{refusal}");
+        assert_eq!(game.observe(), before);
+    };
+    refuse(
+        &mut game,
+        "construct:ec-pinar-la-habana:place",
+        "Cities or Provinces",
+    );
+    refuse(
+        &mut game,
+        "construct:matanzas:place",
+        "requires Government or Syndicate Control",
+    );
+    refuse(&mut game, "construct:havana:open", "No closed Casino");
+
+    for (space, from, to, count, available) in
+        [("camaguey-city", 15, 10, 1, 6), ("havana", 10, 5, 2, 5)]
+    {
+        let current = game.observe();
+        let action = format!("construct:{space}:place");
+        let preview = plans(&current, space)
+            .into_iter()
+            .find(|choice| choice.action() == action)
+            .unwrap()
+            .preview
+            .as_ref()
+            .unwrap();
+        let price = &preview.resources[0];
+        assert_eq!(
+            (price.faction, price.from, price.to),
+            (Faction::Syndicate, from, to)
+        );
+        choose(&mut game, &action);
+        let paid = game.observe();
+        reports.record(&paid);
+        assert_eq!(paid.resources[3], to);
+        assert_eq!(paid.standings[3].score, 3);
+        let here = paid.spaces.iter().find(|s| s.id == space).unwrap();
+        assert_eq!(here.control(), Some(Faction::Government));
+        let casinos = here.pieces.iter().filter(|p| p.kind == Kind::Casino);
+        assert_eq!(casinos.clone().map(|p| p.count).sum::<u8>(), count);
+        assert_eq!(
+            casinos
+                .filter(|p| p.state == State::Closed)
+                .map(|p| p.count)
+                .sum::<u8>(),
+            1
+        );
+        assert_eq!(
+            paid.available
+                .iter()
+                .find(|p| p.kind == Kind::Casino)
+                .unwrap()
+                .count,
+            available
+        );
+        assert!(plans(&paid, space).is_empty());
+        refuse(&mut game, &action, "already paid");
+        refuse(&mut game, "back-to-choice", "committed");
+    }
+    let before_finish = game.observe();
+    assert_eq!(
+        before_finish
+            .construct_paid
+            .iter()
+            .map(|p| (p.space.as_str(), p.paid))
+            .collect::<Vec<_>>(),
+        [("camaguey-city", 5), ("havana", 5)]
+    );
+    let finish = before_finish
+        .choices
+        .iter()
+        .find(|c| c.action() == "end-construct")
+        .unwrap();
+    assert_eq!(
+        finish.preview.as_ref().unwrap().records,
+        Some(SequenceBox::OperationOnly)
+    );
+    let mut spent = game.clone();
+    choose(&mut spent, "construct:santiago:place");
+    assert_eq!(spent.observe().resources[3], 0);
+    refuse(
+        &mut spent,
+        "construct:las-villas:place",
+        "needs 5 Resources",
+    );
+    choose(&mut spent, "end-construct");
+    assert_eq!(spent.observe().eligible, [true, true, true, false]);
+    assert_eq!(spent.observe().resources[3], 0);
+
+    choose(&mut game, "end-construct");
+    let after = game.observe();
+    reports.record(&after);
+    assert_eq!(after.eligible, [true, true, true, false]);
+    assert_eq!((after.current_card, after.preview_card), (18, 19));
+    assert!(after.choices.is_empty() && after.capabilities.is_empty());
+    assert_eq!(after.resources, before_finish.resources);
+    let report = &reports.all()[0];
+    assert_eq!(report.recorded, Some("Operation Only"));
+    assert_eq!(
+        report.headline,
+        "Syndicate executes Construct in Camagüey City and Havana"
+    );
+    assert_eq!(report.spaces, ["Camagüey City", "Havana"]);
+    let articles = report
+        .articles
+        .iter()
+        .filter(|a| a.title.starts_with("Construct in "))
+        .collect::<Vec<_>>();
+    assert_eq!(articles[0].title, "Construct in Camagüey City");
+    assert!(
+        articles[0]
+            .lines
+            .iter()
+            .any(|line| line.contains("15 → 10"))
+    );
+    assert_eq!(articles[1].title, "Construct in Havana");
+    assert!(articles[1].lines.iter().any(|line| line.contains("10 → 5")));
+}
+
+#[test]
+fn operation_only_construct_can_finish_without_a_payment_or_pass_income() {
+    for event in [&SHADED[..], &RALLY[..]] {
+        let mut game = card_18_after(0, event);
+        choose(&mut game, "government:pass");
+        let before = game.observe();
+        let mut pass = game.clone();
+        choose(&mut pass, "syndicate:pass");
+        assert_eq!(pass.observe().resources[3], 16);
+        assert_eq!(pass.observe().eligible, [true; 4]);
+
+        let mut reports = Reports::new(&before);
+        choose(&mut game, "syndicate:construct");
+        let open = game.observe();
+        reports.record(&open);
+        let finish = open
+            .choices
+            .iter()
+            .find(|c| c.action() == "end-construct")
+            .unwrap();
+        assert!(finish.supported, "{}", finish.explanation);
+        assert!(finish.explanation.contains("local policy"));
+        assert!(finish.explanation.contains("no Pass income"));
+        let preview = finish.preview.as_ref().unwrap();
+        assert_eq!(preview.records, Some(SequenceBox::OperationOnly));
+        assert!(preview.resources.is_empty());
+        let eligibility = preview.next_card.unwrap();
+        assert_eq!(eligibility.map(|r| r.eligible), [true, true, true, false]);
+        choose(&mut game, "end-construct");
+        let after = game.observe();
+        reports.record(&after);
+        assert_eq!(after.eligible, [true, true, true, false]);
+        assert_eq!(after.resources, before.resources);
+        assert_eq!(after.spaces, before.spaces);
+        assert_eq!(after.available, before.available);
+        assert!(!after.passed[3]);
+        assert!(after.construct_paid.is_empty() && after.choices.is_empty());
+        let report = &reports.all()[0];
+        assert_eq!(
+            report.action,
+            cuba_libre_unfolded::reports::Action::Construct
+        );
+        assert_eq!(report.recorded, Some("Operation Only"));
+        assert_eq!(report.headline, "Syndicate executes Construct in no space");
+        assert!(report.articles.is_empty());
+    }
+}
+
+#[test]
+fn limited_construct_pays_once_and_distinguishes_the_two_havana_plans() {
+    let mut game = assault_after(4, &SHADED);
+    choose(&mut game, "assault:havana:syndicate");
+    choose(&mut game, "end-assault");
+    let handoff = game.observe();
+    let casino_counts = |view: &Observation| {
+        let havana = view
+            .spaces
+            .iter()
+            .find(|space| space.id == "havana")
+            .unwrap();
+        let in_havana = |state| {
+            havana
+                .pieces
+                .iter()
+                .filter(|piece| piece.kind == Kind::Casino && piece.state == state)
+                .map(|piece| piece.count)
+                .sum::<u8>()
+        };
+        assert_eq!(havana.control(), Some(Faction::Government));
+        (
+            in_havana(State::Open),
+            in_havana(State::Closed),
+            view.standings[Faction::Syndicate.index()].score,
+            view.available
+                .iter()
+                .find(|piece| piece.kind == Kind::Casino)
+                .unwrap()
+                .count,
+        )
+    };
+    assert_eq!(handoff.resources[3], 15);
+    assert_eq!(casino_counts(&handoff), (0, 1, 2, 7));
+
+    choose(&mut game, "syndicate:limited-operation");
+    let open = game.observe();
+    assert_eq!(open.executing, Some(Faction::Syndicate));
+    let finish = open
+        .choices
+        .iter()
+        .find(|c| c.action() == "end-construct")
+        .unwrap();
+    assert!(!finish.supported);
+    assert!(game.submit(open.owner, open.revision, &finish.id).is_err());
+    assert_eq!(game.observe(), open);
+    let offered: Vec<_> = plans(&open, "havana")
+        .into_iter()
+        .filter(|c| c.supported)
+        .collect();
+    assert_eq!(
+        offered.iter().map(|c| c.action()).collect::<Vec<_>>(),
+        ["construct:havana:open", "construct:havana:place"],
+    );
+
+    for (plan, expected) in offered.into_iter().zip([(1, 0, 3, 7), (0, 2, 2, 6)]) {
+        let mut branch = game.clone();
+        let price = &plan.preview.as_ref().unwrap().resources[0];
+        assert_eq!(
+            (price.faction, price.from, price.to),
+            (Faction::Syndicate, 15, 10)
+        );
+        choose(&mut branch, plan.action());
+        let paid = branch.observe();
+        assert_eq!(paid.resources, [3, 0, 5, 10]);
+        assert_eq!(casino_counts(&paid), expected);
+        assert!(
+            paid.choices
+                .iter()
+                .all(|c| c.space().is_none() || !c.supported)
+        );
+        let refusal = branch
+            .submit(
+                Faction::Syndicate,
+                paid.revision,
+                &format!("{}:{}", paid.revision, plan.action()),
+            )
+            .unwrap_err();
+        assert!(refusal.contains("one space"), "{refusal}");
+        assert_eq!(branch.observe(), paid);
+        let another_space = format!("{}:construct:matanzas:place", paid.revision);
+        let refusal = branch
+            .submit(paid.owner, paid.revision, &another_space)
+            .unwrap_err();
+        assert!(refusal.contains("one space"), "{refusal}");
+        let leave = format!("{}:back-to-choice", paid.revision);
+        assert!(branch.submit(paid.owner, paid.revision, &leave).is_err());
+        assert_eq!(branch.observe(), paid);
+        choose(&mut branch, "end-construct");
+        let finished = branch.observe();
+        assert_eq!(finished.eligible, [false, true, true, false]);
+        assert_eq!((finished.current_card, finished.preview_card), (18, 19));
+        assert_eq!(finished.resources, paid.resources);
+        assert_eq!(casino_counts(&finished), expected);
+        assert!(finished.next.is_none() && finished.choices.is_empty());
+    }
+}
 
 #[test]
 fn an_open_assault_offers_every_unpaid_space_s_plans_at_once_and_no_menu() {
@@ -965,4 +1330,196 @@ fn each_of_the_thirteen_spaces_has_the_reason_r_3_2_4_gives_its_state() {
     for (_, reason) in reasons(&assault_after(0, &SHADED).observe()) {
         assert!(reason.is_none_or(|r| r.chars().count() <= 33));
     }
+}
+
+#[test]
+fn casino_management_closes_or_returns_the_selected_open_casino() {
+    // R 1.4.1, 1.4.4–5, 1.7, 3.3.5: the only piece in Pinar is an open Casino.
+    // Closing removes its Control and score but leaves a Casino in the space.
+    // Returning also adds one to Available Forces. Neither is Profit or a payment.
+    let mut game = assault_after(4, &SHADED);
+    choose(&mut game, "assault:havana:syndicate");
+    choose(&mut game, "end-assault");
+    choose(&mut game, "syndicate:limited-operation");
+    choose(&mut game, "construct:havana:open");
+    choose(&mut game, "remove");
+    let start = game.observe();
+    let pinar = |view: &Observation| {
+        view.spaces
+            .iter()
+            .find(|s| s.id == "pinar-del-rio")
+            .unwrap()
+            .clone()
+    };
+    assert_eq!(pinar(&start).control(), Some(Faction::Syndicate));
+    assert_eq!(start.standings[3].score, 3);
+    for (action, label, count, available) in [
+        (
+            "close-casino:pinar-del-rio:open-casino:1",
+            "Close 1 Casino in place",
+            1,
+            7,
+        ),
+        (
+            "remove:pinar-del-rio:open-casino:1",
+            "Return 1 Casino to Available",
+            0,
+            8,
+        ),
+    ] {
+        let mut branch = game.clone();
+        let selected = start.choices.iter().find(|c| c.action() == action).unwrap();
+        assert_eq!(selected.label, label);
+        let preview = selected.preview.as_ref().unwrap();
+        assert!(preview.resources.is_empty());
+        assert_eq!(preview.control[0].space, "pinar-del-rio");
+        assert_eq!(preview.control[0].from, Some(Faction::Syndicate));
+        assert_eq!(preview.control[0].to, None);
+        assert_eq!(
+            (
+                preview.standings[0].score_from,
+                preview.standings[0].score_to
+            ),
+            (3, 2)
+        );
+        choose(&mut branch, action);
+        let changed = branch.observe();
+        assert_eq!(changed.resources, start.resources);
+        assert_eq!(changed.standings[3].score, 2);
+        assert_eq!(changed.construct_paid, start.construct_paid);
+        assert_eq!(pinar(&changed).control(), None);
+        assert_eq!(pinar(&changed).pieces.len(), count);
+        assert!(
+            pinar(&changed)
+                .pieces
+                .iter()
+                .all(|p| p.state == State::Closed && p.count == 1)
+        );
+        assert_eq!(
+            changed
+                .available
+                .iter()
+                .find(|p| p.kind == Kind::Casino)
+                .unwrap()
+                .count,
+            available
+        );
+        assert!(changed.removal.is_some());
+        let stale = branch
+            .submit(start.owner, start.revision, &selected.id)
+            .unwrap_err();
+        assert!(stale.contains("Stale match revision"));
+        assert_eq!(branch.observe(), changed);
+        choose(&mut branch, "done-removal");
+        choose(&mut branch, "end-construct");
+    }
+}
+
+#[test]
+fn unpaid_limited_construct_loses_pinar_but_can_pay_in_havana_after_management() {
+    let mut game = assault_after(4, &SHADED);
+    choose(&mut game, "assault:havana:syndicate");
+    choose(&mut game, "end-assault");
+    choose(&mut game, "syndicate:limited-operation");
+    choose(&mut game, "remove");
+    choose(&mut game, "done-removal");
+    assert!(
+        game.observe()
+            .choices
+            .iter()
+            .any(|c| c.action() == "back-to-choice")
+    );
+    choose(&mut game, "remove");
+    let preview = game
+        .observe()
+        .choices
+        .into_iter()
+        .find(|c| c.action() == "close-casino:pinar-del-rio:open-casino:1")
+        .unwrap()
+        .preview
+        .unwrap();
+    assert_eq!(
+        preview.management.unwrap().construct_options,
+        ["After Done, unavailable: Place 1 closed Casino in Pinar del Río."]
+    );
+    choose(&mut game, "close-casino:pinar-del-rio:open-casino:1");
+    choose(&mut game, "done-removal");
+    let committed = game.observe();
+    assert!(plans(&committed, "pinar-del-rio").is_empty());
+    assert!(
+        plans(&committed, "havana")
+            .into_iter()
+            .any(|c| c.supported && c.action() == "construct:havana:open")
+    );
+    assert!(
+        !committed
+            .choices
+            .iter()
+            .any(|c| c.action() == "back-to-choice")
+    );
+    let back = format!("{}:back-to-choice", committed.revision);
+    let refusal = game
+        .submit(committed.owner, committed.revision, &back)
+        .unwrap_err();
+    assert!(refusal.contains("committed"));
+    assert_eq!(game.observe(), committed);
+    choose(&mut game, "transfer");
+    let selecting = game.observe();
+    let too_much = format!("{}:give:0:11", selecting.revision);
+    let refused = game
+        .submit(selecting.owner, selecting.revision, &too_much)
+        .unwrap_err();
+    assert!(refused.contains("Limited Construct"), "{refused}");
+    assert_eq!(game.observe(), selecting);
+    choose(&mut game, "give:0:10");
+    assert_eq!(game.observe().resources[3], 5);
+    choose(&mut game, "construct:havana:open");
+    assert_eq!(game.observe().resources[3], 0);
+    choose(&mut game, "end-construct");
+}
+
+#[test]
+fn operation_only_can_manage_casinos_after_spending_its_last_resource() {
+    let mut game = card_18_after(0, &SHADED);
+    choose(&mut game, "government:pass");
+    let mut reports = Reports::new(&game.observe());
+    for action in [
+        "syndicate:construct",
+        "construct:havana:place",
+        "construct:camaguey-city:place",
+        "construct:las-villas:place",
+        "remove",
+    ] {
+        choose(&mut game, action);
+        reports.record(&game.observe());
+    }
+    let before = game.observe();
+    assert_eq!(before.resources[3], 0);
+    assert_eq!(before.construct_paid.len(), 3);
+    choose(&mut game, "close-casino:pinar-del-rio:open-casino:1");
+    let changed = game.observe();
+    reports.record(&changed);
+    assert_eq!(changed.resources[3], 0);
+    assert_eq!(changed.construct_paid, before.construct_paid);
+    assert_eq!(changed.standings[3].score, 2);
+    for action in ["done-removal", "end-construct"] {
+        choose(&mut game, action);
+        reports.record(&game.observe());
+    }
+    let report = &reports.all()[0];
+    assert_eq!(report.recorded, Some("Operation Only"));
+    let casino = report
+        .articles
+        .iter()
+        .find(|article| article.title == "Casino management in Pinar del Río")
+        .unwrap();
+    assert_eq!(
+        casino.lines,
+        [
+            "Syndicate closes 1 open Casino in place.",
+            "0 Resources · no Profit.",
+            "Syndicate open Casinos: 3 → 2.",
+            "Pinar del Río Control: Syndicate → none."
+        ]
+    );
 }

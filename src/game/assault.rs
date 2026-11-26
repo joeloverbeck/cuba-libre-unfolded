@@ -598,8 +598,8 @@ impl Game {
     pub(super) fn assault_choices(&self) -> Vec<Choice> {
         if self.assault_finished() {
             return vec![
-                self.offer("syndicate:pass", "Pass", false, "Syndicate may Pass for 1 Resource, up to 49, and stays Eligible. Available for inspection (R 1.8, 2.3.3)."),
-                self.offer("syndicate:limited-operation", "Limited Operation", false, "Syndicate may choose one space and has no Special Activity. Inspect only (R 2.3.4–5)."),
+                self.syndicate_pass_choice(),
+                self.limited_construct_choice(),
             ];
         }
         if let Some(choices) = self.transfer_choices() {

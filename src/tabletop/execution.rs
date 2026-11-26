@@ -778,6 +778,9 @@ pub(super) fn panel(
     o: Vec2,
 ) {
     picture(commands, art, "atlas-panel.png", PANEL, s, o, 2);
+    if view.card_18_complete() {
+        return ended(commands, art, view, ui, s, o);
+    }
     if view.current_card == 18
         || view.eligibility.directorio_handoff()
         || view
@@ -1123,10 +1126,61 @@ fn event_heading(faction: Faction) -> String {
 /// resolved and what it paid. `None` until the action is recorded.
 pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)> {
     let e = &view.eligibility;
-    if let (Some(outcome), Some(results)) = (
-        view.event.as_ref().and_then(crate::EventProgress::outcome),
-        e.next_card,
-    ) {
+    if view.card_18_complete() {
+        if let Some(
+            recorded @ (crate::SequenceBox::OperationOnly | crate::SequenceBox::LimitedOperation),
+        ) = e.syndicate_box
+        {
+            let paid = if view.construct_paid.is_empty() {
+                "No spaces paid".into()
+            } else {
+                view.construct_paid
+                    .iter()
+                    .map(|paid| paid.summary(space_name(view, &paid.space)))
+                    .collect::<Vec<_>>()
+                    .join("\n")
+            };
+            return Some((
+                format!("Syndicate · {}", e.construct_name()),
+                "Card 18 complete · Eligibility adjusted\nCard 19 remains the preview".into(),
+                vec![
+                    entry(
+                        "RESULT",
+                        format!(
+                            "{}\n{paid}\nSyndicate has {} left.",
+                            recorded.name(),
+                            resources(view.resources[Faction::Syndicate.index()])
+                        ),
+                    ),
+                    super::eligibility::result_entry(view.preview_card, e.next_card?),
+                ],
+            ));
+        }
+        let balance = view
+            .recorded_resources
+            .iter()
+            .find(|r| r.faction == Faction::Syndicate)?;
+        return Some((
+            "Syndicate · passed".into(),
+            "Card 18 complete · Eligibility adjusted\nCard 19 remains the preview".into(),
+            vec![
+                entry(
+                    "RESULT",
+                    format!(
+                        "Syndicate Resources: {} → {}. Pact Capability inactive.",
+                        balance.from, balance.to
+                    ),
+                ),
+                super::eligibility::result_entry(view.preview_card, e.next_card?),
+            ],
+        ));
+    }
+    if view.current_card == 17
+        && let (Some(outcome), Some(results)) = (
+            view.event.as_ref().and_then(crate::EventProgress::outcome),
+            e.next_card,
+        )
+    {
         let mut entries = vec![match outcome {
             crate::EventOutcome::Shaded { flips } => entry(
                 "SHADED EVENT · ACTIVATIONS",
@@ -1159,23 +1213,7 @@ pub(super) fn ending(view: &Observation) -> Option<(String, String, Vec<Entry>)>
                 )
             }
         }];
-        let reasons = results
-            .into_iter()
-            .map(|result| {
-                format!(
-                    "{} · {} · {}",
-                    result.faction.name(),
-                    if result.eligible {
-                        "Eligible"
-                    } else {
-                        "Ineligible"
-                    },
-                    result.reason.text(),
-                )
-            })
-            .collect::<Vec<_>>()
-            .join("\n");
-        entries.push(entry("ELIGIBILITY FOR CARD 18 · R 2.3.7", reasons));
+        entries.push(super::eligibility::result_entry(view.preview_card, results));
         if let Some(restriction) = e.event_restriction {
             entries.push(entry(
                 "EVENT RESTRICTION",
@@ -1291,7 +1329,9 @@ fn ended(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface,
     let Some((heading, subtitle, entries)) = ending(view) else {
         return;
     };
-    let faction = if view.eligibility.next_card.is_some() {
+    let faction = if view.card_18_complete() {
+        Faction::Syndicate
+    } else if view.eligibility.next_card.is_some() {
         Faction::Directorio
     } else {
         Faction::M26

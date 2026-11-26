@@ -28,6 +28,9 @@ fn family(choice: &Choice) -> String {
     if choice.removal().is_some() {
         return "remove:<space>:<group>:<n>".into();
     }
+    if choice.casino_closure().is_some() {
+        return "close-casino:<space>:open-casino:<n>".into();
+    }
     let action = choice.action();
     if action
         .strip_prefix("terror:")
@@ -42,6 +45,13 @@ fn family(choice: &Choice) -> String {
         .is_some_and(|(space, _)| choice.space() == Some(space))
     {
         return "assault:<space>:<plan>".into();
+    }
+    if let Some((space, plan)) = action
+        .strip_prefix("construct:")
+        .and_then(|rest| rest.split_once(':'))
+        && choice.space() == Some(space)
+    {
+        return format!("construct:<space>:{plan}");
     }
     action.into()
 }
@@ -94,6 +104,21 @@ fn card_18_families() -> BTreeSet<String> {
             }
         }
     }
+    let mut construct = assault.clone();
+    for action in [
+        "assault:havana:syndicate",
+        "end-assault",
+        "syndicate:limited-operation",
+        "construct:havana:open",
+        "remove",
+        "close-casino:pinar-del-rio:open-casino:1",
+        "done-removal",
+        "end-construct",
+    ] {
+        explore::choose(&mut construct, action);
+        offered.extend(families(&construct));
+    }
+
     explore::choose(&mut assault, "assault:santiago:26july");
     offered.extend(families(&assault));
     explore::choose(&mut assault, "end-assault");

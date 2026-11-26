@@ -387,6 +387,43 @@ pub(super) fn activation_lines(view: &Observation, flips: &[Flip]) -> String {
 pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
     if view.current_card == 18 {
         let choice = listed(view, option)?;
+        if option == "syndicate:pass" {
+            let preview = choice.preview.as_ref()?;
+            return Some(Briefing {
+                option: option.into(),
+                title: choice.label.clone(),
+                rule: "R 1.8, 2.3.3, 2.3.7",
+                entries: vec![
+                    entry("RESULT", &choice.explanation),
+                    super::eligibility::result_entry(view.preview_card, preview.next_card?),
+                ],
+                rules: String::new(),
+            });
+        }
+        if view.executing == Some(Faction::Syndicate) {
+            let mut entries = vec![entry("RESULT", &choice.explanation)];
+            if let Some(adjusted) = choice
+                .preview
+                .as_ref()
+                .and_then(|preview| preview.next_card)
+            {
+                entries.push(super::eligibility::result_entry(
+                    view.preview_card,
+                    adjusted,
+                ));
+            }
+            return Some(Briefing {
+                option: option.into(),
+                title: choice.label.clone(),
+                rule: if view.passed[Faction::Government.index()] {
+                    "R 2.3.4, 3.3.5"
+                } else {
+                    "R 2.3.5, 3.3.5"
+                },
+                entries,
+                rules: String::new(),
+            });
+        }
         if view.passed[Faction::Government.index()] {
             return Some(Briefing {
                 option: option.into(),
@@ -411,7 +448,7 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
                     entry("OPTION", &choice.explanation),
                     entry(
                         "2ND ELIGIBLE",
-                        "Government recorded Operation Only. Syndicate may Pass or choose a Limited Operation.",
+                        "Government recorded Operation Only.\nSyndicate may Pass or take a Limited Operation.",
                     ),
                 ],
                 rules: String::new(),

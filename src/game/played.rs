@@ -23,7 +23,11 @@ static MENUS: LazyLock<[(u8, Vec<Choice>); 4]> = LazyLock::new(|| {
         Faction::M26 => (17, game.opening_choices()),
         Faction::Directorio => (17, game.directorio_choices()),
         Faction::Government => (18, game.government_choices()),
-        Faction::Syndicate => (18, game.syndicate_choices()),
+        Faction::Syndicate => {
+            let mut choices = game.syndicate_choices();
+            choices.push(game.limited_construct_choice());
+            (18, choices)
+        }
     })
 });
 
@@ -34,8 +38,9 @@ impl Played {
         let (card, options) = &MENUS[faction.index()];
         let action = name.to_lowercase().replace(' ', "-");
         if options.iter().any(|option| {
-            option.action().rsplit(':').next() == Some(&action)
-                && (option.supported || !option.remedies.is_empty())
+            let name_matches = option.action().rsplit(':').next() == Some(&action)
+                || (action == "construct" && option.action() == "syndicate:limited-operation");
+            name_matches && (option.supported || !option.remedies.is_empty())
         }) {
             Self::OnCard(*card)
         } else if action == "rally" && rally::BENEFICIARIES.contains(&faction) {

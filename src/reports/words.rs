@@ -1,7 +1,8 @@
 //! A report's words, fixed per kind of action. They state what changed and judge nothing.
 
 use super::{
-    Action, Article, Balance, FromTo, Item, Moment, Transfers, kind_name, recorded, standings,
+    Action, Article, Balance, CasinoEffects, FromTo, Item, Moment, Transfers, kind_name, recorded,
+    standings,
 };
 use crate::{
     Faction, Group, Kidnap, Kind, MARKER_SUPPLY, RallyAction, State, resources, support_level,
@@ -61,7 +62,9 @@ fn operation_spaces(items: &[Item]) -> Vec<String> {
     items
         .iter()
         .filter_map(|item| match item {
-            Item::Terror { space, .. } | Item::Assault { space, .. } => Some(space.clone()),
+            Item::Terror { space, .. }
+            | Item::Assault { space, .. }
+            | Item::Construct { space, .. } => Some(space.clone()),
             _ => None,
         })
         .collect()
@@ -71,6 +74,7 @@ fn operation_spaces(items: &[Item]) -> Vec<String> {
 pub(super) fn headline(
     faction: Faction,
     action: Action,
+    first_eligible: bool,
     again: bool,
     complete: bool,
     items: &[Item],
@@ -83,6 +87,7 @@ pub(super) fn headline(
         Action::EventShaded => ("the Event, shaded text", false),
         Action::Terror => ("Terror", true),
         Action::Assault => ("Assault", true),
+        Action::Construct => (crate::game::construct_name(first_eligible), true),
     };
     let spaces = operation_spaces(items);
     let named = match spaces.len() {
@@ -155,7 +160,7 @@ fn taken(kidnap: &Kidnap) -> String {
 
 /// What happened, in order. The Pass, the grant of the Rally and a pending request are in
 /// the summary alone.
-pub(super) fn articles(faction: Faction, items: &[Item]) -> Vec<Article> {
+pub(super) fn articles(faction: Faction, action: Action, items: &[Item]) -> Vec<Article> {
     let mut articles: Vec<Article> =
         items
             .iter()
@@ -164,12 +169,43 @@ pub(super) fn articles(faction: Faction, items: &[Item]) -> Vec<Article> {
                 Item::WentBack { request } => Some(article(
                     "Back to the action choice",
                     vec![match request {
-                        Some(giver) => format!("26July withdraws its request to {}.", giver.name()),
-                        None => "26July goes back to its action choice.".into(),
+                        Some(giver) => format!(
+                            "{} withdraws its request to {}.",
+                            faction.name(),
+                            giver.name()
+                        ),
+                        None => format!("{} goes back to its action choice.", faction.name()),
                     }],
                 )),
-                Item::Transfers(told) => transfers(told),
+                Item::Transfers(told) => transfers(told, action),
                 Item::Removed { faction, groups } => Some(removed(*faction, groups)),
+                Item::ManagedCasinos {
+                    space,
+                    group,
+                    closed_in_place,
+                    effects,
+                } => {
+                    let state = if group.state == State::Open {
+                        "open"
+                    } else {
+                        "closed"
+                    };
+                    let casinos = kind_name(Kind::Casino, group.count);
+                    let effect = if *closed_in_place {
+                        format!(
+                            "Syndicate closes {} {state} {casinos} in place.",
+                            group.count
+                        )
+                    } else {
+                        format!(
+                            "Syndicate returns {} {state} {casinos} to Available Forces.",
+                            group.count
+                        )
+                    };
+                    let mut lines = vec![effect, "0 Resources · no Profit.".into()];
+                    lines.extend(casino_effects(space, effects));
+                    Some(article(format!("Casino management in {space}"), lines))
+                }
                 Item::Kidnap { space, kidnap } => Some(kidnapped(space, kidnap)),
                 Item::Terror {
                     space,
@@ -220,6 +256,20 @@ pub(super) fn articles(faction: Faction, items: &[Item]) -> Vec<Article> {
                         ));
                     }
                     Some(article(format!("Assault in {space}"), lines))
+                }
+                Item::Construct {
+                    space,
+                    paid,
+                    balance,
+                    plan,
+                    effects,
+                } => {
+                    let mut lines = vec![
+                        pays(faction, *paid, *balance),
+                        format!("{} {}.", faction.name(), plan.result()),
+                    ];
+                    lines.extend(casino_effects(space, effects));
+                    Some(article(format!("Construct in {space}"), lines))
                 }
                 Item::Shaded { flips } => {
                     let mut lines: Vec<String> = flips
@@ -363,9 +413,11 @@ fn rally(action: RallyAction) -> String {
 }
 
 /// What was asked and given, less a request still pending, which is in the summary.
-fn transfers(told: &Transfers) -> Option<Article> {
+fn transfers(told: &Transfers, action: Action) -> Option<Article> {
     let (giver, recipient) = (told.giver.name(), told.recipient.name());
+    let no_move = action == Action::Construct && told.given == 0 && told.unmet > 0;
     let title = match told.given {
+        0 if no_move => "No Resources moved".into(),
         0 if told.unmet > 0 => format!("{giver} gives {recipient} nothing"),
         0 if told.withdrawn > 0 => format!("{recipient} asks {giver} for Resources"),
         0 => return None,
@@ -390,7 +442,9 @@ fn transfers(told: &Transfers) -> Option<Article> {
         (moves, _) => lines.push(format!("They move in {moves} transfers.")),
     }
     let requests = |n: u16| format!("{n} request{}", if n == 1 { "" } else { "s" });
-    if told.unmet > 0 {
+    if no_move {
+        lines.push(format!("{giver} answered {}.", requests(told.unmet)));
+    } else if told.unmet > 0 {
         lines.push(format!(
             "{giver} answers {} with nothing.",
             requests(told.unmet)
@@ -420,8 +474,25 @@ pub(super) fn notes(first: &Moment, last: &Moment, faction: Faction) -> Vec<Arti
     .collect()
 }
 
+fn control_name(control: Option<Faction>) -> &'static str {
+    control.map_or("none", Faction::name)
+}
+
+fn casino_effects(space: &str, effects: &CasinoEffects) -> impl Iterator<Item = String> {
+    let open = effects
+        .open
+        .map(|FromTo { from, to }| format!("Syndicate open Casinos: {from} → {to}."));
+    let control = effects.control.map(|(from, to)| {
+        format!(
+            "{space} Control: {} → {}.",
+            control_name(from),
+            control_name(to)
+        )
+    });
+    open.into_iter().chain(control)
+}
+
 fn control(first: &Moment, last: &Moment) -> Vec<String> {
-    let name = |control: Option<Faction>| control.map_or("none", Faction::name);
     first
         .spaces
         .iter()
@@ -431,8 +502,8 @@ fn control(first: &Moment, last: &Moment) -> Vec<String> {
             format!(
                 "{}: {} → {}.",
                 is.name,
-                name(was.control()),
-                name(is.control())
+                control_name(was.control()),
+                control_name(is.control())
             )
         })
         .collect()
@@ -487,7 +558,9 @@ fn totals(first: &Moment, last: &Moment) -> Vec<String> {
 fn eligibility(first: &Moment, last: &Moment, faction: Faction) -> Vec<String> {
     let (was, is) = (&first.eligibility, &last.eligibility);
     let mut lines = vec![];
-    if let Some(recorded) = recorded(last, faction) {
+    if let Some(recorded) = recorded(last, faction)
+        && !(last.card == 18 && is.next_card.is_some())
+    {
         lines.push(format!("{} is in the {recorded} box.", faction.name()));
     }
     if was.m26_next_card != is.m26_next_card
@@ -507,12 +580,19 @@ fn eligibility(first: &Moment, last: &Moment, faction: Faction) -> Vec<String> {
                 .collect();
             listing(&names)
         };
-        lines.push(format!(
-            "Card {}: {} Eligible, {} Ineligible.",
-            last.next_card,
-            those(true),
-            those(false)
-        ));
+        let ineligible = those(false);
+        if ineligible.is_empty() {
+            lines.push(format!(
+                "All four factions are Eligible for card {}.",
+                last.next_card
+            ));
+        } else {
+            lines.push(format!(
+                "Card {}: {} Eligible, {ineligible} Ineligible.",
+                last.next_card,
+                those(true),
+            ));
+        }
     }
     if was.event_restriction != is.event_restriction
         && let Some(kept) = is.event_restriction

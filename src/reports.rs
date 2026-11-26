@@ -13,8 +13,8 @@
 //! previous one ended and nothing is told twice. The words are fixed per kind of action
 //! (`words`): they state what changed and judge nothing.
 //!
-//! A report does not grow with the number of side decisions: the Resource transfers from
-//! one faction to another are told together, and so are a faction's own removed pieces.
+//! Resource transfers within Construct are reported as they occurred, alongside payments.
+//! Other actions gather transfers by direction, and voluntary removals by faction.
 
 mod words;
 
@@ -23,9 +23,10 @@ mod words;
 pub(crate) use words::listing;
 
 use crate::{
-    ActionChoice, AssaultResolution, Choice, Eligibility, EventOutcome, EventProgress, Faction,
-    Flip, Game, Group, Kidnap, Kind, Next, Observation, Rally, RallyAction, Removal, Resolved,
-    Space, Standing, State, Transfer, title,
+    ActionChoice, AssaultResolution, Choice, ConstructAuthorization, ConstructFunding,
+    ConstructPlan, ConstructResolution, Eligibility, EventOutcome, EventProgress, Faction, Flip,
+    Game, Group, Kidnap, Kind, Next, Observation, Rally, RallyAction, Removal, Resolved,
+    SequenceBox, Space, Standing, State, Transfer, title,
 };
 use serde::Serialize;
 
@@ -40,6 +41,7 @@ pub enum Action {
     EventUnshaded,
     EventShaded,
     Assault,
+    Construct,
 }
 
 /// What one faction's action did between two revisions of the match.
@@ -191,6 +193,8 @@ struct Moment {
     kidnap: Option<Kidnap>,
     resolved: Vec<Resolved>,
     assault_paid: Vec<AssaultResolution>,
+    construct_paid: Vec<ConstructResolution>,
+    construct_funding: Option<ConstructFunding>,
 }
 
 impl Moment {
@@ -200,7 +204,7 @@ impl Moment {
             seen.event_executor
         } else if seen.executing.is_some() {
             seen.executing
-        } else if seen.choices.iter().any(Choice::turns_the_card) {
+        } else if seen.card_18_complete() || seen.choices.iter().any(Choice::turns_the_card) {
             None
         } else {
             Some(seen.owner)
@@ -227,6 +231,8 @@ impl Moment {
             kidnap: seen.kidnap.clone(),
             resolved: seen.resolved.clone(),
             assault_paid: seen.assault_paid.clone(),
+            construct_paid: seen.construct_paid.clone(),
+            construct_funding: seen.construct_funding.clone(),
         }
     }
 
@@ -255,8 +261,19 @@ impl Moment {
                 Some(_) => Action::EventUnshaded,
             },
             // Assault is the one Operation this build plays for Government.
-            _ if self.executing == Some(faction) || self.eligibility.government_box.is_some() => {
+            Faction::Government
+                if self.executing == Some(faction) || self.eligibility.government_box.is_some() =>
+            {
                 Action::Assault
+            }
+            Faction::Syndicate
+                if self.executing == Some(faction)
+                    || matches!(
+                        self.eligibility.syndicate_box,
+                        Some(SequenceBox::OperationOnly | SequenceBox::LimitedOperation)
+                    ) =>
+            {
+                Action::Construct
             }
             _ => Action::Undecided,
         }
@@ -306,6 +323,12 @@ impl Moment {
     fn resources(&self, faction: Faction) -> u8 {
         self.resources[faction.index()]
     }
+
+    fn construct_authorizations(&self) -> &[ConstructAuthorization] {
+        self.construct_funding
+            .as_ref()
+            .map_or(&[], |funding| &funding.authorizations)
+    }
 }
 
 /// A faction's Resources before and after one step.
@@ -328,6 +351,12 @@ enum Item {
         /// A space and a group that left it.
         groups: Vec<(String, Group)>,
     },
+    ManagedCasinos {
+        space: String,
+        group: Group,
+        closed_in_place: bool,
+        effects: CasinoEffects,
+    },
     Kidnap {
         space: String,
         kidnap: Kidnap,
@@ -349,6 +378,13 @@ enum Item {
         /// The Casinos that closed.
         closed: u8,
     },
+    Construct {
+        space: String,
+        paid: u8,
+        balance: Balance,
+        plan: ConstructPlan,
+        effects: CasinoEffects,
+    },
     Shaded {
         /// A space and the Guerrillas Activated there.
         flips: Vec<(String, u8)>,
@@ -360,6 +396,25 @@ enum Item {
         action: RallyAction,
     },
     NoRally(Faction),
+}
+
+/// Standing and Control changes at the decision that changed a Casino.
+struct CasinoEffects {
+    open: Option<FromTo>,
+    control: Option<(Option<Faction>, Option<Faction>)>,
+}
+
+impl CasinoEffects {
+    fn between(before: &Moment, after: &Moment, was: &Space, is: &Space) -> Self {
+        let syndicate = Faction::Syndicate.index();
+        let from = before.standings[syndicate].score;
+        let to = after.standings[syndicate].score;
+        let control = (was.control(), is.control());
+        Self {
+            open: (from != to).then_some(FromTo { from, to }),
+            control: (control.0 != control.1).then_some(control),
+        }
+    }
 }
 
 /// What was asked and given between one giver and one recipient.
@@ -389,14 +444,31 @@ fn span(moments: &[Moment], faction: Faction, continues: bool) -> Option<Report>
         happened(&step[0], &step[1], continues, &mut items);
     }
     let action = last.action_of(faction);
-    let told = !items.is_empty() || complete || (!continues && action != Action::Undecided);
+    let new_authorization =
+        last.construct_authorizations().len() > first.construct_authorizations().len();
+    let told = new_authorization
+        || !items.is_empty()
+        || complete
+        || (!continues && action != Action::Undecided);
     let again = continues && first.action_of(faction) == action;
+    let first_eligible = first.eligibility.first == faction;
+    let mut summary = words::summary(faction, &items);
+    if faction == Faction::Syndicate
+        && let Some(funding) = &last.construct_funding
+        && (last.request().is_some() || !funding.authorizations.is_empty())
+    {
+        let status = format!("{}. {}", funding.summary(), ConstructFunding::CONDITION);
+        summary = Some(match summary {
+            Some(text) => format!("{text} {status}"),
+            None => status,
+        });
+    }
     told.then(|| Report {
         faction,
         action,
         card: first.card,
         card_title: title(first.card),
-        role: if first.eligibility.first == faction {
+        role: if first_eligible {
             "1st Eligible"
         } else {
             "2nd Eligible"
@@ -407,19 +479,20 @@ fn span(moments: &[Moment], faction: Faction, continues: bool) -> Option<Report>
         continues,
         complete,
         spaces: spaces(&items),
-        headline: words::headline(faction, action, again, complete, &items),
-        summary: words::summary(faction, &items),
-        articles: words::articles(faction, &items),
+        headline: words::headline(faction, action, first_eligible, again, complete, &items),
+        summary,
+        articles: words::articles(faction, action, &items),
         standings: standings(first, last),
         notes: words::notes(first, last, faction),
     })
 }
 
-/// The box `faction`'s action is recorded in. This build records no box for Directorio.
+/// The record of `faction`'s action on the Sequence of Play.
 fn recorded(at: &Moment, faction: Faction) -> Option<&'static str> {
     match faction {
         Faction::M26 => at.eligibility.m26_box,
         Faction::Government => at.eligibility.government_box,
+        Faction::Syndicate => at.eligibility.syndicate_box,
         _ => None,
     }
     .map(|recorded| recorded.name())
@@ -452,7 +525,11 @@ fn standings(first: &Moment, last: &Moment) -> Vec<Row> {
 /// nothing.
 fn happened(before: &Moment, after: &Moment, continues: bool, items: &mut Vec<Item>) {
     let name = |id: &str| after.space(id).name.clone();
-    if before.action == ActionChoice::Terror && after.action == ActionChoice::Open {
+    let left_terror = before.action == ActionChoice::Terror && after.action == ActionChoice::Open;
+    let left_construct = before.executing == Some(Faction::Syndicate)
+        && after.executing.is_none()
+        && after.actor == Some(Faction::Syndicate);
+    if left_terror || left_construct {
         // Nothing had an effect, so only what an earlier report told is undone.
         items.clear();
         if continues {
@@ -500,6 +577,20 @@ fn happened(before: &Moment, after: &Moment, continues: bool, items: &mut Vec<It
             balance: balance(before, after, Faction::Government),
             removed,
             closed: closed.iter().map(|group| group.count).sum(),
+        });
+    }
+    for paid in after
+        .construct_paid
+        .iter()
+        .skip(before.construct_paid.len())
+    {
+        let (was, is) = (before.space(&paid.space), after.space(&paid.space));
+        items.push(Item::Construct {
+            space: is.name.clone(),
+            paid: paid.paid,
+            balance: balance(before, after, Faction::Syndicate),
+            plan: paid.plan,
+            effects: CasinoEffects::between(before, after, was, is),
         });
     }
     if let (None, Some(flips)) = (before.flips(), after.flips()) {
@@ -571,15 +662,44 @@ fn rallied(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
 }
 
 fn transferred(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
+    let gather = before.executing != Some(Faction::Syndicate);
     match (before.request(), after.request()) {
         (None, Some((giver, recipient, amount))) => {
-            let told = between(items, giver, recipient);
+            let told = between(items, giver, recipient, gather);
             told.asked.get_or_insert(amount);
             told.asks += 1;
             told.pending = Some(amount);
         }
+        (Some((giver, recipient, asked)), None)
+            if before.construct_authorizations().len()
+                != after.construct_authorizations().len() =>
+        {
+            if let Some(index) = items
+                .iter()
+                .rposition(|item| matches!(item, Item::Transfers(told) if told.pending.is_some()))
+            {
+                items.remove(index);
+            }
+            if after.resources != before.resources {
+                // A single reply can settle every conditional authorization. Reconstruct their
+                // individual balances in authorization order from the preceding position.
+                let mut balances = before.resources;
+                for authorization in before.construct_authorizations() {
+                    construct_transfer(
+                        items,
+                        &mut balances,
+                        authorization.giver,
+                        recipient,
+                        authorization.asked,
+                        authorization.amount,
+                    );
+                }
+                let amount = after.resources(recipient) - balances[recipient.index()];
+                construct_transfer(items, &mut balances, giver, recipient, asked, amount);
+            }
+        }
         (Some((giver, recipient, _)), None) => {
-            let told = between(items, giver, recipient);
+            let told = between(items, giver, recipient, true);
             told.pending = None;
             // 26July may end Terror while the giver still decides (local policy, #61).
             if after.executing.is_none() {
@@ -600,11 +720,40 @@ fn transferred(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
                 holds(std::cmp::Ordering::Less),
                 holds(std::cmp::Ordering::Greater),
             ) {
-                moved(before, after, between(items, giver, recipient));
+                moved(before, after, between(items, giver, recipient, gather));
             }
         }
         _ => {}
     }
+}
+
+fn construct_transfer(
+    items: &mut Vec<Item>,
+    balances: &mut [u8; 4],
+    giver: Faction,
+    recipient: Faction,
+    asked: u8,
+    amount: u8,
+) {
+    let from = balances[giver.index()];
+    let to = balances[recipient.index()];
+    balances[giver.index()] -= amount;
+    balances[recipient.index()] += amount;
+    let told = between(items, giver, recipient, false);
+    told.asked = Some(asked);
+    told.asks = 1;
+    told.moves = 1;
+    told.given = u16::from(amount);
+    told.balances = Some((
+        Balance {
+            from,
+            to: from - amount,
+        },
+        Balance {
+            from: to,
+            to: to + amount,
+        },
+    ));
 }
 
 fn moved(before: &Moment, after: &Moment, told: &mut Transfers) {
@@ -614,11 +763,20 @@ fn moved(before: &Moment, after: &Moment, told: &mut Transfers) {
     told.balances = Some((giver, balance(before, after, told.recipient)));
 }
 
-/// What is told of `giver` and `recipient`, which starts here if nothing was.
-fn between(items: &mut Vec<Item>, giver: Faction, recipient: Faction) -> &mut Transfers {
-    let known = items.iter().position(|item| {
-        matches!(item, Item::Transfers(told) if (told.giver, told.recipient) == (giver, recipient))
-    });
+/// The last transfer in this direction if it is being continued, or a new entry.
+fn between(
+    items: &mut Vec<Item>,
+    giver: Faction,
+    recipient: Faction,
+    continue_previous: bool,
+) -> &mut Transfers {
+    let known = continue_previous
+        .then(|| {
+            items.iter().rposition(|item| {
+                matches!(item, Item::Transfers(told) if (told.giver, told.recipient) == (giver, recipient))
+            })
+        })
+        .flatten();
     let at = known.unwrap_or_else(|| {
         items.push(Item::Transfers(Transfers {
             giver,
@@ -643,7 +801,26 @@ fn between(items: &mut Vec<Item>, giver: Faction, recipient: Faction) -> &mut Tr
 /// `faction`'s own pieces that went to its Available Forces (R 1.4.1), told together.
 fn removed(before: &Moment, after: &Moment, faction: Faction, items: &mut Vec<Item>) {
     for (was, is) in before.spaces.iter().zip(&after.spaces) {
-        for group in lost(was, is) {
+        for group in lost(was, is)
+            .into_iter()
+            .filter(|group| group.faction == faction)
+        {
+            if group.kind == Kind::Casino {
+                let closed = |space: &Space| {
+                    space
+                        .pieces
+                        .iter()
+                        .find(|piece| piece.kind == Kind::Casino && piece.state == State::Closed)
+                        .map_or(0, |piece| piece.count)
+                };
+                items.push(Item::ManagedCasinos {
+                    space: is.name.clone(),
+                    closed_in_place: closed(is) > closed(was),
+                    group,
+                    effects: CasinoEffects::between(before, after, was, is),
+                });
+                continue;
+            }
             let known = items
                 .iter()
                 .position(|item| matches!(item, Item::Removed { faction: f, .. } if *f == faction));
@@ -675,6 +852,8 @@ fn spaces(items: &[Item]) -> Vec<String> {
             Item::Kidnap { space, .. }
             | Item::Terror { space, .. }
             | Item::Assault { space, .. }
+            | Item::Construct { space, .. }
+            | Item::ManagedCasinos { space, .. }
             | Item::Rally { space, .. } => vec![space],
             Item::Removed { groups, .. } => groups.iter().map(|(space, _)| space).collect(),
             Item::Shaded { flips } => flips.iter().map(|(space, _)| space).collect(),

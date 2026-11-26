@@ -71,6 +71,8 @@ The Resource transfer step opens the transfer modal ([TRANSFER.md](../art/atlas/
 
 Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfer can fund either Terror target without Kidnap, or make Kidnap possible during or after Terror. 26July can transfer Resources once it chooses Terror. Going back or ending Terror withdraws a pending request. During the Event and the free Rally, the executing faction can transfer Resources. They are made by whoever plays the faction. [Transfer timing](local-rule-policies.md#transfers-open-once-terror-is-chosen) · [Withdrawing pending requests](local-rule-policies.md#a-pending-transfer-request-is-withdrawn)
 
+Syndicate can transfer Resources while Construct is open. If Limited Construct needs funding, the transfer surfaces show the amount held and how much more authorization will move the Resources. Ask the same or another giver, or use **Back to the action choice** before committing. With a request pending, select **Wait** if the giver's modal is open, then select **Syndicate withdraws · back to action choice** in the decision panel to leave and release any held authorizations. After the transfers move, choose where to pay. Pay for your chosen space before giving away the Resources needed for that payment. [Partial funding](local-rule-policies.md#partial-funding-for-limited-construct) · [Limited Construct commitment](local-rule-policies.md#leaving-limited-construct-on-card-18)
+
 ## Removing your own pieces
 
 "Remove own pieces" opens removal mode (#73). The map marks the executing faction's removable pieces and dims spaces holding none of its pieces ([HIGHLIGHTS.md, "Removal mode"](../art/atlas/HIGHLIGHTS.md#removal-mode-73)). Click a marked piece for the preview, Remove and Cancel, and a quantity selector when it is in a stack. Each Remove returns that many pieces to Available. The mode stays open until Done and survives Save · quit. After resuming, click a piece to reopen its popover.
@@ -98,7 +100,7 @@ Government is 1st Eligible and Syndicate is 2nd Eligible. Both skipped an Operat
 
 Hover or focus Government's options to see what the rules allow and why a choice is unavailable. Pin **Pass** to review the current balance, the 3-Resource income and the balance after the 49-Resource cap. Select the **Pass** button to commit. Government's marker moves to the Pass box, and the next decision shows the credited income.
 
-Syndicate takes over as 1st Eligible on Pact of Caracas. Inspect its Pass, Event, Operations and Special Activities.
+Syndicate takes over as 1st Eligible on Pact of Caracas. It can Pass, choose Construct as Operation Only, or inspect its other options.
 
 Choose **Assault · Operation Only**. The space is then chosen on the map and nowhere else. The map marks every space for the open Assault ([HIGHLIGHTS.md](../art/atlas/HIGHLIGHTS.md) shows how each state is drawn):
 
@@ -116,11 +118,27 @@ With the inherited cubes still in place, targeting Syndicate in Havana closes th
 
 The panel keeps what is not a place: Government's Resources and the cost per space, one line for each space already assaulted, in the order paid, with what it paid and what was removed or closed, and the rows **Finish Assault**, **Resource transfer** and **Remove own pieces**.
 
-Under Firm US Alliance, each payment costs 2 Resources and resolves that space once. Continue in any order you can afford, or choose **Finish Assault**. Government may finish without paying for a space under the [card 18 local policy](local-rule-policies.md#zero-space-government-assault-on-card-18). Government earns no Pass income and Syndicate can inspect Pass and Limited Operation as 2nd Eligible.
+Under Firm US Alliance, each payment costs 2 Resources and resolves that space once. Continue in any order you can afford, or choose **Finish Assault**. Government may finish without paying for a space under the [card 18 local policy](local-rule-policies.md#zero-space-government-assault-on-card-18). Government earns no Pass income. Syndicate can Pass or choose Limited Construct as 2nd Eligible.
 
 Once Government opens Assault, **Resource transfer** lets Government give or request Resources. Pending requests keep their giver's decision across a restart. The authorized amount changes the balance available for the next space, and a blocked space turns selectable as soon as Government can pay. While a transfer is under way or removal mode is open, the map marks no space.
 
 **Remove own pieces** opens the map's voluntary removal controls for Government. Click a marked Troop or Police stack, select a quantity and confirm to return it to Available Forces. Choose **Done** to return to Assault and inspect its removal capacity with the remaining cubes.
+
+### Syndicate passes
+
+Pin **Pass** to preview the balance after gaining 1 Resource, up to 49, and see the four factions’ Eligibility for card 19. Select the **Pass** button to commit. Syndicate, Directorio and 26July are Eligible. Government is Eligible if it Passed and Ineligible if it executed Assault. Pact of Caracas stays current and Sierra Maestra Manifesto stays in preview. The saved result is ready to inspect again after restarting the game.
+
+### Syndicate chooses Construct
+
+After Government Passes, choose **Construct · Operation Only**. After Government finishes Assault, choose **Limited Operation · Construct**. Click a marked city or province, or reach it with Tab and press Enter. Select **Open 1 closed Casino** or **Place 1 closed Casino** when offered, then use the **Pay 5** button. Check the payment and Casino counts before committing. The preview explains when the other plan is unavailable.
+
+The panel shows the remaining balance and records each payment in order. In Operation Only, select another unpaid space or choose **Finish Construct**, [including with zero payments](local-rule-policies.md#zero-space-syndicate-construct-on-card-18). Government stays Eligible. In Limited Construct, pay in one space, then choose **Finish Construct**. Government becomes Ineligible. **Back to the action choice** is available before the first committed effect in Limited Construct.
+
+Finishing makes Syndicate Ineligible for card 19. A restarted game restores the paid spaces, balance and remaining choices.
+
+**Manage own pieces** opens the Syndicate's piece controls. Select an open Casino on the map to compare **Close 1 Casino in place** with **Return 1 Casino to Available**. Closing leaves a closed Casino in that space. Returning frees its slot and increases the Available Forces count. The popover shows changes to Control, open Casinos and the remaining Construct plans. Select a closed Casino to return it, and use the stepper when the selected group holds more than one piece. Tab reaches the group and its controls, and Enter or Space activates each control. **Cancel** or Escape closes the popover without committing. Select **Done** to return to Construct.
+
+An unpaid Limited Construct can refuse a piece action that would leave no affordable legal payment. The popover explains when to pay first. Management stays available after payment, and a paid space remains used even when its Casino changes.
 
 ## Handing a faction to an agent
 

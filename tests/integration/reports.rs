@@ -861,6 +861,7 @@ fn every_report_of_random_matches_says_what_was_committed() {
         ("EventShaded", 1000),
         ("EventUnshaded", 1000),
         ("Assault", 1000),
+        ("Construct", 100),
     ] {
         assert!(
             all.get(kind).is_some_and(|count| *count >= least),
@@ -1382,13 +1383,30 @@ mod reader {
         pending: Option<i32>,
     }
 
+    struct CasinoAction {
+        space: String,
+        state: State,
+        count: i32,
+        closes: bool,
+        effects: Vec<String>,
+    }
+
+    struct ConstructPayment {
+        space: String,
+        opens: bool,
+        effects: Vec<String>,
+    }
+
     /// What the decisions of a span did, in order.
     #[derive(Default)]
     struct Done {
         transfers: Vec<((Faction, Faction), Between)>,
         spaces: Vec<String>,
-        /// The spaces Terror or Assault was executed in, with the payer's balance before.
+        /// The spaces the Operation was executed in, with the payer's balance before.
         executed: Vec<(String, i32)>,
+        /// The Casino effects of this Construct's payments, keyed by space.
+        constructed: Vec<ConstructPayment>,
+        casino_management: Vec<CasinoAction>,
         /// Those of an Assault in which no piece changed.
         unchanged: Vec<String>,
         removers: Vec<Faction>,
@@ -1413,8 +1431,9 @@ mod reader {
     }
 
     impl Done {
-        fn between(&mut self, pair: (Faction, Faction)) -> &mut Between {
-            if let Some(at) = self.transfers.iter().position(|(known, _)| *known == pair) {
+        fn between(&mut self, pair: (Faction, Faction), reuse: bool) -> &mut Between {
+            if reuse && let Some(at) = self.transfers.iter().rposition(|(known, _)| *known == pair)
+            {
                 return &mut self.transfers[at].1;
             }
             self.transfers.push((pair, Between::default()));
@@ -1446,19 +1465,60 @@ mod reader {
                     .iter()
                     .find(|c| c.action() == action)
                     .and_then(Choice::transfer);
+                let group_transfers = seen.executing != Some(Faction::Syndicate);
+                let authorizations = seen
+                    .construct_funding
+                    .as_ref()
+                    .map_or(&[][..], |funding| &funding.authorizations);
                 match (parts[0], transfer) {
                     (_, Some(TransferChoice::Ask { giver, amount })) => {
-                        let told = done.between((giver, seen.executing.unwrap()));
+                        let told = done.between((giver, seen.executing.unwrap()), group_transfers);
                         told.asks.push(amount.into());
                         told.pending = Some(amount.into());
                     }
                     (_, Some(TransferChoice::Give { recipient, amount })) if amount > 0 => {
                         let pair = (seen.executing.unwrap(), recipient);
-                        done.between(pair).moves.push(moving(pair));
+                        done.between(pair, group_transfers).moves.push(moving(pair));
+                    }
+                    (_, Some(TransferChoice::Authorize { amount }))
+                        if !group_transfers
+                            && amount > 0
+                            && (!authorizations.is_empty() || seen.resources == next.resources) =>
+                    {
+                        if let Some(index) = done
+                            .transfers
+                            .iter()
+                            .position(|(_, told)| told.pending.is_some())
+                        {
+                            done.transfers.remove(index);
+                        }
+                        if seen.resources != next.resources {
+                            let (giver, recipient) = request(seen).unwrap();
+                            let Some(Transfer::Authorizing { amount: asked, .. }) = seen.transfer
+                            else {
+                                unreachable!();
+                            };
+                            let mut balances = seen.resources.map(i32::from);
+                            for (giver, asked, given) in authorizations
+                                .iter()
+                                .map(|a| (a.giver, a.asked, a.amount))
+                                .chain([(giver, asked, amount)])
+                            {
+                                let from = balances[giver.index()];
+                                let to = balances[recipient.index()];
+                                let given = i32::from(given);
+                                let told = done.between((giver, recipient), false);
+                                told.asks.push(asked.into());
+                                told.moves.push([from, from - given, to, to + given]);
+                                balances[giver.index()] -= given;
+                                balances[recipient.index()] += given;
+                            }
+                            assert_eq!(balances, next.resources.map(i32::from));
+                        }
                     }
                     ("decline", _) | (_, Some(TransferChoice::Authorize { .. })) => {
                         let pair = request(seen).unwrap();
-                        let told = done.between(pair);
+                        let told = done.between(pair, true);
                         told.pending = None;
                         if matches!(transfer, Some(TransferChoice::Authorize { amount }) if amount > 0)
                         {
@@ -1474,7 +1534,7 @@ mod reader {
                     }
                     ("end-terror", _) => {
                         if let Some(pair) = request(seen) {
-                            let told = done.between(pair);
+                            let told = done.between(pair, true);
                             told.pending = None;
                             told.withdrawn += 1;
                         }
@@ -1483,6 +1543,10 @@ mod reader {
                     ("government", _) if parts[1] == "pass" => {
                         let g = Faction::Government;
                         done.passed = Some([held(g), holds(g)]);
+                    }
+                    ("syndicate", _) if parts[1] == "pass" => {
+                        let s = Faction::Syndicate;
+                        done.passed = Some([held(s), holds(s)]);
                     }
                     ("kidnap", _) if parts.get(1) == Some(&"roll") => {
                         done.kidnapped = true;
@@ -1500,6 +1564,34 @@ mod reader {
                         if parts[2] == "none" {
                             done.unchanged.push(here);
                         }
+                    }
+                    ("construct", _) => {
+                        let here = name(parts[1]);
+                        done.at(&here);
+                        done.executed.push((here.clone(), held(Faction::Syndicate)));
+                        done.constructed.push(ConstructPayment {
+                            space: here,
+                            opens: parts[2] == "open",
+                            effects: casino_words(seen, next, parts[1]),
+                        });
+                    }
+                    ("close-casino" | "remove", _)
+                        if parts.len() == 4
+                            && matches!(parts[2], "open-casino" | "closed-casino") =>
+                    {
+                        let space = name(parts[1]);
+                        done.at(&space);
+                        done.casino_management.push(CasinoAction {
+                            space,
+                            state: if parts[2] == "open-casino" {
+                                State::Open
+                            } else {
+                                State::Closed
+                            },
+                            count: parts[3].parse().unwrap(),
+                            closes: parts[0] == "close-casino",
+                            effects: casino_words(seen, next, parts[1]),
+                        });
                     }
                     ("remove", _) if parts.len() == 4 => {
                         done.at(&name(parts[1]));
@@ -1546,8 +1638,15 @@ mod reader {
         let (before, after) = (&played.seen[from], &played.seen[to]);
         let decisions = &played.decisions[from..to];
         let card = before.current_card;
+        let syndicate_handoff = played.decisions[..from]
+            .iter()
+            .position(|(_, a)| matches!(a.as_str(), "government:pass" | "end-assault"));
         let executor = if card == 18 {
-            Faction::Government
+            if syndicate_handoff.is_some() {
+                Faction::Syndicate
+            } else {
+                Faction::Government
+            }
         } else if before.finished {
             Faction::Directorio
         } else {
@@ -1562,15 +1661,27 @@ mod reader {
                 Faction::M26 => (seen.action == ActionChoice::Terror).then_some("Terror"),
                 Faction::Directorio if made("event:shaded") => Some("the Event, shaded text"),
                 Faction::Directorio => made("event:unshaded").then_some("the Event, unshaded text"),
-                _ if made("government:pass") => Some("Pass"),
-                _ => made("government:assault").then_some("Assault"),
+                Faction::Government if made("government:pass") => Some("Pass"),
+                Faction::Government => made("government:assault").then_some("Assault"),
+                Faction::Syndicate if made("syndicate:pass") => Some("Pass"),
+                Faction::Syndicate
+                    if seen.executing == Some(Faction::Syndicate) || made("end-construct") =>
+                {
+                    Some(if made("government:pass") {
+                        "Construct"
+                    } else {
+                        "Limited Construct"
+                    })
+                }
+                Faction::Syndicate => None,
             }
         };
         // Where the action began: at the opening, or after the decision that ended the last.
         let began = match executor {
             Faction::M26 => 0,
             Faction::Directorio => 1 + all().position(|a| a == "end-terror").unwrap_or(0),
-            _ => 1 + all().position(|a| a == "advance-card").unwrap_or(0),
+            Faction::Government => 1 + all().position(|a| a == "advance-card").unwrap_or(0),
+            Faction::Syndicate => 1 + syndicate_handoff.unwrap(),
         };
         let continues = from > began;
         let ended = |seen: &Observation| seen.event.as_ref().is_some_and(|e| e.outcome().is_some());
@@ -1584,14 +1695,21 @@ mod reader {
         let last = decisions.last().map_or("", |(_, a)| a.as_str());
         let complete = matches!(
             last,
-            "pass" | "end-terror" | "government:pass" | "end-assault"
+            "pass"
+                | "end-terror"
+                | "government:pass"
+                | "end-assault"
+                | "syndicate:pass"
+                | "end-construct"
         ) || (executor == Faction::Directorio && ended(after));
         let kidnapped = all().any(|a| a == "kidnap:roll");
         // R 2.3.4: the box of a recorded action. Directorio's Event has none in this build.
         let recorded = match last {
-            "pass" | "government:pass" => Some("Pass"),
+            "pass" | "government:pass" | "syndicate:pass" => Some("Pass"),
             "end-terror" if kidnapped => Some("Operation with Special Activity"),
             "end-terror" | "end-assault" => Some("Operation Only"),
+            "end-construct" if all().any(|a| a == "government:pass") => Some("Operation Only"),
+            "end-construct" => Some("Limited Operation"),
             _ => None,
         };
         same("faction", &report.faction, &executor)?;
@@ -1602,7 +1720,9 @@ mod reader {
             "Pact of Caracas"
         };
         same("card title", &report.card_title, &title)?;
-        let role = if executor == Faction::Directorio {
+        let role = if executor == Faction::Directorio
+            || syndicate_handoff.is_some_and(|index| played.decisions[index].1 == "end-assault")
+        {
             "2nd Eligible"
         } else {
             "1st Eligible"
@@ -1623,16 +1743,34 @@ mod reader {
         same("summary", &report.summary, &summary(executor, &done, after))?;
 
         // The titles the decisions call for, and the sentences, replayed.
-        let mut due: Vec<String> = titles(executor, &done);
+        let construct = matches!(action, Some("Construct" | "Limited Construct"));
+        let mut due: Vec<String> = titles(executor, &done, construct);
+        let mut transfers = done.transfers.iter().collect::<Vec<_>>();
         let mut position = Position::of(before);
+        let mut casinos = done.casino_management.iter();
         for article in &report.articles {
             let at = due
                 .iter()
                 .position(|title| *title == article.title)
                 .ok_or_else(|| format!("not due: {}", article.title))?;
             due.remove(at);
-            read(article, &done, after, &mut position)
-                .map_err(|why| format!("{}: {why}", article.title))?;
+            let result = if article.title.starts_with("Casino management in ") {
+                read_casino_action(
+                    article,
+                    casinos.next().ok_or("extra Casino action")?,
+                    &mut position,
+                )
+            } else {
+                read(
+                    article,
+                    &done,
+                    after,
+                    &mut position,
+                    &mut transfers,
+                    construct,
+                )
+            };
+            result.map_err(|why| format!("{}: {why}", article.title))?;
         }
         same("articles left out", &due, &vec![])?;
         if let Some([from, to]) = done.passed {
@@ -1700,10 +1838,24 @@ mod reader {
     }
 
     fn summary(executor: Faction, done: &Done, after: &Observation) -> Option<String> {
+        let held = after.construct_funding.as_ref().filter(|funding| {
+            executor == Faction::Syndicate
+                && (request(after).is_some() || !funding.authorizations.is_empty())
+        }).map(|funding| {
+            let authorized: u8 = funding.authorizations.iter().map(|a| a.amount).sum();
+            let needed = 5 - after.resources[Faction::Syndicate.index()] - authorized;
+            format!("{authorized} conditionally authorized · {needed} still needed. Resources move only when authorizations fund a legal payment.")
+        });
         for ((giver, recipient), told) in &done.transfers {
-            if told.pending.is_some() {
-                return pending(*giver, *recipient, told);
+            if let Some(request) = pending(*giver, *recipient, told) {
+                return Some(match held {
+                    Some(held) => format!("{request} {held}"),
+                    None => request,
+                });
             }
+        }
+        if held.is_some() {
+            return held;
         }
         if let Some([from, to]) = done.passed {
             let gained = resources(to - from);
@@ -1739,36 +1891,40 @@ mod reader {
         })
     }
 
-    fn title_of((giver, recipient): (Faction, Faction), told: &Between) -> String {
+    fn title_of((giver, recipient): (Faction, Faction), told: &Between, construct: bool) -> String {
         let given: i32 = told.moves.iter().map(|m| m[0] - m[1]).sum();
         let (g, r) = (giver.name(), recipient.name());
         match given {
+            0 if construct && told.unmet > 0 => "No Resources moved".into(),
             0 if told.unmet > 0 => format!("{g} gives {r} nothing"),
             0 => format!("{r} asks {g} for Resources"),
             n => format!("{g} gives {r} {}", resources(n)),
         }
     }
 
-    fn titles(executor: Faction, done: &Done) -> Vec<String> {
+    fn titles(executor: Faction, done: &Done, construct: bool) -> Vec<String> {
         let mut due = vec![];
         if done.back.is_some() {
             due.push("Back to the action choice".into());
         }
         for (pair, told) in &done.transfers {
             if told.moves.len() as i32 + told.unmet + told.withdrawn > 0 {
-                due.push(title_of(*pair, told));
+                due.push(title_of(*pair, told, construct));
             }
         }
         for remover in &done.removers {
             due.push(format!("{} removes its own pieces", remover.name()));
         }
+        for action in &done.casino_management {
+            due.push(format!("Casino management in {}", action.space));
+        }
         if done.kidnapped {
             due.push("Kidnap in Santiago de Cuba".into());
         }
-        let operation = if executor == Faction::M26 {
-            "Terror"
-        } else {
-            "Assault"
+        let operation = match executor {
+            Faction::M26 => "Terror",
+            Faction::Syndicate => "Construct",
+            _ => "Assault",
         };
         for (space, _) in &done.executed {
             if !done.unchanged.contains(space) {
@@ -1821,7 +1977,97 @@ mod reader {
         Ok(())
     }
 
-    fn read(article: &Article, done: &Done, after: &Observation, position: &mut Position) -> Check {
+    fn read_casino_action(
+        article: &Article,
+        action: &CasinoAction,
+        position: &mut Position,
+    ) -> Check {
+        same(
+            "Casino space",
+            &article.title,
+            &format!("Casino management in {}", action.space),
+        )?;
+        same("die", &article.die, &None)?;
+        let state = if action.state == State::Open {
+            "open"
+        } else {
+            "closed"
+        };
+        let casinos = several(
+            action.count,
+            &format!("{state} Casino"),
+            &format!("{state} Casinos"),
+        );
+        let expected = if action.closes {
+            format!("Syndicate closes {casinos} in place.")
+        } else {
+            format!("Syndicate returns {casinos} to Available Forces.")
+        };
+        let mut sentences = vec![expected, "0 Resources · no Profit.".into()];
+        sentences.extend(action.effects.iter().cloned());
+        same("sentences", &article.lines, &sentences)?;
+        let faction = Faction::Syndicate;
+        position.add(
+            &action.space,
+            faction,
+            Kind::Casino,
+            action.state,
+            -action.count,
+        );
+        if action.closes {
+            position.add(
+                &action.space,
+                faction,
+                Kind::Casino,
+                State::Closed,
+                action.count,
+            );
+        }
+        Ok(())
+    }
+
+    fn transfer_lines(pair: (Faction, Faction), told: &Between, construct: bool) -> Vec<String> {
+        let (giver, recipient) = (pair.0.name(), pair.1.name());
+        let mut expected = vec![];
+        let asks = &told.asks[..told.asks.len() - usize::from(told.pending.is_some())];
+        match asks {
+            [] => {}
+            [one] => expected.push(format!("{recipient} asked for {}.", resources(*one))),
+            _ => expected.push(format!("{recipient} asked {} times.", asks.len())),
+        }
+        match told.moves[..] {
+            [] => {}
+            [[a, b, c, d]] => {
+                expected.push(format!("{giver} {a} → {b}, {recipient} {c} → {d}."));
+            }
+            _ => expected.push(format!("They move in {} transfers.", told.moves.len())),
+        }
+        let requests = |n| several(n, "request", "requests");
+        if construct && told.moves.is_empty() && told.unmet > 0 {
+            expected.push(format!("{giver} answered {}.", requests(told.unmet)));
+        } else if told.unmet > 0 {
+            expected.push(format!(
+                "{giver} answers {} with nothing.",
+                requests(told.unmet)
+            ));
+        }
+        if told.withdrawn > 0 {
+            expected.push(format!(
+                "{recipient} withdraws {}.",
+                requests(told.withdrawn)
+            ));
+        }
+        expected
+    }
+
+    fn read(
+        article: &Article,
+        done: &Done,
+        after: &Observation,
+        position: &mut Position,
+        transfers: &mut Vec<&((Faction, Faction), Between)>,
+        construct: bool,
+    ) -> Check {
         let lines: Vec<&str> = article.lines.iter().map(String::as_str).collect();
         let title = article.title.as_str();
         let balance = |space: &str| {
@@ -1834,48 +2080,33 @@ mod reader {
         if !title.starts_with("Kidnap") {
             same("die", &article.die, &None)?;
         }
-        for (pair, told) in &done.transfers {
-            if title == title_of(*pair, told) {
-                for m in &told.moves {
-                    position.pay(pair.0, m[0] - m[1]);
-                    position.pay(pair.1, m[2] - m[3]);
-                }
-                let (giver, recipient) = (pair.0.name(), pair.1.name());
-                let mut expected = vec![];
-                let asks = &told.asks[..told.asks.len() - usize::from(told.pending.is_some())];
-                match asks {
-                    [] => {}
-                    [one] => expected.push(format!("{recipient} asked for {}.", resources(*one))),
-                    _ => expected.push(format!("{recipient} asked {} times.", asks.len())),
-                }
-                match told.moves[..] {
-                    [] => {}
-                    [[a, b, c, d]] => {
-                        expected.push(format!("{giver} {a} → {b}, {recipient} {c} → {d}."));
-                    }
-                    _ => expected.push(format!("They move in {} transfers.", told.moves.len())),
-                }
-                let requests = |n| several(n, "request", "requests");
-                if told.unmet > 0 {
-                    expected.push(format!(
-                        "{giver} answers {} with nothing.",
-                        requests(told.unmet)
-                    ));
-                }
-                if told.withdrawn > 0 {
-                    expected.push(format!(
-                        "{recipient} withdraws {}.",
-                        requests(told.withdrawn)
-                    ));
-                }
-                return same("sentences", &article.lines, &expected);
+        if let Some(at) = transfers.iter().position(|(pair, told)| {
+            title == title_of(*pair, told, construct)
+                && article.lines == transfer_lines(*pair, told, construct)
+        }) {
+            let (pair, told) = transfers.remove(at);
+            for m in &told.moves {
+                position.pay(pair.0, m[0] - m[1]);
+                position.pay(pair.1, m[2] - m[3]);
             }
+            return Ok(());
         }
         if title == "Back to the action choice" {
-            let expected = match done.back.flatten() {
-                Some(giver) => format!("26July withdraws its request to {}.", giver.name()),
-                None => "26July goes back to its action choice.".into(),
+            let executor = if after.current_card == 18 {
+                Faction::Syndicate
+            } else {
+                Faction::M26
             };
+            let expected = done.back.flatten().map_or_else(
+                || format!("{} goes back to its action choice.", executor.name()),
+                |giver| {
+                    format!(
+                        "{} withdraws its request to {}.",
+                        executor.name(),
+                        giver.name()
+                    )
+                },
+            );
             return same("sentences", &article.lines, &vec![expected]);
         }
         if title == "The free Rally" {
@@ -1942,6 +2173,29 @@ mod reader {
                 }
             }
             return Ok(());
+        }
+        if let Some(held) = scan(title, "Construct in {}") {
+            let space = held[0];
+            let constructed = done
+                .constructed
+                .iter()
+                .find(|payment| payment.space == space)
+                .ok_or("no Construct payment in this space")?;
+            let payer = Faction::Syndicate;
+            let from = balance(space)?;
+            let expected_payment = format!("Syndicate pays 5 Resources, {from} → {}.", from - 5);
+            position.pay(payer, 5);
+            let outcome = if constructed.opens {
+                position.add(space, payer, Kind::Casino, State::Closed, -1);
+                position.add(space, payer, Kind::Casino, State::Open, 1);
+                "Syndicate opened 1 closed Casino."
+            } else {
+                position.add(space, payer, Kind::Casino, State::Closed, 1);
+                "Syndicate placed 1 closed Casino."
+            };
+            let mut expected = vec![expected_payment, outcome.to_owned()];
+            expected.extend(constructed.effects.iter().cloned());
+            return same("sentences", &article.lines, &expected);
         }
         const NOTHING: &str = "No piece is removed or closed.";
         if scan(title, "Assault in {} spaces").is_some() {
@@ -2064,6 +2318,29 @@ mod reader {
         (score, margin)
     }
 
+    /// Compute the consequences of this decision from the observed pieces and R 1.7/7.2.
+    fn casino_words(before: &Observation, after: &Observation, id: &str) -> Vec<String> {
+        let (earlier, _) = standing(before, Faction::Syndicate);
+        let (later, _) = standing(after, Faction::Syndicate);
+        let mut expected = vec![];
+        if earlier != later {
+            expected.push(format!("Syndicate open Casinos: {earlier} → {later}."));
+        }
+        let space = after.spaces.iter().find(|s| s.id == id).unwrap();
+        let before = before.spaces.iter().find(|s| s.id == id).unwrap();
+        let named = |f: Option<Faction>| f.map_or("none", Faction::name);
+        let (from, to) = (controls(before), controls(space));
+        if from != to {
+            expected.push(format!(
+                "{} Control: {} → {}.",
+                space.name,
+                named(from),
+                named(to)
+            ));
+        }
+        expected
+    }
+
     fn notes(
         before: &Observation,
         after: &Observation,
@@ -2136,11 +2413,18 @@ mod reader {
         .collect();
         // R 2.3.3, 2.3.4 and 2.3.7, and the shaded text of card 17.
         let mut eligibility: Vec<String> = vec![];
-        if let Some(recorded) = recorded {
+        if let Some(recorded) = recorded
+            && executor != Faction::Syndicate
+        {
             eligibility.push(format!("{} is in the {recorded} box.", executor.name()));
         }
         let mut say = |line: &str| eligibility.push(line.to_owned());
         match (complete, executor, recorded) {
+            (false, Faction::Syndicate, _)
+                if before.executing == Some(Faction::Syndicate) && after.executing.is_none() =>
+            {
+                say("Next: Syndicate, 2nd Eligible.");
+            }
             (false, ..) => {}
             (_, Faction::M26, Some("Pass")) => {
                 say("26July is Eligible for the next card.");
@@ -2159,6 +2443,23 @@ mod reader {
                     Some(EventOutcome::Shaded { .. })
                 ) {
                     say("The Event keeps 26July Ineligible through card 18.");
+                }
+            }
+            (_, Faction::Syndicate, Some("Limited Operation")) => {
+                say(
+                    "Card 19: 26July and Directorio Eligible, Government and Syndicate Ineligible.",
+                );
+            }
+            (_, Faction::Syndicate, Some("Operation Only")) => {
+                say("Card 19: Government, 26July and Directorio Eligible, Syndicate Ineligible.");
+            }
+            (_, Faction::Syndicate, _) => {
+                if before.passed[Faction::Government.index()] {
+                    say("All four factions are Eligible for card 19.");
+                } else {
+                    say(
+                        "Card 19: 26July, Directorio and Syndicate Eligible, Government Ineligible.",
+                    );
                 }
             }
             (_, _, Some("Pass")) => say("Next: Syndicate, 1st Eligible."),

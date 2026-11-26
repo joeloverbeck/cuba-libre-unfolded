@@ -35,11 +35,11 @@ Authored and exported with VectorCraft CLI 0.24.1 at 2 px per point. Native plac
 
 ## The open decision's line (#170)
 
-While a decision offers choices on the map's spaces (Terror and Assault in this build), the tag gains one last line that says why the space is in its state for that decision. The words are the rules authority's (`observation.space_reasons`); the tag builds none from a label or from the pieces it sees. Outside such a decision, or while the targeting is suspended (a presented die, a Resource transfer under way, removal mode, Kidnap open), every tag is as it was.
+While Terror, Assault or Construct offers choices on the map's spaces, the tag gains one last line that says why the space is in its state for that decision. The rules authority supplies `observation.space_reasons`. Outside such a decision, or while targeting is suspended (a presented die, a Resource transfer under way, removal mode, Kidnap open), the tag omits that line.
 
 The line is the contribution's text style: Lato Regular at 17, the Atlas desk text colour, left x12 and at most 248 wide. It sits on its own row, 4 px below the rows above: at y172 in a city's or province's tag, which becomes 272×208, and at y40 in an Economic center's, which becomes 272×76. The row is `atlas-status-reason.png`, the Control row's frame with no mark or label, copied from the Uncontrolled artboard; the text's top is 8 px into the row, which centres one line. Faction names in the line are drawn as their emblems, as in the contribution. The tag is placed with its new height by the same rules, so it keeps off the hovered region, its pieces and every area.
 
-The rules authority owns the lines' words (`Game::assault_reason` in `src/game/assault.rs` and `Game::terror_reason` in `src/game.rs`), each shortened from its explanation to fit one line; this specification owns only how a line is drawn. For example:
+The rules authority owns the words in `Game::assault_reason`, `Game::terror_reason` and `Game::construct_reason`. Each reason uses copy that fits the single authored row. For example:
 
 - Assault, blocked: "A Resource transfer opens it" (R 6.3.1, 1.5.1).
 - Assault, selectable (#180): "Can close 1 Casino", "Can remove 2 Guerrillas", or "Can remove up to 2 Guerrillas" where a short capacity can be divided (R 3.2.4).
@@ -49,7 +49,8 @@ The rules authority owns the lines' words (`Game::assault_reason` in `src/game/a
 - Assault, paid in this Operation: "Assaulted · paid 2 Resources" (R 3.1).
 - Terror, owed after Kidnap: "Terror is owed here (R 4.3.3)".
 - Terror, unpayable while 26July's last Resource is kept for the owed Terror: "1 Resource is kept for Santiago" ([local rule policy](../../docs/local-rule-policies.md#owed-terror-after-an-early-kidnap)).
+- Construct, in a space without qualifying Control: "Needs Government or Syndicate Control (R 3.3.5)." The two faction names draw as emblems. An Economic Center reads "Choose a City or Province".
 
-Measured in Lato Regular at 17 with each emblem 0.9 em wide, the longest reason takes 232 of the 248 pixels and the longest description of a selectable space (#180, "Can remove 2 Guerrillas, 1 Base") 237. Unit tests keep the reasons within 33 characters and the descriptions, which draw no emblem and run wider, within 31; a description that would be longer, or that covers several kinds of piece or plans that differ, gives the number alone: "Can affect 2 pieces". The native regression `native_space_tags_say_why_each_space_is_in_its_state` checks on the owner's display that each line it reaches is laid out inside its row.
+For Terror and Assault, the longest reason measured 232 of the 248 pixels and the longest description of a selectable space measured 237 ("Can remove 2 Guerrillas, 1 Base", #180), in Lato Regular at 17 with each emblem 0.9 em wide. A longer Assault description gives the number alone, such as "Can affect 2 pieces". Native regressions check the drawn text bounds at 3840×2160, including the Construct Control and terrain reasons and the paid-space tag.
 
 Authored with VectorCraft CLI 0.24.1 at 2 px per point: artboard 18 and its frame, a copy of the Uncontrolled row's frame (object 18). No other artboard changed.

@@ -430,7 +430,7 @@ const RULES: [(Faction, [Operation; 4], [Activity; 3]); 4] = [
             ("Rally", "R 3.3.1", NOT),
             ("March", "R 3.3.2", NOT),
             ("Terror", "R 3.3.4", NOT),
-            ("Construct", "R 3.3.5", NOT),
+            ("Construct", "R 3.3.5", "on card 18"),
         ],
         [
             ("Profit", "R 4.5.1", "Rally, March or Construct", NOT),
@@ -531,16 +531,20 @@ fn what_differs_by_faction_in_the_rules_differs_in_the_briefs() {
 fn taken(choice: &Choice) -> Option<(Faction, &'static str)> {
     match choice.action() {
         "government:assault" => Some((choice.owner, "Assault")),
-        "government:pass" | "kidnap:cancel" => None,
+        "syndicate:limited-operation" | "syndicate:construct" => Some((choice.owner, "Construct")),
+        "government:pass" | "syndicate:pass" | "kidnap:cancel" => None,
         beneficiary if beneficiary.starts_with("rally:beneficiary:") => None,
         action => match action.split(':').next().unwrap() {
             "terror" => Some((choice.owner, "Terror")),
             "kidnap" => Some((choice.owner, "Kidnap")),
             "rally" => Some((choice.owner, "Rally")),
             "assault" => Some((choice.owner, "Assault")),
+            "construct" => Some((choice.owner, "Construct")),
             "pass" | "event" | "resolve-shaded" | "transfer" | "give" | "ask" | "authorize"
             | "decline" | "wait" | "reopen" | "back" | "back-to-choice" | "remove"
-            | "done-removal" | "end-terror" | "end-assault" | "advance-card" => None,
+            | "done-removal" | "end-terror" | "end-assault" | "end-construct" | "advance-card" => {
+                None
+            }
             _ => panic!("{action}"),
         },
     }
@@ -618,9 +622,10 @@ fn what_a_brief_says_this_build_plays_is_what_the_authority_offers() {
     assert!(!with_base.contains(&Directorio.index()));
 
     // What every brief says of transfers and of removing one's own pieces.
-    let places: BTreeSet<_> = [(M26, 17), (Directorio, 17), (Government, 18)]
+    let mut places: BTreeSet<_> = [(M26, 17), (Directorio, 17), (Government, 18)]
         .map(|(faction, card)| (faction.index(), card))
         .into();
+    places.insert((Syndicate.index(), 18));
     assert_eq!(dealings["transfer"], places);
     assert_eq!(dealings["remove"], places);
 }
@@ -645,6 +650,7 @@ fn every_brief_says_what_bears_on_this_builds_decisions() {
             ("dealings", "bind nobody"),
             ("dealings", "R 1.5.1"),
             ("dealings", "remove its own pieces"),
+            ("dealings", "While the Syndicate executes Construct"),
             ("dealings", "R 1.4.1"),
             (
                 "dealings",

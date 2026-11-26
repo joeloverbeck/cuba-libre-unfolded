@@ -284,6 +284,7 @@ const TOLD: &[&str] = &[
     "choices",
     "commits_santiago",
     "complete",
+    "construct_paid",
     "continues",
     "contributions",
     "control",
@@ -350,9 +351,11 @@ const TOLD: &[&str] = &[
     "options",
     "order",
     "owed_terror",
+    "paid",
     "passed",
     "pieces",
     "piles",
+    "plan",
     "played",
     "played_by",
     "population",
@@ -398,6 +401,7 @@ const TOLD: &[&str] = &[
     "support",
     "support_level",
     "supported",
+    "syndicate_box",
     "target",
     "terrain",
     "terror",
@@ -515,6 +519,14 @@ pub fn later_positions() -> Vec<History> {
                 "done-removal",
                 "assault:santiago:26july",
                 "end-assault",
+            ],
+            &[
+                "government:assault",
+                "assault:havana:syndicate",
+                "end-assault",
+                "syndicate:limited-operation",
+                "construct:havana:place",
+                "end-construct",
             ],
         ] {
             let path = [&HANDOFF[..], text, &["advance-card"], actions].concat();
@@ -1177,8 +1189,9 @@ fn at_each_end_of_the_build_the_seat_is_told_and_not_woken() {
                 "event:shaded",
                 "resolve-shaded",
                 "advance-card",
+                "government:pass",
             ],
-            "government:pass",
+            "syndicate:pass",
             Syndicate,
         ),
         (
@@ -1192,8 +1205,9 @@ fn at_each_end_of_the_build_the_seat_is_told_and_not_woken() {
                 "resolve-shaded",
                 "advance-card",
                 "government:assault",
+                "end-assault",
             ],
-            "end-assault",
+            "syndicate:pass",
             Syndicate,
         ),
     ] {
@@ -1202,7 +1216,9 @@ fn at_each_end_of_the_build_the_seat_is_told_and_not_woken() {
             s.human(action);
         }
         let player = s.seat(decider);
-        let waiting = s.wait(&player);
+        // An unrelated waiting seat must not wake as the current card ends.
+        let government = s.seat(Government);
+        let waiting = s.wait(&government);
         s.human(ending);
         s.pass(3600);
         assert!(s.answer(waiting).is_none(), "{ending} woke {decider:?}");
@@ -1211,14 +1227,17 @@ fn at_each_end_of_the_build_the_seat_is_told_and_not_woken() {
         assert_eq!(view["decision"]["faction"], json!(decider));
         assert_eq!(view["decision"]["yours"], false);
         let note = view["decision"]["note"].as_str().unwrap();
-        assert!(note.contains("The build stops here"), "{note}");
+        if decider == Syndicate {
+            assert!(note.contains("Card 18 is complete"), "{note}");
+        } else {
+            assert!(note.contains("The build stops here"), "{note}");
+        }
         let supported = view["choices"].as_array().unwrap().iter();
         assert!(supported.clone().all(|c| c["supported"] == false));
-        assert_eq!(supported.len() > 0, decider == Syndicate, "{ending}");
+        assert_eq!(supported.len(), 0, "{ending}");
         assert_eq!(s.state(decider), SeatState::BuildEnds);
         assert_eq!(Stands::of(s.room.session.game()), Stands::BuildEnds);
         // Every other view says so too, and no submission is taken.
-        let government = s.seat(Government);
         assert_eq!(s.observe(&government)["decision"]["stands"], "build-ends");
         if decider == Syndicate {
             let request = s.choice(&player, "syndicate:pass");
