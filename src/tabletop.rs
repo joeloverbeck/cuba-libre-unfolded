@@ -46,6 +46,7 @@ use unfolded_tabletop::{
 mod areas;
 mod available;
 mod briefing;
+mod broadsheet;
 mod cards;
 mod choice;
 pub mod die;
@@ -63,6 +64,7 @@ mod palette;
 mod pile_tags;
 mod piles;
 mod popover;
+mod proclamation_reader;
 mod save_quit;
 pub mod seat;
 mod seat_cards;
@@ -181,6 +183,7 @@ struct Interface {
     line: Option<seat_cards::Line>,
     /// The current card's editions (#208): while one is due or open nothing is decided.
     editions: crate::editions::Editions,
+    proclamation_reader: proclamation_reader::State,
     /// The transfer modal's counterpart, direction, typed amount and focus.
     transfer: transfer::State,
     /// The revision a Kidnap roll just created in this run, until the die's
@@ -275,6 +278,7 @@ enum Action {
     /// The newspaper (#208): puts the open edition away, turns to another or takes the
     /// latest from the pile. Decides nothing.
     Edition(newspaper::Press),
+    ReadProclamation(proclamation_reader::Press),
 }
 #[derive(Resource, Clone)]
 struct RenderReady {
@@ -504,6 +508,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 // keyboard first and stand aside while it is shown. A decision any of
                 // them applied may have played a card, or have an edition to open.
                 (
+                    proclamation_reader::keys,
                     newspaper::keys,
                     piles::keys,
                     choice::keys,
@@ -1127,6 +1132,22 @@ fn click(
     if event.button != bevy::picking::pointer::PointerButton::Primary || play.session.is_none() {
         return;
     }
+    if ui.proclamation_reader.is_open() {
+        if let Ok(Control {
+            action: Action::ReadProclamation(press),
+            ..
+        }) = controls.get(event.entity)
+        {
+            let count = play
+                .session
+                .as_ref()
+                .expect("An admitted match")
+                .proclamations()
+                .len();
+            proclamation_reader::press(&mut ui, *press, count);
+        }
+        return;
+    }
     // A seat is handed over and taken back at any time, with a card in the air too, which
     // the click also lands.
     if let Ok(Control {
@@ -1203,6 +1224,15 @@ fn click(
         Action::Submit(..) | Action::Seat(_) => return,
         // Reading an edition changes nothing in the match.
         Action::Edition(press) => newspaper::press(&mut ui, *press),
+        Action::ReadProclamation(press) => {
+            let count = play
+                .session
+                .as_ref()
+                .expect("An admitted match")
+                .proclamations()
+                .len();
+            proclamation_reader::press(&mut ui, *press, count);
+        }
         // Reading a card changes nothing in the match.
         Action::Card(slot) => cards::activate(&mut ui, *slot),
         Action::Decision(owner, rev) | Action::Commit(owner, rev) => {
@@ -1606,7 +1636,11 @@ fn camera_facts(play: &Play, ui: &Interface, roll: &die::Roll) -> TableFacts {
         )
     });
     TableFacts {
-        blocks_camera: play.session.is_none() || modal || die || ui.editions.open().is_some(),
+        blocks_camera: play.session.is_none()
+            || modal
+            || die
+            || ui.editions.open().is_some()
+            || ui.proclamation_reader.is_open(),
         scene: Scene::WholeWindow,
         ..default()
     }
@@ -1801,6 +1835,7 @@ fn draw_ui(
     piles::overlay(&mut commands, &art, &scene, &window);
     // #208: the pile of this card's editions beside the pips.
     newspaper::pile(&mut commands, &art, &view, &ui, &main_view, &window);
+    proclamation_reader::draw(&mut commands, &art, play.session.as_ref(), &ui, &window);
     // #206: the four seats between the pips and Save · quit.
     seat_cards::draw(&mut commands, &art, &view, &ui, &main_view, &window);
     // #174: Save · quit in the bottom-right corner, and above it and the seats the notice

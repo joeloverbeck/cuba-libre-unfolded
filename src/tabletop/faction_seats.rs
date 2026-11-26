@@ -220,7 +220,9 @@ impl seats::Table for Sitting<'_> {
     }
 
     fn settled(&self) -> bool {
-        self.settled
+        // A publication can open the reader inside this batch. Later requests and
+        // the final poll must consult the modal even before the next frame.
+        self.settled && !self.ui.proclamation_reader.is_open()
     }
 
     fn commit(&mut self, faction: Faction, revision: u64, choice: &str) -> Result<(), String> {
@@ -255,9 +257,17 @@ impl seats::Table for Sitting<'_> {
             .as_mut()
             .expect("An admitted match")
             .publish(faction, revision, card, text);
-        if let Err(failure @ Submit::Save(_)) = &result {
-            self.ui.notice = notice::Notice::failed(failure);
-            self.ui.dirty = true;
+        match &result {
+            Ok(()) => {
+                let newest = self.session().proclamations().len() - 1;
+                self.ui.proclamation_reader.receive(newest);
+                self.ui.dirty = true;
+            }
+            Err(failure @ Submit::Save(_)) => {
+                self.ui.notice = notice::Notice::failed(failure);
+                self.ui.dirty = true;
+            }
+            Err(Submit::Refused(_)) => {}
         }
         result.map_err(|failure| failure.to_string())
     }

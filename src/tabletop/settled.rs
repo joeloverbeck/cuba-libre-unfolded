@@ -139,6 +139,7 @@ fn opened(world: &World) -> Vec<String> {
         ),
         (ui.card.pinned.is_some(), "a pinned card tag"),
         (ui.editions.holds(), "an edition"),
+        (ui.proclamation_reader.is_open(), "a proclamation"),
     ]
     .into_iter()
     .filter(|(open, _)| *open)

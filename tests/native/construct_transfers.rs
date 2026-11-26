@@ -134,6 +134,8 @@ fn native_public_proclamations_preserve_the_givers_decision() {
     assert!(idle.ended().is_none(), "publication woke the idle seat");
     assert_eq!(seat(&app.settle(), "Directorio")["waits"], true);
 
+    assert_eq!(app.settle()["table"]["proclamations"]["open"], 1);
+    app.key("Escape");
     app.key(SYNDICATE);
     let (code, ended) = app.ask(&["publish", &syndicate, &revision_arg, "17", "Again"]);
     assert_eq!((code, &ended["status"]), (0, &json!("closed")));
@@ -167,7 +169,7 @@ fn native_public_proclamations_preserve_the_givers_decision() {
     assert_eq!(code, 0);
     assert_eq!(silent["view"]["proclamations"]["published"], words);
     // The committed Event earns the ordinary edition. The received speech
-    // required no acknowledgement before either decision.
+    // had already been read, and the silent Event still earns its edition.
     assert!(!app.settle()["table"]["newspaper"]["open"].is_null());
     app.key("Escape");
     app.key(DIRECTORIO);
@@ -200,6 +202,8 @@ fn native_public_proclamations_preserve_the_givers_decision() {
             .len(),
         2
     );
+    assert_eq!(app.settle()["table"]["proclamations"]["open"], 2);
+    app.key("Escape");
     app.key(SYNDICATE);
 
     let m26 = app.seat_agent(M26, "26july");
@@ -234,6 +238,8 @@ fn native_public_proclamations_preserve_the_givers_decision() {
         "M26"
     );
     assert_eq!(app.observe()["observation"], pending);
+    assert_eq!(app.settle()["table"]["proclamations"]["open"], 3);
+    app.key("Escape");
     let saved = app.save_bytes();
     app.quit();
 
