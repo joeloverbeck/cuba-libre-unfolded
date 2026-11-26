@@ -24,10 +24,8 @@ fn refuse(game: &mut Game, owner: Faction, action: &str) -> String {
     error
 }
 
-fn underfunded_construct() -> Game {
+fn card_18() -> Game {
     let mut game = Game::opening_with_seed(2);
-    // Kidnap leaves Government 1 and 26July 4 after Terror. Government gets 12
-    // from Syndicate and pays 2 to close Havana's Casino, leaving [11, 4, 5, 3].
     for action in [
         "terror",
         "kidnap",
@@ -37,6 +35,17 @@ fn underfunded_construct() -> Game {
         "event:shaded",
         "resolve-shaded",
         "advance-card",
+    ] {
+        choose(&mut game, action);
+    }
+    game
+}
+
+fn underfunded_construct() -> Game {
+    let mut game = card_18();
+    // Kidnap leaves Government 1 and 26July 4 after Terror. Government gets 12
+    // from Syndicate and pays 2 to close Havana's Casino, leaving [11, 4, 5, 3].
+    for action in [
         "government:assault",
         "transfer",
         "ask:3:12",
@@ -48,6 +57,31 @@ fn underfunded_construct() -> Game {
         choose(&mut game, action);
     }
     game
+}
+
+#[test]
+fn operation_only_construct_can_transfer_its_last_resource_and_finish() {
+    let mut game = card_18();
+    for action in [
+        "government:pass",
+        "syndicate:construct",
+        "transfer",
+        "give:1:15",
+        "transfer",
+        "ask:2:1",
+        "authorize:1",
+    ] {
+        choose(&mut game, action);
+    }
+    assert_eq!(game.observe().resources, [2, 19, 4, 1]);
+    assert!(game.observe().construct_paid.is_empty());
+    for action in ["transfer", "give:0:1", "end-construct"] {
+        choose(&mut game, action);
+    }
+    let complete = game.observe();
+    assert_eq!(complete.resources, [3, 19, 4, 0]);
+    assert_eq!(complete.eligible, [true, true, true, false]);
+    assert!(complete.construct_paid.is_empty());
 }
 
 #[test]

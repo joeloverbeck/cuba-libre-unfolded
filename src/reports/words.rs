@@ -73,6 +73,7 @@ fn operation_spaces(items: &[Item]) -> Vec<String> {
 pub(super) fn headline(
     faction: Faction,
     action: Action,
+    first_eligible: bool,
     again: bool,
     complete: bool,
     items: &[Item],
@@ -85,7 +86,7 @@ pub(super) fn headline(
         Action::EventShaded => ("the Event, shaded text", false),
         Action::Terror => ("Terror", true),
         Action::Assault => ("Assault", true),
-        Action::Construct => ("Limited Construct", true),
+        Action::Construct => (crate::game::construct_name(first_eligible), true),
     };
     let spaces = operation_spaces(items);
     let named = match spaces.len() {

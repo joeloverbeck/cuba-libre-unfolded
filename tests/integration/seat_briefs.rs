@@ -531,7 +531,7 @@ fn what_differs_by_faction_in_the_rules_differs_in_the_briefs() {
 fn taken(choice: &Choice) -> Option<(Faction, &'static str)> {
     match choice.action() {
         "government:assault" => Some((choice.owner, "Assault")),
-        "syndicate:limited-operation" => Some((choice.owner, "Construct")),
+        "syndicate:limited-operation" | "syndicate:construct" => Some((choice.owner, "Construct")),
         "government:pass" | "syndicate:pass" | "kidnap:cancel" => None,
         beneficiary if beneficiary.starts_with("rally:beneficiary:") => None,
         action => match action.split(':').next().unwrap() {

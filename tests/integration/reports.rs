@@ -1390,8 +1390,8 @@ mod reader {
         spaces: Vec<String>,
         /// The spaces the Operation was executed in, with the payer's balance before.
         executed: Vec<(String, i32)>,
-        /// The Casino effect of this Limited Construct's payment, keyed by its space.
-        constructed: Option<(String, bool)>,
+        /// The Casino effects of this Construct's payments, keyed by space.
+        constructed: Vec<(String, bool)>,
         /// Those of an Assault in which no piece changed.
         unchanged: Vec<String>,
         removers: Vec<Faction>,
@@ -1514,7 +1514,7 @@ mod reader {
                         let here = name(parts[1]);
                         done.at(&here);
                         done.executed.push((here.clone(), held(Faction::Syndicate)));
-                        done.constructed = Some((here, parts[2] == "open"));
+                        done.constructed.push((here, parts[2] == "open"));
                     }
                     ("remove", _) if parts.len() == 4 => {
                         done.at(&name(parts[1]));
@@ -1587,9 +1587,16 @@ mod reader {
                 Faction::Government if made("government:pass") => Some("Pass"),
                 Faction::Government => made("government:assault").then_some("Assault"),
                 Faction::Syndicate if made("syndicate:pass") => Some("Pass"),
-                Faction::Syndicate => (seen.executing == Some(Faction::Syndicate)
-                    || made("end-construct"))
-                .then_some("Limited Construct"),
+                Faction::Syndicate
+                    if seen.executing == Some(Faction::Syndicate) || made("end-construct") =>
+                {
+                    Some(if made("government:pass") {
+                        "Construct"
+                    } else {
+                        "Limited Construct"
+                    })
+                }
+                Faction::Syndicate => None,
             }
         };
         // Where the action began: at the opening, or after the decision that ended the last.
@@ -1624,6 +1631,7 @@ mod reader {
             "pass" | "government:pass" | "syndicate:pass" => Some("Pass"),
             "end-terror" if kidnapped => Some("Operation with Special Activity"),
             "end-terror" | "end-assault" => Some("Operation Only"),
+            "end-construct" if all().any(|a| a == "government:pass") => Some("Operation Only"),
             "end-construct" => Some("Limited Operation"),
             _ => None,
         };
@@ -2003,8 +2011,11 @@ mod reader {
         }
         if let Some(held) = scan(title, "Construct in {}") {
             let space = held[0];
-            let (where_paid, opens) = done.constructed.as_ref().ok_or("no Construct payment")?;
-            same("space", &space, &where_paid.as_str())?;
+            let (_, opens) = done
+                .constructed
+                .iter()
+                .find(|(where_paid, _)| where_paid == space)
+                .ok_or("no Construct payment in this space")?;
             let [payment, outcome] = lines.as_slice() else {
                 return Err("two sentences are due".into());
             };
@@ -2252,6 +2263,9 @@ mod reader {
                 say(
                     "Card 19: 26July and Directorio Eligible, Government and Syndicate Ineligible.",
                 );
+            }
+            (_, Faction::Syndicate, Some("Operation Only")) => {
+                say("Card 19: Government, 26July and Directorio Eligible, Syndicate Ineligible.");
             }
             (_, Faction::Syndicate, _) => {
                 if before.passed[Faction::Government.index()] {

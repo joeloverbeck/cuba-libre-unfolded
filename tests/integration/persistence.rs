@@ -209,7 +209,8 @@ fn completed_alberto_bayo_advances_once_and_reloads_at_government_opening() {
                 .choices
                 .iter()
                 .all(|choice| choice.owner == Faction::Syndicate
-                    && choice.supported == (choice.action() == "syndicate:pass"))
+                    && choice.supported
+                        == matches!(choice.action(), "syndicate:pass" | "syndicate:construct"))
         );
         assert!(
             handoff.choices[4]
