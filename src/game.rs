@@ -505,6 +505,8 @@ pub fn removal_group(kind: Kind, state: State) -> &'static str {
         (Kind::Troops, _) => "troops",
         (Kind::Police, _) => "police",
         (Kind::Base, _) => "base",
+        (Kind::Casino, State::Open) => "open-casino",
+        (Kind::Casino, State::Closed) => "closed-casino",
         (_, State::Active) => "active",
         _ => "underground",
     }
@@ -515,6 +517,8 @@ pub fn removal_piece(group: &str) -> Option<(Kind, State)> {
         "troops" => Some((Kind::Troops, State::Ordinary)),
         "police" => Some((Kind::Police, State::Ordinary)),
         "base" => Some((Kind::Base, State::Ordinary)),
+        "open-casino" => Some((Kind::Casino, State::Open)),
+        "closed-casino" => Some((Kind::Casino, State::Closed)),
         "active" => Some((Kind::Guerrilla, State::Active)),
         "underground" => Some((Kind::Guerrilla, State::Underground)),
         _ => None,
@@ -834,14 +838,13 @@ impl Choice {
         }
         self
     }
-    /// For a removal in removal mode: its space, group and quantity.
+    /// For a voluntary return in removal mode: its space, group and quantity.
     pub fn removal(&self) -> Option<(&str, &str, u8)> {
-        let action = self.id.split_once(':')?.1;
-        let mut parts = action.strip_prefix("remove:")?.split(':');
-        let (space, group, n) = (parts.next()?, parts.next()?, parts.next()?);
-        removal_piece(group)?;
-        let n = n.parse().ok()?;
-        parts.next().is_none().then_some((space, group, n))
+        piece_selection(self.action().strip_prefix("remove:")?)
+    }
+    /// For a voluntary Casino closure: its space, open group and quantity.
+    pub fn casino_closure(&self) -> Option<(&str, &str, u8)> {
+        piece_selection(self.action().strip_prefix("close-casino:")?)
     }
     /// For a transfer decision: its direction, the other faction and the amount.
     pub fn transfer(&self) -> Option<TransferChoice> {
@@ -931,8 +934,18 @@ pub struct Preview {
     /// What paying for an Assault space states besides its computed changes, for an
     /// Assault payment only. The payment itself is in `resources`.
     pub assault: Option<AssaultPreview>,
+    /// Supply and Construct options after the selected piece-management decision.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub management: Option<ManagementPreview>,
     /// Facts with rule references, such as the zero-space warning.
     pub notes: Vec<String>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ManagementPreview {
+    pub casinos_available: [u8; 2],
+    /// Legal Construct plans that change after Done, and any retained payment.
+    pub construct_options: Vec<String>,
 }
 /// The parts of an Assault payment's preview that its computed changes do not show,
 /// each stated by name (R 3.2.4).
@@ -1571,7 +1584,8 @@ impl Game {
                 || Self::assault_payment_space(action).is_some()
                 || action == "end-assault"
                 || Self::is_construct_action(action)
-                || choice.removal().is_some() =>
+                || choice.removal().is_some()
+                || choice.casino_closure().is_some() =>
             {
                 &[action]
             }
@@ -1746,6 +1760,9 @@ impl Game {
             }
         }
         preview.assault = self.assault_preview(after, action);
+        if self.construct_is_open() {
+            preview.management = self.management_preview(after, action);
+        }
         preview.notes = self.notes(after, action);
         preview
     }
@@ -1809,6 +1826,9 @@ impl Game {
                     notes.extend(self.construct_payment_notes(after, action).unwrap_or_default());
                 }
                 "end-assault" => notes.push("Records Operation Only. Syndicate may Pass or choose a Limited Operation as 2nd Eligible (R 2.3.4–5).".into()),
+                _ if self.construct_is_open() && (action.starts_with("remove:") || action.starts_with("close-casino:")) => {
+                    notes.push("0 Resources · no Profit.".into());
+                }
                 _ if action.starts_with("remove:") => notes.push("R 1.4.1: after Done, Assault uses the remaining cubes.".into()),
                 _ if Self::assault_payment_space(action).is_some() => {
                     notes.extend(Self::assault_preview_notes(after));
@@ -2927,6 +2947,15 @@ impl Game {
         choices
     }
 }
+
+/// The target portion of a voluntary piece action.
+fn piece_selection(input: &str) -> Option<(&str, &str, u8)> {
+    let (space, tail) = input.split_once(':')?;
+    let (group, quantity) = tail.split_once(':')?;
+    removal_piece(group)?;
+    Some((space, group, quantity.parse().ok()?))
+}
+
 impl Game {
     pub fn random_state(&self) -> u64 {
         self.random
@@ -3057,28 +3086,9 @@ impl Game {
                     self.continue_rally(rally.clone());
                 }
             } else {
-                let mut parts = action.split(':').skip(1);
-                let (space, group, n) = (parts.next(), parts.next(), parts.next());
-                let (kind, state) = group.and_then(removal_piece).ok_or("Unknown choice.")?;
-                let n: u8 = n.and_then(|n| n.parse().ok()).ok_or("Unknown choice.")?;
-                let target = self
-                    .spaces
-                    .iter_mut()
-                    .find(|s| Some(s.id.as_str()) == space)
-                    .ok_or("Unknown choice.")?;
-                let piece = target
-                    .pieces
-                    .iter_mut()
-                    .find(|p| p.faction == executor && p.kind == kind && p.state == state)
-                    .ok_or("Unknown choice.")?;
-                piece.count = piece.count.checked_sub(n).ok_or("Unknown choice.")?;
-                target.pieces.retain(|p| p.count > 0);
+                let selection = action.strip_prefix("remove:").ok_or("Unknown choice.")?;
+                self.return_own_pieces(executor, selection)?;
                 self.effect |= !self.card_18;
-                self.available
-                    .iter_mut()
-                    .find(|p| p.faction == executor && p.kind == kind)
-                    .unwrap()
-                    .count += n;
             }
             return Ok(());
         }
@@ -3156,6 +3166,33 @@ impl Game {
                 self.transfer = None;
             }
         }
+        Ok(())
+    }
+
+    fn return_own_pieces(
+        &mut self,
+        executor: Faction,
+        selection: &str,
+    ) -> Result<(), &'static str> {
+        let (space, group, n) = piece_selection(selection).ok_or("Unknown choice.")?;
+        let (kind, state) = removal_piece(group).ok_or("Unknown choice.")?;
+        let target = self
+            .spaces
+            .iter_mut()
+            .find(|s| s.id == space)
+            .ok_or("Unknown choice.")?;
+        let piece = target
+            .pieces
+            .iter_mut()
+            .find(|p| p.faction == executor && p.kind == kind && p.state == state)
+            .ok_or("Unknown choice.")?;
+        piece.count = piece.count.checked_sub(n).ok_or("Unknown choice.")?;
+        target.pieces.retain(|p| p.count > 0);
+        self.available
+            .iter_mut()
+            .find(|p| p.faction == executor && p.kind == kind)
+            .unwrap()
+            .count += n;
         Ok(())
     }
     /// An authorized Resource transfer, within the limits that offered it.

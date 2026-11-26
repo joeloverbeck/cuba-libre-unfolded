@@ -625,9 +625,9 @@ fn what_a_brief_says_this_build_plays_is_what_the_authority_offers() {
     let mut places: BTreeSet<_> = [(M26, 17), (Directorio, 17), (Government, 18)]
         .map(|(faction, card)| (faction.index(), card))
         .into();
-    assert_eq!(dealings["remove"], places);
     places.insert((Syndicate.index(), 18));
     assert_eq!(dealings["transfer"], places);
+    assert_eq!(dealings["remove"], places);
 }
 
 /// What every brief says of this build's decisions beside its lists: when a Special Activity
@@ -650,6 +650,7 @@ fn every_brief_says_what_bears_on_this_builds_decisions() {
             ("dealings", "bind nobody"),
             ("dealings", "R 1.5.1"),
             ("dealings", "remove its own pieces"),
+            ("dealings", "While the Syndicate executes Construct"),
             ("dealings", "R 1.4.1"),
             (
                 "dealings",

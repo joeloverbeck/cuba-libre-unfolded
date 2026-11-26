@@ -1,6 +1,8 @@
 //! Syndicate Construct (R 2.3.5, 3.3.5).
 use super::*;
 
+mod management;
+
 pub const CONSTRUCT_COST: u8 = 5;
 pub(super) const OPERATION_ONLY: &str = "syndicate:construct";
 pub(super) const LIMITED: &str = "syndicate:limited-operation";
@@ -245,6 +247,9 @@ impl Game {
             });
         }
         let (space, plan) = payment(action)?;
+        if self.removal.is_some() {
+            return Some("Choose Done to leave piece management before paying for Construct.");
+        }
         let spot = self.spaces.iter().find(|s| s.id == space)?;
         self.construct_payment_requirement(spot, plan, self.construct_balance())
             .err()
@@ -271,6 +276,9 @@ impl Game {
     }
 
     pub(super) fn construct_choices(&self) -> Vec<Choice> {
+        if self.removal.is_some() {
+            return self.construct_management_choices();
+        }
         if let Some(choices) = self.transfer_choices() {
             return choices;
         }
@@ -356,6 +364,7 @@ impl Game {
             true,
             "Syndicate may give Resources or ask another faction for Resources. The giver decides how much to transfer (R 1.5.1, 1.8).",
         ));
+        choices.push(self.construct_manage_choice());
         if self.construct_may_go_back() {
             choices.push(self.construct_back_choice());
         }
@@ -409,12 +418,14 @@ impl Game {
         next_revision: u64,
     ) -> Result<(), String> {
         match action {
+            _ if self.removal.is_some() => return self.apply_construct_management(action),
             OPERATION_ONLY | LIMITED => {
                 self.construct = Some(Construct {
                     paid: vec![],
                     side_effect_committed: false,
                 });
             }
+            "remove" => self.removal = Some(Removal::Selecting),
             BACK => {
                 self.construct = None;
                 self.transfer = None;

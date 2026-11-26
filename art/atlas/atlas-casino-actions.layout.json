@@ -1,0 +1,27 @@
+{
+  "source": "atlas-casino-actions.figcraft",
+  "frame": "C · Separate actions",
+  "scale": 1.6875,
+  "tolerance": 2,
+  "anchor_from_top": 43.875,
+  "parts": {
+    "popover-card": [
+      0,
+      0,
+      597.375,
+      506.25
+    ],
+    "popover:casino-close": [
+      23.625,
+      249.75,
+      550.125,
+      54
+    ],
+    "popover:casino-return": [
+      23.625,
+      379.6875,
+      550.125,
+      54
+    ]
+  }
+}

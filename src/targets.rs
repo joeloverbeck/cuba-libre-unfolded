@@ -133,7 +133,7 @@ pub fn space_targets(view: &Observation) -> Option<Vec<SpaceTarget>> {
     )
 }
 
-/// A 26July group's state in removal mode.
+/// An executing faction's group in piece management.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum PieceState {
@@ -143,11 +143,11 @@ pub enum PieceState {
     Protected,
 }
 
-/// One 26July group on the map in removal mode, and its removal choices.
+/// A group on the map in removal mode, and its available piece actions.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct PieceTarget {
     pub space: String,
-    /// The group as removal ids name it: `underground`, `active` or `base`.
+    /// The state and kind as the piece action names them.
     pub group: String,
     pub kind: Kind,
     pub state: State,
@@ -155,7 +155,7 @@ pub struct PieceTarget {
     /// How many may be removed in one decision now.
     pub removable: u8,
     pub mark: PieceState,
-    /// The choice ids for removing 1 up to `count`, in that order.
+    /// The choice IDs for each action and quantity in the rules menu.
     pub choices: Vec<String>,
 }
 
@@ -182,6 +182,7 @@ pub fn removal_targets(view: &Observation) -> Option<RemovalTargets> {
                 .iter()
                 .filter(|c| {
                     c.removal()
+                        .or_else(|| c.casino_closure())
                         .is_some_and(|(s, g, _)| s == space.id && g == group)
                 })
                 .collect();
@@ -192,7 +193,11 @@ pub fn removal_targets(view: &Observation) -> Option<RemovalTargets> {
             let removable = here
                 .iter()
                 .filter(|c| c.supported)
-                .filter_map(|c| c.removal().map(|(_, _, n)| n))
+                .filter_map(|c| {
+                    c.removal()
+                        .or_else(|| c.casino_closure())
+                        .map(|(_, _, n)| n)
+                })
                 .max()
                 .unwrap_or(0);
             pieces.push(PieceTarget {

@@ -342,6 +342,11 @@ enum Item {
         /// A space and a group that left it.
         groups: Vec<(String, Group)>,
     },
+    ManagedCasinos {
+        space: String,
+        group: Group,
+        closed_in_place: bool,
+    },
     Kidnap {
         space: String,
         kidnap: Kidnap,
@@ -691,7 +696,25 @@ fn between(
 /// `faction`'s own pieces that went to its Available Forces (R 1.4.1), told together.
 fn removed(before: &Moment, after: &Moment, faction: Faction, items: &mut Vec<Item>) {
     for (was, is) in before.spaces.iter().zip(&after.spaces) {
-        for group in lost(was, is) {
+        for group in lost(was, is)
+            .into_iter()
+            .filter(|group| group.faction == faction)
+        {
+            if group.kind == Kind::Casino {
+                let closed = |space: &Space| {
+                    space
+                        .pieces
+                        .iter()
+                        .find(|piece| piece.kind == Kind::Casino && piece.state == State::Closed)
+                        .map_or(0, |piece| piece.count)
+                };
+                items.push(Item::ManagedCasinos {
+                    space: is.name.clone(),
+                    closed_in_place: closed(is) > closed(was),
+                    group,
+                });
+                continue;
+            }
             let known = items
                 .iter()
                 .position(|item| matches!(item, Item::Removed { faction: f, .. } if *f == faction));
@@ -724,6 +747,7 @@ fn spaces(items: &[Item]) -> Vec<String> {
             | Item::Terror { space, .. }
             | Item::Assault { space, .. }
             | Item::Construct { space, .. }
+            | Item::ManagedCasinos { space, .. }
             | Item::Rally { space, .. } => vec![space],
             Item::Removed { groups, .. } => groups.iter().map(|(space, _)| space).collect(),
             Item::Shaded { flips } => flips.iter().map(|(space, _)| space).collect(),

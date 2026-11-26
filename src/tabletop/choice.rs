@@ -505,6 +505,10 @@ fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool, agent
                 resources(view.resources[recipient.index()])
             );
         }
+        if view.removal.is_some() && view.executing == Some(Faction::Syndicate) {
+            return "Select a Syndicate piece on the map.\nChoose Done to return to Construct."
+                .into();
+        }
         if view.removal.is_some() && agent {
             return "Removal mode is on until Done.".into();
         }
@@ -619,6 +623,9 @@ pub(super) fn panel(
     part(commands, emblem, "choice-heading-emblem");
     let [x, y, w] = fig::HEADING;
     let title = match &view.event {
+        _ if view.removal.is_some() && executor == Faction::Syndicate => {
+            "Syndicate · Manage own pieces".into()
+        }
         _ if view.removal.is_some() => format!("{} · Voluntary removal", executor.name()),
         _ if card_18 && view.executing == Some(Faction::Government) => {
             "Government · Assault".into()
@@ -1085,6 +1092,11 @@ fn map_focusable(
     targeting: &Targeting,
     popover: &Popover,
 ) -> Vec<(String, Action)> {
+    if view.executing == Some(Faction::Syndicate)
+        && let Some(removal) = targeting.removal.as_ref()
+    {
+        return super::popover::pieces_focusable(view, ui, removal, popover);
+    }
     let Some(targets) = targeting.targets.as_deref() else {
         return vec![];
     };
@@ -1238,16 +1250,22 @@ pub(super) fn keys(
         // An open space or piece popover closes as the tag does (#75); nothing is
         // decided. Keyboard focus on the space or in its popover returns to the space
         // (#168); a popover the pointer opened leaves focus where it was.
-        if let Some((space, _)) = popover.space(view.revision) {
-            let stop = format!("space:{space}");
-            if ui
+        let popover_target = popover
+            .space(view.revision)
+            .map(|(space, _)| format!("space:{space}"))
+            .or_else(|| {
+                popover
+                    .piece(view.revision)
+                    .map(|key| format!("own-piece:{key}"))
+            });
+        if let Some(stop) = popover_target
+            && ui
                 .choice
                 .focus
                 .as_deref()
                 .is_some_and(|f| f == stop || f.starts_with("popover:"))
-            {
-                ui.choice.focus = Some(stop);
-            }
+        {
+            ui.choice.focus = Some(stop);
         }
         popover.close_all();
         if ui.choice.pinned.is_some() {
@@ -1320,6 +1338,31 @@ pub(super) fn keys(
             ui.dirty = true;
         }
         Action::Row(action) => popover.choose_row(&action),
+        Action::Piece(key) => {
+            popover.click_piece(&key, &targeting);
+            if popover.open() {
+                ui.choice.close();
+            }
+            ui.dirty = true;
+        }
+        Action::Quantity(step) => {
+            popover.step(step, &targeting);
+            if let Some(key) = popover.piece(view.revision)
+                && !focusable(&view, &ui, &targeting, &popover)
+                    .iter()
+                    .any(|(name, _)| name == &focused)
+            {
+                ui.choice.focus = Some(format!("own-piece:{key}"));
+            }
+            ui.dirty = true;
+        }
+        Action::Dismiss => {
+            if let Some(key) = popover.piece(view.revision) {
+                ui.choice.focus = Some(format!("own-piece:{key}"));
+            }
+            popover.close();
+            ui.dirty = true;
+        }
         // Enter or Space on the pile takes its latest edition (#208).
         Action::Edition(press) => super::newspaper::press(&mut ui, press),
         // `faction_seats::serve` reads it in this frame. Focus moves to the button that

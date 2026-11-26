@@ -715,7 +715,7 @@ fn new_sessions_seed_once_from_entropy_while_resume_preserves_the_exact_seed() {
 /// of only the format and the accepted rules source. A restart keeps the consumed
 /// randomness, and the match revision equals the number of decisions.
 #[test]
-fn a_save_holds_its_seed_decisions_and_position_under_format_5() {
+fn a_save_holds_its_seed_decisions_and_position_under_format_6() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("seeded.json");
     // Seed 5 rolls 3 (kidnap.rs's shared RNG cases).
