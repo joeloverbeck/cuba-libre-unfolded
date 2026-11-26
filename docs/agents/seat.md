@@ -185,7 +185,7 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:end-assault` | Finishes Assault and records Operation Only. |
 | `<revision>:syndicate:limited-operation` | Inspect Syndicate's Limited Operation as 2nd Eligible after Operation Only. |
 | `<revision>:government:transport`, `<revision>:government:air-strike`, `<revision>:government:reprisal` | Government's Special Activity briefings, including the Operations each may accompany. |
-| `<revision>:syndicate:pass` | Inspect Syndicate's Pass after Government Passes or records Operation Only. |
+| `<revision>:syndicate:pass` | Pin `option:syndicate:pass` after either Government action to preview the Resource gain and the four factions’ Eligibility for card 19. Commit using the offered choice. |
 | `<revision>:syndicate:event` | Inspect Pact of Caracas after Government Passes. |
 | `<revision>:syndicate:rally`, `<revision>:syndicate:march`, `<revision>:syndicate:terror`, `<revision>:syndicate:construct` | Inspect Syndicate's 1st Eligible Operations. |
 | `<revision>:syndicate:profit`, `<revision>:syndicate:muscle`, `<revision>:syndicate:bribe` | Inspect Syndicate's Special Activities and which Operations they may accompany. |
@@ -294,4 +294,4 @@ Drawn-part names:
 
 - **Transfer modal** (`table.transfer.parts`): `account:26july`, `account:counterpart`, `header`, `direction-toggle`, `flow-band`, `number-field`, `track`, `limits`, `limit:<icon>` and `button:<action>`.
 - **Eligibility indicator** (`table.eligibility.parts`): `eligibility-row:<faction>:<part>`, where the part is `number`, `emblem`, `name`, `acted`, `1st` or `2nd`, `eligible` or `ineligible`. Also `eligibility-box:ineligible` with its `:label` and `:note`, `eligibility-label:eligible` and `eligibility-label:recorded`.
-- **Card-end eligibility** (`table.eligibility.track.adjusted`): the track's rows now show eligibility for card 18. `observation.eligibility.next_card` gives the four ordinary reasons. `observation.eligibility.event_restriction` reports the separate restriction on the shaded branch. The result text is among the `table.choice_parts` with names beginning `ended-value:`.
+- **Card-end Eligibility** (`table.eligibility.track.adjusted`): the track's rows show Eligibility for the preview card. `observation.eligibility.next_card` gives the four reasons. On the shaded branch `observation.eligibility.event_restriction` reports Alberto Bayo's separate restriction until card 18 ends. The result text is among the `table.choice_parts` with names beginning `ended-value:`.

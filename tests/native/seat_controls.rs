@@ -73,7 +73,7 @@ impl Native {
         self.settle()
     }
     /// Tabs to `control` and presses Enter on it.
-    fn press_by_keyboard(&mut self, control: &str) -> Value {
+    pub(super) fn press_by_keyboard(&mut self, control: &str) -> Value {
         let revision = self.revision();
         for _ in 0..60 {
             if self.observe()["table"]["choice"]["focus"] == control {
@@ -582,7 +582,7 @@ fn native_each_seat_state_is_shown_and_a_held_choice_is_taken_back() {
     app.press("seat:government:hand-over");
 
     // Government's agent opens Assault and removal mode, whose pieces and spaces are read
-    // on the map without a button; it ends the Operation, and the build ends at Syndicate.
+    // on the map without a button. It ends the Operation and hands off to Syndicate.
     let government = app.join("government");
     app.decide(&government, "government:assault", "applied");
     let view = app.settle();
@@ -608,6 +608,9 @@ fn native_each_seat_state_is_shown_and_a_held_choice_is_taken_back() {
     assert_eq!(decisions(&app.save).last().unwrap(), "done-removal");
     app.decide(&government, "end-assault", "applied");
     app.settle();
+    app.key("Escape");
+    let syndicate = app.join("syndicate");
+    app.decide(&syndicate, "syndicate:pass", "applied");
     let view = app.key("Escape");
     assert_eq!(seat(&view, "Syndicate")["state"], "build-ends");
     assert_eq!(state_words(&view, "syndicate"), "Build ends here");

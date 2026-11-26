@@ -487,7 +487,9 @@ fn totals(first: &Moment, last: &Moment) -> Vec<String> {
 fn eligibility(first: &Moment, last: &Moment, faction: Faction) -> Vec<String> {
     let (was, is) = (&first.eligibility, &last.eligibility);
     let mut lines = vec![];
-    if let Some(recorded) = recorded(last, faction) {
+    if let Some(recorded) = recorded(last, faction)
+        && !(last.card == 18 && is.next_card.is_some())
+    {
         lines.push(format!("{} is in the {recorded} box.", faction.name()));
     }
     if was.m26_next_card != is.m26_next_card

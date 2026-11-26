@@ -33,7 +33,7 @@ The owner's [acceptance of the rules baseline and tactical scenario](https://git
 
 **Policy:** In this continuation Government may open Assault and deliberately finish without selecting a space, even with fewer Resources than the space cost. Finish records Operation Only, earns no Pass income, and preserves any side decisions already committed. Each selected space still requires its full payment. The owner accepted this interpretation for card 18. [Owner ruling on #127](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/127#issuecomment-7080815790)
 
-Syndicate becomes 2nd Eligible and may inspect Pass or Limited Operation under R 2.3.4.
+Syndicate becomes 2nd Eligible and may Pass or inspect a Limited Operation under R 2.3.4.
 
 ### Next Propaganda assumes equal piles
 

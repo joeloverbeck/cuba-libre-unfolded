@@ -84,6 +84,8 @@ pub enum EventStatus {
     Preview {
         after: u8,
     },
+    /// The card ended without anyone executing its Event.
+    Unexecuted,
     /// An Eligible faction may execute the Event now (R 2.3.4).
     Open {
         faction: Faction,
@@ -117,6 +119,7 @@ impl EventStatus {
             Self::Preview { after } => {
                 format!("Event not yet open: this card is played after card {after}")
             }
+            Self::Unexecuted => "The card ended without executing its Event".into(),
             Self::Open { faction, role } => format!(
                 "Event open to {} as {} Eligible",
                 faction.name(),
@@ -382,7 +385,9 @@ impl Game {
         let eligibility = self.eligibility();
         let second = eligibility.second;
         if self.card_18 {
-            return if self.assault.is_some()
+            return if self.card_18_completion.is_some() {
+                EventStatus::Unexecuted
+            } else if self.assault.is_some()
                 || eligibility.government_box == Some(SequenceBox::OperationOnly)
             {
                 // Government's Assault is an Operation Only in this build.

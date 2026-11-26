@@ -387,6 +387,19 @@ pub(super) fn activation_lines(view: &Observation, flips: &[Flip]) -> String {
 pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
     if view.current_card == 18 {
         let choice = listed(view, option)?;
+        if option == "syndicate:pass" {
+            let preview = choice.preview.as_ref()?;
+            return Some(Briefing {
+                option: option.into(),
+                title: choice.label.clone(),
+                rule: "R 1.8, 2.3.3, 2.3.7",
+                entries: vec![
+                    entry("RESULT", &choice.explanation),
+                    super::eligibility::result_entry(view.preview_card, preview.next_card?),
+                ],
+                rules: String::new(),
+            });
+        }
         if view.passed[Faction::Government.index()] {
             return Some(Briefing {
                 option: option.into(),

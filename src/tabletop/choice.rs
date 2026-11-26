@@ -263,7 +263,7 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
         Some(c) if c.supported => Commit {
             label: match c.action() {
                 // The gain the authority previews, possibly zero at the cap.
-                "pass" | "government:pass" => c
+                "pass" | "government:pass" | "syndicate:pass" => c
                     .preview
                     .iter()
                     .flat_map(|p| &p.resources)
@@ -1033,6 +1033,9 @@ fn map_focusable(
 
 /// The panel's controls Tab moves through.
 fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> {
+    if view.card_18_complete() {
+        return vec![];
+    }
     if let Some(advance) = view.choices.iter().find(|c| c.action() == "advance-card") {
         return vec![(
             advance.id.clone(),

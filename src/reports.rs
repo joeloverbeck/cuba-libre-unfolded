@@ -25,7 +25,7 @@ pub(crate) use words::listing;
 use crate::{
     ActionChoice, AssaultResolution, Choice, Eligibility, EventOutcome, EventProgress, Faction,
     Flip, Game, Group, Kidnap, Kind, Next, Observation, Rally, RallyAction, Removal, Resolved,
-    Space, Standing, State, Transfer, title,
+    SequenceBox, Space, Standing, State, Transfer, title,
 };
 use serde::Serialize;
 
@@ -200,7 +200,7 @@ impl Moment {
             seen.event_executor
         } else if seen.executing.is_some() {
             seen.executing
-        } else if seen.choices.iter().any(Choice::turns_the_card) {
+        } else if seen.card_18_complete() || seen.choices.iter().any(Choice::turns_the_card) {
             None
         } else {
             Some(seen.owner)
@@ -255,7 +255,9 @@ impl Moment {
                 Some(_) => Action::EventUnshaded,
             },
             // Assault is the one Operation this build plays for Government.
-            _ if self.executing == Some(faction) || self.eligibility.government_box.is_some() => {
+            Faction::Government
+                if self.executing == Some(faction) || self.eligibility.government_box.is_some() =>
+            {
                 Action::Assault
             }
             _ => Action::Undecided,
@@ -415,11 +417,12 @@ fn span(moments: &[Moment], faction: Faction, continues: bool) -> Option<Report>
     })
 }
 
-/// The box `faction`'s action is recorded in. This build records no box for Directorio.
+/// The record of `faction`'s action on the Sequence of Play.
 fn recorded(at: &Moment, faction: Faction) -> Option<&'static str> {
     match faction {
         Faction::M26 => at.eligibility.m26_box,
         Faction::Government => at.eligibility.government_box,
+        Faction::Syndicate if at.passed[Faction::Syndicate.index()] => Some(SequenceBox::Pass),
         _ => None,
     }
     .map(|recorded| recorded.name())
