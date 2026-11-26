@@ -28,6 +28,9 @@ fn family(choice: &Choice) -> String {
     if choice.removal().is_some() {
         return "remove:<space>:<group>:<n>".into();
     }
+    if choice.casino_closure().is_some() {
+        return "close-casino:<space>:open-casino:<n>".into();
+    }
     let action = choice.action();
     if action
         .strip_prefix("terror:")
@@ -107,6 +110,9 @@ fn card_18_families() -> BTreeSet<String> {
         "end-assault",
         "syndicate:limited-operation",
         "construct:havana:open",
+        "remove",
+        "close-casino:pinar-del-rio:open-casino:1",
+        "done-removal",
         "end-construct",
     ] {
         explore::choose(&mut construct, action);

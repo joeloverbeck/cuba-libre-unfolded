@@ -618,10 +618,18 @@ impl SeatGame for Table {
         let Some(name) = focused else {
             return Focus::Nothing;
         };
-        match controls(world).into_iter().find(|(_, c, _)| c.name == name) {
+        // Pointer resolution gives a solid piece its rendered "piece:…" name.
+        // Keyboard focus keeps the stable own-piece group name.
+        let shown = controls(world).into_iter().find(|(entity, control, _)| {
+            control.name == name
+                || world.get::<Control>(*entity).is_some_and(|original| {
+                    matches!(original.action, Action::Piece(_)) && original.name == name
+                })
+        });
+        match shown {
             Some((_, control, _)) => Focus::Control {
-                choice: control.choice.then(|| control.name.clone()),
-                label: control.name,
+                choice: control.choice.then(|| name.clone()),
+                label: name,
             },
             None => Focus::Other(json!({"stale focus": name})),
         }

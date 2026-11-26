@@ -779,19 +779,19 @@ fn sync_pieces(
                     ))
                     .observe(click);
             }
-            let mark = match piece.state {
-                State::Active => Some("atlas-active-star.png"),
-                State::Closed => Some("atlas-closed-slash.png"),
+            let mark = match (piece.kind, piece.state) {
+                (_, State::Active) => Some(("atlas-active-star.png", 0.17)),
+                (Kind::Casino, State::Open) => Some(("atlas-casino-gold.png", 0.21)),
                 _ => None,
             };
-            if let Some(mark) = mark {
+            if let Some((mark, width)) = mark {
                 token::add_face(
                     &mut commands,
                     &mut meshes,
                     &mut materials,
                     token,
                     token::Face {
-                        mesh: Plane3d::default().mesh().size(0.17, 0.17).build(),
+                        mesh: Plane3d::default().mesh().size(width, width).build(),
                         image: art.images[mark].clone(),
                         alpha: AlphaMode::Blend,
                         transform: Transform::from_xyz(0., height + 0.002, 0.),
@@ -1372,7 +1372,25 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
             },
         };
     }
-    if let Some((_, _, n)) = choice.and_then(Choice::removal) {
+    if let Some((id, _, n)) = choice.and_then(Choice::casino_closure) {
+        return format!(
+            "Closed {n} {} in {}. Choose Done to return to Construct. Saved.",
+            if n == 1 { "Casino" } else { "Casinos" },
+            place(id)
+        );
+    }
+    if let Some((_, group, n)) = choice.and_then(Choice::removal) {
+        if after.executing == Some(Faction::Syndicate) {
+            let piece = match (crate::removal_piece(group), n) {
+                (Some((Kind::Casino, _)), 1) => "Casino",
+                (Some((Kind::Casino, _)), _) => "Casinos",
+                (_, 1) => "Guerrilla",
+                _ => "Guerrillas",
+            };
+            return format!(
+                "Returned {n} {piece} to Available Forces. Choose Done to return to Construct. Saved."
+            );
+        }
         if after.current_card == 18 {
             return format!(
                 "Returned {n} {} to Available Forces. Choose Done to review Assault. Saved.",
@@ -1433,10 +1451,14 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
         "kidnap:roll" => {
             "Kidnap roll saved. The die is landing: click it or press Space to skip.".into()
         }
+        "remove" if owner == Faction::Syndicate => {
+            "Piece management is open. Select a Syndicate piece on the map. Saved.".into()
+        }
         "remove" => format!(
             "Removal mode: click a ringed {} piece on the map. Saved.",
             owner.name()
         ),
+        "done-removal" if owner == Faction::Syndicate => "Returned to Construct. Piece changes are saved.".into(),
         "done-removal" => "Removal mode closed; removed pieces stay in Available. Saved.".into(),
         "pass" => {
             // The record Pass committed: its Resources, 26July's Eligibility for the

@@ -533,3 +533,298 @@ fn assert_casinos(view: &Value, resources: u8, open: u8, available: u8) {
         .unwrap();
     assert_eq!(inventory["count"], available);
 }
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; Casino artwork, layout, keyboard, agent and replay"]
+fn native_casino_management_compares_pinar_and_keeps_the_payment() {
+    use super::{focus_mark::assert_marked, map_keys};
+    const OPEN: &str = "own-piece:pinar-del-rio:open-casino";
+    const OPEN_PIECE: &str = "piece:pinar-del-rio Syndicate Casino Open";
+    const CLOSED_PIECE: &str = "piece:pinar-del-rio Syndicate Casino Closed";
+    const CLOSE: &str = "popover:casino-close";
+    const RETURN: &str = "popover:casino-return";
+
+    let mut starting: Option<Vec<u8>> = None;
+    for branch in ["close", "return", "stack"] {
+        let mut app = super::available_forces::unlaunched(&format!("pinar-{branch}-"), "issue-219");
+        if let Some(bytes) = &starting {
+            fs::write(&app.save, bytes).unwrap();
+            app.launch_size("3840x2160");
+        } else {
+            // Use the existing checked funding route, in a fresh disposable file.
+            super::assault::fund_santiago(&app.save, 4);
+            app.launch_size("3840x2160");
+            for action in ["event:shaded", "resolve-shaded"] {
+                choose_row(&mut app, action);
+            }
+            app.choose("advance-card");
+            choose_row(&mut app, "government:assault");
+            app.choose("assault:havana:syndicate");
+            choose_row(&mut app, "end-assault");
+            starting = Some(app.save_bytes());
+        }
+        choose_row(&mut app, "syndicate:limited-operation");
+        let (space, plan) = if branch == "stack" {
+            ("pinar-del-rio", "place")
+        } else {
+            ("havana", "open")
+        };
+        let revision = app.revision();
+        app.activate(&format!("space:{space}"), revision);
+        app.activate(&format!("popover:row:construct:{space}:{plan}"), revision);
+        app.activate("popover:commit", revision);
+        choose_row(&mut app, "remove");
+        let before = app.observe();
+        let revision = app.revision();
+        let saved = app.save_bytes();
+
+        if branch == "stack" {
+            assert_casinos(&before["observation"], 10, 2, 6);
+            app.capture("pinar-adjacent-home");
+            for (name, scroll) in [("near", 3), ("far", -5)] {
+                app.key("Home");
+                app.point("space:las-villas");
+                app.request(json!({"op":"scroll","revision":revision,"component":"space:las-villas","y":scroll}), true);
+                let zoomed = app.settle();
+                assert_ne!(zoomed["table"]["camera"], before["table"]["camera"]);
+                app.capture(&format!("pinar-adjacent-{name}"));
+            }
+            app.key("Home");
+            app.activate(CLOSED_PIECE, revision);
+            let closed = app.observe()["table"]["popover"].clone();
+            assert_eq!(closed["kind"], "closed-casino");
+            assert_eq!(closed["card"]["rows"].as_array().unwrap().len(), 2);
+            assert_eq!(
+                closed["card"]["rows"][1]["head"],
+                "Return 1 Casino to Available"
+            );
+            app.capture("pinar-closed-preview");
+            app.key("Escape");
+            app.activate(OPEN_PIECE, revision);
+            assert!(
+                app.observe()["table"]["popover"]["card"]["rows"][0]["lines"]
+                    .to_string()
+                    .contains("stays a paid space")
+            );
+            app.activate(CLOSE, revision);
+            assert_casino_pinar(&app.observe(), 2);
+            let revision = app.revision();
+            app.activate(CLOSED_PIECE, revision);
+            map_keys::tab_to(&mut app, "popover:quantity:plus");
+            map_keys::press(&mut app, "Space", "popover:quantity:plus");
+            let stack = app.observe()["table"]["popover"]["card"].clone();
+            assert_eq!(stack["stepper"]["value"], 2);
+            assert_eq!(stack["rows"][1]["head"], "Return 2 Casinos to Available");
+            assert!(
+                stack["rows"][1]["lines"]
+                    .to_string()
+                    .contains("goes from 6 to 8")
+            );
+            app.capture("pinar-closed-stack-preview");
+            app.activate(RETURN, revision);
+            let after = app.observe();
+            assert_casino_pinar(&after, 0);
+            assert_casinos(&after["observation"], 10, 1, 8);
+            assert_eq!(
+                after["observation"]["construct_paid"][0]["space"],
+                "pinar-del-rio"
+            );
+            choose_row(&mut app, "done-removal");
+            let revision = app.revision();
+            let refused = format!("{revision}:construct:pinar-del-rio:place");
+            app.request(
+                json!({"op":"activate","revision":revision,"choice":refused}),
+                false,
+            );
+            choose_row(&mut app, "end-construct");
+            app.quit();
+            continue;
+        }
+
+        assert_casinos(&before["observation"], 10, 3, 7);
+        map_keys::tab_to(&mut app, OPEN);
+        let preview = map_keys::press(&mut app, "Enter", OPEN);
+        let card = &preview["table"]["popover"]["card"];
+        assert_eq!(card["kind"], "open-casino");
+        assert!(
+            card["rows"][0]["lines"]
+                .to_string()
+                .contains("Both choices end Syndicate Control here")
+        );
+        assert!(card["rows"][0]["lines"].to_string().contains("3 → 2"));
+        assert_eq!(card["rows"][1]["button"], "Close 1 Casino in place");
+        assert_eq!(card["rows"][2]["button"], "Return 1 Casino to Available");
+        assert!(
+            card["rows"][1]["lines"]
+                .to_string()
+                .contains("Available stays at 7")
+        );
+        assert!(
+            card["rows"][2]["lines"]
+                .to_string()
+                .contains("goes from 7 to 8")
+        );
+        assert_eq!(card["footer"], "0 Resources · no Profit");
+        compare_casino_layout(&preview);
+
+        map_keys::tab_to(&mut app, CLOSE);
+        assert_marked(&mut app, CLOSE, "pinar-close-focus");
+        map_keys::tab_to(&mut app, RETURN);
+        assert_marked(&mut app, RETURN, "pinar-return-focus");
+        let cancelled = app.key("Escape");
+        assert!(cancelled["table"]["popover"].is_null());
+        assert_eq!(cancelled["table"]["choice"]["focus"], OPEN);
+        app.activate(OPEN_PIECE, revision);
+        app.activate("popover:cancel", revision);
+        assert!(app.observe()["table"]["popover"].is_null());
+        assert_eq!(app.save_bytes(), saved);
+        assert_eq!(app.observe()["observation"], before["observation"]);
+        app.activate(OPEN_PIECE, revision);
+
+        let player = if branch == "return" {
+            let player = app.seat_agent(super::faction_seats::SYNDICATE, "syndicate");
+            let (code, seen) = app.ask(&["observe", &player]);
+            assert_eq!(code, 0, "{seen}");
+            let actions = seen["view"]["choices"].as_array().unwrap();
+            let open = actions
+                .iter()
+                .find(|c| c["id"] == format!("{revision}:remove:pinar-del-rio:open-casino:1"))
+                .unwrap();
+            assert_eq!(open["preview"]["removed"][0]["count"], 1);
+            assert_eq!(
+                open["preview"]["management"]["casinos_available"],
+                json!([7, 8])
+            );
+            assert_eq!(open["preview"]["resources"], json!([]));
+            let close = actions
+                .iter()
+                .find(|c| c["id"] == format!("{revision}:close-casino:pinar-del-rio:open-casino:1"))
+                .unwrap();
+            assert_eq!(close["preview"]["flips"][0]["to"], "Closed");
+            assert_eq!(
+                close["preview"]["management"]["casinos_available"],
+                json!([7, 7])
+            );
+            for control in app.observe()["table"]["controls"].as_array().unwrap() {
+                assert!(control["name"] != CLOSE && control["name"] != RETURN);
+            }
+            app.key("Escape");
+            app.decide(&player, "remove:pinar-del-rio:open-casino:1", "applied");
+            Some(player)
+        } else {
+            map_keys::tab_to(&mut app, CLOSE);
+            map_keys::press(&mut app, "Space", CLOSE);
+            None
+        };
+        let after = app.observe();
+        let closed = branch == "close";
+        assert_casinos(&after["observation"], 10, 2, if closed { 7 } else { 8 });
+        assert_casino_pinar(&after, if closed { 1 } else { 0 });
+        assert_eq!(
+            after["observation"]["construct_paid"],
+            before["observation"]["construct_paid"]
+        );
+        assert!(after["observation"]["removal"].is_string());
+        assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
+        app.capture("pinar-after");
+        let after_bytes = app.save_bytes();
+        fs::write(app.root.join("after-management.json"), &after_bytes).unwrap();
+        let pre_finish = if let Some(player) = player {
+            app.decide(&player, "done-removal", "applied");
+            let pre_finish = app.save_bytes();
+            app.decide(&player, "end-construct", "applied");
+            let (code, seen) = app.ask(&["observe", &player]);
+            assert_eq!(code, 0, "{seen}");
+            let return_written = "Syndicate returns 1 open Casino to Available Forces.";
+            let report = &seen["view"]["results"].as_array().unwrap().last().unwrap();
+            assert!(
+                report["articles"].to_string().contains(return_written),
+                "{report}"
+            );
+            let edition = &app.observe()["table"]["newspaper"]["open"]["report"];
+            assert!(
+                edition["articles"].to_string().contains(return_written),
+                "{edition}"
+            );
+            fs::write(
+                app.root.join("faction-and-report.json"),
+                serde_json::to_vec_pretty(&seen).unwrap(),
+            )
+            .unwrap();
+            app.capture("pinar-return-edition");
+            app.key("Escape");
+            pre_finish
+        } else {
+            app.quit();
+            app.launch_size("3840x2160");
+            assert_eq!(app.observe()["observation"], after["observation"]);
+            assert_eq!(app.save_bytes(), after_bytes);
+            let stale = format!("{revision}:close-casino:pinar-del-rio:open-casino:1");
+            app.request(
+                json!({"op":"activate","revision":revision,"choice":stale}),
+                false,
+            );
+            assert_eq!(app.save_bytes(), after_bytes);
+            choose_row(&mut app, "done-removal");
+            let pre_finish = app.save_bytes();
+            choose_row(&mut app, "end-construct");
+            pre_finish
+        };
+        assert_eq!(fs::read(previous_path(&app.save)).unwrap(), pre_finish);
+        fs::write(app.root.join("before-finish.json"), &pre_finish).unwrap();
+        let complete = app.observe()["observation"].clone();
+        assert_eq!(complete["eligible"], json!([false, true, true, false]));
+        // fund_santiago creates the seed-2 opening and gives Government 4 Resources.
+        super::faction_seats::assert_by_hand_of(&app.save, 2);
+        app.quit();
+        app.launch_size("3840x2160");
+        assert_eq!(app.observe()["observation"], complete);
+        app.quit();
+    }
+}
+
+fn assert_casino_pinar(view: &Value, closed: u8) {
+    let pinar = view["observation"]["spaces"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|space| space["id"] == "pinar-del-rio")
+        .unwrap();
+    if closed == 0 {
+        assert_eq!(pinar["pieces"], json!([]));
+    } else {
+        assert_eq!(pinar["pieces"].as_array().unwrap().len(), 1);
+        assert_eq!(pinar["pieces"][0]["state"], "Closed");
+        assert_eq!(pinar["pieces"][0]["count"], closed);
+    }
+}
+
+fn compare_casino_layout(native: &Value) {
+    let source: Value = serde_json::from_str(include_str!(
+        "../../art/atlas/atlas-casino-actions.layout.json"
+    ))
+    .unwrap();
+    let tolerance = source["tolerance"].as_f64().unwrap();
+    let popover = &native["table"]["popover"];
+    let [x, y, ..] = rect_of(&popover["bounds"]);
+    let anchor_y = popover["anchor"][1].as_f64().unwrap();
+    let anchor_from_top = source["anchor_from_top"].as_f64().unwrap();
+    assert!((anchor_y - y - anchor_from_top).abs() <= tolerance);
+    for (name, reference) in source["parts"].as_object().unwrap() {
+        let [left, top, width, height] = rect_of(reference);
+        let expected = [x + left, y + top, x + left + width, y + top + height];
+        let part = popover["parts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|part| part["part"] == name.as_str())
+            .unwrap();
+        let measured = rect_of(&part["bounds"]);
+        for (a, b) in measured.into_iter().zip(expected) {
+            assert!(
+                (a - b).abs() <= tolerance,
+                "{name}: {measured:?} vs {expected:?}"
+            );
+        }
+    }
+}

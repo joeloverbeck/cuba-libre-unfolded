@@ -1383,6 +1383,13 @@ mod reader {
         pending: Option<i32>,
     }
 
+    struct CasinoAction {
+        space: String,
+        state: State,
+        count: i32,
+        closes: bool,
+    }
+
     /// What the decisions of a span did, in order.
     #[derive(Default)]
     struct Done {
@@ -1392,6 +1399,7 @@ mod reader {
         executed: Vec<(String, i32)>,
         /// The Casino effects of this Construct's payments, keyed by space.
         constructed: Vec<(String, bool)>,
+        casino_management: Vec<CasinoAction>,
         /// Those of an Assault in which no piece changed.
         unchanged: Vec<String>,
         removers: Vec<Faction>,
@@ -1515,6 +1523,23 @@ mod reader {
                         done.at(&here);
                         done.executed.push((here.clone(), held(Faction::Syndicate)));
                         done.constructed.push((here, parts[2] == "open"));
+                    }
+                    ("close-casino" | "remove", _)
+                        if parts.len() == 4
+                            && matches!(parts[2], "open-casino" | "closed-casino") =>
+                    {
+                        let space = name(parts[1]);
+                        done.at(&space);
+                        done.casino_management.push(CasinoAction {
+                            space,
+                            state: if parts[2] == "open-casino" {
+                                State::Open
+                            } else {
+                                State::Closed
+                            },
+                            count: parts[3].parse().unwrap(),
+                            closes: parts[0] == "close-casino",
+                        });
                     }
                     ("remove", _) if parts.len() == 4 => {
                         done.at(&name(parts[1]));
@@ -1669,14 +1694,23 @@ mod reader {
         let mut due: Vec<String> = titles(executor, &done);
         let mut transfers = done.transfers.iter().collect::<Vec<_>>();
         let mut position = Position::of(before);
+        let mut casinos = done.casino_management.iter();
         for article in &report.articles {
             let at = due
                 .iter()
                 .position(|title| *title == article.title)
                 .ok_or_else(|| format!("not due: {}", article.title))?;
             due.remove(at);
-            read(article, &done, after, &mut position, &mut transfers)
-                .map_err(|why| format!("{}: {why}", article.title))?;
+            let result = if article.title.starts_with("Casino management in ") {
+                read_casino_action(
+                    article,
+                    casinos.next().ok_or("extra Casino action")?,
+                    &mut position,
+                )
+            } else {
+                read(article, &done, after, &mut position, &mut transfers)
+            };
+            result.map_err(|why| format!("{}: {why}", article.title))?;
         }
         same("articles left out", &due, &vec![])?;
         if let Some([from, to]) = done.passed {
@@ -1806,6 +1840,9 @@ mod reader {
         for remover in &done.removers {
             due.push(format!("{} removes its own pieces", remover.name()));
         }
+        for action in &done.casino_management {
+            due.push(format!("Casino management in {}", action.space));
+        }
         if done.kidnapped {
             due.push("Kidnap in Santiago de Cuba".into());
         }
@@ -1861,6 +1898,57 @@ mod reader {
                 position.turn(space, State::Active, State::Underground, n);
             }
             other => return Err(format!("{other:?}")),
+        }
+        Ok(())
+    }
+
+    fn read_casino_action(
+        article: &Article,
+        action: &CasinoAction,
+        position: &mut Position,
+    ) -> Check {
+        same(
+            "Casino space",
+            &article.title,
+            &format!("Casino management in {}", action.space),
+        )?;
+        same("die", &article.die, &None)?;
+        let state = if action.state == State::Open {
+            "open"
+        } else {
+            "closed"
+        };
+        let casinos = several(
+            action.count,
+            &format!("{state} Casino"),
+            &format!("{state} Casinos"),
+        );
+        let expected = if action.closes {
+            format!("Syndicate closes {casinos} in place.")
+        } else {
+            format!("Syndicate returns {casinos} to Available Forces.")
+        };
+        same(
+            "sentences",
+            &article.lines,
+            &vec![expected, "0 Resources · no Profit.".into()],
+        )?;
+        let faction = Faction::Syndicate;
+        position.add(
+            &action.space,
+            faction,
+            Kind::Casino,
+            action.state,
+            -action.count,
+        );
+        if action.closes {
+            position.add(
+                &action.space,
+                faction,
+                Kind::Casino,
+                State::Closed,
+                action.count,
+            );
         }
         Ok(())
     }

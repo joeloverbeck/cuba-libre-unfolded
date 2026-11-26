@@ -132,9 +132,13 @@ Pin **Pass** to preview the balance after gaining 1 Resource, up to 49, and see 
 
 After Government Passes, choose **Construct · Operation Only**. After Government finishes Assault, choose **Limited Operation · Construct**. Click a marked city or province, or reach it with Tab and press Enter. Select **Open 1 closed Casino** or **Place 1 closed Casino** when offered, then use the **Pay 5** button. Check the payment and Casino counts before committing.
 
-The panel shows the remaining balance and records each payment in order. In Operation Only, select another unpaid space or choose **Finish Construct**, [including with zero payments](local-rule-policies.md#zero-space-syndicate-construct-on-card-18). Government stays Eligible. In Limited Construct, pay in one space, then choose **Finish Construct**. Government becomes Ineligible. **Back to the action choice** is available before committing Limited Construct.
+The panel shows the remaining balance and records each payment in order. In Operation Only, select another unpaid space or choose **Finish Construct**, [including with zero payments](local-rule-policies.md#zero-space-syndicate-construct-on-card-18). Government stays Eligible. In Limited Construct, pay in one space, then choose **Finish Construct**. Government becomes Ineligible. **Back to the action choice** is available before the first committed effect in Limited Construct.
 
 Finishing makes Syndicate Ineligible for card 19. A restarted game restores the paid spaces, balance and remaining choices.
+
+**Manage own pieces** opens the Syndicate's piece controls. Select an open Casino on the map to compare **Close 1 Casino in place** with **Return 1 Casino to Available**. Closing leaves a closed Casino in that space. Returning frees its slot and increases the Available Forces count. The popover shows changes to Control, open Casinos and the remaining Construct plans. Select a closed Casino to return it, and use the stepper when the selected group holds more than one piece. Tab reaches the group and its controls, and Enter or Space activates each control. **Cancel** or Escape closes the popover without committing. Select **Done** to return to Construct.
+
+An unpaid Limited Construct can refuse a piece action that would leave no affordable legal payment. The popover explains when to pay first. Management stays available after payment, and a paid space remains used even when its Casino changes.
 
 ## Handing a faction to an agent
 
