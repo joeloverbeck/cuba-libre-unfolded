@@ -564,11 +564,15 @@ fn native_casino_management_compares_pinar_and_keeps_the_payment() {
             starting = Some(app.save_bytes());
         }
         choose_row(&mut app, "syndicate:limited-operation");
-        if branch == "stack" {
-            app.choose("construct:pinar-del-rio:place");
+        let (space, plan) = if branch == "stack" {
+            ("pinar-del-rio", "place")
         } else {
-            app.choose("construct:havana:open");
-        }
+            ("havana", "open")
+        };
+        let revision = app.revision();
+        app.activate(&format!("space:{space}"), revision);
+        app.activate(&format!("popover:row:construct:{space}:{plan}"), revision);
+        app.activate("popover:commit", revision);
         choose_row(&mut app, "remove");
         let before = app.observe();
         let revision = app.revision();
@@ -724,8 +728,9 @@ fn native_casino_management_compares_pinar_and_keeps_the_payment() {
         app.capture("pinar-after");
         let after_bytes = app.save_bytes();
         fs::write(app.root.join("after-management.json"), &after_bytes).unwrap();
-        if let Some(player) = player {
+        let pre_finish = if let Some(player) = player {
             app.decide(&player, "done-removal", "applied");
+            let pre_finish = app.save_bytes();
             app.decide(&player, "end-construct", "applied");
             let (code, seen) = app.ask(&["observe", &player]);
             assert_eq!(code, 0, "{seen}");
@@ -747,6 +752,7 @@ fn native_casino_management_compares_pinar_and_keeps_the_payment() {
             .unwrap();
             app.capture("pinar-return-edition");
             app.key("Escape");
+            pre_finish
         } else {
             app.quit();
             app.launch_size("3840x2160");
@@ -759,8 +765,12 @@ fn native_casino_management_compares_pinar_and_keeps_the_payment() {
             );
             assert_eq!(app.save_bytes(), after_bytes);
             choose_row(&mut app, "done-removal");
+            let pre_finish = app.save_bytes();
             choose_row(&mut app, "end-construct");
-        }
+            pre_finish
+        };
+        assert_eq!(fs::read(previous_path(&app.save)).unwrap(), pre_finish);
+        fs::write(app.root.join("before-finish.json"), &pre_finish).unwrap();
         let complete = app.observe()["observation"].clone();
         assert_eq!(complete["eligible"], json!([false, true, true, false]));
         super::faction_seats::assert_by_hand_of(&app.save, 4);

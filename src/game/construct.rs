@@ -150,11 +150,15 @@ impl Game {
     }
 
     pub(super) fn construct_may_go_back(&self) -> bool {
-        self.construct_box() == SequenceBox::LimitedOperation
-            && self
-                .construct
-                .as_ref()
-                .is_some_and(|op| op.paid.is_empty() && !op.side_effect_committed)
+        self.construct_is_open()
+            && self.construct_box() == SequenceBox::LimitedOperation
+            && !self.construct_committed()
+    }
+
+    fn construct_committed(&self) -> bool {
+        self.construct
+            .as_ref()
+            .is_some_and(|op| !op.paid.is_empty() || op.side_effect_committed)
     }
 
     pub(super) fn limited_construct_choice(&self) -> Choice {
@@ -217,10 +221,7 @@ impl Game {
         if !self.construct_is_open() {
             return None;
         }
-        if action == BACK
-            && self.construct_box() == SequenceBox::LimitedOperation
-            && !self.construct_may_go_back()
-        {
+        if action == BACK && self.construct_committed() {
             return Some("Construct is committed. Finish Construct to record the Operation.");
         }
         let (space, plan) = payment(action)?;
