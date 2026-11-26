@@ -23,9 +23,10 @@ mod words;
 pub(crate) use words::listing;
 
 use crate::{
-    ActionChoice, AssaultResolution, Choice, ConstructPlan, ConstructResolution, Eligibility,
-    EventOutcome, EventProgress, Faction, Flip, Game, Group, Kidnap, Kind, Next, Observation,
-    Rally, RallyAction, Removal, Resolved, SequenceBox, Space, Standing, State, Transfer, title,
+    ActionChoice, AssaultResolution, Choice, ConstructFunding, ConstructPlan, ConstructResolution,
+    Eligibility, EventOutcome, EventProgress, Faction, Flip, Game, Group, Kidnap, Kind, Next,
+    Observation, Rally, RallyAction, Removal, Resolved, SequenceBox, Space, Standing, State,
+    Transfer, title,
 };
 use serde::Serialize;
 
@@ -193,6 +194,7 @@ struct Moment {
     resolved: Vec<Resolved>,
     assault_paid: Vec<AssaultResolution>,
     construct_paid: Vec<ConstructResolution>,
+    construct_funding: Option<ConstructFunding>,
 }
 
 impl Moment {
@@ -230,6 +232,7 @@ impl Moment {
             resolved: seen.resolved.clone(),
             assault_paid: seen.assault_paid.clone(),
             construct_paid: seen.construct_paid.clone(),
+            construct_funding: seen.construct_funding.clone(),
         }
     }
 
@@ -429,7 +432,19 @@ fn span(moments: &[Moment], faction: Faction, continues: bool) -> Option<Report>
         complete,
         spaces: spaces(&items),
         headline: words::headline(faction, action, first_eligible, again, complete, &items),
-        summary: words::summary(faction, &items),
+        summary: words::summary(faction, &items).map(|summary| {
+            if last.request().is_some()
+                && let Some(funding) = &last.construct_funding
+            {
+                format!(
+                    "{summary} {}. {}",
+                    funding.summary(),
+                    ConstructFunding::CONDITION
+                )
+            } else {
+                summary
+            }
+        }),
         articles: words::articles(faction, &items),
         standings: standings(first, last),
         notes: words::notes(first, last, faction),
@@ -617,6 +632,46 @@ fn transferred(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
             told.asks += 1;
             told.pending = Some(amount);
         }
+        (Some((giver, recipient, asked)), None) if !gather => {
+            if let Some(index) = items
+                .iter()
+                .rposition(|item| matches!(item, Item::Transfers(told) if told.pending.is_some()))
+            {
+                items.remove(index);
+            }
+            if after.resources != before.resources {
+                // A single reply can settle every conditional authorization. Reconstruct their
+                // individual balances in authorization order from the preceding position.
+                let mut balances = before.resources;
+                if let Some(funding) = &before.construct_funding {
+                    for authorization in &funding.authorizations {
+                        construct_transfer(
+                            items,
+                            &mut balances,
+                            authorization.giver,
+                            recipient,
+                            authorization.asked,
+                            authorization.amount,
+                        );
+                    }
+                }
+                let amount = after.resources(recipient) - balances[recipient.index()];
+                construct_transfer(items, &mut balances, giver, recipient, asked, amount);
+            } else {
+                let held = |moment: &Moment| {
+                    moment
+                        .construct_funding
+                        .as_ref()
+                        .map_or(0, |funding| funding.authorizations.len())
+                };
+                if held(before) == held(after) {
+                    let told = between(items, giver, recipient, false);
+                    told.asked = Some(asked);
+                    told.asks = 1;
+                    told.unmet = 1;
+                }
+            }
+        }
         (Some((giver, recipient, _)), None) => {
             let told = between(items, giver, recipient, true);
             told.pending = None;
@@ -644,6 +699,35 @@ fn transferred(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
         }
         _ => {}
     }
+}
+
+fn construct_transfer(
+    items: &mut Vec<Item>,
+    balances: &mut [u8; 4],
+    giver: Faction,
+    recipient: Faction,
+    asked: u8,
+    amount: u8,
+) {
+    let from = balances[giver.index()];
+    let to = balances[recipient.index()];
+    balances[giver.index()] -= amount;
+    balances[recipient.index()] += amount;
+    let told = between(items, giver, recipient, false);
+    told.asked = Some(asked);
+    told.asks = 1;
+    told.moves = 1;
+    told.given = u16::from(amount);
+    told.balances = Some((
+        Balance {
+            from,
+            to: from - amount,
+        },
+        Balance {
+            from: to,
+            to: to + amount,
+        },
+    ));
 }
 
 fn moved(before: &Moment, after: &Moment, told: &mut Transfers) {

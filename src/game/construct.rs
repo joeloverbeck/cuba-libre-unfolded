@@ -24,6 +24,40 @@ pub(crate) fn construct_name(first_eligible: bool) -> &'static str {
 pub(super) struct Construct {
     paid: Vec<ConstructResolution>,
     pub(super) side_effect_committed: bool,
+    authorizations: Vec<ConstructAuthorization>,
+}
+
+/// A giver's conditional reply, kept in decision order until it settles or is released.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ConstructAuthorization {
+    pub giver: Faction,
+    pub asked: u8,
+    pub amount: u8,
+}
+
+/// The funding still needed before conditional authorizations can move Resources.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct ConstructFunding {
+    pub authorizations: Vec<ConstructAuthorization>,
+    pub shortfall: u8,
+}
+
+impl ConstructFunding {
+    pub(crate) const CONDITION: &str =
+        "Resources move only when authorizations fund a legal payment.";
+
+    pub(crate) fn authorized(&self) -> u8 {
+        self.authorizations.iter().map(|a| a.amount).sum()
+    }
+
+    pub(crate) fn summary(&self) -> String {
+        format!(
+            "{} conditionally authorized · {} still needed",
+            self.authorized(),
+            self.shortfall
+        )
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -160,8 +194,38 @@ impl Game {
         })
     }
 
+    pub(super) fn construct_authorizations(&self) -> &[ConstructAuthorization] {
+        self.construct.as_ref().map_or(&[], |op| &op.authorizations)
+    }
+
+    pub(super) fn construct_reserved(&self, giver: Option<Faction>) -> u8 {
+        self.construct_authorizations()
+            .iter()
+            .filter(|a| giver.is_none_or(|giver| giver == a.giver))
+            .map(|a| a.amount)
+            .sum()
+    }
+
+    fn construct_funding_shortfall(&self) -> Option<u8> {
+        let held = self.construct_balance() + self.construct_reserved(None);
+        (self.construct_may_go_back()
+            && held < CONSTRUCT_COST
+            && self.can_afford_construct_payment(CONSTRUCT_COST))
+        .then(|| CONSTRUCT_COST - held)
+    }
+
+    pub(super) fn construct_funding(&self) -> Option<ConstructFunding> {
+        Some(ConstructFunding {
+            authorizations: self.construct_authorizations().to_vec(),
+            shortfall: self.construct_funding_shortfall()?,
+        })
+    }
+
     pub(super) fn construct_authorization_refusal(&self, amount: u8) -> Option<String> {
         if !self.construct_payment_owed() || amount == 0 {
+            return None;
+        }
+        if self.construct_funding_shortfall().is_some() {
             return None;
         }
         let needed = CONSTRUCT_COST.saturating_sub(self.construct_balance());
@@ -174,6 +238,62 @@ impl Game {
         (!self.can_afford_construct_payment(self.construct_balance() + amount)).then(|| {
             "Syndicate needs a legal space for its required Limited Construct payment (local policy, #215).".into()
         })
+    }
+
+    pub(super) fn construct_authorization_condition(&self, amount: u8) -> Option<String> {
+        let shortfall = self.construct_funding_shortfall()?;
+        if amount == 0 {
+            return None;
+        }
+        Some(if amount < shortfall {
+            format!(
+                "Hold {} conditionally. {} still needed before any of these Resources move (local policy, #215).",
+                resources(amount),
+                resources(shortfall - amount)
+            )
+        } else if self.construct_authorizations().is_empty() {
+            format!(
+                "Move {} now. Syndicate chooses where to pay (R 1.5.1, 3.3.5).",
+                resources(amount)
+            )
+        } else {
+            format!(
+                "Move {} now, including all conditional authorizations. Syndicate chooses where to pay (local policy, #215).",
+                resources(amount + self.construct_reserved(None))
+            )
+        })
+    }
+
+    pub(super) fn authorize_transfer(
+        &mut self,
+        giver: Faction,
+        recipient: Faction,
+        asked: u8,
+        amount: u8,
+    ) {
+        if amount == 0 {
+            return;
+        }
+        if let Some(shortfall) = self.construct_funding_shortfall() {
+            if amount < shortfall {
+                self.construct
+                    .as_mut()
+                    .unwrap()
+                    .authorizations
+                    .push(ConstructAuthorization {
+                        giver,
+                        asked,
+                        amount,
+                    });
+                return;
+            }
+            let authorizations =
+                std::mem::take(&mut self.construct.as_mut().unwrap().authorizations);
+            for authorization in authorizations {
+                self.move_resources(authorization.giver, recipient, authorization.amount);
+            }
+        }
+        self.move_resources(giver, recipient, amount);
     }
 
     pub(super) fn limited_construct_choice(&self) -> Choice {
@@ -278,9 +398,8 @@ impl Game {
         let available = self.casino_inventory();
         let balance = self.construct_balance();
         let transfer_helps = balance < CONSTRUCT_COST
-            && Faction::ALL.into_iter().any(|giver| {
-                giver != SYNDICATE && self.terms(giver, SYNDICATE).limit >= CONSTRUCT_COST - balance
-            });
+            && self.balance_after_transfers(SYNDICATE) + self.construct_reserved(None)
+                >= CONSTRUCT_COST;
         for space in self
             .spaces
             .iter()
@@ -363,15 +482,21 @@ impl Game {
     }
 
     pub(super) fn construct_back_choice(&self) -> Choice {
+        let funding = if self.construct_authorizations().is_empty() {
+            ""
+        } else {
+            " Release the conditional authorizations."
+        };
+        let withdrawal = if self.transfer.is_some() {
+            " Withdraw the pending request."
+        } else {
+            ""
+        };
         let mut choice = self.offer(
             BACK,
             "Back to the action choice",
             true,
-            if self.transfer.is_some() {
-                "Withdraw the pending request and leave before committing any effect. Syndicate may choose Pass or Limited Construct (local policy, #215)."
-            } else {
-                "Leave before committing any effect. Syndicate may choose Pass or Limited Construct (local policy, #215)."
-            },
+            format!("Leave before committing any effect.{withdrawal}{funding} Syndicate may choose Pass or Limited Construct (local policy, #215)."),
         );
         choice.owner = SYNDICATE;
         choice
@@ -413,6 +538,7 @@ impl Game {
                 self.construct = Some(Construct {
                     paid: vec![],
                     side_effect_committed: false,
+                    authorizations: vec![],
                 });
             }
             BACK => {
@@ -509,6 +635,26 @@ mod tests {
         ] {
             game.apply(action).unwrap();
         }
+        let mut conditional = game.clone();
+        // Reserve incoming room even when the second giver could send 49 on its own.
+        conditional.resources = [49, 4, 5, 3];
+        for action in ["transfer", "ask:1:2", "authorize:1", "transfer", "ask:0:45"] {
+            conditional.apply(action).unwrap();
+        }
+        let pending = conditional.observe();
+        assert_eq!(pending.transfer_terms[0].limit, 45);
+        let refused = conditional
+            .submit(
+                pending.owner,
+                pending.revision,
+                &format!("{}:authorize:46", pending.revision),
+            )
+            .unwrap_err();
+        assert!(refused.contains("1 Resource conditionally authorized toward that cap"));
+        assert_eq!(conditional.observe(), pending);
+        conditional.apply("authorize:45").unwrap();
+        assert_eq!(conditional.observe().resources, [4, 3, 5, 49]);
+
         // R 1.8 permits these balances, beyond the Resources available in this
         // two-card slice. This rules-only position tests both directions at 48/49.
         game.resources = [2, 48, 5, 48];

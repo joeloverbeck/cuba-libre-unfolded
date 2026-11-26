@@ -25,7 +25,7 @@
 use super::emblems;
 use super::palette::{INK, PAPER, PRIMARY, QUIET};
 use super::*;
-use crate::{Bound, Observation, Transfer, TransferTerms};
+use crate::{Bound, ConstructFunding, Observation, Transfer, TransferTerms};
 use bevy::text::{Justify, LetterSpacing};
 use bevy::ui::widget::NodeImageMode;
 use bevy::ui_widgets::{
@@ -217,6 +217,31 @@ pub(super) struct Shown {
     pub blocked: Option<String>,
     pub label: String,
 }
+
+impl Shown {
+    fn balances(&self, terms: &TransferTerms, funding: Option<&ConstructFunding>) -> (i16, i16) {
+        if let Some(funding) = funding
+            && terms.recipient == Faction::Syndicate
+        {
+            if self.amount < funding.shortfall {
+                return balances(terms, 0);
+            }
+            let previously_authorized = funding
+                .authorizations
+                .iter()
+                .filter(|a| a.giver == terms.giver)
+                .map(|a| i16::from(a.amount))
+                .sum::<i16>();
+            let (giver, recipient) = balances(terms, self.amount);
+            return (
+                giver - previously_authorized,
+                recipient + i16::from(funding.authorized()),
+            );
+        }
+        balances(terms, self.amount)
+    }
+}
+
 pub(super) fn content(view: &Observation, state: &State) -> Shown {
     let executor = view.executing;
     let amount = state.amount();
@@ -332,11 +357,18 @@ fn limits(terms: &TransferTerms, executor: Option<Faction>) -> [(&'static str, S
                     "Limit {}: pay for Limited Construct first to give more",
                     terms.limit
                 )
+            } else if binding(Bound::ConstructAuthorization) {
+                format!(
+                    "Limit {}: {} already authorized",
+                    terms.limit, terms.reserved
+                )
             } else if binding(Bound::Reserve) {
                 format!(
                     "Limit {}: {} reserved for owed Terror",
                     terms.limit, terms.reserved
                 )
+            } else if terms.recipient == Faction::Syndicate && terms.reserved > 0 {
+                format!("{} already authorized", terms.reserved)
             } else if executor == Some(Faction::Syndicate) {
                 if terms.reserved > 0 {
                     format!("{} kept for Limited Construct", resources(terms.reserved))
@@ -348,7 +380,9 @@ fn limits(terms: &TransferTerms, executor: Option<Faction>) -> [(&'static str, S
             } else {
                 "Nothing reserved from this giver".into()
             },
-            binding(Bound::Reserve) || binding(Bound::ConstructPayment),
+            binding(Bound::Reserve)
+                || binding(Bound::ConstructPayment)
+                || binding(Bound::ConstructAuthorization),
         ),
     ]
 }
@@ -618,7 +652,7 @@ pub(super) fn draw(
         let view = game.observe();
         let shown = content(&view, &ui.transfer);
         if let Some(terms) = &shown.terms {
-            follow(&mut live, terms, shown.amount, s);
+            follow(&mut live, terms, &shown, view.construct_funding.as_ref(), s);
         }
         return;
     }
@@ -663,9 +697,12 @@ pub(super) fn draw(
 fn follow(
     live: &mut Query<(&Live, &mut Node, Option<&mut Text>)>,
     terms: &TransferTerms,
-    amount: u8,
+    shown: &Shown,
+    funding: Option<&ConstructFunding>,
     s: f32,
 ) {
+    let amount = shown.amount;
+    let (giver, recipient) = shown.balances(terms, funding);
     let x = position(terms, amount) * s;
     for (part, mut node, text) in live.iter_mut() {
         match part {
@@ -678,12 +715,12 @@ fn follow(
             }
             Live::GiverAfter => {
                 if let Some(mut text) = text {
-                    text.0 = balances(terms, amount).0.to_string();
+                    text.0 = giver.to_string();
                 }
             }
             Live::RecipientAfter => {
                 if let Some(mut text) = text {
-                    text.0 = balances(terms, amount).1.to_string();
+                    text.0 = recipient.to_string();
                 }
             }
         }
@@ -1197,7 +1234,7 @@ fn modal(
     let terms = shown.terms.as_ref();
     let after = |faction: Faction| -> Option<(i16, Live, bool)> {
         let terms = terms?;
-        let (giver, recipient) = balances(terms, shown.amount);
+        let (giver, recipient) = shown.balances(terms, view.construct_funding.as_ref());
         if faction == terms.giver {
             Some((giver, Live::GiverAfter, refused))
         } else {
@@ -1990,7 +2027,19 @@ fn footer(
         (None, Some(giver)) => format!("Nothing moves until {} authorizes.", giver.name()),
         (None, None) => "Zero and repeated transfers are allowed.".into(),
     };
+    let funding = view
+        .construct_funding
+        .as_ref()
+        .filter(|_| shown.giver != view.executing);
+    let note = if let Some(funding) = funding {
+        format!("{}\n{}", funding.summary(), ConstructFunding::CONDITION)
+    } else {
+        note
+    };
     let n = words(commands, art, footer, note, fig::ROLE, false, QUIET, 0., s);
+    if funding.is_some() {
+        part(commands, n, "construct-funding");
+    }
     commands.entity(n).insert(Node {
         flex_grow: 1.,
         ..default()
@@ -2192,28 +2241,45 @@ fn pending(
             ..default()
         },
     );
-    words(
+    let status = words(
         commands,
         art,
         text,
-        format!("{amount} requested · pending"),
+        view.construct_funding.as_ref().map_or_else(
+            || format!("{amount} requested · pending"),
+            |funding| {
+                format!(
+                    "{} authorized · {} needed",
+                    funding.authorized(),
+                    funding.shortfall
+                )
+            },
+        ),
         fig::SMALL,
         false,
         INK,
         0.,
         s,
     );
-    words(
+    let owner = words(
         commands,
         art,
         text,
-        format!("{} decides", giver.name()),
+        if view.construct_funding.is_some() {
+            format!("{} decides · {amount} requested", giver.name())
+        } else {
+            format!("{} decides", giver.name())
+        },
         fig::ROLE,
         false,
         QUIET,
         0.,
         s,
     );
+    if view.construct_funding.is_some() {
+        part(commands, status, "pending-construct-funding");
+        part(commands, owner, "pending-construct-giver");
+    }
     if !ui.plays(giver) {
         return;
     }

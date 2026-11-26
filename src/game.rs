@@ -15,7 +15,9 @@ pub use cards::{
     LastingEffect, PROPAGANDA_CARDS, Piles, Role, ShownCards, is_propaganda,
 };
 pub(crate) use construct::construct_name;
-pub use construct::{CONSTRUCT_COST, ConstructPlan, ConstructResolution};
+pub use construct::{
+    CONSTRUCT_COST, ConstructAuthorization, ConstructFunding, ConstructPlan, ConstructResolution,
+};
 pub use pile_facts::{
     DeckFacts, DeckWords, NextPropaganda, PlayedCard, PlayedPile, PlayedWords, next_propaganda,
     next_propaganda_words,
@@ -595,6 +597,8 @@ pub enum Bound {
     Reserve,
     /// The Resources Syndicate keeps for its required Limited Construct payment.
     ConstructPayment,
+    /// A giver's existing conditional authorization for Limited Construct.
+    ConstructAuthorization,
 }
 /// The terms of one transfer direction now: what the giver holds, what the recipient
 /// can still receive, what is held back and the largest amount that may move.
@@ -608,7 +612,7 @@ pub struct TransferTerms {
     pub held: u8,
     /// What the recipient can receive before it holds 49 (R 1.8).
     pub room: u8,
-    /// Kept by the giver for a required payment.
+    /// Kept by the giver for a required payment or already conditionally authorized.
     pub reserved: u8,
     /// The largest amount that may move: the least of the three limits.
     pub limit: u8,
@@ -624,11 +628,25 @@ impl TransferTerms {
         }
         let why = match self.bound {
             Bound::Balance => format!("{} has {}", self.giver.name(), resources(self.balance)),
-            Bound::Cap => format!(
-                "{} holds {} of at most {RESOURCE_CAP} Resources",
-                self.recipient.name(),
-                self.held
-            ),
+            Bound::Cap => {
+                let authorized = RESOURCE_CAP
+                    .saturating_sub(self.held)
+                    .saturating_sub(self.room);
+                if authorized > 0 {
+                    format!(
+                        "{} holds {} of at most {RESOURCE_CAP} Resources, with {} conditionally authorized toward that cap",
+                        self.recipient.name(),
+                        self.held,
+                        resources(authorized)
+                    )
+                } else {
+                    format!(
+                        "{} holds {} of at most {RESOURCE_CAP} Resources",
+                        self.recipient.name(),
+                        self.held
+                    )
+                }
+            }
             Bound::Reserve => format!(
                 "the owed Santiago Terror needs {} of 26July's {}",
                 self.reserved,
@@ -640,6 +658,11 @@ impl TransferTerms {
                     self.limit
                 ));
             }
+            Bound::ConstructAuthorization => format!(
+                "{} already conditionally authorized {} for Syndicate",
+                self.giver.name(),
+                resources(self.reserved)
+            ),
         };
         Some(format!("{amount} is more than {}: {why}.", self.limit))
     }
@@ -703,6 +726,8 @@ pub struct Observation {
     pub assault_paid: Vec<AssaultResolution>,
     /// Paid Construct spaces in order, with the Casino action that each payment resolved.
     pub construct_paid: Vec<ConstructResolution>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub construct_funding: Option<ConstructFunding>,
     pub special_activity: Option<String>,
     pub owed_terror: Option<String>,
     pub transfer: Option<Transfer>,
@@ -1352,6 +1377,7 @@ impl Game {
             },
             assault_paid: self.assault_paid(),
             construct_paid: self.construct_paid().to_vec(),
+            construct_funding: self.construct_funding(),
             special_activity: self.kidnap.as_ref().map(|_| "Kidnap".into()),
             owed_terror: self.owes_santiago().then(|| "santiago".into()),
             transfer: self.transfer.clone(),
@@ -2573,6 +2599,7 @@ impl Game {
             // "Ask from" creates a Transfer request that moves nothing (R 1.5.1).
             Some(Transfer::Selecting) => {
                 let mut choices = vec![];
+                let funding = self.construct_funding();
                 for terms in self.transfer_terms() {
                     let (verb, other) = if terms.giver == executor {
                         ("give", terms.recipient)
@@ -2588,11 +2615,15 @@ impl Game {
                                 format!("{}'s own Resource transfer moves at once (R 1.5.1).", executor.name()),
                             )
                         } else {
+                            let explanation = format!("A Transfer request: nothing moves until {} decides the actual amount (R 1.5.1).", other.name());
                             self.offer(
                                 &format!("ask:{}:{n}", other.index()),
                                 format!("Ask {} for {n}", other.name()),
                                 true,
-                                format!("A Transfer request: nothing moves until {} decides the actual amount (R 1.5.1).", other.name()),
+                                match &funding {
+                                    Some(funding) => format!("{explanation} {}. {}", funding.summary(), ConstructFunding::CONDITION),
+                                    None => explanation,
+                                },
                             )
                         });
                     }
@@ -2620,6 +2651,9 @@ impl Game {
                             format!("{} authorizes {n}", giver.name()),
                             refusal.is_none(),
                             refusal.unwrap_or_else(|| {
+                                if let Some(condition) = self.construct_authorization_condition(n) {
+                                    return condition;
+                                }
                                 if self.construct_is_open() {
                                     if n == 0 {
                                         "Authorize 0. No Resources move (R 1.5.1).".into()
@@ -3149,10 +3183,13 @@ impl Game {
                 }
             }
             Some(Transfer::Authorizing {
-                giver, recipient, ..
+                giver,
+                recipient,
+                amount: asked,
+                ..
             }) => {
                 let amount = action.strip_prefix("authorize:").unwrap().parse().unwrap();
-                self.move_resources(giver, recipient, amount);
+                self.authorize_transfer(giver, recipient, asked, amount);
                 self.transfer = None;
             }
         }
@@ -3194,7 +3231,17 @@ impl Game {
     fn terms(&self, giver: Faction, recipient: Faction) -> TransferTerms {
         let balance = self.resources[giver.index()];
         let held = self.resources[recipient.index()];
-        let room = RESOURCE_CAP.saturating_sub(held);
+        let conditional = if recipient == Faction::Syndicate {
+            self.construct_reserved(Some(giver))
+        } else {
+            0
+        };
+        let committed_room = if recipient == Faction::Syndicate {
+            self.construct_reserved(None)
+        } else {
+            0
+        };
+        let room = RESOURCE_CAP.saturating_sub(held + committed_room);
         let (reserve, reserve_bound) =
             if giver == Faction::Syndicate && self.construct_payment_owed() {
                 let minimum = if self.can_afford_construct_payment(CONSTRUCT_COST) {
@@ -3203,6 +3250,8 @@ impl Game {
                     balance
                 };
                 (minimum, Bound::ConstructPayment)
+            } else if conditional > 0 {
+                (conditional, Bound::ConstructAuthorization)
             } else {
                 (
                     u8::from(giver == Faction::M26 && self.owes_santiago()),

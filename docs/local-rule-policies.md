@@ -47,6 +47,12 @@ Syndicate becomes 2nd Eligible and may Pass or choose a Limited Operation under 
 
 **Policy:** Before the first committed effect, Syndicate may choose **Back to the action choice** and reconsider. A nonzero Resource transfer commits the attempt and stands. A request, a decline or an answer of zero leaves Syndicate free to go back if it has already committed no effect. Going back withdraws any pending request. Before payment, a side decision that commits the attempt or changes the committed position must leave at least one legal plan and 5 Resources to pay for it. This applies to outgoing transfers and Casino management. After payment, the ordinary transfer limits apply. [Spec #215](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/215)
 
+### Partial funding for Limited Construct
+
+**Rules:** R 1.5.1 gives the giver control of the actual amount. R 1.8 caps the recipient at 49 Resources, and R 2.3.5 and 3.3.5 require one paid space in Limited Construct.
+
+**Policy:** While an uncommitted Limited Construct needs Resources for its first legal payment, an insufficient authorization holds its amount conditionally. It uses the giver's uncommitted balance and reserves that much room under Syndicate's cap. As soon as the actual authorizations can fund a legal plan, every held amount and the final reply move together. Syndicate then chooses where to pay and keeps any excess. Leaving Limited Construct releases every unspent authorization. [Spec #215](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/215)
+
 ### Next Propaganda assumes equal piles
 
 **Rules:** Deck Preparation splits the Event cards "into 4 roughly (or, if desired, exactly) equal piles" and shuffles one Propaganda card into each. R 2.2 opens the played cards and the deck's number to inspection, not the order of the deck.
