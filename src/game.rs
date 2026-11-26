@@ -14,6 +14,7 @@ pub use cards::{
     CardFacts, CardWords, DECK_CARDS, EventKind, EventStatement, EventStatus, EventText,
     LastingEffect, PROPAGANDA_CARDS, Piles, Role, ShownCards, is_propaganda,
 };
+pub(crate) use construct::construct_name;
 pub use construct::{CONSTRUCT_COST, ConstructPlan, ConstructResolution};
 pub use pile_facts::{
     DeckFacts, DeckWords, NextPropaganda, PlayedCard, PlayedPile, PlayedWords, next_propaganda,
@@ -304,6 +305,9 @@ pub struct Eligibility {
     /// The box Government's cylinder occupies on card 18.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub government_box: Option<SequenceBox>,
+    /// The box that records Syndicate's completed action on card 18.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub syndicate_box: Option<SequenceBox>,
     /// Whether 26July is Eligible for the next card, once its action is recorded:
     /// a Pass leaves it Eligible (R 2.3.3); an Operation makes it Ineligible when
     /// cylinders are adjusted after the card (R 2.3.7).
@@ -316,6 +320,11 @@ pub struct Eligibility {
     event_started: bool,
 }
 impl Eligibility {
+    #[cfg(feature = "tabletop")]
+    pub(crate) fn construct_name(&self) -> &'static str {
+        construct_name(self.government_box == Some(SequenceBox::Pass))
+    }
+
     /// The card 17 continuation opens only after 26July records Terror with Kidnap.
     pub(crate) fn directorio_handoff(&self) -> bool {
         self.m26_box == Some(SequenceBox::OperationWithSpecialActivity) && !self.event_started
@@ -344,7 +353,7 @@ impl EligibilityReason {
             Self::ExecutedOperation => "executed Terror",
             Self::ExecutedEvent => "executed the Event",
             Self::ExecutedAssault => "executed Assault",
-            Self::ExecutedConstruct => "executed Limited Construct",
+            Self::ExecutedConstruct => "executed Construct",
         }
     }
 }
@@ -1296,6 +1305,9 @@ impl Game {
             next: self.next(),
             operation: match self.action {
                 _ if self.card_18_completion.is_some() => "Card 18 ended: Eligibility adjusted",
+                _ if self.construct_is_open() && self.government_pass_from.is_some() => {
+                    "Syndicate executes Construct"
+                }
                 _ if self.construct_is_open() => "Syndicate executes Limited Construct",
                 _ if self.government_pass_from.is_some() => {
                     "Government Passed: Syndicate is 1st Eligible on card 18"
@@ -1676,12 +1688,9 @@ impl Game {
             preview.records = after.eligibility().government_box;
             preview.next = after.next();
         } else if matches!(action, "syndicate:pass" | construct::FINISH) {
-            preview.records = Some(if action == construct::FINISH {
-                SequenceBox::LimitedOperation
-            } else {
-                SequenceBox::Pass
-            });
-            preview.next_card = after.eligibility().next_card;
+            let eligibility = after.eligibility();
+            preview.records = eligibility.syndicate_box;
+            preview.next_card = eligibility.next_card;
         } else if after.m26_action_ended && !action.starts_with("remove:") {
             if matches!(
                 action,
@@ -1782,7 +1791,12 @@ impl Game {
             match action {
                 "government:pass" => notes.push("Government stays Eligible for the next card. Syndicate now decides as 1st Eligible (R 2.3.3).".into()),
                 "syndicate:pass" => notes.push("Syndicate stays Eligible. Card 18 ends after Eligibility is adjusted. Card 19 stays in preview (R 2.3.3, 2.3.7).".into()),
-                construct::FINISH => notes.push("Card 18 ends after Eligibility is adjusted. Card 19 stays in preview (R 2.3.7).".into()),
+                construct::FINISH => {
+                    if self.construct_paid().is_empty() {
+                        notes.push(construct::EMPTY_FINISH_POLICY.into());
+                    }
+                    notes.push("Card 18 ends after Eligibility is adjusted. Card 19 stays in preview (R 2.3.7).".into());
+                }
                 _ if Self::is_construct_action(action) => {
                     notes.extend(self.construct_payment_notes(after, action).unwrap_or_default());
                 }
@@ -1946,6 +1960,10 @@ impl Game {
                 m26_box: None,
                 m26_next_card: None,
                 government_box,
+                syndicate_box: self.card_18_completion.map(|completion| match completion {
+                    Card18Completion::Pass { .. } => SequenceBox::Pass,
+                    Card18Completion::Construct => self.construct_box(),
+                }),
                 next_card,
                 event_restriction: if next_card.is_none() {
                     event_restriction
@@ -1972,6 +1990,7 @@ impl Game {
                 Faction::Directorio
             }),
             government_box: None,
+            syndicate_box: None,
             m26_box: match self.action {
                 ActionChoice::Pass => Some(SequenceBox::Pass),
                 ActionChoice::Terror if self.m26_action_ended && self.kidnap.is_some() => {
@@ -2488,11 +2507,7 @@ impl Game {
                     "Activate a Syndicate Underground Guerrilla at each target. Pay 1 Resource per City or Province to place Terror and shift toward Neutral, or 0 per economic center to place Sabotage (R 3.3.4).{terror_refusal}"
                 ),
             ),
-            offer(
-                "construct",
-                "Construct · Operation",
-                "Pay 5 Resources per Government- or Syndicate-controlled City or Province to open or place a Casino within stacking limits (R 3.3.5).",
-            ),
+            self.operation_only_construct_choice(),
             offer(
                 "profit",
                 "Profit · Special Activity",
@@ -2959,7 +2974,7 @@ impl Game {
                 self.card_18_completion = Some(Card18Completion::Pass { from: *balance });
                 *balance = Self::syndicate_pass_balance(*balance);
             }
-            "syndicate:limited-operation" => return self.apply_construct(action),
+            construct::OPERATION_ONLY | construct::LIMITED => return self.apply_construct(action),
             _ if self.construct_is_open() => return self.apply_construct(action),
             _ if self.card_18 => return self.apply_assault(action, next_revision),
             "terror" if self.action == ActionChoice::Open => self.action = ActionChoice::Terror,

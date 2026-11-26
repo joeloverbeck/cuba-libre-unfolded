@@ -417,6 +417,16 @@ fn payment_lines(view: &Observation) -> Vec<AssaultLine> {
         name: "construct-map-line".into(),
         words: if view.construct_paid.is_empty() {
             super::execution::MAP_LINE.into()
+        } else if view.eligibility.government_box == Some(crate::SequenceBox::Pass) {
+            if view
+                .choices
+                .iter()
+                .any(|c| c.supported && c.space().is_some())
+            {
+                "Choose another space or finish Construct.".into()
+            } else {
+                "Finish to record Operation Only.".into()
+            }
         } else {
             "One space paid. Finish to record the Limited Operation.".into()
         },
@@ -498,8 +508,13 @@ fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool, agent
             return "Select a marked piece on the map.\nChoose Done to return to Assault.".into();
         }
         if view.executing == Some(Faction::Syndicate) {
+            let per_space = if view.eligibility.government_box == Some(crate::SequenceBox::Pass) {
+                "per space"
+            } else {
+                "for one space"
+            };
             return format!(
-                "{balance} · {} for one space",
+                "{balance} · {} {per_space}",
                 resources(crate::CONSTRUCT_COST)
             );
         }
@@ -605,7 +620,7 @@ pub(super) fn panel(
             "Government · Assault".into()
         }
         _ if card_18 && view.executing == Some(Faction::Syndicate) => {
-            "Syndicate · Limited Construct".into()
+            format!("Syndicate · {}", view.eligibility.construct_name())
         }
         _ if card_18 => format!("{}'s decision", view.owner.name()),
         Some(EventProgress::ExecuteShaded) => "Directorio · Shaded Event".into(),

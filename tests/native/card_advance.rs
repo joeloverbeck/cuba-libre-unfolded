@@ -422,10 +422,8 @@ fn native_government_pass_credits_once_and_hands_first_choice_to_syndicate() {
         );
         assert!(briefing.contains("5 Resources"), "{briefing}");
         app.capture("syndicate-construct-briefing");
-        app.request(
-            json!({"op":"activate","revision":revision+1,"choice":format!("{}:syndicate:construct", revision+1)}),
-            false,
-        );
+        assert_eq!(inspection["observation"], *after);
+        assert_eq!(fs::read(&app.save).unwrap(), committed);
         app.quit();
 
         app.launch_size("3840x2160");
