@@ -167,8 +167,12 @@ pub(super) fn articles(faction: Faction, items: &[Item]) -> Vec<Article> {
                 Item::WentBack { request } => Some(article(
                     "Back to the action choice",
                     vec![match request {
-                        Some(giver) => format!("26July withdraws its request to {}.", giver.name()),
-                        None => "26July goes back to its action choice.".into(),
+                        Some(giver) => format!(
+                            "{} withdraws its request to {}.",
+                            faction.name(),
+                            giver.name()
+                        ),
+                        None => format!("{} goes back to its action choice.", faction.name()),
                     }],
                 )),
                 Item::Transfers(told) => transfers(told),

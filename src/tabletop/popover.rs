@@ -393,6 +393,10 @@ fn assault(view: &Observation) -> bool {
     view.current_card == 18 && view.executing == Some(Faction::Government)
 }
 
+fn construct(view: &Observation) -> bool {
+    view.current_card == 18 && view.executing == Some(Faction::Syndicate)
+}
+
 /// An Assault plan's preview (#169), from the authority: the capacity arithmetic,
 /// the payment, whom the plan can affect, what it removes or closes, the Control and
 /// standings that change, and whether another space could still be paid. Each part is
@@ -498,7 +502,12 @@ fn preview_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
             ));
         }
     }
-    for f in &preview.flips {
+    // Construct's notes state both Casino counts in the space.
+    for f in preview
+        .flips
+        .iter()
+        .filter(|f| !construct(view) || f.kind != Kind::Casino)
+    {
         lines.push((
             Tone::Plain,
             format!(
@@ -596,7 +605,7 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
         .or_else(|| here.iter().find(|c| c.supported))
         .map(|c| c.id.clone());
     let assault = assault(view);
-    let construct = view.current_card == 18 && view.executing == Some(Faction::Syndicate);
+    let construct = construct(view);
     let head = |choice: &Choice| -> (String, String) {
         if assault {
             // The plan's own label: the factions targeted and a short capacity's

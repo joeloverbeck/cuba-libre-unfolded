@@ -254,15 +254,14 @@ impl Game {
         after: &Self,
         action: &str,
     ) -> Option<Vec<String>> {
-        let (id, plan) = payment(action)?;
+        let (id, _) = payment(action)?;
         let space = self.spaces.iter().find(|s| s.id == id)?;
         let result = after.spaces.iter().find(|s| s.id == id)?;
         let before_available = self.casino_inventory();
         let after_available = after.casino_inventory();
         Some(vec![
             format!(
-                "{}. Open Casinos here {} → {}. Closed Casinos here {} → {}.",
-                plan.label(),
+                "Open Casinos here {} → {}. Closed Casinos here {} → {}.",
                 casinos(space, State::Open),
                 casinos(result, State::Open),
                 casinos(space, State::Closed),

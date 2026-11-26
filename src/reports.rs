@@ -474,7 +474,11 @@ fn standings(first: &Moment, last: &Moment) -> Vec<Row> {
 /// nothing.
 fn happened(before: &Moment, after: &Moment, continues: bool, items: &mut Vec<Item>) {
     let name = |id: &str| after.space(id).name.clone();
-    if before.action == ActionChoice::Terror && after.action == ActionChoice::Open {
+    let left_terror = before.action == ActionChoice::Terror && after.action == ActionChoice::Open;
+    let left_construct = before.executing == Some(Faction::Syndicate)
+        && after.executing.is_none()
+        && after.actor == Some(Faction::Syndicate);
+    if left_terror || left_construct {
         // Nothing had an effect, so only what an earlier report told is undone.
         items.clear();
         if continues {
