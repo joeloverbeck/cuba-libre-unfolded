@@ -160,7 +160,7 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `popover:casino-close`, `popover:casino-return` | Casino popover during Construct | Commit closing the selected quantity in place or returning it to Available. A closed group offers return. |
 | `popover:quantity:minus`, `popover:quantity:plus` | Piece popover | Steps the quantity. |
 | `popover:cancel` | Piece popover | Cancels. |
-| `own-piece:<space>:<group>` | Removal mode | Opens an executing faction's piece popover. The seat reaches it as `piece:<space> <faction> <Kind> <State>`, for example `piece:santiago Government Troops Ordinary`. Use `M26` for 26July and `Directorio` for Directorio. |
+| `own-piece:<space>:<group>` | Removal mode | Opens an executing faction's piece popover. This is the focused name in Construct's management. Pointer activation uses `piece:<space> <faction> <Kind> <State>`, for example `piece:pinar-del-rio Syndicate Casino Open`. Use `M26` for 26July and `Directorio` for Directorio. |
 
 [`art/atlas/EXECUTION.md`](../../art/atlas/EXECUTION.md) lists every name in the execution panel.
 
