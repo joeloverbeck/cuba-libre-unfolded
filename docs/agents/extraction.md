@@ -30,6 +30,8 @@ In #137 three reviews in a row found a boundary row in `unfolded-tabletop`'s `do
 - the owner decision that covers it, by date and link;
 - for an item Cuba Libre is ticketed to use, "not yet built", the ticket and the end condition.
 
+In #199, #201 and #202 most review findings, and most repair rounds, were statements past their evidence: what was measured, read or not tried, under which conditions. Write every record of a sibling to this repository's [`CODING_STANDARDS.md`](../../CODING_STANDARDS.md) as well as that sibling's own.
+
 ## Merging before Cuba Libre uses the mechanism
 
 [Foundation 3's waiver section](../foundation/03-engineering-and-reuse.md#accepted-evid-6-waiver) says when this is covered and what the extraction's issue names.
