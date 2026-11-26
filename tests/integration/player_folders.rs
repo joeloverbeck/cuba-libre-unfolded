@@ -132,6 +132,15 @@ fn claude_code_is_denied_reading_the_saves_and_the_checkout() {
         ]
     );
     assert!(writes.contains(&"Edit(/.claude/**)"), "{writes:?}");
+
+    // Setup can be retried if it stopped while replacing the generated settings.
+    let path = root.join("player/claude-code/.claude/settings.json");
+    fs::remove_file(&path).unwrap();
+    assert!(written(data.path()).status.success());
+    assert_eq!(
+        serde_json::from_slice::<Value>(&fs::read(path).unwrap()).unwrap(),
+        settings
+    );
 }
 
 /// A worktree's checkout is the one that holds it, so a session started by a build of a

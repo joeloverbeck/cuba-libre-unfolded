@@ -111,15 +111,11 @@ impl Places {
             .and_then(Value::as_array_mut)
             .context("the folder's settings list no denials")?
             .extend(unread.iter().map(|rule| json!(rule)));
-        // Publish the complete settings in one rename, without writing through the old name.
-        let pending = path.with_extension("json.pending");
-        let mut file = fs::File::create_new(&pending)?;
-        if let Err(error) =
-            writeln!(file, "{settings:#}").and_then(|()| fs::rename(&pending, &path))
-        {
-            let _ = fs::remove_file(&pending);
-            return Err(error.into());
-        }
+        // Replace the library's file as its writer does. Setup can recreate a missing
+        // or incomplete settings file on retry.
+        fs::remove_file(&path)?;
+        let mut file = fs::File::create_new(&path)?;
+        writeln!(file, "{settings:#}")?;
         Ok(())
     }
 }

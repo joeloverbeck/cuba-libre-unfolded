@@ -137,7 +137,7 @@ An external Claude Code or Codex session can play a faction for you. The four ca
 
 ### Opening a session
 
-1. Once for each computer, and again when you update the checkout, run `cargo build --locked && cargo run --locked --bin cuba-tools -- player-folders`. It installs the session's program, `cuba-player`, and writes two folders, `claude-code` and `codex`, in `${XDG_DATA_HOME:-$HOME/.local/share}/cuba-libre-unfolded/player`. Each holds the [player instructions](player-instructions.md) and that tool's permission for that program alone. The paths of the data directory and the checkout may hold only ASCII letters, digits, `/`, `.`, `_` and `-`. A file the command did not write is refused and named, notes aside: look at it, then remove it.
+1. Once for each computer, and again when you update the checkout, run `cargo build --locked && cargo run --locked --bin cuba-tools -- player-folders`. It installs the session's program, `cuba-player`, and writes two folders, `claude-code` and `codex`, in `${XDG_DATA_HOME:-$HOME/.local/share}/cuba-libre-unfolded/player`. Each holds the [player instructions](player-instructions.md) and that tool's permission for that program alone. The paths of the data directory, the checkout and your home directory may hold only ASCII letters, digits, `/`, `.`, `_` and `-`. A file the command did not write is refused and named, notes aside: look at it, then remove it.
 2. Open a terminal in the tool's folder and start the tool, `claude` or `codex`. It asks once whether it may trust the folder.
 3. In the game, hand the faction over, copy its line and paste it there. One session plays one faction; open another for the next, in the same folder.
 
