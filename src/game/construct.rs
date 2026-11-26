@@ -133,14 +133,25 @@ fn casinos(space: &Space, state: State) -> u8 {
         .sum()
 }
 
-fn qualifying_space(space: &Space) -> Result<(), &'static str> {
+struct ConstructSpaceRefusal {
+    explanation: &'static str,
+    tag: &'static str,
+}
+
+fn qualifying_space(space: &Space) -> Result<(), ConstructSpaceRefusal> {
     if space.terrain == Terrain::EconomicCenter {
-        Err("Construct selects Cities or Provinces (R 3.3.5).")
+        Err(ConstructSpaceRefusal {
+            explanation: "Construct selects Cities or Provinces (R 3.3.5).",
+            tag: "Choose a City or Province",
+        })
     } else if !matches!(
         space.control(),
         Some(Faction::Government | Faction::Syndicate)
     ) {
-        Err("Construct requires Government or Syndicate Control (R 3.3.5).")
+        Err(ConstructSpaceRefusal {
+            explanation: "Construct requires Government or Syndicate Control (R 3.3.5).",
+            tag: "Needs Government or Syndicate Control (R 3.3.5).",
+        })
     } else {
         Ok(())
     }
@@ -320,15 +331,19 @@ impl Game {
         }
     }
 
-    fn construct_space_requirement(&self, space: &Space) -> Result<(), &'static str> {
+    fn construct_space_requirement(&self, space: &Space) -> Result<(), ConstructSpaceRefusal> {
         let paid = self.construct_paid();
         if !paid.is_empty() && self.construct_box() == SequenceBox::LimitedOperation {
-            return Err(
-                "Limited Construct pays in just one space. Finish Construct to record the Operation (R 2.3.5).",
-            );
+            return Err(ConstructSpaceRefusal {
+                explanation: "Limited Construct pays in just one space. Finish Construct to record the Operation (R 2.3.5).",
+                tag: "One space paid · Finish Construct",
+            });
         }
         if paid.iter().any(|result| result.space == space.id) {
-            return Err("Construct already paid in this space (R 3.1).");
+            return Err(ConstructSpaceRefusal {
+                explanation: "Construct already paid in this space (R 3.1).",
+                tag: "Construct already paid here",
+            });
         }
         qualifying_space(space)
     }
@@ -347,7 +362,8 @@ impl Game {
         plan: ConstructPlan,
         balance: u8,
     ) -> Result<(), &'static str> {
-        self.construct_space_requirement(space)?;
+        self.construct_space_requirement(space)
+            .map_err(|refusal| refusal.explanation)?;
         plan.requirement(space, self.casino_inventory())?;
         if balance < CONSTRUCT_COST {
             return Err("Syndicate needs 5 Resources to pay for Construct (R 3.3.5).");
@@ -376,8 +392,8 @@ impl Game {
     }
 
     pub(super) fn construct_reason(&self, space: &Space, here: &[&Choice]) -> String {
-        if let Err(reason) = self.construct_space_requirement(space) {
-            return reason.into();
+        if let Err(refusal) = self.construct_space_requirement(space) {
+            return refusal.tag.into();
         }
         if let Some(choice) = here.first() {
             if choice.supported {
@@ -386,13 +402,15 @@ impl Game {
             if !choice.remedies.is_empty() {
                 return remedy_line(&choice.remedies);
             }
-            return choice.explanation.clone();
+            return format!("Needs {}", resources(CONSTRUCT_COST));
         }
-        ConstructPlan::ALL
-            .into_iter()
-            .filter_map(|plan| plan.requirement(space, self.casino_inventory()).err())
-            .collect::<Vec<_>>()
-            .join(" ")
+        // With neither plan offered, there is no closed Casino to open. Placement
+        // is blocked by either the supply or a stack made up of two open Casinos.
+        if self.casino_inventory() == 0 {
+            "No closed or available Casino".into()
+        } else {
+            "Two open Casinos fill this space".into()
+        }
     }
 
     pub(super) fn construct_choices(&self) -> Vec<Choice> {

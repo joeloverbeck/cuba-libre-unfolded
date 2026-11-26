@@ -164,9 +164,13 @@ fn native_operation_only_construct_resumes_the_map_and_finishes_in_payment_order
     );
     assert_eq!(app.save_bytes(), first_bytes);
     app.capture("camaguey-paid-restarted");
-    app.point("space:camaguey-city");
-    let used = app.observe()["table"]["status"]["reason"].clone();
-    assert!(used.to_string().contains("already paid"), "{used}");
+    super::space_reason::hover(
+        &mut app,
+        "camaguey-city",
+        "not-involved",
+        Some("Construct already paid here"),
+        "construct-camaguey-city-paid",
+    );
     app.activate("space:havana", first_revision);
     let shown = app.observe();
     let row = &shown["table"]["popover"]["card"]["rows"][0];
@@ -373,6 +377,20 @@ fn native_limited_construct_pays_in_havana_and_resumes_at_finish() {
                 ["Pass", "Limited Operation · Construct"],
             );
             choose_row(&mut app, "syndicate:limited-operation");
+            super::space_reason::hover(
+                &mut app,
+                "camaguey-province",
+                "not-involved",
+                Some("Needs Government or Syndicate Control (R 3.3.5)."),
+                "construct-camaguey-province-refusal",
+            );
+            super::space_reason::hover(
+                &mut app,
+                "ec-las-villas-camaguey",
+                "not-involved",
+                Some("Choose a City or Province"),
+                "construct-economic-center-refusal",
+            );
         }
 
         let initial = app.observe();

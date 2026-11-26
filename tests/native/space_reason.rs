@@ -35,7 +35,7 @@ fn submit_all(path: &Path, actions: &[&str]) {
 
 /// Rests the pointer on `space`, reads its tag and its drawn line, and keeps a 1:1
 /// crop of the tag. `reason` is the line expected, or `None` for a tag without one.
-fn hover(app: &mut Native, space: &str, state: &str, reason: Option<&str>, name: &str) {
+pub(super) fn hover(app: &mut Native, space: &str, state: &str, reason: Option<&str>, name: &str) {
     app.point("area:propaganda");
     let view = app.point(&format!("space:{space}"));
     let status = view["table"]["status"].clone();
