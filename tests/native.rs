@@ -64,17 +64,44 @@ mod space_reason;
 #[test]
 fn session_log_rejects_the_historical_dither_warning() {
     let line = "\x1b[2m2026-11-17T08:00:15.950912Z\x1b[0m \x1b[33m WARN\x1b[0m \x1b[2mbevy_core_pipeline::tonemapping\x1b[0m\x1b[2m:\x1b[0m Camera 406v0 has `Tonemapping::None` with `DebandDither::Enabled`, so dithering has no effect. Use `Tonemapping::Linear` to keep dithering, or set `DebandDither::Disabled`.";
-    assert!(unexpected_record(line));
+    assert!(unexpected_record(line, false));
+    assert!(unexpected_record(line, true));
 }
 
 #[test]
 fn session_log_checks_the_level_field() {
     assert!(unexpected_record(
-        "2026-11-17T08:00:15Z ERROR renderer: failed"
+        "2026-11-17T08:00:15Z ERROR renderer: failed",
+        false
     ));
-    assert!(unexpected_record("WARN renderer: failed"));
+    assert!(unexpected_record("WARN renderer: failed", false));
     assert!(!unexpected_record(
-        "2026-11-17T08:00:15Z INFO renderer: ERROR count is zero"
+        "2026-11-17T08:00:15Z INFO renderer: ERROR count is zero",
+        false
+    ));
+}
+
+#[test]
+fn software_vulkan_accepts_only_the_exact_adapter_warning() {
+    let warning = concat!(
+        "\x1b[2m2026-11-27T09:38:10.665544Z\x1b[0m \x1b[33m WARN\x1b[0m ",
+        "bevy_render::renderer: The selected adapter is using a driver that only supports software rendering. ",
+        "This is likely to be very slow. See https://bevy.org/learn/errors/b0006/",
+    );
+    assert!(unexpected_record(warning, false));
+    assert!(!unexpected_record(warning, true));
+    assert!(unexpected_record(
+        "WARN bevy_render::renderer: renderer failed",
+        true
+    ));
+    assert!(unexpected_record(&warning.replace("WARN", "ERROR"), true));
+    assert!(unexpected_record(
+        &warning.replace("bevy_render::renderer", "other::renderer"),
+        true
+    ));
+    assert!(unexpected_record(
+        &format!("{warning} Additional detail."),
+        true
     ));
 }
 
@@ -137,17 +164,29 @@ fn assert_briefing_lines_fit(view: &Value) {
     }
 }
 
-fn unexpected_record(line: &str) -> bool {
+const SOFTWARE_RENDERER_WARNING: &str = concat!(
+    "bevy_render::renderer: The selected adapter is using a driver that only supports software rendering. ",
+    "This is likely to be very slow. See https://bevy.org/learn/errors/b0006/",
+);
+
+fn unexpected_record(line: &str, software_vulkan: bool) -> bool {
     let plain = anstream::adapter::strip_str(line).to_string();
-    let mut fields = plain.split_whitespace();
-    let first = fields.next();
+    let record = plain.trim_start();
     // Bevy tracing records start with an ISO timestamp followed by their level.
-    let level = if first.is_some_and(|field| field.ends_with('Z') && field.contains('T')) {
-        fields.next()
-    } else {
-        first
+    let record = match record.split_once(char::is_whitespace) {
+        Some((timestamp, rest)) if timestamp.ends_with('Z') && timestamp.contains('T') => {
+            rest.trim_start()
+        }
+        _ => record,
     };
-    matches!(level, Some("WARN" | "ERROR"))
+    let (level, diagnostic) = record
+        .split_once(char::is_whitespace)
+        .unwrap_or((record, ""));
+    match level {
+        "WARN" => !software_vulkan || diagnostic.trim_start() != SOFTWARE_RENDERER_WARNING,
+        "ERROR" => true,
+        _ => false,
+    }
 }
 
 #[test]
@@ -815,9 +854,11 @@ impl Native {
         );
         std::fs::copy(runtime, &retained).unwrap();
         let bytes = std::fs::read(&retained).unwrap();
+        let software_vulkan =
+            std::env::var_os("CUBA_NATIVE_SOFTWARE_VULKAN").is_some_and(|value| value == "1");
         for (index, line) in String::from_utf8_lossy(&bytes).lines().enumerate() {
             assert!(
-                !unexpected_record(line),
+                !unexpected_record(line, software_vulkan),
                 "{}:{}: {line}",
                 retained.display(),
                 index + 1
