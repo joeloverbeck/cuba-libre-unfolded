@@ -2,11 +2,16 @@
 //! printed on each face, and where its Event stands in the current play. The card tag
 //! and the development seat only read these.
 //!
-//! The faces admitted in this build are cards 17, 18 and 19. Their titles, faction
+//! The faces admitted in this build are cards 17 through 20. Their titles, faction
 //! orders, Event layouts and lasting-effect boxes are transcribed from the supplied
 //! faces, and what their Events do is stated in this repository's own words. The titles of
 //! all 52 cards are in `titles`.
-use super::{ActionChoice, CARD_17_ORDER, EventOutcome, EventProgress, Faction, Game, SequenceBox};
+use super::{
+    ActionChoice, CARD_17_ORDER, CARD_19_ORDER, EventOutcome, EventProgress, Faction, Game,
+    SequenceBox,
+};
+
+pub(super) const MANIFESTO: &str = "Each faction in turn, in the card's faction order, may add 2 pieces other than Casinos to a space that already has a piece of its own. The executing faction stays Eligible.";
 use serde::Serialize;
 
 /// What the Event's text offers its executing faction.
@@ -229,11 +234,19 @@ impl EventStatement {
                 "An Insurgent Capability, in effect once the Event is executed: Operations and Special Activities of 26July and Directorio may not remove each other's pieces or alter Opposition already placed. One player of both may transfer between them. If one of the two removes 2 of its own Bases at once, the Capability ends. The executing faction stays Eligible for the next card.",
                 "Card 18; R 2.3.7, 5.1, 5.3",
             )],
-            19 => &[(
-                None,
-                "Each faction in turn, in the card's faction order, may add 2 pieces other than Casinos to a space that already has a piece of its own. The executing faction stays Eligible.",
-                "Card 19; R 1.4.1, 5.1",
-            )],
+            19 => &[(None, MANIFESTO, "Card 19; R 1.4.1, 5.1")],
+            20 => &[
+                (
+                    Some(Unshaded),
+                    "A faction Marches for free, then Rallies for free in one of its March destinations.",
+                    "Card 20; R 3.3.1, 3.3.2, 5.2, 5.5",
+                ),
+                (
+                    Some(Shaded),
+                    "From the space with the most Guerrillas, remove half its Guerrillas, rounded up.",
+                    "Card 20; R 1.4.1, 5.1, 5.2",
+                ),
+            ],
             _ => unreachable!("card {card} is not among the admitted faces"),
         };
         let by: Vec<_> = super::played::event_by(card)
@@ -340,8 +353,13 @@ fn printed(number: u8) -> Printed {
             capability: true,
         },
         19 => Printed {
-            order: [M26, Directorio, Syndicate, Government],
+            order: CARD_19_ORDER,
             kind: EventKind::Single,
+            capability: false,
+        },
+        20 => Printed {
+            order: [M26, Directorio, Syndicate, Government],
+            kind: EventKind::DualUse,
             capability: false,
         },
         _ => unreachable!("card {number} is not among the admitted faces"),
@@ -391,7 +409,13 @@ impl Game {
     fn current_event(&self) -> EventStatus {
         let eligibility = self.eligibility();
         let second = eligibility.second;
-        if self.card_18 {
+        if self.current_card() == 19 {
+            return EventStatus::Open {
+                faction: eligibility.first,
+                role: Role::First,
+            };
+        }
+        if self.current_card() == 18 {
             return if self.card_18_completion.is_some() {
                 EventStatus::Unexecuted
             } else if self.assault.is_some()

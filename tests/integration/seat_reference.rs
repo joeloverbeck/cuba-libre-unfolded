@@ -1,7 +1,7 @@
 //! The seat reference's Choices table (`docs/agents/seat.md`) against the choices
 //! the rules authority offers (#94). Agents name choices from that table; a missing
 //! or stale family can mislead them. The oracle is `Game::observe` at every explored
-//! card 17 state and along checked card 18 paths.
+//! card 17 state and along checked paths through the card 19 action choice.
 //!
 //! Not covered: states the explorer does not reach. It follows at most one Resource
 //! transfer per path, of 1 or of the direction's limit, from the starts it names.
@@ -71,11 +71,11 @@ fn offered() -> BTreeSet<String> {
                 .flatten(),
         );
     }
-    offered.extend(card_18_families());
+    offered.extend(continuation_families());
     offered
 }
 
-fn card_18_families() -> BTreeSet<String> {
+fn continuation_families() -> BTreeSet<String> {
     let [mut opening, _] = explore::event_starts();
     for action in ["resolve-shaded", "advance-card"] {
         explore::choose(&mut opening, action);
@@ -123,6 +123,8 @@ fn card_18_families() -> BTreeSet<String> {
     offered.extend(families(&assault));
     explore::choose(&mut assault, "end-assault");
     offered.extend(families(&assault));
+    explore::choose(&mut construct, "advance-card");
+    offered.extend(families(&construct));
     offered
 }
 

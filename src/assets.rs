@@ -79,7 +79,7 @@ pub(crate) struct CardFace {
     hash: &'static str,
 }
 
-const CARD_FACES: [CardFace; 3] = [
+const CARD_FACES: [CardFace; 4] = [
     CardFace {
         name: "card-17.png",
         number: 17,
@@ -100,6 +100,13 @@ const CARD_FACES: [CardFace; 3] = [
         size: (573, 819),
         length: 1089575,
         hash: "10bf73402f7fbb79d14aad0b928bc8ea20949ea5bd888799a869a6f4e270bc3b",
+    },
+    CardFace {
+        name: "card-20.png",
+        number: 20,
+        size: (572, 819),
+        length: 1145167,
+        hash: "84ecf6fadc70e7dea17c7033c3e99c9945a6caf4b8f3b9d933cfd82f212e3e3b",
     },
 ];
 

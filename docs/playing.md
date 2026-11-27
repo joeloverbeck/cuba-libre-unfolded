@@ -146,6 +146,10 @@ Finishing makes Syndicate Ineligible for card 19. A restarted game restores the 
 
 An unpaid Limited Construct can refuse a piece action that would leave no affordable legal payment. The popover explains when to pay first. Management stays available after payment, and a paid space remains used even when its Casino changes.
 
+### Continue to Sierra Maestra Manifesto
+
+After Syndicate Passes or finishes Construct, the panel shows the result and Eligibility for card 19. Select **Advance to Sierra Maestra Manifesto** to continue from that position. The Manifesto crosses to the played pile, **The Twelve** turns face up on the draw deck, and the pile counts settle at 20 and 32. 26July is 1st Eligible. Pin an option to see what the rules allow and what this build supports. Reopen the same save to resume at that decision, with the cards at rest and earlier proclamations in the public record.
+
 ## Handing a faction to an agent
 
 An external Claude Code or Codex session can play a faction for you. The four cards along the bottom say who plays each faction ([SEATS.md](../art/atlas/SEATS.md)). **Hand over** gives a faction to an agent, **Copy its line** copies the one line to [paste in its session](#opening-a-session), and **Take back** makes it yours again. F1 to F4 hand Government, 26July, Directorio and Syndicate over and take them back too. A session joins on the game's socket, by default `cuba-libre-players.sock` in `$XDG_RUNTIME_DIR`, or where you launched with `--player-socket`. The game starts no session.

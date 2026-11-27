@@ -36,7 +36,7 @@ fn native_card_advance_reopens_both_event_results_and_commits_once() {
             .unwrap()
             .game()
             .random_state();
-        assert_missing_or_changed_face_is_recoverable(&app, &saved, &prior);
+        assert_missing_or_changed_face_is_recoverable(&app, &saved, &prior, "card-19.png");
 
         app.launch_size("3840x2160");
         let end = app.observe()["observation"].clone();
@@ -570,7 +570,7 @@ fn native_syndicate_pass_finishes_card_18_and_replays_after_both_handoffs() {
             app.decide(&player, "syndicate:pass", "applied");
             let (code, told) = app.ask(&["observe", &player]);
             assert_eq!(code, 0, "{told}");
-            assert_eq!(told["view"]["decision"]["stands"], "build-ends");
+            assert_eq!(told["view"]["decision"]["stands"], "card");
             assert_eq!(told["view"]["decision"]["yours"], false);
             let report = told["view"]["results"].as_array().unwrap().last().unwrap();
             assert_eq!(report["headline"], "Syndicate Passes");
@@ -598,7 +598,7 @@ fn native_syndicate_pass_finishes_card_18_and_replays_after_both_handoffs() {
         assert_eq!(after["standings"][3]["score"], if assault { 2 } else { 3 });
         assert_eq!(after["eligible"], json!([!assault, true, true, true]));
         assert!(after["eligibility"]["event_restriction"].is_null());
-        assert_eq!(after["choices"], json!([]));
+        assert_card_advance_is_the_only_choice(after);
         assert_eq!(after["capabilities"], json!([]));
         assert_eq!(after["cards"]["current"]["status"], "Unexecuted");
         assert_eq!(
@@ -672,6 +672,211 @@ fn native_syndicate_pass_finishes_card_18_and_replays_after_both_handoffs() {
     }
 }
 
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the card 19 table and tags"]
+fn native_manifesto_advance_lands_the_cards_and_reopens_the_same_decision() {
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from("local/verification/issue-239"));
+    fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("manifesto-advance-")
+        .tempdir_in(evidence.canonicalize().unwrap())
+        .unwrap()
+        .keep();
+    let prepared = root.join("prepared.json");
+    finish_event(&prepared, "shaded");
+    let mut session = Session::open(&prepared, None).unwrap();
+    for action in ["advance-card", "government:pass"] {
+        let seen = session.observe();
+        session
+            .submit(
+                seen.owner,
+                seen.revision,
+                &format!("{}:{action}", seen.revision),
+            )
+            .unwrap();
+    }
+    let seen = session.observe();
+    session
+        .publish_as_human(
+            cuba_libre_unfolded::Faction::Syndicate,
+            seen.revision,
+            18,
+            "We will wait for the next card.",
+        )
+        .unwrap();
+    session
+        .submit(
+            seen.owner,
+            seen.revision,
+            &format!("{}:syndicate:pass", seen.revision),
+        )
+        .unwrap();
+    drop(session);
+
+    let saved = fs::read(&prepared).unwrap();
+    let prior = fs::read(previous_path(&prepared)).unwrap();
+    let mut app = advance_run(&root, "keyboard", &saved, &prior);
+    assert_missing_or_changed_face_is_recoverable(&app, &saved, &prior, "card-20.png");
+    app.launch_size("3840x2160");
+    let ending = app.observe();
+    let revision = ending["observation"]["revision"].as_u64().unwrap();
+    card_piles::assert_piles(&ending, 19, 33, 18, 19);
+    assert_card_advance_is_the_only_choice(&ending["observation"]);
+    let label = choice_part(&ending, "advance-card-label");
+    assert_eq!(label["text"], "Advance to Sierra Maestra Manifesto");
+    let [_, top, _, bottom] = rect_of(&label["bounds"]);
+    assert!(bottom - top < 40., "{label}");
+    app.capture("card-18-advance-control");
+    app.quit();
+
+    let mut pointer = advance_run(&root, "pointer", &saved, &prior);
+    pointer.launch_size("3840x2160");
+    commit_advance(&mut pointer, revision);
+    pointer.request(json!({"op":"settle"}), true);
+    let clicked = pointer.observe();
+    card_piles::assert_piles(&clicked, 20, 32, 19, 20);
+    pointer.quit();
+
+    app.launch_size("3840x2160");
+    let advanced = app.press_by_keyboard(&format!("{revision}:advance-card"));
+    assert_eq!(advanced["observation"]["revision"], revision + 1);
+    assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
+    app.request(json!({"op":"settle"}), true);
+    let landed = app.observe();
+    assert_eq!(landed["observation"], clicked["observation"]);
+    card_piles::assert_piles(&landed, 20, 32, 19, 20);
+    assert_eq!(landed["observation"]["owner"], "M26");
+    assert_eq!(
+        landed["observation"]["eligible"],
+        json!([true, true, true, true])
+    );
+    assert_eq!(
+        landed["table"]["notice"],
+        "Sierra Maestra Manifesto is current. 26July is 1st Eligible. Saved."
+    );
+    assert!(
+        choice_part(&landed, "choice-subtitle")["text"]
+            .as_str()
+            .unwrap()
+            .contains("1st Eligible on card 19")
+    );
+    assert_eq!(
+        choice_part(&landed, "section:event")["text"],
+        "EVENT · CARD 19, SIERRA MAESTRA MANIFESTO"
+    );
+    app.capture("manifesto-landed");
+    card_piles::assert_piles_drawn(&app, "manifesto-landed", &landed);
+
+    for (slot, number, title, kind, status) in [
+        (
+            "card:current",
+            19,
+            "19 · Sierra Maestra Manifesto",
+            "Single",
+            "Event open to 26July as 1st Eligible",
+        ),
+        (
+            "card:preview",
+            20,
+            "20 · The Twelve",
+            "DualUse",
+            "Event not yet open: this card is played after card 19",
+        ),
+    ] {
+        app.activate(slot, revision + 1);
+        let tagged = app.observe();
+        assert_card_tag_placed(&tagged, slot);
+        let shown = &tagged["table"]["card"]["shown"];
+        assert_eq!(shown["number"], number);
+        assert_eq!(shown["title"], title);
+        let card = if number == 19 { "current" } else { "preview" };
+        assert_eq!(tagged["observation"]["cards"][card]["kind"], kind);
+        assert_eq!(
+            tagged["observation"]["cards"][card]["words"]["status"],
+            status
+        );
+        app.capture(&format!("card-19-tag-{number}"));
+        close_card_tag(&mut app);
+    }
+    let played = landed["observation"]["played_pile"]["cards"]
+        .as_array()
+        .unwrap();
+    assert_eq!(played[0]["title"], "Sierra Maestra Manifesto");
+    assert_eq!(played[1]["title"], "Pact of Caracas");
+    assert_eq!(landed["observation"]["deck"]["face_down"], 31);
+
+    app.point("pile:played");
+    let shown = app.observe();
+    let played = &shown["table"]["pile_tag"]["shown"];
+    assert_eq!(played["ledger"][0][1], "20 · current card on top");
+    let columns = played["columns"].as_array().unwrap();
+    assert_eq!(
+        columns
+            .iter()
+            .map(|c| c.as_array().unwrap().len())
+            .collect::<Vec<_>>(),
+        [10, 10]
+    );
+    assert_eq!(columns[0][0], "19 · Sierra Maestra Manifesto · current");
+    assert_eq!(columns[0][1], "18 · Pact of Caracas");
+    app.capture("manifesto-played-history");
+
+    app.point("pile:deck");
+    let shown = app.observe();
+    let deck = &shown["table"]["pile_tag"]["shown"];
+    assert_eq!(deck["ledger"][0][1], "32 · counts the preview");
+    assert_eq!(deck["ledger"][1][1], "31");
+    app.capture("manifesto-draw-deck");
+
+    let saved_after = app.save_bytes();
+    for action in ["m26:event", "pass", "terror"] {
+        app.activate(&format!("option:{action}"), revision + 1);
+        let inspect = app.observe();
+        assert_eq!(inspect["table"]["choice"]["pinned"], action);
+        assert_eq!(inspect["observation"], landed["observation"]);
+        assert_briefing_lines_fit(&inspect);
+        app.capture(&format!("manifesto-option-{}", action.replace(':', "-")));
+        if action == "m26:event" {
+            app.activate("choice-commit", revision + 1);
+            let refused = app.observe();
+            assert!(
+                refused["table"]["notice"]
+                    .as_str()
+                    .unwrap()
+                    .contains("This Event is not yet playable.")
+            );
+            assert_eq!(refused["observation"], landed["observation"]);
+            assert_eq!(app.save_bytes(), saved_after);
+        }
+    }
+    app.key("Escape");
+    app.key("KeyR");
+    let read = app.observe();
+    let history = &read["table"]["proclamations"];
+    assert_eq!(history["documents"][0]["card"], 18);
+    assert_eq!(
+        history["documents"][0]["text"],
+        "We will wait for the next card."
+    );
+    assert_eq!(history["unread"], 0);
+    app.capture("manifesto-carried-proclamation");
+    app.key("Escape");
+
+    app.quit();
+    app.launch_size("3840x2160");
+    let resumed = app.observe();
+    assert_eq!(resumed["observation"], landed["observation"]);
+    card_piles::assert_piles(&resumed, 20, 32, 19, 20);
+    assert!(resumed["table"]["piles"]["advance"].is_null());
+    assert_eq!(
+        resumed["table"]["proclamations"]["documents"],
+        history["documents"]
+    );
+    app.capture("manifesto-resumed-at-rest");
+}
+
 fn preview_notes(reply: &Value, action: &str) -> String {
     let view = &reply["observation"];
     let id = format!("{}:{action}", view["revision"]);
@@ -719,47 +924,68 @@ pub(super) fn finish_event(path: &Path, text: &str) {
     }
 }
 
-fn assert_missing_or_changed_face_is_recoverable(app: &Native, saved: &[u8], prior: &[u8]) {
+pub(super) fn assert_card_advance_is_the_only_choice(view: &Value) {
+    let choices = view["choices"].as_array().unwrap();
+    assert_eq!(choices.len(), 1, "{choices:?}");
+    assert_eq!(
+        choices[0]["id"],
+        format!("{}:advance-card", view["revision"])
+    );
+    assert_eq!(choices[0]["supported"], true);
+}
+
+fn assert_missing_or_changed_face_is_recoverable(
+    app: &Native,
+    saved: &[u8],
+    prior: &[u8],
+    face: &str,
+) {
     let wrong_cards = tempfile::tempdir().unwrap();
-    for name in ["card-17.png", "card-18.png"] {
-        fs::copy(app.cards.join(name), wrong_cards.path().join(name)).unwrap();
+    for name in [
+        "card-17.png",
+        "card-18.png",
+        "card-19.png",
+        "card-20.png",
+        "cuba-libre-card-back.png",
+    ] {
+        if name != face {
+            fs::copy(app.cards.join(name), wrong_cards.path().join(name)).unwrap();
+        }
     }
+    let fresh = app.root.join("never-created.json");
     for problem in ["missing", "changed"] {
         if problem == "changed" {
-            let mut bytes = fs::read(app.cards.join("card-19.png")).unwrap();
+            let mut bytes = fs::read(app.cards.join(face)).unwrap();
             bytes[100] ^= 1;
-            fs::write(wrong_cards.path().join("card-19.png"), bytes).unwrap();
+            fs::write(wrong_cards.path().join(face), bytes).unwrap();
         }
-        let output = Command::new(env!("CARGO_BIN_EXE_cuba-libre"))
-            .arg("--cards")
-            .arg(wrong_cards.path())
-            .arg("--save")
-            .arg(&app.save)
-            .arg("--agent-seat")
-            .arg("--socket")
-            .arg(&app.socket)
-            .output()
-            .unwrap();
-        fs::write(
-            app.root.join(format!("{problem}-19.stderr")),
-            &output.stderr,
-        )
-        .unwrap();
-        let reason = String::from_utf8_lossy(&output.stderr);
-        if output.status.success() {
-            let _ = Command::new(env!("CARGO_BIN_EXE_cuba-tools"))
-                .arg("seat")
+        for (save, kind) in [(&app.save, "existing"), (&fresh, "fresh")] {
+            let output = Command::new(env!("CARGO_BIN_EXE_cuba-libre"))
+                .arg("--cards")
+                .arg(wrong_cards.path())
+                .arg("--save")
+                .arg(save)
+                .arg("--agent-seat")
+                .arg("--socket")
                 .arg(&app.socket)
-                .arg(r#"{"op":"quit"}"#)
-                .output();
+                .output()
+                .unwrap();
+            fs::write(
+                app.root.join(format!("{problem}-{face}-{kind}.stderr")),
+                &output.stderr,
+            )
+            .unwrap();
+            let reason = String::from_utf8_lossy(&output.stderr);
+            assert!(!output.status.success(), "{problem} {face} was accepted");
+            assert!(
+                reason.contains(face) && reason.contains("--cards"),
+                "{reason}"
+            );
         }
-        assert!(!output.status.success(), "{problem} card 19 was accepted");
-        assert!(
-            reason.contains("card-19.png") && reason.contains("--cards"),
-            "{reason}"
-        );
         assert_eq!(fs::read(&app.save).unwrap(), saved);
         assert_eq!(fs::read(previous_path(&app.save)).unwrap(), prior);
+        assert!(!fresh.exists());
+        assert!(!previous_path(&fresh).exists());
     }
 }
 
@@ -1336,7 +1562,7 @@ fn native_card_advance_moves_the_cards_and_lands_saved() {
 fn assert_missing_or_changed_back_refuses(app: &Native, saved: &[u8], prior: &[u8]) {
     const BACK: &str = "cuba-libre-card-back.png";
     let wrong_cards = tempfile::tempdir().unwrap();
-    for name in ["card-17.png", "card-18.png", "card-19.png"] {
+    for name in ["card-17.png", "card-18.png", "card-19.png", "card-20.png"] {
         fs::copy(app.cards.join(name), wrong_cards.path().join(name)).unwrap();
     }
     let fresh = app.root.join("never-created.json");

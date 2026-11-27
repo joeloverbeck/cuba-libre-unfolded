@@ -74,6 +74,49 @@ fn playing_card_18_moves_one_card_across() {
 }
 
 #[test]
+fn playing_card_19_after_both_passes_moves_one_card_and_keeps_the_position() {
+    use cuba_libre_unfolded::Faction;
+
+    let mut game = both_passed();
+    let before = game.observe();
+    assert_eq!((before.piles.played, before.piles.deck), (19, 33));
+    assert_eq!(before.resources, [5, 3, 5, 16]);
+    assert_eq!(before.eligible, [true; 4]);
+    assert_eq!(before.choices.len(), 1);
+    let advance = &before.choices[0];
+    assert!(advance.turns_the_card());
+
+    choose(&mut game, "advance-card");
+    let after = game.observe();
+    assert_eq!(after.revision, before.revision + 1);
+    assert_eq!((after.current_card, after.preview_card), (19, 20));
+    assert_eq!((after.piles.played, after.piles.deck), (20, 32));
+    assert_eq!(after.piles.propaganda_played, 1);
+    assert_eq!(
+        &after.played_cards[..before.played_cards.len()],
+        before.played_cards
+    );
+    assert_eq!(after.played_cards.last(), Some(&18));
+    assert_eq!(after.resources, before.resources);
+    assert_eq!(after.spaces, before.spaces);
+    assert_eq!(after.available, before.available);
+    assert_eq!(after.standings, before.standings);
+    assert_eq!(after.eligible, before.eligible);
+    assert_eq!(after.owner, Faction::M26);
+    assert_eq!(after.passed, [false; 4]);
+    assert_eq!(after.executing, None);
+    assert_eq!(after.event_executor, None);
+    assert!(after.choices.iter().all(|choice| !choice.turns_the_card()));
+
+    let saved = game.clone();
+    assert!(
+        game.submit(advance.owner, before.revision, &advance.id)
+            .is_err()
+    );
+    assert_eq!(game, saved);
+}
+
+#[test]
 fn the_counts_hold_at_every_step_of_card_17() {
     let mut game = crate::terror_chosen(Game::opening_with_seed(2));
     let steps = [
@@ -95,6 +138,21 @@ fn the_counts_hold_at_every_step_of_card_17() {
             "after {action}"
         );
     }
+}
+
+/// Card 18 completes with both factions passing, before the human turns it.
+fn both_passed() -> Game {
+    let mut game = advanced();
+    choose(&mut game, "government:pass");
+    choose(&mut game, "syndicate:pass");
+    game
+}
+
+/// Card 19 becomes current and reveals card 20.
+fn manifesto() -> Game {
+    let mut game = both_passed();
+    choose(&mut game, "advance-card");
+    game
 }
 
 /// Every array of whole numbers anywhere in a value.
@@ -122,7 +180,12 @@ fn number_lists(value: &Value, found: &mut Vec<Vec<u64>>) {
 /// deck they are 19, 20, 21, … on card 17 and 20, 21, 22, … on card 18.
 #[test]
 fn the_order_of_the_face_down_cards_is_not_observed() {
-    for (game, first_hidden) in [(Game::opening(), 19), (advanced(), 20)] {
+    for (game, first_hidden) in [
+        (Game::opening(), 19),
+        (advanced(), 20),
+        (both_passed(), 20),
+        (manifesto(), 21),
+    ] {
         let view = serde_json::to_value(game.observe()).unwrap();
         let fields = view.as_object().unwrap();
         for name in fields.keys() {
@@ -216,6 +279,8 @@ fn the_card_under_the_preview_is_named_nowhere_in_the_observation() {
         (Game::opening(), 19, "Sierra Maestra Manifesto"),
         (offered, 19, "Sierra Maestra Manifesto"),
         (advanced(), 20, "The Twelve"),
+        (both_passed(), 20, "The Twelve"),
+        (manifesto(), 21, "Fangio"),
     ] {
         let view = serde_json::to_value(game.observe()).unwrap();
         let (mut words, mut cards) = (Vec::new(), Vec::new());

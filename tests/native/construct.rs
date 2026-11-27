@@ -1,3 +1,4 @@
+use super::card_advance::assert_card_advance_is_the_only_choice;
 use super::*;
 use cuba_libre_unfolded::save::Session;
 use std::fs;
@@ -266,7 +267,7 @@ fn native_operation_only_construct_resumes_the_map_and_finishes_in_payment_order
     let after = &finished["observation"];
     assert_casinos(after, 5, 3, 5);
     assert_eq!(after["eligible"], json!([true, true, true, false]));
-    assert_eq!(after["choices"], json!([]));
+    assert_card_advance_is_the_only_choice(after);
     assert_eq!(after["current_card"], 18);
     assert_eq!(after["preview_card"], 19);
     assert_eq!(after["deck"], before["deck"]);
@@ -557,7 +558,7 @@ fn native_limited_construct_pays_in_havana_and_resumes_at_finish() {
         assert_casinos(after, 10, score, available);
         assert_eq!(after["revision"], pre_finish + 1);
         assert_eq!(after["eligible"], json!([false, true, true, false]));
-        assert_eq!(after["choices"], json!([]));
+        assert_card_advance_is_the_only_choice(after);
         assert_eq!(after["current_card"], 18);
         assert_eq!(after["preview_card"], 19);
         assert_eq!(after["deck"], before["deck"]);

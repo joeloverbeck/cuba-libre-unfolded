@@ -38,7 +38,7 @@ pub(super) mod fig {
     pub const SUBTITLE_LINE: f32 = 42.;
     /// Section labels: `section:event` and `section:operations`.
     pub const SECTIONS: [(&str, f32, &str); 2] = [
-        ("section:event", 1110.8, "EVENT · CARD 17, ALBERTO BAYO"),
+        ("section:event", 1110.8, "EVENT"),
         (
             "section:operations",
             1350.,
@@ -288,7 +288,7 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
         Some(c) => {
             let label = if c.action() == "end-construct" {
                 "Pay for one space first".into()
-            } else if view.current_card == 18 {
+            } else if view.current_card >= 18 {
                 "Inspection only".into()
             } else if view.eligibility.directorio_handoff() {
                 format!("{} is outside this task", c.label)
@@ -312,14 +312,14 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
             enabled: false,
         },
         None => Commit {
-            label: if view.current_card == 18 || view.eligibility.directorio_handoff() {
+            label: if view.current_card >= 18 || view.eligibility.directorio_handoff() {
                 "Click an option to inspect it"
             } else {
                 "Click an option to choose it"
             }
             .into(),
             action: Action::Unsupported(
-                if view.current_card == 18 || view.eligibility.directorio_handoff() {
+                if view.current_card >= 18 || view.eligibility.directorio_handoff() {
                     "Hover or focus an option for its briefing. Click or press Enter to pin it."
                 } else {
                     "Pin an option first: click it, or focus it with Tab and press Enter. Its briefing stays open and this button commits it."
@@ -367,6 +367,12 @@ fn panel_rows(view: &Observation) -> impl Iterator<Item = (&Choice, f32)> {
     } else {
         fig::ROWS
     };
+    // The Manifesto has a single Event. Leave the second Event slot empty so
+    // the Operations still begin at their authored position.
+    let tops = tops
+        .into_iter()
+        .enumerate()
+        .filter_map(|(i, top)| (view.current_card != 19 || i != 2).then_some(top));
     panel_options(view).zip(tops)
 }
 
@@ -593,7 +599,8 @@ fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool, agent
         }
         _ if directorio => "2nd Eligible on card 17 · Kidnap opened the Event (R 2.3.4)".into(),
         _ => format!(
-            "1st Eligible on card 17 · 26July has {}",
+            "1st Eligible on card {} · 26July has {}",
+            view.current_card,
             resources(view.resources[Faction::M26.index()])
         ),
     };
@@ -702,10 +709,14 @@ pub(super) fn panel(
         .into_iter()
         .filter(|_| !event_pending && !card_18)
     {
-        let words = if directorio && name == "section:operations" {
-            "OPERATIONS"
-        } else {
-            words
+        let words = match name {
+            "section:event" => format!(
+                "{words} · CARD {}, {}",
+                view.current_card,
+                view.cards.current.title.to_uppercase(),
+            ),
+            "section:operations" if directorio => "OPERATIONS".into(),
+            _ => words.into(),
         };
         let label = text(
             commands,
@@ -775,6 +786,14 @@ pub(super) fn panel(
                 "INSPECT"
             };
             (choice.label.as_str(), (!choice.supported).then_some(pill))
+        } else if view.current_card == 19 {
+            let (label, _) = listing(act);
+            let label = if label.is_empty() {
+                &choice.label
+            } else {
+                label
+            };
+            (label, (!choice.supported).then_some("INSPECT"))
         } else if directorio || event_pending {
             let status = (!choice.supported).then_some("NOT IN THIS TASK");
             (choice.label.as_str(), status)
@@ -1141,9 +1160,6 @@ fn map_focusable(
 
 /// The panel's controls Tab moves through.
 fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> {
-    if view.card_18_complete() {
-        return vec![];
-    }
     if let Some(advance) = view.choices.iter().find(|c| c.action() == "advance-card") {
         return vec![(
             advance.id.clone(),
@@ -1453,7 +1469,7 @@ fn kept(
     popover: bool,
 ) -> Option<(&'static str, Option<(String, bool)>)> {
     let (prefix, ribbon) = match game.action {
-        _ if game.card_18 => ("option:", false),
+        _ if game.current_card() >= 18 => ("option:", false),
         ActionChoice::Open => ("option:", false),
         ActionChoice::Terror if game.eligibility().directorio_handoff() => ("option:", false),
         _ if game.event.as_ref().is_some_and(EventProgress::pending) => ("option:", false),
@@ -1464,7 +1480,9 @@ fn kept(
         ActionChoice::Terror => ("step:", true),
         ActionChoice::Pass => return None,
     };
-    if (ribbon || game.card_18 || game.event.as_ref().is_some_and(EventProgress::pending))
+    if (ribbon
+        || game.current_card() >= 18
+        || game.event.as_ref().is_some_and(EventProgress::pending))
         && (popover || super::transfer::shown(game.transfer.as_ref(), game.owner(), ui))
     {
         return None;

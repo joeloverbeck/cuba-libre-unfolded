@@ -250,9 +250,6 @@ impl Decision {
             Some(Transfer::Authorizing { waited: true, .. })
         );
         let mut note = match stands {
-            Stands::BuildEnds if seen.card_18_complete() => {
-                "Card 18 is complete and Eligibility has been adjusted. Card 19 stays in preview. No faction has a choice to make.".to_owned()
-            }
             Stands::BuildEnds => format!(
                 "The build stops here: {decider} would decide next, and this build plays none of its options. No faction can act, and nothing more will come."
             ),
