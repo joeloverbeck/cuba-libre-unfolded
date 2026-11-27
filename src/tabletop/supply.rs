@@ -104,6 +104,20 @@ pub(super) struct Drawn;
 #[derive(Component)]
 pub(super) struct Dimmed;
 
+fn placement(layout: &areas::Layout, window: &Window) -> (f32, Vec2) {
+    let area = layout.area("marker-supply", window);
+    let unit = area.width() / fig::AREA[2];
+    let origin = area.min - Vec2::new(fig::AREA[0], fig::AREA[1]) * unit;
+    (unit, origin)
+}
+
+/// The centre of the drawn marker, the common Terror and Sabotage endpoint.
+pub(super) fn endpoint(layout: &areas::Layout, window: &Window) -> Vec2 {
+    let (unit, origin) = placement(layout, window);
+    let [x, y, w, h] = fig::MARKER;
+    origin + unit * Vec2::new(x + w / 2., y + h / 2.)
+}
+
 /// Draws the graphic from the committed position, inside its area wherever the window
 /// puts it.
 pub(super) fn draw(
@@ -114,11 +128,9 @@ pub(super) fn draw(
     window: &Window,
 ) {
     let shown = shown(view);
-    let area = layout.area("marker-supply", window);
     // One frame unit in this window, and where the frame's origin falls, so that each
     // part keeps its place inside the area.
-    let unit = area.width() / fig::AREA[2];
-    let origin = area.min - Vec2::new(fig::AREA[0], fig::AREA[1]) * unit;
+    let (unit, origin) = placement(layout, window);
     let marker = picture(commands, art, shown.marker(), fig::MARKER, unit, origin, 2);
     // The target lies over the graphic, as the top display's targets lie over theirs.
     let [x, y, w, h] = fig::TARGET;

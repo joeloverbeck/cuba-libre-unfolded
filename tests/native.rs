@@ -2847,7 +2847,13 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
     app.choose("authorize:2");
     app.choose("terror:santiago");
     app.choose("terror:oriente");
+    // Travel takes clock steps. Reopen the committed position so the loop's
+    // bit-exact capture starts within the pinned first revolution of the clock.
+    let played = app.observe();
+    app.quit();
+    app.launch();
     let start = app.observe();
+    assert_eq!(start["observation"], played["observation"]);
     assert_eq!(start["table"]["settled"], true);
     let seeks = |view: &Value| {
         let bells = view["table"]["terror"].as_array().unwrap();

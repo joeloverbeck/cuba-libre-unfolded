@@ -154,6 +154,183 @@ fn native_marker_supply_matches_layout_and_follows_each_terror() {
     app.quit();
 }
 
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_terror_leaves_the_supply_after_commit_and_reopens_settled() {
+    use cuba_libre_unfolded::save::Session;
+    let mut app = super::available_forces::start("terror-travel-", "issue-272", "3840x2160");
+    for action in ["terror", "transfer", "ask:2:2", "authorize:2"] {
+        app.choose(action);
+    }
+    let before = app.observe();
+    let revision = before["observation"]["revision"].as_u64().unwrap();
+    let save = std::fs::read(&app.save).unwrap();
+    let drawn_count = |view: &Value, space: &str| -> Option<Value> {
+        view["table"]["counts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["name"] == format!("count:{space} Terror"))
+            .map(|row| row["text"].clone())
+    };
+    let rule_space = |view: &Value, space: &str| -> Value {
+        view["observation"]["spaces"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|row| row["id"] == space)
+            .unwrap()
+            .clone()
+    };
+    let at = |motion: &Value| -> [f64; 2] {
+        let point = &motion["at"];
+        [point[0].as_f64().unwrap(), point[1].as_f64().unwrap()]
+    };
+    let near = |point: [f64; 2], bounds: &Value, distance: f64| {
+        let [left, top, right, bottom] = rect_of(bounds);
+        assert!(
+            (point[0] - (left + right) / 2.).hypot(point[1] - (top + bottom) / 2.) < distance,
+            "{point:?} is farther than {distance} px from the centre of {bounds}"
+        );
+    };
+
+    app.activate("space:santiago", revision);
+    let preview = app.observe();
+    assert_eq!(preview["observation"], before["observation"]);
+    assert_eq!(std::fs::read(&app.save).unwrap(), save);
+    assert_eq!(number(&preview), ("20".into(), 20));
+    assert_eq!(drawn_count(&preview, "santiago"), None);
+    assert!(preview["table"]["marker_travel"][0].is_null());
+    let row = super::popover_row(&preview, "Terror");
+    assert!(row["lines"].to_string().contains("Place a Terror marker"));
+    app.capture("1-santiago-preview");
+
+    // R 3.3.4: spend 1, flip 1 Underground Guerrilla, place 1 from the supply
+    // and shift support one level. A renderer frame cannot change the saved result.
+    let applied = app.request(
+        json!({"op":"activate","revision":revision,"component":"popover:commit"}),
+        true,
+    );
+    assert_eq!(applied["status"], "activated", "{applied}");
+    let committed = app.observe();
+    let saved = Session::open(&app.save, None).unwrap().observe();
+    assert_eq!(
+        committed["observation"],
+        serde_json::to_value(saved).unwrap()
+    );
+    assert_eq!(committed["observation"]["revision"], revision + 1);
+    assert_eq!(committed["observation"]["resources"], json!([6, 1, 3, 15]));
+    let santiago = rule_space(&committed, "santiago");
+    assert_eq!(santiago["terror"], 1);
+    assert_eq!(santiago["support"], -1);
+    let guerrillas: BTreeMap<_, _> = santiago["pieces"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|group| group["faction"] == "M26" && group["kind"] == "Guerrilla")
+        .map(|group| {
+            (
+                group["state"].as_str().unwrap(),
+                group["count"].as_u64().unwrap(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        guerrillas,
+        BTreeMap::from([("Active", 1), ("Underground", 1)])
+    );
+    assert_eq!(rule_space(&committed, "oriente")["terror"], 0);
+    assert_eq!(number(&committed).1, 19);
+    let motion = &committed["table"]["marker_travel"][0];
+    assert_eq!(
+        motion["space"], "santiago",
+        "the committed marker leaves supply"
+    );
+    assert_eq!(motion["direction"], "placement");
+    assert_eq!(motion["quantity"], 1);
+    near(
+        at(motion),
+        &supply(&committed).1["marker-supply"]["bounds"],
+        2.,
+    );
+    assert_eq!(drawn_count(&committed, "santiago"), None);
+    app.capture("2-santiago-leaving-supply");
+
+    let held = app.request(json!({"op":"settle","steps":16}), true);
+    assert_eq!(held["status"], "unsettled", "{held}");
+    let middle = app.observe();
+    assert_eq!(middle["observation"], committed["observation"]);
+    let moving = &middle["table"]["marker_travel"][0];
+    let alpha = moving["alpha"].as_f64().unwrap();
+    assert!(alpha > motion["alpha"].as_f64().unwrap() && alpha < 1.);
+    assert_ne!(moving["at"], motion["at"]);
+    assert_eq!(drawn_count(&middle, "santiago"), None);
+    app.capture("3-santiago-travelling");
+    // The position reports a rendered solid, visible over clear water in this
+    // view. Water animation alone does not make this compact dark silhouette.
+    let open = |name| {
+        image::open(app.root.join(format!("{name}.png")))
+            .unwrap()
+            .to_rgb8()
+    };
+    let [x, y] = at(moving).map(|coordinate| coordinate.round() as u32);
+    let empty = open("2-santiago-leaving-supply");
+    let partly_faded = open("3-santiago-travelling");
+    let pixels = |frame: &image::RgbImage| {
+        image::imageops::crop_imm(frame, x - 14, y - 14, 28, 28)
+            .to_image()
+            .pixels()
+            .filter(|pixel| pixel.0.iter().all(|&channel| channel < 170))
+            .count()
+    };
+    assert_eq!(pixels(&empty), 0);
+    assert!(pixels(&partly_faded) > 15);
+
+    let held = app.request(json!({"op":"settle","steps":22}), true);
+    assert_eq!(held["status"], "unsettled", "{held}");
+    let approach = app.observe();
+    let approaching = &approach["table"]["marker_travel"][0];
+    assert!(approaching["alpha"].as_f64().unwrap() > alpha);
+    app.capture("4-santiago-approaching");
+
+    app.request(json!({"op":"settle"}), true);
+    let arrived = app.observe();
+    assert_eq!(arrived["table"]["marker_travel"], json!([]));
+    assert_eq!(arrived["observation"], committed["observation"]);
+    assert_eq!(drawn_count(&arrived, "santiago"), Some(json!("1")));
+    assert_eq!(number(&arrived), ("19".into(), 19));
+    let roundel = arrived["table"]["counts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["name"] == "count:santiago Terror")
+        .unwrap();
+    near(at(approaching), &roundel["roundel_bounds"], 90.);
+    app.capture("5-santiago-arrived");
+
+    app.choose("terror:oriente");
+    let second = app.observe();
+    let oriente = rule_space(&second, "oriente");
+    assert_eq!(oriente["terror"], 1);
+    assert_eq!(oriente["support"], -2);
+    assert_eq!(drawn_count(&second, "santiago"), Some(json!("1")));
+    assert_eq!(drawn_count(&second, "oriente"), Some(json!("1")));
+    assert_eq!(number(&second), ("18".into(), 18));
+    let save = std::fs::read(&app.save).unwrap();
+    app.quit();
+    app.launch_size("3840x2160");
+    let reopened = app.observe();
+    assert_eq!(reopened["observation"], second["observation"]);
+    assert_eq!(reopened["table"]["marker_travel"], json!([]));
+    assert_eq!(reopened["table"]["settled"], true);
+    assert_eq!(drawn_count(&reopened, "santiago"), Some(json!("1")));
+    assert_eq!(drawn_count(&reopened, "oriente"), Some(json!("1")));
+    assert_eq!(number(&reopened), ("18".into(), 18));
+    assert_eq!(std::fs::read(&app.save).unwrap(), save);
+    app.capture("6-reopened-settled");
+    app.quit();
+}
+
 /// The marker supply's tag as the seat reports it (`table.top`): its rows as
 /// (label, value).
 fn tag_rows(view: &Value) -> Vec<(String, String)> {
