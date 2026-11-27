@@ -209,11 +209,14 @@ fn run() -> Result<u8> {
         "play-save" if (1..=2).contains(&args.len()) => {
             let directory = Path::new(&args[0]);
             let explicit = args.get(1).map(Path::new);
-            let path = cuba_libre_unfolded::save::play_save_path(directory, explicit)?;
+            let path =
+                cuba_libre_unfolded::save::play_save_path(directory, explicit, |path, error| {
+                    eprintln!("Skipping {}. {error:#}", path.display());
+                })?;
             if explicit.is_none() {
                 if path != directory.join("task.json") {
                     eprintln!(
-                        "This build cannot resume the older default saves. Using {}. The older files were preserved.",
+                        "Using {}. The skipped save files were preserved.",
                         path.display()
                     );
                 }

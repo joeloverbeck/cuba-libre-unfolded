@@ -64,12 +64,10 @@ fn readme_launch_gets_past_an_old_default_and_resumes_the_separate_save() {
     let home = tempdir().unwrap();
     let saves = home.path().join(".local/share/cuba-libre-unfolded/saves");
     fs::create_dir_all(&saves).unwrap();
-    let legacy = saves.join("task.json");
-    let identity =
-        serde_json::from_value(serde_json::json!({"format":"2","source":assets::SOURCE})).unwrap();
-    let old = save::seal(&identity, &serde_json::json!({}));
-    let previous = previous_path(&legacy);
-    fs::write(&legacy, &old).unwrap();
+    let disposable = saves.join("task.json");
+    let old = format_two_record();
+    let previous = previous_path(&disposable);
+    fs::write(&disposable, &old).unwrap();
     fs::write(&previous, &old).unwrap();
     let separate = saves.join("task-2.json");
     let launch = || {
@@ -100,14 +98,53 @@ fn readme_launch_gets_past_an_old_default_and_resumes_the_separate_save() {
         0
     );
 
-    let explicit = launch().arg("--save").arg(&legacy).output().unwrap();
+    let explicit = launch().arg("--save").arg(&disposable).output().unwrap();
     assert_eq!(explicit.status.code(), Some(1));
     let stderr = String::from_utf8(explicit.stderr).unwrap();
     assert!(stderr.contains("in format 2"), "{stderr}");
     assert!(stderr.contains("scripts/play --save"), "{stderr}");
     assert!(explicit.stdout.is_empty());
-    assert_eq!(fs::read(legacy).unwrap(), old);
+    assert_eq!(fs::read(disposable).unwrap(), old);
     assert_eq!(fs::read(previous).unwrap(), old);
+}
+
+fn format_two_record() -> Vec<u8> {
+    let identity = [("format", "2"), ("source", assets::SOURCE)]
+        .into_iter()
+        .collect();
+    save::seal(&identity, &serde_json::json!({}))
+}
+
+#[test]
+fn readme_launch_preserves_occupied_fallback_names_and_tries_the_next() {
+    let home = tempdir().unwrap();
+    let saves = home.path().join(".local/share/cuba-libre-unfolded/saves");
+    fs::create_dir_all(&saves).unwrap();
+    fs::write(saves.join("task.json"), format_two_record()).unwrap();
+    let orphaned = saves.join("task-2.json.previous");
+    let damaged = saves.join("task-3.json");
+    fs::write(&orphaned, b"recovery history").unwrap();
+    fs::write(&damaged, b"malformed record").unwrap();
+    let result = launcher(home.path())
+        .env("PLAY_TEST_CARDS_PREPARED", "1")
+        .output()
+        .unwrap();
+    assert!(result.status.success(), "{result:?}");
+    assert_eq!(
+        String::from_utf8(result.stdout).unwrap().trim_end(),
+        saves.join("task-4.json").to_str().unwrap()
+    );
+    let stderr = String::from_utf8(result.stderr).unwrap();
+    assert!(
+        stderr.contains("task-2.json") && stderr.contains("recovery history exists"),
+        "{stderr}"
+    );
+    assert!(
+        stderr.contains("task-3.json") && stderr.contains("Malformed save"),
+        "{stderr}"
+    );
+    assert_eq!(fs::read(orphaned).unwrap(), b"recovery history");
+    assert_eq!(fs::read(damaged).unwrap(), b"malformed record");
 }
 
 #[test]

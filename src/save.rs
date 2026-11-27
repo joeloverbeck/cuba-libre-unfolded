@@ -275,7 +275,11 @@ fn words(error: save::Error, action: Action) -> anyhow::Error {
 /// Selects the launcher's save path without opening a session or creating files.
 /// Its implicit names are stable across restarts and skip saves this build cannot
 /// replay. An explicit path is checked as requested.
-pub fn play_save_path(directory: &Path, explicit: Option<&Path>) -> Result<PathBuf> {
+pub fn play_save_path(
+    directory: &Path,
+    explicit: Option<&Path>,
+    mut report_skipped: impl FnMut(&Path, anyhow::Error),
+) -> Result<PathBuf> {
     if let Some(path) = explicit {
         check_play_slot(path).map_err(|error| play_save_refusal(path, error))?;
         return Ok(path.to_owned());
@@ -283,12 +287,25 @@ pub fn play_save_path(directory: &Path, explicit: Option<&Path>) -> Result<PathB
 
     let slots = std::iter::once(directory.join("task.json"))
         .chain((2_u64..).map(|number| directory.join(format!("task-{number}.json"))));
-    for path in slots {
-        match check_play_slot(&path) {
-            Ok(()) => return Ok(path),
-            Err(save::Error::Unsupported(_) | save::Error::Unreproducible(_)) => continue,
-            Err(error) => return Err(play_save_refusal(&path, error)),
+    for (index, path) in slots.enumerate() {
+        let Err(error) = check_play_slot(&path) else {
+            return Ok(path);
+        };
+        let skip = match error {
+            save::Error::Unsupported(_) | save::Error::Unreproducible(_) => true,
+            // Once the incompatible primary has been skipped, a proven occupied
+            // numbered path can be preserved and the next name tried.
+            save::Error::Orphaned
+            | save::Error::Malformed(_)
+            | save::Error::Checksum
+            | save::Error::TooLarge
+            | save::Error::NotRegularFile => index > 0,
+            _ => false,
+        };
+        if !skip {
+            return Err(play_save_refusal(&path, error));
         }
+        report_skipped(&path, words(error, Action::Continue));
     }
     unreachable!("the implicit save name sequence has no end")
 }
