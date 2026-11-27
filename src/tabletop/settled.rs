@@ -69,6 +69,9 @@ pub(super) fn unsettled(world: &mut World) -> Vec<Unsettled> {
     if play.admitted() && !world.resource::<areas::Island>().surveyed() {
         pending.push(Unsettled::HomeFraming);
     }
+    if !ui.piece_flips.is_empty() || world.resource::<piece_flips::Flights>().moving() {
+        pending.push(Unsettled::Part("piece flip".into()));
+    }
     if world.resource::<Counts>().settling > 0 {
         pending.push(Unsettled::PieceCounts);
     }

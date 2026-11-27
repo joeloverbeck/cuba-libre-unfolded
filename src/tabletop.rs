@@ -72,6 +72,7 @@ mod occupancy_review;
 #[cfg(feature = "occupancy-review")]
 pub use occupancy_review::OccupancyReview;
 mod palette;
+mod piece_flips;
 mod pile_tags;
 mod piles;
 mod popover;
@@ -230,6 +231,7 @@ struct Interface {
     /// The card a decision just played in this run, until the tray starts showing its
     /// advance from the shared clock in the same frame (`piles::follow`).
     played: Option<piles::Played>,
+    piece_flips: Vec<crate::Flip>,
 }
 impl Interface {
     /// Whether the human plays `faction`.
@@ -497,6 +499,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .insert_resource(main_view)
         .init_resource::<areas::Island>()
         .init_resource::<Counts>()
+        .init_resource::<piece_flips::Flights>()
         .init_resource::<die::Roll>()
         .init_resource::<piles::Advance>()
         .init_resource::<newspaper::Drawn>()
@@ -556,7 +559,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 admit,
                 highlights::refresh,
                 highlights::show,
-                sync_pieces,
+                (sync_pieces, piece_flips::animate).chain(),
                 highlights::markers,
                 popover::hover_piece,
                 bind_spaces,
@@ -755,15 +758,20 @@ fn sync_pieces(
     roots: Query<Entity, With<PieceVisual>>,
     mut counts: ResMut<Counts>,
     mut previous: Local<Option<(Faction, Vec<crate::Space>)>>,
+    mut ui: ResMut<Interface>,
+    time: Res<Time>,
+    mut flights: ResMut<piece_flips::Flights>,
 ) {
     if counts.settling > 0 {
         counts.settling -= 1;
     }
     let game = play.game();
     let executor = game.executing().unwrap_or(Faction::M26);
-    if previous
-        .as_ref()
-        .is_some_and(|(faction, spaces)| *faction == executor && *spaces == game.spaces)
+    let motion_changed = flights.refresh(&mut ui.piece_flips, time.elapsed_secs_f64());
+    if !motion_changed
+        && previous
+            .as_ref()
+            .is_some_and(|(faction, spaces)| *faction == executor && *spaces == game.spaces)
     {
         return;
     }
@@ -776,7 +784,17 @@ fn sync_pieces(
         let space = game.spaces.iter().find(|s| s.id == label.space).unwrap();
         let top = map::top(space.terrain);
         let scale = map::PIECE_SCALE;
-        for piece in &space.pieces {
+        let moving: Vec<_> = flights.in_space(&space.id).collect();
+        let pieces = space
+            .pieces
+            .iter()
+            .map(|p| (p, None))
+            .chain(moving.iter().map(|(piece, flip)| (piece, Some(*flip))));
+        for (piece, flight) in pieces {
+            let count = flights.count(&space.id, piece);
+            if flight.is_none() && count == 0 {
+                continue;
+            }
             let mesh = match piece.kind {
                 Kind::Troops | Kind::Police => Mesh::from(Cuboid::new(0.18, 0.18, 0.18)),
                 Kind::Guerrilla => Cylinder::new(0.10, 0.24)
@@ -841,11 +859,26 @@ fn sync_pieces(
                         .with_scale(Vec3::splat(scale)),
                 },
             );
-            commands
-                .entity(token)
-                .insert((PieceVisual, status::SpaceTarget(space.id.clone())))
-                .remove::<Pickable>();
-            if piece.faction == executor {
+            commands.entity(token).insert(PieceVisual);
+            if let Some(flip) = flight {
+                let from = crate::Group {
+                    state: flip.from,
+                    ..piece.clone()
+                };
+                let [x, y] = map::slot(&space.id, &from);
+                let start = map::at(x, y, top) + Vec3::Y * height * scale;
+                let rest = Transform::from_translation(base + Vec3::Y * height * scale)
+                    .with_scale(Vec3::splat(scale));
+                commands
+                    .entity(token)
+                    .insert(piece_flips::Motion::new(start, rest, color));
+            } else {
+                commands
+                    .entity(token)
+                    .insert(status::SpaceTarget(space.id.clone()))
+                    .remove::<Pickable>();
+            }
+            if flight.is_none() && piece.faction == executor {
                 let key = format!(
                     "{}:{}",
                     space.id,
@@ -885,6 +918,9 @@ fn sync_pieces(
                     },
                 );
             }
+            if flight.is_some() {
+                continue;
+            }
             let reach = match piece.kind {
                 Kind::Troops | Kind::Police | Kind::Guerrilla => 0.13,
                 Kind::Base | Kind::Casino => 0.15,
@@ -893,7 +929,7 @@ fn sync_pieces(
                 &mut commands,
                 &art,
                 &space.id,
-                piece.count.to_string(),
+                count.to_string(),
                 token,
                 Vec3::new(reach, -height - (base.y - top) / scale + 0.025, 0.),
             );
@@ -1409,6 +1445,15 @@ fn submit(
     let session = play.session.as_mut().unwrap();
     let reply = session.submit(owner, rev, name)?;
     let after = session.observe();
+    if Choice::action_of(name).starts_with("terror:")
+        && let Some(preview) = previous
+            .choices
+            .iter()
+            .find(|choice| choice.id == name)
+            .and_then(|choice| choice.preview.as_ref())
+    {
+        ui.piece_flips.clone_from(&preview.flips);
+    }
     let played = ui.played();
     ui.editions
         .decided(&after, owner, |told| session.reports_since(told), played);
