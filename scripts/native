@@ -3,13 +3,22 @@
 # once (`--test-threads=1` to 4 chooses), and the in-process ones serially.
 set -euo pipefail
 # Bash reads a script as it runs. The braces make it read all of this one first, so an edit to
-# this script during a run cannot change the run.
+# this script during a run cannot change commands in that invocation.
 {
 if [[ ${1:-} == --timed-harness ]]; then
   # Cargo invokes this after it resolves the executable. Leave the caller's log
   # alone if Cargo never dispatches a test harness.
   shift
   export RUSTC_BOOTSTRAP=1
+  position=$CUBA_NATIVE_LOG_POSITION
+  width=$CUBA_NATIVE_LOG_WIDTH
+  before_log=("${@:2:position-1}")
+  after_log=("${@:position+width+1}")
+  # The harness parses its options before opening the logfile. Validate them
+  # without running tests or opening the caller's file.
+  if ! "$1" --list "${before_log[@]}" --logfile=/dev/null "${after_log[@]}" >/dev/null 2>&1; then
+    exec "$@"
+  fi
   if ! exec {caller_fd}>"$CUBA_NATIVE_CALLER_LOG"; then
     # Keep libtest's diagnosis of an unusable logfile path.
     exec "$@"
@@ -18,11 +27,9 @@ if [[ ${1:-} == --timed-harness ]]; then
   # the harness so a detached app cannot keep the mirror open on interruption.
   exec {log_fd}> >(trap '' INT TERM; tee --output-error=warn -- "$CUBA_NATIVE_HARNESS_LOG" >&"$caller_fd")
   log_pid=$!
-  position=$CUBA_NATIVE_LOG_POSITION
-  width=$CUBA_NATIVE_LOG_WIDTH
-  command=("${@:1:position}" "--logfile=/proc/$BASHPID/fd/$log_fd" "${@:position+width+1}")
   status=0
-  "${command[@]}" {log_fd}>&- {caller_fd}>&- || status=$?
+  "$1" "${before_log[@]}" "--logfile=/proc/$BASHPID/fd/$log_fd" "${after_log[@]}" \
+    {log_fd}>&- {caller_fd}>&- || status=$?
   exec {log_fd}>&- {caller_fd}>&-
   if ! wait "$log_pid" && ((status == 0)); then status=1; fi
   exit "$status"
