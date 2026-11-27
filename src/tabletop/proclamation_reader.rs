@@ -1,5 +1,6 @@
 //! A faction's public words stay on the table while the human reads them.
-//! The selected Broadsheet frame supplies the page geometry and typography.
+//! The selected Broadsheet and the production reader layout supply the
+//! geometry and typography (art/atlas/PROCLAMATIONS.md).
 use super::{broadsheet, *};
 use bevy::input::{
     keyboard::KeyboardInput,
@@ -9,9 +10,13 @@ use bevy::text::{LineBreak, TextLayout};
 use bevy::ui::widget::NodeImageMode;
 use serde_json::json;
 
-const LAYER: i32 = 55;
+pub(super) const LAYER: i32 = 55;
 const LINE: f32 = 73.;
+// From atlas-broadsheet-reader.figcraft, measured from the plate's corner at 4K.
+const ENTRY: [f32; 4] = [820., 1420., 680., 82.];
 const BODY: [f32; 4] = [370., 568., 1775., 580.];
+const PREVIOUS_BOX: [f32; 4] = [1268., 1157., 420., 79.];
+const NEXT_BOX: [f32; 4] = [1718., 1157., 420., 79.];
 const RETURN_BOX: [f32; 4] = [1658., 1258., 480., 94.];
 pub(super) const INBOX: &str = "proclamations";
 pub(super) const RETURN: &str = "proclamation:return";
@@ -134,6 +139,8 @@ pub(super) fn keys(
             && count > 0
         {
             press(&mut ui, Press::Open, session);
+            consume_proclamation_keys(&mut keys);
+            keyboard.clear();
         }
         return;
     }
@@ -176,12 +183,7 @@ pub(super) fn keys(
         }
     }
 
-    let pressed = keys.get_just_pressed().copied().collect::<Vec<_>>();
-    for key in pressed {
-        if !faction_seats::KEYS.contains(&key) {
-            keys.clear_just_pressed(key);
-        }
-    }
+    consume_proclamation_keys(&mut keys);
     keyboard.clear();
 }
 
@@ -213,7 +215,7 @@ pub(super) fn draw(
             commands,
             art,
             layout,
-            [820., 1420., 680., 82.],
+            ENTRY,
             (INBOX, Press::Open),
             &label,
             false,
@@ -346,7 +348,7 @@ pub(super) fn draw(
             commands,
             art,
             layout,
-            [1268., 1157., 420., 79.],
+            PREVIOUS_BOX,
             ("proclamation:previous", Press::Previous),
             "Previous proclamation",
             false,
@@ -360,7 +362,7 @@ pub(super) fn draw(
             commands,
             art,
             layout,
-            [1718., 1157., 420., 79.],
+            NEXT_BOX,
             ("proclamation:next", Press::Next),
             "Next proclamation",
             false,

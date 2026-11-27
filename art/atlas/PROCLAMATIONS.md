@@ -8,9 +8,18 @@ The runtime PNGs in `proclamation.sha256` are unchanged copies of the Broadsheet
 
 At 3840×2160 the plate starts at (760, 378) and measures 2320×1400. The editor field is 1851×538 at (1092, 926), with the text in 58 px Lato and 73 px line height. The selected 400-character example wraps into six lines. The [composer-controls layout](atlas-broadsheet-composer.figcraft) places the entry control, faction selectors and refusal text. Its selector row reuses the selected VectorCraft control plates below the issuer masthead. The refusal fits between the editor and the allowance rule so the draft, count and both buttons stay visible. The existing Atlas focus mark follows the selected keyboard control.
 
-FigCraft CLI 0.18.1 authored and reopened the composer controls using the installed build from the clean `storytold/figcraft@5c2a3784` checkout, identified by reflog and binary timestamps. The exact #228 comparison stays intact.
-
-
 ## Reading
 
-The reader keeps the same plate, issuer masthead and attribution positions. Its text sits 370 px from the plate's left and 568 px from its top, in a 1775×580 area at 4K. The 58 px Lato Regular body has 73 px line spacing. The primary return button retains its 480×94 shape 1658 px from the left and 1258 px from the top. The reader uses the same authored plates for the public record's other controls.
+The [production reader layout](atlas-broadsheet-reader.figcraft) keeps the selected plate, issuer masthead and attribution positions. It uses the selected secondary and primary control artwork, the Atlas scrim and the existing seat-card **Take back** button. The source frames show the archive entry with an unread document and the reader in the middle of the archive with a clipped body. They reuse the redacted table background from the selected #228 reader.
+
+| Part | Top left at 3840×2160 | Size |
+|---|---:|---:|
+| Archive entry | (1580, 1798) | 680×82 |
+| Scroll viewport | (1130, 946) | 1775×580 |
+| Previous proclamation | (2028, 1535) | 420×79 |
+| Next proclamation | (2478, 1535) | 420×79 |
+| Return to choice | (2418, 1636) | 480×94 |
+
+The 58 px Lato Regular body has 73 px line spacing. Scrolling moves the words under the viewport clip, with the caption and buttons in place. The **Take back** button stays at the position of its faction's [seat card](SEATS.md) and draws above the scrim. The example shows the deciding 26July seat.
+
+FigCraft CLI 0.18.1 authored and reopened both production layouts using the installed build from the clean `storytold/figcraft@5c2a3784` checkout, identified by reflog and binary timestamps. The exact #228 comparison stays intact.

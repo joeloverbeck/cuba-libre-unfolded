@@ -1145,13 +1145,18 @@ fn click(
         return;
     }
     if ui.proclamation_reader.is_open() {
-        if let Ok(Control {
-            action: Action::ReadProclamation(press),
-            ..
-        }) = controls.get(event.entity)
-        {
-            let session = play.session.as_mut().expect("An admitted match");
-            proclamation_reader::press(&mut ui, *press, session);
+        if let Ok(control) = controls.get(event.entity) {
+            match control.action {
+                Action::ReadProclamation(press) => {
+                    let session = play.session.as_mut().expect("An admitted match");
+                    proclamation_reader::press(&mut ui, press, session);
+                }
+                Action::Seat(press @ seat_cards::Press::TakeBack(_)) => {
+                    ui.clicked = true;
+                    ui.presses.push(press);
+                }
+                _ => {}
+            }
         }
         return;
     }
@@ -1268,6 +1273,15 @@ fn click(
         }
     }
     ui.dirty = true;
+}
+
+fn consume_proclamation_keys(keys: &mut ButtonInput<KeyCode>) {
+    let pressed = keys.get_just_pressed().copied().collect::<Vec<_>>();
+    for key in pressed {
+        if !faction_seats::KEYS.contains(&key) {
+            keys.clear_just_pressed(key);
+        }
+    }
 }
 /// A primary click on the map, outside any interface node, closes the open AC-B
 /// briefing tag, or during Terror the pinned EX-A step tag (#84), so the Santiago and

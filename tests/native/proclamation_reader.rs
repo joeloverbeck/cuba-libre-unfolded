@@ -1,6 +1,6 @@
 use super::{faction_seats, *};
 use cuba_libre_unfolded::save::Session;
-use faction_seats::{DIRECTORIO, M26, SYNDICATE, holding, seat};
+use faction_seats::{DIRECTORIO, GOVERNMENT, M26, SYNDICATE, holding, seat};
 use std::fs;
 use std::time::{Duration, Instant};
 use unfolded_record_replacement::previous_path;
@@ -47,6 +47,12 @@ fn native_reads_proclamations_in_order_over_the_pending_giver_choice() {
     assert_eq!(reader["documents"][0]["author"], "M26");
     assert_eq!(reader["documents"][0]["text"], first);
     assert_eq!(reader["documents"][0]["read"], false);
+    let covered = app.request(
+        json!({"op":"activate","revision":revision,"component":"transfer:field"}),
+        false,
+    );
+    assert_eq!(covered["status"], "missed");
+    assert_eq!(covered["observation"], pending);
     app.capture("first-broadsheet-over-giver");
 
     publish(&mut app, &directorio, revision, second);
@@ -61,6 +67,7 @@ fn native_reads_proclamations_in_order_over_the_pending_giver_choice() {
     assert_eq!(between["table"]["proclamations"]["unread"], 1);
     assert_eq!(between["table"]["transfer"], before["table"]["transfer"]);
     assert_eq!(between["observation"], pending);
+    app.capture("archive-entry-with-unread-proclamation");
 
     // The last arrival can stay unread while the ordinary table is available.
     app.activate(INBOX, revision);
@@ -105,6 +112,19 @@ fn native_reads_proclamations_in_order_over_the_pending_giver_choice() {
     let keyboard = app.key("KeyR");
     assert_eq!(keyboard["table"]["proclamations"]["open"], 1);
     assert_eq!(app.key("Escape")["observation"], pending);
+
+    let government = app.seat_agent(GOVERNMENT, "government");
+    publish(&mut app, &government, revision, "The giver may answer.");
+    app.activate(RETURN, revision);
+    app.activate(INBOX, revision);
+    app.activate("proclamation:next", revision);
+    let middle = app.observe();
+    assert_eq!(middle["table"]["proclamations"]["open"], 2);
+    assert_eq!(middle["observation"], pending);
+    app.capture("archive-middle-with-both-controls");
+    app.activate("proclamation:previous", revision);
+    assert_eq!(app.observe()["table"]["proclamations"]["open"], 1);
+    app.quit();
 }
 
 #[test]
@@ -163,7 +183,8 @@ fn native_rechecks_a_givers_held_choice_after_reading() {
         if take_back {
             // Seat custody is still available during reading. Reclaiming it ends
             // the held identity and withdraws its queued authorization.
-            let reclaimed = app.key(SYNDICATE);
+            app.activate("seat:syndicate:take-back", revision);
+            let reclaimed = app.observe();
             assert_eq!(reclaimed["table"]["proclamations"]["open"], 1);
             assert_eq!(seat(&reclaimed, "Syndicate")["holds_choice"], false);
             assert_eq!(reclaimed["observation"], position);

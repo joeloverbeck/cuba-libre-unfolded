@@ -390,6 +390,7 @@ pub(super) fn draw(
             ui.seats[faction.index()],
             forward,
             row.at(by),
+            ui.proclamation_reader.is_open(),
         );
     }
     if let Some(line) = &ui.line {
@@ -404,6 +405,7 @@ fn card(
     state: SeatState,
     forward: bool,
     place: Place,
+    reading: bool,
 ) {
     let seat = format!("seat:{}", slug(faction));
     let part = |commands: &mut Commands, entity: Entity, what: &str, words: Option<&str>| {
@@ -444,7 +446,17 @@ fn card(
     let [mut left, top, height] = fig::BUTTONS;
     for (name, words, press, width, filled) in buttons(faction, state) {
         let rect = [left, top, width, height];
-        place.button(commands, art, &name, (words, press), rect, filled);
+        // The reader leaves the seat-card takeover buttons at their authored
+        // positions and above its hit surface.
+        let button = if reading && matches!(press, Press::TakeBack(_)) {
+            Place {
+                z: proclamation_reader::LAYER,
+                ..place
+            }
+        } else {
+            place
+        };
+        button.button(commands, art, &name, (words, press), rect, filled);
         left += width + fig::BUTTON_GAP;
     }
 }

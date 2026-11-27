@@ -77,7 +77,7 @@ Syndicate can transfer Resources while Construct is open. If Limited Construct n
 
 While a card is open, choose **Write a proclamation** or press **P**. Select your faction under **Writing as**. The sheet shows that faction's allowance for the card and counts the draft as you type, up to 400 characters for publication.
 
-Choose **Publish proclamation** to send the exact wording to all four factions. A refusal appears below the field and keeps the draft there. **Return to choice** or **Escape** keeps the draft for this card. Publication leaves the pending decision in place, so a Resource promise still needs the giver's authorization and a separate legal payment.
+Choose **Publish proclamation** to send the exact wording to all four factions. A refusal appears below the field and keeps the draft there. If a new proclamation interrupts the Publish press, the composer asks you to press Publish again after reading. **Return to choice** or **Escape** keeps the draft for this card. Publication leaves the pending decision in place, so a Resource promise still needs the giver's authorization and a separate legal payment.
 
 ## Removing your own pieces
 
@@ -182,6 +182,8 @@ When a faction you do not play completes an action, an edition of *El Correo de 
 
 A faction player's publication opens as a public Broadsheet. Read the issuer, card and the faction's own words. **Return to choice**, Escape, Enter or Space acknowledges it. If another proclamation is waiting, **Next proclamation** opens it in publication order. You can return to the table with later proclamations still unread. While the page is open, agent choices wait. Your pending decision and keyboard focus resume when you return to the table.
 
+Select **Take back** on a faction's seat card while reading to reclaim it and cancel any choice that its agent submitted while the reader held moves.
+
 Select **Proclamations** or press R to reread the public record. Use the previous and next buttons or Left and Right to browse it. If a proclamation extends below the reading area, use the wheel or Up and Down. The factual newspaper reports committed actions under its own masthead.
 
 Reopening a match restores the public record and its unread count. **Proclamations** opens the first unread document, or the first in the record if all have been read. A proclamation you publish is already read. If the table cannot save an acknowledgement, the document stays open so you can retry.
@@ -190,17 +192,19 @@ Reopening a match restores the public record and its unread count. **Proclamatio
 
 | Input | Effect |
 |---|---|
-| Right-drag or arrow keys | Orbit |
+| Right-drag | Orbit over the map |
 | Wheel or `+`/`-` | Zoom |
 | `W` `A` `S` `D` | Pan |
 | `Home` | Restore the map framing; also brings back hover tags that extreme framing hid |
 | `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked, then no effect, then those nothing can pay for) and an open popover's rows and button, then the marker supply, the four Available Forces rows, the current and the preview card, the two piles, the card's editions, the seat cards' buttons and Save · quit. A reopened edition turns to the card's next one |
-| `Enter`, `Space` | Activate the focused control. A dark line outside it ([FOCUS-MARK.md](../art/atlas/FOCUS-MARK.md)) marks the button, row or option that Enter would press; in the transfer modal that is the main button until Tab reaches another control, and in the amount field too. A focused space, card, pile, the marker supply or an Available Forces row shows its tag instead. While a played card is moving, land the cards instead |
-| `Left`, `Right` | Turn the pages of an open edition; otherwise they orbit |
+| `P`, `R` | Open the proclamation composer or public archive |
+| `Enter`, `Space` | Acknowledge an open Broadsheet, put an edition away, land a moving card, or activate the focused control. A dark line marks the button, row or option that Enter would press. In the transfer modal that is the main button until Tab reaches another control. A focused space, card, pile, marker supply or Available Forces row shows its tag. [Focus mark](../art/atlas/FOCUS-MARK.md) |
+| `Left`, `Right` | Browse proclamations in an open Broadsheet, turn an open edition's pages, or orbit the map |
+| `Up`, `Down` | Scroll an open Broadsheet or orbit the map |
 | `F1`, `F2`, `F3`, `F4` | Hand Government, 26July, Directorio or Syndicate to an agent, or take it back ([above](#handing-a-faction-to-an-agent)) |
-| `Escape` | Put an open edition away, which Enter and Space do too; otherwise close a card's tag or the sheet with a seat's line, unpin a briefing, cancel an open transfer, or close a tag or popover; a space popover closed from the keyboard leaves focus on its space |
+| `Escape` | Acknowledge an open Broadsheet, keep the current draft and close the composer, put an edition away, close a card tag or the sheet with a seat's line, unpin a briefing, cancel an open transfer, or close a tag or popover. A space popover closed from the keyboard leaves focus on its space |
 
-The camera answers wherever the pointer is over the map. A scroll, a drag or a click on a panel stays with that panel: it neither moves the camera nor reaches the space beneath. The transfer modal and an open edition take camera input while open.
+The camera answers wherever the pointer is over the map. A scroll, a drag or a click on a panel stays with that panel: it neither moves the camera nor reaches the space beneath. The transfer modal, an open edition and an open Broadsheet take camera input while open.
 
 ## Saving and quitting
 

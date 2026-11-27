@@ -23,6 +23,11 @@ fn native_havana_numeric_request_and_public_bargain() {
     let mut app = super::available_forces::unlaunched("havana-negotiation-", "issue-233");
     underfunded_handoff(&mut app);
     retain_save(&app, "owner-start.json");
+    fs::copy(
+        previous_path(&app.save),
+        app.root.join("owner-start.json.previous"),
+    )
+    .unwrap();
     app.capture("owner-start");
 
     ask_for_two(&mut app);
