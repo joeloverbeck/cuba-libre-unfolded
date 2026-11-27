@@ -15,6 +15,7 @@ use crate::{ActionChoice, Choice, Faction, Game, Observation, TransferChoice, ta
 /// Where `choice` is presented in `view`, or `None` when no surface offers it.
 fn surface(view: &Observation, choice: &Choice) -> Option<&'static str> {
     let action = choice.action();
+    let ui = Interface::default();
     let submits = |commit: &execution::Commit| match &commit.action {
         Action::Commit(..) => commit.name == choice.id,
         Action::Submit(_, _, id) => *id == choice.id,
@@ -26,7 +27,7 @@ fn surface(view: &Observation, choice: &Choice) -> Option<&'static str> {
             .iter()
             .any(|s| s.id == id && s.interactive)
     {
-        let commit = execution::commit(view, Some(action));
+        let commit = execution::commit(view, Some(action), &ui);
         let presented = if choice.supported {
             commit.enabled && submits(&commit)
         } else {
@@ -83,16 +84,15 @@ fn surface(view: &Observation, choice: &Choice) -> Option<&'static str> {
             return Some("panel record");
         }
     }
-    if submits(&execution::commit(view, None)) {
+    if submits(&execution::commit(view, None, &ui)) {
         return Some("panel commit");
     }
-    if execution::focusable(view, &Interface::default())
+    if execution::focusable(view, &ui)
         .iter()
         .any(|(name, _)| *name == choice.id)
     {
         return Some("panel control");
     }
-    let ui = Interface::default();
     if transfer::shown(view.transfer.as_ref(), view.owner, &ui) {
         if transfer::focusable(view, &ui).contains(&choice.id) {
             return Some("transfer modal control");

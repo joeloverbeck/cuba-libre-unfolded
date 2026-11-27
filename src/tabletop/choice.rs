@@ -257,6 +257,15 @@ struct Commit {
     name: String,
     enabled: bool,
 }
+
+/// The confirmation label and explanation for a supported choice held by another seat.
+pub(super) fn held_confirmation(owner: Faction) -> (String, String) {
+    (
+        format!("{}'s seat chooses", owner.name()),
+        format!("Only {}'s seat can choose this option.", owner.name()),
+    )
+}
+
 fn commit(view: &Observation, ui: &Interface) -> Commit {
     let choice = ui
         .choice
@@ -264,16 +273,7 @@ fn commit(view: &Observation, ui: &Interface) -> Commit {
         .as_deref()
         .and_then(|pinned| view.choices.iter().find(|c| c.action() == pinned));
     match choice {
-        Some(c) if c.supported && !ui.plays(c.owner) => Commit {
-            label: format!("{}'s seat chooses", c.owner.name()),
-            action: Action::Unsupported(format!(
-                "Only {}'s seat can choose this option.",
-                c.owner.name()
-            )),
-            name: "choice-commit".into(),
-            enabled: false,
-        },
-        Some(c) if c.supported => Commit {
+        Some(c) if ui.can_confirm(c) => Commit {
             label: match c.action() {
                 // The gain the authority previews, possibly zero at the cap.
                 "pass" | "government:pass" | "syndicate:pass" => c
@@ -299,6 +299,15 @@ fn commit(view: &Observation, ui: &Interface) -> Commit {
             name: c.id.clone(),
             enabled: true,
         },
+        Some(c) if c.supported => {
+            let (label, reason) = held_confirmation(c.owner);
+            Commit {
+                label,
+                action: Action::Unsupported(reason),
+                name: "choice-commit".into(),
+                enabled: false,
+            }
+        }
         Some(c) => {
             let label = if c.action() == "end-construct" {
                 "Pay for one space first".into()
@@ -365,9 +374,9 @@ fn pending_withdrawal<'a>(view: &'a Observation, ui: &Interface) -> Option<&'a C
     {
         return None;
     }
-    view.choices.iter().find(|choice| {
-        choice.action() == "back-to-choice" && choice.supported && ui.plays(choice.owner)
-    })
+    view.choices
+        .iter()
+        .find(|choice| choice.action() == "back-to-choice" && ui.can_confirm(choice))
 }
 
 /// Event execution and the card 18 decisions use rows without section headings.
@@ -895,7 +904,7 @@ pub(super) fn panel(
         let row = rect(fig::ROW_X, top, fig::ROW_W, fig::ROW_H);
         // A playable option has the paper plate; the others only a pickable area, and so
         // does an agent's, which the human may read (#206).
-        let offered = choice.supported && ui.plays(choice.owner);
+        let offered = ui.can_confirm(choice);
         let node = if offered {
             let plate = picture(commands, art, "atlas-choice-row.png", row, s, o, 3);
             commands.entity(plate).remove::<Pickable>();
@@ -1286,7 +1295,7 @@ fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> 
             ) && let Some(choice) = view
                 .choices
                 .iter()
-                .find(|choice| choice.action() == "reopen" && ui.plays(choice.owner))
+                .find(|choice| choice.action() == "reopen" && ui.can_confirm(choice))
             {
                 return std::iter::once((
                     choice.id.clone(),
