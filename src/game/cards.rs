@@ -113,6 +113,13 @@ pub enum EventStatus {
     ChosenOperationOnly {
         faction: Faction,
     },
+    SingleInProgress {
+        faction: Faction,
+        decider: Faction,
+    },
+    SingleResolved {
+        faction: Faction,
+    },
     InProgress {
         faction: Faction,
         text: EventText,
@@ -170,6 +177,14 @@ impl EventStatus {
             ),
             Self::ChosenOperationOnly { faction } => {
                 format!("Event closed: {} chose Operation Only", faction.name())
+            }
+            Self::SingleInProgress { faction, decider } => format!(
+                "Event in progress: {} executes. {} decides whether to place.",
+                faction.name(),
+                decider.name(),
+            ),
+            Self::SingleResolved { faction } => {
+                format!("Event resolved: {} executed it", faction.name())
             }
             Self::InProgress { faction, text } => format!(
                 "Event in progress: {} is executing the {} text",
@@ -410,9 +425,16 @@ impl Game {
         let eligibility = self.eligibility();
         let second = eligibility.second;
         if self.current_card() == 19 {
-            return EventStatus::Open {
-                faction: eligibility.first,
-                role: Role::First,
+            let faction = eligibility.first;
+            return match &self.manifesto {
+                None => EventStatus::Open {
+                    faction,
+                    role: Role::First,
+                },
+                Some(manifesto) => match manifesto.pending() {
+                    Some(decider) => EventStatus::SingleInProgress { faction, decider },
+                    None => EventStatus::SingleResolved { faction },
+                },
             };
         }
         if self.current_card() == 18 {

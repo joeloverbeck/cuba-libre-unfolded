@@ -1609,6 +1609,18 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
         ),
         "resolve-shaded" => "Shaded Event resolved. Eligibility for card 18 recorded. Saved.".into(),
         "event:unshaded" => "Directorio chooses who will Rally. Saved.".into(),
+        crate::game::MANIFESTO_EVENT => format!(
+            "{} executes Sierra Maestra Manifesto. {} decides whether to place. Saved.",
+            owner.name(),
+            after.owner.name()
+        ),
+        crate::game::MANIFESTO_DECLINE => {
+            let next = match &after.next {
+                Some(next) => format!("{} is {}.", next.faction.name(), next.role),
+                None => format!("{} decides whether to place.", after.owner.name()),
+            };
+            format!("{} declined placement. {next} Saved.", owner.name())
+        }
         "advance-card" => format!(
             "{} is current. {} is 1st Eligible. Saved.",
             after.cards.current.title,

@@ -6,9 +6,9 @@
 use super::Player;
 use crate::{
     ActionChoice, CardFacts, Choice, ConstructResolution, DeckFacts, Eligibility, EventProgress,
-    EventStatement, Faction, Game, Group, KidnapStakes, MarkerSupply, Next, Observation, Piles,
-    PlayedCard, Preview, Removal, Site, SpaceReason, Standing, Terrain, Transfer, TransferTerms,
-    UsAlliance, reports::Report, save::Proclamation, support_level,
+    EventStatement, Faction, Game, Group, KidnapStakes, Manifesto, MarkerSupply, Next, Observation,
+    Piles, PlayedCard, Preview, Removal, Site, SpaceReason, Standing, Terrain, Transfer,
+    TransferTerms, UsAlliance, reports::Report, save::Proclamation, support_level,
 };
 use serde::Serialize;
 
@@ -97,6 +97,8 @@ pub struct State {
     pub executing: Option<Faction>,
     pub event_executor: Option<Faction>,
     pub event: Option<EventProgress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub manifesto: Option<Manifesto>,
     pub eligibility: Eligibility,
     pub passed: [bool; 4],
     pub next: Option<Next>,
@@ -291,6 +293,7 @@ impl State {
             executing: seen.executing,
             event_executor: seen.event_executor,
             event: seen.event.clone(),
+            manifesto: seen.manifesto.clone(),
             eligibility: seen.eligibility.clone(),
             passed: seen.passed,
             next: seen.next.clone(),

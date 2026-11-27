@@ -25,7 +25,7 @@ pub(crate) use words::listing;
 use crate::{
     ActionChoice, AssaultResolution, Choice, ConstructAuthorization, ConstructFunding,
     ConstructPlan, ConstructResolution, Eligibility, EventOutcome, EventProgress, Faction, Flip,
-    Game, Group, Kidnap, Kind, Next, Observation, Rally, RallyAction, Removal, Resolved,
+    Game, Group, Kidnap, Kind, Manifesto, Next, Observation, Rally, RallyAction, Removal, Resolved,
     SequenceBox, Space, Standing, State, Transfer, title,
 };
 use serde::Serialize;
@@ -40,6 +40,7 @@ pub enum Action {
     Terror,
     EventUnshaded,
     EventShaded,
+    Manifesto,
     Assault,
     Construct,
 }
@@ -178,6 +179,7 @@ struct Moment {
     executing: Option<Faction>,
     action: ActionChoice,
     event: Option<EventProgress>,
+    manifesto: Option<Manifesto>,
     eligibility: Eligibility,
     next: Option<Next>,
     passed: [bool; 4],
@@ -217,6 +219,7 @@ impl Moment {
             executing: seen.executing,
             action: seen.action,
             event: seen.event.clone(),
+            manifesto: seen.manifesto.clone(),
             eligibility: seen.eligibility.clone(),
             next: seen.next.clone(),
             passed: seen.passed,
@@ -247,6 +250,7 @@ impl Moment {
             return Action::Pass;
         }
         match faction {
+            Faction::M26 if self.manifesto.is_some() => Action::Manifesto,
             Faction::M26 => match self.action {
                 ActionChoice::Open => Action::Undecided,
                 ActionChoice::Pass => Action::Pass,
@@ -389,6 +393,7 @@ enum Item {
         /// A space and the Guerrillas Activated there.
         flips: Vec<(String, u8)>,
     },
+    DeclinedPlacement(Faction),
     Granted(Faction),
     Rally {
         faction: Faction,
@@ -600,6 +605,17 @@ fn happened(before: &Moment, after: &Moment, continues: bool, items: &mut Vec<It
                 .map(|flip| (name(&flip.space), flip.count))
                 .collect(),
         });
+    }
+    if let Some(manifesto) = &after.manifesto {
+        let told = before.manifesto.as_ref().map_or(0, |m| m.declines.len());
+        items.extend(
+            manifesto
+                .declines
+                .iter()
+                .skip(told)
+                .copied()
+                .map(Item::DeclinedPlacement),
+        );
     }
     rallied(before, after, items);
     transferred(before, after, items);
@@ -859,6 +875,7 @@ fn spaces(items: &[Item]) -> Vec<String> {
             Item::Shaded { flips } => flips.iter().map(|(space, _)| space).collect(),
             Item::WentBack { .. }
             | Item::Pass(_)
+            | Item::DeclinedPlacement(_)
             | Item::Transfers(_)
             | Item::Granted(_)
             | Item::NoRally(_) => vec![],

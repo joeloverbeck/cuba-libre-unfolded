@@ -278,7 +278,7 @@ fn action(report: &Report) -> Option<&'static str> {
         Did::Undecided => None,
         Did::Pass => Some("Pass"),
         Did::Terror => Some("Terror"),
-        Did::EventUnshaded | Did::EventShaded => Some("Event"),
+        Did::EventUnshaded | Did::EventShaded | Did::Manifesto => Some("Event"),
         Did::Assault => Some("Assault"),
         Did::Construct => Some(crate::game::construct_name(report.role == "1st Eligible")),
     }
@@ -296,8 +296,7 @@ fn folio(edition: &Edition) -> String {
     )
 }
 
-/// Its right: whose action, in which role, and the box it is recorded in. The authority
-/// records no box for an Event, whose own name stands there.
+/// Its right: whose action, in which role, and its record once complete.
 fn about(report: &Report) -> String {
     let what = match (report.complete, action(report)) {
         (true, name) => report.recorded.or(name).map(str::to_owned),

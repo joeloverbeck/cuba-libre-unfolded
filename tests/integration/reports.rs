@@ -862,6 +862,7 @@ fn every_report_of_random_matches_says_what_was_committed() {
         ("EventUnshaded", 1000),
         ("Assault", 1000),
         ("Construct", 100),
+        ("Manifesto", 10),
     ] {
         assert!(
             all.get(kind).is_some_and(|count| *count >= least),
@@ -1411,6 +1412,7 @@ mod reader {
         unchanged: Vec<String>,
         removers: Vec<Faction>,
         rallies: Vec<(Faction, String)>,
+        declined_placement: Vec<Faction>,
         kidnapped: bool,
         shaded: bool,
         granted: Option<Faction>,
@@ -1446,7 +1448,7 @@ mod reader {
         }
         fn of(seen: &[Observation], decisions: &[(Faction, String)], continues: bool) -> Self {
             let mut done = Self::default();
-            for (nth, (_, action)) in decisions.iter().enumerate() {
+            for (nth, (owner, action)) in decisions.iter().enumerate() {
                 let (seen, next) = (&seen[nth], &seen[nth + 1]);
                 let parts: Vec<&str> = action.split(':').collect();
                 let name = |id: &str| -> String {
@@ -1607,6 +1609,9 @@ mod reader {
                         done.at(&name(parts[1]));
                         done.rallies.push((seen.executing.unwrap(), name(parts[1])));
                     }
+                    ("manifesto", _) if action == "manifesto:decline" => {
+                        done.declined_placement.push(*owner);
+                    }
                     ("resolve-shaded", _) => {
                         done.shaded = true;
                         for space in &seen.spaces {
@@ -1641,7 +1646,10 @@ mod reader {
         let syndicate_handoff = played.decisions[..from]
             .iter()
             .position(|(_, a)| matches!(a.as_str(), "government:pass" | "end-assault"));
-        let executor = if card == 18 {
+        let manifesto = card == 19;
+        let executor = if manifesto {
+            Faction::M26
+        } else if card == 18 {
             if syndicate_handoff.is_some() {
                 Faction::Syndicate
             } else {
@@ -1657,6 +1665,9 @@ mod reader {
             let seen = &played.seen[upto];
             let made = |action: &str| played.decisions[..upto].iter().any(|(_, a)| a == action);
             match executor {
+                Faction::M26 if manifesto => {
+                    made("m26:event").then_some("Sierra Maestra Manifesto")
+                }
                 Faction::M26 if made("pass") => Some("Pass"),
                 Faction::M26 => (seen.action == ActionChoice::Terror).then_some("Terror"),
                 Faction::Directorio if made("event:shaded") => Some("the Event, shaded text"),
@@ -1678,6 +1689,7 @@ mod reader {
         };
         // Where the action began: at the opening, or after the decision that ended the last.
         let began = match executor {
+            Faction::M26 if manifesto => 1 + all().rposition(|a| a == "advance-card").unwrap(),
             Faction::M26 => 0,
             Faction::Directorio => 1 + all().position(|a| a == "end-terror").unwrap_or(0),
             Faction::Government => 1 + all().position(|a| a == "advance-card").unwrap_or(0),
@@ -1693,6 +1705,8 @@ mod reader {
                 .and_then(Faction::named);
         }
         let last = decisions.last().map_or("", |(_, a)| a.as_str());
+        let manifesto_complete =
+            manifesto && last == "manifesto:decline" && all().filter(|&a| a == last).count() == 4;
         let complete = matches!(
             last,
             "pass"
@@ -1701,7 +1715,8 @@ mod reader {
                 | "end-assault"
                 | "syndicate:pass"
                 | "end-construct"
-        ) || (executor == Faction::Directorio && ended(after));
+        ) || (executor == Faction::Directorio && ended(after))
+            || manifesto_complete;
         let kidnapped = all().any(|a| a == "kidnap:roll");
         // R 2.3.4: the box of a recorded action. Directorio's Event has none in this build.
         let recorded = match last {
@@ -1710,18 +1725,22 @@ mod reader {
             "end-terror" | "end-assault" => Some("Operation Only"),
             "end-construct" if all().any(|a| a == "government:pass") => Some("Operation Only"),
             "end-construct" => Some("Limited Operation"),
+            _ if manifesto_complete => Some("Event"),
             _ => None,
         };
         same("faction", &report.faction, &executor)?;
         same("card", &report.card, &card)?;
-        let title = if card == 17 {
-            "Alberto Bayo"
-        } else {
-            "Pact of Caracas"
+        let title = match card {
+            17 => "Alberto Bayo",
+            18 => "Pact of Caracas",
+            19 => "Sierra Maestra Manifesto",
+            _ => return Err(format!("unexpected card {card}")),
         };
         same("card title", &report.card_title, &title)?;
-        let role = if executor == Faction::Directorio
-            || syndicate_handoff.is_some_and(|index| played.decisions[index].1 == "end-assault")
+        let role = if !manifesto
+            && (executor == Faction::Directorio
+                || syndicate_handoff
+                    .is_some_and(|index| played.decisions[index].1 == "end-assault"))
         {
             "2nd Eligible"
         } else {
@@ -1748,13 +1767,21 @@ mod reader {
         let mut transfers = done.transfers.iter().collect::<Vec<_>>();
         let mut position = Position::of(before);
         let mut casinos = done.casino_management.iter();
+        let mut decliners = done.declined_placement.iter();
         for article in &report.articles {
             let at = due
                 .iter()
                 .position(|title| *title == article.title)
                 .ok_or_else(|| format!("not due: {}", article.title))?;
             due.remove(at);
-            let result = if article.title.starts_with("Casino management in ") {
+            let result = if article.title == "Placement declined" {
+                let faction = decliners.next().ok_or("extra placement decline")?.name();
+                same(
+                    "decline",
+                    &article.lines,
+                    &vec![format!("{faction} declined placement.")],
+                )
+            } else if article.title.starts_with("Casino management in ") {
                 read_casino_action(
                     article,
                     casinos.next().ok_or("extra Casino action")?,
@@ -1824,7 +1851,9 @@ mod reader {
         };
         match (again, complete, named.is_empty()) {
             (false, true, false) => format!("{name} executes {action} in {named}"),
-            (false, true, true) if !action.contains("Event") => {
+            (false, true, true)
+                if !action.contains("Event") && action != "Sierra Maestra Manifesto" =>
+            {
                 format!("{name} executes {action} in no space")
             }
             (false, _, true) => format!("{name} executes {action}"),
@@ -1939,6 +1968,11 @@ mod reader {
         for (faction, space) in &done.rallies {
             due.push(format!("{} Rallies in {space}", faction.name()));
         }
+        due.extend(
+            done.declined_placement
+                .iter()
+                .map(|_| "Placement declined".into()),
+        );
         if done.shaded {
             due.push("26July's Guerrillas".into());
         }
@@ -2413,7 +2447,9 @@ mod reader {
         .collect();
         // R 2.3.3, 2.3.4 and 2.3.7, and the shaded text of card 17.
         let mut eligibility: Vec<String> = vec![];
-        if let Some(recorded) = recorded
+        if recorded == Some("Event") {
+            eligibility.push("26July recorded the Event.".into());
+        } else if let Some(recorded) = recorded
             && executor != Faction::Syndicate
         {
             eligibility.push(format!("{} is in the {recorded} box.", executor.name()));
@@ -2426,6 +2462,10 @@ mod reader {
                 say("Next: Syndicate, 2nd Eligible.");
             }
             (false, ..) => {}
+            (_, Faction::M26, Some("Event")) => {
+                say("26July is Eligible for the next card.");
+                say("Next: Directorio, 2nd Eligible.");
+            }
             (_, Faction::M26, Some("Pass")) => {
                 say("26July is Eligible for the next card.");
                 say("Next: Directorio, 1st Eligible.");

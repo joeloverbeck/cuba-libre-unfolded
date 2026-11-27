@@ -769,7 +769,7 @@ fn a_save_holds_its_seed_decisions_and_position_under_format_10() {
     let saved = record(&path);
     assert_eq!(
         saved["identity"],
-        serde_json::json!({"format": "10", "source": cuba_libre_unfolded::assets::SOURCE})
+        serde_json::json!({"format": "11", "source": cuba_libre_unfolded::assets::SOURCE})
     );
     assert_eq!(saved["payload"]["seed"], 5);
     assert_eq!(
@@ -1475,12 +1475,26 @@ fn card_18_finishes_advance_and_replay_with_their_actual_consequences() {
             .publish_as_human(Faction::M26, after.revision, 18, "Late.")
             .unwrap_err();
         assert!(stale.to_string().contains("Stale proclamation view"));
-        let closed = session
-            .publish_as_human(Faction::M26, after.revision, 19, "On the new card.")
-            .unwrap_err();
-        assert!(closed.to_string().contains("closed to proclamations"));
         assert_eq!(std::fs::read(&path).unwrap(), saved);
         assert_eq!(std::fs::read(previous_path(&path)).unwrap(), pre_advance);
+        session
+            .publish_as_human(Faction::M26, after.revision, 19, "On the new card.")
+            .unwrap();
+        let with_publication = std::fs::read(&path).unwrap();
+        drop(session);
+        let mut session = Session::open(&path, None).unwrap();
+        assert_eq!(session.observe(), after);
+        let documents = session.proclamations();
+        assert_eq!(&documents[..2], published);
+        assert_eq!((documents[2].card, documents[2].author), (19, Faction::M26));
+        assert_eq!(documents[2].text, "On the new card.");
+        assert!(session.proclamation_is_read(2));
+        let spent = session
+            .publish_as_human(Faction::M26, after.revision, 19, "Again.")
+            .unwrap_err();
+        assert!(spent.to_string().contains("already published"));
+        assert_eq!(std::fs::read(&path).unwrap(), with_publication);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), saved);
     }
 }
 
@@ -1882,4 +1896,168 @@ fn action_choice_pending_request_and_pass_survive_restart_exactly_once() {
             "pass"
         ]
     );
+}
+
+#[test]
+fn manifesto_declines_replay_in_printed_order_without_taking_card_actions() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("manifesto.json");
+    let mut session = Session::create_seeded(&path, 2).unwrap();
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:pass",
+        "syndicate:construct",
+        "construct:camaguey-city:place",
+        "end-construct",
+        "advance-card",
+        "m26:event",
+    ] {
+        act(&mut session, action);
+    }
+
+    let before = session.observe();
+    let random = session.game().random_state();
+    let mut stale: Option<Submitted> = None;
+    let owners = [
+        Faction::M26,
+        Faction::Directorio,
+        Faction::Syndicate,
+        Faction::Government,
+    ];
+    for owner in owners {
+        let seen = session.observe();
+        assert_eq!(seen.owner, owner);
+        assert_eq!(seen.executing, Some(Faction::M26));
+        assert_eq!(seen.event_executor, Some(Faction::M26));
+        assert_eq!(seen.eligible, [true, true, true, false]);
+        assert_eq!(seen.next, None);
+        let decline = seen
+            .choices
+            .iter()
+            .find(|c| c.action() == "manifesto:decline")
+            .unwrap();
+        let initial_save = std::fs::read(&path).unwrap();
+        let previous_save = std::fs::read(previous_path(&path)).unwrap();
+        let wrong_owner = if owner == Faction::M26 {
+            Faction::Directorio
+        } else {
+            Faction::M26
+        };
+        assert!(
+            session
+                .submit(wrong_owner, seen.revision, &decline.id)
+                .unwrap_err()
+                .to_string()
+                .contains("decision owner")
+        );
+        if let Some(stale) = stale {
+            assert!(
+                session
+                    .submit(stale.owner, stale.revision, &stale.id)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("Stale match revision")
+            );
+            assert!(
+                session
+                    .submit(owner, seen.revision, &stale.id)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("Stale or unknown choice identity")
+            );
+        }
+        assert_eq!(session.observe(), seen);
+        assert_eq!(std::fs::read(&path).unwrap(), initial_save);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), previous_save);
+        stale = Some(act(&mut session, "manifesto:decline"));
+        let after = session.observe();
+        assert_eq!(after.revision, seen.revision + 1);
+        assert_eq!(after.spaces, before.spaces);
+        assert_eq!(after.available, before.available);
+        assert_eq!(after.resources, before.resources);
+        assert_eq!(after.standings, before.standings);
+        assert_eq!(after.eligible, before.eligible);
+        assert_eq!(after.passed, [false; 4]);
+        assert_eq!(session.game().random_state(), random);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), initial_save);
+        let reports = session.reports();
+        drop(session);
+        session = Session::open(&path, None).unwrap();
+        assert_eq!(session.observe(), after);
+        assert_eq!(session.reports(), reports);
+    }
+    let after = session.observe();
+    assert_eq!(after.owner, Faction::Directorio);
+    assert_eq!(after.executing, None);
+    assert_eq!(after.event_executor, Some(Faction::M26));
+    assert_eq!(
+        after.cards.current.status,
+        cuba_libre_unfolded::EventStatus::SingleResolved {
+            faction: Faction::M26
+        }
+    );
+    assert_eq!(after.eligibility.m26_next_card, Some(true));
+    assert_eq!(after.manifesto.unwrap().declines, owners);
+    let next = after.next.unwrap();
+    assert_eq!(
+        (next.faction, next.role.as_str()),
+        (Faction::Directorio, "2nd Eligible")
+    );
+    assert_eq!(
+        next.options,
+        [
+            "Pass (+1 if executed later)",
+            "Operation (with or without a Special Activity)"
+        ]
+    );
+    assert_eq!(after.choices.len(), 2);
+    assert!(
+        after
+            .choices
+            .iter()
+            .all(|choice| !choice.supported && choice.owner == Faction::Directorio)
+    );
+    let reports = session.reports();
+    let report = reports.last().unwrap();
+    assert_eq!(
+        (report.card, report.faction, report.complete),
+        (19, Faction::M26, true)
+    );
+    assert_eq!(report.recorded, Some("Event"));
+    assert_eq!(
+        report
+            .articles
+            .iter()
+            .flat_map(|article| &article.lines)
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        [
+            "26July declined placement.",
+            "Directorio declined placement.",
+            "Syndicate declined placement.",
+            "Government declined placement.",
+        ]
+    );
+
+    let finished = std::fs::read(&path).unwrap();
+    let previous = std::fs::read(previous_path(&path)).unwrap();
+    let recovery_path = dir.path().join("recovered.json");
+    let mut recovered = Session::open(&recovery_path, Some(&path)).unwrap();
+    let pending = recovered.observe();
+    assert_eq!(pending.revision, session.observe().revision - 1);
+    assert_eq!(pending.owner, Faction::Government);
+    assert_eq!(pending.manifesto.unwrap().declines, owners[..3]);
+    assert_eq!(std::fs::read(&recovery_path).unwrap(), previous);
+    act(&mut recovered, "manifesto:decline");
+    assert_eq!(recovered.observe(), session.observe());
+    assert_eq!(recovered.reports(), reports);
+    assert_eq!(std::fs::read(&path).unwrap(), finished);
+    assert_eq!(std::fs::read(previous_path(&path)).unwrap(), previous);
 }

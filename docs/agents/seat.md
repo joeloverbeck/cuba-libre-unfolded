@@ -181,7 +181,10 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 
 | Choice | Meaning |
 |---|---|
-| `<revision>:m26:event` | The single Sierra Maestra Manifesto Event on card 19. |
+| `<revision>:m26:event` | Pin `option:m26:event` for the Sierra Maestra Manifesto. Commit using the offered choice to start the Event. |
+| `<revision>:manifesto:decline` | Pin `option:manifesto:decline` for the decision owner's decline and next handoff. Commit using the offered choice. |
+| `<revision>:manifesto:place` | Pin `option:manifesto:place` to inspect the placement rule in the decline candidate. |
+| `<revision>:directorio:operation` | Directorio's inspection-only Operation with optional Special Activity after the Manifesto. `directorio:pass` is the other option at this point. |
 | `<revision>:pass`, `<revision>:terror` | 26July's supported action choices. |
 | `<revision>:event:shaded` | Listed for inspection at 26July's opening decision. Directorio can choose Alberto Bayo's shaded text after Kidnap. Pin its option to preview the flips. |
 | `<revision>:resolve-shaded` | Resolves the shaded Event after Directorio has chosen that text. |
@@ -285,6 +288,7 @@ The full reply's `table` describes what is drawn. Drawn parts are reported by na
 | Field | Reports |
 |---|---|
 | `table.briefing`, `table.choice`, `table.choice_parts` | The briefing; the action choice's pinned option, focus, ribbon and tab, and in `table.choice.focused_space` the space that has keyboard focus, or null; its drawn parts. During Terror the parts include the line that directs the player to the map, `terror-map-line`, and one `terror-record:<space>` for each resolved space, in the order resolved (#171). During Assault the parts include the line that directs the player to the map, `assault-map-line`, and one `assault-record:<space>` for each paid space, in the order paid from top to bottom (#169). `observation.assault_paid` holds the same record: each paid space's `space`, what it `paid`, how many pieces `returned`, and what was removed or closed. During Construct, `construct-map-line` and `construct-record:<space>` give the next step and the paid result. `observation.construct_paid` records the `space`, `paid` and `plan` (`Open` or `Place`). |
+| `observation.manifesto` | Card 19’s committed declines in printed order. `observation.event_executor` identifies 26July even while `observation.owner` names another faction. The faction-client state carries the same Manifesto and executor, and its decision names the owner. |
 | `table.eligibility` | The drawn `track`, the shown `tag` and the drawn `parts`. |
 | `table.die` | The presented Kidnap roll. |
 | `table.map_targets`, `table.highlights` | Map states and visible highlights. `map_targets` is null while no choice acts on a space. Otherwise it lists all 13 spaces, each with its `state` and the ids of the `choices` behind it: `selectable` (a supported choice there changes something), `blocked` (none is supported, and one names an in-task remedy), `no-effect` (its only choices change nothing on the map, as Assault's plan that removes nothing; the space stays choosable, #169), `unpayable` (a choice there would change something, and only its cost stops it: nothing in this task can pay and no remedy is named; the space stays choosable, #180) or `not-involved` (no choice acts there, or none could for another reason: a space already paid in this Assault, a resolved Terror, or a Terror with no Underground Guerrilla; its `choices` still lists them, and it is not choosable). A no-effect or unpayable space shows its veil, as a not-involved one does. The states are read from each choice's `site`: its `space`, whether it has an `effect` there, and whether it is `unpayable`. |
