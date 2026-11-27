@@ -25,6 +25,7 @@ Main checkout: `<absolute path>` (stays on `main`; edit tracked files and switch
 ## Private inputs and evidence
 
 - For changes to reports, choice families or faction-view fields, name the applicable [integration selectors](../../../docs/agents/native-tests.md#before-vulkan) in the ticket brief and run them before Vulkan. For new or moved persistent table controls, run the [main-view regression](../../../docs/agents/native-tests.md#persistent-table-controls) before integration. For changed table text, include the [pre-review captures](../../../docs/agents/seat.md#native-owner-handoff) in the handoff.
+- For play beyond the previous build end, separate decision and choice owners, or a changed Event result, name the applicable [native checks](../../../docs/agents/native-tests.md#card-advances-and-event-decisions) in the ticket brief and run them before integration.
 
 - Private card directory: `~/.local/share/cuba-libre-unfolded/cards`, read-only. Native runs: `CUBA_TEST_CARDS="$HOME/.local/share/cuba-libre-unfolded/cards" scripts/heavy scripts/native <filter>`; the whole suite runs in one foreground call, after a build (`docs/agents/parallel-work.md`, "Builds").
 - The owner's saves in `~/.local/share/cuba-libre-unfolded/saves/` are read-only: copy one into your run directory and use the copy.
