@@ -959,7 +959,7 @@ fn removal_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
                 .map_or("none", Faction::name)
         ),
     };
-    let control_line = if view.current_card == 18 {
+    let control_line = if view.current_card >= 18 {
         control
     } else if preview.unavailable.is_empty() {
         format!("{control} Terror and Kidnap: unchanged.")

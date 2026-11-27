@@ -2286,3 +2286,283 @@ fn native_manifesto_placements_use_the_map_and_held_faction() {
     app.capture("manifesto-keyboard-committed");
     app.quit();
 }
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the Manifesto removal, pending giver and returned placement at 4K"]
+fn native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement() {
+    use super::construct::choose_row;
+    use super::faction_seats::{DIRECTORIO, M26};
+
+    let mut app = super::available_forces::unlaunched("manifesto-side-decisions-", "issue-243");
+    drop(Session::create_seeded(&app.save, Session::KIDNAP_ROLLS_1).unwrap());
+    finish_event(&app.save, "shaded");
+    let mut session = Session::open(&app.save, None).unwrap();
+    for action in [
+        "advance-card",
+        "government:pass",
+        "syndicate:pass",
+        "advance-card",
+    ] {
+        let seen = session.observe();
+        session
+            .submit(
+                seen.owner,
+                seen.revision,
+                &format!("{}:{action}", seen.revision),
+            )
+            .unwrap();
+    }
+    drop(session);
+    app.launch_size("3840x2160");
+    choose_row(&mut app, "m26:event");
+    let oriente_placement = "manifesto:place:oriente:guerrilla-guerrilla";
+    let at = app.revision();
+    app.activate("space:oriente", at);
+    assert_eq!(
+        popover_row(&app.observe(), "2 Guerrillas")["choice"],
+        format!("{at}:{oriente_placement}")
+    );
+    app.key("Escape");
+
+    choose_row(&mut app, "remove");
+    let mode = app.observe();
+    assert_removal_map_agrees(&mode);
+    let revision = app.revision();
+    app.activate(&format!("piece:{}", piece("oriente:active")), revision);
+    let preview = app.observe();
+    let text = popover_text(&preview);
+    for fact in [
+        "1 Active Guerrilla returns to Available.",
+        "Control of Oriente: 26July → none.",
+        "Oriente no longer qualifies for 26July's placement.",
+    ] {
+        assert!(text.contains(fact), "{fact}: {text}");
+    }
+    assert!(
+        !text.contains("Terror") && !text.contains("Kidnap"),
+        "{text}"
+    );
+    let [left, top, right, bottom] = rect_of(&preview["table"]["popover"]["bounds"]);
+    let [map_left, map_top, map_right, map_bottom] = rect_of(&preview["table"]["map_viewport"]);
+    assert!(left >= map_left && top >= map_top && right <= map_right && bottom <= map_bottom);
+    app.capture("manifesto-oriente-removal-preview");
+    app.activate("popover:commit", revision);
+    choose_row(&mut app, "done-removal");
+
+    let returned = app.observe();
+    let target = returned["table"]["map_targets"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|target| target["space"] == "oriente")
+        .unwrap();
+    assert_eq!(target["state"], "not-involved");
+    assert_eq!(target["choices"], json!([]));
+    assert!(
+        returned["table"]["highlights"]
+            .as_array()
+            .unwrap()
+            .contains(&json!("atlas-highlight-veil-oriente.png"))
+    );
+    assert_eq!(
+        super::available_forces::drawn_count(&returned, "26july-guerrilla"),
+        "13"
+    );
+    app.capture("manifesto-oriente-placement-closed");
+
+    let m26 = app.seat_agent(M26, "26july");
+    let (code, reply) = app.ask(&["observe", &m26]);
+    assert_eq!(code, 0, "{reply}");
+    let client = &reply["view"];
+    assert_eq!(client["decision"]["yours"], true);
+    let oriente = client["state"]["spaces"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|space| space["id"] == "oriente")
+        .unwrap();
+    assert!(oriente["control"].is_null());
+    assert_eq!(oriente["pieces"], json!([]));
+    let supply = client["state"]["available"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|group| group["faction"] == "M26" && group["kind"] == "Guerrilla")
+        .unwrap();
+    assert_eq!(supply["count"], 13);
+    let choices = client["choices"].as_array().unwrap();
+    assert!(
+        choices
+            .iter()
+            .any(|choice| choice["site"]["space"] == "santiago")
+    );
+    assert!(
+        !choices
+            .iter()
+            .any(|choice| choice["site"]["space"] == "oriente")
+    );
+    let closed = app.save_bytes();
+    let (code, stale) = app.ask(&[
+        "choose",
+        &m26,
+        &at.to_string(),
+        &format!("{at}:{oriente_placement}"),
+    ]);
+    assert_eq!((code, &stale["status"]), (1, &json!("refused")), "{stale}");
+    assert_eq!(app.save_bytes(), closed);
+
+    app.key("F2");
+    app.pick("santiago", "manifesto:place:santiago:guerrilla-base");
+    let directorio = app.seat_agent(DIRECTORIO, "directorio");
+    let at = app.revision();
+    let (code, wrong) = app.ask(&[
+        "choose",
+        &directorio,
+        &at.to_string(),
+        &format!("{at}:transfer"),
+    ]);
+    assert_eq!((code, &wrong["status"]), (1, &json!("refused")), "{wrong}");
+    assert_eq!(app.revision(), at);
+
+    // The existing native panel still lets the human play the side choice
+    // owned by 26July while Directorio's placement is the agent's.
+    choose_row(&mut app, "transfer");
+    let selecting = app.observe();
+    let part = |view: &Value, name: &str| {
+        view["table"]["transfer"]["parts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|part| part["part"] == name)
+            .map(|p| p["text"].as_str().unwrap().to_owned())
+    };
+    let note = part(&selecting, "header-note").unwrap();
+    assert!(note.contains("26July executes the Manifesto"), "{note}");
+    let limits = part(&selecting, "limit:balance").unwrap();
+    assert_eq!(
+        limits,
+        "Limited by the giver’s balance and the recipient’s 49-Resource cap"
+    );
+    app.capture("manifesto-resource-transfer");
+    app.choose("ask:0:2");
+    let pending = app.observe();
+    assert_eq!(pending["observation"]["owner"], "Government");
+    assert_eq!(pending["observation"]["resources"], json!([8, 0, 5, 16]));
+    assert_eq!(pending["table"]["transfer"]["state"]["limit"], 8);
+    assert_eq!(part(&pending, "limit:reserve"), None);
+    let (code, returned_after_giver) = app.ask(&["observe", &directorio]);
+    assert_eq!(code, 0, "{returned_after_giver}");
+    let decision = &returned_after_giver["view"]["decision"];
+    assert_eq!(decision["faction"], "Government");
+    assert!(
+        decision["note"]
+            .as_str()
+            .unwrap()
+            .contains("returns to Directorio's placement decision")
+    );
+    app.capture("manifesto-government-giver");
+    app.choose("wait");
+    let aside = app.observe();
+    let saved = app.save_bytes();
+    app.capture("manifesto-government-giver-set-aside");
+    app.quit();
+
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["observation"], aside["observation"]);
+    assert_eq!(app.save_bytes(), saved);
+    app.choose("reopen");
+    app.choose("authorize:3");
+    let placed = app.observe();
+    assert_eq!(placed["observation"]["owner"], "Directorio");
+    assert_eq!(placed["observation"]["resources"], json!([5, 3, 5, 16]));
+    assert_eq!(
+        placed["observation"]["manifesto"],
+        pending["observation"]["manifesto"]
+    );
+    app.capture("manifesto-transfer-returned-to-directorio");
+
+    let m26 = app.seat_agent(M26, "26july");
+    let (code, reply) = app.ask(&["observe", &m26]);
+    assert_eq!(code, 0, "{reply}");
+    assert_eq!(reply["view"]["decision"]["faction"], "Directorio");
+    assert_eq!(reply["view"]["decision"]["yours"], false);
+    let side_choices = reply["view"]["choices"].as_array().unwrap();
+    assert_eq!(side_choices.len(), 2);
+    for action in ["transfer", "remove"] {
+        assert!(side_choices.iter().any(|choice| {
+            choice["id"]
+                .as_str()
+                .is_some_and(|id| id.ends_with(&format!(":{action}")))
+        }));
+    }
+    app.decide(&m26, "transfer", "applied");
+    app.decide(&m26, "ask:3:1", "applied");
+    let requested = app.observe();
+    assert_eq!(requested["observation"]["owner"], "Syndicate");
+    let edition = &requested["table"]["newspaper"]["open"]["report"];
+    assert_eq!(edition["faction"], "M26");
+    assert_eq!(edition["complete"], false);
+    app.capture("manifesto-side-request-edition");
+    app.key("Escape");
+    app.capture("manifesto-syndicate-giver");
+    app.choose("decline");
+    let refused = app.observe();
+    assert_eq!(refused["observation"]["owner"], "Directorio");
+    assert_eq!(
+        refused["observation"]["resources"],
+        placed["observation"]["resources"]
+    );
+    assert_eq!(
+        refused["observation"]["manifesto"],
+        placed["observation"]["manifesto"]
+    );
+    app.capture("manifesto-refusal-returned-to-directorio");
+    for _ in 0..3 {
+        choose_row(&mut app, "manifesto:decline");
+    }
+    let final_table = app.observe();
+    let finished = &final_table["observation"];
+    assert_eq!(
+        finished["manifesto"]["placements"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert_eq!(
+        finished["manifesto"]["declines"],
+        json!(["Directorio", "Syndicate", "Government"])
+    );
+    assert_eq!(finished["owner"], "Directorio");
+    assert_eq!(finished["resources"], json!([5, 3, 5, 16]));
+    let edition = &final_table["table"]["newspaper"]["open"]["report"];
+    assert_eq!(edition["faction"], "M26");
+    assert_eq!(edition["complete"], true);
+    let parts = final_table["table"]["newspaper"]["parts"]
+        .as_array()
+        .unwrap();
+    for (name, text) in [
+        ("edition-block-0-title", "No Resources moved"),
+        ("edition-block-0-text-0", "Syndicate answered 1 request."),
+    ] {
+        let part = parts.iter().find(|part| part["part"] == name).unwrap();
+        assert_eq!(part["lines"], 1, "{part}");
+        assert_eq!(part["text"], text, "{part}");
+    }
+    app.capture("manifesto-side-completion-edition");
+    app.key("Escape");
+    let reports = Session::open(&app.save, None).unwrap().reports();
+    let report = reports.last().unwrap();
+    assert_eq!(report.faction, Faction::M26);
+    assert!(report.complete);
+    let articles = serde_json::to_value(&report.articles).unwrap().to_string();
+    for fact in [
+        "Oriente",
+        "Government gives 26July 3 Resources",
+        "Syndicate answered 1 request.",
+    ] {
+        assert_eq!(articles.matches(fact).count(), 1, "{fact}: {articles}");
+    }
+    app.capture("manifesto-side-decisions-finished");
+    app.quit();
+}

@@ -514,11 +514,23 @@ fn assault_rows_after(lines: usize) -> f32 {
 fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool, agent: bool) -> String {
     if let Some(manifesto) = &view.manifesto {
         return if let Some(pending) = manifesto.pending() {
-            format!(
-                "{} executes the Event.\n{} decides whether to place.",
-                view.event_executor.expect("Manifesto executor").name(),
-                pending.name()
-            )
+            let placement = pending.name();
+            match &view.transfer {
+                Some(Transfer::Authorizing { giver, .. }) => format!(
+                    "A Resource request awaits {}.\nPlacement decision · {placement}",
+                    giver.name()
+                ),
+                Some(Transfer::Selecting) => {
+                    format!("26July chooses a Resource transfer.\nPlacement decision · {placement}")
+                }
+                None if view.removal.is_some() => format!(
+                    "26July removes its own pieces.\n{placement} decides placement after Done."
+                ),
+                None => format!(
+                    "{} executes the Event.\n{placement} decides whether to place.",
+                    view.event_executor.expect("Manifesto executor").name(),
+                ),
+            }
         } else {
             let names = manifesto
                 .declines

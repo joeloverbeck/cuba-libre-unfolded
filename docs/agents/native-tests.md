@@ -22,6 +22,8 @@ scripts/heavy scripts/native --exact main_view::native_main_view_fills_the_windo
 
 The [seat reference](seat.md) has the seat's requests, its component ids, what the table reports and how to judge a capture on the owner's display.
 
+- `native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement` (#243) removes Oriente's only qualifying piece, compares the refreshed map and client choices, and plays Resource requests during Directorio's placement decision. It covers a saved giver request, authorization, refusal and factual editions at 3840×2160. Evidence goes to `local/verification/issue-243/` when run directly.
+
 - `native_havana_numeric_request_and_public_bargain` (#233) compares a silent and an explained request from the same Havana decision through all four real client views. It branches at the giver's answer, checks the transfer and separate five-Resource payment, and resumes the recovered and completed positions. Evidence goes to `local/verification/issue-233/` when run directly.
 - `native_havana_draft_resumes_after_consecutive_proclamations` (#233) interrupts a selected draft with two faction publications at the Havana giver decision. It exercises both dismissal inputs, quiet delivery and held authorizations before and after a seat takeover. Evidence goes to `local/verification/issue-233/` when run directly.
 

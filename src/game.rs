@@ -1957,6 +1957,19 @@ impl Game {
                 }
                 _ => {}
             }
+        } else if self.current_card == 19 {
+            if let Some(faction) = self.manifesto.as_ref().and_then(Manifesto::pending)
+                && self.executing() == Some(faction)
+                && let Some((id, ..)) = action.strip_prefix("remove:").and_then(piece_selection)
+                && let Some(space) = after.spaces.iter().find(|s| s.id == id)
+                && manifesto::presence(space, faction).is_none()
+            {
+                notes.push(format!(
+                    "{} no longer qualifies for {}'s placement.",
+                    space.name,
+                    faction.name()
+                ));
+            }
         } else if action.ends_with(":1") {
             notes.push("R 1.4.1: the piece returns to Available. Earlier Terror markers, support shifts and Kidnap results stay.".into());
         } else {
@@ -2299,12 +2312,15 @@ impl Game {
             })
             .collect()
     }
-    /// Who decides now: the giver of a pending authorization, the faction directing
-    /// a free Rally, or the faction whose card action is open.
+    /// Who decides now: a pending giver, the executor of a Manifesto side decision,
+    /// the faction placing under the Manifesto, or the owner of another open action.
     pub(crate) fn owner(&self) -> Faction {
         if let Some(Transfer::Authorizing { giver, .. }) = self.transfer {
             giver
         } else if self.current_card == 19 {
+            if self.removal.is_some() || self.transfer.is_some() {
+                return Faction::M26;
+            }
             self.manifesto.as_ref().map_or(Faction::M26, |manifesto| {
                 manifesto.pending().unwrap_or(Faction::Directorio)
             })
@@ -2476,7 +2492,34 @@ impl Game {
     pub(crate) fn choices(&self) -> Vec<Choice> {
         if self.current_card == 19 {
             if let Some(manifesto) = &self.manifesto {
-                return self.manifesto_decisions(manifesto);
+                if self.removal.is_some() {
+                    return self.removal_menu();
+                }
+                if let Some(choices) = self.transfer_choices() {
+                    return choices;
+                }
+                let mut choices = self.manifesto_decisions(manifesto);
+                if !manifesto.complete() {
+                    // The card delegates each placement. Its executor retains
+                    // the separate authority to remove pieces or open a transfer.
+                    for (action, label, explanation) in [
+                        (
+                            "transfer",
+                            "26July · Resource transfer",
+                            "26July can give its own Resources or ask another faction, whose giver decides the amount (R 1.5.1).",
+                        ),
+                        (
+                            "remove",
+                            "26July · Remove own pieces",
+                            "26July executes the Event and may return its own pieces to Available Forces (R 1.4.1).",
+                        ),
+                    ] {
+                        let mut choice = self.offer(action, label, true, explanation);
+                        choice.owner = Faction::M26;
+                        choices.push(choice);
+                    }
+                }
+                return choices;
             }
             return self.manifesto_choices();
         }
@@ -2856,13 +2899,14 @@ impl Game {
                         )
                     })
                     .collect();
+                let resume = self.manifesto.as_ref().and_then(Manifesto::pending);
                 choices.push(self.offer(
                     "decline",
                     format!("{} declines", giver.name()),
                     true,
                     format!(
                         "Nothing moves, and {} decides again: a request binds no one (R 1.5.1).",
-                        executor.name()
+                        resume.unwrap_or(executor).name()
                     ),
                 ));
                 // Wait sets the decision aside and Open brings it back; each is
@@ -2884,7 +2928,7 @@ impl Game {
                 });
                 // Local policy (#58): 26July's request does not hold 26July's own
                 // Operation hostage; ending it or going back withdraws the request.
-                if !self.m26_action_ended && giver != Faction::M26 {
+                if self.current_card == 17 && !self.m26_action_ended && giver != Faction::M26 {
                     if self.may_go_back() {
                         choices
                             .push(self.back_to_choice("26July withdraws · back to action choice"));
@@ -3090,7 +3134,7 @@ impl Game {
                 };
                 for n in 1..=p.count {
                     let pieces = if n == 1 { one } else { many };
-                    let explanation = if self.current_card == 18 {
+                    let explanation = if self.current_card >= 18 {
                         format!(
                             "R 1.4.1: return {n} {pieces} in {} to Available Forces.",
                             s.name
@@ -3131,7 +3175,8 @@ impl Game {
     /// Removal mode.
     fn removal_menu(&self) -> Vec<Choice> {
         let mut choices = self.removal_choices();
-        let rally_exhausted = matches!(&self.event, Some(EventProgress::Rally(rally))
+        let rally_exhausted = self.current_card == 17
+            && matches!(&self.event, Some(EventProgress::Rally(rally))
             if self.rally_choices(rally).is_empty());
         choices.push(self.offer(
             "done-removal",
@@ -3299,7 +3344,9 @@ impl Game {
         if self.removal.is_some() {
             if action == "done-removal" {
                 self.removal = None;
-                if let Some(EventProgress::Rally(rally)) = &self.event {
+                if self.current_card == 17
+                    && let Some(EventProgress::Rally(rally)) = &self.event
+                {
                     self.continue_rally(rally.clone());
                 }
             } else {

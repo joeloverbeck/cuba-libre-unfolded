@@ -1770,8 +1770,8 @@ mod reader {
         same("summary", &report.summary, &summary(executor, &done, after))?;
 
         // The titles the decisions call for, and the sentences, replayed.
-        let construct = matches!(action, Some("Construct" | "Limited Construct"));
-        let mut due: Vec<String> = titles(executor, &done, construct);
+        let short_refusal = manifesto || matches!(action, Some("Construct" | "Limited Construct"));
+        let mut due: Vec<String> = titles(executor, &done, short_refusal);
         let mut transfers = done.transfers.iter().collect::<Vec<_>>();
         let mut position = Position::of(before);
         let mut casinos = done.casino_management.iter();
@@ -1801,7 +1801,7 @@ mod reader {
                     after,
                     &mut position,
                     &mut transfers,
-                    construct,
+                    short_refusal,
                 )
             };
             result.map_err(|why| format!("{}: {why}", article.title))?;
@@ -1927,25 +1927,29 @@ mod reader {
         })
     }
 
-    fn title_of((giver, recipient): (Faction, Faction), told: &Between, construct: bool) -> String {
+    fn title_of(
+        (giver, recipient): (Faction, Faction),
+        told: &Between,
+        short_refusal: bool,
+    ) -> String {
         let given: i32 = told.moves.iter().map(|m| m[0] - m[1]).sum();
         let (g, r) = (giver.name(), recipient.name());
         match given {
-            0 if construct && told.unmet > 0 => "No Resources moved".into(),
+            0 if short_refusal && told.unmet > 0 => "No Resources moved".into(),
             0 if told.unmet > 0 => format!("{g} gives {r} nothing"),
             0 => format!("{r} asks {g} for Resources"),
             n => format!("{g} gives {r} {}", resources(n)),
         }
     }
 
-    fn titles(executor: Faction, done: &Done, construct: bool) -> Vec<String> {
+    fn titles(executor: Faction, done: &Done, short_refusal: bool) -> Vec<String> {
         let mut due = vec![];
         if done.back.is_some() {
             due.push("Back to the action choice".into());
         }
         for (pair, told) in &done.transfers {
             if told.moves.len() as i32 + told.unmet + told.withdrawn > 0 {
-                due.push(title_of(*pair, told, construct));
+                due.push(title_of(*pair, told, short_refusal));
             }
         }
         for remover in &done.removers {
@@ -2098,7 +2102,11 @@ mod reader {
         Ok(())
     }
 
-    fn transfer_lines(pair: (Faction, Faction), told: &Between, construct: bool) -> Vec<String> {
+    fn transfer_lines(
+        pair: (Faction, Faction),
+        told: &Between,
+        short_refusal: bool,
+    ) -> Vec<String> {
         let (giver, recipient) = (pair.0.name(), pair.1.name());
         let mut expected = vec![];
         let asks = &told.asks[..told.asks.len() - usize::from(told.pending.is_some())];
@@ -2115,7 +2123,7 @@ mod reader {
             _ => expected.push(format!("They move in {} transfers.", told.moves.len())),
         }
         let requests = |n| several(n, "request", "requests");
-        if construct && told.moves.is_empty() && told.unmet > 0 {
+        if short_refusal && told.moves.is_empty() && told.unmet > 0 {
             expected.push(format!("{giver} answered {}.", requests(told.unmet)));
         } else if told.unmet > 0 {
             expected.push(format!(
@@ -2138,7 +2146,7 @@ mod reader {
         after: &Observation,
         position: &mut Position,
         transfers: &mut Vec<&((Faction, Faction), Between)>,
-        construct: bool,
+        short_refusal: bool,
     ) -> Check {
         let lines: Vec<&str> = article.lines.iter().map(String::as_str).collect();
         let title = article.title.as_str();
@@ -2153,8 +2161,8 @@ mod reader {
             same("die", &article.die, &None)?;
         }
         if let Some(at) = transfers.iter().position(|(pair, told)| {
-            title == title_of(*pair, told, construct)
-                && article.lines == transfer_lines(*pair, told, construct)
+            title == title_of(*pair, told, short_refusal)
+                && article.lines == transfer_lines(*pair, told, short_refusal)
         }) {
             let (pair, told) = transfers.remove(at);
             for m in &told.moves {

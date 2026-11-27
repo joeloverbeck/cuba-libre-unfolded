@@ -387,9 +387,11 @@ pub(super) fn activation_lines(view: &Observation, flips: &[Flip]) -> String {
 pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
     if view.current_card == 19 {
         let choice = listed(view, option)?;
-        let rule = match &view.manifesto {
-            Some(manifesto) if !manifesto.complete() => "Card 19 · R 5.1",
-            Some(_) if option == "directorio:pass" => "R 2.3.3",
+        let rule = match option {
+            "transfer" => "R 1.5.1, 1.8",
+            "remove" | "done-removal" => "R 1.4.1",
+            "manifesto:decline" => "Card 19 · R 5.1",
+            "directorio:pass" => "R 2.3.3",
             _ if choice.event_text().is_some() => "Card 19 · R 2.3.4, 5.1",
             _ => "R 2.3.4",
         };
