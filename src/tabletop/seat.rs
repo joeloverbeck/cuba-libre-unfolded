@@ -1294,9 +1294,9 @@ mod tests {
             .collect();
         let expected = [
             "atlas-kidnap-die.glb#Texture0",
-            "atlas-terrain-map.glb#Texture0",
-            "atlas-terrain-map.glb#Texture1",
-            "atlas-terrain-map.glb#Texture2",
+            "atlas-map://atlas-terrain-map.glb#Texture0",
+            "atlas-map://atlas-terrain-map.glb#Texture1",
+            "atlas-map://atlas-terrain-map.glb#Texture2",
         ];
         assert!(models.iter().eq(expected), "{models:?}");
         let art = app.world().resource::<Art>();
