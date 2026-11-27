@@ -1412,7 +1412,7 @@ mod reader {
         unchanged: Vec<String>,
         removers: Vec<Faction>,
         rallies: Vec<(Faction, String)>,
-        declined_placement: Vec<Faction>,
+        manifesto_decisions: Vec<(Faction, Option<String>)>,
         kidnapped: bool,
         shaded: bool,
         granted: Option<Faction>,
@@ -1610,7 +1610,12 @@ mod reader {
                         done.rallies.push((seen.executing.unwrap(), name(parts[1])));
                     }
                     ("manifesto", _) if action == "manifesto:decline" => {
-                        done.declined_placement.push(*owner);
+                        done.manifesto_decisions.push((*owner, None));
+                    }
+                    ("manifesto", _) if parts[1] == "place" => {
+                        let space = name(parts[2]);
+                        done.at(&space);
+                        done.manifesto_decisions.push((*owner, Some(space)));
                     }
                     ("resolve-shaded", _) => {
                         done.shaded = true;
@@ -1705,8 +1710,11 @@ mod reader {
                 .and_then(Faction::named);
         }
         let last = decisions.last().map_or("", |(_, a)| a.as_str());
-        let manifesto_complete =
-            manifesto && last == "manifesto:decline" && all().filter(|&a| a == last).count() == 4;
+        let placement_decision =
+            |action: &str| action == "manifesto:decline" || action.starts_with("manifesto:place:");
+        let manifesto_complete = manifesto
+            && placement_decision(last)
+            && all().filter(|a| placement_decision(a)).count() == 4;
         let complete = matches!(
             last,
             "pass"
@@ -1767,20 +1775,19 @@ mod reader {
         let mut transfers = done.transfers.iter().collect::<Vec<_>>();
         let mut position = Position::of(before);
         let mut casinos = done.casino_management.iter();
-        let mut decliners = done.declined_placement.iter();
+        let mut placements = done.manifesto_decisions.iter();
         for article in &report.articles {
             let at = due
                 .iter()
                 .position(|title| *title == article.title)
                 .ok_or_else(|| format!("not due: {}", article.title))?;
             due.remove(at);
-            let result = if article.title == "Placement declined" {
-                let faction = decliners.next().ok_or("extra placement decline")?.name();
-                same(
-                    "decline",
-                    &article.lines,
-                    &vec![format!("{faction} declined placement.")],
-                )
+            let result = if matches!(
+                article.title.as_str(),
+                "Placement declined" | "Pieces placed"
+            ) {
+                let (faction, space) = placements.next().ok_or("extra Manifesto decision")?;
+                read_manifesto_decision(article, *faction, space.as_deref(), &mut position)
             } else if article.title.starts_with("Casino management in ") {
                 read_casino_action(
                     article,
@@ -1968,11 +1975,13 @@ mod reader {
         for (faction, space) in &done.rallies {
             due.push(format!("{} Rallies in {space}", faction.name()));
         }
-        due.extend(
-            done.declined_placement
-                .iter()
-                .map(|_| "Placement declined".into()),
-        );
+        due.extend(done.manifesto_decisions.iter().map(|(_, space)| {
+            if space.is_some() {
+                "Pieces placed".into()
+            } else {
+                "Placement declined".into()
+            }
+        }));
         if done.shaded {
             due.push("26July's Guerrillas".into());
         }
@@ -2007,6 +2016,35 @@ mod reader {
                 position.turn(space, State::Active, State::Underground, n);
             }
             other => return Err(format!("{other:?}")),
+        }
+        Ok(())
+    }
+
+    fn read_manifesto_decision(
+        article: &Article,
+        owner: Faction,
+        space: Option<&str>,
+        position: &mut Position,
+    ) -> Check {
+        same("die", &article.die, &None)?;
+        let Some(space) = space else {
+            same("title", &article.title.as_str(), &"Placement declined")?;
+            return same(
+                "decline",
+                &article.lines,
+                &vec![format!("{} declined placement.", owner.name())],
+            );
+        };
+        same("title", &article.title.as_str(), &"Pieces placed")?;
+        let [line] = article.lines.as_slice() else {
+            return Err("expected one sentence for a Manifesto placement".into());
+        };
+        let held = scan(line, "{} placed {} in {}.").ok_or("no placement")?;
+        same("placed by", &faction(held[0])?, &owner)?;
+        same("placement space", &held[2], &space)?;
+        for group_words in held[1].split(" + ") {
+            let (count, kind, state) = group(group_words)?;
+            position.add(space, owner, kind, state, count);
         }
         Ok(())
     }
