@@ -437,3 +437,117 @@ fn manifesto_mixed_placement_changes_control_supply_and_standing() {
     );
     assert_eq!(game.observe(), after);
 }
+
+#[test]
+fn manifesto_havana_recalculates_government_mixes_after_directorio_and_syndicate_place() {
+    use cuba_libre_unfolded::{Faction, Kind, Observation, State};
+
+    // Living Rules 1.4, 1.7 and 7.2, playbook pp. 19–20, 33, and the
+    // prepared opening. Neither Card 18 Pass changes Havana's pieces.
+    let mut game = manifesto();
+    choose(&mut game, "m26:event");
+    choose(&mut game, "manifesto:decline");
+    let directorio = game.observe();
+    let plan = directorio
+        .choices
+        .iter()
+        .find(|c| c.action() == "manifesto:place:havana:base-base")
+        .unwrap();
+    let preview = plan.preview.as_ref().unwrap();
+    let bases = &preview.placement_supply[0];
+    assert_eq!((bases.piece.kind, bases.from, bases.to), (Kind::Base, 4, 2));
+    assert!(preview.control.is_empty());
+    let standing = &preview.standings[0];
+    assert_eq!(standing.faction, Faction::Directorio);
+    assert_eq!((standing.score_from, standing.score_to), (1, 3));
+    assert_eq!((standing.margin_from, standing.margin_to), (-8, -6));
+    assert_eq!(preview.standings.len(), 1);
+
+    choose(&mut game, "manifesto:place:havana:base-base");
+    assert_eq!(game.observe().owner, Faction::Syndicate);
+    choose(&mut game, "manifesto:place:havana:guerrilla-guerrilla");
+    let before = game.observe();
+    assert_eq!(before.owner, Faction::Government);
+    let labels = |space| {
+        before
+            .choices
+            .iter()
+            .filter(|c| c.space() == Some(space))
+            .map(|c| c.label.as_str())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        labels("havana"),
+        ["2 Troops", "1 Troop + 1 Police cube", "2 Police cubes"]
+    );
+    assert!(labels("santiago").contains(&"1 Troop + 1 Base"));
+
+    let stacking = "2 non-Casino Base slots full (R 1.4.2).";
+    let reason = before
+        .space_reasons
+        .iter()
+        .find(|r| r.space == "havana")
+        .unwrap();
+    assert_eq!(reason.reason, "Both Base slots full (R 1.4.2).");
+    let mix = "manifesto:place:havana:troops-police";
+    let legal = before.choices.iter().find(|c| c.action() == mix).unwrap();
+    assert!(
+        legal
+            .explanation
+            .contains("Government has 6 Troops, 4 Police cubes.")
+    );
+    assert!(legal.explanation.contains(stacking));
+    let preview = legal.preview.as_ref().unwrap();
+    assert!(preview.notes.iter().any(|note| note == stacking));
+    let supply = preview
+        .placement_supply
+        .iter()
+        .map(|s| (s.piece.kind, s.from, s.to))
+        .collect::<Vec<_>>();
+    assert_eq!(supply, [(Kind::Troops, 3, 2), (Kind::Police, 8, 7)]);
+    assert!(preview.control.is_empty());
+    assert!(preview.standings.is_empty());
+
+    let saved = game.clone();
+    let revision = before.revision;
+    for (at, action) in [
+        (revision, "manifesto:place:havana:troops-base"),
+        (revision - 1, mix),
+    ] {
+        assert!(
+            game.submit(Faction::Government, at, &format!("{at}:{action}"))
+                .is_err()
+        );
+        assert_eq!(game, saved);
+    }
+    choose(&mut game, mix);
+    let after = game.observe();
+    let havana = |view: &Observation| {
+        let city = view.spaces.iter().find(|s| s.id == "havana").unwrap();
+        assert_eq!(city.control(), Some(Faction::Government));
+        city.pieces
+            .iter()
+            .map(|p| (p.faction, p.kind, p.state, p.count))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        havana(&before),
+        [
+            (Faction::Government, Kind::Troops, State::Ordinary, 6),
+            (Faction::Government, Kind::Police, State::Ordinary, 4),
+            (Faction::Directorio, Kind::Guerrilla, State::Underground, 2),
+            (Faction::Syndicate, Kind::Casino, State::Open, 1),
+            (Faction::Directorio, Kind::Base, State::Ordinary, 2),
+            (Faction::Syndicate, Kind::Guerrilla, State::Underground, 2),
+        ]
+    );
+    let mut expected = havana(&before);
+    expected[0].3 = 7;
+    expected[1].3 = 5;
+    assert_eq!(havana(&after), expected);
+    assert_eq!(after.standings, before.standings);
+    assert_eq!(after.resources, before.resources);
+    assert_eq!(after.owner, Faction::Directorio);
+    assert_eq!(after.next.unwrap().role, "2nd Eligible");
+    assert_eq!(after.eligible, before.eligible);
+}

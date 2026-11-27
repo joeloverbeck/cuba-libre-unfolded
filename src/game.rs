@@ -1892,6 +1892,14 @@ impl Game {
                 .as_ref()
                 .and_then(|m| m.placements.last())
                 .expect("A previewed placement has a record");
+            let space = self
+                .spaces
+                .iter()
+                .find(|s| s.id == placement.space)
+                .expect("A previewed placement has a space");
+            if let Some(stacking) = self.manifesto_base_limit(space, placement.faction) {
+                notes.push(stacking.into());
+            }
             if placement.pieces.iter().map(|p| p.count).sum::<u8>() == 1 {
                 notes.push("Only one piece can be placed (R 5.1.3).".into());
             }

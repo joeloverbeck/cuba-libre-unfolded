@@ -39,6 +39,8 @@ mod havana_negotiation;
 mod longest;
 #[path = "native/main_view.rs"]
 mod main_view;
+#[path = "native/manifesto_havana.rs"]
+mod manifesto_havana;
 #[path = "native/map_keys.rs"]
 mod map_keys;
 #[path = "native/marker_supply.rs"]
