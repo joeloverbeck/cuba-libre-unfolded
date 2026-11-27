@@ -697,7 +697,10 @@ pub struct Observation {
     pub eligibility: Eligibility,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub event: Option<EventProgress>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "manifesto::serialize_observation"
+    )]
     pub manifesto: Option<Manifesto>,
     pub resources: [u8; 4],
     pub spaces: Vec<Space>,
@@ -1891,7 +1894,7 @@ impl Game {
             let placement = after
                 .manifesto
                 .as_ref()
-                .and_then(|m| m.placements.last())
+                .and_then(Manifesto::placement_in_last_outcome)
                 .expect("A previewed placement has a record");
             let space = self
                 .spaces
@@ -3311,14 +3314,11 @@ impl Game {
                 self.current_card = next;
             }
             MANIFESTO_EVENT => self.manifesto = Some(Manifesto::default()),
-            MANIFESTO_DECLINE => {
-                let owner = self.owner();
-                self.manifesto
-                    .as_mut()
-                    .expect("Manifesto decision")
-                    .declines
-                    .push(owner);
-            }
+            MANIFESTO_DECLINE => self
+                .manifesto
+                .as_mut()
+                .expect("Manifesto decision")
+                .decline(),
             _ if manifesto::is_placement(action) => self.apply_manifesto_placement(action)?,
             construct::OPERATION_ONLY | construct::LIMITED => {
                 return self.apply_construct(action, next_revision);

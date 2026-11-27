@@ -2429,16 +2429,9 @@ fn native_manifesto_records_four_placements_and_restores_the_result() {
     app.quit();
 }
 
-#[test]
-#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the Manifesto removal, pending giver and returned placement at 4K"]
-fn native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement() {
-    use super::construct::choose_row;
-    use super::faction_seats::{DIRECTORIO, M26};
-
-    let mut app = super::available_forces::unlaunched("manifesto-side-decisions-", "issue-243");
-    drop(Session::create_seeded(&app.save, Session::KIDNAP_ROLLS_1).unwrap());
-    finish_event(&app.save, "shaded");
-    let mut session = Session::open(&app.save, None).unwrap();
+fn reach_manifesto_after_two_passes(path: &Path) {
+    finish_event(path, "shaded");
+    let mut session = Session::open(path, None).unwrap();
     for action in [
         "advance-card",
         "government:pass",
@@ -2454,7 +2447,55 @@ fn native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement() {
             )
             .unwrap();
     }
-    drop(session);
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan for a 4K capture of alternating Manifesto outcomes"]
+fn native_manifesto_records_alternating_outcomes_in_printed_order() {
+    let mut app = available_forces::unlaunched("manifesto-mixed-", "issue-252");
+    reach_manifesto_after_two_passes(&app.save);
+    app.launch_size("3840x2160");
+    super::construct::choose_row(&mut app, "m26:event");
+    super::construct::choose_row(&mut app, "manifesto:decline");
+    app.pick("havana", "manifesto:place:havana:base-base");
+    super::construct::choose_row(&mut app, "manifesto:decline");
+    app.pick("havana", "manifesto:place:havana:troops-police");
+
+    let finished = app.observe();
+    assert_manifesto_result(
+        &finished,
+        [
+            "26July · declined placement",
+            "Directorio · 2 Bases · Havana",
+            "Syndicate · declined placement",
+            "Government · 1 Troop + 1 Police cube · Havana",
+        ],
+    );
+    assert_eq!(finished["observation"]["event_executor"], "M26");
+    assert_eq!(
+        finished["observation"]["manifesto"]["declines"],
+        json!(["M26", "Syndicate"])
+    );
+    assert_eq!(
+        finished["observation"]["manifesto"]["placements"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    app.capture("manifesto-mixed-outcomes");
+    app.quit();
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the Manifesto removal, pending giver and returned placement at 4K"]
+fn native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement() {
+    use super::construct::choose_row;
+    use super::faction_seats::{DIRECTORIO, M26};
+
+    let mut app = super::available_forces::unlaunched("manifesto-side-decisions-", "issue-243");
+    drop(Session::create_seeded(&app.save, Session::KIDNAP_ROLLS_1).unwrap());
+    reach_manifesto_after_two_passes(&app.save);
     app.launch_size("3840x2160");
     choose_row(&mut app, "m26:event");
     let oriente_placement = "manifesto:place:oriente:guerrilla-guerrilla";
