@@ -18,6 +18,18 @@ When adding or moving a control visible on the ordinary table, run the 4K main-v
 scripts/heavy scripts/native --exact main_view::native_main_view_fills_the_window_and_matches_its_layout
 ```
 
+## Software Vulkan
+
+At normal shutdown, the detached-session harness keeps the session log and fails on any warning or error recorded there. For a software Vulkan run, set `CUBA_NATIVE_SOFTWARE_VULKAN=1` to permit Bevy's exact software-renderer warning. Every other warning and error still fails the check. The retained session logs include the original warning. Keep the command and renderer settings with the result.
+
+Set `CUBA_TEST_CARDS` as above. On a host with Mesa's llvmpipe Vulkan driver at the path below, run the restart regression.
+
+```sh
+CUBA_NATIVE_SOFTWARE_VULKAN=1 \
+  VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json WGPU_BACKEND=vulkan \
+  scripts/heavy scripts/native --test-threads=1 native_controls_hover_camera_finish_and_process_restarts
+```
+
 ## Regression catalogue
 
 The [seat reference](seat.md) has the seat's requests, its component ids, what the table reports and how to judge a capture on the owner's display.
