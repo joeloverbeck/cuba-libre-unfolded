@@ -1,5 +1,5 @@
 use super::*;
-use cuba_libre_unfolded::save::Session;
+use cuba_libre_unfolded::{Kind, State, save::Session};
 use std::fs;
 use unfolded_record_replacement::previous_path;
 
@@ -281,8 +281,18 @@ fn native_manifesto_havana_restarts_with_both_base_slots_filled() {
         .unwrap();
     assert_eq!(city.control(), Some(Faction::Government));
     assert_eq!(
-        city.pieces.iter().map(|p| p.count).collect::<Vec<_>>(),
-        [7, 5, 2, 1, 2, 2]
+        city.pieces
+            .iter()
+            .map(|p| (p.faction, p.kind, p.state, p.count))
+            .collect::<Vec<_>>(),
+        [
+            (Faction::Government, Kind::Troops, State::Ordinary, 7),
+            (Faction::Government, Kind::Police, State::Ordinary, 5),
+            (Faction::Directorio, Kind::Guerrilla, State::Underground, 2),
+            (Faction::Syndicate, Kind::Casino, State::Open, 1),
+            (Faction::Directorio, Kind::Base, State::Ordinary, 2),
+            (Faction::Syndicate, Kind::Guerrilla, State::Underground, 2),
+        ]
     );
     let reports = check.reports();
     let report = reports.last().unwrap();
@@ -317,5 +327,50 @@ fn native_manifesto_havana_restarts_with_both_base_slots_filled() {
         .unwrap(),
     )
     .unwrap();
+    app.quit();
+
+    // Open a distinct replay file for the inspection, leaving the played slot and
+    // its previous record available as evidence of the original decisions.
+    let inspection = app.root.join("manifesto-havana-six-groups.save.json");
+    fs::copy(&app.save, &inspection).unwrap();
+    app.save = inspection;
+    app.launch_size("3840x2160");
+    let home = app.request(json!({"op":"settle"}), true);
+    assert_eq!(&home["observation"], finished);
+    let camera = &home["table"]["camera"];
+    app.capture("manifesto-havana-home");
+    let revision = app.revision();
+    for (key, steps) in [("KeyA", 35), ("KeyW", 25)] {
+        for _ in 0..steps {
+            app.request(json!({"op":"key","key":key,"revision":revision}), true);
+        }
+    }
+    app.request(json!({"op":"settle"}), true);
+    app.point("space:havana");
+    app.request(
+        json!({"op":"scroll","revision":revision,"component":"space:havana","y":21}),
+        true,
+    );
+    let close = app.request(json!({"op":"settle"}), true);
+    assert_ne!(close["table"]["camera"]["target"], camera["target"]);
+    assert!(
+        close["table"]["camera"]["distance"].as_f64().unwrap()
+            < camera["distance"].as_f64().unwrap() * 0.45
+    );
+    assert_eq!(&close["observation"], finished);
+    let havana_counts = close["table"]["counts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|count| count["name"].as_str().unwrap().starts_with("count:havana "))
+        .count();
+    assert_eq!(havana_counts, 6);
+    app.capture("manifesto-havana-close");
+    app.request(json!({"op":"key","key":"Home","revision":revision}), true);
+    assert_eq!(
+        app.request(json!({"op":"settle"}), true)["table"]["camera"],
+        *camera
+    );
+    assert_eq!(app.save_bytes(), final_bytes);
     app.quit();
 }

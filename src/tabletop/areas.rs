@@ -393,7 +393,7 @@ pub(super) fn home(
 ) {
     // The session opens only after the map has loaded and been drawn, so every
     // region's place in the world is settled by then.
-    if play.session.is_none() {
+    if !play.admitted() {
         return;
     }
     if !island.surveyed() {

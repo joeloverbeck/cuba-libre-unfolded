@@ -60,6 +60,10 @@ mod focus_mark;
 mod highlights;
 mod newspaper;
 mod notice;
+#[cfg(feature = "occupancy-review")]
+mod occupancy_review;
+#[cfg(feature = "occupancy-review")]
+pub use occupancy_review::OccupancyReview;
 mod palette;
 mod pile_tags;
 mod piles;
@@ -86,6 +90,8 @@ pub struct Options {
     /// Where agent sessions play handed-over factions, instead of the default.
     pub players: Option<PathBuf>,
     pub agent: bool,
+    #[cfg(feature = "occupancy-review")]
+    pub occupancy_review: Option<OccupancyReview>,
     pub seat_size: UVec2,
 }
 #[derive(Resource)]
@@ -94,9 +100,31 @@ struct Play {
     options: Options,
     error: Option<String>,
     ready_frames: u8,
+    #[cfg(feature = "occupancy-review")]
+    review_ready: bool,
 }
 impl Play {
+    fn admitted(&self) -> bool {
+        #[cfg(feature = "occupancy-review")]
+        if self.review_ready {
+            return true;
+        }
+        self.session.is_some()
+    }
+
+    fn observe(&self) -> crate::Observation {
+        #[cfg(feature = "occupancy-review")]
+        if let Some(review) = &self.options.occupancy_review {
+            return review.observe();
+        }
+        self.game().observe()
+    }
+
     fn game(&self) -> Game {
+        #[cfg(feature = "occupancy-review")]
+        if let Some(review) = &self.options.occupancy_review {
+            return review.position.clone();
+        }
         self.session
             .as_ref()
             .map_or_else(Game::opening, |s| s.game().clone())
@@ -472,6 +500,8 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             options,
             error: None,
             ready_frames: 0,
+            #[cfg(feature = "occupancy-review")]
+            review_ready: false,
         })
         .insert_resource(Interface {
             dirty: true,
@@ -762,6 +792,23 @@ fn sync_pieces(
                 Kind::Troops | Kind::Police => 0.09,
                 _ => 0.0375,
             };
+            let x = piece_at.x + (i as f32 - (space.pieces.len() - 1) as f32 / 2.) * 0.40;
+            let base = Vec3::new(x, top, piece_at.z);
+            #[cfg(feature = "occupancy-review")]
+            let base = if let Some(review) = &play.options.occupancy_review {
+                base + Vec3::Y
+                    * occupancy_review::cash_solids(
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        &space.id,
+                        i,
+                        review.cash(&space.id, i),
+                        base,
+                    )
+            } else {
+                base
+            };
             let token = token::spawn_body(
                 &mut commands,
                 &mut meshes,
@@ -773,11 +820,7 @@ fn sync_pieces(
                     ),
                     mesh,
                     color,
-                    transform: Transform::from_xyz(
-                        piece_at.x + (i as f32 - (space.pieces.len() - 1) as f32 / 2.) * 0.40,
-                        top + height,
-                        piece_at.z,
-                    ),
+                    transform: Transform::from_translation(base + Vec3::Y * height),
                 },
             );
             commands
@@ -835,6 +878,22 @@ fn sync_pieces(
                 TextColor(Color::srgb(0.08, 0.08, 0.06)), // own colour: Atlas desk map counts (foundation 4)
                 GlobalZIndex(-1),
             ));
+        }
+        #[cfg(feature = "occupancy-review")]
+        if play
+            .options
+            .occupancy_review
+            .as_ref()
+            .is_some_and(|review| review.sabotaged(&space.id))
+        {
+            occupancy_review::sabotage_solid(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                &art,
+                &space.id,
+                piece_at + Vec3::Z * 0.36,
+            );
         }
         if space.terror > 0 {
             // One authored bell per space; the count carries the quantity. Its glTF
@@ -996,7 +1055,7 @@ fn admit(
     mut ui: ResMut<Interface>,
     die: Res<die::DieArt>,
 ) {
-    if play.error.is_some() || play.session.is_some() {
+    if play.error.is_some() || play.admitted() {
         return;
     }
     let clip_ids: Vec<bevy::asset::UntypedAssetId> = std::iter::once(&art.terror_clip)
@@ -1041,6 +1100,12 @@ fn admit(
     }
     play.ready_frames += 1;
     if play.ready_frames < 5 {
+        return;
+    }
+    #[cfg(feature = "occupancy-review")]
+    if play.options.occupancy_review.is_some() {
+        play.review_ready = true;
+        ui.dirty = true;
         return;
     }
     // Recheck file-backed scene identity after load, before creating/replacing a save.
@@ -1693,7 +1758,7 @@ fn camera_facts(play: &Play, ui: &Interface, roll: &die::Roll) -> TableFacts {
         )
     });
     TableFacts {
-        blocks_camera: play.session.is_none()
+        blocks_camera: !play.admitted()
             || modal
             || die
             || ui.editions.open().is_some()
@@ -1848,7 +1913,7 @@ fn draw_ui(
     let extra = window.width() - WIDTH * s;
     let right = Vec2::new(extra, 0.);
     let centered = Vec2::new(extra / 2., 0.);
-    let view = play.game().observe();
+    let view = play.observe();
     // The map fills the window (#142). Each area keeps its distance from the edge
     // or centre the main view's layout anchors it to, and takes the pointer over
     // its own rectangle.
@@ -1882,10 +1947,56 @@ fn draw_ui(
     // #172: the marker supply stands between the US Alliance track and the standings,
     // from the committed position.
     supply::draw(&mut commands, &art, &view, &main_view, &window);
-    if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
-        die::panel(&mut commands, &art, kidnap, roll.landed(), s, right);
+    #[cfg(not(feature = "occupancy-review"))]
+    let reviewing = false;
+    #[cfg(feature = "occupancy-review")]
+    let reviewing = if let Some(review) = &play.options.occupancy_review {
+        text(
+            &mut commands,
+            &art,
+            "Review only · Atlas occupancy",
+            1408.,
+            307.,
+            444.,
+            25.,
+            s,
+            right,
+            2,
+        );
+        text(
+            &mut commands,
+            &art,
+            review.name.clone(),
+            1408.,
+            356.,
+            444.,
+            20.,
+            s,
+            right,
+            2,
+        );
+        text(
+            &mut commands,
+            &art,
+            "Cash and Sabotage use temporary solids.",
+            1408.,
+            407.,
+            444.,
+            18.,
+            s,
+            right,
+            2,
+        );
+        true
     } else {
-        execution::panel(&mut commands, &art, &view, &ui, s, right);
+        false
+    };
+    if !reviewing {
+        if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
+            die::panel(&mut commands, &art, kidnap, roll.landed(), s, right);
+        } else {
+            execution::panel(&mut commands, &art, &view, &ui, s, right);
+        }
     }
     eligibility::indicator(&mut commands, &art, &view, s, Vec2::ZERO);
     // The pips follow the cards while an advance is shown, and the count discs wait.
@@ -1899,7 +2010,9 @@ fn draw_ui(
     seat_cards::draw(&mut commands, &art, &view, &ui, &main_view, &window);
     // #174: Save · quit in the bottom-right corner, and above it and the seats the notice
     // slip when a refusal, an error or the loading state is shown.
-    save_quit::draw(&mut commands, &art, &main_view, &window);
+    if play.session.is_some() || !play.admitted() {
+        save_quit::draw(&mut commands, &art, &main_view, &window);
+    }
     notice::draw(
         &mut commands,
         &art,
@@ -1923,10 +2036,14 @@ fn test_play(save: PathBuf) -> Play {
             socket: None,
             players: None,
             agent: false,
+            #[cfg(feature = "occupancy-review")]
+            occupancy_review: None,
             seat_size: UVec2::new(1920, 1280),
         },
         error: None,
         ready_frames: 5,
+        #[cfg(feature = "occupancy-review")]
+        review_ready: false,
     }
 }
 

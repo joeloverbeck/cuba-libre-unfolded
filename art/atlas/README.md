@@ -38,6 +38,8 @@ Current refinement checks: thirteen manifold meshes with positive signed volumes
 
 ## Main-view composition and dynamic content
 
+[Atlas map occupancy](OCCUPANCY.md) records the rule envelopes and the native comparison positions.
+
 The [main view layout](MAIN-VIEW.md) owns where every area sits: the 3D map fills the window and the areas below lie over it. Its [Areas](MAIN-VIEW.md#areas) table holds each area's rectangle and anchor. Coordinates are reference pixels, measured from the window edge or centre each area is anchored to; one reference pixel is the smaller of the window's width over 1920 and its height over 1280, and nothing is letterboxed. Keep native input targets and seat targets aligned with that same transform. A smaller window must preserve readable type by inspecting details in the panels and tags instead of shrinking all decision text indefinitely.
 
 | Surface | Anchored to | Runtime responsibility |

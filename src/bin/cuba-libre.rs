@@ -11,10 +11,17 @@ fn run() -> Result<(), String> {
         socket: None,
         players: None,
         agent: false,
+        #[cfg(feature = "occupancy-review")]
+        occupancy_review: None,
         seat_size: bevy::prelude::UVec2::new(1920, 1280),
     };
     while let Some(arg) = args.next() {
         match arg.as_str() {
+            #[cfg(feature = "occupancy-review")]
+            "--occupancy-review" => {
+                let case = args.next().ok_or("--occupancy-review needs CASE:SPACE")?;
+                options.occupancy_review = Some(tabletop::OccupancyReview::named(&case)?);
+            }
             "--art" => options.art = args.next().ok_or("--art needs a directory")?.into(),
             "--cards" => options.cards = args.next().ok_or("--cards needs a directory")?.into(),
             "--save" => options.save = args.next().ok_or("--save needs a file")?.into(),
@@ -47,12 +54,29 @@ fn run() -> Result<(), String> {
                 println!(
                     "cuba-libre --cards DIRECTORY --save FILE [--art art/atlas] [--recover-from ORIGINAL] [--player-socket SOCKET] [--agent-seat [--socket SOCKET] [--seat-size WIDTHxHEIGHT]]\nPrepared Terror task candidate. Recovery reads ORIGINAL.previous into an unused FILE. Development sessions idle out after 30 minutes. --player-socket is where agent sessions play the factions handed over."
                 );
+                #[cfg(feature = "occupancy-review")]
+                println!(
+                    "--occupancy-review CASE:SPACE opens a read-only native comparison. Supply --cards and omit --save, --recover-from and --player-socket."
+                );
                 return Ok(());
             }
             _ => return Err(format!("Unknown argument: {arg}")),
         }
     }
-    if options.cards.as_os_str().is_empty() || options.save.as_os_str().is_empty() {
+    #[cfg(feature = "occupancy-review")]
+    let reading_occupancy = options.occupancy_review.is_some();
+    #[cfg(not(feature = "occupancy-review"))]
+    let reading_occupancy = false;
+    if reading_occupancy
+        && (!options.save.as_os_str().is_empty()
+            || options.recover.is_some()
+            || options.players.is_some())
+    {
+        return Err("Occupancy review has no save, recovery or faction player socket.".into());
+    }
+    if options.cards.as_os_str().is_empty()
+        || (!reading_occupancy && options.save.as_os_str().is_empty())
+    {
         return Err("Both --cards DIRECTORY and --save FILE are required; use --help.".into());
     }
     if options.socket.is_some() && !options.agent {

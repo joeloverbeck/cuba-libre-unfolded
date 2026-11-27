@@ -9,6 +9,7 @@ publish = false
 [features]
 default = []
 tabletop = ["dep:arboard", "dep:bevy", "dep:unfolded-hover", "unfolded-tabletop/seat"]
+occupancy-review = ["tabletop"]
 
 [dependencies]
 # Shared packages, all at one revision of one repository, the same as the `wgpu-hal`

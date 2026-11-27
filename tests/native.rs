@@ -47,6 +47,9 @@ mod map_keys;
 mod marker_supply;
 #[path = "native/newspaper.rs"]
 mod newspaper;
+#[cfg(feature = "occupancy-review")]
+#[path = "native/occupancy_review.rs"]
+mod occupancy_review;
 #[path = "native/pile_tags.rs"]
 mod pile_tags;
 #[path = "native/proclamation_composer.rs"]

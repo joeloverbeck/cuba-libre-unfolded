@@ -524,8 +524,12 @@ impl SeatGame for Table {
         table["newspaper"] = newspaper;
         table["proclamation_composer"] = composer;
         table["proclamations"] = proclamations;
+        #[cfg(feature = "occupancy-review")]
+        if let Some(review) = &play.options.occupancy_review {
+            table["occupancy_review"] = json!(review.name);
+        }
         Observed {
-            observation: serde_json::to_value(play.game().observe()).unwrap(),
+            observation: serde_json::to_value(play.observe()).unwrap(),
             table,
         }
     }
@@ -616,7 +620,7 @@ impl SeatGame for Table {
         let play = world.resource::<Play>();
         if let Some(error) = &play.error {
             shared::Admission::Refused(error.clone())
-        } else if play.session.is_some() {
+        } else if play.admitted() {
             shared::Admission::Admitted
         } else {
             shared::Admission::Checking
@@ -743,6 +747,8 @@ mod tests {
                 socket: None,
                 players: Some(save.with_extension("sock")),
                 agent: true,
+                #[cfg(feature = "occupancy-review")]
+                occupancy_review: None,
                 seat_size: size,
             },
             true,
@@ -1185,6 +1191,8 @@ mod tests {
                 socket: None,
                 players: None,
                 agent: true,
+                #[cfg(feature = "occupancy-review")]
+                occupancy_review: None,
                 seat_size: size,
             },
             true,

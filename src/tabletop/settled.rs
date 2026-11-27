@@ -54,7 +54,7 @@ pub(super) fn unsettled(world: &mut World) -> Vec<Unsettled> {
     let play = world.resource::<Play>();
     let ui = world.resource::<Interface>();
     let mut pending = vec![];
-    if play.session.is_none() {
+    if !play.admitted() {
         pending.push(Unsettled::Admission);
     }
     if ui.hover.waiting() {
@@ -66,7 +66,7 @@ pub(super) fn unsettled(world: &mut World) -> Vec<Unsettled> {
     if ui.dirty {
         pending.push(Unsettled::Redraw);
     }
-    if play.session.is_some() && !world.resource::<areas::Island>().surveyed() {
+    if play.admitted() && !world.resource::<areas::Island>().surveyed() {
         pending.push(Unsettled::HomeFraming);
     }
     if world.resource::<Counts>().settling > 0 {

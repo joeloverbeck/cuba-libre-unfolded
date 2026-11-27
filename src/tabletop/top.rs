@@ -453,7 +453,7 @@ pub(super) fn draw(
             | Target::Pile(_) => None,
         })
         .map(|item| {
-            let mut shown = content(&play.game().observe(), item);
+            let mut shown = content(&play.observe(), item);
             shown.bounds = bounds(&shown, &layout, &window);
             shown
         });
