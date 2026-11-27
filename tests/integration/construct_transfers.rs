@@ -247,9 +247,12 @@ fn construct_uses_the_amount_the_giver_authorizes() {
 fn construct_reports_transfers_in_order_even_when_the_same_giver_replies_twice() {
     let mut game = underfunded_construct();
     let mut reports = Reports::new(&game.observe());
+    for action in ["transfer", "ask:1:2"] {
+        let reply = choose(&mut game, action);
+        reports.record(&game.observe(), reply);
+    }
+    let after_ask = game.observe().revision;
     for action in [
-        "transfer",
-        "ask:1:2",
         "authorize:3",
         "construct:havana:open",
         "transfer",
@@ -298,6 +301,11 @@ fn construct_reports_transfers_in_order_even_when_the_same_giver_replies_twice()
         ]
     );
     assert_eq!(report.articles[3].lines, ["Syndicate 2 → 0, 26July 0 → 2."]);
+    let continued = reports.since(after_ask);
+    assert_eq!(
+        continued.last().unwrap().articles[0].lines,
+        ["26July 4 → 1, Syndicate 3 → 6."]
+    );
 }
 
 #[test]
@@ -397,6 +405,12 @@ fn limited_construct_holds_insufficient_authorizations_until_they_can_fund_a_pay
         );
     }
     refuse(&mut game, SYNDICATE, "construct:havana:open");
+    let mut abandoned = game.clone();
+    let mut abandoned_reports = reports.clone();
+    let reply = choose(&mut abandoned, "back-to-choice");
+    abandoned_reports.record(&abandoned.observe(), reply);
+    assert!(abandoned_reports.all().is_empty());
+
     let mut management = game.clone();
     choose(&mut management, "remove");
     let close = "close-casino:pinar-del-rio:open-casino:1";

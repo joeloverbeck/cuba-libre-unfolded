@@ -449,12 +449,14 @@ fn span(moments: &[Moment], faction: Faction, continues: bool) -> Option<Report>
         happened(&step[0], &step[1], continues, &mut items);
     }
     let action = last.action_of(faction);
-    let new_authorization = moments[1..].iter().any(|moment| {
-        matches!(
-            moment.construct_reply,
-            Some(ConstructFundingReply::Held { .. })
-        )
-    });
+    // A whole action's funding status reflects what is still held after it.
+    let held = |moment: &Moment| {
+        moment
+            .construct_funding
+            .as_ref()
+            .map_or(0, |funding| funding.authorizations.len())
+    };
+    let new_authorization = held(last) > held(first);
     let told = new_authorization
         || !items.is_empty()
         || complete
@@ -695,9 +697,16 @@ fn rallied(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
 
 fn transferred(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
     if let Some(reply) = &after.construct_reply {
-        if let Some(index) = items
-            .iter()
-            .rposition(|item| matches!(item, Item::Transfers(told) if told.pending.is_some()))
+        // An immediate settlement closes the request if it was made in this
+        // span. A combined settlement reports each of its authorizations.
+        let immediate = matches!(
+            reply,
+            ConstructFundingReply::Settled(settlement) if settlement.earlier.is_empty()
+        );
+        if !immediate
+            && let Some(index) = items
+                .iter()
+                .rposition(|item| matches!(item, Item::Transfers(told) if told.pending.is_some()))
         {
             items.remove(index);
         }
@@ -706,11 +715,14 @@ fn transferred(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
                 let authorization = movement.authorization;
                 let [giver_before, giver_after] = movement.giver_balance;
                 let [recipient_before, recipient_after] = movement.syndicate_balance;
-                let told = between(items, authorization.giver, Faction::Syndicate, false);
-                told.asked = Some(authorization.asked);
-                told.asks = 1;
-                told.moves = 1;
-                told.given = u16::from(authorization.amount);
+                let told = between(items, authorization.giver, Faction::Syndicate, immediate);
+                if !immediate {
+                    told.asked = Some(authorization.asked);
+                    told.asks = 1;
+                }
+                told.pending = None;
+                told.moves += 1;
+                told.given += u16::from(authorization.amount);
                 told.balances = Some((
                     Balance {
                         from: giver_before,
