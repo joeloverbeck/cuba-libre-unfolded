@@ -2429,12 +2429,9 @@ fn native_manifesto_records_four_placements_and_restores_the_result() {
     app.quit();
 }
 
-#[test]
-#[ignore = "requires CUBA_TEST_CARDS and Vulkan for a 4K capture of alternating Manifesto outcomes"]
-fn native_manifesto_records_alternating_outcomes_in_printed_order() {
-    let mut app = available_forces::unlaunched("manifesto-mixed-", "issue-252");
-    finish_event(&app.save, "shaded");
-    let mut session = Session::open(&app.save, None).unwrap();
+fn reach_manifesto_after_two_passes(path: &Path) {
+    finish_event(path, "shaded");
+    let mut session = Session::open(path, None).unwrap();
     for action in [
         "advance-card",
         "government:pass",
@@ -2450,8 +2447,13 @@ fn native_manifesto_records_alternating_outcomes_in_printed_order() {
             )
             .unwrap();
     }
-    drop(session);
+}
 
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan for a 4K capture of alternating Manifesto outcomes"]
+fn native_manifesto_records_alternating_outcomes_in_printed_order() {
+    let mut app = available_forces::unlaunched("manifesto-mixed-", "issue-252");
+    reach_manifesto_after_two_passes(&app.save);
     app.launch_size("3840x2160");
     super::construct::choose_row(&mut app, "m26:event");
     super::construct::choose_row(&mut app, "manifesto:decline");
@@ -2493,24 +2495,7 @@ fn native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement() {
 
     let mut app = super::available_forces::unlaunched("manifesto-side-decisions-", "issue-243");
     drop(Session::create_seeded(&app.save, Session::KIDNAP_ROLLS_1).unwrap());
-    finish_event(&app.save, "shaded");
-    let mut session = Session::open(&app.save, None).unwrap();
-    for action in [
-        "advance-card",
-        "government:pass",
-        "syndicate:pass",
-        "advance-card",
-    ] {
-        let seen = session.observe();
-        session
-            .submit(
-                seen.owner,
-                seen.revision,
-                &format!("{}:{action}", seen.revision),
-            )
-            .unwrap();
-    }
-    drop(session);
+    reach_manifesto_after_two_passes(&app.save);
     app.launch_size("3840x2160");
     choose_row(&mut app, "m26:event");
     let oriente_placement = "manifesto:place:oriente:guerrilla-guerrilla";

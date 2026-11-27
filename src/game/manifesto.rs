@@ -58,7 +58,7 @@ impl Manifesto {
         self.outcomes.get(told..).unwrap_or_default()
     }
 
-    pub(crate) fn last_placement(&self) -> Option<&ManifestoPlacement> {
+    pub(crate) fn placement_in_last_outcome(&self) -> Option<&ManifestoPlacement> {
         match self.outcomes.last()? {
             ManifestoOutcome::Placed(placement) => Some(placement),
             ManifestoOutcome::Declined(_) => None,
@@ -390,7 +390,7 @@ impl Game {
         let plan = after
             .manifesto
             .as_ref()
-            .and_then(Manifesto::last_placement)
+            .and_then(Manifesto::placement_in_last_outcome)
             .expect("The preview resolved a placement");
         plan.pieces
             .iter()

@@ -1894,7 +1894,7 @@ impl Game {
             let placement = after
                 .manifesto
                 .as_ref()
-                .and_then(Manifesto::last_placement)
+                .and_then(Manifesto::placement_in_last_outcome)
                 .expect("A previewed placement has a record");
             let space = self
                 .spaces
