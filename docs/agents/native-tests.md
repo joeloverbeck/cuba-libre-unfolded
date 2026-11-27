@@ -18,6 +18,30 @@ When adding or moving a control visible on the ordinary table, run the 4K main-v
 scripts/heavy scripts/native --exact main_view::native_main_view_fills_the_window_and_matches_its_layout
 ```
 
+## Card advances and Event decisions
+
+Set `CUBA_TEST_CARDS` as above. Run the checks that reach the changed behavior before integrating the ticket.
+
+When extending play past the previous build end, run the seat-state regression against the new endpoint. It follows mixed human and agent seats through card advance, wakes a waiting agent for its owed placement, and checks the seat state at the build end.
+
+```sh
+scripts/heavy scripts/native --exact seat_controls::native_each_seat_state_is_shown_and_a_held_choice_is_taken_back
+```
+
+When the decision owner and choice owner can differ, exercise both directions of mixed seating. A human choice owner can confirm while the decision owner's agent holds the decision. A human decision owner can inspect an agent-held choice, with pointer and keyboard confirmation disabled. The Manifesto regressions cover those two directions in order.
+
+```sh
+scripts/heavy scripts/native --exact \
+  card_advance::native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement \
+  card_advance::native_manifesto_declines_wake_held_syndicate_and_resume_in_order
+```
+
+When changing an Event result, exercise it with a human executor. Check that the completed result shows each affected faction's committed outcome and gives access to the next decision when no edition is available. Reopen the same-build save and check that the result and next decision are restored. The four-placement Manifesto regression covers this path.
+
+```sh
+scripts/heavy scripts/native --exact card_advance::native_manifesto_records_four_placements_and_restores_the_result
+```
+
 ## Software Vulkan
 
 At normal shutdown, the detached-session harness keeps the session log and fails on any warning or error recorded there. For a software Vulkan run, set `CUBA_NATIVE_SOFTWARE_VULKAN=1` to permit Bevy's exact software-renderer warning. Every other warning and error still fails the check. The retained session logs include the original warning. Keep the command and renderer settings with the result.
