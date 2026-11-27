@@ -252,6 +252,13 @@ fn native_dispatch_medallion_and_tooltips_follow_picking_order() {
     let (mut app, mut seat) = table(&cards, &save, UVec2::new(1920, 1080));
     claim_directorio(&mut app, &mut seat, &save.with_extension("sock"), revision);
     ask(&mut seat, &mut app, json!({"op":"settle"}));
+    assert!(
+        app.world()
+            .resource::<bevy::input_focus::InputFocus>()
+            .get()
+            .is_none(),
+        "Use the window fallback before a control takes Bevy input focus"
+    );
     for _ in 0..40 {
         let pressed = ask(
             &mut seat,

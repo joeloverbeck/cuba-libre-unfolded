@@ -118,7 +118,7 @@ pub(super) fn draw(
     roll: Res<die::Roll>,
     advance: Res<piles::Advance>,
     time: Res<Time>,
-    window: Single<&Window, With<PrimaryWindow>>,
+    window: Single<(Entity, &Window), With<PrimaryWindow>>,
     controls: Query<(Entity, &Control, Option<&transfer::Part>), With<Node>>,
     marks: Query<(Entity, &FocusMark)>,
     mut input_focus: ResMut<InputFocus>,
@@ -144,15 +144,19 @@ pub(super) fn draw(
                 .iter()
                 .find_map(|(entity, control, part)| target.is(control, part).then_some(entity))
         });
+    let (primary, window) = window.into_inner();
+    let focused = input_focus.get();
     if let Some(entity) = dispatch {
-        if input_focus.get() != Some(entity) {
+        if focused != Some(entity) {
             input_focus.set(entity, FocusCause::Navigated);
         }
-    } else if dispatch_focus.is_some() && *dispatch_focus == input_focus.get() {
+    } else if focused.is_some_and(|entity| entity == primary || Some(entity) == *dispatch_focus) {
+        // Bevy 0.20's Winit accessibility update rejects explicit focus on the
+        // window entity. With focus empty, Bevy still dispatches keys to that window.
         input_focus.clear();
     }
     *dispatch_focus = dispatch;
-    let s = reference_pixel(&window);
+    let s = reference_pixel(window);
     let field = wanted
         .field
         .then(|| Target::Control(transfer::FIELD.to_owned()));
