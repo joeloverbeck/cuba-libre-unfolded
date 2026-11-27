@@ -143,7 +143,31 @@ pub(crate) fn presence(space: &Space, faction: Faction) -> Option<String> {
     (!pieces.is_empty()).then(|| format!("{} has {}", faction.name(), pieces.join(", ")))
 }
 
+fn base_capacity(space: &Space) -> u8 {
+    if space.terrain == Terrain::EconomicCenter {
+        return 0;
+    }
+    let bases = space
+        .pieces
+        .iter()
+        .filter(|p| p.kind == Kind::Base)
+        .map(|p| p.count)
+        .sum::<u8>();
+    2u8.saturating_sub(bases)
+}
+
 impl Game {
+    pub(super) fn manifesto_base_limit(
+        &self,
+        space: &Space,
+        faction: Faction,
+    ) -> Option<&'static str> {
+        (space.terrain != Terrain::EconomicCenter
+            && base_capacity(space) == 0
+            && total(&self.available, faction, Kind::Base) > 0)
+            .then_some("2 non-Casino Base slots full (R 1.4.2).")
+    }
+
     fn manifesto_placements(&self, faction: Faction) -> Vec<ManifestoPlacement> {
         let supply: Vec<_> = self
             .available
@@ -159,17 +183,7 @@ impl Game {
             {
                 continue;
             }
-            let base_capacity = if space.terrain == Terrain::EconomicCenter {
-                0
-            } else {
-                let bases = space
-                    .pieces
-                    .iter()
-                    .filter(|p| p.kind == Kind::Base)
-                    .map(|p| p.count)
-                    .sum::<u8>();
-                2u8.saturating_sub(bases)
-            };
+            let base_capacity = base_capacity(space);
             let kinds: Vec<_> = supply
                 .iter()
                 .filter_map(|g| {
@@ -243,11 +257,15 @@ impl Game {
             } else {
                 ""
             };
+            let stacking = self
+                .manifesto_base_limit(space, faction)
+                .map(|reason| format!(" {reason}"))
+                .unwrap_or_default();
             choices.push(self.offer(
                 &plan.id(),
                 plan.label(),
                 true,
-                format!("{}: {qualifies}. Place {} from Available Forces at no Resource cost.{partial} {after}",
+                format!("{}: {qualifies}. Place {} from Available Forces at no Resource cost.{partial}{stacking} {after}",
                     space.name, plan.piece_description()),
             ).at(&plan.space, true));
         }
@@ -315,7 +333,11 @@ impl Game {
     pub(super) fn manifesto_space_reason(&self, space: &Space, here: &[&Choice]) -> String {
         let faction = self.owner();
         if !here.is_empty() {
-            "Placement available here.".into()
+            if self.manifesto_base_limit(space, faction).is_some() {
+                "Both Base slots full (R 1.4.2).".into()
+            } else {
+                "Placement available here.".into()
+            }
         } else if space
             .pieces
             .iter()
