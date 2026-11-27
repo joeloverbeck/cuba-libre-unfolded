@@ -256,10 +256,20 @@ fn native_manifesto_havana_restarts_with_both_base_slots_filled() {
         "4"
     );
     app.capture("havana-government-committed-directorio-next");
+    let outcomes = [
+        "26July · declined placement",
+        "Directorio · 2 Bases · Havana",
+        "Syndicate · 2 Underground Guerrillas · Havana",
+        "Government · 1 Troop + 1 Police cube · Havana",
+    ];
+    card_advance::assert_manifesto_result(&final_table, outcomes);
     let final_bytes = app.save_bytes();
     app.quit();
     app.launch_size("3840x2160");
-    assert_eq!(&app.observe()["observation"], finished);
+    let restored = app.observe();
+    assert_eq!(&restored["observation"], finished);
+    card_advance::assert_manifesto_result(&restored, outcomes);
+    app.capture("havana-result-restarted");
     assert_eq!(app.save_bytes(), final_bytes);
     assert_eq!(fs::read(previous_path(&app.save)).unwrap(), saved);
     let check = Session::open(&app.save, None).unwrap();

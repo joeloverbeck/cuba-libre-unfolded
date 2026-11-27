@@ -11,8 +11,12 @@ pub(super) const CARD_19_ORDER: [Faction; 4] = [
     Faction::Government,
 ];
 
+/// 26July is 1st Eligible in the supported continuation to card 19.
+pub(super) const EXECUTOR: Faction = CARD_19_ORDER[0];
+
 /// The committed placements and declines during the Event. Each list follows
-/// the card's order, and a faction appears exactly once across the two.
+/// the card's order. A faction appears at most once across the two while the
+/// Event is pending, and exactly once when it ends.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Manifesto {
@@ -55,7 +59,7 @@ pub struct ManifestoPlacement {
 
 /// Available counts before and after a placement for one kind in the mix.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-pub struct PlacementSupply {
+pub struct AvailableForcesChange {
     pub piece: Group,
     pub from: u8,
     pub to: u8,
@@ -132,12 +136,16 @@ pub(crate) fn piece_words(piece: &Group, with_state: bool) -> String {
     format!("{} {state}{name}", piece.count)
 }
 
-/// Own presence includes every state of qualifying piece, even a closed Casino.
-pub(crate) fn presence(space: &Space, faction: Faction) -> Option<String> {
-    let pieces = space
+/// Every own piece qualifies, including a closed Casino.
+pub(super) fn qualifying_pieces(space: &Space, faction: Faction) -> impl Iterator<Item = &Group> {
+    space
         .pieces
         .iter()
-        .filter(|p| p.faction == faction && p.count > 0)
+        .filter(move |p| p.faction == faction && p.count > 0)
+}
+
+pub(crate) fn presence(space: &Space, faction: Faction) -> Option<String> {
+    let pieces = qualifying_pieces(space, faction)
         .map(|p| piece_words(p, true))
         .collect::<Vec<_>>();
     (!pieces.is_empty()).then(|| format!("{} has {}", faction.name(), pieces.join(", ")))
@@ -169,22 +177,18 @@ impl Game {
     }
 
     fn manifesto_placements(&self, faction: Faction) -> Vec<ManifestoPlacement> {
-        let supply: Vec<_> = self
+        let available_groups: Vec<_> = self
             .available
             .iter()
             .filter(|g| g.faction == faction && g.kind != Kind::Casino && g.count > 0)
             .collect();
         let mut plans = Vec::new();
         for space in &self.spaces {
-            if !space
-                .pieces
-                .iter()
-                .any(|p| p.faction == faction && p.count > 0)
-            {
+            if qualifying_pieces(space, faction).next().is_none() {
                 continue;
             }
             let base_capacity = base_capacity(space);
-            let kinds: Vec<_> = supply
+            let kinds: Vec<_> = available_groups
                 .iter()
                 .filter_map(|g| {
                     let count = if g.kind == Kind::Base {
@@ -294,7 +298,7 @@ impl Game {
                 .available
                 .iter_mut()
                 .find(|g| g.faction == faction && g.kind == piece.kind)
-                .expect("A checked placement has this Available supply");
+                .expect("A checked placement has this group in Available Forces");
             available.count -= piece.count;
             if let Some(on_map) = space
                 .pieces
@@ -314,7 +318,10 @@ impl Game {
         Ok(())
     }
 
-    pub(super) fn manifesto_supply_preview(&self, after: &Game) -> Vec<PlacementSupply> {
+    pub(super) fn manifesto_available_forces_preview(
+        &self,
+        after: &Game,
+    ) -> Vec<AvailableForcesChange> {
         let plan = after
             .manifesto
             .as_ref()
@@ -322,7 +329,7 @@ impl Game {
             .expect("The preview resolved a placement");
         plan.pieces
             .iter()
-            .map(|piece| PlacementSupply {
+            .map(|piece| AvailableForcesChange {
                 piece: piece.clone(),
                 from: total(&self.available, plan.faction, piece.kind),
                 to: total(&after.available, plan.faction, piece.kind),
@@ -338,11 +345,7 @@ impl Game {
             } else {
                 "Placement available here.".into()
             }
-        } else if space
-            .pieces
-            .iter()
-            .any(|p| p.faction == faction && p.count > 0)
-        {
+        } else if qualifying_pieces(space, faction).next().is_some() {
             "No legal mix fits here.".into()
         } else {
             format!("{} has no piece here.", faction.name())
@@ -354,12 +357,11 @@ impl Game {
 mod tests {
     use super::*;
 
-    /// R 5.1.3 carries out only what is possible. This position isolates the
-    /// supply boundary, unreachable on card 19 of the prepared match: reserve
-    /// one or zero of the six Syndicate Guerrillas while Havana's Casino
-    /// remains an eligible sole presence at the one-piece boundary.
+    /// R 5.1.3 carries out only what is possible. In this diagnostic position,
+    /// one or zero of the six Syndicate Guerrillas are Available, and Havana's
+    /// Casino is the only piece it has there.
     #[test]
-    fn manifesto_at_the_partial_and_empty_supply_boundaries() {
+    fn manifesto_places_only_what_is_available() {
         let mut game = Game::opening_with_seed(2);
         for action in [
             "terror",
@@ -434,8 +436,12 @@ mod tests {
                     .contains("Only one piece can be placed")
             );
             assert_eq!(
-                havana[0].preview.as_ref().unwrap().placement_supply,
-                [PlacementSupply {
+                havana[0]
+                    .preview
+                    .as_ref()
+                    .unwrap()
+                    .placement_available_forces,
+                [AvailableForcesChange {
                     piece: group(faction, Kind::Guerrilla, 1),
                     from: 1,
                     to: 0

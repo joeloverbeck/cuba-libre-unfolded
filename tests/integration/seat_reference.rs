@@ -1,7 +1,8 @@
 //! The seat reference's Choices table (`docs/agents/seat.md`) against the choices
 //! the rules authority offers (#94). Agents name choices from that table; a missing
 //! or stale family can mislead them. The oracle is `Game::observe` at every explored
-//! card 17 state and along checked paths through the card 19 action choice.
+//! card 17 state and along checked paths through the Manifesto's execution,
+//! all four declines and Directorio's resulting inspection menu on card 19.
 //!
 //! Not covered: states the explorer does not reach. It follows at most one Resource
 //! transfer per path, of 1 or of the direction's limit, from the starts it names.

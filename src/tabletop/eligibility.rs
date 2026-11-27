@@ -111,8 +111,8 @@ mod key {
     pub const VACANT: &str = "atlas-eligibility-vacant.png";
 }
 
-/// One of the boxes the 1st Eligible faction's action is recorded in (R 2.3, record
-/// steps). Each is a hover target, named for the development seat.
+/// One of the selected track's Pass and Operation boxes (R 2.3, record steps).
+/// Each is a hover target, named for the development seat.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 pub(super) enum Slot {
     #[serde(rename = "eligibility:pass")]
@@ -140,7 +140,8 @@ impl Slot {
             SequenceBox::Pass => Some(Self::Pass),
             SequenceBox::OperationOnly => Some(Self::OperationOnly),
             SequenceBox::OperationWithSpecialActivity => Some(Self::OperationWithSpecialActivity),
-            // This row shows only the first faction's boxes.
+            // The Manifesto's Event is shown in the result panel. A Limited
+            // Operation records the second Eligible faction's action.
             SequenceBox::Event | SequenceBox::LimitedOperation => None,
         }
     }
@@ -164,7 +165,7 @@ pub(super) struct Row {
     pub eligible: bool,
     /// "1st" or "2nd" Eligible, if this faction holds that role now.
     pub role: Option<&'static str>,
-    /// Its action is recorded: its emblem sits in its box, and the row shows a vacant slot.
+    /// Its emblem occupies a box on this track, and the row shows a vacant slot.
     pub acted: bool,
 }
 
@@ -175,7 +176,7 @@ pub(super) struct Track {
     pub rows: Vec<Row>,
     /// The cylinders now govern the preview card under R 2.3.7.
     pub adjusted: bool,
-    /// The box the first action was recorded in, if any.
+    /// The displayed Pass or Operation box, if occupied.
     pub occupied: Option<Slot>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub occupant: Option<Faction>,

@@ -1,6 +1,6 @@
-//! Which of the Operations and Special Activities of the rules this build plays, and whose
-//! Events, read from the options the authority lists. What a menu offers does not depend on
-//! the position, only its amounts do.
+//! Which Operations, Special Activities and Events this build plays. Ordinary coverage
+//! comes from the offered menus. The free Rally and the Manifesto use their own
+//! declarations of the factions that can execute them.
 use super::*;
 use std::sync::LazyLock;
 
@@ -54,7 +54,7 @@ impl Played {
 /// The factions that may execute the Event of `card` in this build.
 pub(super) fn event_by(card: u8) -> Vec<Faction> {
     if card == 19 {
-        return vec![Faction::M26];
+        return vec![manifesto::EXECUTOR];
     }
     Faction::ALL
         .into_iter()

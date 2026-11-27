@@ -454,7 +454,7 @@ fn manifesto_havana_recalculates_government_mixes_after_directorio_and_syndicate
         .find(|c| c.action() == "manifesto:place:havana:base-base")
         .unwrap();
     let preview = plan.preview.as_ref().unwrap();
-    let bases = &preview.placement_supply[0];
+    let bases = &preview.placement_available_forces[0];
     assert_eq!((bases.piece.kind, bases.from, bases.to), (Kind::Base, 4, 2));
     assert!(preview.control.is_empty());
     let standing = &preview.standings[0];
@@ -499,12 +499,12 @@ fn manifesto_havana_recalculates_government_mixes_after_directorio_and_syndicate
     assert!(legal.explanation.contains(stacking));
     let preview = legal.preview.as_ref().unwrap();
     assert!(preview.notes.iter().any(|note| note == stacking));
-    let supply = preview
-        .placement_supply
+    let available = preview
+        .placement_available_forces
         .iter()
         .map(|s| (s.piece.kind, s.from, s.to))
         .collect::<Vec<_>>();
-    assert_eq!(supply, [(Kind::Troops, 3, 2), (Kind::Police, 8, 7)]);
+    assert_eq!(available, [(Kind::Troops, 3, 2), (Kind::Police, 8, 7)]);
     assert!(preview.control.is_empty());
     assert!(preview.standings.is_empty());
 

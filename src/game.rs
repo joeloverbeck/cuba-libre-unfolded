@@ -20,7 +20,7 @@ pub use construct::{
     CONSTRUCT_COST, ConstructAuthorization, ConstructFunding, ConstructPlan, ConstructResolution,
 };
 use manifesto::CARD_19_ORDER;
-pub use manifesto::{Manifesto, ManifestoPlacement, PlacementSupply};
+pub use manifesto::{AvailableForcesChange, Manifesto, ManifestoPlacement};
 pub use pile_facts::{
     DeckFacts, DeckWords, NextPropaganda, PlayedCard, PlayedPile, PlayedWords, next_propaganda,
     next_propaganda_words,
@@ -949,7 +949,7 @@ pub struct Preview {
     pub removed: Vec<Returned>,
     /// The map pieces added and the Available Forces they come from.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub placement_supply: Vec<PlacementSupply>,
+    pub placement_available_forces: Vec<AvailableForcesChange>,
     /// Spaces that receive a Terror marker.
     pub terror: Vec<String>,
     pub support: Vec<SupportShift>,
@@ -1331,7 +1331,7 @@ impl Game {
             },
             executing: self.executing(),
             event_executor: if self.manifesto.is_some() {
-                Some(Faction::M26)
+                Some(manifesto::EXECUTOR)
             } else {
                 event.as_ref().map(|_| Faction::Directorio)
             },
@@ -1808,7 +1808,7 @@ impl Game {
             }
         }
         if manifesto::is_placement(action) {
-            preview.placement_supply = self.manifesto_supply_preview(after);
+            preview.placement_available_forces = self.manifesto_available_forces_preview(after);
             preview.next = after.next();
         } else if matches!(action, "government:pass" | "end-assault") {
             preview.records = after.eligibility().government_box;
@@ -1962,7 +1962,9 @@ impl Game {
                 && self.executing() == Some(faction)
                 && let Some((id, ..)) = action.strip_prefix("remove:").and_then(piece_selection)
                 && let Some(space) = after.spaces.iter().find(|s| s.id == id)
-                && manifesto::presence(space, faction).is_none()
+                && manifesto::qualifying_pieces(space, faction)
+                    .next()
+                    .is_none()
             {
                 notes.push(format!(
                     "{} no longer qualifies for {}'s placement.",
@@ -2042,7 +2044,7 @@ impl Game {
                 .manifesto
                 .as_ref()
                 .and_then(Manifesto::pending)
-                .map(|_| Faction::M26);
+                .map(|_| manifesto::EXECUTOR);
         }
         if self.current_card == 18 {
             if self.construct_is_open() {
@@ -2321,9 +2323,11 @@ impl Game {
             if self.removal.is_some() || self.transfer.is_some() {
                 return Faction::M26;
             }
-            self.manifesto.as_ref().map_or(Faction::M26, |manifesto| {
-                manifesto.pending().unwrap_or(Faction::Directorio)
-            })
+            self.manifesto
+                .as_ref()
+                .map_or(manifesto::EXECUTOR, |manifesto| {
+                    manifesto.pending().unwrap_or(Faction::Directorio)
+                })
         } else if self.assault_finished() {
             Faction::Syndicate
         } else if self.current_card == 18 {

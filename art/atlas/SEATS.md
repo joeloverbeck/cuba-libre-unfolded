@@ -34,8 +34,9 @@ The panel stays where it is, with the same heading, sections, rows and places as
 | Awaiting an agent | `ink-secondary` | No agent has joined yet. |
 | Build ends here, without Take back | `ink-secondary` | No option here is in this build. |
 
-- **Nothing submits.** A space or piece popover opens and previews as always, without its button. The transfer modal is shown only for a decision of the human's faction. A pending request to an agent's faction is named by the [pending tab](TRANSFER.md), without Open.
+- **Held choices are available for inspection.** A space or piece popover opens and previews as always. Its confirmation and the transfer modal require the decision owner’s human seat. The [pending tab](TRANSFER.md) names a request to an agent’s faction.
 - **The human's own withdrawal** (26July's, while another giver answers) keeps its plate. Pinned, its commit stands in the strip's place until it is unpinned, and the line above the strip says so.
+- During the Manifesto, the strip’s hint names the held faction’s placement decision. Human 26July can pin its own Resource transfer or voluntary removal and confirm it in the strip’s place. During a human faction’s placement, a pinned choice of held 26July keeps its briefing and shows a disabled confirmation. A pending Resource request names the giver in the subtitle.
 - **The instruction lines** that tell the human how to choose are left out of the panel's subtitle, and the line that sends the player to the map says that a click shows what a space would do.
 
 ## Files

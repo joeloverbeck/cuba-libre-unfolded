@@ -475,12 +475,12 @@ fn preview_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
     if assault(view) {
         return assault_lines(preview);
     }
-    let placement = !preview.placement_supply.is_empty();
-    for supply in &preview.placement_supply {
-        let piece = crate::game::manifesto::piece_words(&supply.piece, true);
+    let placement = !preview.placement_available_forces.is_empty();
+    for change in &preview.placement_available_forces {
+        let piece = crate::game::manifesto::piece_words(&change.piece, true);
         lines.push((
             Tone::Plain,
-            format!("{piece} · Available {} → {}", supply.from, supply.to),
+            format!("{piece} · Available {} → {}", change.from, change.to),
         ));
     }
     let name = |id: &str| {
@@ -689,7 +689,11 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
                     format!("Pay {} · {}", crate::CONSTRUCT_COST, choice.label)
                 } else if manifesto.is_some() {
                     if choice.preview.as_ref().is_some_and(|p| {
-                        p.placement_supply.iter().map(|s| s.piece.count).sum::<u8>() == 1
+                        p.placement_available_forces
+                            .iter()
+                            .map(|s| s.piece.count)
+                            .sum::<u8>()
+                            == 1
                     }) {
                         "Place this piece".into()
                     } else {
