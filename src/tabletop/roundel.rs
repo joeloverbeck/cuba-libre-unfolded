@@ -1,6 +1,6 @@
 //! Counts follow their pieces and scale to the projected diameter of the authored plate.
 use super::*;
-use bevy::{camera::CameraUpdateSystems, ui::UiSystems};
+use bevy::{camera::CameraUpdateSystems, ecs::system::SystemParam, ui::UiSystems};
 
 const ROUNDEL: &str = "inventory-roundel.png";
 const DIAMETER: f32 = 0.198;
@@ -13,42 +13,96 @@ pub(super) fn spawn(
     space: &str,
     text: String,
     token: Entity,
+    offset: Vec3,
+) -> Entity {
+    spawn_plate(commands, art, Some(space), text, token, offset)
+}
+
+/// A moving quantity follows a non-pickable body and starts transparent.
+pub(super) fn moving(
+    commands: &mut Commands,
+    art: &Art,
+    count: u8,
+    token: Entity,
+    offset: Vec3,
+) -> Entity {
+    spawn_plate(commands, art, None, count.to_string(), token, offset)
+}
+
+fn spawn_plate(
+    commands: &mut Commands,
+    art: &Art,
+    space: Option<&str>,
+    text: String,
+    token: Entity,
     mut offset: Vec3,
-) {
+) -> Entity {
     offset.x += GAP + DIAMETER / 2.;
-    commands
-        .spawn((
-            Count,
-            Roundel { token, offset },
-            InScene,
-            status::SpaceTarget(space.to_owned()),
-            LabelAnchor::entity(token, offset).within_viewport(),
-            ImageNode::new(art.images[ROUNDEL].clone()),
-            Node {
-                position_type: PositionType::Absolute,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::Center,
-                ..default()
-            },
-            UiTransform::from_xy(px(0.), percent(-50.)),
-            GlobalZIndex(-1),
-        ))
-        .with_child((
-            Count,
-            Text::new(text),
-            TextLayout::no_wrap(),
-            TextFont {
-                font: art.bold.clone().into(),
-                font_size: FontSize::Px(FONT_SIZE),
-                ..default()
-            },
-            TextColor(Color::srgb_u8(248, 244, 232)), // own colour: from the Inventory roundel rim
-            Node {
-                flex_shrink: 0.,
-                ..default()
-            },
-            Pickable::IGNORE,
-        ));
+    let mut image = ImageNode::new(art.images[ROUNDEL].clone());
+    let opacity = if space.is_some() { 1. } else { 0. };
+    image.color = image.color.with_alpha(opacity);
+    let mut roundel = commands.spawn((
+        Roundel { token, offset },
+        InScene,
+        LabelAnchor::entity(token, offset).within_viewport(),
+        image,
+        Node {
+            position_type: PositionType::Absolute,
+            justify_content: JustifyContent::Center,
+            align_items: AlignItems::Center,
+            ..default()
+        },
+        UiTransform::from_xy(px(0.), percent(-50.)),
+        GlobalZIndex(-1),
+    ));
+    if let Some(space) = space {
+        roundel.insert((Count, status::SpaceTarget(space.to_owned())));
+    } else {
+        roundel.insert(Pickable::IGNORE);
+    }
+    roundel
+        .with_children(|children| {
+            let mut digit = children.spawn((
+                Text::new(text),
+                TextLayout::no_wrap(),
+                TextFont {
+                    font: art.bold.clone().into(),
+                    font_size: FontSize::Px(FONT_SIZE),
+                    ..default()
+                },
+                TextColor(Color::srgb_u8(248, 244, 232).with_alpha(opacity)), // Inventory roundel rim
+                Node {
+                    flex_shrink: 0.,
+                    ..default()
+                },
+                Pickable::IGNORE,
+            ));
+            if space.is_some() {
+                digit.insert(Count);
+            }
+        })
+        .id()
+}
+
+/// The plate and its digit fade together during a trip.
+#[derive(SystemParam)]
+pub(super) struct Appearance<'w, 's> {
+    plates: Query<'w, 's, (&'static mut ImageNode, &'static Children)>,
+    digits: Query<'w, 's, &'static mut TextColor>,
+}
+
+impl Appearance<'_, '_> {
+    pub(super) fn opacity(&mut self, roundel: Entity, opacity: f32) {
+        let Ok((mut plate, children)) = self.plates.get_mut(roundel) else {
+            return;
+        };
+        plate.color = plate.color.with_alpha(opacity);
+        for child in children.iter() {
+            if let Ok(mut digit) = self.digits.get_mut(child) {
+                digit.0 = digit.0.with_alpha(opacity);
+            }
+        }
+    }
 }
 
 #[derive(Component)]
