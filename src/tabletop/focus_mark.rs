@@ -87,9 +87,10 @@ fn marked(
             field: false,
         };
     }
+    let dispatch = proclamation_composer::entry_available(view, ui, roll, flying);
     if transfer::shown(view.transfer.as_ref(), view.owner, ui) {
         return Marked {
-            pressed: Some(match transfer::pressed(view, ui) {
+            pressed: Some(match transfer::pressed(view, ui, dispatch) {
                 transfer::Pressed::Primary(_) => Target::Primary,
                 transfer::Pressed::Other(name) => Target::Control(name),
             }),
@@ -97,7 +98,7 @@ fn marked(
         };
     }
     Marked {
-        pressed: choice::pressed(view, ui, targeting, popover)
+        pressed: choice::pressed(view, ui, targeting, popover, dispatch)
             .filter(|(_, action)| carries(action))
             .map(|(name, _)| Target::Control(name)),
         field: false,
@@ -283,7 +284,7 @@ mod tests {
             ui.choice.focus = Some(name.into());
             let popover = popover::Popover::default();
             assert!(
-                choice::pressed(&view, &ui, &aim(&view), &popover).is_some(),
+                choice::pressed(&view, &ui, &aim(&view), &popover, false).is_some(),
                 "{name} is a stop"
             );
             assert_eq!(mark(&view, &ui), Marked::default(), "{name}");
@@ -350,7 +351,7 @@ mod tests {
         for (amount, choice) in [("2", "2:ask:3:2"), ("5", "2:ask:3:5")] {
             ui.transfer.entry = amount.into();
             assert_eq!(
-                transfer::pressed(&view, &ui),
+                transfer::pressed(&view, &ui, false),
                 transfer::Pressed::Primary(choice.into())
             );
             assert_eq!(

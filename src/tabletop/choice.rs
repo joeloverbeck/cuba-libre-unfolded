@@ -1219,7 +1219,7 @@ pub(super) fn activate(ui: &mut Interface, action: &Action) {
 /// The controls Tab moves through, in order, by their seat names, each with what
 /// Enter does to it: the panel's; the spaces the map offers (#168); the marker supply
 /// (#173) and the Available Forces ledger's four rows above the panel, whose tags
-/// focus opens as hover does (#160); then the current and the preview card (#139) and
+/// focus opens as hover does (#160); Draft dispatch when available; the current and preview card (#139) and
 /// the two piles (#144), whose tags it opens too; the card's editions (#208); the seat
 /// controls (#206); and last Save · quit, whose tag focus opens too and which Enter
 /// activates (#174).
@@ -1228,12 +1228,13 @@ fn focusable(
     ui: &Interface,
     targeting: &Targeting,
     popover: &Popover,
+    dispatch: bool,
 ) -> Vec<(String, Action)> {
     let mut controls = panel_focusable(view, ui);
     controls.extend(map_focusable(view, ui, targeting, popover));
     controls.extend(super::supply::focusable());
     controls.extend(super::available::focusable());
-    if proclamation_composer::entry_available(view, ui) {
+    if dispatch {
         controls.push((
             proclamation_composer::WRITE.to_owned(),
             Action::ComposeProclamation(proclamation_composer::Press::Open),
@@ -1367,9 +1368,10 @@ pub(super) fn pressed(
     ui: &Interface,
     targeting: &Targeting,
     popover: &Popover,
+    dispatch: bool,
 ) -> Option<(String, Action)> {
     let focus = ui.choice.focus.as_ref()?;
-    focusable(view, ui, targeting, popover)
+    focusable(view, ui, targeting, popover, dispatch)
         .into_iter()
         .find(|(name, _)| name == focus)
 }
@@ -1379,6 +1381,7 @@ pub(super) fn pressed(
 /// button; Enter or Space activates the focused one as a click would; Escape unpins
 /// the briefing or closes the ribbon's tag, and closes an open space or piece popover,
 /// leaving focus on a closed space popover's space (#168).
+#[allow(clippy::too_many_arguments)] // The decision and presentation both govern keyboard input.
 pub(super) fn keys(
     mut keys: ResMut<ButtonInput<KeyCode>>,
     mut play: ResMut<Play>,
@@ -1386,6 +1389,8 @@ pub(super) fn keys(
     mut popover: ResMut<Popover>,
     targeting: Res<Targeting>,
     roll: Res<super::die::Roll>,
+    advance: Res<super::piles::Advance>,
+    time: Res<Time>,
     mut exit: MessageWriter<AppExit>,
 ) {
     let activation_keys = [KeyCode::Enter, KeyCode::NumpadEnter, KeyCode::Space];
@@ -1444,7 +1449,9 @@ pub(super) fn keys(
         ui.dirty = true;
         return;
     }
-    let order = focusable(&view, &ui, &targeting, &popover);
+    let flying = advance.in_the_air(&view, time.elapsed_secs_f64());
+    let dispatch = proclamation_composer::entry_available(&view, &ui, &roll, flying);
+    let order = focusable(&view, &ui, &targeting, &popover, dispatch);
     if order.is_empty() {
         return;
     }
@@ -1459,7 +1466,7 @@ pub(super) fn keys(
         ui.dirty = true;
         return;
     }
-    let Some((focused, action)) = pressed(&view, &ui, &targeting, &popover) else {
+    let Some((focused, action)) = pressed(&view, &ui, &targeting, &popover, dispatch) else {
         return;
     };
     // An activated control can open a modal in this update. Its next decision
@@ -1468,8 +1475,8 @@ pub(super) fn keys(
         keys.clear_just_pressed(key);
     }
     match action {
-        Action::ComposeProclamation(press) => {
-            proclamation_composer::press(&play, &mut ui, press);
+        Action::ComposeProclamation(proclamation_composer::Press::Open) => {
+            proclamation_composer::open(&play, &mut ui);
         }
         Action::Pin(_) | Action::Ribbon | Action::Tab(_) => {
             activate(&mut ui, &action);
@@ -1519,7 +1526,7 @@ pub(super) fn keys(
         Action::Quantity(step) => {
             popover.step(step, &targeting);
             if let Some(key) = popover.piece(view.revision)
-                && !focusable(&view, &ui, &targeting, &popover)
+                && !focusable(&view, &ui, &targeting, &popover, dispatch)
                     .iter()
                     .any(|(name, _)| name == &focused)
             {
@@ -2163,7 +2170,7 @@ mod tests {
         targeting: &Targeting,
         popover: &Popover,
     ) -> Vec<String> {
-        focusable(view, ui, targeting, popover)
+        focusable(view, ui, targeting, popover, false)
             .into_iter()
             .map(|(n, _)| n)
             .collect()
@@ -2233,7 +2240,7 @@ mod tests {
             "{order:?}"
         );
         let Some((_, Action::Submit(owner, revision, choice))) =
-            focusable(&view, &ui, &targeting, &open)
+            focusable(&view, &ui, &targeting, &open, false)
                 .into_iter()
                 .find(|(n, _)| n == "popover:commit")
         else {
@@ -2466,7 +2473,7 @@ mod tests {
                 let mut popover = Popover::default();
                 let targeting = aim(&view);
                 popover.click_space("santiago", &targeting);
-                for (name, action) in focusable(&view, &ui, &targeting, &popover) {
+                for (name, action) in focusable(&view, &ui, &targeting, &popover, false) {
                     assert!(
                         !matches!(
                             action,
@@ -2479,7 +2486,7 @@ mod tests {
                 }
                 // The human's own: the same stops submit again.
                 ui.seats = [SeatState::Human; 4];
-                let own = focusable(&view, &ui, &targeting, &popover);
+                let own = focusable(&view, &ui, &targeting, &popover, false);
                 assert!(
                     own.iter().all(|(name, _)| name != "seat-strip:take-back"),
                     "{own:?}",

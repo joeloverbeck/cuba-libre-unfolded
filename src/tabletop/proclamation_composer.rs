@@ -93,51 +93,59 @@ pub(super) struct Sheet {
     interrupted: bool,
 }
 
-fn writing_window(ui: &Interface) -> bool {
-    ui.mixed_seats && ui.line.is_none() && !ui.editions.holds() && !ui.proclamation_reader.is_open()
+fn writing_window(view: &Observation, ui: &Interface, roll: &die::Roll, flying: bool) -> bool {
+    ui.mixed_seats
+        && ui.line.is_none()
+        && !ui.editions.holds()
+        && !ui.proclamation_reader.is_open()
+        && ui.played.is_none()
+        && !flying
+        && die::presented(view.revision, view.kidnap.as_ref(), roll).is_none()
 }
 
-pub(super) fn entry_available(view: &Observation, ui: &Interface) -> bool {
-    !ui.composer.is_open() && writing_window(ui) && Stands::among(&view.choices) == Stands::Open
+pub(super) fn entry_available(
+    view: &Observation,
+    ui: &Interface,
+    roll: &die::Roll,
+    flying: bool,
+) -> bool {
+    !ui.composer.is_open()
+        && writing_window(view, ui, roll, flying)
+        && Stands::among(&view.choices) == Stands::Open
 }
 
-pub(super) fn press(play: &Play, ui: &mut Interface, press: Press) {
-    if matches!(press, Press::Open | Press::Return) {
-        ui.dirty = true;
-    }
+/// Opens the writing sheet after the input path has checked `entry_available`.
+pub(super) fn open(play: &Play, ui: &mut Interface) {
+    ui.dirty = true;
     let human = ui.played();
-    let can_open = press == Press::Open
-        && !ui.composer.is_open()
-        && writing_window(ui)
-        && play
-            .session
-            .as_ref()
-            .is_some_and(|session| Stands::of(session.game()) == Stands::Open);
+    let game = play.session.as_ref().expect("An admitted match").game();
+    let card = game.current_card();
     let state = &mut ui.composer;
-    if can_open {
-        let game = play.session.as_ref().expect("An admitted match").game();
-        let card = game.current_card();
-        if state.card != Some(card) {
-            state.drafts = default();
-            state.card = Some(card);
-        }
-        let author = Some(game.owner())
-            .filter(|owner| human[owner.index()])
-            .or_else(|| {
-                Faction::ALL
-                    .into_iter()
-                    .find(|faction| human[faction.index()])
-            });
-        if let Some(author) = author {
-            state.page = Some(Page {
-                author,
-                revision: game.revision,
-                card,
-                focus: Press::Field,
-                refusal: None,
-            });
-        }
-    } else if let Some(page) = &mut state.page {
+    if state.card != Some(card) {
+        state.drafts = default();
+        state.card = Some(card);
+    }
+    let author = Some(game.owner())
+        .filter(|owner| human[owner.index()])
+        .or_else(|| {
+            Faction::ALL
+                .into_iter()
+                .find(|faction| human[faction.index()])
+        });
+    if let Some(author) = author {
+        state.page = Some(Page {
+            author,
+            revision: game.revision,
+            card,
+            focus: Press::Field,
+            refusal: None,
+        });
+    }
+}
+
+pub(super) fn press(ui: &mut Interface, press: Press) {
+    let state = &mut ui.composer;
+    if let Some(page) = &mut state.page {
         match press {
             Press::Open => {}
             Press::Author(author) => {
@@ -146,7 +154,10 @@ pub(super) fn press(play: &Play, ui: &mut Interface, press: Press) {
                 page.focus = Press::Field;
             }
             Press::Field => page.focus = Press::Field,
-            Press::Return => state.page = None,
+            Press::Return => {
+                state.page = None;
+                ui.dirty = true;
+            }
             Press::Publish => state.publishing = true,
         }
     }
@@ -209,20 +220,17 @@ pub(super) fn keys(
         if keys.just_pressed(KeyCode::KeyP)
             && let Some(session) = &play.session
         {
-            let game = session.game();
-            let view = game.observe();
-            if entry_available(&view, &ui)
-                && !advance.in_the_air(&view, time.elapsed_secs_f64())
-                && die::presented(game.revision, game.kidnap.as_ref(), &roll).is_none()
-            {
-                press(&play, &mut ui, Press::Open);
+            let view = session.observe();
+            let flying = advance.in_the_air(&view, time.elapsed_secs_f64());
+            if entry_available(&view, &ui, &roll, flying) {
+                open(&play, &mut ui);
                 consume_proclamation_keys(&mut keys);
             }
         }
         return;
     }
     if keys.just_pressed(KeyCode::Escape) {
-        press(&play, &mut ui, Press::Return);
+        press(&mut ui, Press::Return);
     } else if let Some(page) = &mut ui.composer.page {
         if keys.just_pressed(KeyCode::Tab) {
             let tabs = tabs();
@@ -236,7 +244,7 @@ pub(super) fn keys(
             && keys.any_just_pressed([KeyCode::Enter, KeyCode::NumpadEnter, KeyCode::Space])
         {
             let focused = page.focus;
-            press(&play, &mut ui, focused);
+            press(&mut ui, focused);
         }
     }
     consume_proclamation_keys(&mut keys);
@@ -264,6 +272,7 @@ fn keep_draft(state: &mut State, author: Faction, text: &EditableText) {
 
 /// Seat handovers are processed first, so the same frame's custody change
 /// also governs a queued Publish press.
+#[allow(clippy::too_many_arguments)] // The queued press is rechecked against the current table.
 pub(super) fn publish(
     mut play: ResMut<Play>,
     mut ui: ResMut<Interface>,
@@ -272,6 +281,9 @@ pub(super) fn publish(
     mut fonts: ResMut<FontCx>,
     mut layout: ResMut<LayoutCx>,
     mut clipboard: ResMut<Clipboard>,
+    roll: Res<die::Roll>,
+    advance: Res<piles::Advance>,
+    time: Res<Time>,
 ) {
     if let Ok((editor, mut text)) = field.single_mut() {
         // Bevy normally applies queued edits after UI layout in PostUpdate.
@@ -295,7 +307,9 @@ pub(super) fn publish(
         return;
     };
     let (author, revision, card) = (page.author, page.revision, page.card);
-    let result = if !writing_window(&ui) {
+    let view = play.session.as_ref().expect("An admitted match").observe();
+    let flying = advance.in_the_air(&view, time.elapsed_secs_f64());
+    let result = if !writing_window(&view, &ui, &roll, flying) {
         let refusal = if ui.mixed_seats {
             "Publish interrupted. Your draft is kept. Press Publish again."
         } else {
@@ -645,9 +659,10 @@ pub(super) fn entry(
     art: &Art,
     view: &Observation,
     ui: &Interface,
+    available: bool,
     scale: f32,
 ) {
-    if !entry_available(view, ui) {
+    if !available {
         return;
     }
     // FigCraft placement in its 1920×1080 frame. The PNG has two pixels of

@@ -94,7 +94,7 @@ fn surface(view: &Observation, choice: &Choice) -> Option<&'static str> {
         return Some("panel control");
     }
     if transfer::shown(view.transfer.as_ref(), view.owner, &ui) {
-        if transfer::focusable(view, &ui).contains(&choice.id) {
+        if transfer::focusable(view, &ui, false).contains(&choice.id) {
             return Some("transfer modal control");
         }
         // An amount: its counterpart, direction and typed amount make the modal's

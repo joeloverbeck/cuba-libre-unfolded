@@ -770,36 +770,40 @@ mod tests {
         size: UVec2,
     ) -> (App, shared::Seat<Table>) {
         let (mut app, mut seat) = table(cards, save, size);
+        roll_kidnap(&mut app, &mut seat);
+        (app, seat)
+    }
+
+    fn roll_kidnap(app: &mut App, seat: &mut shared::Seat<Table>) {
         // AC-B (#69): Terror is pinned before its commit submits it.
         let pinned = ask(
-            &mut seat,
-            &mut app,
+            seat,
+            app,
             json!({"op":"activate","revision":0,"component":"option:terror"}),
         );
         assert_eq!(pinned["status"], "activated", "{pinned}");
-        ask(&mut seat, &mut app, json!({"op":"settle"}));
+        ask(seat, app, json!({"op":"settle"}));
         for (revision, choice) in [(0, "0:terror"), (1, "1:kidnap"), (2, "2:kidnap:roll")] {
             // EX-A (#84): a Terror step is pinned by its row before its commit.
             if choice == "1:kidnap" {
                 let step = ask(
-                    &mut seat,
-                    &mut app,
+                    seat,
+                    app,
                     json!({"op":"activate","revision":revision,"component":"step:kidnap"}),
                 );
                 assert_eq!(step["status"], "activated", "{step}");
-                ask(&mut seat, &mut app, json!({"op":"settle"}));
+                ask(seat, app, json!({"op":"settle"}));
             }
             let done = ask(
-                &mut seat,
-                &mut app,
+                seat,
+                app,
                 json!({"op":"activate","revision":revision,"choice":choice}),
             );
             assert_eq!(done["status"], "activated", "{done}");
             if revision < 2 {
-                ask(&mut seat, &mut app, json!({"op":"settle"}));
+                ask(seat, app, json!({"op":"settle"}));
             }
         }
-        (app, seat)
     }
 
     /// Every count's name and bounds (left, top, right, bottom), as the seat reports them.

@@ -172,6 +172,74 @@ fn claim_directorio(
 
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer"]
+fn native_dispatch_yields_until_the_presented_kidnap_die_is_closed() {
+    let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS")
+        .into();
+    let directory = tempfile::tempdir().unwrap();
+    let save = directory.path().join("table.json");
+    let (mut app, mut seat) = table(&cards, &save, UVec2::new(1920, 1080));
+    claim_directorio(&mut app, &mut seat, &save.with_extension("sock"), 0);
+    roll_kidnap(&mut app, &mut seat);
+    ask(&mut seat, &mut app, json!({"op":"settle"}));
+    let landed = ask(&mut seat, &mut app, json!({"op":"observe"}));
+    assert_eq!(landed["table"]["die"]["landed"], true);
+    let visible = |view: &Value| {
+        view["table"]["controls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|control| control["name"] == "proclamation:write")
+    };
+    for pressed in ["KeyP", "Tab"] {
+        let reply = ask(
+            &mut seat,
+            &mut app,
+            json!({"op":"key","revision":3,"key":pressed}),
+        );
+        assert_eq!(reply["status"], "pressed", "{reply}");
+    }
+    let keyboard = ask(&mut seat, &mut app, json!({"op":"settle"}));
+    assert!(keyboard["table"]["proclamation_composer"].is_null());
+    assert_eq!(
+        keyboard["table"]["focus_mark"][0]["control"],
+        "kidnap-die:continue"
+    );
+
+    let position = Vec2::new(148.5, 521.7);
+    for action in [
+        PointerAction::Move { delta: Vec2::ZERO },
+        PointerAction::Press(PointerButton::Primary),
+        PointerAction::Release(PointerButton::Primary),
+    ] {
+        pointer(&mut app, position, action);
+        ask(&mut seat, &mut app, json!({"op":"advance","steps":1}));
+    }
+    let after_click = ask(&mut seat, &mut app, json!({"op":"settle"}));
+    assert_eq!(
+        (
+            visible(&landed),
+            !after_click["table"]["proclamation_composer"].is_null()
+        ),
+        (false, false),
+        "Dispatch visibility and pointer opening while the die is shown"
+    );
+    let activate = |component| json!({"op":"activate","revision":3,"component":component});
+    let denied = ask(&mut seat, &mut app, activate("proclamation:write"));
+    assert_ne!(denied["status"], "activated", "{denied}");
+    let continued = ask(&mut seat, &mut app, activate("kidnap-die:continue"));
+    assert_eq!(continued["status"], "activated", "{continued}");
+    let resumed = ask(&mut seat, &mut app, json!({"op":"settle"}));
+    assert!(resumed["table"]["die"].is_null());
+    assert!(visible(&resumed));
+    let opened = ask(&mut seat, &mut app, activate("proclamation:write"));
+    assert_eq!(opened["status"], "activated", "{opened}");
+    let open = ask(&mut seat, &mut app, json!({"op":"settle"}));
+    assert_eq!(open["table"]["proclamation_composer"]["author"], "M26");
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer"]
 fn native_dispatch_medallion_and_tooltips_follow_picking_order() {
     let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
         .expect("Set CUBA_TEST_CARDS")
