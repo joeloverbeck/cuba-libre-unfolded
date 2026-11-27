@@ -7,8 +7,15 @@ if (($# != 0)); then
 fi
 
 head=$(git rev-parse --verify HEAD)
-git fetch --quiet --no-tags origin refs/heads/main
-base=$(git rev-parse --verify 'FETCH_HEAD^{commit}')
+base=$(git ls-remote --exit-code --refs origin refs/heads/main |
+  awk '$2 == "refs/heads/main" { print $1 }')
+if [[ -z $base ]]; then
+  echo "check-pr-base: origin has no refs/heads/main" >&2
+  exit 2
+fi
+if ! git cat-file -e "$base^{commit}" 2>/dev/null; then
+  git fetch --quiet --no-tags --no-write-fetch-head origin "$base"
+fi
 
 if git merge-base --is-ancestor "$base" "$head"; then
   printf 'check-pr-base: %s contains origin/main %s\n' "$head" "$base"

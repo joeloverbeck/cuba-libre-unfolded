@@ -24,7 +24,7 @@ GitHub issues and PRs share a number space. Resolve a bare number before acting,
 
 ## Final base check
 
-Run `scripts/check-pr-base` from the checkout being verified. It fetches the live `origin/main` and checks whether the checkout's HEAD contains it. If it reports a missing base, merge the reported revision, review the resulting delta, and run the final checks on the updated head. Resolve a Git error before relying on the result. After pushing, `scripts/wait-ci <n>` verifies the required check for that exact pushed head.
+Run `scripts/check-pr-base` from the checkout being verified. It reads the live `origin/main` revision, fetches that exact commit when needed, and checks whether the checkout's HEAD contains it. If it reports a missing base, merge the reported revision, review the resulting delta, and run the final checks on the updated head. Resolve a Git error before relying on the result.
 
 ## Closing issues
 
