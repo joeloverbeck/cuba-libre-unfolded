@@ -73,6 +73,7 @@ mod occupancy_review;
 pub use occupancy_review::OccupancyReview;
 mod palette;
 mod piece_flips;
+mod piece_visuals;
 mod pile_tags;
 mod piles;
 mod popover;
@@ -88,6 +89,7 @@ mod supply;
 mod top;
 mod transfer;
 mod victory;
+use piece_visuals::{add_group_face, group_color, group_half_height, spawn_group_body};
 
 #[derive(Clone)]
 pub struct Options {
@@ -796,33 +798,7 @@ fn sync_pieces(
             if flight.is_none() && count == 0 {
                 continue;
             }
-            let mesh = match piece.kind {
-                Kind::Troops | Kind::Police => Mesh::from(Cuboid::new(0.18, 0.18, 0.18)),
-                Kind::Guerrilla => Cylinder::new(0.10, 0.24)
-                    .mesh()
-                    .resolution(8)
-                    .build()
-                    .with_duplicated_vertices()
-                    .with_computed_flat_normals(),
-                _ => Mesh::from(Cylinder::new(0.15, 0.075)),
-            };
-            let color = match piece.faction {
-                Faction::Government => {
-                    if piece.kind == Kind::Police {
-                        Color::srgb_u8(143, 185, 210) // own colour: piece palette (art/atlas/README.md)
-                    } else {
-                        Color::srgb_u8(49, 111, 156) // own colour: piece palette (art/atlas/README.md)
-                    }
-                }
-                Faction::M26 => Color::srgb_u8(180, 60, 54), // own colour: piece palette (art/atlas/README.md)
-                Faction::Directorio => Color::srgb_u8(228, 189, 70), // own colour: piece palette (art/atlas/README.md)
-                Faction::Syndicate => Color::srgb_u8(65, 117, 87), // own colour: piece palette (art/atlas/README.md)
-            };
-            let height = match piece.kind {
-                Kind::Guerrilla => 0.12,
-                Kind::Troops | Kind::Police => 0.09,
-                _ => 0.0375,
-            };
+            let height = group_half_height(piece.kind);
             let [x, y] = map::slot(&space.id, piece);
             let base = map::at(x, y, top);
             #[cfg(feature = "occupancy-review")]
@@ -845,20 +821,17 @@ fn sync_pieces(
             } else {
                 base
             };
-            let token = token::spawn_body(
+            let token = spawn_group_body(
                 &mut commands,
                 &mut meshes,
                 &mut materials,
-                token::Body {
-                    name: format!(
-                        "{} {:?} {:?} {:?}",
-                        space.id, piece.faction, piece.kind, piece.state
-                    ),
-                    mesh,
-                    color,
-                    transform: Transform::from_translation(base + Vec3::Y * height * scale)
-                        .with_scale(Vec3::splat(scale)),
-                },
+                piece,
+                format!(
+                    "{} {:?} {:?} {:?}",
+                    space.id, piece.faction, piece.kind, piece.state
+                ),
+                Transform::from_translation(base + Vec3::Y * height * scale)
+                    .with_scale(Vec3::splat(scale)),
             );
             commands.entity(token).insert(PieceVisual);
             if let Some(change) = flight {
@@ -874,7 +847,7 @@ fn sync_pieces(
                     start,
                     rest,
                     height * scale,
-                    color,
+                    group_color(piece),
                     change,
                 ));
             } else {
@@ -904,25 +877,15 @@ fn sync_pieces(
                     ))
                     .observe(click);
             }
-            let mark = match (piece.kind, piece.state) {
-                (_, State::Active) => Some(("atlas-active-star.png", 0.17)),
-                (Kind::Casino, State::Open) => Some(("atlas-casino-gold.png", 0.21)),
-                _ => None,
-            };
-            if let Some((mark, width)) = mark {
-                token::add_face(
-                    &mut commands,
-                    &mut meshes,
-                    &mut materials,
-                    token,
-                    token::Face {
-                        mesh: Plane3d::default().mesh().size(width, width).build(),
-                        image: art.images[mark].clone(),
-                        alpha: AlphaMode::Blend,
-                        transform: Transform::from_xyz(0., height + 0.002, 0.),
-                    },
-                );
-            }
+            add_group_face(
+                &mut commands,
+                &art,
+                &mut meshes,
+                &mut materials,
+                token,
+                piece,
+                false,
+            );
             if flight.is_some() {
                 continue;
             }
