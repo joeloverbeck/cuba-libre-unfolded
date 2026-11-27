@@ -10,6 +10,8 @@ Run affected integration selectors when changing a report article, choice family
 | Choice families or seat briefs | `seat_reference::`, `seat_briefs::` |
 | Faction-view projection or choice ownership | `faction_seats::` |
 
+When changing how a report receives committed facts, cover the whole action, a continuation starting after a relevant request or reply, and a cancelled attempt when the rules allow one. For a behavior-preserving change, run those assertions against the starting revision before changing the handoff.
+
 ## Persistent table controls
 
 When adding or moving a control visible on the ordinary table, run the 4K main-view regression before integrating the ticket. It checks the authored layout and exposed board areas as well as the controls' effects on picking and camera input. Set `CUBA_TEST_CARDS` to the [private card directory](../../README.md#where-files-live).
