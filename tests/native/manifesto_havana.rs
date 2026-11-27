@@ -345,6 +345,8 @@ fn native_manifesto_havana_restarts_with_both_base_slots_filled() {
             app.request(json!({"op":"key","key":key,"revision":revision}), true);
         }
     }
+    app.request(json!({"op":"settle"}), true);
+    app.point("space:havana");
     app.request(
         json!({"op":"scroll","revision":revision,"component":"space:havana","y":21}),
         true,
