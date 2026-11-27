@@ -261,6 +261,15 @@ fn native_terror_leaves_the_supply_after_commit_and_reopens_settled() {
     assert_eq!(held["status"], "unsettled", "{held}");
     let middle = app.observe();
     assert_eq!(middle["observation"], committed["observation"]);
+    // The same saved Terror also lifts a Guerrilla. Both presentations run
+    // through their own paths while the seat reads the single committed result.
+    assert_eq!(
+        middle["table"]["piece_flips"][0]["flip"],
+        json!({"space":"santiago","faction":"M26","kind":"Guerrilla","from":"Underground","to":"Active","count":1})
+    );
+    let pending = middle["table"]["pending"].as_array().unwrap();
+    assert!(pending.contains(&json!("piece flip")));
+    assert!(pending.contains(&json!("Terror marker travel")));
     let moving = &middle["table"]["marker_travel"][0];
     let alpha = moving["alpha"].as_f64().unwrap();
     assert!(alpha > motion["alpha"].as_f64().unwrap() && alpha < 1.);
@@ -297,6 +306,7 @@ fn native_terror_leaves_the_supply_after_commit_and_reopens_settled() {
     app.request(json!({"op":"settle"}), true);
     let arrived = app.observe();
     assert_eq!(arrived["table"]["marker_travel"], json!([]));
+    assert_eq!(arrived["table"]["piece_flips"], json!([]));
     assert_eq!(arrived["observation"], committed["observation"]);
     assert_eq!(drawn_count(&arrived, "santiago"), Some(json!("1")));
     assert_eq!(number(&arrived), ("19".into(), 19));
