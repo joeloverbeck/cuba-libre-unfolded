@@ -62,7 +62,9 @@ mod eligibility;
 mod emblems;
 mod execution;
 mod faction_seats;
+mod flight;
 mod focus_mark;
+mod force_travel;
 mod highlights;
 mod map;
 mod newspaper;
@@ -235,6 +237,8 @@ struct Interface {
     played: Option<piles::Played>,
     /// State changes from a saved decision, until the map takes them up.
     piece_flips: Vec<piece_flips::Change>,
+    /// A successfully saved change to the force inventory, before it is drawn.
+    force_travel: Option<Vec<force_travel::Trip>>,
 }
 impl Interface {
     /// Whether the human plays `faction`.
@@ -503,6 +507,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .init_resource::<areas::Island>()
         .init_resource::<Counts>()
         .init_resource::<piece_flips::Flights>()
+        .init_resource::<force_travel::Flights>()
         .init_resource::<die::Roll>()
         .init_resource::<piles::Advance>()
         .init_resource::<newspaper::Drawn>()
@@ -562,7 +567,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 admit,
                 highlights::refresh,
                 highlights::show,
-                (sync_pieces, piece_flips::animate).chain(),
+                (force_travel::stage, sync_pieces, piece_flips::animate).chain(),
                 highlights::markers,
                 popover::hover_piece,
                 bind_spaces,
@@ -587,7 +592,12 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 )
                     .chain(),
                 draw_ui,
-                (areas::home, write_camera_facts).chain(),
+                (
+                    areas::home,
+                    write_camera_facts,
+                    force_travel::animate.after(TableCameraSystems),
+                )
+                    .chain(),
                 status::hover,
                 status::draw,
                 victory::draw,
@@ -764,6 +774,8 @@ fn sync_pieces(
     mut ui: ResMut<Interface>,
     time: Res<Time>,
     mut flights: ResMut<piece_flips::Flights>,
+    force_flights: Res<force_travel::Flights>,
+    mut force_generation: Local<u64>,
 ) {
     if counts.settling > 0 {
         counts.settling -= 1;
@@ -772,6 +784,7 @@ fn sync_pieces(
     let executor = game.executing().unwrap_or(Faction::M26);
     let motion_changed = flights.refresh(&mut ui.piece_flips, time.elapsed_secs_f64());
     if !motion_changed
+        && *force_generation == force_flights.generation()
         && previous
             .as_ref()
             .is_some_and(|(faction, spaces)| *faction == executor && *spaces == game.spaces)
@@ -779,6 +792,7 @@ fn sync_pieces(
         return;
     }
     *previous = Some((executor, game.spaces.clone()));
+    *force_generation = force_flights.generation();
     counts.unsettle();
     for entity in &roots {
         commands.entity(entity).despawn();
@@ -794,7 +808,7 @@ fn sync_pieces(
             .map(|p| (p, None))
             .chain(moving.iter().map(|(piece, change)| (piece, Some(*change))));
         for (piece, flight) in pieces {
-            let count = flights.count(&space.id, piece);
+            let count = force_flights.count(&space.id, piece, flights.count(&space.id, piece));
             if flight.is_none() && count == 0 {
                 continue;
             }
@@ -1427,6 +1441,9 @@ fn submit(
     let session = play.session.as_mut().unwrap();
     let reply = session.submit(owner, rev, name)?;
     let after = session.observe();
+    if let Some(trips) = force_travel::committed(&previous, &after) {
+        ui.force_travel = Some(trips);
+    }
     let flips = piece_flips::committed(&previous, &after, name);
     if !flips.is_empty() {
         ui.piece_flips = flips;

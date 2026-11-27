@@ -85,6 +85,7 @@ pub(super) fn unsettled(world: &mut World) -> Vec<Unsettled> {
     if playing < tokens {
         pending.push(Unsettled::TerrorToken);
     }
+    pending.extend(force_travel::unsettled(world).map(Unsettled::Part));
     let parts = [popover::unsettled, die::unsettled, piles::unsettled].map(|of| of(world));
     pending.extend(parts.into_iter().flatten().map(Unsettled::Part));
     pending

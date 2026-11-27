@@ -515,6 +515,8 @@ impl SeatGame for Table {
         let pile_tag = pile_tags::observe(world);
         let available_forces = available::observe(world);
         let marker_supply = supply::observe(world);
+        let force_travel = force_travel::observe(world);
+        let force_travel_started = world.resource::<force_travel::Flights>().generation() != 0;
         let piece_flips = piece_flips::observe(world);
         #[cfg(feature = "occupancy-review")]
         let map_geometry = json!({
@@ -543,6 +545,8 @@ impl SeatGame for Table {
         table["piles"] = piles;
         table["pile_tag"] = pile_tag;
         table["available_forces"] = available_forces;
+        table["force_travel"] = force_travel;
+        table["force_travel_started"] = json!(force_travel_started);
         table["marker_supply"] = marker_supply;
         table["piece_flips"] = json!(piece_flips);
         // #174: the notice slip as drawn, and Save · quit's plate.

@@ -126,6 +126,11 @@ fn part(faction: Faction, kind: Kind) -> String {
     format!("{}-{}", slug(faction), kind_name(kind))
 }
 
+/// The drawn number's part name in the ledger.
+pub(super) fn counter_name(faction: Faction, kind: Kind) -> String {
+    format!("{}-count", part(faction, kind))
+}
+
 /// The piece's export: the Government's cubes have no faction in their name.
 fn export_file(faction: Faction, kind: Kind) -> String {
     match kind {
@@ -181,7 +186,7 @@ fn layout() -> (Placed<Image>, Placed<Words>) {
             let (column, rect) = place(kind, top);
             images.push((part(faction, kind), Image::Piece(faction, kind), rect));
             text.push((
-                format!("{}-count", part(faction, kind)),
+                counter_name(faction, kind),
                 Words::Count(faction, kind),
                 [
                     fig::COUNT_X[column],
@@ -297,6 +302,10 @@ pub(super) fn focusable() -> impl Iterator<Item = (String, Action)> {
 #[derive(Component)]
 pub(super) struct Part(pub String);
 
+/// Identity of the drawn number that a moving force connects to.
+#[derive(Component, PartialEq, Eq)]
+pub(super) struct Counter(pub Faction, pub Kind);
+
 /// The rows the ledger shows, kept on its plate for the seat.
 #[derive(Component)]
 pub(super) struct LedgerRows(pub Vec<Row>);
@@ -369,7 +378,9 @@ pub(super) fn draw(commands: &mut Commands, art: &Art, view: &Observation, s: f3
                     right,
                     3,
                 );
-                commands.entity(count).insert(TextColor(INK));
+                commands
+                    .entity(count)
+                    .insert((TextColor(INK), Counter(faction, kind)));
                 count
             }
         };

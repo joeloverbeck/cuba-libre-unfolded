@@ -11,6 +11,10 @@ The owner selected layout **B · Libro** and piece graphics **G1 · Sólido** on
 - **None left:** the cell stays. Its piece is drawn at 40% opacity beside "0", as the frame `zero state` draws it. No reachable position in this build empties an inventory, so the native app has not shown it; a unit test builds it from an observation.
 - **Pointer:** the ledger's area takes the pointer: a press, a scroll or a drag on it neither moves the camera nor reaches a space or piece. Space tags and popovers keep off it, as they keep off every area.
 
+## Committed travel
+
+After a placement, a solid fades in from the matching Available Forces number and lands in its map slot. When forces return, their solid leaves that slot and fades out toward the same number. Each distinct group has its own trip. An Inventory roundel travels with a stack of two or more. The ledger and the authoritative position update at commit. On the map, departures reduce the source at once, and arrivals join the destination's displayed count on landing. Each trip takes about two thirds of a second. Preview, cancellation, hover and same-build reopen draw no trip.
+
 ## The tag
 
 The study's [`hover-tag.png`](../proposals/available-forces/hover-tag.png) drew it, on the accepted top-display tag ([TOP.md](TOP.md)), so it is not a new design.
