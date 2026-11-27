@@ -11,7 +11,7 @@ use super::*;
 use crate::faction_seats::{self as seats, Answer, Host, Player, SeatState, Stands};
 use crate::player_folders::Places;
 use crate::reports::Report;
-use crate::save::Submit;
+use crate::save::{Proclamation, Submit};
 use serde_json::{Value, json};
 use std::{path::Path, time::Instant};
 use unfolded_tabletop::agent_transport::{Protocol, Reply, Transport, Unopened, window_waker};
@@ -215,8 +215,14 @@ impl seats::Table for Sitting<'_> {
         self.session().reports()
     }
 
+    fn proclamations(&self) -> &[Proclamation] {
+        self.session().proclamations()
+    }
+
     fn settled(&self) -> bool {
-        self.settled
+        // A publication can open the reader inside this batch. Later requests and
+        // the final poll must consult the modal even before the next frame.
+        self.settled && !self.ui.proclamation_reader.is_open()
     }
 
     fn commit(&mut self, faction: Faction, revision: u64, choice: &str) -> Result<(), String> {
@@ -237,6 +243,33 @@ impl seats::Table for Sitting<'_> {
                 Err(failure.to_string())
             }
         }
+    }
+    fn publish(
+        &mut self,
+        faction: Faction,
+        revision: u64,
+        card: u8,
+        text: &str,
+    ) -> Result<(), String> {
+        let result = self
+            .play
+            .session
+            .as_mut()
+            .expect("An admitted match")
+            .publish(faction, revision, card, text);
+        match &result {
+            Ok(()) => {
+                let session = self.play.session.as_ref().expect("An admitted match");
+                self.ui.proclamation_reader.receive(session);
+                self.ui.dirty = true;
+            }
+            Err(failure @ Submit::Save(_)) => {
+                self.ui.notice = notice::Notice::failed(failure);
+                self.ui.dirty = true;
+            }
+            Err(Submit::Refused(_)) => {}
+        }
+        result.map_err(|failure| failure.to_string())
     }
 }
 

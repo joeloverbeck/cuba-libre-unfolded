@@ -45,6 +45,50 @@ const DIGITS: [(&str, KeyCode, &str); 10] = [
     ("8", KeyCode::Digit8, "8"),
     ("9", KeyCode::Digit9, "9"),
 ];
+// Names for the same printable keys the native proclamation field takes.
+const LETTERS: [(KeyCode, &str, &str); 26] = [
+    (KeyCode::KeyA, "a", "A"),
+    (KeyCode::KeyB, "b", "B"),
+    (KeyCode::KeyC, "c", "C"),
+    (KeyCode::KeyD, "d", "D"),
+    (KeyCode::KeyE, "e", "E"),
+    (KeyCode::KeyF, "f", "F"),
+    (KeyCode::KeyG, "g", "G"),
+    (KeyCode::KeyH, "h", "H"),
+    (KeyCode::KeyI, "i", "I"),
+    (KeyCode::KeyJ, "j", "J"),
+    (KeyCode::KeyK, "k", "K"),
+    (KeyCode::KeyL, "l", "L"),
+    (KeyCode::KeyM, "m", "M"),
+    (KeyCode::KeyN, "n", "N"),
+    (KeyCode::KeyO, "o", "O"),
+    (KeyCode::KeyP, "p", "P"),
+    (KeyCode::KeyQ, "q", "Q"),
+    (KeyCode::KeyR, "r", "R"),
+    (KeyCode::KeyS, "s", "S"),
+    (KeyCode::KeyT, "t", "T"),
+    (KeyCode::KeyU, "u", "U"),
+    (KeyCode::KeyV, "v", "V"),
+    (KeyCode::KeyW, "w", "W"),
+    (KeyCode::KeyX, "x", "X"),
+    (KeyCode::KeyY, "y", "Y"),
+    (KeyCode::KeyZ, "z", "Z"),
+];
+const PUNCTUATION: [(KeyCode, &str); 13] = [
+    (KeyCode::Digit1, "!"),
+    (KeyCode::Digit2, "@"),
+    (KeyCode::Digit9, "("),
+    (KeyCode::Digit0, ")"),
+    (KeyCode::Comma, ","),
+    (KeyCode::Period, "."),
+    (KeyCode::Quote, "'"),
+    (KeyCode::Quote, "\""),
+    (KeyCode::Semicolon, ";"),
+    (KeyCode::Semicolon, ":"),
+    (KeyCode::Slash, "/"),
+    (KeyCode::Slash, "?"),
+    (KeyCode::Minus, "-"),
+];
 /// The keys the seat may press: Tab moves keyboard focus through the action choice,
 /// the BRIEFING ribbon and its tabs, or the transfer modal; Enter and Space activate
 /// the focused control and can commit, so a request names that control (they skip
@@ -66,6 +110,10 @@ static KEYS: LazyLock<Vec<SeatKey>> = LazyLock::new(|| {
         key("Space", KeyCode::Space, Key::Space, true),
         key("Escape", KeyCode::Escape, Key::Escape, false),
         key("Backspace", KeyCode::Backspace, Key::Backspace, false),
+        key("Delete", KeyCode::Delete, Key::Delete, false),
+        key("End", KeyCode::End, Key::End, false),
+        key("KeyP", KeyCode::KeyP, Key::Character("p".into()), false),
+        key("KeyR", KeyCode::KeyR, Key::Character("r".into()), false),
         // Each hands a faction over to an agent, or takes it back (`faction_seats`).
         key("F1", KeyCode::F1, Key::F1, false),
         key("F2", KeyCode::F2, Key::F2, false),
@@ -76,6 +124,20 @@ static KEYS: LazyLock<Vec<SeatKey>> = LazyLock::new(|| {
     // The transfer modal's amount field takes typed digits.
     .chain(DIGITS.iter().map(|&(name, code, typed)| SeatKey {
         name,
+        code,
+        logical: Logical::Typed(typed),
+        commits: false,
+    }))
+    .chain(LETTERS.iter().flat_map(|&(code, lower, upper)| {
+        [lower, upper].map(|typed| SeatKey {
+            name: typed,
+            code,
+            logical: Logical::Typed(typed),
+            commits: false,
+        })
+    }))
+    .chain(PUNCTUATION.iter().map(|&(code, typed)| SeatKey {
+        name: typed,
         code,
         logical: Logical::Typed(typed),
         commits: false,
@@ -438,6 +500,8 @@ impl SeatGame for Table {
         let seats = faction_seats::observe(world);
         let cards = seat_cards::observe(world);
         let newspaper = newspaper::observe(world);
+        let composer = proclamation_composer::observe(world);
+        let proclamations = proclamation_reader::observe(world);
         let play = world.resource::<Play>();
         let ui = world.resource::<Interface>();
         let pose = world.resource::<Orbit>().pose();
@@ -458,6 +522,8 @@ impl SeatGame for Table {
         table["seat_cards"] = cards;
         // #208: the newspaper.
         table["newspaper"] = newspaper;
+        table["proclamation_composer"] = composer;
+        table["proclamations"] = proclamations;
         Observed {
             observation: serde_json::to_value(play.game().observe()).unwrap(),
             table,
@@ -585,6 +651,12 @@ impl SeatGame for Table {
         (skips && die::focus(world) == Some(die::TRAY)) || (lands && piles::playing(world))
     }
     fn focus(&self, world: &mut World) -> Focus {
+        if world.resource::<Interface>().proclamation_reader.is_open() {
+            return Focus::Control {
+                choice: None,
+                label: proclamation_reader::RETURN.into(),
+            };
+        }
         // A card in the air holds the keyboard: Enter or Space lands it (#145).
         if piles::playing(world) {
             return Focus::Control {
@@ -608,6 +680,9 @@ impl SeatGame for Table {
             });
         }
         let ui = world.resource::<Interface>();
+        if let Some(focus) = proclamation_composer::focus(ui) {
+            return focus;
+        }
         let game = world.resource::<Play>().game();
         let modal = transfer::shown(game.transfer.as_ref(), game.owner(), ui);
         let focused = if modal {
@@ -666,7 +741,7 @@ mod tests {
                 save: save.into(),
                 recover: None,
                 socket: None,
-                players: None,
+                players: Some(save.with_extension("sock")),
                 agent: true,
                 seat_size: size,
             },
@@ -679,6 +754,8 @@ mod tests {
         seat.admit(&mut app, Duration::from_secs(180)).unwrap();
         (app, seat)
     }
+
+    mod proclamation;
 
     /// Such a table played to a rolled Kidnap die that is still in the air, at revision 3.
     fn rolled(

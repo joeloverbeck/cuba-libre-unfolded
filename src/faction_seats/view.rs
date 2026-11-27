@@ -8,7 +8,7 @@ use crate::{
     ActionChoice, CardFacts, Choice, ConstructResolution, DeckFacts, Eligibility, EventProgress,
     EventStatement, Faction, Game, Group, KidnapStakes, MarkerSupply, Next, Observation, Piles,
     PlayedCard, Preview, Removal, Site, SpaceReason, Standing, Terrain, Transfer, TransferTerms,
-    UsAlliance, reports::Report, support_level,
+    UsAlliance, reports::Report, save::Proclamation, support_level,
 };
 use serde::Serialize;
 
@@ -41,6 +41,7 @@ pub struct View {
     /// What the factions' actions did, apart from the state: a report of each action of
     /// the match so far, in order. The last may be in progress.
     pub results: Vec<Report>,
+    pub proclamations: PublicProclamations,
     /// Every choice the rules offer this faction now, refused ones with the reason.
     pub choices: Vec<Offer>,
 }
@@ -52,6 +53,15 @@ pub struct Seat {
     /// Its number in choice ids, such as `ask:<number>:2`.
     pub number: usize,
     pub played_by: Player,
+}
+
+/// The public words of each faction and whether this faction may publish now.
+#[derive(Debug, Serialize)]
+pub struct PublicProclamations {
+    pub note: &'static str,
+    pub limit: usize,
+    pub can_publish: bool,
+    pub published: Vec<Proclamation>,
 }
 
 /// Where the match stands.
@@ -189,6 +199,7 @@ impl View {
     pub fn of(
         seen: &Observation,
         reports: Vec<Report>,
+        published: &[Proclamation],
         faction: Faction,
         players: [Player; 4],
     ) -> Self {
@@ -198,6 +209,14 @@ impl View {
             .filter(|choice| choice.owner == faction && !choice.turns_the_card())
             .map(|choice| Offer::of(choice, seen.cards.current.number))
             .collect();
+        let decision = Decision::of(seen, faction, &choices);
+        let proclamations = PublicProclamations {
+            note: "Public faction speech (R 1.5.1). Agreements are nonbinding.",
+            limit: Proclamation::LIMIT,
+            can_publish: decision.stands == Stands::Open
+                && !Proclamation::spent(published, seen.current_card, faction),
+            published: published.to_vec(),
+        };
         Self {
             faction,
             name: faction.name(),
@@ -212,9 +231,10 @@ impl View {
                     played_by: players[each.index()],
                 })
                 .collect(),
-            decision: Decision::of(seen, faction, &choices),
+            decision,
             state: State::of(seen),
             results: reports,
+            proclamations,
             choices,
         }
     }

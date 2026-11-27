@@ -598,6 +598,9 @@ pub(super) fn keys(
 /// The slider's changes set the amount, within the giver's limit; the hatched
 /// reserved unit cannot be dragged into.
 fn slide(change: On<ValueChange<f32>>, mut ui: ResMut<Interface>, play: Res<Play>) {
+    if ui.proclamation_reader.is_open() || ui.composer.is_open() {
+        return;
+    }
     let view = play.game().observe();
     let limit = content(&view, &ui.transfer).terms.map_or(0, |t| t.limit);
     let amount = (change.value.round().max(0.) as u8).min(limit);
@@ -2040,7 +2043,7 @@ fn footer(
         .filter(|_| shown.giver != view.executing);
     let note = if let Some(funding) = funding {
         format!(
-            "{}\nResources move if authorizations fund a legal payment.",
+            "{}\nResources move if authorizations fund a legal\u{a0}payment.",
             funding.summary()
         )
     } else {
@@ -2137,10 +2140,16 @@ fn footer(
     // decision. The faction whose colour it is keeps its name there, since its emblem
     // would vanish on it: #60's rule for 26July on red (accepted in #68), applied to
     // each giver's own colour. Its label names no other faction.
+    // In the conditional-funding footer, the amount stays with its verb.
+    let button_text = if decision.is_some() && funding.is_some() {
+        shown.label.replace("authorizes ", "authorizes\u{a0}")
+    } else {
+        shown.label.clone()
+    };
     let label = match (shown.commit.is_some(), decision) {
-        (true, None | Some(Faction::M26)) => Prose::from(&shown.label).on_red(),
-        (true, Some(_)) => Prose::named(&shown.label),
-        (false, _) => Prose::from(&shown.label),
+        (true, None | Some(Faction::M26)) => Prose::from(button_text).on_red(),
+        (true, Some(_)) => Prose::named(button_text),
+        (false, _) => Prose::from(button_text),
     };
     let label = words(
         commands,

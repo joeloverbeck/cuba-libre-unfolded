@@ -20,6 +20,7 @@ Play one faction of a running Cuba Libre match. Each command prints one line of 
                                             Keep the answer's \"player\": it is your
                                             identity on every later command
   observe PLAYER                            your whole view
+  publish PLAYER REVISION CARD TEXT          issue optional public faction speech
   choose PLAYER REVISION ID                 make a choice of your view at its revision
   choose PLAYER REVISION ID --wait [--timeout SECONDS]
                                             make it, and then wait
@@ -30,7 +31,7 @@ A join's answer also holds your seat's \"brief\". A wait has no time limit unles
 one. Join again with --player only to learn whether your seat is still yours, and to read
 its brief again: a session that holds a seat is refused another.
 
-Answers (\"status\"): joined, observed, left; applied, held (it waits for the table to
+Answers (\"status\"): joined, observed, published, left; applied, held (it waits for the table to
 settle) or refused for a choice; decision, released (a held choice was not applied, with
 the reason), replaced (a newer wait of yours), nothing_yet (your time limit) or closed
 (your session ended: stop) for a wait.
@@ -42,6 +43,22 @@ cuba-libre-players.sock in $XDG_RUNTIME_DIR.";
 /// The request a command line spells, and how long its answer may take at most.
 fn request(args: &[String]) -> Result<(Value, Option<Duration>), String> {
     let (command, rest) = args.split_first().ok_or("Name a command; see --help.")?;
+    // TEXT is a single argument and may start with a dash or contain an option's spelling.
+    if command == "publish" {
+        let [player, revision, card, text] = rest else {
+            return Err("Use publish PLAYER REVISION CARD TEXT; see --help.".into());
+        };
+        let revision: u64 = revision
+            .parse()
+            .map_err(|_| "REVISION is the number in your view.")?;
+        let card: u8 = card
+            .parse()
+            .map_err(|_| "CARD is the current card's number in your view.")?;
+        return Ok((
+            json!({"op": "publish", "player": player, "revision": revision, "card": card, "text": text}),
+            None,
+        ));
+    }
     let mut given = vec![];
     let (mut wait, mut timeout, mut player) = (false, None, None);
     let mut rest = rest.iter();
@@ -121,17 +138,20 @@ fn unanswered(failed: Unanswered<String>, socket: &Path) -> (String, u8) {
 
 fn run() -> Result<u8, (String, u8)> {
     let mut args: Vec<String> = std::env::args().skip(1).collect();
-    if args.is_empty() || args.iter().any(|arg| arg == "--help") {
-        println!("{HELP}");
-        return Ok(0);
-    }
     let mut socket = default_socket();
-    if args[0] == "--socket" {
+    if args.first().is_some_and(|arg| arg == "--socket") {
         if args.len() < 2 {
             return Err(("--socket needs a path".into(), 2));
         }
         socket = PathBuf::from(args.remove(1));
         args.remove(0);
+    }
+    if args.is_empty()
+        || (args[0] != "publish" && args.iter().any(|arg| arg == "--help"))
+        || (args.len() == 2 && args[0] == "publish" && args[1] == "--help")
+    {
+        println!("{HELP}");
+        return Ok(0);
     }
     let (request, within) = request(&args).map_err(|reason| (reason, 2))?;
     let deadline = within.and_then(|within| Instant::now().checked_add(within));

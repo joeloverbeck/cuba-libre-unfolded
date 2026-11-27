@@ -691,6 +691,43 @@ fn committed_roll_and_terror_resume_without_reroll_or_duplicate_effect() {
 }
 
 #[test]
+fn a_record_cannot_claim_a_proclamation_for_a_future_card_or_twice_for_one_author() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("task.json");
+    let mut session = Session::create_seeded(&path, 5).unwrap();
+    session
+        .publish(Faction::M26, 0, 17, "Our agreement is public.")
+        .unwrap();
+    drop(session);
+    let valid = record(&path);
+    let kept = std::fs::read(previous_path(&path)).unwrap();
+    let document = &valid["payload"]["proclamations"][0];
+    let mut future = document.clone();
+    future["card"] = 18.into();
+    let mut too_long = document.clone();
+    too_long["text"] = "é".repeat(401).into();
+    for (documents, reason) in [
+        (vec![future], "card"),
+        (
+            vec![document.clone(), document.clone()],
+            "already published",
+        ),
+        (vec![too_long], "400"),
+    ] {
+        let mut altered = valid.clone();
+        altered["payload"]["proclamations"] = serde_json::json!(documents);
+        let bytes = reseal(&altered);
+        std::fs::write(&path, &bytes).unwrap();
+        let error = Session::open(&path, None)
+            .err()
+            .expect("invalid publication record");
+        assert!(error.to_string().contains(reason), "{error:#}");
+        assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), kept);
+    }
+}
+
+#[test]
 fn new_sessions_seed_once_from_entropy_while_resume_preserves_the_exact_seed() {
     let dir = tempfile::tempdir().unwrap();
     let first_path = dir.path().join("first.json");
@@ -715,7 +752,7 @@ fn new_sessions_seed_once_from_entropy_while_resume_preserves_the_exact_seed() {
 /// of only the format and the accepted rules source. A restart keeps the consumed
 /// randomness, and the match revision equals the number of decisions.
 #[test]
-fn a_save_holds_its_seed_decisions_and_position_under_format_7() {
+fn a_save_holds_its_seed_decisions_and_position_under_format_9() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("seeded.json");
     // Seed 5 rolls 3 (kidnap.rs's shared RNG cases).
@@ -732,7 +769,7 @@ fn a_save_holds_its_seed_decisions_and_position_under_format_7() {
     let saved = record(&path);
     assert_eq!(
         saved["identity"],
-        serde_json::json!({"format": "7", "source": cuba_libre_unfolded::assets::SOURCE})
+        serde_json::json!({"format": "9", "source": cuba_libre_unfolded::assets::SOURCE})
     );
     assert_eq!(saved["payload"]["seed"], 5);
     assert_eq!(

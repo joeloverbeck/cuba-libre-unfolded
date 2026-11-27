@@ -73,6 +73,12 @@ Repeated transfers are allowed, and zero is a deliberate non-transfer. A transfe
 
 Syndicate can transfer Resources while Construct is open. If Limited Construct needs funding, the transfer surfaces show the amount held and how much more authorization will move the Resources. Ask the same or another giver, or use **Back to the action choice** before committing. With a request pending, select **Wait** if the giver's modal is open, then select **Syndicate withdraws · back to action choice** in the decision panel to leave and release any held authorizations. After the transfers move, choose where to pay. Pay for your chosen space before giving away the Resources needed for that payment. [Partial funding](local-rule-policies.md#partial-funding-for-limited-construct) · [Limited Construct commitment](local-rule-policies.md#leaving-limited-construct-on-card-18)
 
+## Writing a proclamation
+
+While a card is open, choose **Write a proclamation** or press **P**. Select your faction under **Writing as**. The sheet shows that faction's allowance for the card and counts the draft as you type, up to 400 characters for publication.
+
+Choose **Publish proclamation** to send the exact wording to all four factions. A refusal appears below the field and keeps the draft there. If a new proclamation interrupts the Publish press, the composer asks you to press Publish again after reading. **Return to choice** or **Escape** keeps the draft for this card. Publication leaves the pending decision in place, so a Resource promise still needs the giver's authorization and a separate legal payment.
+
 ## Removing your own pieces
 
 "Remove own pieces" opens removal mode (#73). The map marks the executing faction's removable pieces and dims spaces holding none of its pieces ([HIGHLIGHTS.md, "Removal mode"](../art/atlas/HIGHLIGHTS.md#removal-mode-73)). Click a marked piece for the preview, Remove and Cancel, and a quantity selector when it is in a stack. Each Remove returns that many pieces to Available. The mode stays open until Done and survives Save · quit. After resuming, click a piece to reopen its popover.
@@ -142,16 +148,16 @@ An unpaid Limited Construct can refuse a piece action that would leave no afford
 
 ## Handing a faction to an agent
 
-An external Claude Code or Codex session can play a faction for you. The four cards along the bottom say who plays each faction ([SEATS.md](../art/atlas/SEATS.md)). **Hand over** gives a faction to an agent, **Copy its line** copies the one line to [paste in its session](#opening-a-session), and **Take back** makes it yours again, all four if you like and at any time. F1 to F4 hand Government, 26July, Directorio and Syndicate over and take them back too. A session joins on the game's socket, by default `cuba-libre-players.sock` in `$XDG_RUNTIME_DIR`, or where you launched with `--player-socket`. The game starts no session.
+An external Claude Code or Codex session can play a faction for you. The four cards along the bottom say who plays each faction ([SEATS.md](../art/atlas/SEATS.md)). **Hand over** gives a faction to an agent, **Copy its line** copies the one line to [paste in its session](#opening-a-session), and **Take back** makes it yours again. F1 to F4 hand Government, 26July, Directorio and Syndicate over and take them back too. A session joins on the game's socket, by default `cuba-libre-players.sock` in `$XDG_RUNTIME_DIR`, or where you launched with `--player-socket`. The game starts no session.
 
 - **One session plays one faction.** A faction nobody joined as waits and never acts. A silent agent's card and panel say for how many minutes it was not heard from; nothing moves for it until it does, or you take its faction back. As it joins, a session is given its faction's seat brief: its objective and standing, its forces, its actions under the rules and which of them this build plays, and its rivals' standings. The brief gives no advice and tells nothing that faction may not know.
 - **While an agent's faction decides,** the panel says whose decision it is and its options can be read and not chosen; the map, with its popovers, the cards and the standings too. You turn the card yourself, whichever factions you play.
 - **The line to copy** stays on its sheet until a session joins, you take the faction back, you press Escape or you click the map.
-- **An agent's choice waits** for a card or the Kidnap die to come to rest, for a landed die to show its result for 2 seconds (Continue ends that sooner), and for what you have open: a popover, a pinned or opened briefing, a pinned card's tag, an [edition](#the-newspaper), or the transfer modal while it asks you to decide. If you decide first and the match moves on, its choice is dropped and it chooses again.
+- **An agent's choice waits** for a card or the Kidnap die to come to rest and for a landed die to show its result for 2 seconds (Continue ends that sooner). A popover, a pinned or opened briefing, a pinned card tag, a due or open [edition](#the-newspaper), the transfer modal while it asks you to decide, an open proclamation composer and an open Broadsheet also hold the choice. If you decide first and the match moves on, the agent chooses again.
 - **Transfer requests** go to whoever plays the giver. An agent that plays 26July keeps its withdrawal while you, as the giver, decide, and you keep yours while an agent does.
 - **The socket's path:** `$CUBA_LIBRE_PLAYER_SOCKET`, when it is set, replaces the default for the game and for `cuba-player` alike, and without `$XDG_RUNTIME_DIR` the default is in the temporary directory. `--player-socket` overrides both for the game.
-- **Taking a faction back** works at any time. The session ends, and a choice of its that was not applied is cancelled.
-- **Save · quit** ends every session. Who plays which faction is not saved: after a relaunch you play all four. The save is the one the same decisions by your own hand would write.
+- **Taking a faction back** ends its session and cancels its pending choice. Use F1 to F4 when a page covers the seat card.
+- **Save · quit** ends every session. After a relaunch you play all four factions. The same decisions produce the same game position whoever made them.
 
 ### Opening a session
 
@@ -172,21 +178,33 @@ When a faction you do not play completes an action, an edition of *El Correo de 
 - **Reading it again:** the pile beside the Propaganda pips holds the current card's editions. Click it, or Tab to it and press Enter, for the latest. With more than one, each has a tab under the folio line: click one, or press Tab for the next. The pile goes when you turn the card.
 - **Editions are not saved.** One you had not read when you quit is not shown again.
 
+## Read faction proclamations
+
+A faction player's publication opens as a public Broadsheet. Read the issuer, card and the faction's own words. **Return to choice**, Escape, Enter or Space acknowledges it. If another proclamation is waiting, **Next proclamation** opens it in publication order. You can return to the table with later proclamations still unread. While the page is open, agent choices wait. Your pending decision and keyboard focus resume when you return to the table.
+
+Select **Take back** on a faction's seat card while reading to reclaim it and cancel any choice that its agent submitted while the reader held moves.
+
+Select **Proclamations** or press R to reread the public record. Use the previous and next buttons or Left and Right to browse it. If a proclamation extends below the reading area, use the wheel or Up and Down. The factual newspaper reports committed actions under its own masthead.
+
+Reopening a match restores the public record and its unread count. **Proclamations** opens the first unread document, or the first in the record if all have been read. A proclamation you publish is already read. If the table cannot save an acknowledgement, the document stays open so you can retry.
+
 ## Camera and keys
 
 | Input | Effect |
 |---|---|
-| Right-drag or arrow keys | Orbit |
+| Right-drag | Orbit over the map |
 | Wheel or `+`/`-` | Zoom |
 | `W` `A` `S` `D` | Pan |
 | `Home` | Restore the map framing; also brings back hover tags that extreme framing hid |
 | `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked, then no effect, then those nothing can pay for) and an open popover's rows and button, then the marker supply, the four Available Forces rows, the current and the preview card, the two piles, the card's editions, the seat cards' buttons and Save · quit. A reopened edition turns to the card's next one |
-| `Enter`, `Space` | Activate the focused control. A dark line outside it ([FOCUS-MARK.md](../art/atlas/FOCUS-MARK.md)) marks the button, row or option that Enter would press; in the transfer modal that is the main button until Tab reaches another control, and in the amount field too. A focused space, card, pile, the marker supply or an Available Forces row shows its tag instead. While a played card is moving, land the cards instead |
-| `Left`, `Right` | Turn the pages of an open edition; otherwise they orbit |
+| `P`, `R` | Open the proclamation composer or public archive |
+| `Enter`, `Space` | Acknowledge an open Broadsheet, put an edition away, land a moving card, or activate the focused control. A dark line marks the button, row or option that Enter would press. In the transfer modal that is the main button until Tab reaches another control. A focused space, card, pile, marker supply or Available Forces row shows its tag. [Focus mark](../art/atlas/FOCUS-MARK.md) |
+| `Left`, `Right` | Browse proclamations in an open Broadsheet, turn an open edition's pages, or orbit the map |
+| `Up`, `Down` | Scroll an open Broadsheet or orbit the map |
 | `F1`, `F2`, `F3`, `F4` | Hand Government, 26July, Directorio or Syndicate to an agent, or take it back ([above](#handing-a-faction-to-an-agent)) |
-| `Escape` | Put an open edition away, which Enter and Space do too; otherwise close a card's tag or the sheet with a seat's line, unpin a briefing, cancel an open transfer, or close a tag or popover; a space popover closed from the keyboard leaves focus on its space |
+| `Escape` | Acknowledge an open Broadsheet, keep the current draft and close the composer, put an edition away, close a card tag or the sheet with a seat's line, unpin a briefing, cancel an open transfer, or close a tag or popover. A space popover closed from the keyboard leaves focus on its space |
 
-The camera answers wherever the pointer is over the map. A scroll, a drag or a click on a panel stays with that panel: it neither moves the camera nor reaches the space beneath. The transfer modal and an open edition take camera input while open.
+The camera answers wherever the pointer is over the map. A scroll, a drag or a click on a panel stays with that panel: it neither moves the camera nor reaches the space beneath. The transfer modal, an open edition and an open Broadsheet take camera input while open.
 
 ## Saving and quitting
 

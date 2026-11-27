@@ -27,7 +27,10 @@ mod view;
 pub use brief::{Brief, Pieces};
 pub use view::{Stands, View};
 
-use crate::{Faction, Game, Observation, Transfer, player_folders::Places, reports::Report};
+use crate::{
+    Faction, Game, Observation, Transfer, player_folders::Places, reports::Report,
+    save::Proclamation,
+};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::{
@@ -74,12 +77,22 @@ pub trait Table {
     fn game(&self) -> &Game;
     /// A report of each action of the match so far, whole, in order.
     fn reports(&self) -> Vec<Report>;
+    /// Each public proclamation, whole, in publication order.
+    fn proclamations(&self) -> &[Proclamation];
     /// Whether a choice applied now would be seen: nothing is in motion and nothing of
     /// the human's is open.
     fn settled(&self) -> bool;
     /// Submit `choice` as `faction` through the one checked submission, saved before it
     /// is shown. An error leaves the position and the save as they were.
     fn commit(&mut self, faction: Faction, revision: u64, choice: &str) -> Result<(), String>;
+    /// Publish public text as the faction the host authenticated.
+    fn publish(
+        &mut self,
+        faction: Faction,
+        revision: u64,
+        card: u8,
+        text: &str,
+    ) -> Result<(), String>;
 }
 
 /// An answer to a request, for the connection that sent it.
@@ -137,6 +150,12 @@ enum Request {
     },
     Observe {
         player: String,
+    },
+    Publish {
+        player: String,
+        revision: u64,
+        card: u8,
+        text: String,
     },
     Choose {
         player: String,
@@ -371,7 +390,7 @@ impl<R> Host<R> {
                     .ok()
                     .and_then(|value| value["player"].as_str().map(str::to_owned));
                 let reason = format!(
-                    "Not a request ({error}). A player may join, wait, observe, choose or leave."
+                    "Not a request ({error}). A player may join, wait, observe, publish, choose or leave."
                 );
                 let answer = match player.filter(|id| self.seats.seat(id).is_some()) {
                     Some(id) => {
@@ -397,6 +416,7 @@ impl<R> Host<R> {
             }
             Request::Wait { player, .. }
             | Request::Observe { player }
+            | Request::Publish { player, .. }
             | Request::Choose { player, .. }
             | Request::Leave { player } => player.clone(),
         };
@@ -414,6 +434,18 @@ impl<R> Host<R> {
             Request::Join { .. } => unreachable!("Answered above"),
             Request::Observe { .. } => {
                 vec![(reply, self.answer(&id, "observed", None, table))]
+            }
+            Request::Publish {
+                revision,
+                card,
+                text,
+                ..
+            } => {
+                let (status, error) = match table.publish(faction, revision, card, &text) {
+                    Ok(()) => ("published", None),
+                    Err(error) => ("refused", Some(error)),
+                };
+                vec![(reply, self.answer(&id, status, error, table))]
             }
             Request::Leave { .. } => {
                 let left = self.seats.leave(&id);
@@ -488,7 +520,7 @@ impl<R> Host<R> {
                 Told::News(nothing) => match nothing {},
             };
             let seen = seen.get_or_insert_with(|| game.observe());
-            let mut answer = self.view_answer(&id, status, seen, table.reports());
+            let mut answer = self.view_answer(&id, status, seen, table);
             if let Some(reason) = reason {
                 answer["reason"] = json!(reason);
             }
@@ -701,7 +733,7 @@ impl<R> Host<R> {
         table: &impl Table,
     ) -> Value {
         let released = self.seats.read(id);
-        let mut answer = self.view_answer(id, status, &table.game().observe(), table.reports());
+        let mut answer = self.view_answer(id, status, &table.game().observe(), table);
         if let Some(error) = error {
             answer["ok"] = json!(false);
             answer["error"] = json!(error);
@@ -732,17 +764,11 @@ impl<R> Host<R> {
         answer
     }
 
-    fn view_answer(
-        &self,
-        id: &str,
-        status: &str,
-        seen: &Observation,
-        reports: Vec<Report>,
-    ) -> Value {
+    fn view_answer(&self, id: &str, status: &str, seen: &Observation, table: &impl Table) -> Value {
         let faction = *self.seats.seat(id).expect("Seated");
         json!({
             "ok": true, "mode": MODE, "status": status, "player": id,
-            "view": View::of(seen, reports, faction, self.players()),
+            "view": View::of(seen, table.reports(), table.proclamations(), faction, self.players()),
         })
     }
 }
