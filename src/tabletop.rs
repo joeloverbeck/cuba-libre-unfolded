@@ -806,7 +806,7 @@ fn sync_pieces(
             .pieces
             .iter()
             .map(|p| (p, None))
-            .chain(moving.iter().map(|(piece, flip)| (piece, Some(*flip))));
+            .chain(moving.iter().map(|(piece, change)| (piece, Some(*change))));
         for (piece, flight) in pieces {
             let count = force_flights.count(&space.id, piece, flights.count(&space.id, piece));
             if flight.is_none() && count == 0 {
@@ -835,6 +835,24 @@ fn sync_pieces(
             } else {
                 base
             };
+            let rest = Transform::from_translation(base + Vec3::Y * height * scale)
+                .with_scale(Vec3::splat(scale));
+            let motion = flight.map(|change| {
+                let from = crate::Group {
+                    state: change.flip.from,
+                    ..piece.clone()
+                };
+                let [x, y] = map::slot(&space.id, &from);
+                let start = map::at(x, y, top) + Vec3::Y * height * scale;
+                let motion = piece_flips::Motion::new(
+                    start,
+                    rest,
+                    height * scale,
+                    group_color(piece),
+                    change,
+                );
+                (from, motion)
+            });
             let token = spawn_group_body(
                 &mut commands,
                 &mut meshes,
@@ -844,26 +862,22 @@ fn sync_pieces(
                     "{} {:?} {:?} {:?}",
                     space.id, piece.faction, piece.kind, piece.state
                 ),
-                Transform::from_translation(base + Vec3::Y * height * scale)
-                    .with_scale(Vec3::splat(scale)),
+                motion
+                    .as_ref()
+                    .map_or(rest, |(_, motion)| motion.source_pose()),
             );
             commands.entity(token).insert(PieceVisual);
-            if let Some(change) = flight {
-                let from = crate::Group {
-                    state: change.flip.from,
-                    ..piece.clone()
-                };
-                let [x, y] = map::slot(&space.id, &from);
-                let start = map::at(x, y, top) + Vec3::Y * height * scale;
-                let rest = Transform::from_translation(base + Vec3::Y * height * scale)
-                    .with_scale(Vec3::splat(scale));
-                commands.entity(token).insert(piece_flips::Motion::new(
-                    start,
-                    rest,
-                    height * scale,
-                    group_color(piece),
-                    change,
-                ));
+            if let Some((from, motion)) = motion {
+                add_group_face(
+                    &mut commands,
+                    &art,
+                    &mut meshes,
+                    &mut materials,
+                    token,
+                    &from,
+                    true,
+                );
+                commands.entity(token).insert(motion);
             } else {
                 commands
                     .entity(token)
