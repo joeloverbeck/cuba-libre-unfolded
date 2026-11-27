@@ -2538,6 +2538,17 @@ fn native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement() {
     let edition = &final_table["table"]["newspaper"]["open"]["report"];
     assert_eq!(edition["faction"], "M26");
     assert_eq!(edition["complete"], true);
+    let parts = final_table["table"]["newspaper"]["parts"]
+        .as_array()
+        .unwrap();
+    for (name, text) in [
+        ("edition-block-0-title", "No Resources moved"),
+        ("edition-block-0-text-0", "Syndicate answered 1 request."),
+    ] {
+        let part = parts.iter().find(|part| part["part"] == name).unwrap();
+        assert_eq!(part["lines"], 1, "{part}");
+        assert_eq!(part["text"], text, "{part}");
+    }
     app.capture("manifesto-side-completion-edition");
     app.key("Escape");
     let reports = Session::open(&app.save, None).unwrap().reports();
@@ -2548,7 +2559,7 @@ fn native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement() {
     for fact in [
         "Oriente",
         "Government gives 26July 3 Resources",
-        "Syndicate gives 26July nothing",
+        "Syndicate answered 1 request.",
     ] {
         assert_eq!(articles.matches(fact).count(), 1, "{fact}: {articles}");
     }

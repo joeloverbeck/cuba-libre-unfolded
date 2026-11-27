@@ -428,7 +428,9 @@ fn rally(action: RallyAction) -> String {
 /// What was asked and given, less a request still pending, which is in the summary.
 fn transfers(told: &Transfers, action: Action) -> Option<Article> {
     let (giver, recipient) = (told.giver.name(), told.recipient.name());
-    let no_move = action == Action::Construct && told.given == 0 && told.unmet > 0;
+    let no_move = matches!(action, Action::Construct | Action::Manifesto)
+        && told.given == 0
+        && told.unmet > 0;
     let title = match told.given {
         0 if no_move => "No Resources moved".into(),
         0 if told.unmet > 0 => format!("{giver} gives {recipient} nothing"),
