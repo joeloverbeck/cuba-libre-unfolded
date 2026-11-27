@@ -5,6 +5,29 @@ set -euo pipefail
 # Bash reads a script as it runs. The braces make it read all of this one first, so an edit to
 # this script during a run cannot change the run.
 {
+if [[ ${1:-} == --timed-harness ]]; then
+  # Cargo invokes this after it resolves the executable. Leave the caller's log
+  # alone if Cargo never dispatches a test harness.
+  shift
+  export RUSTC_BOOTSTRAP=1
+  if ! exec {caller_fd}>"$CUBA_NATIVE_CALLER_LOG"; then
+    # Keep libtest's diagnosis of an unusable logfile path.
+    exec "$@"
+  fi
+  # Duplicate libtest's one logfile as it writes. Close our descriptors in
+  # the harness so a detached app cannot keep the mirror open on interruption.
+  exec {log_fd}> >(trap '' INT TERM; tee --output-error=warn -- "$CUBA_NATIVE_HARNESS_LOG" >&"$caller_fd")
+  log_pid=$!
+  position=$CUBA_NATIVE_LOG_POSITION
+  width=$CUBA_NATIVE_LOG_WIDTH
+  command=("${@:1:position}" "--logfile=/proc/$BASHPID/fd/$log_fd" "${@:position+width+1}")
+  status=0
+  "${command[@]}" {log_fd}>&- {caller_fd}>&- || status=$?
+  exec {log_fd}>&- {caller_fd}>&-
+  if ! wait "$log_pid" && ((status == 0)); then status=1; fi
+  exit "$status"
+fi
+
 read -r started _ < /proc/uptime
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
@@ -136,7 +159,8 @@ fi
 cargo_test=(cargo test --locked --features tabletop)
 # Cargo sets the test environment and resolves the executable. Enable unstable
 # libtest options only on the executable; setting bootstrap on Cargo rebuilds Bevy.
-timed_cargo=("${cargo_test[@]}" --config "target.'cfg(target_os = \"linux\")'.runner=['env','RUSTC_BOOTSTRAP=1']")
+runner_key="target.'cfg(target_os = \"linux\")'.runner"
+timed_cargo=("${cargo_test[@]}" --config "$runner_key=['env','RUSTC_BOOTSTRAP=1']")
 listing_cargo=("${cargo_test[@]}")
 if ((${#unstable[@]} == 0)); then listing_cargo=("${timed_cargo[@]}"); fi
 # The library's regressions share one renderer in one process, so they stay serial.
@@ -180,8 +204,6 @@ fi
 
 : "${CUBA_TEST_CARDS:?set CUBA_TEST_CARDS to the selected card directory (README, Where files live)}"
 # A worktree's default evidence lives in a fresh directory in the main checkout.
-# Only that root establishes that any detached runtime logs belong to this run.
-app_evidence=
 common=$(dirname -- "$(git rev-parse --path-format=absolute --git-common-dir)")
 if [[ -z ${CUBA_NATIVE_EVIDENCE:-} && $common != "$(git rev-parse --show-toplevel)" ]]; then
   branch=$(git branch --show-current)
@@ -208,12 +230,13 @@ run_timed() {
   local log="$timing/$label.log"
   local target=(--lib)
   local options=("${harness[@]}")
-  local test_args=("$@")
-  local stderr_fd stderr_pid caller_fd log_fd log_pid status=0 log_status=0 stderr_status=0
+  local runner=("${timed_cargo[@]}")
+  local stderr_fd stderr_pid status=0 stderr_status=0
   if [[ $label == app ]]; then
     target=(--test native)
     options=("${app_harness[@]}")
     failure_label=tests/native.rs
+    local -x CUBA_NATIVE_APP_ADAPTER_LOG="$timing/app-adapters.log"
     exec {stderr_fd}>&2
   else
     # The library's Bevy renderer logs directly to stderr.
@@ -222,31 +245,21 @@ run_timed() {
   fi
   if ((caller_log_count == 0)); then
     options+=(--logfile "$log")
-  elif ((caller_log_count == 1)) && { exec {caller_fd}>"$user_log"; } 2>/dev/null; then
-    # Libtest only opens one logfile. Stream the same writes to both files,
-    # truncating the caller's once per binary. Keep the pipe in this runner,
-    # so a detached app cannot keep it open. Drain on managed interruption.
-    exec {log_fd}> >(trap '' INT TERM; tee --output-error=warn -- "$log" >&"$caller_fd")
-    log_pid=$!
-    test_args=("${test_args[@]:0:log_position}" "--logfile=/proc/$BASHPID/fd/$log_fd"
-      "${test_args[@]:log_position+log_width}")
+  elif ((caller_log_count == 1)); then
+    runner=("${cargo_test[@]}" --config "$runner_key=['bash','scripts/native','--timed-harness']")
+    local -x CUBA_NATIVE_HARNESS_LOG="$log" CUBA_NATIVE_CALLER_LOG="$user_log"
+    # Count arguments before the caller's logfile, including the executable.
+    local -x CUBA_NATIVE_LOG_POSITION=$((1 + ${#unstable[@]} + ${#report_time[@]} + ${#options[@]} + log_position))
+    local -x CUBA_NATIVE_LOG_WIDTH=$log_width
   fi
-  # Unusable paths and duplicate logfile options are left for libtest to diagnose.
-  local command=("${timed_cargo[@]}" "${target[@]}" -- "${unstable[@]}" "${report_time[@]}"
-    "${options[@]}" "${test_args[@]}")
-  if [[ -v log_fd ]]; then
-    "${command[@]}" {log_fd}>&- {caller_fd}>&- 2>&"$stderr_fd" || status=$?
-    exec {log_fd}>&-
-    exec {caller_fd}>&-
-    wait "$log_pid" || log_status=$?
-  else
-    "${command[@]}" 2>&"$stderr_fd" || status=$?
-  fi
+  # Duplicate logfile options are left for libtest to diagnose.
+  "${runner[@]}" "${target[@]}" -- "${unstable[@]}" "${report_time[@]}" \
+    "${options[@]}" "$@" 2>&"$stderr_fd" || status=$?
   exec {stderr_fd}>&-
   if [[ -v stderr_pid ]]; then wait "$stderr_pid" || stderr_status=$?; fi
-  if ((status || log_status || stderr_status)); then
+  if ((status || stderr_status)); then
     failed+=("$failure_label")
-    statuses+=("$failure_label: Cargo=$status, logfile=$log_status, stderr=$stderr_status")
+    statuses+=("$failure_label: Cargo=$status, stderr=$stderr_status")
   fi
 }
 
@@ -270,9 +283,8 @@ read -r ended _ < /proc/uptime
   echo "renderer settings: WGPU_BACKEND=${WGPU_BACKEND:-default} VK_DRIVER_FILES=${VK_DRIVER_FILES:-default} CUBA_NATIVE_SOFTWARE_VULKAN=${CUBA_NATIVE_SOFTWARE_VULKAN:-0}"
   adapter_line='s/.*AdapterInfo \{ name: "([^"]+)".*backend: ([^, }]+).*/\1 (\2)/p'
   app_adapters=
-  if [[ -n $app_evidence ]]; then
-    app_adapters=$(find "$app_evidence" -type f -name '*-runtime.log' \
-      -exec sed -nE "$adapter_line" {} + | sort -u)
+  if [[ -f $timing/app-adapters.log ]]; then
+    app_adapters=$(sed -nE "$adapter_line" "$timing/app-adapters.log" | sort -u)
   fi
   library_adapters=
   if [[ -f $timing/library.stderr ]]; then
@@ -310,10 +322,11 @@ fi
 # failed one cannot be taken for the suite.
 if "$whole"; then
   if [[ -n $before && $(suite_inputs) == "$before" ]]; then
-    echo "suite inputs: $before"
+    verdict="suite inputs: $before"
   else
-    echo "suite inputs not named: files the suite reads differ from the revision or changed during the run"
+    verdict="suite inputs not named: files the suite reads differ from the revision or changed during the run"
   fi
+  printf '%s\n' "$verdict" | tee -a "$timing/summary.txt"
 fi
 exit
 }
