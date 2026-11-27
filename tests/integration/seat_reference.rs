@@ -53,6 +53,13 @@ fn family(choice: &Choice) -> String {
     {
         return format!("construct:<space>:{plan}");
     }
+    if action
+        .strip_prefix("manifesto:place:")
+        .and_then(|rest| rest.split_once(':'))
+        .is_some_and(|(space, mix)| !mix.is_empty() && choice.space() == Some(space))
+    {
+        return "manifesto:place:<space>:<mix>".into();
+    }
     action.into()
 }
 
