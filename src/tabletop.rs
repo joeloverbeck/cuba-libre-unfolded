@@ -231,7 +231,8 @@ struct Interface {
     /// The card a decision just played in this run, until the tray starts showing its
     /// advance from the shared clock in the same frame (`piles::follow`).
     played: Option<piles::Played>,
-    piece_flips: Vec<crate::Flip>,
+    /// State changes from a saved decision, until the map takes them up.
+    piece_flips: Vec<piece_flips::Change>,
 }
 impl Interface {
     /// Whether the human plays `faction`.
@@ -860,18 +861,22 @@ fn sync_pieces(
                 },
             );
             commands.entity(token).insert(PieceVisual);
-            if let Some(flip) = flight {
+            if let Some(change) = flight {
                 let from = crate::Group {
-                    state: flip.from,
+                    state: change.flip.from,
                     ..piece.clone()
                 };
                 let [x, y] = map::slot(&space.id, &from);
                 let start = map::at(x, y, top) + Vec3::Y * height * scale;
                 let rest = Transform::from_translation(base + Vec3::Y * height * scale)
                     .with_scale(Vec3::splat(scale));
-                commands
-                    .entity(token)
-                    .insert(piece_flips::Motion::new(start, rest, color));
+                commands.entity(token).insert(piece_flips::Motion::new(
+                    start,
+                    rest,
+                    height * scale,
+                    color,
+                    change,
+                ));
             } else {
                 commands
                     .entity(token)
@@ -1445,14 +1450,9 @@ fn submit(
     let session = play.session.as_mut().unwrap();
     let reply = session.submit(owner, rev, name)?;
     let after = session.observe();
-    if Choice::action_of(name).starts_with("terror:")
-        && let Some(preview) = previous
-            .choices
-            .iter()
-            .find(|choice| choice.id == name)
-            .and_then(|choice| choice.preview.as_ref())
-    {
-        ui.piece_flips.clone_from(&preview.flips);
+    let flips = piece_flips::committed(&previous, &after, name);
+    if !flips.is_empty() {
+        ui.piece_flips = flips;
     }
     let played = ui.played();
     ui.editions
