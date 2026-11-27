@@ -38,11 +38,18 @@ impl CardInput<'_> {
 
     fn source_bytes(&self, source: &Path) -> Result<Vec<u8>> {
         let flat = source.join(self.name);
-        if exists(&flat)? {
-            return self.read(source, self.name);
-        }
-        self.read(source, &format!("{}/{}", self.collection_dir, self.name))
-            .with_context(|| format!("Also looked for {}", flat.display()))
+        let bytes = if exists(&flat)? {
+            self.read(source, self.name)
+        } else {
+            self.read(source, &format!("{}/{}", self.collection_dir, self.name))
+                .with_context(|| format!("Also looked for {}", flat.display()))
+        };
+        bytes.with_context(|| {
+            format!(
+                "Incompatible private card source {}. Supply the matching originals or run scripts/play --card-source DIRECTORY to select another source.",
+                source.display()
+            )
+        })
     }
 }
 
@@ -73,16 +80,21 @@ fn prepare<'a>(
     let cards = data.join("cards");
     let config = data.join("card-source");
     check_card_directory(&cards)?;
+    let explicit = source.map(resolve_source).transpose()?;
     let mut missing = Vec::new();
     for card in inputs {
         if exists(&cards.join(card.name))? {
             card.check_installed(&cards)?;
+            // Accept a newly selected source only when it can supply the whole
+            // current inventory, even on a machine with an existing install.
+            if let Some(source) = &explicit {
+                card.source_bytes(source)?;
+            }
         } else {
             missing.push(card);
         }
     }
 
-    let explicit = source.map(resolve_source).transpose()?;
     if !missing.is_empty() {
         let names = missing
             .iter()
@@ -102,11 +114,7 @@ fn prepare<'a>(
         let staged = missing
             .iter()
             .map(|card| card.source_bytes(&source).map(|bytes| (card, bytes)))
-            .collect::<Result<Vec<_>>>()
-            .with_context(|| format!(
-                "Incompatible private card source {}. Supply the matching originals or run scripts/play --card-source DIRECTORY to select another source.",
-                source.display()
-            ))?;
+            .collect::<Result<Vec<_>>>()?;
         fs::create_dir_all(&cards)
             .with_context(|| format!("Cannot create card directory {}", cards.display()))?;
         check_card_directory(&cards)?;
@@ -168,7 +176,12 @@ fn resolve_source(source: &Path) -> Result<PathBuf> {
                 Err(ErrorKind::NotADirectory.into())
             }
         })
-        .with_context(|| format!("Cannot use {} as the private card source", source.display()))
+        .with_context(|| {
+            format!(
+                "Cannot use {} as the private card source. Run scripts/play --card-source DIRECTORY with an existing directory of matching originals.",
+                source.display()
+            )
+        })
 }
 
 fn exists(path: &Path) -> Result<bool> {
@@ -190,34 +203,90 @@ fn write_temporary(directory: &Path, bytes: &[u8]) -> std::io::Result<NamedTempF
 mod tests {
     use super::*;
     use crate::assets::digest;
+    use std::{env, os::unix::fs::PermissionsExt, process::Command};
     use tempfile::tempdir;
 
     #[test]
     fn configured_source_supplies_a_newly_required_card_on_the_next_launch() {
+        // The Cargo stand-in re-enters this test to run the real installer with
+        // a fixture inventory. Production binaries always use the pinned cards.
+        if let Some(data) = env::var_os("CUBA_PLAY_FIXTURE_DATA") {
+            let source = env::var_os("CUBA_PLAY_FIXTURE_SOURCE")
+                .filter(|path| !path.is_empty())
+                .map(PathBuf::from);
+            let current_hash = digest(b"current");
+            let preview_hash = digest(b"preview");
+            let current = CardInput {
+                name: "card-19.png",
+                collection_dir: "images/cards",
+                length: 7,
+                hash: &current_hash,
+            };
+            let preview = CardInput {
+                name: "card-20.png",
+                hash: &preview_hash,
+                ..current
+            };
+            let mut inputs = vec![current];
+            if env::var_os("CUBA_PLAY_FIXTURE_UPDATE").is_some() {
+                inputs.push(preview);
+            }
+            prepare(Path::new(&data), source.as_deref(), inputs).unwrap();
+            return;
+        }
+
         let home = tempdir().unwrap();
-        let data = home.path().join("data");
+        let data = home.path().join(".local/share/cuba-libre-unfolded");
         let source = home.path().join("my cards");
         fs::create_dir_all(source.join("images/cards")).unwrap();
         fs::write(source.join("card-19.png"), b"current").unwrap();
         fs::write(source.join("images/cards/card-20.png"), b"preview").unwrap();
-        let current_hash = digest(b"current");
-        let preview_hash = digest(b"preview");
-        let current = || CardInput {
-            name: "card-19.png",
-            collection_dir: "images/cards",
-            length: 7,
-            hash: &current_hash,
-        };
-        let preview = CardInput {
-            name: "card-20.png",
-            hash: &preview_hash,
-            ..current()
+        let cargo = home.path().join("cargo");
+        fs::write(
+            &cargo,
+            r#"#!/usr/bin/env bash
+set -eu
+if [[ $5 == cuba-tools && $7 == prepare-play ]]; then
+  CUBA_PLAY_FIXTURE_DATA=$8 CUBA_PLAY_FIXTURE_SOURCE=${9:-} \
+    exec "$CUBA_PLAY_FIXTURE_TEST" --exact \
+    assets::play::tests::configured_source_supplies_a_newly_required_card_on_the_next_launch
+fi
+data="$HOME/.local/share/cuba-libre-unfolded"
+[[ $6 == cuba-libre && $8 == --cards && $9 == "$data/cards" &&
+   ${10} == --save && ${11} == "$data/saves/task.json" ]]
+test -s "$data/cards/card-19.png"
+if [[ -n ${CUBA_PLAY_FIXTURE_UPDATE:-} ]]; then test -s "$data/cards/card-20.png"; fi
+"#,
+        )
+        .unwrap();
+        fs::set_permissions(cargo, fs::Permissions::from_mode(0o700)).unwrap();
+        let path = env::join_paths(
+            [home.path().to_path_buf()]
+                .into_iter()
+                .chain(env::split_paths(&env::var_os("PATH").unwrap())),
+        )
+        .unwrap();
+        let launch = || {
+            let mut command = Command::new(concat!(env!("CARGO_MANIFEST_DIR"), "/scripts/play"));
+            command
+                .env("HOME", home.path())
+                .env("PATH", &path)
+                .env_remove("XDG_DATA_HOME")
+                .env_remove("CUBA_PLAY_FIXTURE_UPDATE")
+                .env("CUBA_PLAY_FIXTURE_TEST", env::current_exe().unwrap());
+            command
         };
 
-        prepare(&data, Some(&source), [current()]).unwrap();
+        let first = launch().arg("--card-source").arg(&source).output().unwrap();
+        assert!(first.status.success(), "{first:?}");
         let installed = data.join("cards/card-19.png");
         let original = fs::metadata(&installed).unwrap().modified().unwrap();
-        prepare(&data, None, [current(), preview]).unwrap();
+        assert!(!data.join("cards/card-20.png").exists());
+        let update = launch()
+            .env("CUBA_PLAY_FIXTURE_UPDATE", "1")
+            .output()
+            .unwrap();
+        assert!(update.status.success(), "{update:?}");
         assert_eq!(fs::read(&installed).unwrap(), b"current");
         assert_eq!(
             fs::metadata(&installed).unwrap().modified().unwrap(),
@@ -227,6 +296,20 @@ mod tests {
             fs::read(data.join("cards/card-20.png")).unwrap(),
             b"preview"
         );
+        assert_eq!(
+            fs::read_to_string(data.join("card-source")).unwrap(),
+            source.to_str().unwrap()
+        );
+
+        let empty = home.path().join("empty source");
+        fs::create_dir(&empty).unwrap();
+        let refused = launch()
+            .env("CUBA_PLAY_FIXTURE_UPDATE", "1")
+            .arg("--card-source")
+            .arg(&empty)
+            .output()
+            .unwrap();
+        assert!(!refused.status.success(), "{refused:?}");
         assert_eq!(
             fs::read_to_string(data.join("card-source")).unwrap(),
             source.to_str().unwrap()
