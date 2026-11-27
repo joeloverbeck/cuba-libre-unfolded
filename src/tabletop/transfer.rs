@@ -442,6 +442,9 @@ pub(super) fn focusable(view: &Observation, ui: &Interface) -> Vec<String> {
             names.push(format!("{}:decline", view.revision));
         }
     }
+    if proclamation_composer::entry_available(view, ui) {
+        names.push(proclamation_composer::WRITE.into());
+    }
     names.push(
         shown
             .commit
@@ -484,6 +487,10 @@ pub(super) fn pressed(view: &Observation, ui: &Interface) -> Pressed {
 
 /// Activates the modal control `name` as a click would.
 fn activate(play: &mut Play, ui: &mut Interface, view: &Observation, name: &str) {
+    if name == proclamation_composer::WRITE {
+        proclamation_composer::press(play, ui, proclamation_composer::Press::Open);
+        return;
+    }
     let rest = name.strip_prefix("transfer:");
     let input = match rest {
         Some("direction:give") => Some(Input::Direction(Direction::Give)),

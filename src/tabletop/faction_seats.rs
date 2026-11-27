@@ -338,6 +338,18 @@ fn show(seats: &FactionSeats, play: &Play, ui: &mut Interface, now: Instant) {
     let Some(session) = &play.session else {
         return;
     };
+    let players = seats.host.players();
+    let mixed = players.contains(&Player::Human) && players.contains(&Player::Agent);
+    if ui.mixed_seats != mixed {
+        ui.mixed_seats = mixed;
+        ui.dirty = true;
+        if !mixed && ui.choice.focus.as_deref() == Some(proclamation_composer::WRITE) {
+            ui.choice.focus = None;
+        }
+        if !mixed && ui.transfer.focus.as_deref() == Some(proclamation_composer::WRITE) {
+            ui.transfer.focus = None;
+        }
+    }
     let states = seats.host.states(session.game(), now);
     if ui.seats != states {
         let played = ui.played();

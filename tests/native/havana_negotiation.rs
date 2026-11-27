@@ -68,11 +68,13 @@ fn native_havana_numeric_request_and_public_bargain() {
     fs::copy(app.root.join("original-numeric-request.json"), &app.save).unwrap();
     app.launch_size("3840x2160");
     assert_eq!(app.observe()["observation"], numeric);
+    let _directorio = app.seat_agent(DIRECTORIO, "directorio");
     app.key("KeyP");
     app.activate("proclamation:author:syndicate", revision);
     type_text(&app, revision, OFFER);
     app.capture("own-explanation-in-composer");
     app.activate("proclamation:publish", revision);
+    app.key(DIRECTORIO);
     let m26 = app.seat_agent(M26, "26july");
     published(&mut app, &m26, revision, 18, ANSWER);
     assert_eq!(app.settle()["observation"], numeric);

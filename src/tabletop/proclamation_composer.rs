@@ -9,13 +9,14 @@ use bevy::{
     input::keyboard::{Key, KeyboardInput},
     input_focus::{AcquireFocus, FocusCause, InputFocus},
     text::{EditableText, FontCx, Justify, LayoutCx, LineHeight, TextCursorStyle, TextLayoutInfo},
-    ui::widget::NodeImageMode,
-    ui_widgets::TextInput,
+    ui::{prelude::AccessibleLabel, widget::NodeImageMode},
+    ui_widgets::{Button, TextInput},
 };
 use serde_json::{Value, json};
 use unfolded_tabletop::seat::Focus;
 
 pub(super) const WRITE: &str = "proclamation:write";
+const DISPATCH: &str = "proclamation-dispatch.png";
 const FIELD: &str = "proclamation:field";
 const FIELD_PLATE: &str = "proclamation-broadsheet-field.png";
 const RETURN: &str = "proclamation:compose:return";
@@ -92,14 +93,12 @@ pub(super) struct Sheet {
     interrupted: bool,
 }
 
-fn available(play: &Play, ui: &Interface) -> bool {
-    play.session.as_ref().is_some_and(|session| {
-        Stands::of(session.game()) == Stands::Open
-            && ui.played().into_iter().any(|played| played)
-            && ui.line.is_none()
-            && !ui.editions.holds()
-            && !ui.proclamation_reader.is_open()
-    })
+fn writing_window(ui: &Interface) -> bool {
+    ui.mixed_seats && ui.line.is_none() && !ui.editions.holds() && !ui.proclamation_reader.is_open()
+}
+
+pub(super) fn entry_available(view: &Observation, ui: &Interface) -> bool {
+    !ui.composer.is_open() && writing_window(ui) && Stands::among(&view.choices) == Stands::Open
 }
 
 pub(super) fn press(play: &Play, ui: &mut Interface, press: Press) {
@@ -107,9 +106,15 @@ pub(super) fn press(play: &Play, ui: &mut Interface, press: Press) {
         ui.dirty = true;
     }
     let human = ui.played();
-    let can_open = press == Press::Open && available(play, ui);
+    let can_open = press == Press::Open
+        && !ui.composer.is_open()
+        && writing_window(ui)
+        && play
+            .session
+            .as_ref()
+            .is_some_and(|session| Stands::of(session.game()) == Stands::Open);
     let state = &mut ui.composer;
-    if can_open && state.page.is_none() {
+    if can_open {
         let game = play.session.as_ref().expect("An admitted match").game();
         let card = game.current_card();
         if state.card != Some(card) {
@@ -201,9 +206,13 @@ pub(super) fn keys(
         return;
     }
     if !ui.composer.is_open() {
-        if keys.just_pressed(KeyCode::KeyP) && available(&play, &ui) {
-            let game = play.game();
-            if !advance.in_the_air(&game.observe(), time.elapsed_secs_f64())
+        if keys.just_pressed(KeyCode::KeyP)
+            && let Some(session) = &play.session
+        {
+            let game = session.game();
+            let view = game.observe();
+            if entry_available(&view, &ui)
+                && !advance.in_the_air(&view, time.elapsed_secs_f64())
                 && die::presented(game.revision, game.kidnap.as_ref(), &roll).is_none()
             {
                 press(&play, &mut ui, Press::Open);
@@ -286,8 +295,13 @@ pub(super) fn publish(
         return;
     };
     let (author, revision, card) = (page.author, page.revision, page.card);
-    let result = if ui.proclamation_reader.is_open() {
-        Err("Publish interrupted. Your draft is kept. Press Publish again.".into())
+    let result = if !writing_window(&ui) {
+        let refusal = if ui.mixed_seats {
+            "Publish interrupted. Your draft is kept. Press Publish again."
+        } else {
+            "Waiting for a human and an agent to hold seats. Your draft is kept."
+        };
+        Err(refusal.into())
     } else if ui.plays(author) {
         play.session
             .as_mut()
@@ -629,36 +643,60 @@ impl SheetPrint<'_, '_, '_> {
 pub(super) fn entry(
     commands: &mut Commands,
     art: &Art,
-    play: &Play,
+    view: &Observation,
     ui: &Interface,
-    window: &Window,
+    scale: f32,
 ) {
-    if !available(play, ui) || ui.composer.is_open() {
+    if !entry_available(view, ui) {
         return;
     }
-    let scale = (window.width() / 3840.).min(window.height() / 2160.);
-    let rect = [100., 208., 410., 69.];
-    let z = transfer::LAYER + 2;
-    let button = picture(commands, art, paper::SECONDARY, rect, scale, Vec2::ZERO, z);
-    commands
-        .entity(button)
-        .remove::<Pickable>()
-        .insert(control(Press::Open))
-        .observe(click);
-    let label = styled(
+    // FigCraft placement in its 1920×1080 frame. The PNG has two pixels of
+    // transparent margin at each horizontal edge at 2× export scale.
+    let [left, top, width, height] = eligibility::reserved_plate();
+    let reference_scale = 1080. / HEIGHT;
+    let margin = 1. / reference_scale;
+    let [x, y, width, height] = [
+        left - margin,
+        top + height + 23.03 / reference_scale,
+        width + 2. * margin,
+        49.400_54 / reference_scale,
+    ];
+    let z = if transfer::shown(view.transfer.as_ref(), view.owner, ui) {
+        transfer::LAYER + 2
+    } else {
+        6
+    };
+    let button = commands
+        .spawn((
+            UiRoot,
+            Button,
+            AccessibleLabel::new("Write a proclamation"),
+            control(Press::Open),
+            Node {
+                position_type: PositionType::Absolute,
+                left: px(x * scale),
+                top: px(y * scale),
+                width: px(width * scale),
+                height: px(height * scale),
+                ..default()
+            },
+            GlobalZIndex(z),
+        ))
+        .observe(click)
+        .id();
+    let plate = picture(
         commands,
         art,
-        "Write a proclamation · P",
-        &art.bold,
-        INK,
-        [100., 224., 410., 29.],
+        DISPATCH,
+        [0., 0., width, height],
         scale,
         Vec2::ZERO,
-        z + 1,
+        z,
     );
     commands
-        .entity(label)
-        .insert(TextLayout::justify(Justify::Center));
+        .entity(plate)
+        .remove::<UiRoot>()
+        .insert(ChildOf(button));
 }
 
 pub(super) fn observe(world: &mut World) -> Value {

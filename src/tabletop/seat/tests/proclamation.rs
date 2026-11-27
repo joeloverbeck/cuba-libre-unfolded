@@ -149,6 +149,121 @@ fn faction_reply(connection: UnixStream, status: &str) -> Value {
     reply
 }
 
+fn claim_directorio(
+    app: &mut App,
+    seat: &mut shared::Seat<Table>,
+    socket: &std::path::Path,
+    revision: u64,
+) -> Value {
+    ask(
+        seat,
+        app,
+        json!({"op":"key","revision":revision,"key":"F3"}),
+    );
+    let join = queue_faction_request(
+        app,
+        seat,
+        socket,
+        json!({"op":"join","faction":"directorio"}),
+    );
+    ask(seat, app, json!({"op":"advance","steps":1}));
+    faction_reply(join, "joined")
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer"]
+fn native_dispatch_medallion_and_tooltips_follow_picking_order() {
+    let cards: PathBuf = std::env::var_os("CUBA_TEST_CARDS")
+        .expect("Set CUBA_TEST_CARDS")
+        .into();
+    let directory = tempfile::tempdir().unwrap();
+    let save = directory.path().join("table.json");
+    let session = crate::save::Session::create_seeded(&save, 2).unwrap();
+    let revision = session.observe().revision;
+    drop(session);
+    let (mut app, mut seat) = table(&cards, &save, UVec2::new(1920, 1080));
+    claim_directorio(&mut app, &mut seat, &save.with_extension("sock"), revision);
+    ask(&mut seat, &mut app, json!({"op":"settle"}));
+    for _ in 0..40 {
+        let pressed = ask(
+            &mut seat,
+            &mut app,
+            json!({"op":"key","revision":revision,"key":"Tab"}),
+        );
+        assert_eq!(pressed["status"], "pressed", "{pressed}");
+        let settled = ask(&mut seat, &mut app, json!({"op":"settle"}));
+        if settled["table"]["choice"]["focus"] == "proclamation:write" {
+            break;
+        }
+    }
+    let focused = ask(&mut seat, &mut app, json!({"op":"settle"}));
+    assert_eq!(focused["table"]["choice"]["focus"], "proclamation:write");
+    assert_eq!(
+        focused["table"]["focus_mark"][0]["control"],
+        "proclamation:write"
+    );
+    let world = app.world();
+    let focus = world
+        .resource::<bevy::input_focus::InputFocus>()
+        .get()
+        .unwrap();
+    assert_eq!(
+        world
+            .get::<Control>(focus)
+            .map(|control| control.name.as_str()),
+        Some("proclamation:write"),
+        "Bevy focus {focus:?} does not point at the marked button"
+    );
+    let accessible = world.get::<bevy::a11y::AccessibilityNode>(focus).unwrap();
+    assert_eq!(accessible.label(), Some("Write a proclamation"));
+    let click_at = |app: &mut App, seat: &mut shared::Seat<Table>, position| {
+        for action in [
+            PointerAction::Move { delta: Vec2::ZERO },
+            PointerAction::Press(PointerButton::Primary),
+            PointerAction::Release(PointerButton::Primary),
+        ] {
+            pointer(app, position, action);
+            ask(seat, app, json!({"op":"advance","steps":1}));
+        }
+        ask(seat, app, json!({"op":"settle"}))
+    };
+
+    let medallion = Vec2::new(226.875, 514.5);
+    let opened = click_at(&mut app, &mut seat, medallion);
+    assert_eq!(opened["table"]["proclamation_composer"]["author"], "M26");
+    ask(
+        &mut seat,
+        &mut app,
+        json!({"op":"key","revision":revision,"key":"Escape"}),
+    );
+    ask(&mut seat, &mut app, json!({"op":"settle"}));
+    let dispatch = {
+        let world = app.world_mut();
+        world
+            .query::<(Entity, &Control)>()
+            .iter(world)
+            .find(|(_, control)| control.name == "proclamation:write")
+            .unwrap()
+            .0
+    };
+    // The authored frames leave a gap. Force an intersection of their real live
+    // nodes to check that text in either tag takes precedence over a button there.
+    let overlap_top = 175.;
+    app.world_mut().get_mut::<Node>(dispatch).unwrap().top = px(overlap_top);
+    for (component, title) in [("aid", "Aid"), ("us-alliance", "US Alliance")] {
+        let pointed = ask(
+            &mut seat,
+            &mut app,
+            json!({"op":"point","revision":revision,"component":component}),
+        );
+        assert_eq!(pointed["status"], "pointed");
+        ask(&mut seat, &mut app, json!({"op":"settle"}));
+        let read = click_at(&mut app, &mut seat, Vec2::new(190., 195.));
+        assert_eq!(read["table"]["top"]["title"], title);
+        assert!(read["table"]["proclamation_composer"].is_null());
+    }
+}
+
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer"]
 fn native_proclamation_publish_raced_by_delivery_requires_explicit_retry() {
@@ -160,21 +275,7 @@ fn native_proclamation_publish_raced_by_delivery_requires_explicit_retry() {
     let socket = save.with_extension("sock");
     let revision = pending_giver(&save).observe().revision;
     let (mut app, mut seat) = table(&cards, &save, UVec2::new(1920, 1080));
-    ask(
-        &mut seat,
-        &mut app,
-        json!({"op":"key","revision":revision,"key":"F3"}),
-    );
-    let join = queue_faction_request(
-        &mut app,
-        &mut seat,
-        &socket,
-        json!({
-            "op":"join","faction":"directorio",
-        }),
-    );
-    ask(&mut seat, &mut app, json!({"op":"advance","steps":1}));
-    let joined = faction_reply(join, "joined");
+    let joined = claim_directorio(&mut app, &mut seat, &socket, revision);
     let before = open_composer(&mut seat, &mut app, revision);
     let position = press_button(&mut app, &mut seat, revision, "proclamation:publish");
     let incoming = queue_faction_request(
@@ -257,6 +358,7 @@ fn native_proclamation_editor_keeps_same_frame_edits() {
     let save = directory.path().join("table.json");
     let revision = pending_giver(&save).observe().revision;
     let (mut app, mut seat) = table(&cards, &save, UVec2::new(1920, 1080));
+    claim_directorio(&mut app, &mut seat, &save.with_extension("sock"), revision);
 
     let opened = open_composer(&mut seat, &mut app, revision);
     assert_eq!(
@@ -327,6 +429,7 @@ fn native_proclamation_opening_consumes_the_giver_confirmation() {
         .unwrap();
     drop(session);
     let (mut app, mut seat) = table(&cards, &save, UVec2::new(1920, 1080));
+    claim_directorio(&mut app, &mut seat, &save.with_extension("sock"), revision);
     let tab = ask(
         &mut seat,
         &mut app,
