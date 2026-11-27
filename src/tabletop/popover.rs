@@ -475,6 +475,14 @@ fn preview_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
     if assault(view) {
         return assault_lines(preview);
     }
+    let placement = !preview.placement_available_forces.is_empty();
+    for change in &preview.placement_available_forces {
+        let piece = crate::game::manifesto::piece_words(&change.piece, true);
+        lines.push((
+            Tone::Plain,
+            format!("{piece} · Available {} → {}", change.from, change.to),
+        ));
+    }
     let name = |id: &str| {
         view.spaces
             .iter()
@@ -580,6 +588,17 @@ fn preview_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
         sentence.push('.');
         lines.push((Tone::Strong, sentence));
     }
+    if placement {
+        let steady = match (preview.control.is_empty(), preview.standings.is_empty()) {
+            (true, true) => Some("Control and standings stay as shown."),
+            (true, false) => Some("Control stays as shown."),
+            (false, true) => Some("Standings stay as shown."),
+            (false, false) => None,
+        };
+        if let Some(steady) = steady {
+            lines.push((Tone::Plain, steady.into()));
+        }
+    }
     for u in &preview.unavailable {
         lines.push((Tone::Plain, format!("Then unavailable: {}.", u.label)));
     }
@@ -589,7 +608,7 @@ fn preview_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
         if (terror && note.starts_with("R 3.3.4:")) || note.starts_with("R 4.3.3:") {
             continue;
         }
-        let tone = if note.contains("card 17's Event") {
+        let tone = if placement || note.contains("card 17's Event") {
             Tone::Quiet
         } else {
             Tone::Plain
@@ -619,6 +638,7 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
         .map(|c| c.id.clone());
     let assault = assault(view);
     let construct = construct(view);
+    let manifesto = view.manifesto.as_ref().and_then(|event| event.pending());
     let head = |choice: &Choice| -> (String, String) {
         if assault {
             // The plan's own label: the factions targeted and a short capacity's
@@ -626,6 +646,8 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
             (choice.label.clone(), "Assault".into())
         } else if construct {
             (choice.label.clone(), "Construct".into())
+        } else if manifesto.is_some() {
+            (choice.label.clone(), String::new())
         } else if choice.action() == "kidnap" {
             ("Kidnap · from Government".into(), "Special Activity".into())
         } else {
@@ -665,6 +687,18 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
                     pay(choice)
                 } else if construct {
                     format!("Pay {} · {}", crate::CONSTRUCT_COST, choice.label)
+                } else if manifesto.is_some() {
+                    if choice.preview.as_ref().is_some_and(|p| {
+                        p.placement_available_forces
+                            .iter()
+                            .map(|s| s.piece.count)
+                            .sum::<u8>()
+                            == 1
+                    }) {
+                        "Place this piece".into()
+                    } else {
+                        "Place these pieces".into()
+                    }
                 } else if choice.action() == "kidnap" {
                     "Open Kidnap · nothing rolled yet".into()
                 } else {
@@ -722,6 +756,7 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
     // The rolled Kidnap is history of 26July's Terror: Assault's popover lists plans only.
     if !assault
         && !construct
+        && manifesto.is_none()
         && space == KIDNAP_SPACE
         && let Some(kidnap) = &view.kidnap
     {
@@ -759,6 +794,10 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
             "{terrain} · Syndicate executing Construct · Syndicate has {}",
             plural(view.resources[Faction::Syndicate.index()], "Resource")
         )
+    } else if let Some(faction) = manifesto {
+        let presence = crate::game::manifesto::presence(place, faction)
+            .expect("The Manifesto offers a space popover only with a qualifying piece");
+        format!("{terrain} · {presence}")
     } else {
         format!(
             "{terrain} · 26July executing Terror · 26July has {}",
@@ -924,7 +963,7 @@ fn removal_lines(view: &Observation, choice: &Choice) -> Vec<(Tone, String)> {
                 .map_or("none", Faction::name)
         ),
     };
-    let control_line = if view.current_card == 18 {
+    let control_line = if view.current_card >= 18 {
         control
     } else if preview.unavailable.is_empty() {
         format!("{control} Terror and Kidnap: unchanged.")

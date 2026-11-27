@@ -84,6 +84,7 @@ pub(super) fn headline(
         Action::Undecided => return format!("{name} goes back to its action choice"),
         Action::Pass => return format!("{name} Passes"),
         Action::EventUnshaded => ("the Event, unshaded text", false),
+        Action::Manifesto => ("Sierra Maestra Manifesto", false),
         Action::EventShaded => ("the Event, shaded text", false),
         Action::Terror => ("Terror", true),
         Action::Assault => ("Assault", true),
@@ -166,6 +167,18 @@ pub(super) fn articles(faction: Faction, action: Action, items: &[Item]) -> Vec<
             .iter()
             .filter_map(|item| match item {
                 Item::Pass(_) | Item::Granted(_) => None,
+                Item::DeclinedPlacement(faction) => Some(article(
+                    "Placement declined",
+                    vec![format!("{} declined placement.", faction.name())],
+                )),
+                Item::PlacedManifesto { space, placement } => Some(article(
+                    "Pieces placed",
+                    vec![format!(
+                        "{} placed {} in {space}.",
+                        placement.faction.name(),
+                        placement.piece_description()
+                    )],
+                )),
                 Item::WentBack { request } => Some(article(
                     "Back to the action choice",
                     vec![match request {
@@ -415,7 +428,9 @@ fn rally(action: RallyAction) -> String {
 /// What was asked and given, less a request still pending, which is in the summary.
 fn transfers(told: &Transfers, action: Action) -> Option<Article> {
     let (giver, recipient) = (told.giver.name(), told.recipient.name());
-    let no_move = action == Action::Construct && told.given == 0 && told.unmet > 0;
+    let no_move = matches!(action, Action::Construct | Action::Manifesto)
+        && told.given == 0
+        && told.unmet > 0;
     let title = match told.given {
         0 if no_move => "No Resources moved".into(),
         0 if told.unmet > 0 => format!("{giver} gives {recipient} nothing"),
@@ -561,7 +576,12 @@ fn eligibility(first: &Moment, last: &Moment, faction: Faction) -> Vec<String> {
     if let Some(recorded) = recorded(last, faction)
         && !(last.card == 18 && is.next_card.is_some())
     {
-        lines.push(format!("{} is in the {recorded} box.", faction.name()));
+        let text = if recorded == crate::SequenceBox::Event.name() {
+            format!("{} recorded the Event.", faction.name())
+        } else {
+            format!("{} is in the {recorded} box.", faction.name())
+        };
+        lines.push(text);
     }
     if was.m26_next_card != is.m26_next_card
         && let Some(eligible) = is.m26_next_card

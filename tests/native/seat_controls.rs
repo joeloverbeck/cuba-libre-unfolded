@@ -612,11 +612,53 @@ fn native_each_seat_state_is_shown_and_a_held_choice_is_taken_back() {
     let syndicate = app.join("syndicate");
     app.decide(&syndicate, "syndicate:pass", "applied");
     let view = app.key("Escape");
-    assert_eq!(seat(&view, "Syndicate")["state"], "build-ends");
-    assert_eq!(state_words(&view, "syndicate"), "Build ends here");
+    assert_eq!(view["observation"]["current_card"], 18);
+    assert_eq!(seat(&view, "Syndicate")["state"], "at-table");
+    assert_eq!(state_words(&view, "syndicate"), "Agent at the table");
+    assert_eq!(says(&view, "seat-strip-title"), None);
+    assert_eq!(
+        choice_part(&view, "advance-card-label")["text"],
+        "Advance to Sierra Maestra Manifesto"
+    );
+    let saved = app.save_bytes();
+    let refused = app.decide(&syndicate, "advance-card", "refused");
+    assert_eq!(
+        refused["error"],
+        "The human turns the card; it is no agent's choice."
+    );
+    assert_eq!(refused["view"]["decision"]["stands"], "card");
+    assert_eq!(refused["view"]["decision"]["yours"], false);
+    assert_eq!(refused["view"]["choices"], json!([]));
+    assert_eq!(app.save_bytes(), saved);
+    let mut syndicate_wait = app.player("s", &["wait", &syndicate]);
+    app.until_waiting("Syndicate");
+    app.capture("human-advance-while-syndicate-waits");
+    app.choose("advance-card");
+    assert_eq!(app.observe()["observation"]["current_card"], 19);
+    assert!(syndicate_wait.ended().is_none());
+
+    let directorio = app.join("directorio");
+    app.press("seat:26july:take-back");
+    for choice in ["m26:event", "manifesto:decline"] {
+        let revision = app.revision();
+        app.activate(&format!("option:{choice}"), revision);
+        app.choose(choice);
+    }
+    app.decide(&directorio, "manifesto:decline", "applied");
+    let (code, woke) = app.answered(&mut syndicate_wait);
+    assert_eq!((code, &woke["status"]), (0, &json!("decision")), "{woke}");
+    assert_eq!(woke["view"]["decision"]["faction"], "Syndicate");
+    assert_eq!(woke["view"]["decision"]["yours"], true);
+    app.decide(&syndicate, "manifesto:decline", "applied");
+    app.decide(&government, "manifesto:decline", "applied");
+
+    let view = app.settle();
+    assert_eq!(view["observation"]["owner"], "Directorio");
+    assert_eq!(seat(&view, "Directorio")["state"], "build-ends");
+    assert_eq!(state_words(&view, "directorio"), "Build ends here");
     assert_eq!(
         says(&view, "seat-strip-title").unwrap(),
-        "Syndicate: Build ends here"
+        "Directorio: Build ends here"
     );
     assert_eq!(
         says(&view, "seat-strip-note").unwrap(),

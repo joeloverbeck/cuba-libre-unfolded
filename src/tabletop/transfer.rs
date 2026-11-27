@@ -1124,6 +1124,7 @@ fn modal(
     // Header band, in the deciding faction's colour.
     let executor = view.executing.unwrap_or(view.owner);
     let activity = match (view.current_card, &view.event) {
+        (19, _) => "the Manifesto",
         (18, _) if executor == Faction::Syndicate => "Construct",
         (18, _) => "Assault",
         (_, Some(crate::EventProgress::Rally(_))) => "the free Rally",
@@ -1179,7 +1180,8 @@ fn modal(
     } else {
         note
     };
-    words(commands, art, header, note, fig::SMALL, false, PAPER, 0., s);
+    let note = words(commands, art, header, note, fig::SMALL, false, PAPER, 0., s);
+    part(commands, note, "header-note");
     // The reserved state: a request another faction started, which 26July answers.
     if let Some(Transfer::Authorizing {
         giver: Faction::M26,
@@ -1955,14 +1957,14 @@ fn amount(
         Some(t) => limits(t, view.executing)
             .into_iter()
             .filter(|(icon, ..)| {
-                view.current_card != 18
+                view.current_card == 17
                     || *icon != "reserve"
                     || (view.executing == Some(Faction::Syndicate) && t.reserved > 0)
             })
             .collect(),
         None => vec![(
             "balance",
-            if view.current_card == 18 {
+            if view.current_card >= 18 {
                 "Limited by the giver’s balance and the recipient’s 49-Resource cap".into()
             } else {
                 "Limits: the giver's balance, the recipient's 49 cap, the owed-Terror reserve"

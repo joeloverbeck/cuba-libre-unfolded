@@ -312,7 +312,7 @@ pub(super) fn assert_piles_drawn(app: &Native, capture: &str, view: &Value) {
         .unwrap()
         .to_rgb8();
     assert_eq!(shot.dimensions(), (3840, 2160));
-    let faces: BTreeMap<u64, image::RgbImage> = [17, 18, 19]
+    let faces: BTreeMap<u64, image::RgbImage> = (17..=20)
         .into_iter()
         .map(|number| {
             (

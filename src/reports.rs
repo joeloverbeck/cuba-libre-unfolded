@@ -25,8 +25,8 @@ pub(crate) use words::listing;
 use crate::{
     ActionChoice, AssaultResolution, Choice, ConstructAuthorization, ConstructFunding,
     ConstructPlan, ConstructResolution, Eligibility, EventOutcome, EventProgress, Faction, Flip,
-    Game, Group, Kidnap, Kind, Next, Observation, Rally, RallyAction, Removal, Resolved,
-    SequenceBox, Space, Standing, State, Transfer, title,
+    Game, Group, Kidnap, Kind, Manifesto, ManifestoPlacement, Next, Observation, Rally,
+    RallyAction, Removal, Resolved, SequenceBox, Space, Standing, State, Transfer, title,
 };
 use serde::Serialize;
 
@@ -40,6 +40,7 @@ pub enum Action {
     Terror,
     EventUnshaded,
     EventShaded,
+    Manifesto,
     Assault,
     Construct,
 }
@@ -178,6 +179,7 @@ struct Moment {
     executing: Option<Faction>,
     action: ActionChoice,
     event: Option<EventProgress>,
+    manifesto: Option<Manifesto>,
     eligibility: Eligibility,
     next: Option<Next>,
     passed: [bool; 4],
@@ -217,6 +219,7 @@ impl Moment {
             executing: seen.executing,
             action: seen.action,
             event: seen.event.clone(),
+            manifesto: seen.manifesto.clone(),
             eligibility: seen.eligibility.clone(),
             next: seen.next.clone(),
             passed: seen.passed,
@@ -247,6 +250,7 @@ impl Moment {
             return Action::Pass;
         }
         match faction {
+            Faction::M26 if self.manifesto.is_some() => Action::Manifesto,
             Faction::M26 => match self.action {
                 ActionChoice::Open => Action::Undecided,
                 ActionChoice::Pass => Action::Pass,
@@ -388,6 +392,11 @@ enum Item {
     Shaded {
         /// A space and the Guerrillas Activated there.
         flips: Vec<(String, u8)>,
+    },
+    DeclinedPlacement(Faction),
+    PlacedManifesto {
+        space: String,
+        placement: ManifestoPlacement,
     },
     Granted(Faction),
     Rally {
@@ -600,6 +609,29 @@ fn happened(before: &Moment, after: &Moment, continues: bool, items: &mut Vec<It
                 .map(|flip| (name(&flip.space), flip.count))
                 .collect(),
         });
+    }
+    if let Some(manifesto) = &after.manifesto {
+        let told = before.manifesto.as_ref().map_or(0, |m| m.declines.len());
+        items.extend(
+            manifesto
+                .declines
+                .iter()
+                .skip(told)
+                .copied()
+                .map(Item::DeclinedPlacement),
+        );
+        let told = before.manifesto.as_ref().map_or(0, |m| m.placements.len());
+        items.extend(
+            manifesto
+                .placements
+                .iter()
+                .skip(told)
+                .cloned()
+                .map(|placement| Item::PlacedManifesto {
+                    space: name(&placement.space),
+                    placement,
+                }),
+        );
     }
     rallied(before, after, items);
     transferred(before, after, items);
@@ -854,11 +886,13 @@ fn spaces(items: &[Item]) -> Vec<String> {
             | Item::Assault { space, .. }
             | Item::Construct { space, .. }
             | Item::ManagedCasinos { space, .. }
+            | Item::PlacedManifesto { space, .. }
             | Item::Rally { space, .. } => vec![space],
             Item::Removed { groups, .. } => groups.iter().map(|(space, _)| space).collect(),
             Item::Shaded { flips } => flips.iter().map(|(space, _)| space).collect(),
             Item::WentBack { .. }
             | Item::Pass(_)
+            | Item::DeclinedPlacement(_)
             | Item::Transfers(_)
             | Item::Granted(_)
             | Item::NoRally(_) => vec![],

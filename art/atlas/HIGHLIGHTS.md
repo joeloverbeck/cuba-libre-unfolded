@@ -113,6 +113,8 @@ Clicking a selectable or blocked space opens its popover (#58: "clicking a selec
 - **Without the cost**, every row gives the authority's reason. Where the authority names the remedy, the row is "not yet" with the chip "Request a Resource transfer"; where it names none, the row is "unavailable" and says that nothing in this task can change it.
 - A no-effect space's popover holds the one plan that removes nothing, chosen where Government can pay. An unpayable space's lists its plans, all unavailable. A paid space has no popover.
 
+**During the Manifesto (#241)** the rows are the legal piece mixes, in the authority's order. The subtitle names the deciding faction's pieces that qualify the space. The chosen row shows the pieces to be placed, their Available counts, and what happens to Control and standings. The same commit control labels the addition of one piece or two.
+
 The layout is [`atlas-popover.figcraft`](atlas-popover.figcraft), page "Popover masters (1920x1280 reference units)", frames A-P1, A-P3 and A-P4 (FigCraft CLI 0.18.1). `src/tabletop/popover.rs` implements its values in reference pixels:
 - **Card:** 340 wide, `paper` fill, 1 px `ink` stroke, radius 2, drop shadow `ink` at 20% (0, 3, blur 10), 10 bottom padding; a 3 px `action/primary` top rule.
 - **Header:** padding 9/14/8/14, gap 2. Title `Popover/Bold 15` in `ink`; subtitle Regular 11 in `ink-secondary`.

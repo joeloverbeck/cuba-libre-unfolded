@@ -11,7 +11,7 @@ An Ubuntu Rust desktop implementation of **Cuba Libre**, the COIN game by Jeff G
 - For the `tabletop` feature (the desktop app): Bevy 0.20.0, an X11 desktop, a Vulkan-capable graphics driver, the ordinary C/C++ build tools and the X11 development libraries Bevy uses.
 - Network access for the first build's Cargo dependencies. Sibling working trees are not needed: `Cargo.toml` and `Cargo.lock` pin the shared dependency and the root renderer patch.
 
-Put your private copies of `card-17.png`, `card-18.png`, `card-19.png` and the card back, `cuba-libre-card-back.png`, in `~/.local/share/cuba-libre-unfolded/cards/`. All four must match [the admitted hashes](art/atlas/README.md#private-card-admission); the app refuses to launch without any of them and names the file. If you keep the images elsewhere, use that directory for `--cards`.
+Put your private copies of `card-17.png`, `card-18.png`, `card-19.png`, `card-20.png` and the card back, `cuba-libre-card-back.png`, in `~/.local/share/cuba-libre-unfolded/cards/`. All five must match [the admitted hashes](art/atlas/README.md#private-card-admission); the app refuses to launch without any of them and names the file. If you keep the images elsewhere, use that directory for `--cards`.
 
 From the checkout root, build and launch the desktop app with `cargo run`.
 

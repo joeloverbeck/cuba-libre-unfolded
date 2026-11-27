@@ -146,6 +146,20 @@ Finishing makes Syndicate Ineligible for card 19. A restarted game restores the 
 
 An unpaid Limited Construct can refuse a piece action that would leave no affordable legal payment. The popover explains when to pay first. Management stays available after payment, and a paid space remains used even when its Casino changes.
 
+### Continue to Sierra Maestra Manifesto
+
+After Syndicate Passes or finishes Construct, the panel shows the result and Eligibility for card 19. Select **Advance to Sierra Maestra Manifesto** to continue from that position. The Manifesto crosses to the played pile, **The Twelve** turns face up on the draw deck, and the pile counts settle at 20 and 32. 26July is 1st Eligible. Pin an option to see what the rules allow and what this build supports. Reopen the same save to resume at that decision, with the cards at rest and earlier proclamations in the public record.
+
+Pin **Event** and select **Choose Event**. 26July executes it, and the placement decision passes through 26July, Directorio, Syndicate and Government in that order. A faction decides even if it is Ineligible for the card action.
+
+Choose a highlighted map space where the deciding faction already has a piece. The popover names its pieces there, including a closed Casino if that is what qualifies the space. Select a mix to see what comes from Available Forces and how Control and standings would change. Select **Place these pieces** to commit. The Event places two non-Casino pieces together at no Resource cost. If the faction can place only one, the popover offers that mix with **Place this piece**. Tab reaches the same spaces, mixes and confirmation control, and Enter activates them.
+
+Pin **Decline placement** to see who goes next, then select **Decline placement** to commit. Restarting between decisions restores the pending faction.
+
+While 26July executes the Event, it can also pin **26July · Remove own pieces** or **26July · Resource transfer** and select the matching confirmation. In removal mode, click a marked 26July piece, preview the removal and confirm. If it was the faction’s only piece in a space, that space no longer qualifies for its placement. Select **Done · leave removal mode** to resume the pending placement. On a transfer request, the giver decides the amount or declines. Once the request is answered, the same faction resumes its placement.
+
+When the Event ends, the panel records each faction’s placement or decline in order and shows that 26July stays Eligible. Directorio is next as 2nd Eligible and can inspect Pass or Operation with optional Special Activity. Restarting at this menu restores the record and the choices.
+
 ## Handing a faction to an agent
 
 An external Claude Code or Codex session can play a faction for you. The four cards along the bottom say who plays each faction ([SEATS.md](../art/atlas/SEATS.md)). **Hand over** gives a faction to an agent, **Copy its line** copies the one line to [paste in its session](#opening-a-session), and **Take back** makes it yours again. F1 to F4 hand Government, 26July, Directorio and Syndicate over and take them back too. A session joins on the game's socket, by default `cuba-libre-players.sock` in `$XDG_RUNTIME_DIR`, or where you launched with `--player-socket`. The game starts no session.

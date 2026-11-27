@@ -618,7 +618,10 @@ fn syndicate_pass_finishes_card_18_after_havana_assault() {
     assert_eq!(after.deck, before.deck);
     assert_eq!(after.played_pile, before.played_pile);
     assert!(after.capabilities.is_empty());
-    assert!(after.next.is_none() && after.choices.is_empty());
+    assert!(
+        after.next.is_none()
+            && matches!(after.choices.as_slice(), [choice] if choice.turns_the_card())
+    );
 
     assert!(
         game.submit(before.owner, before.revision, &pass.id)
@@ -745,7 +748,10 @@ fn operation_only_construct_pays_for_distinct_spaces_in_the_chosen_order() {
     reports.record(&after);
     assert_eq!(after.eligible, [true, true, true, false]);
     assert_eq!((after.current_card, after.preview_card), (18, 19));
-    assert!(after.choices.is_empty() && after.capabilities.is_empty());
+    assert!(
+        matches!(after.choices.as_slice(), [choice] if choice.turns_the_card())
+            && after.capabilities.is_empty()
+    );
     assert_eq!(after.resources, before_finish.resources);
     let report = &reports.all()[0];
     assert_eq!(report.recorded, Some("Operation Only"));
@@ -806,7 +812,10 @@ fn operation_only_construct_can_finish_without_a_payment_or_pass_income() {
         assert_eq!(after.spaces, before.spaces);
         assert_eq!(after.available, before.available);
         assert!(!after.passed[3]);
-        assert!(after.construct_paid.is_empty() && after.choices.is_empty());
+        assert!(
+            after.construct_paid.is_empty()
+                && matches!(after.choices.as_slice(), [choice] if choice.turns_the_card())
+        );
         let report = &reports.all()[0];
         assert_eq!(
             report.action,
@@ -912,7 +921,10 @@ fn limited_construct_pays_once_and_distinguishes_the_two_havana_plans() {
         assert_eq!((finished.current_card, finished.preview_card), (18, 19));
         assert_eq!(finished.resources, paid.resources);
         assert_eq!(casino_counts(&finished), expected);
-        assert!(finished.next.is_none() && finished.choices.is_empty());
+        assert!(
+            finished.next.is_none()
+                && matches!(finished.choices.as_slice(), [choice] if choice.turns_the_card())
+        );
     }
 }
 

@@ -385,6 +385,33 @@ pub(super) fn activation_lines(view: &Observation, flips: &[Flip]) -> String {
 /// The briefing for one option at the action choice, or for the Terror and Kidnap
 /// tabs during execution. `option` is the choice id without its revision.
 pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
+    if view.current_card == 19 {
+        let choice = listed(view, option)?;
+        let rule = match option {
+            "transfer" => "R 1.5.1, 1.8",
+            "remove" | "done-removal" => "R 1.4.1",
+            "manifesto:decline" => "Card 19 · R 5.1",
+            "directorio:pass" => "R 2.3.3",
+            _ if choice.event_text().is_some() => "Card 19 · R 2.3.4, 5.1",
+            _ => "R 2.3.4",
+        };
+        let explanation = choice
+            .explanation
+            .strip_prefix(rule)
+            .and_then(|rest| rest.strip_prefix(". "))
+            .unwrap_or(&choice.explanation);
+        return Some(Briefing {
+            option: option.into(),
+            title: if option == "directorio:operation" {
+                "Operation".into()
+            } else {
+                choice.label.clone()
+            },
+            rule,
+            entries: vec![entry("OPTION", explanation)],
+            rules: String::new(),
+        });
+    }
     if view.current_card == 18 {
         let choice = listed(view, option)?;
         if option == "syndicate:pass" {

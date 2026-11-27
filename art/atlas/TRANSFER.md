@@ -4,7 +4,7 @@ The owner selected **TM-B, Two accounts** in #68 ([selection on #58](https://git
 
 ## What it shows
 
-- **Opening:** "Resource transfer" opens the modal while a faction executes Terror, Alberto Bayo, the free Rally, Assault or Construct (R 1.5.1). The open transfer is saved, so a restart reopens it.
+- **Opening:** "Resource transfer" opens the modal while a faction executes Terror, Alberto Bayo, the free Rally, Assault, Construct or the Manifesto (R 1.5.1). The open transfer is saved, so a restart reopens it.
 - **Composing:** a dark header band, the executing faction's account on the left and the counterpart's on the right, chosen by the emblem tabs above it. The "Give to | Ask from" toggle drives the flow arrow, which always points from giver to recipient. Each account shows "now → after".
 - **Amount:** a typed field, the quick values 1, 2 and Max, and Bevy's slider. The slider's track spans the giver's balance. A Resource kept for an owed Santiago Terror is hatched, and the slider stops at the limit. A typed amount beyond the limit is refused in red with the rules authority's reason, and the primary button is disabled. The accounts show that amount's effect in red, as the design does, a giver's balance below 0 included.
 - **Limits strip** shows the giver's balance, the recipient's room under the cap of 49 and any reserve. Reserves include owed Terror, the required Limited Construct payment and authorizations already held toward that payment. Held authorizations also count toward the recipient's cap. The binding limit is bold.

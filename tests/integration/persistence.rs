@@ -2,7 +2,7 @@
 //! order and their position, and opens only by exact replay (ADR 0003). Each test
 //! opens a save, submits decisions, drops the session, reopens the file and compares
 //! what a player or the seat observes. Every match starts at the opening position.
-use cuba_libre_unfolded::{ActionChoice, Faction, Game, Transfer, save::Session};
+use cuba_libre_unfolded::{ActionChoice, Faction, Game, Kind, State, Transfer, save::Session};
 use std::path::Path;
 use unfolded_record_replacement::{previous_path, save};
 
@@ -752,7 +752,7 @@ fn new_sessions_seed_once_from_entropy_while_resume_preserves_the_exact_seed() {
 /// of only the format and the accepted rules source. A restart keeps the consumed
 /// randomness, and the match revision equals the number of decisions.
 #[test]
-fn a_save_holds_its_seed_decisions_and_position_under_format_9() {
+fn a_save_holds_its_seed_decisions_and_position_under_format_12() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("seeded.json");
     // Seed 5 rolls 3 (kidnap.rs's shared RNG cases).
@@ -769,7 +769,7 @@ fn a_save_holds_its_seed_decisions_and_position_under_format_9() {
     let saved = record(&path);
     assert_eq!(
         saved["identity"],
-        serde_json::json!({"format": "9", "source": cuba_libre_unfolded::assets::SOURCE})
+        serde_json::json!({"format": "12", "source": cuba_libre_unfolded::assets::SOURCE})
     );
     assert_eq!(saved["payload"]["seed"], 5);
     assert_eq!(
@@ -1244,6 +1244,479 @@ fn a_save_an_earlier_build_wrote_in_an_assault_is_refused_with_every_file_unchan
     assert!(Session::open(&path, None).is_ok());
 }
 
+/// R 2.3.7 and 2.3.8: all four finish families carry their distinct positions
+/// into the Manifesto and reach Directorio's second-Eligible decision.
+#[test]
+fn card_18_finishes_reach_the_manifesto_endpoint_with_their_actual_consequences() {
+    let dir = tempfile::tempdir().unwrap();
+    for (name, actions, resources, eligible, assault, construct) in [
+        (
+            "both-pass",
+            &["government:pass", "syndicate:pass"][..],
+            [4, 4, 5, 16],
+            [true, true, true, true],
+            0,
+            0,
+        ),
+        (
+            "pass-and-multi-space-construct",
+            &[
+                "government:pass",
+                "syndicate:construct",
+                "construct:camaguey-city:place",
+                "construct:havana:place",
+                "end-construct",
+            ],
+            [4, 4, 5, 5],
+            [true, true, true, false],
+            0,
+            2,
+        ),
+        (
+            "empty-assault-and-pass",
+            &["government:assault", "end-assault", "syndicate:pass"],
+            [1, 4, 5, 16],
+            [false, true, true, true],
+            0,
+            0,
+        ),
+        (
+            "funded-assault-and-limited-construct",
+            &[
+                "government:assault",
+                "transfer",
+                "ask:3:12",
+                "authorize:12",
+                "assault:havana:syndicate",
+                "end-assault",
+                "syndicate:limited-operation",
+                "transfer",
+                "ask:1:2",
+                "authorize:1",
+                "transfer",
+                "ask:2:1",
+                "authorize:1",
+                "construct:havana:open",
+                "end-construct",
+            ],
+            [11, 3, 4, 0],
+            [false, true, true, false],
+            1,
+            1,
+        ),
+    ] {
+        let path = dir.path().join(format!("{name}.json"));
+        let mut session = Session::create_seeded(&path, 2).unwrap();
+        session
+            .publish_as_human(Faction::M26, 0, 17, "At Santiago.")
+            .unwrap();
+        for action in [
+            "terror",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+        ] {
+            act(&mut session, action);
+        }
+        if name == "both-pass" {
+            // The free Rally adds four Underground Guerrillas in Sierra Maestra
+            // without changing Resources or the two factions eligible on card 18.
+            for action in [
+                "event:unshaded",
+                "rally:beneficiary:26july",
+                "rally:sierra-maestra:place:4",
+            ] {
+                act(&mut session, action);
+            }
+            let rallied = session.observe();
+            let sierra = rallied
+                .spaces
+                .iter()
+                .find(|space| space.id == "sierra-maestra")
+                .unwrap();
+            assert_eq!(
+                sierra
+                    .pieces
+                    .iter()
+                    .filter(|p| p.faction == Faction::M26
+                        && p.kind == Kind::Guerrilla
+                        && p.state == State::Underground)
+                    .map(|p| p.count)
+                    .sum::<u8>(),
+                4
+            );
+        } else {
+            act(&mut session, "event:shaded");
+            act(&mut session, "resolve-shaded");
+        }
+        act(&mut session, "advance-card");
+        let card_18 = session.observe();
+        session
+            .publish_as_human(
+                Faction::M26,
+                card_18.revision,
+                18,
+                "We will wait for the next card.",
+            )
+            .unwrap();
+        for action in actions {
+            act(&mut session, action);
+        }
+        let before = session.observe();
+        assert_eq!(before.resources, resources, "{name}");
+        assert_eq!(before.eligible, eligible, "{name}");
+        assert_eq!(before.assault_paid.len(), assault, "{name}");
+        assert_eq!(before.construct_paid.len(), construct, "{name}");
+        assert_eq!((before.piles.played, before.piles.deck), (19, 33));
+        let havana = before
+            .spaces
+            .iter()
+            .find(|space| space.id == "havana")
+            .unwrap();
+        let casinos = |state| {
+            havana
+                .pieces
+                .iter()
+                .filter(|p| p.kind == Kind::Casino && p.state == state)
+                .map(|p| p.count)
+                .sum::<u8>()
+        };
+        assert_eq!(
+            (casinos(State::Open), casinos(State::Closed)),
+            (1, u8::from(construct == 2))
+        );
+        assert_eq!(
+            before
+                .available
+                .iter()
+                .find(|p| p.kind == Kind::Casino)
+                .unwrap()
+                .count,
+            if construct == 2 { 5 } else { 7 }
+        );
+
+        let reports = session.reports();
+        assert_eq!(reports.last().unwrap().card, 18);
+        assert!(reports.last().unwrap().complete, "{name}");
+        let published = session.proclamations().to_vec();
+        assert_eq!(
+            published.iter().map(|p| p.card).collect::<Vec<_>>(),
+            [17, 18]
+        );
+        let pre_advance = std::fs::read(&path).unwrap();
+        let random = session.game().random_state();
+        let advance = act(&mut session, "advance-card");
+        let after = session.observe();
+        assert_eq!((after.current_card, after.preview_card), (19, 20));
+        assert_eq!((after.piles.played, after.piles.deck), (20, 32));
+        assert_eq!(
+            (after.cards.current.title, after.cards.preview.title),
+            ("Sierra Maestra Manifesto", "The Twelve")
+        );
+        assert_eq!(
+            after.eligibility.order,
+            [
+                Faction::M26,
+                Faction::Directorio,
+                Faction::Syndicate,
+                Faction::Government
+            ]
+        );
+        assert_eq!(after.eligibility.second, Some(Faction::Directorio));
+        assert_eq!(after.owner, Faction::M26);
+        assert_eq!(after.eligible, before.eligible);
+        assert_eq!(
+            (
+                after.resources,
+                &after.spaces,
+                &after.available,
+                &after.standings
+            ),
+            (
+                before.resources,
+                &before.spaces,
+                &before.available,
+                &before.standings
+            )
+        );
+        assert_eq!(
+            session.reports(),
+            reports,
+            "advancing is not a faction action"
+        );
+        assert_eq!(session.proclamations(), published);
+        assert_eq!(session.game().random_state(), random);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), pre_advance);
+        let saved = std::fs::read(&path).unwrap();
+
+        drop(session);
+        let mut session = Session::open(&path, None).unwrap();
+        assert_eq!(session.observe(), after);
+        assert_eq!(session.proclamations(), published);
+        assert!(session.proclamation_is_read(0) && session.proclamation_is_read(1));
+        assert_eq!(session.reports(), reports);
+        assert_eq!(session.game().random_state(), random);
+        assert!(
+            session
+                .submit(advance.owner, advance.revision, &advance.id)
+                .is_err()
+        );
+        assert!(
+            session
+                .submit(
+                    after.owner,
+                    after.revision,
+                    &format!("{}:advance-card", after.revision)
+                )
+                .is_err()
+        );
+        let stale = session
+            .publish_as_human(Faction::M26, after.revision, 18, "Late.")
+            .unwrap_err();
+        assert!(stale.to_string().contains("Stale proclamation view"));
+        assert_eq!(std::fs::read(&path).unwrap(), saved);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), pre_advance);
+        session
+            .publish_as_human(Faction::M26, after.revision, 19, "On the new card.")
+            .unwrap();
+        let with_publication = std::fs::read(&path).unwrap();
+        drop(session);
+        let mut session = Session::open(&path, None).unwrap();
+        assert_eq!(session.observe(), after);
+        let documents = session.proclamations();
+        assert_eq!(&documents[..2], published);
+        assert_eq!((documents[2].card, documents[2].author), (19, Faction::M26));
+        assert_eq!(documents[2].text, "On the new card.");
+        assert!(session.proclamation_is_read(2));
+        let spent = session
+            .publish_as_human(Faction::M26, after.revision, 19, "Again.")
+            .unwrap_err();
+        assert!(spent.to_string().contains("already published"));
+        assert_eq!(std::fs::read(&path).unwrap(), with_publication);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), saved);
+        assert_manifesto_endpoint(session, &path, name);
+    }
+}
+
+fn assert_manifesto_endpoint(mut session: Session, path: &Path, route: &str) {
+    use Faction::{Directorio, Government, M26, Syndicate};
+
+    const DECLINE: &str = "manifesto:decline";
+    // Living Rules 1.4, 1.7, 2.3 and 7.2, the printed Event and the prepared
+    // board determine these outcomes. Construct closes new Casinos (3.3.5);
+    // only an open Casino contributes to Control or Syndicate's score.
+    let (actions, lines, standings) = match route {
+        "both-pass" => (
+            [
+                "manifesto:place:sierra-maestra:guerrilla-base",
+                DECLINE,
+                DECLINE,
+                DECLINE,
+            ],
+            [
+                "26July placed 1 Underground Guerrilla + 1 Base in Sierra Maestra.",
+                "Directorio declined placement.",
+                "Syndicate declined placement.",
+                "Government declined placement.",
+            ],
+            [(16, -2), (9, -6), (1, -8), (3, -14)],
+        ),
+        "pass-and-multi-space-construct" => (
+            [
+                DECLINE,
+                DECLINE,
+                "manifesto:place:camaguey-city:guerrilla-guerrilla",
+                DECLINE,
+            ],
+            [
+                "26July declined placement.",
+                "Directorio declined placement.",
+                "Syndicate placed 2 Underground Guerrillas in Camagüey City.",
+                "Government declined placement.",
+            ],
+            [(16, -2), (8, -7), (1, -8), (3, -25)],
+        ),
+        "empty-assault-and-pass" => (
+            [
+                "manifesto:place:santiago:guerrilla-base",
+                DECLINE,
+                DECLINE,
+                "manifesto:place:camaguey-city:troops-base",
+            ],
+            [
+                "26July placed 1 Underground Guerrilla + 1 Base in Santiago de Cuba.",
+                "Directorio declined placement.",
+                "Syndicate declined placement.",
+                "Government placed 1 Troop + 1 Base in Camagüey City.",
+            ],
+            [(16, -2), (9, -6), (1, -8), (3, -14)],
+        ),
+        "funded-assault-and-limited-construct" => (
+            [
+                DECLINE,
+                "manifesto:place:havana:base-base",
+                "manifesto:place:havana:guerrilla-guerrilla",
+                "manifesto:place:havana:troops-police",
+            ],
+            [
+                "26July declined placement.",
+                "Directorio placed 2 Bases in Havana.",
+                "Syndicate placed 2 Underground Guerrillas in Havana.",
+                "Government placed 1 Troop + 1 Police cube in Havana.",
+            ],
+            [(16, -2), (8, -7), (3, -6), (3, -30)],
+        ),
+        _ => panic!("Unknown card 18 finish: {route}"),
+    };
+    let opening = session.observe();
+    let prior_reports = session.reports();
+    let random = session.game().random_state();
+    act(&mut session, "m26:event");
+    for (faction, action) in [M26, Directorio, Syndicate, Government]
+        .into_iter()
+        .zip(actions)
+    {
+        let pending = session.observe();
+        assert_eq!(pending.owner, faction, "{route}");
+        assert_eq!(pending.executing, Some(M26), "{route}");
+        assert_eq!(pending.eligible, opening.eligible, "{route}");
+        assert_eq!(act(&mut session, action).owner, faction, "{route}");
+    }
+    let end = session.observe();
+    assert_eq!(end.revision, opening.revision + 5, "{route}");
+    assert_eq!((end.current_card, end.preview_card), (19, 20), "{route}");
+    assert_eq!((end.piles.played, end.piles.deck), (20, 32), "{route}");
+    assert_eq!(end.eligible, opening.eligible, "{route}");
+    assert_eq!(end.resources, opening.resources, "{route}");
+    assert_eq!(end.eligibility.m26_next_card, Some(true), "{route}");
+    assert_eq!(end.event_executor, Some(M26), "{route}");
+    assert_eq!(end.executing, None, "{route}");
+    assert_eq!(end.owner, Directorio, "{route}");
+    assert!(end.manifesto.as_ref().unwrap().complete(), "{route}");
+    let next = end.next.as_ref().unwrap();
+    assert_eq!(
+        (next.faction, next.role.as_str()),
+        (Directorio, "2nd Eligible"),
+        "{route}"
+    );
+    assert_eq!(
+        end.choices
+            .iter()
+            .map(|c| (c.action(), c.owner, c.supported))
+            .collect::<Vec<_>>(),
+        [
+            ("directorio:pass", Directorio, false),
+            ("directorio:operation", Directorio, false)
+        ],
+        "{route}"
+    );
+    assert_eq!(
+        end.standings
+            .iter()
+            .map(|s| (s.score, s.margin))
+            .collect::<Vec<_>>(),
+        standings,
+        "{route}"
+    );
+
+    let check_space = |id, control, groups: &[(Faction, Kind, State, u8, u8)]| {
+        let space = end.spaces.iter().find(|space| space.id == id).unwrap();
+        assert_eq!(space.control(), Some(control), "{route}: {id}");
+        for &(faction, kind, state, count, available) in groups {
+            let on_map = space
+                .pieces
+                .iter()
+                .find(|p| (p.faction, p.kind, p.state) == (faction, kind, state))
+                .unwrap();
+            let available_group = end
+                .available
+                .iter()
+                .find(|p| (p.faction, p.kind) == (faction, kind))
+                .unwrap();
+            assert_eq!(
+                (on_map.count, available_group.count),
+                (count, available),
+                "{route}: {id} {kind:?}"
+            );
+        }
+    };
+    match route {
+        "both-pass" => check_space(
+            "sierra-maestra",
+            M26,
+            &[
+                (M26, Kind::Guerrilla, State::Underground, 5, 7),
+                (M26, Kind::Base, State::Ordinary, 2, 2),
+            ],
+        ),
+        "pass-and-multi-space-construct" => check_space(
+            "camaguey-city",
+            Government,
+            &[
+                (Syndicate, Kind::Casino, State::Closed, 1, 5),
+                (Syndicate, Kind::Guerrilla, State::Underground, 2, 4),
+            ],
+        ),
+        "empty-assault-and-pass" => {
+            check_space(
+                "santiago",
+                M26,
+                &[
+                    (M26, Kind::Guerrilla, State::Active, 2, 11),
+                    (M26, Kind::Guerrilla, State::Underground, 1, 11),
+                    (M26, Kind::Base, State::Ordinary, 1, 2),
+                ],
+            );
+            check_space(
+                "camaguey-city",
+                Government,
+                &[
+                    (Government, Kind::Troops, State::Ordinary, 2, 2),
+                    (Government, Kind::Base, State::Ordinary, 1, 1),
+                ],
+            );
+        }
+        "funded-assault-and-limited-construct" => check_space(
+            "havana",
+            Government,
+            &[
+                (Directorio, Kind::Base, State::Ordinary, 2, 2),
+                (Syndicate, Kind::Casino, State::Open, 1, 7),
+                (Syndicate, Kind::Guerrilla, State::Underground, 2, 4),
+                (Government, Kind::Troops, State::Ordinary, 7, 2),
+                (Government, Kind::Police, State::Ordinary, 5, 7),
+            ],
+        ),
+        _ => unreachable!(),
+    }
+
+    let reports = session.reports();
+    assert_eq!(reports.len(), prior_reports.len() + 1, "{route}");
+    assert_eq!(&reports[..prior_reports.len()], prior_reports, "{route}");
+    let report = reports.last().unwrap();
+    assert_eq!(
+        (report.card, report.faction, report.complete),
+        (19, M26, true),
+        "{route}"
+    );
+    assert_eq!(
+        report
+            .articles
+            .iter()
+            .flat_map(|article| &article.lines)
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        lines,
+        "{route}"
+    );
+    assert_eq!(session.game().random_state(), random, "{route}");
+    drop(session);
+    let reopened = Session::open(path, None).unwrap();
+    assert_eq!(reopened.observe(), end, "{route}");
+    assert_eq!(reopened.reports(), reports, "{route}");
+}
+
 /// A restart at each pending decision of the unshaded Event: the Rally's beneficiary
 /// choice, the free Rally, the card advance, Government's Pass and Syndicate's
 /// decision after it.
@@ -1642,4 +2115,522 @@ fn action_choice_pending_request_and_pass_survive_restart_exactly_once() {
             "pass"
         ]
     );
+}
+
+#[test]
+fn manifesto_declines_replay_in_printed_order_without_taking_card_actions() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("manifesto.json");
+    let mut session = Session::create_seeded(&path, 2).unwrap();
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:pass",
+        "syndicate:construct",
+        "construct:camaguey-city:place",
+        "end-construct",
+        "advance-card",
+        "m26:event",
+    ] {
+        act(&mut session, action);
+    }
+
+    let before = session.observe();
+    let random = session.game().random_state();
+    let mut stale: Option<Submitted> = None;
+    let owners = [
+        Faction::M26,
+        Faction::Directorio,
+        Faction::Syndicate,
+        Faction::Government,
+    ];
+    for owner in owners {
+        let seen = session.observe();
+        assert_eq!(seen.owner, owner);
+        assert_eq!(seen.executing, Some(Faction::M26));
+        assert_eq!(seen.event_executor, Some(Faction::M26));
+        assert_eq!(seen.eligible, [true, true, true, false]);
+        assert_eq!(seen.next, None);
+        let decline = seen
+            .choices
+            .iter()
+            .find(|c| c.action() == "manifesto:decline")
+            .unwrap();
+        let initial_save = std::fs::read(&path).unwrap();
+        let previous_save = std::fs::read(previous_path(&path)).unwrap();
+        let wrong_owner = if owner == Faction::M26 {
+            Faction::Directorio
+        } else {
+            Faction::M26
+        };
+        assert!(
+            session
+                .submit(wrong_owner, seen.revision, &decline.id)
+                .unwrap_err()
+                .to_string()
+                .contains("decision owner")
+        );
+        if let Some(stale) = stale {
+            assert!(
+                session
+                    .submit(stale.owner, stale.revision, &stale.id)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("Stale match revision")
+            );
+            assert!(
+                session
+                    .submit(owner, seen.revision, &stale.id)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("Stale or unknown choice identity")
+            );
+        }
+        assert_eq!(session.observe(), seen);
+        assert_eq!(std::fs::read(&path).unwrap(), initial_save);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), previous_save);
+        stale = Some(act(&mut session, "manifesto:decline"));
+        let after = session.observe();
+        assert_eq!(after.revision, seen.revision + 1);
+        assert_eq!(after.spaces, before.spaces);
+        assert_eq!(after.available, before.available);
+        assert_eq!(after.resources, before.resources);
+        assert_eq!(after.standings, before.standings);
+        assert_eq!(after.eligible, before.eligible);
+        assert_eq!(after.passed, [false; 4]);
+        assert_eq!(session.game().random_state(), random);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), initial_save);
+        let reports = session.reports();
+        drop(session);
+        session = Session::open(&path, None).unwrap();
+        assert_eq!(session.observe(), after);
+        assert_eq!(session.reports(), reports);
+    }
+    let after = session.observe();
+    assert_eq!(after.owner, Faction::Directorio);
+    assert_eq!(after.executing, None);
+    assert_eq!(after.event_executor, Some(Faction::M26));
+    assert_eq!(
+        after.cards.current.status,
+        cuba_libre_unfolded::EventStatus::SingleResolved {
+            faction: Faction::M26
+        }
+    );
+    assert_eq!(after.eligibility.m26_next_card, Some(true));
+    assert_eq!(after.manifesto.unwrap().declines, owners);
+    let next = after.next.unwrap();
+    assert_eq!(
+        (next.faction, next.role.as_str()),
+        (Faction::Directorio, "2nd Eligible")
+    );
+    assert_eq!(
+        next.options,
+        [
+            "Pass (+1 if executed later)",
+            "Operation (with or without a Special Activity)"
+        ]
+    );
+    assert_eq!(after.choices.len(), 2);
+    assert!(
+        after
+            .choices
+            .iter()
+            .all(|choice| !choice.supported && choice.owner == Faction::Directorio)
+    );
+    let reports = session.reports();
+    let report = reports.last().unwrap();
+    assert_eq!(
+        (report.card, report.faction, report.complete),
+        (19, Faction::M26, true)
+    );
+    assert_eq!(report.recorded, Some("Event"));
+    assert_eq!(
+        report
+            .articles
+            .iter()
+            .flat_map(|article| &article.lines)
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        [
+            "26July declined placement.",
+            "Directorio declined placement.",
+            "Syndicate declined placement.",
+            "Government declined placement.",
+        ]
+    );
+
+    let finished = std::fs::read(&path).unwrap();
+    let previous = std::fs::read(previous_path(&path)).unwrap();
+    let recovery_path = dir.path().join("recovered.json");
+    let mut recovered = Session::open(&recovery_path, Some(&path)).unwrap();
+    let pending = recovered.observe();
+    assert_eq!(pending.revision, session.observe().revision - 1);
+    assert_eq!(pending.owner, Faction::Government);
+    assert_eq!(pending.manifesto.unwrap().declines, owners[..3]);
+    assert_eq!(std::fs::read(&recovery_path).unwrap(), previous);
+    act(&mut recovered, "manifesto:decline");
+    assert_eq!(recovered.observe(), session.observe());
+    assert_eq!(recovered.reports(), reports);
+    assert_eq!(std::fs::read(&path).unwrap(), finished);
+    assert_eq!(std::fs::read(previous_path(&path)).unwrap(), previous);
+}
+
+#[test]
+fn manifesto_own_removal_recalculates_placement_and_control() {
+    use Faction::M26;
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("manifesto-removal.json");
+    let mut session = open_manifesto(&path);
+
+    // Oriente has one active 26July Guerrilla and no other piece after shaded
+    // Alberto Bayo. Its lone Guerrilla qualifies the space and gives Control.
+    let before = session.observe();
+    let oriente = before.spaces.iter().find(|s| s.id == "oriente").unwrap();
+    assert_eq!(oriente.control(), Some(M26));
+    let placement = before
+        .choices
+        .iter()
+        .find(|c| c.action() == "manifesto:place:oriente:guerrilla-guerrilla")
+        .unwrap();
+    assert_eq!(
+        before
+            .available
+            .iter()
+            .find(|g| g.faction == M26 && g.kind == Kind::Guerrilla)
+            .unwrap()
+            .count,
+        12
+    );
+
+    act(&mut session, "remove");
+    let removal = session.observe();
+    assert_eq!(removal.owner, M26);
+    assert_eq!(
+        removal
+            .choices
+            .iter()
+            .filter(|c| c.action().starts_with("remove:oriente:"))
+            .map(|c| c.action())
+            .collect::<Vec<_>>(),
+        ["remove:oriente:active:1"]
+    );
+    for (owner, action) in [
+        (M26, "remove:oriente:active:0"),
+        (M26, "remove:oriente:active:2"),
+        (M26, "remove:havana:active:1"),
+        (Faction::Directorio, "remove:oriente:active:1"),
+    ] {
+        assert!(
+            session
+                .submit(
+                    owner,
+                    removal.revision,
+                    &format!("{}:{action}", removal.revision)
+                )
+                .is_err()
+        );
+    }
+    assert_eq!(session.observe(), removal);
+
+    act(&mut session, "remove:oriente:active:1");
+    let removed = session.observe();
+    let oriente = removed.spaces.iter().find(|s| s.id == "oriente").unwrap();
+    assert!(oriente.pieces.is_empty());
+    assert_eq!(oriente.control(), None);
+    assert_eq!(
+        removed
+            .available
+            .iter()
+            .find(|g| g.faction == M26 && g.kind == Kind::Guerrilla)
+            .unwrap()
+            .count,
+        13
+    );
+    assert_eq!(removed.resources, before.resources);
+    assert_eq!(removed.manifesto, before.manifesto);
+
+    let pre_done = std::fs::read(&path).unwrap();
+    drop(session);
+    let mut session = Session::open(&path, None).unwrap();
+    assert_eq!(session.observe(), removed);
+    act(&mut session, "done-removal");
+    assert_eq!(std::fs::read(previous_path(&path)).unwrap(), pre_done);
+    let returned = session.observe();
+    assert_eq!(returned.owner, M26);
+    assert_eq!(returned.removal, None);
+    assert_eq!(
+        returned
+            .space_reasons
+            .iter()
+            .find(|r| r.space == "oriente")
+            .unwrap()
+            .reason,
+        "26July has no piece here."
+    );
+    assert!(
+        !returned
+            .choices
+            .iter()
+            .any(|c| c.space() == Some("oriente"))
+    );
+    for (revision, id) in [
+        (before.revision, placement.id.clone()),
+        (
+            returned.revision,
+            format!("{}:{}", returned.revision, placement.action()),
+        ),
+    ] {
+        assert!(session.submit(M26, revision, &id).is_err());
+    }
+    assert_eq!(session.observe(), returned);
+    act(&mut session, "manifesto:place:santiago:guerrilla-base");
+    assert_eq!(session.observe().owner, Faction::Directorio);
+
+    // During Directorio's placement, 26July still executes the Event. It may
+    // remove its own piece and then return the placement choice to Directorio.
+    let directorio = session.observe();
+    assert!(
+        session
+            .submit(
+                Faction::Directorio,
+                directorio.revision,
+                &format!("{}:remove", directorio.revision)
+            )
+            .is_err()
+    );
+    assert_eq!(act(&mut session, "remove").owner, M26);
+    assert_eq!(session.observe().owner, M26);
+    act(&mut session, "remove:sierra-maestra:base:1");
+    act(&mut session, "done-removal");
+    let handed_back = session.observe();
+    assert_eq!(handed_back.owner, Faction::Directorio);
+    assert_eq!(handed_back.manifesto, directorio.manifesto);
+    assert!(
+        handed_back
+            .choices
+            .iter()
+            .filter(|c| c.space().is_some())
+            .all(|c| c.owner == Faction::Directorio)
+    );
+}
+
+fn open_manifesto(path: &Path) -> Session {
+    let mut session = Session::create_seeded(path, Session::KIDNAP_ROLLS_1).unwrap();
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:pass",
+        "syndicate:pass",
+        "advance-card",
+        "m26:event",
+    ] {
+        act(&mut session, action);
+    }
+    session
+}
+
+#[test]
+fn manifesto_transfer_retains_giver_authority_and_resumes_the_placement() {
+    use Faction::{Directorio, Government, M26, Syndicate};
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("manifesto-transfer.json");
+    let mut session = open_manifesto(&path);
+    act(&mut session, "remove");
+    act(&mut session, "remove:oriente:active:1");
+    act(&mut session, "done-removal");
+    act(&mut session, "manifesto:place:santiago:guerrilla-base");
+    let placement = session.observe();
+    assert_eq!(placement.owner, Directorio);
+    assert_eq!(placement.resources, [8, 0, 5, 16]);
+
+    let transfer = format!("{}:transfer", placement.revision);
+    assert!(
+        session
+            .submit(Directorio, placement.revision, &transfer)
+            .is_err()
+    );
+    assert_eq!(act(&mut session, "transfer").owner, M26);
+    let transfer = session.observe();
+    assert_eq!(transfer.owner, M26);
+    assert_eq!(transfer.transfer_terms.len(), 6);
+    assert!(
+        transfer
+            .transfer_terms
+            .iter()
+            .all(|t| t.giver == M26 || t.recipient == M26)
+    );
+    let government = transfer
+        .transfer_terms
+        .iter()
+        .find(|t| t.giver == Government)
+        .unwrap();
+    assert_eq!(
+        (
+            government.balance,
+            government.held,
+            government.room,
+            government.reserved,
+            government.limit
+        ),
+        (8, 0, 49, 0, 8)
+    );
+    assert!(
+        session
+            .submit(
+                M26,
+                transfer.revision,
+                &format!("{}:ask:0:9", transfer.revision)
+            )
+            .is_err()
+    );
+    assert!(
+        session
+            .submit(
+                M26,
+                transfer.revision,
+                &format!("{}:give:3:1", transfer.revision)
+            )
+            .is_err()
+    );
+    act(&mut session, "give:3:0");
+    assert_eq!(session.observe().resources, [8, 0, 5, 16]);
+    assert_eq!(session.observe().owner, Directorio);
+
+    act(&mut session, "transfer");
+    let request = act(&mut session, "ask:0:2");
+    let pending = session.observe();
+    assert_eq!(pending.owner, Government);
+    assert_eq!(pending.executing, Some(M26));
+    assert_eq!(
+        pending.manifesto.as_ref().unwrap().pending(),
+        Some(Directorio)
+    );
+    assert_eq!(pending.resources, [8, 0, 5, 16]);
+    assert_eq!(pending.transfer_terms.len(), 1);
+    let authorize = |revision| format!("{revision}:authorize:8");
+    assert!(
+        session
+            .submit(
+                Government,
+                pending.revision,
+                &format!("{}:authorize:9", pending.revision)
+            )
+            .is_err()
+    );
+    act(&mut session, "wait");
+    let aside = session.observe();
+    assert_eq!(aside.owner, Government);
+    assert!(matches!(
+        aside.transfer,
+        Some(Transfer::Authorizing {
+            amount: 2,
+            waited: true,
+            ..
+        })
+    ));
+    assert!(
+        !aside
+            .choices
+            .iter()
+            .any(|c| matches!(c.action(), "end-terror" | "back-to-choice"))
+    );
+    let bytes = std::fs::read(&path).unwrap();
+    let previous = std::fs::read(previous_path(&path)).unwrap();
+    drop(session);
+
+    let mut session = Session::open(&path, None).unwrap();
+    assert_eq!(session.observe(), aside);
+    for (owner, revision, id) in [
+        (M26, aside.revision, authorize(aside.revision)),
+        (
+            Directorio,
+            aside.revision,
+            format!("{}:manifesto:decline", aside.revision),
+        ),
+        (Government, pending.revision, authorize(pending.revision)),
+        (request.owner, request.revision, request.id),
+    ] {
+        assert!(session.submit(owner, revision, &id).is_err());
+    }
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    assert_eq!(std::fs::read(previous_path(&path)).unwrap(), previous);
+    act(&mut session, "reopen");
+    let reopened = session.observe();
+    assert_eq!(reopened.owner, Government);
+    assert_eq!(
+        reopened
+            .choices
+            .iter()
+            .filter_map(|c| c.action().strip_prefix("authorize:"))
+            .collect::<Vec<_>>(),
+        ["0", "1", "2", "3", "4", "5", "6", "7", "8"]
+    );
+    let before_authorization = std::fs::read(&path).unwrap();
+    act(&mut session, "authorize:8");
+    assert_eq!(
+        std::fs::read(previous_path(&path)).unwrap(),
+        before_authorization
+    );
+    let returned = session.observe();
+    assert_eq!(returned.owner, Directorio);
+    assert_eq!(returned.resources, [0, 8, 5, 16]);
+    assert_eq!(returned.manifesto, placement.manifesto);
+    assert_eq!(returned.spaces, placement.spaces);
+
+    for answer in ["decline", "authorize:0"] {
+        act(&mut session, "transfer");
+        act(&mut session, "ask:3:1");
+        let pending = session.observe();
+        assert_eq!(pending.owner, Syndicate);
+        assert_eq!(pending.resources, [0, 8, 5, 16]);
+        act(&mut session, answer);
+        assert_eq!(session.observe().owner, Directorio);
+        assert_eq!(session.observe().resources, [0, 8, 5, 16]);
+    }
+
+    act(&mut session, "transfer");
+    act(&mut session, "give:3:8");
+    assert_eq!(session.observe().owner, Directorio);
+    assert_eq!(session.observe().resources, [0, 0, 5, 24]);
+    act(&mut session, "manifesto:decline");
+    act(&mut session, "manifesto:decline");
+    let pre_finish = std::fs::read(&path).unwrap();
+    act(&mut session, "manifesto:decline");
+    let finished = session.observe();
+    let reports = session.reports();
+    let manifesto = finished.manifesto.as_ref().unwrap();
+    assert_eq!(finished.owner, Directorio);
+    assert_eq!(finished.executing, None);
+    assert_eq!(finished.resources, [0, 0, 5, 24]);
+    assert_eq!(manifesto.placements.len(), 1);
+    assert_eq!(manifesto.declines, [Directorio, Syndicate, Government]);
+    assert_eq!(finished.spaces, placement.spaces);
+    assert_eq!(finished.available, placement.available);
+    assert!(finished.choices.iter().all(|c| !c.supported));
+    assert_eq!(std::fs::read(previous_path(&path)).unwrap(), pre_finish);
+    drop(session);
+    let resumed = Session::open(&path, None).unwrap();
+    assert_eq!(resumed.observe(), finished);
+    assert_eq!(resumed.reports(), reports);
+    let recovery_path = dir.path().join("manifesto-transfer-recovered.json");
+    let mut recovered = Session::open(&recovery_path, Some(&path)).unwrap();
+    assert_eq!(std::fs::read(&recovery_path).unwrap(), pre_finish);
+    assert_eq!(recovered.observe().owner, Government);
+    act(&mut recovered, "manifesto:decline");
+    assert_eq!(recovered.observe(), finished);
+    assert_eq!(recovered.reports(), reports);
 }

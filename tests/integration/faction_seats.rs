@@ -1119,7 +1119,7 @@ fn a_view_says_what_each_text_of_the_face_up_cards_does() {
             "already has a piece",
             "stays Eligible",
         ],
-        "not in this build",
+        "in this build, by 26July",
     )];
     let check = |card: &Value, number: u64, title: &str, texts: &[Text]| {
         assert_eq!(card["number"], number);
@@ -1231,9 +1231,9 @@ fn a_view_says_what_each_text_of_the_face_up_cards_does() {
     assert_eq!(notes(&view, "syndicate:event"), json!([statement]));
 }
 
-/// The four ends of this build. A seat that reaches one is told, and is not woken.
+/// A seat waiting as play ends or the human has to turn the card stays asleep.
 #[test]
-fn at_each_end_of_the_build_the_seat_is_told_and_not_woken() {
+fn waiting_seats_stay_asleep_at_build_ends_and_human_card_advances() {
     for (from, ending, decider) in [
         // Two ends list no choice at all (R 2.3.3, 2.3.4).
         (&[][..], "pass", Directorio),
@@ -1282,22 +1282,33 @@ fn at_each_end_of_the_build_the_seat_is_told_and_not_woken() {
         s.pass(3600);
         assert!(s.answer(waiting).is_none(), "{ending} woke {decider:?}");
         let view = s.observe(&player);
-        assert_eq!(view["decision"]["stands"], "build-ends", "{ending}");
+        let (stands, state, wire, words) = if decider == Syndicate {
+            (
+                Stands::Card,
+                SeatState::AtTable,
+                "card",
+                "The human turns the card",
+            )
+        } else {
+            (
+                Stands::BuildEnds,
+                SeatState::BuildEnds,
+                "build-ends",
+                "The build stops here",
+            )
+        };
+        assert_eq!(view["decision"]["stands"], wire, "{ending}");
         assert_eq!(view["decision"]["faction"], json!(decider));
         assert_eq!(view["decision"]["yours"], false);
         let note = view["decision"]["note"].as_str().unwrap();
-        if decider == Syndicate {
-            assert!(note.contains("Card 18 is complete"), "{note}");
-        } else {
-            assert!(note.contains("The build stops here"), "{note}");
-        }
+        assert!(note.contains(words), "{note}");
         let supported = view["choices"].as_array().unwrap().iter();
         assert!(supported.clone().all(|c| c["supported"] == false));
         assert_eq!(supported.len(), 0, "{ending}");
-        assert_eq!(s.state(decider), SeatState::BuildEnds);
-        assert_eq!(Stands::of(s.room.session.game()), Stands::BuildEnds);
+        assert_eq!(s.state(decider), state);
+        assert_eq!(Stands::of(s.room.session.game()), stands);
         // Every other view says so too, and no submission is taken.
-        assert_eq!(s.observe(&government)["decision"]["stands"], "build-ends");
+        assert_eq!(s.observe(&government)["decision"]["stands"], wire);
         if decider == Syndicate {
             let request = s.choice(&player, "syndicate:pass");
             s.refused(request);

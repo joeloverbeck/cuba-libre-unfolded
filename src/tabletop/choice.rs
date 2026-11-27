@@ -38,7 +38,7 @@ pub(super) mod fig {
     pub const SUBTITLE_LINE: f32 = 42.;
     /// Section labels: `section:event` and `section:operations`.
     pub const SECTIONS: [(&str, f32, &str); 2] = [
-        ("section:event", 1110.8, "EVENT · CARD 17, ALBERTO BAYO"),
+        ("section:event", 1110.8, "EVENT"),
         (
             "section:operations",
             1350.,
@@ -257,9 +257,22 @@ struct Commit {
     name: String,
     enabled: bool,
 }
-fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
-    let choice = pinned.and_then(|p| view.choices.iter().find(|c| c.action() == p));
+fn commit(view: &Observation, ui: &Interface) -> Commit {
+    let choice = ui
+        .choice
+        .pinned
+        .as_deref()
+        .and_then(|pinned| view.choices.iter().find(|c| c.action() == pinned));
     match choice {
+        Some(c) if c.supported && !ui.plays(c.owner) => Commit {
+            label: format!("{}'s seat chooses", c.owner.name()),
+            action: Action::Unsupported(format!(
+                "Only {}'s seat can choose this option.",
+                c.owner.name()
+            )),
+            name: "choice-commit".into(),
+            enabled: false,
+        },
         Some(c) if c.supported => Commit {
             label: match c.action() {
                 // The gain the authority previews, possibly zero at the cap.
@@ -279,6 +292,7 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                 "terror" => "Choose Terror".into(),
                 "event:shaded" => "Choose shaded Event".into(),
                 "event:unshaded" => "Choose unshaded Event".into(),
+                crate::game::MANIFESTO_EVENT => "Choose Event".into(),
                 _ => c.label.clone(),
             },
             action: Action::Commit(c.owner, view.revision),
@@ -288,7 +302,7 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
         Some(c) => {
             let label = if c.action() == "end-construct" {
                 "Pay for one space first".into()
-            } else if view.current_card == 18 {
+            } else if view.current_card >= 18 {
                 "Inspection only".into()
             } else if view.eligibility.directorio_handoff() {
                 format!("{} is outside this task", c.label)
@@ -312,14 +326,14 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
             enabled: false,
         },
         None => Commit {
-            label: if view.current_card == 18 || view.eligibility.directorio_handoff() {
+            label: if view.current_card >= 18 || view.eligibility.directorio_handoff() {
                 "Click an option to inspect it"
             } else {
                 "Click an option to choose it"
             }
             .into(),
             action: Action::Unsupported(
-                if view.current_card == 18 || view.eligibility.directorio_handoff() {
+                if view.current_card >= 18 || view.eligibility.directorio_handoff() {
                     "Hover or focus an option for its briefing. Click or press Enter to pin it."
                 } else {
                     "Pin an option first: click it, or focus it with Tab and press Enter. Its briefing stays open and this button commits it."
@@ -359,14 +373,21 @@ fn pending_withdrawal<'a>(view: &'a Observation, ui: &Interface) -> Option<&'a C
 /// Event execution and the card 18 decisions use rows without section headings.
 /// During Assault the rows follow the map line and the record of paid spaces (#169).
 fn panel_rows(view: &Observation) -> impl Iterator<Item = (&Choice, f32)> {
-    let tops = if view.current_card == 18 || view.event.as_ref().is_some_and(EventProgress::pending)
+    let tops = if view.current_card == 18
+        || view.manifesto.is_some()
+        || view.event.as_ref().is_some_and(EventProgress::pending)
     {
         let within_section_pitch = fig::ROWS[2] - fig::ROWS[1];
-        let first = payment_rows_top(view).unwrap_or(fig::ROWS[0]);
+        let first = record_rows_top(view).unwrap_or(fig::ROWS[0]);
         std::array::from_fn(|i| first + i as f32 * within_section_pitch)
     } else {
         fig::ROWS
     };
+    // The Manifesto has a single Event. Leave the second Event slot empty so
+    // the Operations still begin at their authored position.
+    let tops = tops.into_iter().enumerate().filter_map(|(i, top)| {
+        (view.current_card != 19 || view.manifesto.is_some() || i != 2).then_some(top)
+    });
     panel_options(view).zip(tops)
 }
 
@@ -379,10 +400,10 @@ fn assault_open(view: &Observation) -> bool {
         && view.removal.is_none()
 }
 
-/// One of the Assault panel's lines under its cost lines.
+/// A map instruction or a line of the committed record in the decision panel.
 #[derive(Clone, Debug, PartialEq)]
-pub(super) struct AssaultLine {
-    /// The part's name: `assault-map-line`, or `assault-record:<space>`.
+struct PanelLine {
+    /// The part's name, for example `assault-map-line` or `manifesto-record:26july`.
     pub name: String,
     /// The words, wrapped to [`fig::ASSAULT_RECORD_CHARS`] a line.
     pub words: String,
@@ -390,9 +411,9 @@ pub(super) struct AssaultLine {
     pub top: f32,
 }
 
-fn payment_record(name: String, summary: &str, top: &mut f32) -> AssaultLine {
+fn record_line(name: String, summary: &str, top: &mut f32) -> PanelLine {
     let words = briefing::wrap(summary, fig::ASSAULT_RECORD_CHARS).join("\n");
-    let line = AssaultLine {
+    let line = PanelLine {
         name,
         words,
         top: *top,
@@ -405,18 +426,18 @@ fn payment_record(name: String, summary: &str, top: &mut f32) -> AssaultLine {
 /// player to the map, then each paid space in the order paid, with the authority's
 /// summary of what it paid and what was removed or closed. Empty while the panel
 /// shows anything but Assault's own steps.
-pub(super) fn assault_lines(view: &Observation) -> Vec<AssaultLine> {
+fn assault_lines(view: &Observation) -> Vec<PanelLine> {
     if !assault_open(view) {
         return vec![];
     }
-    let mut lines = vec![AssaultLine {
+    let mut lines = vec![PanelLine {
         name: "assault-map-line".into(),
         words: super::execution::MAP_LINE.into(),
         top: fig::ASSAULT_MAP_LINE[0],
     }];
     let mut top = fig::ASSAULT_RECORD[0];
     for paid in &view.assault_paid {
-        lines.push(payment_record(
+        lines.push(record_line(
             format!("assault-record:{}", paid.space),
             &paid.summary(),
             &mut top,
@@ -425,8 +446,51 @@ pub(super) fn assault_lines(view: &Observation) -> Vec<AssaultLine> {
     lines
 }
 
-/// Construct uses the existing payment and outcome column above the action rows.
-fn payment_lines(view: &Observation) -> Vec<AssaultLine> {
+/// Construct and the Manifesto reuse Assault's record column above the action rows.
+fn panel_lines(view: &Observation) -> Vec<PanelLine> {
+    if let Some(event) = view.manifesto.as_ref().filter(|event| event.complete()) {
+        let mut lines = vec![];
+        let mut top = fig::ASSAULT_RECORD[0];
+        for faction in view.cards.current.order {
+            let words = match event.placements.iter().find(|p| p.faction == faction) {
+                Some(placement) => {
+                    let space = view
+                        .spaces
+                        .iter()
+                        .find(|space| space.id == placement.space)
+                        .expect("A committed placement has a space");
+                    format!(
+                        "{} · {} · {}",
+                        faction.name(),
+                        placement.piece_description(),
+                        space.name
+                    )
+                }
+                None if event.declines.contains(&faction) => {
+                    format!("{} · declined placement", faction.name())
+                }
+                None => continue,
+            };
+            lines.push(record_line(
+                format!("manifesto-record:{}", slug(faction)),
+                &words,
+                &mut top,
+            ));
+        }
+        return lines;
+    }
+    if view
+        .manifesto
+        .as_ref()
+        .is_some_and(|event| !event.complete())
+        && view.choices.iter().any(|c| c.supported && c.site.is_some())
+    {
+        return vec![PanelLine {
+            name: "manifesto-map-line".into(),
+            words: "Choose a highlighted space to inspect its legal mixes.".into(),
+            top: fig::ASSAULT_MAP_LINE[0],
+        }];
+    }
     if view.current_card != 18
         || view.executing != Some(Faction::Syndicate)
         || view.transfer.is_some()
@@ -434,7 +498,7 @@ fn payment_lines(view: &Observation) -> Vec<AssaultLine> {
     {
         return assault_lines(view);
     }
-    let mut lines = vec![AssaultLine {
+    let mut lines = vec![PanelLine {
         name: "construct-map-line".into(),
         words: if let Some(funding) = &view.construct_funding {
             funding.summary()
@@ -462,7 +526,7 @@ fn payment_lines(view: &Observation) -> Vec<AssaultLine> {
             .iter()
             .find(|space| space.id == paid.space)
             .unwrap();
-        lines.push(payment_record(
+        lines.push(record_line(
             format!("construct-record:{}", paid.space),
             &paid.summary(&space.name),
             &mut top,
@@ -471,17 +535,19 @@ fn payment_lines(view: &Observation) -> Vec<AssaultLine> {
     lines
 }
 
-/// The first row's top during Assault. With nothing paid the rows stand where the
-/// record would start; a record moves them down by one line pitch for each of its
-/// lines, and the column's gap follows it.
-fn payment_rows_top(view: &Observation) -> Option<f32> {
-    let lines = payment_lines(view);
-    let record: usize = lines.iter().skip(1).map(|l| l.words.lines().count()).sum();
-    (!lines.is_empty()).then(|| assault_rows_after(record))
+/// The rows follow the record and its gap, or start in its place if it is empty.
+fn record_rows_top(view: &Observation) -> Option<f32> {
+    let lines = panel_lines(view);
+    let record: usize = lines
+        .iter()
+        .filter(|line| !line.name.ends_with("-map-line"))
+        .map(|line| line.words.lines().count())
+        .sum();
+    (!lines.is_empty()).then(|| rows_after_record(record))
 }
 
 /// The first row's top under a record of `lines` lines.
-fn assault_rows_after(lines: usize) -> f32 {
+fn rows_after_record(lines: usize) -> f32 {
     let [first, pitch, ..] = fig::ASSAULT_RECORD;
     match lines {
         0 => first,
@@ -492,6 +558,29 @@ fn assault_rows_after(lines: usize) -> f32 {
 /// The panel's two lines under its heading: where the match stands, and how the human
 /// works the rows, which an `agent`'s panel says above its strip instead.
 fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool, agent: bool) -> String {
+    if let Some(manifesto) = &view.manifesto {
+        return if let Some(pending) = manifesto.pending() {
+            let placement = pending.name();
+            match &view.transfer {
+                Some(Transfer::Authorizing { giver, .. }) => format!(
+                    "A Resource request awaits {}.\nPlacement decision · {placement}",
+                    giver.name()
+                ),
+                Some(Transfer::Selecting) => {
+                    format!("26July chooses a Resource transfer.\nPlacement decision · {placement}")
+                }
+                None if view.removal.is_some() => format!(
+                    "26July removes its own pieces.\n{placement} decides placement after Done."
+                ),
+                None => format!(
+                    "{} executes the Event.\n{placement} decides whether to place.",
+                    view.event_executor.expect("Manifesto executor").name(),
+                ),
+            }
+        } else {
+            "26July stays Eligible after executing the Event.".into()
+        };
+    }
     if view.current_card == 18 {
         let balance = resources(view.resources[view.owner.index()]);
         if let Some(next) = &view.next {
@@ -593,7 +682,8 @@ fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool, agent
         }
         _ if directorio => "2nd Eligible on card 17 · Kidnap opened the Event (R 2.3.4)".into(),
         _ => format!(
-            "1st Eligible on card 17 · 26July has {}",
+            "1st Eligible on card {} · 26July has {}",
+            view.current_card,
             resources(view.resources[Faction::M26.index()])
         ),
     };
@@ -623,6 +713,11 @@ pub(super) fn panel(
     let event_pending = view.event.as_ref().is_some_and(EventProgress::pending);
     let card_18 = view.current_card == 18;
     let executor = view.executing.unwrap_or(view.owner);
+    let emblem_faction = if view.manifesto.is_some() {
+        view.owner
+    } else {
+        executor
+    };
     // While an agent's faction decides, the panel is inert (#206): no plates, and the
     // strip in the commit's place.
     let agent = super::seat_cards::deciding(view, ui).is_some();
@@ -633,7 +728,7 @@ pub(super) fn panel(
     let emblem = picture(
         commands,
         art,
-        &emblems::image(executor),
+        &emblems::image(emblem_faction),
         rect(x, y, w, h),
         s,
         o,
@@ -642,6 +737,10 @@ pub(super) fn panel(
     part(commands, emblem, "choice-heading-emblem");
     let [x, y, w] = fig::HEADING;
     let title = match &view.event {
+        _ if view.manifesto.is_some() => match &view.next {
+            Some(next) => format!("{} · {}", next.faction.name(), next.role),
+            None => view.cards.current.title.into(),
+        },
         _ if view.removal.is_some() && executor == Faction::Syndicate => {
             "Syndicate · Manage own pieces".into()
         }
@@ -700,12 +799,16 @@ pub(super) fn panel(
     part(commands, subtitle, "choice-subtitle");
     for (name, top, words) in fig::SECTIONS
         .into_iter()
-        .filter(|_| !event_pending && !card_18)
+        .filter(|_| !event_pending && !card_18 && view.manifesto.is_none())
     {
-        let words = if directorio && name == "section:operations" {
-            "OPERATIONS"
-        } else {
-            words
+        let words = match name {
+            "section:event" => format!(
+                "{words} · CARD {}, {}",
+                view.current_card,
+                view.cards.current.title.to_uppercase(),
+            ),
+            "section:operations" if directorio => "OPERATIONS".into(),
+            _ => words.into(),
         };
         let label = text(
             commands,
@@ -731,7 +834,7 @@ pub(super) fn panel(
         );
         part(commands, label, name);
     }
-    for line in payment_lines(view) {
+    for line in panel_lines(view) {
         let record = !line.name.ends_with("-map-line");
         let [_, _, size, height] = if record {
             fig::ASSAULT_RECORD
@@ -775,6 +878,14 @@ pub(super) fn panel(
                 "INSPECT"
             };
             (choice.label.as_str(), (!choice.supported).then_some(pill))
+        } else if view.current_card == 19 {
+            let (label, _) = listing(act);
+            let label = if label.is_empty() {
+                &choice.label
+            } else {
+                label
+            };
+            (label, (!choice.supported).then_some("INSPECT"))
         } else if directorio || event_pending {
             let status = (!choice.supported).then_some("NOT IN THIS TASK");
             (choice.label.as_str(), status)
@@ -842,13 +953,23 @@ pub(super) fn panel(
                 5,
             );
         }
+        let pill_width = if act == "terror:kidnap" {
+            fig::PILL_WIDE
+        } else {
+            fig::PILL_W
+        };
+        let label_right = if view.current_card == 19 && pill.is_some() {
+            fig::PILL_RIGHT - pill_width - fig::PILL_TEXT[0]
+        } else {
+            fig::ROW_W
+        };
         let words = text(
             commands,
             art,
             Prose::named(label),
             rx(fig::ROW_X + lx),
             ry(top + ly),
-            rs(fig::ROW_W - lx),
+            rs(label_right - lx),
             rs(size),
             s,
             o,
@@ -860,12 +981,7 @@ pub(super) fn panel(
         style(commands, words, art, offered, rs(size) * s, 0., None);
         part(commands, words, &format!("{name}-label"));
         if let Some(pill) = pill {
-            let width = if act == "terror:kidnap" {
-                fig::PILL_WIDE
-            } else {
-                fig::PILL_W
-            };
-            let left = fig::ROW_X + fig::PILL_RIGHT - width;
+            let left = fig::ROW_X + fig::PILL_RIGHT - pill_width;
             let plate = picture(
                 commands,
                 art,
@@ -874,7 +990,7 @@ pub(super) fn panel(
                 } else {
                     "atlas-choice-pill.png"
                 },
-                rect(left, top + fig::PILL_TOP, width, fig::PILL_H),
+                rect(left, top + fig::PILL_TOP, pill_width, fig::PILL_H),
                 s,
                 o,
                 5,
@@ -886,7 +1002,7 @@ pub(super) fn panel(
                 Prose::named(pill),
                 rx(left + fig::PILL_TEXT[0]),
                 ry(top + fig::PILL_TOP + fig::PILL_TEXT[1]),
-                rs(width - fig::PILL_TEXT[0]),
+                rs(pill_width - fig::PILL_TEXT[0]),
                 rs(fig::PILL_SIZE),
                 s,
                 o,
@@ -932,12 +1048,21 @@ pub(super) fn panel(
         }
     }
     if let Some(strip) = super::seat_cards::strip(view, ui) {
-        let hint = panel_rows(view)
-            .next()
-            .map(|_| super::seat_cards::hint(strip.0));
+        let hint = panel_options(view).next().map(|_| {
+            if view.removal.is_none()
+                && let Some(faction) = view.manifesto.as_ref().and_then(crate::Manifesto::pending)
+            {
+                format!(
+                    "Hover an option for its briefing. {} decides placement.",
+                    faction.name()
+                )
+            } else {
+                super::seat_cards::hint(strip.0)
+            }
+        });
         return super::seat_cards::panel_strip(commands, art, strip, hint.as_deref(), s, o);
     }
-    let commit = commit(view, ui.choice.pinned.as_deref());
+    let commit = commit(view, ui);
     primary(
         commands,
         art,
@@ -1141,9 +1266,6 @@ fn map_focusable(
 
 /// The panel's controls Tab moves through.
 fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> {
-    if view.card_18_complete() {
-        return vec![];
-    }
     if let Some(advance) = view.choices.iter().find(|c| c.action() == "advance-card") {
         return vec![(
             advance.id.clone(),
@@ -1177,7 +1299,7 @@ fn panel_focusable(view: &Observation, ui: &Interface) -> Vec<(String, Action)> 
             let foot = match super::seat_cards::strip(view, ui) {
                 Some(_) => super::seat_cards::strip_focusable(view, ui),
                 None => {
-                    let commit = commit(view, ui.choice.pinned.as_deref());
+                    let commit = commit(view, ui);
                     Some((commit.name, commit.action))
                 }
             };
@@ -1453,7 +1575,7 @@ fn kept(
     popover: bool,
 ) -> Option<(&'static str, Option<(String, bool)>)> {
     let (prefix, ribbon) = match game.action {
-        _ if game.card_18 => ("option:", false),
+        _ if game.current_card() >= 18 => ("option:", false),
         ActionChoice::Open => ("option:", false),
         ActionChoice::Terror if game.eligibility().directorio_handoff() => ("option:", false),
         _ if game.event.as_ref().is_some_and(EventProgress::pending) => ("option:", false),
@@ -1464,7 +1586,9 @@ fn kept(
         ActionChoice::Terror => ("step:", true),
         ActionChoice::Pass => return None,
     };
-    if (ribbon || game.card_18 || game.event.as_ref().is_some_and(EventProgress::pending))
+    if (ribbon
+        || game.current_card() >= 18
+        || game.event.as_ref().is_some_and(EventProgress::pending))
         && (popover || super::transfer::shown(game.transfer.as_ref(), game.owner(), ui))
     {
         return None;
@@ -1965,10 +2089,12 @@ mod tests {
     #[test]
     fn the_commit_reads_the_pinned_option() {
         let view = Game::opening().observe();
-        let none = commit(&view, None);
+        let mut ui = Interface::default();
+        let none = commit(&view, &ui);
         assert!(!none.enabled);
         assert_eq!(none.name, "choice-commit");
-        let pass = commit(&view, Some("pass"));
+        ui.choice.pinned = Some("pass".into());
+        let pass = commit(&view, &ui);
         assert!(pass.enabled);
         assert_eq!(pass.name, "0:pass");
         assert_eq!(pass.label, "Pass · +1 Resource");
@@ -1983,21 +2109,24 @@ mod tests {
             .unwrap();
         preview.resources[0].from = 49;
         preview.resources[0].to = 49;
-        assert_eq!(commit(&capped, Some("pass")).label, "Pass · +0 Resources");
-        let terror = commit(&view, Some("terror"));
+        assert_eq!(commit(&capped, &ui).label, "Pass · +0 Resources");
+        ui.choice.pinned = Some("terror".into());
+        let terror = commit(&view, &ui);
         assert_eq!(
             (terror.name.as_str(), terror.label.as_str()),
             ("0:terror", "Choose Terror")
         );
-        let rally = commit(&view, Some("rally"));
+        ui.choice.pinned = Some("rally".into());
+        let rally = commit(&view, &ui);
         assert!(!rally.enabled);
         assert_eq!(rally.label, "Rally is not in this task");
         let Action::Unsupported(reason) = rally.action else {
             panic!("Rally commits nothing")
         };
         assert!(reason.contains("not in this task"), "{reason}");
+        ui.choice.pinned = Some("terror:kidnap".into());
         assert_eq!(
-            commit(&view, Some("terror:kidnap")).label,
+            commit(&view, &ui).label,
             "Kidnap is offered once Terror is chosen"
         );
     }
@@ -2411,7 +2540,7 @@ mod tests {
                 .collect()
         };
         let pitch = fig::ROWS[2] - fig::ROWS[1];
-        let top = assault_rows_after(0);
+        let top = rows_after_record(0);
         assert_eq!(
             rows(&view),
             [
@@ -2422,7 +2551,7 @@ mod tests {
         );
         assert_eq!(
             assault_lines(&view),
-            [AssaultLine {
+            [PanelLine {
                 name: "assault-map-line".into(),
                 words: "Choose a space on the map; its popover pays and resolves.".into(),
                 top: fig::ASSAULT_MAP_LINE[0],
@@ -2469,9 +2598,9 @@ mod tests {
         // Two record lines: the rows start two pitches lower.
         assert_eq!(
             rows(&view)[0],
-            ("end-assault".to_owned(), assault_rows_after(2))
+            ("end-assault".to_owned(), rows_after_record(2))
         );
-        assert_eq!(assault_rows_after(2), first + 2. * line + fig::ASSAULT_GAP);
+        assert_eq!(rows_after_record(2), first + 2. * line + fig::ASSAULT_GAP);
         // Removal mode and a transfer hold the panel: the lines wait.
         decide(&mut game, "remove");
         assert!(assault_lines(&game.observe()).is_empty());
@@ -2556,10 +2685,10 @@ mod tests {
             .into_iter()
             .enumerate()
         {
-            near(at("parts", part, 1), assault_rows_after(2) + row * i as f32);
+            near(at("parts", part, 1), rows_after_record(2) + row * i as f32);
             near(
                 assault["opened"]["parts"][part][1].as_f64().unwrap() as f32,
-                assault_rows_after(0) + row * i as f32,
+                rows_after_record(0) + row * i as f32,
             );
             near(at("parts", part, 3), fig::ROW_H);
         }
@@ -2569,7 +2698,7 @@ mod tests {
         );
         near(
             at("text", "option:end-assault-label", 1),
-            assault_rows_after(2) + fig::LABEL[1],
+            rows_after_record(2) + fig::LABEL[1],
         );
         near(at("parts", "choice-commit", 1), fig::COMMIT[1]);
     }
@@ -2580,7 +2709,7 @@ mod tests {
     fn thirteen_recorded_spaces_leave_the_rows_above_the_commit() {
         let lines = 13 + 5;
         let pitch = fig::ROWS[2] - fig::ROWS[1];
-        let last = assault_rows_after(lines) + 2. * pitch;
+        let last = rows_after_record(lines) + 2. * pitch;
         assert!(last + fig::ROW_H < fig::COMMIT[1], "{last}");
     }
 

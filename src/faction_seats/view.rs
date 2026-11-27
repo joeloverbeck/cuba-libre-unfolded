@@ -6,9 +6,9 @@
 use super::Player;
 use crate::{
     ActionChoice, CardFacts, Choice, ConstructResolution, DeckFacts, Eligibility, EventProgress,
-    EventStatement, Faction, Game, Group, KidnapStakes, MarkerSupply, Next, Observation, Piles,
-    PlayedCard, Preview, Removal, Site, SpaceReason, Standing, Terrain, Transfer, TransferTerms,
-    UsAlliance, reports::Report, save::Proclamation, support_level,
+    EventStatement, Faction, Game, Group, KidnapStakes, Manifesto, MarkerSupply, Next, Observation,
+    Piles, PlayedCard, Preview, Removal, Site, SpaceReason, Standing, Terrain, Transfer,
+    TransferTerms, UsAlliance, reports::Report, save::Proclamation, support_level,
 };
 use serde::Serialize;
 
@@ -97,6 +97,8 @@ pub struct State {
     pub executing: Option<Faction>,
     pub event_executor: Option<Faction>,
     pub event: Option<EventProgress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub manifesto: Option<Manifesto>,
     pub eligibility: Eligibility,
     pub passed: [bool; 4],
     pub next: Option<Next>,
@@ -250,9 +252,6 @@ impl Decision {
             Some(Transfer::Authorizing { waited: true, .. })
         );
         let mut note = match stands {
-            Stands::BuildEnds if seen.card_18_complete() => {
-                "Card 18 is complete and Eligibility has been adjusted. Card 19 stays in preview. No faction has a choice to make.".to_owned()
-            }
             Stands::BuildEnds => format!(
                 "The build stops here: {decider} would decide next, and this build plays none of its options. No faction can act, and nothing more will come."
             ),
@@ -269,6 +268,14 @@ impl Decision {
             ),
             Stands::Open => format!("{decider} decides."),
         };
+        if (seen.removal.is_some() || seen.transfer.is_some())
+            && let Some(placement) = seen.manifesto.as_ref().and_then(Manifesto::pending)
+        {
+            note.push_str(&format!(
+                " The Manifesto returns to {}'s placement decision when this closes.",
+                placement.name()
+            ));
+        }
         if let Some(funding) = &seen.construct_funding {
             note.push_str(&format!(
                 " {}. {}",
@@ -294,6 +301,7 @@ impl State {
             executing: seen.executing,
             event_executor: seen.event_executor,
             event: seen.event.clone(),
+            manifesto: seen.manifesto.clone(),
             eligibility: seen.eligibility.clone(),
             passed: seen.passed,
             next: seen.next.clone(),

@@ -1605,7 +1605,30 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
         ),
         "resolve-shaded" => "Shaded Event resolved. Eligibility for card 18 recorded. Saved.".into(),
         "event:unshaded" => "Directorio chooses who will Rally. Saved.".into(),
-        "advance-card" => "Pact of Caracas is current. Government is 1st Eligible. Saved.".into(),
+        crate::game::MANIFESTO_EVENT => format!(
+            "{} executes Sierra Maestra Manifesto. {} decides whether to place. Saved.",
+            owner.name(),
+            after.owner.name()
+        ),
+        action if crate::game::manifesto::is_placement(action) => {
+            let placement = after.manifesto.as_ref().and_then(|m| m.placements.last())
+                .expect("A committed placement has a record");
+            let space = after.spaces.iter().find(|s| s.id == placement.space)
+                .expect("A committed placement has a space");
+            format!("{} placed {} in {}. Saved.", owner.name(), placement.piece_description(), space.name)
+        }
+        crate::game::MANIFESTO_DECLINE => {
+            let next = match &after.next {
+                Some(next) => format!("{} is {}.", next.faction.name(), next.role),
+                None => format!("{} decides whether to place.", after.owner.name()),
+            };
+            format!("{} declined placement. {next} Saved.", owner.name())
+        }
+        "advance-card" => format!(
+            "{} is current. {} is 1st Eligible. Saved.",
+            after.cards.current.title,
+            after.eligibility.first.name(),
+        ),
         "government:assault" => "Assault chosen. Choose a space on the map. Saved.".into(),
         "end-assault" => "Operation Only recorded. Syndicate is 2nd Eligible. Saved.".into(),
         _ if crate::Game::assault_payment_space(action).is_some() => {

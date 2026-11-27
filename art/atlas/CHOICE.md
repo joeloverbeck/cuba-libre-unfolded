@@ -25,6 +25,8 @@ After Terror with Kidnap, #118 uses the same header, option rows, tag and button
 
 Alberto Bayo’s unshaded text reuses the option rows for Directorio’s beneficiary choice and the beneficiary’s Rally procedures. During the Event, consecutive choices use the spacing of rows within a section. The header emblem and briefing plate follow the faction making the decision. The same briefing tag shows the Base spaces or the Rally procedure’s placement arithmetic and cost.
 
+The Sierra Maestra Manifesto uses the same compact rows, pin and commit. During the Event the header shows the card title and the deciding faction’s emblem. The subtitle names the placement faction and identifies the current decision during a removal or Resource transfer. The completed Event uses Directorio’s emblem and the 2nd Eligible heading. Under 26July’s retained Eligibility, the existing record column gives each faction’s committed mix and space or decline in printed decision order. The Pass and Operation inspection rows follow the record.
+
 ## Government's Assault
 
 On card 18 the same panel, header, rows, tag and commit serve Government. While Government executes Assault (#169) the panel lists no place: a space is chosen on the map and nowhere else ([foundation 2, "Engine authority"](../../docs/foundation/02-rules-and-verification.md#engine-authority); [HIGHLIGHTS.md](HIGHLIGHTS.md)). It holds, from the top:

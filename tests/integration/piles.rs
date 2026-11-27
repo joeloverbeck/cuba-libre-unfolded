@@ -74,6 +74,49 @@ fn playing_card_18_moves_one_card_across() {
 }
 
 #[test]
+fn playing_card_19_after_both_passes_moves_one_card_and_keeps_the_position() {
+    use cuba_libre_unfolded::Faction;
+
+    let mut game = both_passed();
+    let before = game.observe();
+    assert_eq!((before.piles.played, before.piles.deck), (19, 33));
+    assert_eq!(before.resources, [5, 3, 5, 16]);
+    assert_eq!(before.eligible, [true; 4]);
+    assert_eq!(before.choices.len(), 1);
+    let advance = &before.choices[0];
+    assert!(advance.turns_the_card());
+
+    choose(&mut game, "advance-card");
+    let after = game.observe();
+    assert_eq!(after.revision, before.revision + 1);
+    assert_eq!((after.current_card, after.preview_card), (19, 20));
+    assert_eq!((after.piles.played, after.piles.deck), (20, 32));
+    assert_eq!(after.piles.propaganda_played, 1);
+    assert_eq!(
+        &after.played_cards[..before.played_cards.len()],
+        before.played_cards
+    );
+    assert_eq!(after.played_cards.last(), Some(&18));
+    assert_eq!(after.resources, before.resources);
+    assert_eq!(after.spaces, before.spaces);
+    assert_eq!(after.available, before.available);
+    assert_eq!(after.standings, before.standings);
+    assert_eq!(after.eligible, before.eligible);
+    assert_eq!(after.owner, Faction::M26);
+    assert_eq!(after.passed, [false; 4]);
+    assert_eq!(after.executing, None);
+    assert_eq!(after.event_executor, None);
+    assert!(after.choices.iter().all(|choice| !choice.turns_the_card()));
+
+    let saved = game.clone();
+    assert!(
+        game.submit(advance.owner, before.revision, &advance.id)
+            .is_err()
+    );
+    assert_eq!(game, saved);
+}
+
+#[test]
 fn the_counts_hold_at_every_step_of_card_17() {
     let mut game = crate::terror_chosen(Game::opening_with_seed(2));
     let steps = [
@@ -95,6 +138,21 @@ fn the_counts_hold_at_every_step_of_card_17() {
             "after {action}"
         );
     }
+}
+
+/// Card 18 completes with both factions passing, before the human turns it.
+fn both_passed() -> Game {
+    let mut game = advanced();
+    choose(&mut game, "government:pass");
+    choose(&mut game, "syndicate:pass");
+    game
+}
+
+/// Card 19 becomes current and reveals card 20.
+fn manifesto() -> Game {
+    let mut game = both_passed();
+    choose(&mut game, "advance-card");
+    game
 }
 
 /// Every array of whole numbers anywhere in a value.
@@ -122,7 +180,12 @@ fn number_lists(value: &Value, found: &mut Vec<Vec<u64>>) {
 /// deck they are 19, 20, 21, … on card 17 and 20, 21, 22, … on card 18.
 #[test]
 fn the_order_of_the_face_down_cards_is_not_observed() {
-    for (game, first_hidden) in [(Game::opening(), 19), (advanced(), 20)] {
+    for (game, first_hidden) in [
+        (Game::opening(), 19),
+        (advanced(), 20),
+        (both_passed(), 20),
+        (manifesto(), 21),
+    ] {
         let view = serde_json::to_value(game.observe()).unwrap();
         let fields = view.as_object().unwrap();
         for name in fields.keys() {
@@ -216,6 +279,8 @@ fn the_card_under_the_preview_is_named_nowhere_in_the_observation() {
         (Game::opening(), 19, "Sierra Maestra Manifesto"),
         (offered, 19, "Sierra Maestra Manifesto"),
         (advanced(), 20, "The Twelve"),
+        (both_passed(), 20, "The Twelve"),
+        (manifesto(), 21, "Fangio"),
     ] {
         let view = serde_json::to_value(game.observe()).unwrap();
         let (mut words, mut cards) = (Vec::new(), Vec::new());
@@ -235,4 +300,254 @@ fn the_card_under_the_preview_is_named_nowhere_in_the_observation() {
             assert_ne!(card, hidden, "{name} holds card {hidden}");
         }
     }
+}
+
+#[test]
+fn manifesto_execution_hands_the_first_decline_to_26july() {
+    use cuba_libre_unfolded::Faction;
+
+    let mut game = manifesto();
+    let before = game.observe();
+    choose(&mut game, "m26:event");
+    let pending = game.observe();
+    assert_eq!(pending.owner, Faction::M26);
+    assert_eq!(pending.executing, Some(Faction::M26));
+    assert_eq!(pending.event_executor, Some(Faction::M26));
+    assert_eq!(
+        pending.cards.current.status,
+        cuba_libre_unfolded::EventStatus::SingleInProgress {
+            faction: Faction::M26,
+            decider: Faction::M26,
+        }
+    );
+    assert_eq!(pending.eligible, before.eligible);
+    assert_eq!(pending.spaces, before.spaces);
+    assert_eq!(pending.resources, before.resources);
+    assert!(
+        pending
+            .choices
+            .iter()
+            .any(|choice| { choice.action() == "manifesto:decline" && choice.supported })
+    );
+    assert!(
+        pending
+            .choices
+            .iter()
+            .any(|choice| choice.space() == Some("santiago") && choice.supported)
+    );
+}
+
+#[test]
+fn manifesto_mixed_placement_changes_control_supply_and_standing() {
+    use cuba_libre_unfolded::{Faction, Kind, State};
+
+    let mut game = manifesto();
+    choose(&mut game, "m26:event");
+    let before = game.observe();
+    let menu = before
+        .choices
+        .iter()
+        .filter(|choice| choice.space() == Some("santiago"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        menu.iter().map(|c| c.label.as_str()).collect::<Vec<_>>(),
+        ["2 Guerrillas", "1 Guerrilla + 1 Base", "2 Bases"]
+    );
+    let sierra = before
+        .choices
+        .iter()
+        .filter(|choice| choice.space() == Some("sierra-maestra"))
+        .map(|choice| choice.label.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(sierra, ["2 Guerrillas", "1 Guerrilla + 1 Base"]);
+    let mixed = menu[1];
+    let preview = mixed.preview.as_ref().unwrap();
+    assert_eq!(preview.control.len(), 1);
+    assert_eq!(preview.control[0].space, "santiago");
+    assert_eq!(preview.control[0].from, Some(Faction::Government));
+    assert_eq!(preview.control[0].to, Some(Faction::M26));
+    assert_eq!(preview.standings.len(), 1);
+    assert_eq!(preview.standings[0].faction, Faction::M26);
+    assert_eq!(
+        (
+            preview.standings[0].score_from,
+            preview.standings[0].score_to
+        ),
+        (8, 9)
+    );
+
+    let saved = game.clone();
+    for action in [
+        "manifesto:place:santiago:guerrilla",
+        "manifesto:place:santiago:guerrilla-guerrilla-base",
+        "manifesto:place:matanzas:guerrilla-base",
+    ] {
+        assert!(
+            game.submit(
+                Faction::M26,
+                before.revision,
+                &format!("{}:{action}", before.revision)
+            )
+            .is_err()
+        );
+        assert_eq!(game, saved);
+    }
+    assert!(
+        game.submit(Faction::Directorio, before.revision, &mixed.id)
+            .is_err()
+    );
+    assert_eq!(game, saved);
+
+    game.submit(Faction::M26, before.revision, &mixed.id)
+        .unwrap();
+    let after = game.observe();
+    let santiago = after.spaces.iter().find(|s| s.id == "santiago").unwrap();
+    let count = |kind, state| {
+        santiago
+            .pieces
+            .iter()
+            .filter(|group| {
+                group.faction == Faction::M26 && group.kind == kind && group.state == state
+            })
+            .map(|group| group.count)
+            .sum::<u8>()
+    };
+    assert_eq!(count(Kind::Guerrilla, State::Active), 2);
+    assert_eq!(count(Kind::Guerrilla, State::Underground), 1);
+    assert_eq!(count(Kind::Base, State::Ordinary), 1);
+    assert_eq!(santiago.control(), Some(Faction::M26));
+    let available = |kind| {
+        after
+            .available
+            .iter()
+            .find(|group| group.faction == Faction::M26 && group.kind == kind)
+            .unwrap()
+            .count
+    };
+    assert_eq!(available(Kind::Guerrilla), 11);
+    assert_eq!(available(Kind::Base), 2);
+    assert_eq!(after.standings[Faction::M26.index()].score, 9);
+    assert_eq!(after.owner, Faction::Directorio);
+    assert_eq!(after.event_executor, Some(Faction::M26));
+    assert_eq!(after.resources, before.resources);
+    assert_eq!(after.eligible, before.eligible);
+    assert!(
+        game.submit(Faction::M26, before.revision, &mixed.id)
+            .is_err()
+    );
+    assert_eq!(game.observe(), after);
+}
+
+#[test]
+fn manifesto_havana_recalculates_government_mixes_after_directorio_and_syndicate_place() {
+    use cuba_libre_unfolded::{Faction, Kind, Observation, State};
+
+    // Living Rules 1.4, 1.7 and 7.2, playbook pp. 19–20, 33, and the
+    // prepared opening. Neither Card 18 Pass changes Havana's pieces.
+    let mut game = manifesto();
+    choose(&mut game, "m26:event");
+    choose(&mut game, "manifesto:decline");
+    let directorio = game.observe();
+    let plan = directorio
+        .choices
+        .iter()
+        .find(|c| c.action() == "manifesto:place:havana:base-base")
+        .unwrap();
+    let preview = plan.preview.as_ref().unwrap();
+    let bases = &preview.placement_available_forces[0];
+    assert_eq!((bases.piece.kind, bases.from, bases.to), (Kind::Base, 4, 2));
+    assert!(preview.control.is_empty());
+    let standing = &preview.standings[0];
+    assert_eq!(standing.faction, Faction::Directorio);
+    assert_eq!((standing.score_from, standing.score_to), (1, 3));
+    assert_eq!((standing.margin_from, standing.margin_to), (-8, -6));
+    assert_eq!(preview.standings.len(), 1);
+
+    choose(&mut game, "manifesto:place:havana:base-base");
+    assert_eq!(game.observe().owner, Faction::Syndicate);
+    choose(&mut game, "manifesto:place:havana:guerrilla-guerrilla");
+    let before = game.observe();
+    assert_eq!(before.owner, Faction::Government);
+    let labels = |space| {
+        before
+            .choices
+            .iter()
+            .filter(|c| c.space() == Some(space))
+            .map(|c| c.label.as_str())
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        labels("havana"),
+        ["2 Troops", "1 Troop + 1 Police cube", "2 Police cubes"]
+    );
+    assert!(labels("santiago").contains(&"1 Troop + 1 Base"));
+
+    let stacking = "2 non-Casino Base slots full (R 1.4.2).";
+    let reason = before
+        .space_reasons
+        .iter()
+        .find(|r| r.space == "havana")
+        .unwrap();
+    assert_eq!(reason.reason, "Both Base slots full (R 1.4.2).");
+    let mix = "manifesto:place:havana:troops-police";
+    let legal = before.choices.iter().find(|c| c.action() == mix).unwrap();
+    assert!(
+        legal
+            .explanation
+            .contains("Government has 6 Troops, 4 Police cubes.")
+    );
+    assert!(legal.explanation.contains(stacking));
+    let preview = legal.preview.as_ref().unwrap();
+    assert!(preview.notes.iter().any(|note| note == stacking));
+    let available = preview
+        .placement_available_forces
+        .iter()
+        .map(|s| (s.piece.kind, s.from, s.to))
+        .collect::<Vec<_>>();
+    assert_eq!(available, [(Kind::Troops, 3, 2), (Kind::Police, 8, 7)]);
+    assert!(preview.control.is_empty());
+    assert!(preview.standings.is_empty());
+
+    let saved = game.clone();
+    let revision = before.revision;
+    for (at, action) in [
+        (revision, "manifesto:place:havana:troops-base"),
+        (revision - 1, mix),
+    ] {
+        assert!(
+            game.submit(Faction::Government, at, &format!("{at}:{action}"))
+                .is_err()
+        );
+        assert_eq!(game, saved);
+    }
+    choose(&mut game, mix);
+    let after = game.observe();
+    let havana = |view: &Observation| {
+        let city = view.spaces.iter().find(|s| s.id == "havana").unwrap();
+        assert_eq!(city.control(), Some(Faction::Government));
+        city.pieces
+            .iter()
+            .map(|p| (p.faction, p.kind, p.state, p.count))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        havana(&before),
+        [
+            (Faction::Government, Kind::Troops, State::Ordinary, 6),
+            (Faction::Government, Kind::Police, State::Ordinary, 4),
+            (Faction::Directorio, Kind::Guerrilla, State::Underground, 2),
+            (Faction::Syndicate, Kind::Casino, State::Open, 1),
+            (Faction::Directorio, Kind::Base, State::Ordinary, 2),
+            (Faction::Syndicate, Kind::Guerrilla, State::Underground, 2),
+        ]
+    );
+    let mut expected = havana(&before);
+    expected[0].3 = 7;
+    expected[1].3 = 5;
+    assert_eq!(havana(&after), expected);
+    assert_eq!(after.standings, before.standings);
+    assert_eq!(after.resources, before.resources);
+    assert_eq!(after.owner, Faction::Directorio);
+    assert_eq!(after.next.unwrap().role, "2nd Eligible");
+    assert_eq!(after.eligible, before.eligible);
 }

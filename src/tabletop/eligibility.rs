@@ -111,8 +111,8 @@ mod key {
     pub const VACANT: &str = "atlas-eligibility-vacant.png";
 }
 
-/// One of the boxes the 1st Eligible faction's action is recorded in (R 2.3, record
-/// steps). Each is a hover target, named for the development seat.
+/// One of the selected track's Pass and Operation boxes (R 2.3, record steps).
+/// Each is a hover target, named for the development seat.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize)]
 pub(super) enum Slot {
     #[serde(rename = "eligibility:pass")]
@@ -140,8 +140,9 @@ impl Slot {
             SequenceBox::Pass => Some(Self::Pass),
             SequenceBox::OperationOnly => Some(Self::OperationOnly),
             SequenceBox::OperationWithSpecialActivity => Some(Self::OperationWithSpecialActivity),
-            // This row shows only the first faction's boxes.
-            SequenceBox::LimitedOperation => None,
+            // The Manifesto's Event is shown in the result panel. A Limited
+            // Operation records the second Eligible faction's action.
+            SequenceBox::Event | SequenceBox::LimitedOperation => None,
         }
     }
     fn index(self) -> usize {
@@ -164,7 +165,7 @@ pub(super) struct Row {
     pub eligible: bool,
     /// "1st" or "2nd" Eligible, if this faction holds that role now.
     pub role: Option<&'static str>,
-    /// Its action is recorded: its emblem sits in its box, and the row shows a vacant slot.
+    /// Its emblem occupies a box on this track, and the row shows a vacant slot.
     pub acted: bool,
 }
 
@@ -175,7 +176,7 @@ pub(super) struct Track {
     pub rows: Vec<Row>,
     /// The cylinders now govern the preview card under R 2.3.7.
     pub adjusted: bool,
-    /// The box the first action was recorded in, if any.
+    /// The displayed Pass or Operation box, if occupied.
     pub occupied: Option<Slot>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub occupant: Option<Faction>,
@@ -212,7 +213,10 @@ pub(super) fn track(view: &Observation) -> Track {
         .map(|&faction| Row {
             faction,
             eligible: e.eligible[faction.index()],
-            role: if adjusted || (Some(faction) == occupant && e.government_box.is_some()) {
+            role: if adjusted
+                || (Some(faction) == occupant && e.government_box.is_some())
+                || (faction == Faction::M26 && e.m26_box == Some(SequenceBox::Event))
+            {
                 None
             } else if faction == e.first {
                 Some("1st")
@@ -368,6 +372,8 @@ pub(super) fn content(view: &Observation, slot: Slot) -> Shown {
         body,
         note: if view.card_18_complete() {
             "Eligibility for card 19 was adjusted after card 18 (R 2.3.7)."
+        } else if view.current_card == 19 {
+            "Card 19 Eligibility set after card 18 (R 2.3.7)."
         } else if e.next_card.is_some() || view.current_card == 18 {
             "Card 18 Eligibility set after card 17 (R 2.3.7)."
         } else {

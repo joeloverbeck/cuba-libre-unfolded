@@ -79,9 +79,10 @@ The app admits these private original faces and the original shared card back fr
 | `card-17.png` | `141f592b5dee5a8c7a6d26651410b0ee1171a7dcf2c2b5331a63b48407cec9ab` |
 | `card-18.png` | `50df7058e660bb4dc620096823945eeb095fe4123e0aead68fec6244ab097c4e` |
 | `card-19.png` | `10bf73402f7fbb79d14aad0b928bc8ea20949ea5bd888799a869a6f4e270bc3b` |
+| `card-20.png` | `84ecf6fadc70e7dea17c7033c3e99c9945a6caf4b8f3b9d933cfd82f212e3e3b` |
 | `cuba-libre-card-back.png` | `c905d7a7313480b254e49dc70c56c41fe77e3039b037b238485e148cc82dbaa9` |
 
-The faces remain outside Git. Each pile's top card shows one face at 300 px on the owner's display, and the card tag shows one at reading size; both follow the saved cards' current and preview roles, preserve the faces' proportions, and round their corners so the black printed outside them never shows. The app checks all three before gameplay. [Build and launch](../../README.md#build-and-launch)
+The faces remain outside Git. Each pile's top card shows one face at 300 px on the owner's display, and the card tag shows one at reading size; both follow the saved cards' current and preview roles, preserve the faces' proportions, and round their corners so the black printed outside them never shows. The app checks all four before gameplay. [Build and launch](../../README.md#build-and-launch)
 
 The card back is the supplied collection's `images/card-backs/cuba-libre-card-back.png`, unchanged (1475×2110, 8,214,679 bytes), under the owner's exception in [foundation 4](../../docs/foundation/04-art-and-assets.md). It has the faces' custody: outside Git and outside any asset release. The app checks it at launch after the faces and refuses without it, naming the file, before any save is created or replaced. It is a presentation input, as the manifests are. It shows only while a card is played ([MAIN-VIEW.md, "The card advance"](MAIN-VIEW.md#the-card-advance)).
 
