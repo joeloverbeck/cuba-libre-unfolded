@@ -270,6 +270,8 @@ fn native_terror_leaves_the_supply_after_commit_and_reopens_settled() {
     let pending = middle["table"]["pending"].as_array().unwrap();
     assert!(pending.contains(&json!("piece flip")));
     assert!(pending.contains(&json!("Terror marker travel")));
+    assert_eq!(middle["table"]["force_travel"], json!([]));
+    assert_eq!(middle["table"]["force_travel_started"], false);
     let moving = &middle["table"]["marker_travel"][0];
     let alpha = moving["alpha"].as_f64().unwrap();
     assert!(alpha > motion["alpha"].as_f64().unwrap() && alpha < 1.);
