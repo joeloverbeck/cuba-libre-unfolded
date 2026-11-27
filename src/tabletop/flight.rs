@@ -39,6 +39,9 @@ pub(super) fn sample(
     };
     let motion = CardMove::new(from, to, DURATION).lifted(Lift::arc(0.25));
     let fraction = (elapsed / DURATION).clamp(0., 1.);
-    let opacity = if entering { fraction } else { 1. - fraction };
+    // Let the small solids read while crossing the table. Most of the fade
+    // occurs near the counter, where the chrome begins to cover the solid.
+    let fade = if entering { 1. - fraction } else { fraction };
+    let opacity = 1. - fade * fade;
     (motion.pose(elapsed), opacity)
 }
