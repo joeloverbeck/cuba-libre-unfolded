@@ -18,7 +18,7 @@ use bevy::{
     render::{
         Render, RenderApp,
         render_asset::RenderAssets,
-        render_resource::{CachedPipelineState, PipelineCache},
+        render_resource::PipelineCache,
         renderer::{RenderQueue, render_system},
         texture::GpuImage,
     },
@@ -41,7 +41,7 @@ use unfolded_tabletop::{
         TableFacts,
     },
     label_anchor::{LabelAnchor, LabelAnchorPlugin},
-    token,
+    pipeline, token,
 };
 mod areas;
 mod available;
@@ -587,13 +587,9 @@ fn render_ready(
     ready: Res<RenderReady>,
     pipelines: Res<PipelineCache>,
 ) {
-    ready.pipelines.store(
-        pipelines.waiting_pipelines().next().is_none()
-            && pipelines
-                .pipelines()
-                .all(|p| matches!(p.state, CachedPipelineState::Ok(_))),
-        Ordering::Release,
-    );
+    ready
+        .pipelines
+        .store(pipeline::is_ready(&pipelines), Ordering::Release);
     if ready.images.iter().all(|id| images.get(*id).is_some()) {
         let flag = ready.ready.clone();
         queue.on_submitted_work_done(move || flag.store(true, Ordering::Release));
