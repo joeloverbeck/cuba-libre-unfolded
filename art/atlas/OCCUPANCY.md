@@ -94,7 +94,7 @@ The normal panels frame the island; the right panel names the review case. The F
 | `sinatra:havana` | Dense Havana with 2 Open and 1 Closed Casino, two mixed Bases, Cash and Terror. |
 | `sinatra-stacks:havana` | Havana with a single count-3 Open Casino group, two Government Bases and four Cash under Police. |
 
-Replace `SPACE` with any row ID in the first table. Other spaces are empty so that the cases respect global force and marker inventories. Launching the same case restores its original Home view and position. These render inputs accept no save, recovery path or faction-player socket. Their labelled Cash and Sabotage solids are studies for the comparison. Control and Support/Opposition can be read using the incumbent space tags. No on-map Control or Support/Opposition marker layout has been chosen.
+Replace `SPACE` with any row ID in the first table. Other spaces are empty so that the cases respect global force and marker inventories. Launching the same case restores its original Home view and position. These render inputs accept no save, recovery path or faction-player socket. Their labelled Cash and Sabotage solids are studies for the comparison. Control and Support/Opposition can be read using the incumbent space tags.
 
 A candidate clearance result still needs native measurements of every outline, including the complete geometry and annotation bounds for future marker art where proposed. The spread and stacked Cash fixtures demonstrate endpoints. Intermediate carrier partitions and different affected group slots need measurement or a complete bounding proof. The compact rules tables define the occupancy envelope. The examples alone do not establish clearance inside it.
 
