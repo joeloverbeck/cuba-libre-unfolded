@@ -2061,3 +2061,357 @@ fn manifesto_declines_replay_in_printed_order_without_taking_card_actions() {
     assert_eq!(std::fs::read(&path).unwrap(), finished);
     assert_eq!(std::fs::read(previous_path(&path)).unwrap(), previous);
 }
+
+#[test]
+fn manifesto_own_removal_recalculates_placement_and_control() {
+    use Faction::M26;
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("manifesto-removal.json");
+    let mut session = open_manifesto(&path);
+
+    // Oriente has one active 26July Guerrilla and no other piece after shaded
+    // Alberto Bayo. Its lone Guerrilla qualifies the space and gives Control.
+    let before = session.observe();
+    let oriente = before.spaces.iter().find(|s| s.id == "oriente").unwrap();
+    assert_eq!(oriente.control(), Some(M26));
+    let placement = before
+        .choices
+        .iter()
+        .find(|c| c.action() == "manifesto:place:oriente:guerrilla-guerrilla")
+        .unwrap();
+    assert_eq!(
+        before
+            .available
+            .iter()
+            .find(|g| g.faction == M26 && g.kind == Kind::Guerrilla)
+            .unwrap()
+            .count,
+        12
+    );
+
+    act(&mut session, "remove");
+    let removal = session.observe();
+    assert_eq!(removal.owner, M26);
+    assert_eq!(
+        removal
+            .choices
+            .iter()
+            .filter(|c| c.action().starts_with("remove:oriente:"))
+            .map(|c| c.action())
+            .collect::<Vec<_>>(),
+        ["remove:oriente:active:1"]
+    );
+    for (owner, action) in [
+        (M26, "remove:oriente:active:0"),
+        (M26, "remove:oriente:active:2"),
+        (M26, "remove:havana:active:1"),
+        (Faction::Directorio, "remove:oriente:active:1"),
+    ] {
+        assert!(
+            session
+                .submit(
+                    owner,
+                    removal.revision,
+                    &format!("{}:{action}", removal.revision)
+                )
+                .is_err()
+        );
+    }
+    assert_eq!(session.observe(), removal);
+
+    act(&mut session, "remove:oriente:active:1");
+    let removed = session.observe();
+    let oriente = removed.spaces.iter().find(|s| s.id == "oriente").unwrap();
+    assert!(oriente.pieces.is_empty());
+    assert_eq!(oriente.control(), None);
+    assert_eq!(
+        removed
+            .available
+            .iter()
+            .find(|g| g.faction == M26 && g.kind == Kind::Guerrilla)
+            .unwrap()
+            .count,
+        13
+    );
+    assert_eq!(removed.resources, before.resources);
+    assert_eq!(removed.manifesto, before.manifesto);
+
+    let pre_done = std::fs::read(&path).unwrap();
+    drop(session);
+    let mut session = Session::open(&path, None).unwrap();
+    assert_eq!(session.observe(), removed);
+    act(&mut session, "done-removal");
+    assert_eq!(std::fs::read(previous_path(&path)).unwrap(), pre_done);
+    let returned = session.observe();
+    assert_eq!(returned.owner, M26);
+    assert_eq!(returned.removal, None);
+    assert_eq!(
+        returned
+            .space_reasons
+            .iter()
+            .find(|r| r.space == "oriente")
+            .unwrap()
+            .reason,
+        "26July has no piece here."
+    );
+    assert!(
+        !returned
+            .choices
+            .iter()
+            .any(|c| c.space() == Some("oriente"))
+    );
+    for (revision, id) in [
+        (before.revision, placement.id.clone()),
+        (
+            returned.revision,
+            format!("{}:{}", returned.revision, placement.action()),
+        ),
+    ] {
+        assert!(session.submit(M26, revision, &id).is_err());
+    }
+    assert_eq!(session.observe(), returned);
+    act(&mut session, "manifesto:place:santiago:guerrilla-base");
+    assert_eq!(session.observe().owner, Faction::Directorio);
+
+    // During Directorio's placement, 26July still executes the Event. It may
+    // remove its own piece and then return the placement choice to Directorio.
+    let directorio = session.observe();
+    assert!(
+        session
+            .submit(
+                Faction::Directorio,
+                directorio.revision,
+                &format!("{}:remove", directorio.revision)
+            )
+            .is_err()
+    );
+    assert_eq!(act(&mut session, "remove").owner, M26);
+    assert_eq!(session.observe().owner, M26);
+    act(&mut session, "remove:sierra-maestra:base:1");
+    act(&mut session, "done-removal");
+    let handed_back = session.observe();
+    assert_eq!(handed_back.owner, Faction::Directorio);
+    assert_eq!(handed_back.manifesto, directorio.manifesto);
+    assert!(
+        handed_back
+            .choices
+            .iter()
+            .filter(|c| c.space().is_some())
+            .all(|c| c.owner == Faction::Directorio)
+    );
+}
+
+fn open_manifesto(path: &Path) -> Session {
+    let mut session = Session::create_seeded(path, Session::KIDNAP_ROLLS_1).unwrap();
+    for action in [
+        "terror",
+        "kidnap",
+        "kidnap:roll",
+        "terror:santiago",
+        "end-terror",
+        "event:shaded",
+        "resolve-shaded",
+        "advance-card",
+        "government:pass",
+        "syndicate:pass",
+        "advance-card",
+        "m26:event",
+    ] {
+        act(&mut session, action);
+    }
+    session
+}
+
+#[test]
+fn manifesto_transfer_retains_giver_authority_and_resumes_the_placement() {
+    use Faction::{Directorio, Government, M26, Syndicate};
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("manifesto-transfer.json");
+    let mut session = open_manifesto(&path);
+    act(&mut session, "remove");
+    act(&mut session, "remove:oriente:active:1");
+    act(&mut session, "done-removal");
+    act(&mut session, "manifesto:place:santiago:guerrilla-base");
+    let placement = session.observe();
+    assert_eq!(placement.owner, Directorio);
+    assert_eq!(placement.resources, [8, 0, 5, 16]);
+
+    let transfer = format!("{}:transfer", placement.revision);
+    assert!(
+        session
+            .submit(Directorio, placement.revision, &transfer)
+            .is_err()
+    );
+    assert_eq!(act(&mut session, "transfer").owner, M26);
+    let transfer = session.observe();
+    assert_eq!(transfer.owner, M26);
+    assert_eq!(transfer.transfer_terms.len(), 6);
+    assert!(
+        transfer
+            .transfer_terms
+            .iter()
+            .all(|t| t.giver == M26 || t.recipient == M26)
+    );
+    let government = transfer
+        .transfer_terms
+        .iter()
+        .find(|t| t.giver == Government)
+        .unwrap();
+    assert_eq!(
+        (
+            government.balance,
+            government.held,
+            government.room,
+            government.reserved,
+            government.limit
+        ),
+        (8, 0, 49, 0, 8)
+    );
+    assert!(
+        session
+            .submit(
+                M26,
+                transfer.revision,
+                &format!("{}:ask:0:9", transfer.revision)
+            )
+            .is_err()
+    );
+    assert!(
+        session
+            .submit(
+                M26,
+                transfer.revision,
+                &format!("{}:give:3:1", transfer.revision)
+            )
+            .is_err()
+    );
+    act(&mut session, "give:3:0");
+    assert_eq!(session.observe().resources, [8, 0, 5, 16]);
+    assert_eq!(session.observe().owner, Directorio);
+
+    act(&mut session, "transfer");
+    let request = act(&mut session, "ask:0:2");
+    let pending = session.observe();
+    assert_eq!(pending.owner, Government);
+    assert_eq!(pending.executing, Some(M26));
+    assert_eq!(
+        pending.manifesto.as_ref().unwrap().pending(),
+        Some(Directorio)
+    );
+    assert_eq!(pending.resources, [8, 0, 5, 16]);
+    assert_eq!(pending.transfer_terms.len(), 1);
+    let authorize = |revision| format!("{revision}:authorize:8");
+    assert!(
+        session
+            .submit(
+                Government,
+                pending.revision,
+                &format!("{}:authorize:9", pending.revision)
+            )
+            .is_err()
+    );
+    act(&mut session, "wait");
+    let aside = session.observe();
+    assert_eq!(aside.owner, Government);
+    assert!(matches!(
+        aside.transfer,
+        Some(Transfer::Authorizing {
+            amount: 2,
+            waited: true,
+            ..
+        })
+    ));
+    assert!(
+        !aside
+            .choices
+            .iter()
+            .any(|c| matches!(c.action(), "end-terror" | "back-to-choice"))
+    );
+    let bytes = std::fs::read(&path).unwrap();
+    let previous = std::fs::read(previous_path(&path)).unwrap();
+    drop(session);
+
+    let mut session = Session::open(&path, None).unwrap();
+    assert_eq!(session.observe(), aside);
+    for (owner, revision, id) in [
+        (M26, aside.revision, authorize(aside.revision)),
+        (
+            Directorio,
+            aside.revision,
+            format!("{}:manifesto:decline", aside.revision),
+        ),
+        (Government, pending.revision, authorize(pending.revision)),
+        (request.owner, request.revision, request.id),
+    ] {
+        assert!(session.submit(owner, revision, &id).is_err());
+    }
+    assert_eq!(std::fs::read(&path).unwrap(), bytes);
+    assert_eq!(std::fs::read(previous_path(&path)).unwrap(), previous);
+    act(&mut session, "reopen");
+    let reopened = session.observe();
+    assert_eq!(reopened.owner, Government);
+    assert_eq!(
+        reopened
+            .choices
+            .iter()
+            .filter_map(|c| c.action().strip_prefix("authorize:"))
+            .collect::<Vec<_>>(),
+        ["0", "1", "2", "3", "4", "5", "6", "7", "8"]
+    );
+    let before_authorization = std::fs::read(&path).unwrap();
+    act(&mut session, "authorize:8");
+    assert_eq!(
+        std::fs::read(previous_path(&path)).unwrap(),
+        before_authorization
+    );
+    let returned = session.observe();
+    assert_eq!(returned.owner, Directorio);
+    assert_eq!(returned.resources, [0, 8, 5, 16]);
+    assert_eq!(returned.manifesto, placement.manifesto);
+    assert_eq!(returned.spaces, placement.spaces);
+
+    for answer in ["decline", "authorize:0"] {
+        act(&mut session, "transfer");
+        act(&mut session, "ask:3:1");
+        let pending = session.observe();
+        assert_eq!(pending.owner, Syndicate);
+        assert_eq!(pending.resources, [0, 8, 5, 16]);
+        act(&mut session, answer);
+        assert_eq!(session.observe().owner, Directorio);
+        assert_eq!(session.observe().resources, [0, 8, 5, 16]);
+    }
+
+    act(&mut session, "transfer");
+    act(&mut session, "give:3:8");
+    assert_eq!(session.observe().owner, Directorio);
+    assert_eq!(session.observe().resources, [0, 0, 5, 24]);
+    act(&mut session, "manifesto:decline");
+    act(&mut session, "manifesto:decline");
+    let pre_finish = std::fs::read(&path).unwrap();
+    act(&mut session, "manifesto:decline");
+    let finished = session.observe();
+    let reports = session.reports();
+    let manifesto = finished.manifesto.as_ref().unwrap();
+    assert_eq!(finished.owner, Directorio);
+    assert_eq!(finished.executing, None);
+    assert_eq!(finished.resources, [0, 0, 5, 24]);
+    assert_eq!(manifesto.placements.len(), 1);
+    assert_eq!(manifesto.declines, [Directorio, Syndicate, Government]);
+    assert_eq!(finished.spaces, placement.spaces);
+    assert_eq!(finished.available, placement.available);
+    assert!(finished.choices.iter().all(|c| !c.supported));
+    assert_eq!(std::fs::read(previous_path(&path)).unwrap(), pre_finish);
+    drop(session);
+    let resumed = Session::open(&path, None).unwrap();
+    assert_eq!(resumed.observe(), finished);
+    assert_eq!(resumed.reports(), reports);
+    let recovery_path = dir.path().join("manifesto-transfer-recovered.json");
+    let mut recovered = Session::open(&recovery_path, Some(&path)).unwrap();
+    assert_eq!(std::fs::read(&recovery_path).unwrap(), pre_finish);
+    assert_eq!(recovered.observe().owner, Government);
+    act(&mut recovered, "manifesto:decline");
+    assert_eq!(recovered.observe(), finished);
+    assert_eq!(recovered.reports(), reports);
+}

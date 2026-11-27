@@ -210,8 +210,8 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:syndicate:profit`, `<revision>:syndicate:muscle`, `<revision>:syndicate:bribe` | Inspect Syndicate's Special Activities and which Operations they may accompany. |
 | `<revision>:rally`, `<revision>:march`, `<revision>:attack`, `<revision>:rally:infiltrate`, `<revision>:march:infiltrate`, `<revision>:attack:ambush`, `<revision>:terror:kidnap` | Listed so 26July's option set is complete; unsupported, with the reason in `explanation`. |
 | `<revision>:end-terror`, `<revision>:terror:<space>`, `<revision>:kidnap` | Execution steps during Terror. |
-| `<revision>:transfer` | Opens a Resource transfer during Terror, Directorio's Event choices, the free Rally, Government's Assault or Syndicate's Construct. |
-| `<revision>:remove` | Opens voluntary removal during Terror, Directorio's Event choices, the free Rally or Government's Assault. During Construct, it opens **Manage own pieces**. |
+| `<revision>:transfer` | Opens a Resource transfer during Terror, Directorio's Event choices, the free Rally, Government's Assault, Syndicate's Construct or the Manifesto. |
+| `<revision>:remove` | Opens voluntary removal during Terror, Directorio's Event choices, the free Rally, Government's Assault or the Manifesto. During Construct, it opens **Manage own pieces**. |
 | `<revision>:back-to-choice` | Goes back to the action choice from Terror or Limited Construct until the first effect. During a pending Limited Construct request, the human requester can activate the choice from **Syndicate withdraws · back to action choice** once the pending tab is showing. Unavailable in removal mode or while Kidnap is open. |
 | `<revision>:kidnap:roll`, `<revision>:kidnap:cancel` | Kidnap's Roll and Cancel. |
 | `<revision>:remove:<space>:<group>:<n>` | In removal mode, removes `n` pieces of a stack. |
@@ -229,6 +229,8 @@ The observation reports `event_executor` for the faction carrying out Alberto Ba
 `executing` for the current play window and `owner` for the current decision. During 26July's
 free Rally, those are Directorio, 26July and 26July until a Resource request passes the
 decision to its giver.
+
+During the Manifesto, `transfer` and `remove` belong to 26July even during another faction’s placement turn. Pin `option:transfer` or `option:remove` to reach its confirmation. The placement choices return to the pending faction when the side decision closes.
 
 `observation.finished` records the end of 26July's first action on card 17. Inspect `observation.eligibility.next_card` for the completed Event's card-end adjustment.
 

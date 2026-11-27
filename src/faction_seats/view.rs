@@ -268,6 +268,14 @@ impl Decision {
             ),
             Stands::Open => format!("{decider} decides."),
         };
+        if (seen.removal.is_some() || seen.transfer.is_some())
+            && let Some(placement) = seen.manifesto.as_ref().and_then(Manifesto::pending)
+        {
+            note.push_str(&format!(
+                " The Manifesto returns to {}'s placement decision when this closes.",
+                placement.name()
+            ));
+        }
         if let Some(funding) = &seen.construct_funding {
             note.push_str(&format!(
                 " {}. {}",

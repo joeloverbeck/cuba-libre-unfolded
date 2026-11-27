@@ -387,8 +387,15 @@ mod tests {
             assert!(game.submit(faction, before.revision, &refused).is_err());
             assert_eq!(game.observe(), before);
             if available == 0 {
-                assert_eq!(before.choices.len(), 1);
-                assert_eq!(before.choices[0].action(), MANIFESTO_DECLINE);
+                assert_eq!(
+                    before
+                        .choices
+                        .iter()
+                        .filter(|c| c.owner == faction)
+                        .map(Choice::action)
+                        .collect::<Vec<_>>(),
+                    [MANIFESTO_DECLINE]
+                );
                 continue;
             }
 
