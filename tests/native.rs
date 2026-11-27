@@ -2031,7 +2031,13 @@ fn native_controls_hover_camera_finish_and_process_restarts() {
     assert_eq!(std::fs::read(&app.save).unwrap(), valid);
     std::fs::write(app.root.join("missing-input.stderr"), missing.stderr).unwrap();
     let changed_cards = tempfile::tempdir().unwrap();
-    for name in ["card-17.png", "card-18.png"] {
+    for name in [
+        "card-17.png",
+        "card-18.png",
+        "card-19.png",
+        "card-20.png",
+        "cuba-libre-card-back.png",
+    ] {
         std::fs::copy(app.cards.join(name), changed_cards.path().join(name)).unwrap();
     }
     let mut card = std::fs::read(changed_cards.path().join("card-17.png")).unwrap();

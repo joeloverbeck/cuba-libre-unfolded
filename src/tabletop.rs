@@ -1609,7 +1609,11 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
         ),
         "resolve-shaded" => "Shaded Event resolved. Eligibility for card 18 recorded. Saved.".into(),
         "event:unshaded" => "Directorio chooses who will Rally. Saved.".into(),
-        "advance-card" => "Pact of Caracas is current. Government is 1st Eligible. Saved.".into(),
+        "advance-card" => format!(
+            "{} is current. {} is 1st Eligible. Saved.",
+            after.cards.current.title,
+            after.eligibility.first.name(),
+        ),
         "government:assault" => "Assault chosen. Choose a space on the map. Saved.".into(),
         "end-assault" => "Operation Only recorded. Syndicate is 2nd Eligible. Saved.".into(),
         _ if crate::Game::assault_payment_space(action).is_some() => {

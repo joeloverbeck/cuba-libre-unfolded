@@ -2,7 +2,7 @@
 //! order and their position, and opens only by exact replay (ADR 0003). Each test
 //! opens a save, submits decisions, drops the session, reopens the file and compares
 //! what a player or the seat observes. Every match starts at the opening position.
-use cuba_libre_unfolded::{ActionChoice, Faction, Game, Transfer, save::Session};
+use cuba_libre_unfolded::{ActionChoice, Faction, Game, Kind, State, Transfer, save::Session};
 use std::path::Path;
 use unfolded_record_replacement::{previous_path, save};
 
@@ -752,7 +752,7 @@ fn new_sessions_seed_once_from_entropy_while_resume_preserves_the_exact_seed() {
 /// of only the format and the accepted rules source. A restart keeps the consumed
 /// randomness, and the match revision equals the number of decisions.
 #[test]
-fn a_save_holds_its_seed_decisions_and_position_under_format_9() {
+fn a_save_holds_its_seed_decisions_and_position_under_format_10() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("seeded.json");
     // Seed 5 rolls 3 (kidnap.rs's shared RNG cases).
@@ -769,7 +769,7 @@ fn a_save_holds_its_seed_decisions_and_position_under_format_9() {
     let saved = record(&path);
     assert_eq!(
         saved["identity"],
-        serde_json::json!({"format": "9", "source": cuba_libre_unfolded::assets::SOURCE})
+        serde_json::json!({"format": "10", "source": cuba_libre_unfolded::assets::SOURCE})
     );
     assert_eq!(saved["payload"]["seed"], 5);
     assert_eq!(
@@ -1242,6 +1242,246 @@ fn a_save_an_earlier_build_wrote_in_an_assault_is_refused_with_every_file_unchan
     // The same decisions without the browse step, in this build's shape, still open.
     std::fs::write(&path, reseal(&valid)).unwrap();
     assert!(Session::open(&path, None).is_ok());
+}
+
+/// R 2.3.7 and 2.3.8: these four combinations carry their distinct
+/// balances, board and Eligibility into the same 26July decision.
+#[test]
+fn card_18_finishes_advance_and_replay_with_their_actual_consequences() {
+    let dir = tempfile::tempdir().unwrap();
+    for (name, actions, resources, eligible, assault, construct) in [
+        (
+            "both-pass",
+            &["government:pass", "syndicate:pass"][..],
+            [4, 4, 5, 16],
+            [true, true, true, true],
+            0,
+            0,
+        ),
+        (
+            "pass-and-multi-space-construct",
+            &[
+                "government:pass",
+                "syndicate:construct",
+                "construct:camaguey-city:place",
+                "construct:havana:place",
+                "end-construct",
+            ],
+            [4, 4, 5, 5],
+            [true, true, true, false],
+            0,
+            2,
+        ),
+        (
+            "empty-assault-and-pass",
+            &["government:assault", "end-assault", "syndicate:pass"],
+            [1, 4, 5, 16],
+            [false, true, true, true],
+            0,
+            0,
+        ),
+        (
+            "funded-assault-and-limited-construct",
+            &[
+                "government:assault",
+                "transfer",
+                "ask:3:12",
+                "authorize:12",
+                "assault:havana:syndicate",
+                "end-assault",
+                "syndicate:limited-operation",
+                "transfer",
+                "ask:1:2",
+                "authorize:1",
+                "transfer",
+                "ask:2:1",
+                "authorize:1",
+                "construct:havana:open",
+                "end-construct",
+            ],
+            [11, 3, 4, 0],
+            [false, true, true, false],
+            1,
+            1,
+        ),
+    ] {
+        let path = dir.path().join(format!("{name}.json"));
+        let mut session = Session::create_seeded(&path, 2).unwrap();
+        session
+            .publish_as_human(Faction::M26, 0, 17, "At Santiago.")
+            .unwrap();
+        for action in [
+            "terror",
+            "kidnap",
+            "kidnap:roll",
+            "terror:santiago",
+            "end-terror",
+        ] {
+            act(&mut session, action);
+        }
+        if name == "both-pass" {
+            // The free Rally adds four Underground Guerrillas in Sierra Maestra
+            // without changing Resources or the two factions eligible on card 18.
+            for action in [
+                "event:unshaded",
+                "rally:beneficiary:26july",
+                "rally:sierra-maestra:place:4",
+            ] {
+                act(&mut session, action);
+            }
+            let rallied = session.observe();
+            let sierra = rallied
+                .spaces
+                .iter()
+                .find(|space| space.id == "sierra-maestra")
+                .unwrap();
+            assert_eq!(
+                sierra
+                    .pieces
+                    .iter()
+                    .filter(|p| p.faction == Faction::M26
+                        && p.kind == Kind::Guerrilla
+                        && p.state == State::Underground)
+                    .map(|p| p.count)
+                    .sum::<u8>(),
+                4
+            );
+        } else {
+            act(&mut session, "event:shaded");
+            act(&mut session, "resolve-shaded");
+        }
+        act(&mut session, "advance-card");
+        let card_18 = session.observe();
+        session
+            .publish_as_human(
+                Faction::M26,
+                card_18.revision,
+                18,
+                "We will wait for the next card.",
+            )
+            .unwrap();
+        for action in actions {
+            act(&mut session, action);
+        }
+        let before = session.observe();
+        assert_eq!(before.resources, resources, "{name}");
+        assert_eq!(before.eligible, eligible, "{name}");
+        assert_eq!(before.assault_paid.len(), assault, "{name}");
+        assert_eq!(before.construct_paid.len(), construct, "{name}");
+        assert_eq!((before.piles.played, before.piles.deck), (19, 33));
+        let havana = before
+            .spaces
+            .iter()
+            .find(|space| space.id == "havana")
+            .unwrap();
+        let casinos = |state| {
+            havana
+                .pieces
+                .iter()
+                .filter(|p| p.kind == Kind::Casino && p.state == state)
+                .map(|p| p.count)
+                .sum::<u8>()
+        };
+        assert_eq!(
+            (casinos(State::Open), casinos(State::Closed)),
+            (1, u8::from(construct == 2))
+        );
+        assert_eq!(
+            before
+                .available
+                .iter()
+                .find(|p| p.kind == Kind::Casino)
+                .unwrap()
+                .count,
+            if construct == 2 { 5 } else { 7 }
+        );
+
+        let reports = session.reports();
+        assert_eq!(reports.last().unwrap().card, 18);
+        assert!(reports.last().unwrap().complete, "{name}");
+        let published = session.proclamations().to_vec();
+        assert_eq!(
+            published.iter().map(|p| p.card).collect::<Vec<_>>(),
+            [17, 18]
+        );
+        let pre_advance = std::fs::read(&path).unwrap();
+        let random = session.game().random_state();
+        let advance = act(&mut session, "advance-card");
+        let after = session.observe();
+        assert_eq!((after.current_card, after.preview_card), (19, 20));
+        assert_eq!((after.piles.played, after.piles.deck), (20, 32));
+        assert_eq!(
+            (after.cards.current.title, after.cards.preview.title),
+            ("Sierra Maestra Manifesto", "The Twelve")
+        );
+        assert_eq!(
+            after.eligibility.order,
+            [
+                Faction::M26,
+                Faction::Directorio,
+                Faction::Syndicate,
+                Faction::Government
+            ]
+        );
+        assert_eq!(after.eligibility.second, Some(Faction::Directorio));
+        assert_eq!(after.owner, Faction::M26);
+        assert_eq!(after.eligible, before.eligible);
+        assert_eq!(
+            (
+                after.resources,
+                &after.spaces,
+                &after.available,
+                &after.standings
+            ),
+            (
+                before.resources,
+                &before.spaces,
+                &before.available,
+                &before.standings
+            )
+        );
+        assert_eq!(
+            session.reports(),
+            reports,
+            "advancing is not a faction action"
+        );
+        assert_eq!(session.proclamations(), published);
+        assert_eq!(session.game().random_state(), random);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), pre_advance);
+        let saved = std::fs::read(&path).unwrap();
+
+        drop(session);
+        let mut session = Session::open(&path, None).unwrap();
+        assert_eq!(session.observe(), after);
+        assert_eq!(session.proclamations(), published);
+        assert!(session.proclamation_is_read(0) && session.proclamation_is_read(1));
+        assert_eq!(session.reports(), reports);
+        assert_eq!(session.game().random_state(), random);
+        assert!(
+            session
+                .submit(advance.owner, advance.revision, &advance.id)
+                .is_err()
+        );
+        assert!(
+            session
+                .submit(
+                    after.owner,
+                    after.revision,
+                    &format!("{}:advance-card", after.revision)
+                )
+                .is_err()
+        );
+        let stale = session
+            .publish_as_human(Faction::M26, after.revision, 18, "Late.")
+            .unwrap_err();
+        assert!(stale.to_string().contains("Stale proclamation view"));
+        let closed = session
+            .publish_as_human(Faction::M26, after.revision, 19, "On the new card.")
+            .unwrap_err();
+        assert!(closed.to_string().contains("closed to proclamations"));
+        assert_eq!(std::fs::read(&path).unwrap(), saved);
+        assert_eq!(std::fs::read(previous_path(&path)).unwrap(), pre_advance);
+    }
 }
 
 /// A restart at each pending decision of the unshaded Event: the Rally's beneficiary

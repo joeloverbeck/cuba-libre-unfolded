@@ -181,6 +181,7 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 
 | Choice | Meaning |
 |---|---|
+| `<revision>:m26:event` | The single Sierra Maestra Manifesto Event on card 19. |
 | `<revision>:pass`, `<revision>:terror` | 26July's supported action choices. |
 | `<revision>:event:shaded` | Listed for inspection at 26July's opening decision. Directorio can choose Alberto Bayo's shaded text after Kidnap. Pin its option to preview the flips. |
 | `<revision>:resolve-shaded` | Resolves the shaded Event after Directorio has chosen that text. |
@@ -188,7 +189,7 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:directorio:pass`, `<revision>:directorio:limited-operation` | Directorio's other legal options after Kidnap. Read their briefings for what they do and the build limits. |
 | `<revision>:rally:beneficiary:26july`, `<revision>:rally:beneficiary:directorio` | Directorio chooses the beneficiary of Alberto Bayo’s unshaded Rally. |
 | `<revision>:rally:sierra-maestra:place:0`, `<revision>:rally:sierra-maestra:place:1`, `<revision>:rally:sierra-maestra:place:2`, `<revision>:rally:sierra-maestra:place:3`, `<revision>:rally:sierra-maestra:place:4` | 26July chooses how many Guerrillas to place Underground in Sierra Maestra when its Base qualifies. The offered quantities range from 0 to the ceiling the board and Available Forces allow. |
-| `<revision>:advance-card` | Saves the transition from the completed Alberto Bayo result to Pact of Caracas. |
+| `<revision>:advance-card` | Saves the transition from a completed card 17 or 18 result to the preview card. |
 | `<revision>:government:pass` | Pin `option:government:pass` to preview the income, then commit using the offered choice. |
 | `<revision>:government:event` | Government's Pact of Caracas briefing. |
 | `<revision>:government:train`, `<revision>:government:garrison`, `<revision>:government:sweep` | Government's opening Operation briefings. |
