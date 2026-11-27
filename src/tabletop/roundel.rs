@@ -70,7 +70,7 @@ fn spawn_plate(
                     font_size: FontSize::Px(FONT_SIZE),
                     ..default()
                 },
-                TextColor(Color::srgb_u8(248, 244, 232).with_alpha(opacity)), // Inventory roundel rim
+                TextColor(Color::srgb_u8(248, 244, 232).with_alpha(opacity)), // own colour: Inventory roundel rim
                 Node {
                     flex_shrink: 0.,
                     ..default()

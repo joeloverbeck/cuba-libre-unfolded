@@ -515,6 +515,7 @@ impl SeatGame for Table {
         let pile_tag = pile_tags::observe(world);
         let available_forces = available::observe(world);
         let marker_supply = supply::observe(world);
+        let force_travel = force_travel::observe(world);
         #[cfg(feature = "occupancy-review")]
         let map_geometry = json!({
             "meshes": occupancy_review::mesh_bounds(world),
@@ -542,6 +543,7 @@ impl SeatGame for Table {
         table["piles"] = piles;
         table["pile_tag"] = pile_tag;
         table["available_forces"] = available_forces;
+        table["force_travel"] = force_travel;
         table["marker_supply"] = marker_supply;
         // #174: the notice slip as drawn, and Save · quit's plate.
         table["slip"] = slip;
