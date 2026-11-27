@@ -2,6 +2,7 @@
 //! Their only consumer is the native scene. They have no replay or player session.
 use super::*;
 use crate::{Group, Observation, inventory};
+use serde_json::{Value, json};
 
 #[derive(Clone)]
 pub struct OccupancyReview {
@@ -145,6 +146,7 @@ pub(super) fn cash_solids(
     at: Vec3,
 ) -> f32 {
     const THICKNESS: f32 = 0.035;
+    let scale = map::PIECE_SCALE;
     for layer in 0..quantity {
         let token = token::spawn_body(
             commands,
@@ -155,15 +157,16 @@ pub(super) fn cash_solids(
                 mesh: Mesh::from(Cuboid::new(0.26, THICKNESS, 0.24)),
                 color: Color::srgb_u8(88, 141, 69), // own colour: review-only Cash reservation
                 transform: Transform::from_translation(
-                    at + Vec3::Y * (f32::from(layer) + 0.5) * THICKNESS,
-                ),
+                    at + Vec3::Y * (f32::from(layer) + 0.5) * THICKNESS * scale,
+                )
+                .with_scale(Vec3::splat(scale)),
             },
         );
         commands
             .entity(token)
             .insert((PieceVisual, Pickable::IGNORE));
     }
-    f32::from(quantity) * THICKNESS
+    f32::from(quantity) * THICKNESS * scale
 }
 
 pub(super) fn sabotage_solid(
@@ -182,19 +185,110 @@ pub(super) fn sabotage_solid(
             name: format!("{space} Review Sabotage"),
             mesh: Mesh::from(Cylinder::new(0.15, 0.075)),
             color: Color::srgb_u8(205, 151, 140), // own colour: review-only Sabotage reservation
-            transform: Transform::from_translation(at + Vec3::Y * 0.0375),
+            transform: Transform::from_translation(at + Vec3::Y * 0.0375 * map::PIECE_SCALE)
+                .with_scale(Vec3::splat(map::PIECE_SCALE)),
         },
     );
     commands
         .entity(token)
         .insert((PieceVisual, Pickable::IGNORE));
-    commands.spawn((
-        count("S".into(), token, Vec3::Y * 0.10),
-        status::SpaceTarget(space.to_owned()),
-        count_font(art),
-        TextColor(Color::srgb(0.08, 0.08, 0.06)), // own colour: the map count ink
-        GlobalZIndex(-1),
-    ));
+    roundel::spawn(
+        commands,
+        art,
+        space,
+        "S".into(),
+        token,
+        Vec3::new(0.15, -0.0125, 0.),
+    );
+}
+
+/// Screen and world bounds of actual piece, face and label mesh vertices.
+pub(super) fn mesh_bounds(world: &mut World) -> Value {
+    use bevy::mesh::VertexAttributeValues;
+
+    let Ok((camera, camera_at)) = world
+        .query_filtered::<(&Camera, &GlobalTransform), With<TableCamera>>()
+        .single(world)
+        .map(|(camera, at)| (camera.clone(), *at))
+    else {
+        return Value::Null;
+    };
+    let meshes = world
+        .query::<(Entity, &Mesh3d, &GlobalTransform)>()
+        .iter(world)
+        .map(|(entity, mesh, at)| (entity, mesh.0.id(), *at))
+        .collect::<Vec<_>>();
+    let geometry = world.resource::<Assets<Mesh>>();
+    let mut shapes = BTreeMap::<String, Footprint>::new();
+    for (entity, mesh, at) in meshes {
+        let mut current = Some(entity);
+        let root = loop {
+            let Some(e) = current else {
+                break None;
+            };
+            let name = world.get::<Name>(e).map(Name::as_str);
+            if world.get::<PieceVisual>(e).is_some()
+                || name.is_some_and(|n| n.starts_with("Atlas label:"))
+            {
+                break name.map(|name| (e, name));
+            }
+            current = world.get::<ChildOf>(e).map(ChildOf::parent);
+        };
+        let (Some((root, name)), Some(VertexAttributeValues::Float32x3(vertices))) = (
+            root,
+            geometry
+                .get(mesh)
+                .and_then(|mesh| mesh.attribute(Mesh::ATTRIBUTE_POSITION)),
+        ) else {
+            continue;
+        };
+        let name = if root != entity
+            && (name.ends_with("Guerrilla Active") || name.ends_with("Casino Open"))
+        {
+            format!("{name} face")
+        } else {
+            name.to_owned()
+        };
+        let shape = shapes.entry(name).or_default();
+        for &p in vertices {
+            let point = at.transform_point(Vec3::from(p));
+            shape.min = shape.min.min(point);
+            shape.max = shape.max.max(point);
+            if let Ok(pixel) = camera.world_to_viewport(&camera_at, point) {
+                shape.screen.min = shape.screen.min.min(pixel);
+                shape.screen.max = shape.screen.max.max(pixel);
+            }
+        }
+    }
+    let shapes: BTreeMap<_, _> = shapes
+        .into_iter()
+        .map(|(name, bounds)| {
+            let rect = bounds.screen;
+            let screen = (rect.min.is_finite() && rect.max.is_finite())
+                .then_some([rect.min.x, rect.min.y, rect.max.x, rect.max.y]);
+            (name, json!({"min": bounds.min.to_array(), "max": bounds.max.to_array(), "screen": screen}))
+        })
+        .collect();
+    json!(shapes)
+}
+
+struct Footprint {
+    min: Vec3,
+    max: Vec3,
+    screen: Rect,
+}
+
+impl Default for Footprint {
+    fn default() -> Self {
+        Self {
+            min: Vec3::splat(f32::INFINITY),
+            max: Vec3::splat(f32::NEG_INFINITY),
+            screen: Rect {
+                min: Vec2::splat(f32::INFINITY),
+                max: Vec2::splat(f32::NEG_INFINITY),
+            },
+        }
+    }
 }
 
 #[cfg(test)]

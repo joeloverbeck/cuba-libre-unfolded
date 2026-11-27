@@ -147,8 +147,12 @@ static KEYS: LazyLock<Vec<SeatKey>> = LazyLock::new(|| {
 });
 /// A UI node's rectangle in logical window pixels: [left, top, right, bottom].
 pub(super) fn logical_bounds(node: &ComputedNode, at: &UiGlobalTransform) -> [f32; 4] {
+    logical_bounds_at_scale(node, at, 1.)
+}
+
+fn logical_bounds_at_scale(node: &ComputedNode, at: &UiGlobalTransform, scale: f32) -> [f32; 4] {
     let center = at.translation * node.inverse_scale_factor;
-    let half = node.size() * node.inverse_scale_factor / 2.;
+    let half = node.size() * node.inverse_scale_factor * scale / 2.;
     [
         center.x - half.x,
         center.y - half.y,
@@ -221,17 +225,23 @@ fn body_points(world: &mut World, piece: Entity) -> Vec<Vec2> {
         .collect()
 }
 fn piece_name(world: &World, entity: Entity) -> Option<String> {
-    if world.get::<Count>(entity).is_some()
-        && let Some(LabelAnchor {
+    if world.get::<Count>(entity).is_some() {
+        let label = world.get::<LabelAnchor>(entity).or_else(|| {
+            world
+                .get::<ChildOf>(entity)
+                .and_then(|parent| world.get::<LabelAnchor>(parent.parent()))
+        });
+        if let Some(LabelAnchor {
             to: Anchor::Entity { entity: token, .. },
             ..
-        }) = world.get::<LabelAnchor>(entity)
-    {
-        Some(format!("count:{}", world.get::<Name>(*token)?.as_str()))
-    } else {
-        Some(format!("piece:{}", world.get::<Name>(entity)?.as_str()))
+        }) = label
+        {
+            return Some(format!("count:{}", world.get::<Name>(*token)?.as_str()));
+        }
     }
+    Some(format!("piece:{}", world.get::<Name>(entity)?.as_str()))
 }
+
 fn controls(world: &mut World) -> Vec<(Entity, Control, Vec2)> {
     let size = world
         .query_filtered::<&Camera, With<Camera2d>>()
@@ -262,8 +272,8 @@ fn controls(world: &mut World) -> Vec<(Entity, Control, Vec2)> {
         else {
             continue;
         };
-        let [x, y, w, h] = label.bounds;
-        let position = map_at(x + w / 2., y + h / 2., 0.30);
+        let [x, y, w, h] = map::label_bounds(label);
+        let position = map::at(x + w / 2., y + h / 2., 0.30);
         if let Ok((camera, at)) = world
             .query_filtered::<(&Camera, &GlobalTransform), With<TableCamera>>()
             .single(world)
@@ -453,21 +463,33 @@ impl SeatGame for Table {
         // Each count's type size and drawn bounds, so captures can be judged for
         // legibility at the owner's display (#50).
         let count_rows: Vec<_> = world
-            .query_filtered::<(Entity, &Text, &TextFont, &ComputedNode, &UiGlobalTransform), With<Count>>()
+            .query_filtered::<(
+                Entity,
+                &Text,
+                &TextFont,
+                &ComputedNode,
+                &UiGlobalTransform,
+                &UiTransform,
+                &ChildOf,
+            ), With<Count>>()
             .iter(world)
-            .map(|(entity, text, font, node, at)| {
+            .map(|(entity, text, font, node, at, transform, parent)| {
+                let scale = transform.scale.x;
                 (
                     entity,
+                    parent.parent(),
                     text.0.clone(),
-                    type_size(font),
-                    logical_bounds(node, at),
+                    type_size(font).map(|size| size * scale),
+                    logical_bounds_at_scale(node, at, scale),
                 )
             })
             .collect();
         let mut counts: Vec<_> = count_rows
             .into_iter()
-            .map(|(entity, text, size, bounds)| {
-                json!({"name":piece_name(world, entity),"text":text,"font_size":size,"bounds":bounds})
+            .map(|(entity, parent, text, size, bounds)| {
+                let roundel = world.get::<ComputedNode>(parent).zip(world.get::<UiGlobalTransform>(parent))
+                    .map(|(node, at)| logical_bounds(node, at));
+                json!({"name":piece_name(world, entity),"text":text,"font_size":size,"bounds":bounds,"roundel_bounds":roundel})
             })
             .collect();
         counts.sort_by_key(|count| count["name"].to_string());
@@ -493,6 +515,14 @@ impl SeatGame for Table {
         let pile_tag = pile_tags::observe(world);
         let available_forces = available::observe(world);
         let marker_supply = supply::observe(world);
+        #[cfg(feature = "occupancy-review")]
+        let map_geometry = json!({
+            "meshes": occupancy_review::mesh_bounds(world),
+            "roundels": counts.iter().filter_map(|count| {
+                let name = count["name"].as_str()?.strip_prefix("count:")?;
+                Some((name, &count["roundel_bounds"]))
+            }).collect::<BTreeMap<_, _>>()
+        });
         let main_view = areas::observe(world);
         let slip = notice::observe(world);
         let save_quit = save_quit::observe(world);
@@ -527,6 +557,10 @@ impl SeatGame for Table {
         #[cfg(feature = "occupancy-review")]
         if let Some(review) = &play.options.occupancy_review {
             table["occupancy_review"] = json!(review.name);
+        }
+        #[cfg(feature = "occupancy-review")]
+        {
+            table["map_geometry"] = map_geometry;
         }
         Observed {
             observation: serde_json::to_value(play.observe()).unwrap(),

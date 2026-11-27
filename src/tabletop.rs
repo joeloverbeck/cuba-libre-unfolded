@@ -7,7 +7,13 @@ use crate::{
 };
 use bevy::{
     app::AnimationSystems,
-    asset::{AssetPath, RenderAssetUsages},
+    asset::{
+        AssetPath, RenderAssetUsages,
+        io::{
+            AssetSourceBuilder,
+            memory::{Dir, MemoryAssetReader},
+        },
+    },
     core_pipeline::tonemapping::{DebandDither, Tonemapping},
     gltf::GltfLoaderSettings,
     image::{
@@ -27,7 +33,7 @@ use bevy::{
 use emblems::Prose;
 use std::{
     collections::BTreeMap,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -37,8 +43,8 @@ use std::{
 use unfolded_hover::Hover;
 use unfolded_tabletop::{
     camera::{
-        Framing, InScene, Orbit, Scene, TableCamera, TableCameraPlugin, TableCameraSystems,
-        TableFacts,
+        Framing, InScene, Orbit, PITCH, Pose, Scene, TableCamera, TableCameraPlugin,
+        TableCameraSystems, TableFacts,
     },
     label_anchor::{LabelAnchor, LabelAnchorPlugin},
     pipeline, token,
@@ -58,6 +64,7 @@ mod execution;
 mod faction_seats;
 mod focus_mark;
 mod highlights;
+mod map;
 mod newspaper;
 mod notice;
 #[cfg(feature = "occupancy-review")]
@@ -70,6 +77,7 @@ mod piles;
 mod popover;
 mod proclamation_composer;
 mod proclamation_reader;
+mod roundel;
 mod save_quit;
 pub mod seat;
 mod seat_cards;
@@ -166,8 +174,6 @@ struct TerrorPlayer(String);
 struct LabelSpec {
     space: String,
     bounds: [f32; 4],
-    #[serde(default)]
-    pieces: Option<[f32; 2]>,
 }
 /// What one shared hover lifecycle can disclose: a victory standing, an element of
 /// the top display, or a choice's preview. Serialized for the seat as the faction,
@@ -333,11 +339,6 @@ struct Water {
 }
 const WIDTH: f32 = 1920.;
 const HEIGHT: f32 = 1280.;
-/// The piece and Terror counts' type size in reference pixels. Like every interface
-/// size it follows the window, not the desktop's scale factor (ADR 0002). When the game
-/// fills the owner's 3840×2160 display it is about 26 pixels, the size the earlier fixed
-/// 21 logical pixels had there through Xwayland's scale factor 2 (#50).
-const COUNT_SIZE: f32 = 15.5;
 /// The Operation panel's authored frame (`atlas-panel.png`) in reference pixels:
 /// x, y, width, height.
 const PANEL: [f32; 4] = [1380., 287., 500., 653.];
@@ -350,11 +351,6 @@ fn slug(faction: Faction) -> &'static str {
         Faction::Syndicate => "syndicate",
     }
 }
-// The authored region mesh, labels and group centers share the same map coordinates.
-fn map_at(x: f32, y: f32, height: f32) -> Vec3 {
-    Vec3::new((x - 700.) / 100., height, (y - 600.) / 100.)
-}
-
 pub fn run(options: Options) -> Result<(), String> {
     if options.agent {
         return seat::run(options);
@@ -369,6 +365,20 @@ pub fn run(options: Options) -> Result<(), String> {
 fn build(options: Options, windowless: bool) -> Result<App, String> {
     let verified = assets::inspect(&options.art, &options.cards).map_err(|e| format!("{e:#}"))?;
     let mut app = App::new();
+    // The asynchronous scene load consumes the same GLB bytes admitted above.
+    let terrain = Dir::default();
+    terrain.insert_asset(
+        Path::new("atlas-terrain-map.glb"),
+        verified.files["atlas-terrain-map.glb"].clone(),
+    );
+    app.register_asset_source(
+        "atlas-map",
+        AssetSourceBuilder::new(move || {
+            Box::new(MemoryAssetReader {
+                root: terrain.clone(),
+            })
+        }),
+    );
     let plugins = DefaultPlugins.set(AssetPlugin {
         file_path: verified.root.to_string_lossy().into_owned(),
         ..default()
@@ -441,7 +451,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
     let die_art = die::DieArt::load(&mut app, &verified.files["kidnap-die.json"])?;
     let main_view = areas::Layout::read(&verified.files["atlas-main-view.layout.json"])?;
     let server = app.world().resource::<AssetServer>();
-    let scene = model_part(server, "atlas-terrain-map.glb#Scene0");
+    let scene = model_part(server, "atlas-map://atlas-terrain-map.glb#Scene0");
     let terror = model_part(server, "atlas-terror-token.glb#Scene0");
     let terror_clip = model_part(server, "atlas-terror-token.glb#Animation0");
     let (graph, node) = AnimationGraph::from_clip(terror_clip.clone());
@@ -510,7 +520,11 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         // Where the camera waits while the map loads. `areas::home` then frames the
         // island in the layout's box for the window; art/stage/preview-stage.blend
         // mirrors that framing on the owner's display.
-        .insert_resource(Orbit::new(Framing::new(Vec3::new(0.35, 0., 0.35), 9.6)))
+        .insert_resource(
+            Orbit::new(Framing::new(Vec3::new(0.35, 0., 0.35), 9.6))
+                .with_navigation(Pose::DEFAULT_PITCH, PITCH, 2.75..=90.)
+                .expect("Atlas camera distance and pitch range"),
+        )
         // The layout's `map` colour, which the authored sea also has: the window
         // shows it beyond the sea's edge.
         .insert_resource(ClearColor(palette::MAP))
@@ -542,7 +556,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 admit,
                 highlights::refresh,
                 highlights::show,
-                (sync_pieces, scale_counts).chain(),
+                sync_pieces,
                 highlights::markers,
                 popover::hover_piece,
                 bind_spaces,
@@ -601,6 +615,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             ),
         )
         .add_systems(Last, faction_seats::close);
+    roundel::install(&mut app);
     Ok(app)
 }
 /// How the table keeps an image it only draws. The renderer takes the pixels, so the app
@@ -699,19 +714,24 @@ fn setup(
             frame: 0,
         });
     }
-    commands.spawn((WorldAssetRoot(art.scene.clone()), Transform::default()));
+    commands.spawn((
+        WorldAssetRoot(art.scene.clone()),
+        Transform::from_scale(Vec3::new(map::SCALE, 1., map::SCALE)),
+    ));
     let game = Game::opening();
     for label in &art.labels {
         let space = game.spaces.iter().find(|s| s.id == label.space).unwrap();
-        let [x, y, w, h] = label.bounds;
-        let top = match space.terrain {
-            Terrain::City => 0.24,
-            Terrain::EconomicCenter => 0.28,
-            _ => 0.14,
-        };
-        let at = map_at(x + w / 2., y + h / 2., top + 0.004);
+        let [x, y, w, h] = map::label_bounds(label);
+        let at = map::at(x + w / 2., y + h / 2., map::top(space.terrain) + 0.004);
         commands.spawn((
-            Mesh3d(meshes.add(Plane3d::default().mesh().size(w / 100., h / 100.))),
+            Name::new(format!("Atlas label:{}", space.id)),
+            Mesh3d(
+                meshes.add(
+                    Plane3d::default()
+                        .mesh()
+                        .size(w * map::SCALE / 100., h * map::SCALE / 100.),
+                ),
+            ),
             MeshMaterial3d(materials.add(StandardMaterial {
                 base_color_texture: Some(
                     art.images[&format!("atlas-terrain-label-{}.png", space.id)].clone(),
@@ -754,17 +774,9 @@ fn sync_pieces(
     }
     for label in &art.labels {
         let space = game.spaces.iter().find(|s| s.id == label.space).unwrap();
-        let [x, y, w, h] = label.bounds;
-        let top = match space.terrain {
-            Terrain::City => 0.24,
-            Terrain::EconomicCenter => 0.28,
-            _ => 0.14,
-        };
-        let at = map_at(x + w / 2., y + h / 2., top + 0.004);
-        let piece_at = label
-            .pieces
-            .map_or(at + Vec3::new(0., 0., 0.55), |[x, y]| map_at(x, y, top));
-        for (i, piece) in space.pieces.iter().enumerate() {
+        let top = map::top(space.terrain);
+        let scale = map::PIECE_SCALE;
+        for piece in &space.pieces {
             let mesh = match piece.kind {
                 Kind::Troops | Kind::Police => Mesh::from(Cuboid::new(0.18, 0.18, 0.18)),
                 Kind::Guerrilla => Cylinder::new(0.10, 0.24)
@@ -792,10 +804,15 @@ fn sync_pieces(
                 Kind::Troops | Kind::Police => 0.09,
                 _ => 0.0375,
             };
-            let x = piece_at.x + (i as f32 - (space.pieces.len() - 1) as f32 / 2.) * 0.40;
-            let base = Vec3::new(x, top, piece_at.z);
+            let [x, y] = map::slot(&space.id, piece);
+            let base = map::at(x, y, top);
             #[cfg(feature = "occupancy-review")]
             let base = if let Some(review) = &play.options.occupancy_review {
+                let i = space
+                    .pieces
+                    .iter()
+                    .position(|group| std::ptr::eq(group, piece))
+                    .expect("review group in the observed space");
                 base + Vec3::Y
                     * occupancy_review::cash_solids(
                         &mut commands,
@@ -820,7 +837,8 @@ fn sync_pieces(
                     ),
                     mesh,
                     color,
-                    transform: Transform::from_translation(base + Vec3::Y * height),
+                    transform: Transform::from_translation(base + Vec3::Y * height * scale)
+                        .with_scale(Vec3::splat(scale)),
                 },
             );
             commands
@@ -867,18 +885,21 @@ fn sync_pieces(
                     },
                 );
             }
-            commands.spawn((
-                count(
-                    piece.count.to_string(),
-                    token,
-                    Vec3::new(0., height + 0.06, 0.),
-                ),
-                status::SpaceTarget(space.id.clone()),
-                count_font(&art),
-                TextColor(Color::srgb(0.08, 0.08, 0.06)), // own colour: Atlas desk map counts (foundation 4)
-                GlobalZIndex(-1),
-            ));
+            let reach = match piece.kind {
+                Kind::Troops | Kind::Police | Kind::Guerrilla => 0.13,
+                Kind::Base | Kind::Casino => 0.15,
+            };
+            roundel::spawn(
+                &mut commands,
+                &art,
+                &space.id,
+                piece.count.to_string(),
+                token,
+                Vec3::new(reach, -height - (base.y - top) / scale + 0.025, 0.),
+            );
         }
+        let [x, y] = map::marker(&space.id);
+        let marker = map::at(x, y, top);
         #[cfg(feature = "occupancy-review")]
         if play
             .options
@@ -892,7 +913,7 @@ fn sync_pieces(
                 &mut materials,
                 &art,
                 &space.id,
-                piece_at + Vec3::Z * 0.36,
+                marker,
             );
         }
         if space.terror > 0 {
@@ -903,11 +924,7 @@ fn sync_pieces(
                 .spawn((
                     Name::new(format!("{} Terror", space.id)),
                     WorldAssetRoot(art.terror.clone()),
-                    Transform::from_xyz(
-                        piece_at.x + if space.id == "oriente" { 0.38 } else { 0. },
-                        top,
-                        piece_at.z + if space.id == "oriente" { 0. } else { 0.36 },
-                    ),
+                    Transform::from_translation(marker).with_scale(Vec3::splat(scale)),
                     TerrorToken {
                         // Golden-ratio steps keep neighbouring bells out of unison.
                         phase: (index as f64 * 0.618_033_988_75).fract(),
@@ -916,26 +933,23 @@ fn sync_pieces(
                     status::SpaceTarget(space.id.clone()),
                 ))
                 .id();
-            commands.spawn((
-                count(space.terror.to_string(), token, Vec3::new(0., 0.33, 0.)),
-                status::SpaceTarget(space.id.clone()),
-                count_font(&art),
-                TextColor(Color::srgb(0.08, 0.08, 0.06)), // own colour: Atlas desk map counts (foundation 4)
-                GlobalZIndex(-1),
-            ));
+            roundel::spawn(
+                &mut commands,
+                &art,
+                &space.id,
+                space.terror.to_string(),
+                token,
+                Vec3::new(0.15, 0.025, 0.),
+            );
         }
     }
 }
-/// A count of pieces or Terror, kept over its token.
+/// A quantity beside a force group or Terror marker.
 #[derive(Component)]
 struct Count;
 
-/// How many frames the counts still need before they stand over their pieces. A
-/// count's node is placed in the frame it is spawned or the camera jumps, centred on
-/// its measured width in the next, and picked where it then stands from the one
-/// after. The development seat waits for that: with the map filling the window a
-/// count can settle over the middle of its piece, and a press that came a frame
-/// early would land on the count instead (#142).
+/// The development seat waits while roundels acquire their screen bounds and
+/// become pickable following a spawn or camera move.
 #[derive(Resource, Default)]
 struct Counts {
     settling: u8,
@@ -949,45 +963,6 @@ impl Counts {
     }
 }
 
-/// A count's face. Its size is set in reference pixels; `scale_counts` scales it to the
-/// window before the interface is laid out.
-fn count_font(art: &Art) -> TextFont {
-    TextFont {
-        font: art.font.clone().into(),
-        font_size: COUNT_SIZE.into(),
-        ..default()
-    }
-}
-
-/// Keeps every count at `COUNT_SIZE` reference pixels at the window's layout scale:
-/// counts spawned this frame, and all of them after a resize.
-fn scale_counts(
-    window: Single<&Window, With<PrimaryWindow>>,
-    mut counts: Query<&mut TextFont, With<Count>>,
-) {
-    let size = FontSize::Px(COUNT_SIZE * reference_pixel(&window));
-    for mut font in &mut counts {
-        if font.font_size != size {
-            font.font_size = size;
-        }
-    }
-}
-
-/// A count over its token. It stays pickable, so hovering it hovers its space, and it
-/// is part of the scene, so the wheel and a drag over it still move the camera.
-fn count(text: String, token: Entity, offset: Vec3) -> impl Bundle {
-    (
-        Count,
-        InScene,
-        Text::new(text),
-        TextLayout::justify(Justify::Center),
-        Node {
-            position_type: PositionType::Absolute,
-            ..default()
-        },
-        LabelAnchor::entity(token, offset),
-    )
-}
 /// Bind each spawned bell's glTF player to the loop and pose it from the shared
 /// clock. A token respawned by a state change keeps its place in the loop, and the
 /// development seat's manual clock drives it exactly like desktop time.
