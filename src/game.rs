@@ -17,7 +17,8 @@ pub use cards::{
 };
 pub(crate) use construct::construct_name;
 pub use construct::{
-    CONSTRUCT_COST, ConstructAuthorization, ConstructFunding, ConstructPlan, ConstructResolution,
+    CONSTRUCT_COST, ConstructAuthorization, ConstructFunding, ConstructFundingReply, ConstructPlan,
+    ConstructResolution,
 };
 use manifesto::CARD_19_ORDER;
 pub use manifesto::{AvailableForcesChange, Manifesto, ManifestoPlacement};
@@ -1654,7 +1655,7 @@ impl Game {
     /// Submits `action` as the faction the game offers it to, at the current match
     /// revision, through the checked submission play uses. A save replays its
     /// decisions this way (`crate::save`).
-    pub(crate) fn apply(&mut self, action: &str) -> Result<(), String> {
+    pub(crate) fn apply(&mut self, action: &str) -> Result<Option<ConstructFundingReply>, String> {
         let id = format!("{}:{action}", self.revision);
         let owner = self
             .choices()
@@ -2875,11 +2876,12 @@ impl Game {
             Some(Transfer::Authorizing {
                 giver,
                 recipient,
+                amount: asked,
                 waited,
-                ..
             }) => {
-                let limit = self.transfer_terms()[0].limit;
-                let mut choices: Vec<_> = (0..=limit)
+                let terms = self.terms(giver, recipient);
+                let funding = self.construct_funding();
+                let mut choices: Vec<_> = (0..=terms.limit)
                     .map(|n| {
                         let refusal = self.construct_authorization_refusal(n);
                         self.offer(
@@ -2887,7 +2889,9 @@ impl Game {
                             format!("{} authorizes {n}", giver.name()),
                             refusal.is_none(),
                             refusal.unwrap_or_else(|| {
-                                if let Some(condition) = self.construct_authorization_condition(n) {
+                                if let Some(condition) = funding.as_ref().and_then(|funding| {
+                                    self.construct_authorization_condition(funding, &terms, asked, n)
+                                }) {
                                     return condition;
                                 }
                                 if self.construct_is_open() {
@@ -3224,7 +3228,14 @@ impl Game {
                 .iter()
                 .any(|s| s.id == "santiago" && s.terror == 0)
     }
-    pub fn submit(&mut self, owner: Faction, revision: u64, choice: &str) -> Result<(), String> {
+    /// Checks and applies the offered choice. A nonzero conditional Construct
+    /// authorization also returns the facts of this reply.
+    pub fn submit(
+        &mut self,
+        owner: Faction,
+        revision: u64,
+        choice: &str,
+    ) -> Result<Option<ConstructFundingReply>, String> {
         if revision != self.revision {
             return Err("Stale match revision; observe again.".into());
         }
@@ -3257,12 +3268,16 @@ impl Game {
             .revision
             .checked_add(1)
             .ok_or("Match revision exhausted.")?;
-        self.apply_decision(offered.action(), next_revision)?;
+        let reply = self.apply_decision(offered.action(), next_revision)?;
         self.revision = next_revision;
-        Ok(())
+        Ok(reply)
     }
 
-    fn apply_decision(&mut self, action: &str, next_revision: u64) -> Result<(), String> {
+    fn apply_decision(
+        &mut self,
+        action: &str,
+        next_revision: u64,
+    ) -> Result<Option<ConstructFundingReply>, String> {
         match action {
             // R 2.3.3. Only offered at the action choice.
             "pass" => {
@@ -3304,7 +3319,7 @@ impl Game {
                     .declines
                     .push(owner);
             }
-            _ if manifesto::is_placement(action) => return self.apply_manifesto_placement(action),
+            _ if manifesto::is_placement(action) => self.apply_manifesto_placement(action)?,
             construct::OPERATION_ONLY | construct::LIMITED => {
                 return self.apply_construct(action, next_revision);
             }
@@ -3338,10 +3353,14 @@ impl Game {
             }
             _ => return self.execute(action, next_revision),
         }
-        Ok(())
+        Ok(None)
     }
     /// Side decisions during execution, plus the original Terror and Kidnap steps.
-    fn execute(&mut self, action: &str, next_revision: u64) -> Result<(), String> {
+    fn execute(
+        &mut self,
+        action: &str,
+        next_revision: u64,
+    ) -> Result<Option<ConstructFundingReply>, String> {
         // Removal mode: only its own choices are offered, so `submit` has already
         // bound the space, group and quantity to a supported removal.
         let executor = self.executing().ok_or("No faction is executing.")?;
@@ -3358,7 +3377,7 @@ impl Game {
                 self.return_own_pieces(executor, selection)?;
                 self.effect |= self.current_card == 17;
             }
-            return Ok(());
+            return Ok(None);
         }
         match self.transfer.clone() {
             None if action == "remove" => self.removal = Some(Removal::Selecting),
@@ -3433,11 +3452,15 @@ impl Game {
                 ..
             }) => {
                 let amount = action.strip_prefix("authorize:").unwrap().parse().unwrap();
-                self.authorize_transfer(giver, recipient, asked, amount);
+                let reply = self.authorize_construct_funding(giver, recipient, asked, amount);
+                if reply.is_none() {
+                    self.move_resources(giver, recipient, amount);
+                }
                 self.transfer = None;
+                return Ok(reply);
             }
         }
-        Ok(())
+        Ok(None)
     }
 
     fn return_own_pieces(
@@ -3739,7 +3762,7 @@ mod pass_tests {
             assert_eq!(after.resources[syndicate], 49);
             assert_eq!(after.eligible, [true; 4]);
             assert!(after.card_18_complete());
-            reports.record(&after);
+            reports.record(&after, None);
             let reports = reports.all();
             assert_eq!(reports.len(), 1);
             assert!(reports[0].complete);

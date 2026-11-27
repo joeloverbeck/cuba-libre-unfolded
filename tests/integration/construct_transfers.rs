@@ -1,17 +1,40 @@
 //! R 1.5.1, 1.8, 2.3.5 and 3.3.5. A willing giver can fund the one required payment.
-use cuba_libre_unfolded::{Faction, Game, Transfer, reports::Reports};
+use cuba_libre_unfolded::{
+    ConstructFundingReply, Faction, Game, Transfer, reports::Reports, save::Session,
+};
 
 const SYNDICATE: Faction = Faction::Syndicate;
 const M26: Faction = Faction::M26;
+const CARD_17: &[&str] = &[
+    "terror",
+    "kidnap",
+    "kidnap:roll",
+    "terror:santiago",
+    "end-terror",
+    "event:shaded",
+    "resolve-shaded",
+    "advance-card",
+];
+// Kidnap leaves Government 1 and 26July 4 after Terror. Government gets 12
+// from Syndicate and pays 2 to close Havana's Casino, leaving [11, 4, 5, 3].
+const UNDERFUNDED: &[&str] = &[
+    "government:assault",
+    "transfer",
+    "ask:3:12",
+    "authorize:12",
+    "assault:havana:syndicate",
+    "end-assault",
+    "syndicate:limited-operation",
+];
 
-fn choose(game: &mut Game, action: &str) {
+fn choose(game: &mut Game, action: &str) -> Option<ConstructFundingReply> {
     let view = game.observe();
     game.submit(
         view.owner,
         view.revision,
         &format!("{}:{action}", view.revision),
     )
-    .unwrap_or_else(|error| panic!("{action}: {error}"));
+    .unwrap_or_else(|error| panic!("{action}: {error}"))
 }
 
 fn refuse(game: &mut Game, owner: Faction, action: &str) -> String {
@@ -26,16 +49,7 @@ fn refuse(game: &mut Game, owner: Faction, action: &str) -> String {
 
 fn card_18() -> Game {
     let mut game = Game::opening_with_seed(2);
-    for action in [
-        "terror",
-        "kidnap",
-        "kidnap:roll",
-        "terror:santiago",
-        "end-terror",
-        "event:shaded",
-        "resolve-shaded",
-        "advance-card",
-    ] {
+    for action in CARD_17 {
         choose(&mut game, action);
     }
     game
@@ -43,17 +57,7 @@ fn card_18() -> Game {
 
 fn underfunded_construct() -> Game {
     let mut game = card_18();
-    // Kidnap leaves Government 1 and 26July 4 after Terror. Government gets 12
-    // from Syndicate and pays 2 to close Havana's Casino, leaving [11, 4, 5, 3].
-    for action in [
-        "government:assault",
-        "transfer",
-        "ask:3:12",
-        "authorize:12",
-        "assault:havana:syndicate",
-        "end-assault",
-        "syndicate:limited-operation",
-    ] {
+    for action in UNDERFUNDED {
         choose(&mut game, action);
     }
     game
@@ -243,9 +247,12 @@ fn construct_uses_the_amount_the_giver_authorizes() {
 fn construct_reports_transfers_in_order_even_when_the_same_giver_replies_twice() {
     let mut game = underfunded_construct();
     let mut reports = Reports::new(&game.observe());
+    for action in ["transfer", "ask:1:2"] {
+        let reply = choose(&mut game, action);
+        reports.record(&game.observe(), reply);
+    }
+    let after_ask = game.observe().revision;
     for action in [
-        "transfer",
-        "ask:1:2",
         "authorize:3",
         "construct:havana:open",
         "transfer",
@@ -255,8 +262,8 @@ fn construct_reports_transfers_in_order_even_when_the_same_giver_replies_twice()
         "give:1:2",
         "end-construct",
     ] {
-        choose(&mut game, action);
-        reports.record(&game.observe());
+        let reply = choose(&mut game, action);
+        reports.record(&game.observe(), reply);
     }
     let whole = reports.all();
     let report = whole.last().unwrap();
@@ -294,6 +301,11 @@ fn construct_reports_transfers_in_order_even_when_the_same_giver_replies_twice()
         ]
     );
     assert_eq!(report.articles[3].lines, ["Syndicate 2 → 0, 26July 0 → 2."]);
+    let continued = reports.since(after_ask);
+    assert_eq!(
+        continued.last().unwrap().articles[0].lines,
+        ["26July 4 → 1, Syndicate 3 → 6."]
+    );
 }
 
 #[test]
@@ -303,21 +315,21 @@ fn construct_reports_each_open_casino_change_even_when_the_total_returns_to_two(
     assert_eq!(start.standings[3].score, 2);
     let mut reports = Reports::new(&start);
     for action in ["transfer", "ask:1:2", "authorize:2"] {
-        choose(&mut game, action);
-        reports.record(&game.observe());
+        let reply = choose(&mut game, action);
+        reports.record(&game.observe(), reply);
     }
     let before_payment = game.observe().revision;
     choose(&mut game, "construct:havana:open");
     assert_eq!(game.observe().standings[3].score, 3);
-    reports.record(&game.observe());
+    reports.record(&game.observe(), None);
     for action in [
         "remove",
         "close-casino:pinar-del-rio:open-casino:1",
         "done-removal",
         "end-construct",
     ] {
-        choose(&mut game, action);
-        reports.record(&game.observe());
+        let reply = choose(&mut game, action);
+        reports.record(&game.observe(), reply);
     }
     let end = game.observe();
     assert_eq!(end.standings[3].score, 2);
@@ -361,15 +373,15 @@ fn limited_construct_holds_insufficient_authorizations_until_they_can_fund_a_pay
     let mut game = underfunded_construct();
     let mut reports = Reports::new(&game.observe());
     for action in ["transfer", "ask:1:2"] {
-        choose(&mut game, action);
-        reports.record(&game.observe());
+        let reply = choose(&mut game, action);
+        reports.record(&game.observe(), reply);
     }
     let pending = game.observe();
     let funding = pending.construct_funding.as_ref().unwrap();
     assert_eq!(funding.shortfall, 2);
     assert!(funding.authorizations.is_empty());
-    choose(&mut game, "authorize:1");
-    reports.record(&game.observe());
+    let reply = choose(&mut game, "authorize:1");
+    reports.record(&game.observe(), reply);
     assert_eq!(game.observe().resources, [11, 4, 5, 3]);
     assert_eq!(game.observe().owner, SYNDICATE);
     let funding = game.observe().construct_funding.unwrap();
@@ -393,6 +405,12 @@ fn limited_construct_holds_insufficient_authorizations_until_they_can_fund_a_pay
         );
     }
     refuse(&mut game, SYNDICATE, "construct:havana:open");
+    let mut abandoned = game.clone();
+    let mut abandoned_reports = reports.clone();
+    let reply = choose(&mut abandoned, "back-to-choice");
+    abandoned_reports.record(&abandoned.observe(), reply);
+    assert!(abandoned_reports.all().is_empty());
+
     let mut management = game.clone();
     choose(&mut management, "remove");
     let close = "close-casino:pinar-del-rio:open-casino:1";
@@ -428,16 +446,36 @@ fn limited_construct_holds_insufficient_authorizations_until_they_can_fund_a_pay
     refuse(&mut game, M26, "authorize:1");
 
     let mut same_giver = game.clone();
-    choose(&mut same_giver, "transfer");
+    let mut same_giver_reports = reports.clone();
+    let reply = choose(&mut same_giver, "transfer");
+    same_giver_reports.record(&same_giver.observe(), reply);
     assert!(refuse(&mut same_giver, SYNDICATE, "ask:1:4").contains("more than 3"));
-    choose(&mut same_giver, "ask:1:3");
+    let reply = choose(&mut same_giver, "ask:1:3");
+    same_giver_reports.record(&same_giver.observe(), reply);
     assert_eq!(same_giver.observe().transfer_terms[0].limit, 3);
     refuse(&mut same_giver, M26, "authorize:4");
     let mut maximum = same_giver.clone();
     choose(&mut maximum, "authorize:3");
     assert_eq!(maximum.observe().resources, [11, 0, 5, 7]);
-    choose(&mut same_giver, "authorize:1");
+    let reply = choose(&mut same_giver, "authorize:1");
+    same_giver_reports.record(&same_giver.observe(), reply);
     assert_eq!(same_giver.observe().resources, [11, 2, 5, 5]);
+    let same_giver_report = same_giver_reports.all().pop().unwrap();
+    assert_eq!(same_giver_report.articles.len(), 2);
+    assert_eq!(
+        same_giver_report.articles[0].lines,
+        [
+            "Syndicate asked for 2 Resources.",
+            "26July 4 → 3, Syndicate 3 → 4.",
+        ]
+    );
+    assert_eq!(
+        same_giver_report.articles[1].lines,
+        [
+            "Syndicate asked for 3 Resources.",
+            "26July 3 → 2, Syndicate 4 → 5.",
+        ]
+    );
 
     let mut withdrawn = game.clone();
     for action in ["transfer", "ask:2:5"] {
@@ -488,15 +526,15 @@ fn limited_construct_holds_insufficient_authorizations_until_they_can_fund_a_pay
         "ask:2:5",
         "authorize:2",
     ] {
-        choose(&mut game, action);
-        reports.record(&game.observe());
+        let reply = choose(&mut game, action);
+        reports.record(&game.observe(), reply);
     }
     assert_eq!(game.observe().resources, [11, 3, 3, 6]);
     assert!(game.observe().construct_paid.is_empty());
     refuse(&mut game, SYNDICATE, "back-to-choice");
     for action in ["construct:havana:open", "end-construct"] {
-        choose(&mut game, action);
-        reports.record(&game.observe());
+        let reply = choose(&mut game, action);
+        reports.record(&game.observe(), reply);
     }
     assert_eq!(game.observe().resources, [11, 3, 3, 1]);
     let whole = reports.all();
@@ -524,4 +562,74 @@ fn limited_construct_holds_insufficient_authorizations_until_they_can_fund_a_pay
         ]
     );
     assert_eq!(articles[3].title, "Construct in Havana");
+}
+
+#[test]
+fn construct_settlement_reports_follow_only_saved_replies_in_live_play_and_replay() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("match.json");
+    let mut session = Session::create_seeded(&path, 2).unwrap();
+    let play = |session: &mut Session, action: &str| {
+        let seen = session.observe();
+        let offered = seen
+            .choices
+            .iter()
+            .find(|choice| choice.action() == action)
+            .unwrap();
+        session
+            .submit(offered.owner, seen.revision, &offered.id)
+            .unwrap();
+    };
+    for action in CARD_17.iter().chain(UNDERFUNDED).chain(&[
+        "transfer",
+        "ask:1:2",
+        "authorize:1",
+        "transfer",
+        "ask:2:5",
+        "decline",
+        "transfer",
+        "ask:2:5",
+    ]) {
+        play(&mut session, action);
+    }
+
+    let mut stale_writer = Session::open(&path, None).unwrap();
+    let before = stale_writer.observe();
+    let reports_before = stale_writer.reports();
+    let reply = format!("{}:authorize:2", before.revision);
+    play(&mut session, "authorize:2");
+    let save_bytes = std::fs::read(&path).unwrap();
+    let refusal = stale_writer
+        .submit(Faction::Directorio, before.revision, &reply)
+        .unwrap_err();
+    assert!(matches!(
+        refusal,
+        cuba_libre_unfolded::save::Submit::Save(_)
+    ));
+    assert_eq!(std::fs::read(&path).unwrap(), save_bytes);
+    assert_eq!(stale_writer.observe(), before);
+    assert_eq!(stale_writer.reports(), reports_before);
+    assert!(stale_writer.reports_since(before.revision).is_empty());
+
+    let since = session.reports_since(before.revision);
+    let report = since.last().unwrap();
+    assert_eq!(report.from_revision, before.revision);
+    assert_eq!(report.articles.len(), 2);
+    assert_eq!(
+        report.articles[0].lines,
+        [
+            "Syndicate asked for 2 Resources.",
+            "26July 4 → 3, Syndicate 3 → 4.",
+        ]
+    );
+    assert_eq!(
+        report.articles[1].lines,
+        [
+            "Syndicate asked for 5 Resources.",
+            "Directorio 5 → 3, Syndicate 4 → 6.",
+        ]
+    );
+    let reopened = Session::open(&path, None).unwrap();
+    assert_eq!(reopened.reports(), session.reports());
+    assert_eq!(reopened.reports_since(before.revision), since);
 }

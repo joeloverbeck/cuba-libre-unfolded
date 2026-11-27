@@ -15,7 +15,7 @@
 //! The shared record runs that check on load, on each candidate before it is
 //! written and on the kept `.previous` before it is rotated.
 use crate::{
-    Choice, Faction, Game, Observation, assets,
+    Choice, ConstructFundingReply, Faction, Game, Observation, assets,
     faction_seats::Stands,
     reports::{Report, Reports},
 };
@@ -358,14 +358,16 @@ impl Session {
     /// place in the decision list, before the changed position is published. A
     /// failure says which it was: the rules refused the decision, or the save could
     /// not be written (#174: the table draws each as its own kind of notice).
+    /// A conditional Construct reply reaches reports and the caller only after
+    /// the save succeeds.
     pub fn submit(
         &mut self,
         owner: Faction,
         revision: u64,
         choice: &str,
-    ) -> std::result::Result<(), Submit> {
+    ) -> std::result::Result<Option<ConstructFundingReply>, Submit> {
         let mut candidate = self.payload.clone();
-        candidate
+        let reply = candidate
             .position
             .submit(owner, revision, choice)
             .map_err(Submit::Refused)?;
@@ -375,8 +377,8 @@ impl Session {
             .push(Choice::action_of(choice).to_owned());
         self.persist(&candidate).map_err(Submit::Save)?;
         self.payload = candidate;
-        self.reports.record(&self.observe());
-        Ok(())
+        self.reports.record(&self.observe(), reply.clone());
+        Ok(reply)
     }
     /// Publishes on behalf of an author whose controller the table has checked.
     /// The document is visible only after the save succeeds. The game position,

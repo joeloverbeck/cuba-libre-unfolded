@@ -583,7 +583,7 @@ fn syndicate_pass_finishes_card_18_after_havana_assault() {
     choose(&mut game, pass.action());
 
     let after = game.observe();
-    reports.record(&after);
+    reports.record(&after, None);
     let reports = reports.all();
     assert_eq!(reports.len(), 1);
     let report = &reports[0];
@@ -647,7 +647,7 @@ fn operation_only_construct_pays_for_distinct_spaces_in_the_chosen_order() {
     assert_eq!(before.resources, [4, 4, 5, 15]);
     let mut reports = Reports::new(&before);
     choose(&mut game, "syndicate:construct");
-    reports.record(&game.observe());
+    reports.record(&game.observe(), None);
 
     let refuse = |game: &mut Game, action: &str, reason: &str| {
         let before = game.observe();
@@ -687,7 +687,7 @@ fn operation_only_construct_pays_for_distinct_spaces_in_the_chosen_order() {
         );
         choose(&mut game, &action);
         let paid = game.observe();
-        reports.record(&paid);
+        reports.record(&paid, None);
         assert_eq!(paid.resources[3], to);
         assert_eq!(paid.standings[3].score, 3);
         let here = paid.spaces.iter().find(|s| s.id == space).unwrap();
@@ -745,7 +745,7 @@ fn operation_only_construct_pays_for_distinct_spaces_in_the_chosen_order() {
 
     choose(&mut game, "end-construct");
     let after = game.observe();
-    reports.record(&after);
+    reports.record(&after, None);
     assert_eq!(after.eligible, [true, true, true, false]);
     assert_eq!((after.current_card, after.preview_card), (18, 19));
     assert!(
@@ -790,7 +790,7 @@ fn operation_only_construct_can_finish_without_a_payment_or_pass_income() {
         let mut reports = Reports::new(&before);
         choose(&mut game, "syndicate:construct");
         let open = game.observe();
-        reports.record(&open);
+        reports.record(&open, None);
         let finish = open
             .choices
             .iter()
@@ -806,7 +806,7 @@ fn operation_only_construct_can_finish_without_a_payment_or_pass_income() {
         assert_eq!(eligibility.map(|r| r.eligible), [true, true, true, false]);
         choose(&mut game, "end-construct");
         let after = game.observe();
-        reports.record(&after);
+        reports.record(&after, None);
         assert_eq!(after.eligible, [true, true, true, false]);
         assert_eq!(after.resources, before.resources);
         assert_eq!(after.spaces, before.spaces);
@@ -1503,20 +1503,20 @@ fn operation_only_can_manage_casinos_after_spending_its_last_resource() {
         "remove",
     ] {
         choose(&mut game, action);
-        reports.record(&game.observe());
+        reports.record(&game.observe(), None);
     }
     let before = game.observe();
     assert_eq!(before.resources[3], 0);
     assert_eq!(before.construct_paid.len(), 3);
     choose(&mut game, "close-casino:pinar-del-rio:open-casino:1");
     let changed = game.observe();
-    reports.record(&changed);
+    reports.record(&changed, None);
     assert_eq!(changed.resources[3], 0);
     assert_eq!(changed.construct_paid, before.construct_paid);
     assert_eq!(changed.standings[3].score, 2);
     for action in ["done-removal", "end-construct"] {
         choose(&mut game, action);
-        reports.record(&game.observe());
+        reports.record(&game.observe(), None);
     }
     let report = &reports.all()[0];
     assert_eq!(report.recorded, Some("Operation Only"));

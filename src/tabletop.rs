@@ -1354,7 +1354,7 @@ fn submit(
 ) -> Result<Observation, crate::save::Submit> {
     let previous = play.game().observe();
     let session = play.session.as_mut().unwrap();
-    session.submit(owner, rev, name)?;
+    let reply = session.submit(owner, rev, name)?;
     let after = session.observe();
     let played = ui.played();
     ui.editions
@@ -1367,7 +1367,7 @@ fn submit(
     // A played card is saved before it moves; the tray shows it cross from
     // this frame's clock (piles::follow).
     ui.played = piles::Played::between(&previous, &after);
-    ui.notice = notice::Notice::success(notice(&previous, &after, owner, name));
+    ui.notice = notice::Notice::success(notice(&previous, &after, owner, name, reply.as_ref()));
     Ok(after)
 }
 /// A plate drawn in nine slices, its corners `slice` frame units at `unit` window pixels
@@ -1382,9 +1382,47 @@ fn sliced(slice: f32, unit: f32) -> NodeImageMode {
 /// The notice for the committed decision `name`, a success: the seat reads it and no
 /// slip draws it (#174). Every rules fact it states is the authority's (foundation 2,
 /// "Engine authority"): the decision's own id, read through `Choice`'s accessors; the
-/// preview the authority showed for it, from `previous`; or the record in `after`, the
-/// observation once it was committed.
-fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &str) -> String {
+/// preview the authority showed for it, from `previous`; the record in `after`; or the
+/// committed funding reply.
+fn notice(
+    previous: &Observation,
+    after: &Observation,
+    owner: Faction,
+    name: &str,
+    reply: Option<&crate::ConstructFundingReply>,
+) -> String {
+    use crate::ConstructFundingReply::{Held, Settled};
+    match reply {
+        Some(Held {
+            authorization,
+            shortfall,
+        }) => {
+            return format!(
+                "{} conditionally authorized {} for Syndicate. Syndicate still needs {}. Saved.",
+                authorization.giver.name(),
+                resources(authorization.amount),
+                resources(*shortfall),
+            );
+        }
+        Some(Settled(settlement)) if !settlement.earlier.is_empty() => {
+            let final_reply = settlement.final_reply.authorization;
+            return format!(
+                "{} authorized {}. Syndicate received {} from the combined authorizations. Saved.",
+                final_reply.giver.name(),
+                resources(final_reply.amount),
+                resources(settlement.total()),
+            );
+        }
+        Some(Settled(settlement)) => {
+            let final_reply = settlement.final_reply.authorization;
+            return format!(
+                "{} gave {} to Syndicate. Saved.",
+                final_reply.giver.name(),
+                final_reply.amount,
+            );
+        }
+        None => {}
+    }
     let choice = previous.choices.iter().find(|c| c.id == name);
     let action = name.split_once(':').map_or(name, |(_, a)| a);
     let place = |id: &str| {
@@ -1429,36 +1467,6 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
                 _ => "Transfer request saved.".into(),
             },
             TransferChoice::Authorize { amount } => match previous.transfer {
-                Some(Transfer::Authorizing {
-                    giver, recipient, ..
-                }) if amount > 0
-                    && let Some(funding) = &after.construct_funding =>
-                {
-                    format!(
-                        "{} conditionally authorized {} for {}. {} still needs {}. Saved.",
-                        giver.name(),
-                        resources(amount),
-                        recipient.name(),
-                        recipient.name(),
-                        resources(funding.shortfall),
-                    )
-                }
-                Some(Transfer::Authorizing {
-                    giver, recipient, ..
-                }) if let Some(funding) = &previous.construct_funding
-                    && funding.authorized() > 0
-                    && after.construct_funding.is_none() =>
-                {
-                    let received =
-                        after.resources[recipient.index()] - previous.resources[recipient.index()];
-                    format!(
-                        "{} authorized {}. {} received {} from the combined authorizations. Saved.",
-                        giver.name(),
-                        resources(amount),
-                        recipient.name(),
-                        resources(received),
-                    )
-                }
                 Some(Transfer::Authorizing {
                     giver, recipient, ..
                 }) => format!(
@@ -1983,10 +1991,10 @@ mod tests {
         let mut previous = game.observe();
         let id = format!("{}:{action}", previous.revision);
         let owner = previous.choices.iter().find(|c| c.id == id).unwrap().owner;
-        game.submit(owner, previous.revision, &id).unwrap();
+        let reply = game.submit(owner, previous.revision, &id).unwrap();
         let mut after = game.observe();
         tamper(&mut previous, &mut after);
-        notice(&previous, &after, owner, &id)
+        notice(&previous, &after, owner, &id, reply.as_ref())
     }
 
     /// Foundation 2, "Engine authority": the notices state the record the decision

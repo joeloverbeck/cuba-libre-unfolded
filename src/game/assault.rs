@@ -708,7 +708,11 @@ impl Game {
         payment_action(action)
     }
 
-    pub(super) fn apply_assault(&mut self, action: &str, next_revision: u64) -> Result<(), String> {
+    pub(super) fn apply_assault(
+        &mut self,
+        action: &str,
+        next_revision: u64,
+    ) -> Result<Option<ConstructFundingReply>, String> {
         match action {
             OPEN => {
                 self.assault = Some(Assault {
@@ -721,11 +725,11 @@ impl Game {
                 || self.removal.is_some()
                 || matches!(action, "transfer" | "remove") =>
             {
-                self.execute(action, next_revision)?;
+                return self.execute(action, next_revision);
             }
             _ => self.resolve_assault(action)?,
         }
-        Ok(())
+        Ok(None)
     }
 
     fn resolve_assault(&mut self, action: &str) -> Result<(), String> {

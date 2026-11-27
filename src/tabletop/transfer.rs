@@ -25,7 +25,7 @@
 use super::emblems;
 use super::palette::{INK, PAPER, PRIMARY, QUIET};
 use super::*;
-use crate::{Bound, ConstructFunding, Observation, Transfer, TransferTerms};
+use crate::{Bound, Observation, Transfer, TransferTerms};
 use bevy::text::{Justify, LetterSpacing, TextLayoutInfo};
 use bevy::ui::widget::NodeImageMode;
 use bevy::ui_widgets::{
@@ -219,20 +219,15 @@ pub(super) struct Shown {
 }
 
 impl Shown {
-    fn balances(&self, terms: &TransferTerms, funding: Option<&ConstructFunding>) -> (i16, i16) {
-        if let Some(funding) = funding
+    fn balances(&self, terms: &TransferTerms, view: &Observation) -> (i16, i16) {
+        if let Some(funding) = &view.construct_funding
             && terms.recipient == Faction::Syndicate
         {
-            if self.amount < funding.shortfall {
-                return balances(terms, 0);
-            }
-            let (giver, recipient) = balances(terms, self.amount);
-            // The incoming Construct terms already hold back this giver's
-            // committed authorizations. Keep the signed balances for typed refusals.
-            return (
-                giver - i16::from(terms.reserved),
-                recipient + i16::from(funding.authorized()),
-            );
+            let asked = match view.transfer {
+                Some(Transfer::Authorizing { amount, .. }) => amount,
+                _ => self.amount,
+            };
+            return funding.projected_balances(view.resources, terms, asked, self.amount);
         }
         balances(terms, self.amount)
     }
@@ -656,7 +651,7 @@ pub(super) fn draw(
         let view = game.observe();
         let shown = content(&view, &ui.transfer);
         if let Some(terms) = &shown.terms {
-            follow(&mut live, terms, &shown, view.construct_funding.as_ref(), s);
+            follow(&mut live, terms, &shown, &view, s);
         }
         return;
     }
@@ -702,11 +697,11 @@ fn follow(
     live: &mut Query<(&Live, &mut Node, Option<&mut Text>)>,
     terms: &TransferTerms,
     shown: &Shown,
-    funding: Option<&ConstructFunding>,
+    view: &Observation,
     s: f32,
 ) {
     let amount = shown.amount;
-    let (giver, recipient) = shown.balances(terms, funding);
+    let (giver, recipient) = shown.balances(terms, view);
     let x = position(terms, amount) * s;
     for (part, mut node, text) in live.iter_mut() {
         match part {
@@ -1238,9 +1233,10 @@ fn modal(
         },
     );
     let terms = shown.terms.as_ref();
+    let projected = terms.map(|terms| shown.balances(terms, view));
     let after = |faction: Faction| -> Option<(i16, Live, bool)> {
         let terms = terms?;
-        let (giver, recipient) = shown.balances(terms, view.construct_funding.as_ref());
+        let (giver, recipient) = projected?;
         if faction == terms.giver {
             Some((giver, Live::GiverAfter, refused))
         } else {

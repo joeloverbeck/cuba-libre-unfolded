@@ -1368,8 +1368,8 @@ mod tests {
         let mut game = Game::opening_with_seed(seed);
         let mut reports = crate::reports::Reports::new(&game.observe());
         for decision in decisions {
-            game.apply(decision).unwrap();
-            reports.record(&game.observe());
+            let reply = game.apply(decision).unwrap();
+            reports.record(&game.observe(), reply);
         }
         reports.all().pop().unwrap()
     }
