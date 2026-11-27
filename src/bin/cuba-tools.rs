@@ -1,5 +1,6 @@
 use anyhow::{Context, Result, anyhow, bail};
 use cuba_libre_unfolded::{
+    assets::prepare_play_cards,
     player_folders::{CLIENT, Places},
     seat_brief::BriefWriter,
     seat_wait,
@@ -17,6 +18,7 @@ use unfolded_seat_client::{
 const USAGE: &str = "Usage: cuba-tools seat [--brief] SOCKET [JSON_REQUEST ...]
        cuba-tools seat-wait SOCKET [--timeout SECONDS]
        cuba-tools player-folders
+       cuba-tools prepare-play DATA_DIRECTORY [CARD_SOURCE]
        cuba-tools session-costs FILE
 
 seat: Without requests, reads JSON lines from stdin. Exits nonzero for refused/missed/skipped/malformed or missing replies.
@@ -25,6 +27,8 @@ seat: Without requests, reads JSON lines from stdin. Exits nonzero for refused/m
 seat-wait: keeps a held seat's windowless table running, so that agent sessions can play its handed-over factions, and answers nothing itself. Prints a line whenever the revision, the faction the table waits for or what holds an agent's choice changes, and returns when the table needs this seat: no agent's faction is awaited, or something opened here holds an agent's choice. Exits 0 then, 3 when the time (240 s unless given) is up, 4 when no seat listens there, 1 otherwise.
 
 player-folders: writes the folders an agent player's sessions run in, one for Claude Code and one for Codex, and installs their client, the cuba-player beside this program. Refuses, and names, any file it did not write.
+
+prepare-play: checks the installed private cards and installs missing verified copies from the configured source. Supplying CARD_SOURCE records that directory after successful preparation.
 
 session-costs: reports observed model calls against this session's limits from a JSON file (docs/agents/seat.md, Reporting a real session's call limits). Exits 0 for a pass, 1 for failure or invalid input, 3 for incomplete evidence.";
 
@@ -195,6 +199,10 @@ fn run() -> Result<u8> {
         "seat" => seat(args),
         "seat-wait" => wait(&args),
         "player-folders" if args.is_empty() => player_folders(),
+        "prepare-play" if (1..=2).contains(&args.len()) => {
+            prepare_play_cards(Path::new(&args[0]), args.get(1).map(Path::new))?;
+            Ok(0)
+        }
         "session-costs" if args.len() == 1 => session_costs(Path::new(&args[0])),
         _ => bail!("{USAGE}"),
     }

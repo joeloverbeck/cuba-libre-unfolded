@@ -11,20 +11,21 @@ An Ubuntu Rust desktop implementation of **Cuba Libre**, the COIN game by Jeff G
 - For the `tabletop` feature (the desktop app): Bevy 0.20.0, an X11 desktop, a Vulkan-capable graphics driver, the ordinary C/C++ build tools and the X11 development libraries Bevy uses.
 - Network access for the first build's Cargo dependencies. Sibling working trees are not needed: `Cargo.toml` and `Cargo.lock` pin the shared dependency and the root renderer patch.
 
-Put your private copies of `card-17.png`, `card-18.png`, `card-19.png`, `card-20.png` and the card back, `cuba-libre-card-back.png`, in `~/.local/share/cuba-libre-unfolded/cards/`. All five must match [the admitted hashes](art/atlas/README.md#private-card-admission); the app refuses to launch without any of them and names the file. If you keep the images elsewhere, use that directory for `--cards`.
-
-From the checkout root, build and launch the desktop app with `cargo run`.
+After the first-use source setup below, launch or resume the desktop app from the checkout root:
 
 ```sh
-mkdir -p "$HOME/.local/share/cuba-libre-unfolded/saves"
-cargo run --locked --features tabletop --bin cuba-libre -- \
-  --cards "$HOME/.local/share/cuba-libre-unfolded/cards" \
-  --save "$HOME/.local/share/cuba-libre-unfolded/saves/task.json"
+scripts/play
 ```
 
-The `--` passes the required `--cards` and `--save` arguments to the game. An unused `--save` filename starts the prepared scenario. Use the same filename to resume that save.
+On first use, supply the directory that holds your private original card images. For example, if your collection is in `Pictures/Cuba Libre Resources`:
 
-The app loads table art from `art/atlas` relative to the checkout root. If you run the binary from another directory, pass the absolute path to `art/atlas` with `--art`. The app exits before creating or replacing a save if any required art or card image is missing or has changed.
+```sh
+scripts/play --card-source "$HOME/Pictures/Cuba Libre Resources"
+```
+
+The source can be a collection with `images/cards/` and `images/card-backs/`, or a directory of individual private copies. The launcher remembers it and checks the [required files and hashes](art/atlas/README.md#private-card-admission) before building the desktop app. After a pull, it installs newly required files from that source. If a source file is unavailable or incompatible, it names the file and reports how to proceed. If an installed card is incompatible, move it aside and rerun the launcher to restore it from the source.
+
+The default save is `saves/task.json` in the per-user data directory. Use `scripts/play --save /absolute/path/to/task.json` to choose another file. An unused filename starts the prepared scenario. If the app refuses a save from an earlier build, start with an unused filename. [Saves and recovery](#saves-and-recovery)
 
 ## Playing this build
 
@@ -60,9 +61,12 @@ The development seat drives the same scene, UI and input path without opening a 
 | Agent verification saves, captures, observations and retained logs | a fresh run directory under `local/verification/`, such as `issue-<N>/<run>/` for issue work |
 | Agent worktrees | `local/worktrees/<branch>/` |
 | The private card directory for `--cards` and `CUBA_TEST_CARDS` | `~/.local/share/cuba-libre-unfolded/cards/` |
+| The launcher's remembered private source path | `~/.local/share/cuba-libre-unfolded/card-source` |
 | Handoff notes | `local/handoffs/`; the durable state belongs in an issue comment |
 
 `local/` is ignored by Git and survives reboots, but not `git clean -x` or deleting the checkout; it is no backup. Existing saves and retained evidence are never migrated, overwritten or cleaned up. Saves, imports and verification evidence stay outside Git.
+
+When set, `XDG_DATA_HOME` replaces `~/.local/share` for the launcher's private cards, source path and default saves.
 
 ## Saves and recovery
 
@@ -72,7 +76,7 @@ To recover an original record's `.previous` into an **unused** destination:
 
 ```sh
 cargo run --locked --features tabletop --bin cuba-libre -- \
-  --cards "$HOME/.local/share/cuba-libre-unfolded/cards" \
+  --cards "${XDG_DATA_HOME:-$HOME/.local/share}/cuba-libre-unfolded/cards" \
   --save "/path/to/recovered.json" --recover-from "/path/to/task.json"
 ```
 

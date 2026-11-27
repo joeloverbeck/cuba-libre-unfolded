@@ -72,7 +72,7 @@ Fresh sibling inspection: Arkham `8301466b5bbc20b99411901cfcd6db2b29865431` (`sr
 
 ## Private card admission
 
-The app admits these private original faces and the original shared card back from the directory supplied to `--cards`.
+The launcher checks and installs these private original faces and the original shared card back from the configured source. The app admits them from the directory supplied to `--cards`. [Build and launch](../../README.md#build-and-launch)
 
 | File | SHA-256 |
 |---|---|
@@ -82,7 +82,7 @@ The app admits these private original faces and the original shared card back fr
 | `card-20.png` | `84ecf6fadc70e7dea17c7033c3e99c9945a6caf4b8f3b9d933cfd82f212e3e3b` |
 | `cuba-libre-card-back.png` | `c905d7a7313480b254e49dc70c56c41fe77e3039b037b238485e148cc82dbaa9` |
 
-The faces remain outside Git. Each pile's top card shows one face at 300 px on the owner's display, and the card tag shows one at reading size; both follow the saved cards' current and preview roles, preserve the faces' proportions, and round their corners so the black printed outside them never shows. The app checks all four before gameplay. [Build and launch](../../README.md#build-and-launch)
+The faces remain outside Git. Each pile's top card shows one face at 300 px on the owner's display, and the card tag shows one at reading size. Both follow the saved cards' current and preview roles, preserve the faces' proportions, and round their corners so the black printed outside them never shows. The app checks every required face before gameplay.
 
 The card back is the supplied collection's `images/card-backs/cuba-libre-card-back.png`, unchanged (1475×2110, 8,214,679 bytes), under the owner's exception in [foundation 4](../../docs/foundation/04-art-and-assets.md). It has the faces' custody: outside Git and outside any asset release. The app checks it at launch after the faces and refuses without it, naming the file, before any save is created or replaced. It is a presentation input, as the manifests are. It shows only while a card is played ([MAIN-VIEW.md, "The card advance"](MAIN-VIEW.md#the-card-advance)).
 

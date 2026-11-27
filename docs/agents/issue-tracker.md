@@ -26,6 +26,8 @@ GitHub issues and PRs share a number space. Resolve a bare number before acting,
 
 Run `scripts/check-pr-base` from the checkout being verified. It reads the live `origin/main` revision, fetches that exact commit when needed, and checks whether the checkout's HEAD contains it. If it reports a missing base, merge the reported revision, review the resulting delta, and run the final checks on the updated head. Resolve a Git error before relying on the result.
 
+Before merging a change to the README launch command, its implementation, or the required private card set, record the exact candidate revision and the result of the [desktop launch smoke](native-tests.md#desktop-launch-smoke) in the PR. This smoke is required alongside the public Rust checks.
+
 ## Closing issues
 
 Reference issues from commits and PRs with `For #N` or `Part of #N`. Merging never closes an issue: the owner turned off **Auto-close issues with merged linked pull requests** (Settings → General → Issues) on 2026-11-16, and the API does not expose that setting. After the merge, close an issue as **Close** above describes, and only when every one of its acceptance criteria is met and no owner acceptance is still outstanding, such as a requested playtest. Then prune its native captures ([parallel-work.md](parallel-work.md#builds), "Disk"). Publication authority never stands in for gameplay or visual acceptance; an issue awaiting it stays open. When the owner asks, a ticket whose criteria are met and reviewed on an integration branch closes before that branch's pull request merges, and its closing comment says that `main` gets the code with that pull request ([#197](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/197#issuecomment-7182142721), 2026-11-26).

@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage='Usage: scripts/play [--card-source DIRECTORY] [--save FILE]'
+if [[ ${1:-} == --help && $# == 1 ]]; then
+  printf '%s\n' "$usage"
+  exit
+fi
+
+data="${XDG_DATA_HOME:-$HOME/.local/share}/cuba-libre-unfolded"
+card_source=()
+save=
+while (($#)); do
+  if [[ $# -lt 2 || -z $2 || $2 == --* ]]; then
+    echo "$usage" >&2
+    exit 2
+  fi
+  case $1 in
+    --card-source)
+      source_path=$2
+      [[ $source_path == /* ]] || source_path="$PWD/$source_path"
+      card_source=("$source_path")
+      ;;
+    --save)
+      save=$2
+      [[ $save == /* ]] || save="$PWD/$save"
+      ;;
+    *) echo "$usage" >&2; exit 2 ;;
+  esac
+  shift 2
+done
+
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+cargo run --locked --quiet --bin cuba-tools -- prepare-play "$data" "${card_source[@]}"
+if [[ -z $save ]]; then
+  mkdir -p -- "$data/saves"
+  save="$data/saves/task.json"
+fi
+exec cargo run --locked --features tabletop --bin cuba-libre -- --cards "$data/cards" --save "$save"

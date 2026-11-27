@@ -7,6 +7,10 @@ use std::{
     path::{Path, PathBuf},
 };
 use unfolded_assets::{read_bounded, read_verified, regular_file};
+
+mod play;
+pub use play::prepare_play_cards;
+
 pub const MANIFEST: &str = include_str!("../art/atlas/runtime.sha256");
 pub const STATUS_MANIFEST: &str = include_str!("../art/atlas/status.sha256");
 pub const VICTORY_MANIFEST: &str = include_str!("../art/atlas/victory.sha256");
