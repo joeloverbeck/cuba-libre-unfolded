@@ -1244,10 +1244,10 @@ fn a_save_an_earlier_build_wrote_in_an_assault_is_refused_with_every_file_unchan
     assert!(Session::open(&path, None).is_ok());
 }
 
-/// R 2.3.7 and 2.3.8: these four combinations carry their distinct
-/// balances, board and Eligibility into the same 26July decision.
+/// R 2.3.7 and 2.3.8: all four finish families carry their distinct positions
+/// into the Manifesto and reach Directorio's second-Eligible decision.
 #[test]
-fn card_18_finishes_advance_and_replay_with_their_actual_consequences() {
+fn card_18_finishes_reach_the_manifesto_endpoint_with_their_actual_consequences() {
     let dir = tempfile::tempdir().unwrap();
     for (name, actions, resources, eligible, assault, construct) in [
         (
@@ -1495,7 +1495,226 @@ fn card_18_finishes_advance_and_replay_with_their_actual_consequences() {
         assert!(spent.to_string().contains("already published"));
         assert_eq!(std::fs::read(&path).unwrap(), with_publication);
         assert_eq!(std::fs::read(previous_path(&path)).unwrap(), saved);
+        assert_manifesto_endpoint(session, &path, name);
     }
+}
+
+fn assert_manifesto_endpoint(mut session: Session, path: &Path, route: &str) {
+    use Faction::{Directorio, Government, M26, Syndicate};
+
+    const DECLINE: &str = "manifesto:decline";
+    // Living Rules 1.4, 1.7, 2.3 and 7.2, the printed Event and the prepared
+    // board determine these outcomes. Construct closes new Casinos (3.3.5);
+    // only an open Casino contributes to Control or Syndicate's score.
+    let (actions, lines, standings) = match route {
+        "both-pass" => (
+            [
+                "manifesto:place:sierra-maestra:guerrilla-base",
+                DECLINE,
+                DECLINE,
+                DECLINE,
+            ],
+            [
+                "26July placed 1 Underground Guerrilla + 1 Base in Sierra Maestra.",
+                "Directorio declined placement.",
+                "Syndicate declined placement.",
+                "Government declined placement.",
+            ],
+            [(16, -2), (9, -6), (1, -8), (3, -14)],
+        ),
+        "pass-and-multi-space-construct" => (
+            [
+                DECLINE,
+                DECLINE,
+                "manifesto:place:camaguey-city:guerrilla-guerrilla",
+                DECLINE,
+            ],
+            [
+                "26July declined placement.",
+                "Directorio declined placement.",
+                "Syndicate placed 2 Underground Guerrillas in Camagüey City.",
+                "Government declined placement.",
+            ],
+            [(16, -2), (8, -7), (1, -8), (3, -25)],
+        ),
+        "empty-assault-and-pass" => (
+            [
+                "manifesto:place:santiago:guerrilla-base",
+                DECLINE,
+                DECLINE,
+                "manifesto:place:camaguey-city:troops-base",
+            ],
+            [
+                "26July placed 1 Underground Guerrilla + 1 Base in Santiago de Cuba.",
+                "Directorio declined placement.",
+                "Syndicate declined placement.",
+                "Government placed 1 Troop + 1 Base in Camagüey City.",
+            ],
+            [(16, -2), (9, -6), (1, -8), (3, -14)],
+        ),
+        "funded-assault-and-limited-construct" => (
+            [
+                DECLINE,
+                "manifesto:place:havana:base-base",
+                "manifesto:place:havana:guerrilla-guerrilla",
+                "manifesto:place:havana:troops-police",
+            ],
+            [
+                "26July declined placement.",
+                "Directorio placed 2 Bases in Havana.",
+                "Syndicate placed 2 Underground Guerrillas in Havana.",
+                "Government placed 1 Troop + 1 Police cube in Havana.",
+            ],
+            [(16, -2), (8, -7), (3, -6), (3, -30)],
+        ),
+        _ => panic!("Unknown card 18 finish: {route}"),
+    };
+    let opening = session.observe();
+    let prior_reports = session.reports();
+    let random = session.game().random_state();
+    act(&mut session, "m26:event");
+    for (faction, action) in [M26, Directorio, Syndicate, Government]
+        .into_iter()
+        .zip(actions)
+    {
+        let pending = session.observe();
+        assert_eq!(pending.owner, faction, "{route}");
+        assert_eq!(pending.executing, Some(M26), "{route}");
+        assert_eq!(pending.eligible, opening.eligible, "{route}");
+        assert_eq!(act(&mut session, action).owner, faction, "{route}");
+    }
+    let end = session.observe();
+    assert_eq!(end.revision, opening.revision + 5, "{route}");
+    assert_eq!((end.current_card, end.preview_card), (19, 20), "{route}");
+    assert_eq!((end.piles.played, end.piles.deck), (20, 32), "{route}");
+    assert_eq!(end.eligible, opening.eligible, "{route}");
+    assert_eq!(end.resources, opening.resources, "{route}");
+    assert_eq!(end.eligibility.m26_next_card, Some(true), "{route}");
+    assert_eq!(end.event_executor, Some(M26), "{route}");
+    assert_eq!(end.executing, None, "{route}");
+    assert_eq!(end.owner, Directorio, "{route}");
+    assert!(end.manifesto.as_ref().unwrap().complete(), "{route}");
+    let next = end.next.as_ref().unwrap();
+    assert_eq!(
+        (next.faction, next.role.as_str()),
+        (Directorio, "2nd Eligible"),
+        "{route}"
+    );
+    assert_eq!(
+        end.choices
+            .iter()
+            .map(|c| (c.action(), c.owner, c.supported))
+            .collect::<Vec<_>>(),
+        [
+            ("directorio:pass", Directorio, false),
+            ("directorio:operation", Directorio, false)
+        ],
+        "{route}"
+    );
+    assert_eq!(
+        end.standings
+            .iter()
+            .map(|s| (s.score, s.margin))
+            .collect::<Vec<_>>(),
+        standings,
+        "{route}"
+    );
+
+    let check_space = |id, control, groups: &[(Faction, Kind, State, u8, u8)]| {
+        let space = end.spaces.iter().find(|space| space.id == id).unwrap();
+        assert_eq!(space.control(), Some(control), "{route}: {id}");
+        for &(faction, kind, state, count, available) in groups {
+            let on_map = space
+                .pieces
+                .iter()
+                .find(|p| (p.faction, p.kind, p.state) == (faction, kind, state))
+                .unwrap();
+            let stock = end
+                .available
+                .iter()
+                .find(|p| (p.faction, p.kind) == (faction, kind))
+                .unwrap();
+            assert_eq!(
+                (on_map.count, stock.count),
+                (count, available),
+                "{route}: {id} {kind:?}"
+            );
+        }
+    };
+    match route {
+        "both-pass" => check_space(
+            "sierra-maestra",
+            M26,
+            &[
+                (M26, Kind::Guerrilla, State::Underground, 5, 7),
+                (M26, Kind::Base, State::Ordinary, 2, 2),
+            ],
+        ),
+        "pass-and-multi-space-construct" => check_space(
+            "camaguey-city",
+            Government,
+            &[
+                (Syndicate, Kind::Casino, State::Closed, 1, 5),
+                (Syndicate, Kind::Guerrilla, State::Underground, 2, 4),
+            ],
+        ),
+        "empty-assault-and-pass" => {
+            check_space(
+                "santiago",
+                M26,
+                &[
+                    (M26, Kind::Guerrilla, State::Active, 2, 11),
+                    (M26, Kind::Guerrilla, State::Underground, 1, 11),
+                    (M26, Kind::Base, State::Ordinary, 1, 2),
+                ],
+            );
+            check_space(
+                "camaguey-city",
+                Government,
+                &[
+                    (Government, Kind::Troops, State::Ordinary, 2, 2),
+                    (Government, Kind::Base, State::Ordinary, 1, 1),
+                ],
+            );
+        }
+        "funded-assault-and-limited-construct" => check_space(
+            "havana",
+            Government,
+            &[
+                (Directorio, Kind::Base, State::Ordinary, 2, 2),
+                (Syndicate, Kind::Casino, State::Open, 1, 7),
+                (Syndicate, Kind::Guerrilla, State::Underground, 2, 4),
+                (Government, Kind::Troops, State::Ordinary, 7, 2),
+                (Government, Kind::Police, State::Ordinary, 5, 7),
+            ],
+        ),
+        _ => unreachable!(),
+    }
+
+    let reports = session.reports();
+    assert_eq!(reports.len(), prior_reports.len() + 1, "{route}");
+    assert_eq!(&reports[..prior_reports.len()], prior_reports, "{route}");
+    let report = reports.last().unwrap();
+    assert_eq!(
+        (report.card, report.faction, report.complete),
+        (19, M26, true),
+        "{route}"
+    );
+    assert_eq!(
+        report
+            .articles
+            .iter()
+            .flat_map(|article| &article.lines)
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        lines,
+        "{route}"
+    );
+    assert_eq!(session.game().random_state(), random, "{route}");
+    drop(session);
+    let reopened = Session::open(path, None).unwrap();
+    assert_eq!(reopened.observe(), end, "{route}");
+    assert_eq!(reopened.reports(), reports, "{route}");
 }
 
 /// A restart at each pending decision of the unshaded Event: the Rally's beneficiary
