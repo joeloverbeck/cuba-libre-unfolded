@@ -10,6 +10,14 @@ Run affected integration selectors when changing a report article, choice family
 | Choice families or seat briefs | `seat_reference::`, `seat_briefs::` |
 | Faction-view projection or choice ownership | `faction_seats::` |
 
+## Persistent table controls
+
+When adding or moving a control visible on the ordinary table, run the 4K main-view regression before integrating the ticket. It checks the authored layout and exposed board areas as well as the controls' effects on picking and camera input. Set `CUBA_TEST_CARDS` to the [private card directory](../../README.md#where-files-live).
+
+```sh
+scripts/heavy scripts/native --exact main_view::native_main_view_fills_the_window_and_matches_its_layout
+```
+
 ## Regression catalogue
 
 The [seat reference](seat.md) has the seat's requests, its component ids, what the table reports and how to judge a capture on the owner's display.
