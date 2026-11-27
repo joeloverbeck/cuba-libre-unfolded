@@ -78,6 +78,9 @@ pub(super) fn unsettled(world: &mut World) -> Vec<Unsettled> {
     if world.resource::<Orbit>().is_moving() {
         pending.push(Unsettled::Camera);
     }
+    if ui.marker_travel.moving() {
+        pending.push(Unsettled::Part("Terror marker travel".into()));
+    }
     // A newly placed bell is ready once its glTF scene spawned and plays the
     // loop. The loop itself never holds the table unsettled.
     let tokens = world.query::<&TerrorToken>().iter(world).count();

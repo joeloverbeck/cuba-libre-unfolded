@@ -67,6 +67,7 @@ mod focus_mark;
 mod force_travel;
 mod highlights;
 mod map;
+mod marker_travel;
 mod newspaper;
 mod notice;
 #[cfg(feature = "occupancy-review")]
@@ -235,6 +236,8 @@ struct Interface {
     /// The card a decision just played in this run, until the tray starts showing its
     /// advance from the shared clock in the same frame (`piles::follow`).
     played: Option<piles::Played>,
+    /// Terror marker flights from committed count changes.
+    marker_travel: marker_travel::Travel,
     /// State changes from a saved decision, until the map takes them up.
     piece_flips: Vec<piece_flips::Change>,
     /// A successfully saved change to the force inventory, before it is drawn.
@@ -619,6 +622,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                     focus_mark::draw,
                 )
                     .chain(),
+                marker_travel::present,
                 animate_water,
             )
                 .chain(),
@@ -768,7 +772,7 @@ fn sync_pieces(
     art: Res<Art>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    roots: Query<Entity, With<PieceVisual>>,
+    roots: Query<Entity, (With<PieceVisual>, Without<TerrorToken>)>,
     mut counts: ResMut<Counts>,
     mut previous: Local<Option<(Faction, Vec<crate::Space>)>>,
     mut ui: ResMut<Interface>,
@@ -930,8 +934,6 @@ fn sync_pieces(
                 Vec3::new(reach, -height - (base.y - top) / scale + 0.025, 0.),
             );
         }
-        let [x, y] = map::marker(&space.id);
-        let marker = map::at(x, y, top);
         #[cfg(feature = "occupancy-review")]
         if play
             .options
@@ -939,6 +941,8 @@ fn sync_pieces(
             .as_ref()
             .is_some_and(|review| review.sabotaged(&space.id))
         {
+            let [x, y] = map::marker(&space.id);
+            let marker = map::at(x, y, top);
             occupancy_review::sabotage_solid(
                 &mut commands,
                 &mut meshes,
@@ -946,32 +950,6 @@ fn sync_pieces(
                 &art,
                 &space.id,
                 marker,
-            );
-        }
-        if space.terror > 0 {
-            // One authored bell per space; the count carries the quantity. Its glTF
-            // meshes stay pickable, and hover walks up to this SpaceTarget.
-            let index = game.spaces.iter().position(|s| s.id == space.id).unwrap();
-            let token = commands
-                .spawn((
-                    Name::new(format!("{} Terror", space.id)),
-                    WorldAssetRoot(art.terror.clone()),
-                    Transform::from_translation(marker).with_scale(Vec3::splat(scale)),
-                    TerrorToken {
-                        // Golden-ratio steps keep neighbouring bells out of unison.
-                        phase: (index as f64 * 0.618_033_988_75).fract(),
-                    },
-                    PieceVisual,
-                    status::SpaceTarget(space.id.clone()),
-                ))
-                .id();
-            roundel::spawn(
-                &mut commands,
-                &art,
-                &space.id,
-                space.terror.to_string(),
-                token,
-                Vec3::new(0.15, 0.025, 0.),
             );
         }
     }
@@ -1441,6 +1419,7 @@ fn submit(
     let session = play.session.as_mut().unwrap();
     let reply = session.submit(owner, rev, name)?;
     let after = session.observe();
+    ui.marker_travel.committed(&previous, &after);
     if let Some(trips) = force_travel::committed(&previous, &after) {
         ui.force_travel = Some(trips);
     }

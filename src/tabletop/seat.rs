@@ -515,6 +515,7 @@ impl SeatGame for Table {
         let pile_tag = pile_tags::observe(world);
         let available_forces = available::observe(world);
         let marker_supply = supply::observe(world);
+        let marker_travel = marker_travel::observe(world);
         let force_travel = force_travel::observe(world);
         let force_travel_started = world.resource::<force_travel::Flights>().generation() != 0;
         let piece_flips = piece_flips::observe(world);
@@ -548,6 +549,7 @@ impl SeatGame for Table {
         table["force_travel"] = force_travel;
         table["force_travel_started"] = json!(force_travel_started);
         table["marker_supply"] = marker_supply;
+        table["marker_travel"] = marker_travel;
         table["piece_flips"] = json!(piece_flips);
         // #174: the notice slip as drawn, and Save · quit's plate.
         table["slip"] = slip;
@@ -802,6 +804,178 @@ mod tests {
     }
 
     mod proclamation;
+
+    /// A renderer fixture for marker changes the supported cards cannot make.
+    /// It uses the read-only occupancy review position and the real scene,
+    /// without creating a choice or editing the admitted save.
+    #[cfg(feature = "occupancy-review")]
+    #[test]
+    #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+    fn native_terror_travel_renders_stacked_arrivals_and_returns() {
+        use std::{fs, path::PathBuf};
+
+        let cards =
+            PathBuf::from(std::env::var_os("CUBA_TEST_CARDS").expect("Set CUBA_TEST_CARDS"));
+        let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| "local/verification/issue-272".into());
+        fs::create_dir_all(&evidence).unwrap();
+        let root = tempfile::Builder::new()
+            .prefix("terror-renderer-")
+            .tempdir_in(evidence)
+            .unwrap()
+            .keep()
+            .canonicalize()
+            .unwrap();
+        eprintln!("Native renderer fixture evidence: {}", root.display());
+        let save = root.join("task.json");
+        let (mut app, mut seat) = table(&cards, &save, UVec2::new(3840, 2160));
+        let saved = fs::read(&save).unwrap();
+
+        let set_fixture_count = |world: &mut World, n| {
+            let mut play = world.resource_mut::<Play>();
+            let review = play
+                .options
+                .occupancy_review
+                .get_or_insert_with(|| OccupancyReview::named("sparse:santiago").unwrap());
+            review
+                .position
+                .spaces
+                .iter_mut()
+                .find(|space| space.id == "santiago")
+                .unwrap()
+                .terror = n;
+            let seen = review.observe();
+            world.resource_mut::<Interface>().dirty = true;
+            seen
+        };
+        let read_count = |view: &Value| {
+            view["table"]["counts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|row| row["name"] == "count:santiago Terror")
+                .map(|row| row["text"].as_str().unwrap().to_owned())
+        };
+        let point = |value: &Value| {
+            let [x, y] = value.as_array().unwrap().as_slice() else {
+                panic!("expected a logical point: {value}");
+            };
+            Vec2::new(x.as_f64().unwrap() as f32, y.as_f64().unwrap() as f32)
+        };
+        let capture = |seat: &mut shared::Seat<Table>, app: &mut App, file: &str| {
+            ask(
+                seat,
+                app,
+                json!({"op":"capture","path":root.join(format!("{file}.png"))}),
+            );
+        };
+
+        let mut before = set_fixture_count(app.world_mut(), 1);
+        ask(&mut seat, &mut app, json!({"op":"settle"}));
+        let initial = ask(&mut seat, &mut app, json!({"op":"observe"}));
+        assert_eq!(read_count(&initial), Some("1".into()));
+        assert_eq!(initial["table"]["marker_supply"]["shown"]["available"], 19);
+        assert_eq!(initial["table"]["marker_travel"], json!([]));
+        let supply_parts = initial["table"]["marker_supply"]["parts"]
+            .as_array()
+            .unwrap();
+        let bounds = supply_parts
+            .iter()
+            .find(|p| p["part"] == "marker-supply")
+            .unwrap()["bounds"]
+            .as_array()
+            .unwrap();
+        let supply = (point(&json!(&bounds[0..2])) + point(&json!(&bounds[2..4]))) / 2.;
+        let bell = |world: &mut World| {
+            world
+                .query_filtered::<Entity, With<TerrorToken>>()
+                .single(world)
+                .ok()
+        };
+        let original_bell = bell(app.world_mut()).unwrap();
+        let map = {
+            let world = app.world_mut();
+            let at = world
+                .query_filtered::<&GlobalTransform, With<TerrorToken>>()
+                .single(world)
+                .unwrap()
+                .translation();
+            let (camera, camera_at) = world
+                .query_filtered::<(&Camera, &GlobalTransform), With<TableCamera>>()
+                .single(world)
+                .unwrap();
+            camera.world_to_viewport(camera_at, at).unwrap()
+        };
+        capture(&mut seat, &mut app, "fixture-at-rest");
+
+        for (name, after_count, entering, resident) in [
+            ("increase", 2, true, Some("1".into())),
+            ("partial-return", 1, false, Some("1".into())),
+            ("last-return", 0, false, None),
+        ] {
+            let after = set_fixture_count(app.world_mut(), after_count);
+            app.world_mut()
+                .resource_mut::<Interface>()
+                .marker_travel
+                .committed(&before, &after);
+            let first = ask(&mut seat, &mut app, json!({"op":"settle","steps":1}));
+            assert_eq!(first["status"], "unsettled", "{first}");
+            let departure = ask(&mut seat, &mut app, json!({"op":"observe"}));
+            let motion = &departure["table"]["marker_travel"][0];
+            let (source, destination, direction) = if entering {
+                (supply, map, "placement")
+            } else {
+                (map, supply, "return")
+            };
+            assert_eq!(motion["space"], "santiago");
+            assert_eq!(motion["direction"], direction);
+            assert_eq!(motion["quantity"], 1);
+            assert!(point(&motion["at"]).distance(source) < 2.);
+            assert_eq!(motion["alpha"], if entering { 0. } else { 1. });
+            assert_eq!(read_count(&departure), resident);
+            capture(&mut seat, &mut app, &format!("{name}-departure"));
+
+            let held = ask(&mut seat, &mut app, json!({"op":"settle","steps":20}));
+            assert_eq!(held["status"], "unsettled", "{held}");
+            let middle = ask(&mut seat, &mut app, json!({"op":"observe"}));
+            let motion = &middle["table"]["marker_travel"][0];
+            let at = point(&motion["at"]);
+            let leg = source.distance(destination);
+            assert!(at.distance(source) < leg * 0.75 && at.distance(destination) < leg * 0.75);
+            assert!((0.65..0.85).contains(&motion["alpha"].as_f64().unwrap()));
+            assert_eq!(read_count(&middle), resident);
+            capture(&mut seat, &mut app, &format!("{name}-travelling"));
+
+            ask(&mut seat, &mut app, json!({"op":"settle"}));
+            let arrived = ask(&mut seat, &mut app, json!({"op":"observe"}));
+            assert_eq!(arrived["table"]["marker_travel"], json!([]));
+            assert_eq!(arrived["table"]["settled"], true);
+            assert_eq!(
+                arrived["table"]["marker_supply"]["shown"]["available"],
+                20 - after_count
+            );
+            assert_eq!(
+                read_count(&arrived),
+                (after_count > 0).then(|| after_count.to_string())
+            );
+            assert_eq!(
+                bell(app.world_mut()),
+                (after_count > 0).then_some(original_bell)
+            );
+            assert_eq!(fs::read(&save).unwrap(), saved);
+            capture(&mut seat, &mut app, &format!("{name}-settled"));
+            fs::write(
+                root.join(format!("{name}.json")),
+                serde_json::to_vec_pretty(&json!({
+                    "departure": departure, "travelling": middle, "settled": arrived,
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+            before = after;
+        }
+    }
 
     /// Such a table played to a rolled Kidnap die that is still in the air, at revision 3.
     fn rolled(
