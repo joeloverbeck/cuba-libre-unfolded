@@ -100,6 +100,27 @@ impl Flights {
         !self.changes.is_empty()
     }
 
+    /// A desktop player can return a piece before it lands. Retire only the flip
+    /// whose arrival can no longer be drawn from the latest committed quantity.
+    pub(super) fn settle_missing_destinations(&mut self, spaces: &[crate::Space]) -> bool {
+        let before = self.changes.len();
+        self.changes.retain(|change| {
+            let flip = &change.flip;
+            spaces
+                .iter()
+                .find(|space| space.id == flip.space)
+                .is_some_and(|space| {
+                    space.pieces.iter().any(|group| {
+                        group.faction == flip.faction
+                            && group.kind == flip.kind
+                            && group.state == flip.to
+                            && group.count >= flip.count
+                    })
+                })
+        });
+        self.changes.len() != before
+    }
+
     pub(super) fn in_space(&self, space: &str) -> impl Iterator<Item = (Group, &Change)> {
         self.changes
             .iter()
@@ -397,5 +418,55 @@ mod tests {
         assert!(flights.refresh(&mut pending, 2.));
         assert_eq!(flights.count(&committed.id, &committed.pieces[0]), 3);
         assert_eq!(flights.in_space(&committed.id).count(), 0);
+    }
+
+    #[test]
+    fn one_of_three_turns_above_the_resident_before_its_count_grows() {
+        let before = space(&[(State::Underground, 3), (State::Active, 1)]);
+        let committed = space(&[(State::Underground, 2), (State::Active, 2)]);
+        let flip = flip(State::Underground, State::Active);
+        let mut pending = confirmed_flips(&[flip], &[before], std::slice::from_ref(&committed));
+        let mut flights = Flights::default();
+        assert!(flights.refresh(&mut pending, 0.));
+
+        let source = Vec3::new(0., 0.34, 0.);
+        let destination = Transform::from_xyz(0., 0.34, 0.5);
+        let half_height = 0.1;
+        let (body, change) = flights.in_space(&committed.id).next().unwrap();
+        assert_eq!((body.count, body.state), (1, State::Active));
+        let motion = Motion::new(source, destination, half_height, Color::WHITE, change);
+        let shown = |flights: &Flights| {
+            committed
+                .pieces
+                .iter()
+                .map(|piece| flights.count(&committed.id, piece))
+                .collect::<Vec<_>>()
+        };
+        for age in [0., 0.08, 0.35, 0.79, 1.04] {
+            assert!(!flights.refresh(&mut pending, age));
+            assert_eq!(shown(&flights), [2, 1]);
+        }
+        assert_eq!(motion.pose(0.).translation, source);
+        assert!((0. ..1.).contains(&motion.opacity(0.08)));
+        let crossing = motion.pose(0.35);
+        assert!(
+            crossing.translation.z > source.z && crossing.translation.z < destination.translation.z
+        );
+        assert!(crossing.up().y < -0.98);
+        let turn = motion.pose(0.79);
+        assert_eq!(turn.translation.xz(), destination.translation.xz());
+        assert!(turn.translation.y > destination.translation.y + 2. * half_height + 0.17);
+        assert!(turn.up().y.abs() < 0.04);
+        let arrived = motion.pose(1.05);
+        assert!(
+            (arrived.translation.y - destination.translation.y - 2. * half_height).abs() < 0.001
+        );
+        assert!(arrived.up().y > 0.98);
+
+        assert!(flights.refresh(&mut pending, 1.06));
+        assert_eq!(shown(&flights), [2, 2]);
+        assert_eq!(flights.in_space(&committed.id).count(), 0);
+        assert!(!flights.refresh(&mut pending, 2.));
+        assert_eq!(shown(&flights), [2, 2]);
     }
 }

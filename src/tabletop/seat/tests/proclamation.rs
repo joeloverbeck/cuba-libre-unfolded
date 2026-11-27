@@ -1,11 +1,7 @@
 //! The shared seat advances each individual input in its own frame. Queue the
 //! window's ordinary input messages together here to cover the frame boundary.
 use super::*;
-use bevy::{
-    camera::RenderTarget,
-    input::{ButtonState, keyboard::KeyboardInput},
-    picking::pointer::{Location, PointerAction, PointerButton, PointerInput},
-};
+use bevy::picking::pointer::PointerButton;
 use std::{
     io::{BufRead, BufReader, Write},
     net::Shutdown,
@@ -33,44 +29,6 @@ fn pending_giver(save: &std::path::Path) -> crate::save::Session {
             .unwrap();
     }
     session
-}
-
-fn key(app: &mut App, key_code: KeyCode, logical_key: Key, text: Option<&str>) {
-    let world = app.world_mut();
-    let window = world
-        .query_filtered::<Entity, With<PrimaryWindow>>()
-        .single(world)
-        .unwrap();
-    for state in [ButtonState::Pressed, ButtonState::Released] {
-        world.write_message(KeyboardInput {
-            key_code,
-            logical_key: logical_key.clone(),
-            state,
-            text: text.filter(|_| state.is_pressed()).map(Into::into),
-            repeat: false,
-            window,
-        });
-    }
-}
-
-fn pointer(app: &mut App, position: Vec2, action: PointerAction) {
-    let world = app.world_mut();
-    let (window, mut cursor) = world
-        .query_filtered::<(Entity, &mut Window), With<PrimaryWindow>>()
-        .single_mut(world)
-        .unwrap();
-    cursor.set_cursor_position(Some(position));
-    let target = world
-        .query_filtered::<&RenderTarget, With<IsDefaultUiCamera>>()
-        .single(world)
-        .unwrap()
-        .normalize(Some(window))
-        .unwrap();
-    world.write_message(PointerInput::new(
-        PointerId::Mouse,
-        Location { target, position },
-        action,
-    ));
 }
 
 fn press_button(

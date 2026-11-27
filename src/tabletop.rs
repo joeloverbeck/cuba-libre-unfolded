@@ -263,6 +263,14 @@ struct UiRoot;
 struct StandingText(Faction);
 #[derive(Component)]
 struct PieceVisual;
+/// The displayed quantity and picking ownership of a group at its map slot.
+#[derive(Component)]
+struct RestingPiece {
+    count: u8,
+    owned: bool,
+    roundel: Option<Entity>,
+    hidden_material: Option<MeshMaterial3d<StandardMaterial>>,
+}
 /// An executing faction's token: removal mode marks it, and a click opens its piece
 /// popover (#73). `key` is `space:group` as removal ids name it; `base` is the region
 /// top it stands on.
@@ -766,13 +774,21 @@ fn setup(
     }
 }
 #[allow(clippy::too_many_arguments)] // A Bevy system: its parameters are the resources it reads.
+#[allow(clippy::type_complexity)]
 fn sync_pieces(
     mut commands: Commands,
     play: Res<Play>,
     art: Res<Art>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    roots: Query<Entity, (With<PieceVisual>, Without<TerrorToken>)>,
+    roots: Query<
+        (Entity, &Name, &Transform, Option<&RestingPiece>),
+        (
+            Or<(With<PieceVisual>, With<RestingPiece>)>,
+            Without<TerrorToken>,
+        ),
+    >,
+    roundels: Query<&Children, With<Count>>,
     mut counts: ResMut<Counts>,
     mut previous: Local<Option<(Faction, Vec<crate::Space>)>>,
     mut ui: ResMut<Interface>,
@@ -780,32 +796,51 @@ fn sync_pieces(
     mut flights: ResMut<piece_flips::Flights>,
     force_flights: Res<force_travel::Flights>,
     mut force_generation: Local<u64>,
+    targeting: Res<highlights::Targeting>,
 ) {
     if counts.settling > 0 {
         counts.settling -= 1;
     }
     let game = play.game();
     let executor = game.executing().unwrap_or(Faction::M26);
-    let motion_changed = flights.refresh(&mut ui.piece_flips, time.elapsed_secs_f64());
-    if !motion_changed
-        && *force_generation == force_flights.generation()
-        && previous
+    let refreshed = flights.refresh(&mut ui.piece_flips, time.elapsed_secs_f64());
+    let interrupted = flights.settle_missing_destinations(&game.spaces);
+    let motion_changed = refreshed || interrupted;
+    let board_changed = motion_changed
+        || *force_generation != force_flights.generation()
+        || previous
             .as_ref()
-            .is_some_and(|(faction, spaces)| *faction == executor && *spaces == game.spaces)
-    {
+            .is_none_or(|(faction, spaces)| *faction != executor || *spaces != game.spaces);
+    if !board_changed && !targeting.is_changed() {
         return;
     }
-    *previous = Some((executor, game.spaces.clone()));
-    *force_generation = force_flights.generation();
-    counts.unsettle();
-    for entity in &roots {
-        commands.entity(entity).despawn();
+    if board_changed {
+        *previous = Some((executor, game.spaces.clone()));
+        *force_generation = force_flights.generation();
+        counts.unsettle();
+    }
+    #[cfg(feature = "occupancy-review")]
+    let review = play.options.occupancy_review.as_ref();
+    #[cfg(feature = "occupancy-review")]
+    let recalculate_fixture = review.is_some();
+    #[cfg(not(feature = "occupancy-review"))]
+    let recalculate_fixture = false;
+    let mut resting = BTreeMap::new();
+    for (entity, name, at, piece) in &roots {
+        if let Some(piece) = piece.filter(|_| !recalculate_fixture) {
+            resting.insert(name.as_str(), (entity, at, piece));
+        } else if recalculate_fixture || motion_changed {
+            commands.entity(entity).despawn();
+        }
     }
     for label in &art.labels {
         let space = game.spaces.iter().find(|s| s.id == label.space).unwrap();
         let top = map::top(space.terrain);
         let scale = map::PIECE_SCALE;
-        let moving: Vec<_> = flights.in_space(&space.id).collect();
+        let moving = flights
+            .in_space(&space.id)
+            .filter(|_| motion_changed)
+            .collect::<Vec<_>>();
         let pieces = space
             .pieces
             .iter()
@@ -813,14 +848,27 @@ fn sync_pieces(
             .chain(moving.iter().map(|(piece, change)| (piece, Some(*change))));
         for (piece, flight) in pieces {
             let count = force_flights.count(&space.id, piece, flights.count(&space.id, piece));
-            if flight.is_none() && count == 0 {
+            let own_key = (flight.is_none() && piece.faction == executor).then(|| {
+                format!(
+                    "{}:{}",
+                    space.id,
+                    crate::removal_group(piece.kind, piece.state)
+                )
+            });
+            let awaiting_arrival = flight.is_none() && count == 0;
+            if awaiting_arrival
+                && own_key
+                    .as_deref()
+                    .and_then(|key| targeting.piece(key))
+                    .is_none()
+            {
                 continue;
             }
             let height = group_half_height(piece.kind);
             let [x, y] = map::slot(&space.id, piece);
             let base = map::at(x, y, top);
             #[cfg(feature = "occupancy-review")]
-            let base = if let Some(review) = &play.options.occupancy_review {
+            let base = if let Some(review) = review {
                 let i = space
                     .pieces
                     .iter()
@@ -841,6 +889,28 @@ fn sync_pieces(
             };
             let rest = Transform::from_translation(base + Vec3::Y * height * scale)
                 .with_scale(Vec3::splat(scale));
+            let name = format!(
+                "{} {:?} {:?} {:?}",
+                space.id, piece.faction, piece.kind, piece.state
+            );
+            let owned = own_key.is_some();
+            let retained = if flight.is_none() {
+                resting.remove(name.as_str()).and_then(|(entity, at, old)| {
+                    // Bevy pairs press and release on the same entity. Keep the
+                    // body at its slot even when its drawn quantity changes.
+                    if *at == rest && old.owned == owned {
+                        Some((entity, old))
+                    } else {
+                        commands.entity(entity).despawn();
+                        None
+                    }
+                })
+            } else {
+                None
+            };
+            if retained.is_some_and(|(_, old)| old.count == count) {
+                continue;
+            }
             let motion = flight.map(|change| {
                 let from = crate::Group {
                     state: change.flip.from,
@@ -857,20 +927,22 @@ fn sync_pieces(
                 );
                 (from, motion)
             });
-            let token = spawn_group_body(
-                &mut commands,
-                &mut meshes,
-                &mut materials,
-                piece,
-                format!(
-                    "{} {:?} {:?} {:?}",
-                    space.id, piece.faction, piece.kind, piece.state
-                ),
-                motion
-                    .as_ref()
-                    .map_or(rest, |(_, motion)| motion.source_pose()),
-            );
-            commands.entity(token).insert(PieceVisual);
+            let token = if let Some((entity, _)) = retained {
+                entity
+            } else {
+                let entity = spawn_group_body(
+                    &mut commands,
+                    &mut meshes,
+                    &mut materials,
+                    piece,
+                    name,
+                    motion
+                        .as_ref()
+                        .map_or(rest, |(_, motion)| motion.source_pose()),
+                );
+                commands.entity(entity).insert(PieceVisual);
+                entity
+            };
             if let Some((from, motion)) = motion {
                 add_group_face(
                     &mut commands,
@@ -882,57 +954,89 @@ fn sync_pieces(
                     true,
                 );
                 commands.entity(token).insert(motion);
-            } else {
+                add_group_face(
+                    &mut commands,
+                    &art,
+                    &mut meshes,
+                    &mut materials,
+                    token,
+                    piece,
+                    false,
+                );
+                continue;
+            }
+            if retained.is_none() {
                 commands
                     .entity(token)
                     .insert(status::SpaceTarget(space.id.clone()))
                     .remove::<Pickable>();
+                if let Some(key) = own_key {
+                    commands
+                        .entity(token)
+                        .insert((
+                            OwnPiece {
+                                key: key.clone(),
+                                base: top,
+                            },
+                            Control {
+                                name: format!("own-piece:{key}"),
+                                choice: false,
+                                action: Action::Piece(key),
+                            },
+                        ))
+                        .observe(click);
+                }
             }
-            if flight.is_none() && piece.faction == executor {
-                let key = format!(
-                    "{}:{}",
-                    space.id,
-                    crate::removal_group(piece.kind, piece.state)
-                );
-                commands
-                    .entity(token)
-                    .insert((
-                        OwnPiece {
-                            key: key.clone(),
-                            base: top,
-                        },
-                        Control {
-                            name: format!("own-piece:{key}"),
-                            choice: false,
-                            action: Action::Piece(key),
-                        },
+            let old = retained.map(|(_, old)| old);
+            let badge = match (count, old.and_then(|old| old.roundel)) {
+                (0, badge) => {
+                    if let Some(badge) = badge {
+                        commands.entity(badge).despawn();
+                    }
+                    None
+                }
+                (_, Some(badge)) => {
+                    for digit in roundels.get(badge).into_iter().flatten() {
+                        commands.entity(*digit).insert(Text::new(count.to_string()));
+                    }
+                    Some(badge)
+                }
+                (_, None) => {
+                    if let Some(material) = old.and_then(|old| old.hidden_material.clone()) {
+                        commands.entity(token).insert((PieceVisual, material));
+                    }
+                    add_group_face(
+                        &mut commands,
+                        &art,
+                        &mut meshes,
+                        &mut materials,
+                        token,
+                        piece,
+                        false,
+                    );
+                    let reach = match piece.kind {
+                        Kind::Troops | Kind::Police | Kind::Guerrilla => 0.13,
+                        Kind::Base | Kind::Casino => 0.15,
+                    };
+                    Some(roundel::spawn(
+                        &mut commands,
+                        &art,
+                        &space.id,
+                        count.to_string(),
+                        token,
+                        Vec3::new(reach, -height - (base.y - top) / scale + 0.025, 0.),
                     ))
-                    .observe(click);
-            }
-            add_group_face(
-                &mut commands,
-                &art,
-                &mut meshes,
-                &mut materials,
-                token,
-                piece,
-                false,
-            );
-            if flight.is_some() {
-                continue;
-            }
-            let reach = match piece.kind {
-                Kind::Troops | Kind::Police | Kind::Guerrilla => 0.13,
-                Kind::Base | Kind::Casino => 0.15,
+                }
             };
-            roundel::spawn(
-                &mut commands,
-                &art,
-                &space.id,
-                count.to_string(),
-                token,
-                Vec3::new(reach, -height - (base.y - top) / scale + 0.025, 0.),
-            );
+            commands.entity(token).insert(RestingPiece {
+                count,
+                owned,
+                roundel: badge,
+                hidden_material: None,
+            });
+            if awaiting_arrival {
+                commands.entity(token).queue(hide_resting_piece);
+            }
         }
         #[cfg(feature = "occupancy-review")]
         if play
@@ -953,7 +1057,22 @@ fn sync_pieces(
             );
         }
     }
+    for (entity, _, _) in resting.into_values() {
+        commands.entity(entity).despawn();
+    }
 }
+
+/// Keep the mesh as a pick surface for the removal cue while its solid is
+/// travelling. Landing restores this material on the same pick entity.
+fn hide_resting_piece(mut token: EntityWorldMut) {
+    let material = token
+        .take::<MeshMaterial3d<StandardMaterial>>()
+        .expect("a resting piece owns a body material");
+    token.remove::<PieceVisual>();
+    token.despawn_related::<Children>();
+    token.get_mut::<RestingPiece>().unwrap().hidden_material = Some(material);
+}
+
 /// A quantity beside a force group or Terror marker.
 #[derive(Component)]
 struct Count;
