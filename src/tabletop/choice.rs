@@ -1233,6 +1233,12 @@ fn focusable(
     controls.extend(map_focusable(view, ui, targeting, popover));
     controls.extend(super::supply::focusable());
     controls.extend(super::available::focusable());
+    if proclamation_composer::entry_available(view, ui) {
+        controls.push((
+            proclamation_composer::WRITE.to_owned(),
+            Action::ComposeProclamation(proclamation_composer::Press::Open),
+        ));
+    }
     controls
         .extend(super::cards::Slot::ALL.map(|slot| (slot.name().to_owned(), Action::Card(slot))));
     controls
@@ -1462,6 +1468,9 @@ pub(super) fn keys(
         keys.clear_just_pressed(key);
     }
     match action {
+        Action::ComposeProclamation(press) => {
+            proclamation_composer::press(&play, &mut ui, press);
+        }
         Action::Pin(_) | Action::Ribbon | Action::Tab(_) => {
             activate(&mut ui, &action);
             // Whichever opened last wins (orchestrator implementation judgement, #58):

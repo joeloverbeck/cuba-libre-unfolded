@@ -405,6 +405,11 @@ fn rect(x: f32, y: f32, w: f32, h: f32) -> [f32; 4] {
     [r(fig::PANEL[0] + x), r(fig::PANEL[1] + y), r(w), r(h)]
 }
 
+/// The plate's reserved rectangle, including the tallest Sequence of Play state.
+pub(super) fn reserved_plate() -> [f32; 4] {
+    rect(0., 0., fig::WIDTH, fig::HEIGHT)
+}
+
 /// The vertical layout of one state: each row's top and height, and the shift of
 /// everything below the first row.
 struct Rows {

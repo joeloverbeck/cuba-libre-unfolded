@@ -34,6 +34,15 @@ fn native_public_proclamations_preserve_the_givers_decision() {
     assert_eq!((code, &wake["status"]), (0, &json!("decision")));
     let government = app.seat_agent(GOVERNMENT, "government");
     let m26 = app.seat_agent(M26, "26july");
+    let all_agent = app.key("KeyP");
+    assert!(all_agent["table"]["proclamation_composer"].is_null());
+    assert!(
+        all_agent["table"]["controls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|control| control["name"] != "proclamation:write")
+    );
     let before = wake["view"].clone();
     assert_eq!(before["decision"]["yours"], true);
     assert_eq!(before["decision"]["faction"], "Syndicate");
