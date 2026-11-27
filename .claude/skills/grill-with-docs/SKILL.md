@@ -4,13 +4,13 @@ description: Review an existing workflow or sharpen a design against the project
 disable-model-invocation: true
 ---
 
-Name the measurement behind each cost or saving a recommendation rests on, or call it unmeasured. When an accepted change is executable, its review clears before the final suite runs.
+Name the measurement behind each cost or saving a recommendation rests on, or call it unmeasured.
 
 ## Existing workflow
 
 1. Check the documented procedure, the live interface, and the required inputs. Reproduce the reported failure when feasible. Before recommending a path as a default, trace its origin and check who maintains the files and whether they survive a fresh checkout.
-2. Give the working procedure and explain the discrepancy in the same round. Ask only about changes that require an owner decision. State the recommended answer and the files or behavior the decision covers.
-3. Apply the agreed changes to the existing documentation when authorized. Verify the documented procedure against the interface and report what you exercised.
+2. Give the working procedure and explain the discrepancy in the same round. State the recommended change and name the checkout where the repaired procedure must work. When that checkout is `main`, include PR creation, merge and pull in the original approval request. Ask only for decisions that still require owner authority.
+3. Apply the agreed changes when authorized. For an executable repair, run focused checks, then independent review, then the final suite on the exact candidate. Verify the documented procedure against the interface. At handoff, name the checkout and revision that contain the fix and report what you exercised. [Implementation sequence](../implement/SKILL.md)
 
 ## Design
 

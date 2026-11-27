@@ -14,7 +14,11 @@ When changing how a report receives committed facts, cover the whole action, a c
 
 ## Desktop launch smoke
 
-Use a fresh checkout of the exact candidate in the ordinary Ubuntu desktop session. Select the private source explicitly and isolate the per-user data, so the command must provision its own cards and create its own save. Set `CUBA_PRIVATE_CARD_SOURCE` to the absolute path of the private originals and `CUBA_LAUNCH_EVIDENCE` to an unused directory under the main checkout's `local/verification/`.
+Use a fresh checkout of the exact candidate in the ordinary Ubuntu desktop session. Record the revision, selected save path, observed window and result, and log paths. Keep the private inputs and the source path out of Git and the PR.
+
+### Clean data
+
+Set `CUBA_PRIVATE_CARD_SOURCE` to the absolute path of the private originals and `CUBA_LAUNCH_EVIDENCE` to an unused directory under the main checkout's `local/verification/`. Isolate the per-user data so the command has to provision its cards and create a save.
 
 ```sh
 mkdir -p -- "$CUBA_LAUNCH_EVIDENCE"
@@ -26,9 +30,19 @@ XDG_DATA_HOME="$CUBA_LAUNCH_EVIDENCE/data" \
   >"$CUBA_LAUNCH_EVIDENCE/restart.log" 2>&1
 ```
 
-On each launch, verify that the **Cuba Libre Unfolded — tactical candidate** window displays the prepared table and close it without playing a move. Verify that `data/cuba-libre-unfolded/saves/task.json` was created and that the second launch resumes it. For a newly required card, also repeat the plain command with an isolated copy of the preceding build's card directory and the remembered source. Verify the new file was installed with the admitted hash and the table opens. Record the exact revision, the observed window and save behavior, and the relevant log paths. Keep the private inputs and the source path out of Git and the PR.
+For each launch, verify that the **Cuba Libre Unfolded — tactical candidate** window displays the prepared table and close it without playing a move. Verify that the first launch creates `data/cuba-libre-unfolded/saves/task.json` and the second resumes it.
 
-For changes to the launcher's save selection, also start with a copy of an incompatible save at `saves/task.json` in the isolated data directory. Verify that the launcher selects a separate save, the table accepts a camera movement and a player choice, and restart resumes that choice. Compare the old save and any `.previous` bytes before and after.
+### Existing installation
+
+For changes to the default launch path or the required private cards, also run the plain README command against an isolated copy of the preceding installation. Copy its installed cards, remembered source, default save and any adjacent `.previous` under `cuba-libre-unfolded/` and set `XDG_DATA_HOME` to that directory's parent. For a newly required card, verify that the launcher installs it with the admitted hash. When testing an incompatible default save, verify that the launcher selects a separate save.
+
+Verify that the table accepts camera movement and a player choice, and that relaunching with the README command resumes that choice. Use `cmp` against untouched reference copies to verify any refused save and its `.previous` are preserved byte for byte.
+
+### Window and input
+
+On X11, find visible candidates with `xdotool search --onlyvisible --name '^Cuba Libre Unfolded'`. Read `_NET_WM_NAME` and `_NET_WM_PID` with `xprop -id WINDOW` and require the exact UTF-8 title. Check the process's NUL-separated `/proc/PID/cmdline` for the isolated `--save` argument before capturing or closing the window. Use the window's close control or send `WM_DELETE_WINDOW` to that window when automating.
+
+For agent-operated input, close the desktop window and open the selected save through the [development seat](seat.md#launch-and-connect). Observe the revision. Point at `space:las-villas` and settle the hover before right-dragging there. Compare the settled camera before and after the drag. Use the seat to pin and commit an offered choice, such as **Pass** on the prepared opening. Verify that the choice advances the revision, then close the seat before relaunching the desktop.
 
 ## Persistent table controls
 
