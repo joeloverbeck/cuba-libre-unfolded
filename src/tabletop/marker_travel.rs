@@ -155,9 +155,9 @@ pub(super) fn present(
     art: Res<Art>,
     layout: Res<areas::Layout>,
     window: Single<&Window, With<PrimaryWindow>>,
-    camera: Single<(&Camera, &GlobalTransform), With<TableCamera>>,
+    camera: Single<(&Camera, &Transform), With<TableCamera>>,
     time: Res<Time>,
-    mut flying: Query<(&mut Transform, &mut InFlight)>,
+    mut flying: Query<(&mut Transform, &mut InFlight), Without<TableCamera>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut appearance: roundel::Appearance,
     children: Query<&Children>,
@@ -178,6 +178,9 @@ pub(super) fn present(
     let travel = &mut ui.marker_travel;
     let now = time.elapsed_secs_f64();
     let (camera, camera_at) = *camera;
+    // The camera driver has moved the root this frame. Transform propagation
+    // will update its GlobalTransform later, after this projection is sampled.
+    let camera_at = GlobalTransform::from(*camera_at);
     let supply = supply::endpoint(&layout, &window);
 
     for (id, queue) in &mut travel.0 {
@@ -196,7 +199,7 @@ pub(super) fn present(
             .find(|space| &space.id == id)
             .expect("a marker change names a map space");
         let rest = rest(space);
-        let Some(supply) = flight::screen_point_at(camera, camera_at, supply, rest.translation)
+        let Some(supply) = flight::screen_point_at(camera, &camera_at, supply, rest.translation)
         else {
             // A minimized window can lose its projection. Release the
             // presentation so the saved decision can settle.
@@ -278,8 +281,9 @@ pub(super) fn present(
     }
 }
 
-/// The projected position and material opacity of each in-flight copy, in the
-/// same logical window pixels as the marker supply and roundels.
+/// The projected position and sampled material fade multiplier of each copy.
+/// The position uses the supply's logical pixels. The multiplier also exists
+/// before the glTF instance binds the materials it will be applied to.
 pub(super) fn observe(world: &mut World) -> Value {
     let camera = world
         .query_filtered::<(&Camera, &GlobalTransform), With<TableCamera>>()

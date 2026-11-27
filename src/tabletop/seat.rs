@@ -760,7 +760,50 @@ impl SeatGame for Table {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::{
+        camera::RenderTarget,
+        input::{ButtonState, keyboard::KeyboardInput},
+        picking::pointer::{Location, PointerAction, PointerInput},
+    };
     use serde_json::Value;
+
+    fn key(app: &mut App, key_code: KeyCode, logical_key: Key, text: Option<&str>) {
+        let world = app.world_mut();
+        let window = world
+            .query_filtered::<Entity, With<PrimaryWindow>>()
+            .single(world)
+            .unwrap();
+        for state in [ButtonState::Pressed, ButtonState::Released] {
+            world.write_message(KeyboardInput {
+                key_code,
+                logical_key: logical_key.clone(),
+                state,
+                text: text.filter(|_| state.is_pressed()).map(Into::into),
+                repeat: false,
+                window,
+            });
+        }
+    }
+
+    fn pointer(app: &mut App, position: Vec2, action: PointerAction) {
+        let world = app.world_mut();
+        let (window, mut cursor) = world
+            .query_filtered::<(Entity, &mut Window), With<PrimaryWindow>>()
+            .single_mut(world)
+            .unwrap();
+        cursor.set_cursor_position(Some(position));
+        let target = world
+            .query_filtered::<&RenderTarget, With<IsDefaultUiCamera>>()
+            .single(world)
+            .unwrap()
+            .normalize(Some(window))
+            .unwrap();
+        world.write_message(PointerInput::new(
+            PointerId::Mouse,
+            Location { target, position },
+            action,
+        ));
+    }
 
     /// One seat request. A table that has exited fails the test here, with its reason,
     /// rather than answering every later request as if it were still being played.
@@ -803,6 +846,7 @@ mod tests {
         (app, seat)
     }
 
+    mod motion;
     mod proclamation;
 
     /// A renderer fixture for marker changes the supported cards cannot make.
@@ -894,8 +938,7 @@ mod tests {
                 .ok()
         };
         let original_bell = bell(app.world_mut()).unwrap();
-        let map = {
-            let world = app.world_mut();
+        let map_point = |world: &mut World| {
             let at = world
                 .query_filtered::<&GlobalTransform, With<TerrorToken>>()
                 .single(world)
@@ -907,6 +950,34 @@ mod tests {
                 .unwrap();
             camera.world_to_viewport(camera_at, at).unwrap()
         };
+        let mut map = map_point(app.world_mut());
+        // Read the materials actually attached to the glTF meshes. The trip's
+        // sampled fade can exist before the scene instance has those materials.
+        let bound_materials = |world: &World, root| {
+            let mut entities = vec![root];
+            let mut bound = BTreeMap::new();
+            while let Some(entity) = entities.pop() {
+                if let Some(children) = world.get::<Children>(entity) {
+                    entities.extend(children.iter());
+                }
+                if let (Some(mesh), Some(material)) = (
+                    world.get::<Mesh3d>(entity),
+                    world.get::<MeshMaterial3d<StandardMaterial>>(entity),
+                ) {
+                    let asset = world
+                        .resource::<Assets<StandardMaterial>>()
+                        .get(material)
+                        .unwrap();
+                    bound.insert(
+                        mesh.id(),
+                        (material.id(), asset.base_color.alpha(), asset.alpha_mode),
+                    );
+                }
+            }
+            bound
+        };
+        let originals = bound_materials(app.world(), original_bell);
+        assert!(!originals.is_empty());
         capture(&mut seat, &mut app, "fixture-at-rest");
 
         for (name, after_count, entering, resident) in [
@@ -923,6 +994,23 @@ mod tests {
             assert_eq!(first["status"], "unsettled", "{first}");
             let departure = ask(&mut seat, &mut app, json!({"op":"observe"}));
             let motion = &departure["table"]["marker_travel"][0];
+            if entering {
+                let pose = app.world().resource::<Orbit>().pose();
+                app.world_mut()
+                    .resource_mut::<Orbit>()
+                    .focus(Framing::new(pose.target + Vec3::X * 0.7, pose.distance));
+                app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::ZERO));
+                app.update();
+                let shifted = marker_travel::observe(app.world_mut());
+                let shifted_map = map_point(app.world_mut());
+                assert!(map.distance(shifted_map) > 10.);
+                assert_eq!(shifted[0]["alpha"], 0.);
+                assert!(
+                    point(&shifted[0]["at"]).distance(supply) < 2.,
+                    "the first frame after a camera move still starts at {supply}: {shifted}"
+                );
+                map = shifted_map;
+            }
             let (source, destination, direction) = if entering {
                 (supply, map, "placement")
             } else {
@@ -943,7 +1031,27 @@ mod tests {
             let at = point(&motion["at"]);
             let leg = source.distance(destination);
             assert!(at.distance(source) < leg * 0.75 && at.distance(destination) < leg * 0.75);
-            assert!((0.65..0.85).contains(&motion["alpha"].as_f64().unwrap()));
+            let alpha = motion["alpha"].as_f64().unwrap() as f32;
+            assert!((0.65..0.85).contains(&alpha));
+            let world = app.world_mut();
+            let travelling = world
+                .query_filtered::<Entity, With<marker_travel::InFlight>>()
+                .single(world)
+                .unwrap();
+            let drawn = bound_materials(world, travelling);
+            assert_eq!(drawn.len(), originals.len());
+            for (mesh, (handle, original_alpha, _)) in &originals {
+                let (fading, drawn_alpha, mode) = drawn[mesh];
+                assert_ne!(fading, *handle, "the flight owns its fade material");
+                assert_eq!(mode, AlphaMode::Blend);
+                assert!(
+                    (drawn_alpha - original_alpha * alpha).abs() < 0.001,
+                    "bound material {mesh:?} did not fade at {alpha}"
+                );
+            }
+            if resident.is_some() {
+                assert_eq!(bound_materials(world, original_bell), originals);
+            }
             assert_eq!(read_count(&middle), resident);
             capture(&mut seat, &mut app, &format!("{name}-travelling"));
 

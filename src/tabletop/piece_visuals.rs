@@ -22,15 +22,8 @@ pub(super) fn group_color(group: &Group) -> Color {
     }
 }
 
-pub(super) fn spawn_group_body(
-    commands: &mut Commands,
-    meshes: &mut Assets<Mesh>,
-    materials: &mut Assets<StandardMaterial>,
-    group: &Group,
-    name: String,
-    transform: Transform,
-) -> Entity {
-    let mesh = match group.kind {
+pub(super) fn group_mesh(kind: Kind) -> Mesh {
+    match kind {
         Kind::Troops | Kind::Police => Mesh::from(Cuboid::new(0.18, 0.18, 0.18)),
         Kind::Guerrilla => Cylinder::new(0.10, 0.24)
             .mesh()
@@ -39,14 +32,24 @@ pub(super) fn spawn_group_body(
             .with_duplicated_vertices()
             .with_computed_flat_normals(),
         Kind::Base | Kind::Casino => Mesh::from(Cylinder::new(0.15, 0.075)),
-    };
+    }
+}
+
+pub(super) fn spawn_group_body(
+    commands: &mut Commands,
+    meshes: &mut Assets<Mesh>,
+    materials: &mut Assets<StandardMaterial>,
+    group: &Group,
+    name: String,
+    transform: Transform,
+) -> Entity {
     token::spawn_body(
         commands,
         meshes,
         materials,
         token::Body {
             name,
-            mesh,
+            mesh: group_mesh(group.kind),
             color: group_color(group),
             transform,
         },
