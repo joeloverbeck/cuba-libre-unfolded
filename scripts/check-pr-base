@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Check the live production base from the checkout being verified.
+set -euo pipefail
+if (($# != 0)); then
+  echo "usage: scripts/check-pr-base" >&2
+  exit 2
+fi
+
+head=$(git rev-parse --verify HEAD)
+git fetch --quiet --no-tags origin refs/heads/main
+base=$(git rev-parse --verify 'FETCH_HEAD^{commit}')
+
+if git merge-base --is-ancestor "$base" "$head"; then
+  printf 'check-pr-base: %s contains origin/main %s\n' "$head" "$base"
+else
+  status=$?
+  if ((status == 1)); then
+    printf 'check-pr-base: %s is missing origin/main %s\n' "$head" "$base" >&2
+  fi
+  exit "$status"
+fi
