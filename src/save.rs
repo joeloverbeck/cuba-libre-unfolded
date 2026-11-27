@@ -23,9 +23,14 @@ use anyhow::{Result, anyhow};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::BTreeSet,
+    fs,
+    io::ErrorKind,
     path::{Path, PathBuf},
 };
-use unfolded_record_replacement::save::{self, Baseline, Format, Identity, Write};
+use unfolded_record_replacement::{
+    previous_path,
+    save::{self, Baseline, Format, Identity, Write},
+};
 /// About 4 MiB, far above a full game; a save at the limit is refused plainly.
 const LIMIT: u64 = 4 * 1024 * 1024;
 /// The save's shape. It changes whenever what a save holds changes shape.
@@ -265,6 +270,45 @@ fn words(error: save::Error, action: Action) -> anyhow::Error {
         ),
         other => anyhow!(other),
     }
+}
+
+/// Selects the launcher's save path without opening a session or creating files.
+/// Its implicit names are stable across restarts and skip saves this build cannot
+/// replay. An explicit path is checked as requested.
+pub fn play_save_path(directory: &Path, explicit: Option<&Path>) -> Result<PathBuf> {
+    if let Some(path) = explicit {
+        check_play_slot(path).map_err(|error| play_save_refusal(path, error))?;
+        return Ok(path.to_owned());
+    }
+
+    let slots = std::iter::once(directory.join("task.json"))
+        .chain((2_u64..).map(|number| directory.join(format!("task-{number}.json"))));
+    for path in slots {
+        match check_play_slot(&path) {
+            Ok(()) => return Ok(path),
+            Err(save::Error::Unsupported(_) | save::Error::Unreproducible(_)) => continue,
+            Err(error) => return Err(play_save_refusal(&path, error)),
+        }
+    }
+    unreachable!("the implicit save name sequence has no end")
+}
+
+fn check_play_slot(path: &Path) -> std::result::Result<(), save::Error> {
+    if save::load(&Cuba, path)?.is_some() {
+        return Ok(());
+    }
+    match fs::symlink_metadata(previous_path(path)) {
+        Ok(_) => Err(save::Error::Orphaned),
+        Err(error) if error.kind() == ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(error.into()),
+    }
+}
+
+fn play_save_refusal(path: &Path, error: save::Error) -> anyhow::Error {
+    words(error, Action::Continue).context(format!(
+        "Cannot use {}. To choose a different save, run scripts/play --save FILE",
+        path.display()
+    ))
 }
 
 /// The save session: the match's save on disk and its payload in memory. It keeps

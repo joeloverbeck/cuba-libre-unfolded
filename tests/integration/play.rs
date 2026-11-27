@@ -1,5 +1,7 @@
+use cuba_libre_unfolded::{assets, save::Session};
 use std::{env, fs, os::unix::fs::PermissionsExt, path::Path, process::Command};
 use tempfile::tempdir;
+use unfolded_record_replacement::{previous_path, save};
 
 fn documented_launch() -> &'static str {
     let readme = include_str!("../../README.md");
@@ -22,8 +24,17 @@ fn launcher(home: &Path) -> Command {
 set -eu
 printf '<%s>\n' "$@" >> "$HOME/cargo.log"
 if [[ $5 == cuba-tools && $7 == prepare-play ]]; then
+  if [[ ${PLAY_TEST_CARDS_PREPARED:-} == 1 ]]; then exit 0; fi
   shift 6
   exec "$CUBA_TOOLS" "$@"
+fi
+if [[ $5 == cuba-tools && $7 == play-save ]]; then
+  shift 6
+  exec "$CUBA_TOOLS" "$@"
+fi
+if [[ $6 == cuba-libre && ${PLAY_TEST_CARDS_PREPARED:-} == 1 && ${10} == --save ]]; then
+  printf '%s\n' "${11}"
+  exit 0
 fi
 exit 99
 "#,
@@ -43,8 +54,99 @@ exit 99
         .env("PATH", path)
         .env("HOME", home)
         .env_remove("XDG_DATA_HOME")
+        .env_remove("PLAY_TEST_CARDS_PREPARED")
         .env("CUBA_TOOLS", env!("CARGO_BIN_EXE_cuba-tools"));
     command
+}
+
+#[test]
+fn readme_launch_gets_past_an_old_default_and_resumes_the_separate_save() {
+    let home = tempdir().unwrap();
+    let saves = home.path().join(".local/share/cuba-libre-unfolded/saves");
+    fs::create_dir_all(&saves).unwrap();
+    let legacy = saves.join("task.json");
+    let identity =
+        serde_json::from_value(serde_json::json!({"format":"2","source":assets::SOURCE})).unwrap();
+    let old = save::seal(&identity, &serde_json::json!({}));
+    let previous = previous_path(&legacy);
+    fs::write(&legacy, &old).unwrap();
+    fs::write(&previous, &old).unwrap();
+    let separate = saves.join("task-2.json");
+    let launch = || {
+        let mut command = launcher(home.path());
+        command.env("PLAY_TEST_CARDS_PREPARED", "1");
+        command
+    };
+
+    let first = launch().output().unwrap();
+    assert!(first.status.success(), "{first:?}");
+    assert_eq!(
+        String::from_utf8(first.stdout).unwrap().trim_end(),
+        separate.to_str().unwrap()
+    );
+    assert!(
+        !separate.exists(),
+        "the launcher must leave creation to the desktop app"
+    );
+    Session::create_seeded(&separate, 7).unwrap();
+    let resumed = launch().output().unwrap();
+    assert!(resumed.status.success(), "{resumed:?}");
+    assert_eq!(
+        String::from_utf8(resumed.stdout).unwrap().trim_end(),
+        separate.to_str().unwrap()
+    );
+    assert_eq!(
+        Session::open(&separate, None).unwrap().observe().revision,
+        0
+    );
+
+    let explicit = launch().arg("--save").arg(&legacy).output().unwrap();
+    assert_eq!(explicit.status.code(), Some(1));
+    let stderr = String::from_utf8(explicit.stderr).unwrap();
+    assert!(stderr.contains("in format 2"), "{stderr}");
+    assert!(stderr.contains("scripts/play --save"), "{stderr}");
+    assert!(explicit.stdout.is_empty());
+    assert_eq!(fs::read(legacy).unwrap(), old);
+    assert_eq!(fs::read(previous).unwrap(), old);
+}
+
+#[test]
+fn readme_launch_reports_damage_or_orphaned_history_before_opening_a_window() {
+    let home = tempdir().unwrap();
+    let saves = home.path().join(".local/share/cuba-libre-unfolded/saves");
+    fs::create_dir_all(&saves).unwrap();
+    let default = saves.join("task.json");
+    let damaged = b"unreadable save";
+    fs::write(&default, damaged).unwrap();
+    let launch = || {
+        let mut command = launcher(home.path());
+        command.env("PLAY_TEST_CARDS_PREPARED", "1");
+        command
+    };
+
+    let refused = launch().output().unwrap();
+    assert_eq!(refused.status.code(), Some(1));
+    assert!(
+        String::from_utf8(refused.stderr)
+            .unwrap()
+            .contains("Malformed save")
+    );
+    assert!(refused.stdout.is_empty());
+    assert_eq!(fs::read(&default).unwrap(), damaged);
+
+    fs::remove_file(&default).unwrap();
+    let previous = previous_path(&default);
+    fs::write(&previous, damaged).unwrap();
+    let orphaned = launch().output().unwrap();
+    assert_eq!(orphaned.status.code(), Some(1));
+    assert!(
+        String::from_utf8(orphaned.stderr)
+            .unwrap()
+            .contains("recovery history exists")
+    );
+    assert!(orphaned.stdout.is_empty());
+    assert_eq!(fs::read(previous).unwrap(), damaged);
+    assert!(!saves.join("task-2.json").exists());
 }
 
 #[test]

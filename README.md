@@ -25,7 +25,7 @@ For later launches, run:
 scripts/play
 ```
 
-The default save is `saves/task.json` in the per-user data directory. Use `scripts/play --save /absolute/path/to/task.json` to choose another file. An unused filename starts the prepared scenario.
+The launcher uses `saves/task.json` in the per-user data directory when this build can open it. If another build wrote a save this one cannot replay, the launcher preserves it and uses the next available name, starting with `task-2.json`. Later launches resume that save. Use `scripts/play --save /absolute/path/to/task.json` to select an exact file. An unused filename starts the prepared scenario.
 
 ## Playing this build
 

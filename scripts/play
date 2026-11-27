@@ -33,7 +33,9 @@ done
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 cargo run --locked --quiet --bin cuba-tools -- prepare-play "$data" "${card_source[@]}"
 if [[ -z $save ]]; then
+  save=$(cargo run --locked --quiet --bin cuba-tools -- play-save "$data/saves")
   mkdir -p -- "$data/saves"
-  save="$data/saves/task.json"
+else
+  cargo run --locked --quiet --bin cuba-tools -- play-save "$data/saves" "$save"
 fi
 exec cargo run --locked --features tabletop --bin cuba-libre -- --cards "$data/cards" --save "$save"
