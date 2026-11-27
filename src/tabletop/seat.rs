@@ -741,7 +741,7 @@ mod tests {
                 save: save.into(),
                 recover: None,
                 socket: None,
-                players: None,
+                players: Some(save.with_extension("sock")),
                 agent: true,
                 seat_size: size,
             },
@@ -754,6 +754,8 @@ mod tests {
         seat.admit(&mut app, Duration::from_secs(180)).unwrap();
         (app, seat)
     }
+
+    mod proclamation;
 
     /// Such a table played to a rolled Kidnap die that is still in the air, at revision 3.
     fn rolled(

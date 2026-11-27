@@ -4,10 +4,11 @@ use super::*;
 use crate::faction_seats::Stands;
 use crate::save::Proclamation;
 use bevy::{
+    clipboard::Clipboard,
     ecs::message::MessageMutator,
     input::keyboard::{Key, KeyboardInput},
-    input_focus::{FocusCause, InputFocus},
-    text::{EditableText, Justify, LineHeight, TextCursorStyle, TextLayoutInfo},
+    input_focus::{AcquireFocus, FocusCause, InputFocus},
+    text::{EditableText, FontCx, Justify, LayoutCx, LineHeight, TextCursorStyle, TextLayoutInfo},
     ui::widget::NodeImageMode,
     ui_widgets::TextInput,
 };
@@ -73,7 +74,7 @@ impl State {
 }
 
 #[derive(Component)]
-pub(super) struct Editor(Faction);
+pub(super) struct Editor(Faction, Layout);
 
 #[derive(Component)]
 pub(super) struct Printed;
@@ -206,7 +207,7 @@ pub(super) fn keys(
                 && die::presented(game.revision, game.kidnap.as_ref(), &roll).is_none()
             {
                 press(&play, &mut ui, Press::Open);
-                keys.clear_just_pressed(KeyCode::KeyP);
+                consume_proclamation_keys(&mut keys);
             }
         }
         return;
@@ -229,12 +230,7 @@ pub(super) fn keys(
             press(&play, &mut ui, focused);
         }
     }
-    let consumed: Vec<_> = keys.get_just_pressed().copied().collect();
-    for key in consumed {
-        if !faction_seats::KEYS.contains(&key) {
-            keys.clear_just_pressed(key);
-        }
-    }
+    consume_proclamation_keys(&mut keys);
 }
 
 pub(super) fn focus(ui: &Interface) -> Option<Focus> {
@@ -244,19 +240,15 @@ pub(super) fn focus(ui: &Interface) -> Option<Focus> {
     })
 }
 
-/// Read the editor before a switch, close or publication, even if it no longer
-/// represents the newly selected author. It stays alive across count redraws.
-fn keep_draft(state: &mut State, field: &Query<(Entity, &Editor, &EditableText)>) {
-    if let Ok((_, editor, text)) = field.single() {
-        let old = &mut state.drafts[editor.0.index()];
-        let edited = text.value().to_string();
-        if *old != edited {
-            *old = edited;
-            if let Some(page) = &mut state.page
-                && page.author == editor.0
-            {
-                page.refusal = None;
-            }
+fn keep_draft(state: &mut State, author: Faction, text: &EditableText) {
+    let old = &mut state.drafts[author.index()];
+    let edited = text.value().to_string();
+    if *old != edited {
+        *old = edited;
+        if let Some(page) = &mut state.page
+            && page.author == author
+        {
+            page.refusal = None;
         }
     }
 }
@@ -266,17 +258,37 @@ fn keep_draft(state: &mut State, field: &Query<(Entity, &Editor, &EditableText)>
 pub(super) fn publish(
     mut play: ResMut<Play>,
     mut ui: ResMut<Interface>,
-    field: Query<(Entity, &Editor, &EditableText)>,
+    mut field: Query<(&Editor, &mut EditableText)>,
+    window: Single<&Window, With<PrimaryWindow>>,
+    mut fonts: ResMut<FontCx>,
+    mut layout: ResMut<LayoutCx>,
+    mut clipboard: ResMut<Clipboard>,
 ) {
-    keep_draft(&mut ui.composer, &field);
-    if !std::mem::take(&mut ui.composer.publishing) || ui.proclamation_reader.is_open() {
+    if let Ok((editor, mut text)) = field.single_mut() {
+        // Bevy normally applies queued edits after UI layout in PostUpdate.
+        // Finish this field's queue first when we need to snapshot or replace it.
+        if ui.composer.publishing
+            || ui
+                .composer
+                .page
+                .as_ref()
+                .is_none_or(|page| page.author != editor.0)
+            || editor.1 != Layout::new(&window)
+        {
+            text.apply_pending_edits(&mut fonts, &mut layout.0, &mut clipboard, |_| true);
+        }
+        keep_draft(&mut ui.composer, editor.0, &text);
+    }
+    if !std::mem::take(&mut ui.composer.publishing) {
         return;
     }
     let Some(page) = ui.composer.page.as_ref() else {
         return;
     };
     let (author, revision, card) = (page.author, page.revision, page.card);
-    let result = if ui.plays(author) {
+    let result = if ui.proclamation_reader.is_open() {
+        Err("Publish interrupted. Your draft is kept. Press Publish again.".into())
+    } else if ui.plays(author) {
         play.session
             .as_mut()
             .expect("An admitted match")
@@ -375,7 +387,7 @@ fn editor(commands: &mut Commands, art: &Art, sheet: &Sheet, draft: &str) -> Ent
     node.overflow = Overflow::clip();
     commands
         .spawn((
-            Editor(sheet.page.author),
+            Editor(sheet.page.author, sheet.layout),
             Part("draft"),
             node,
             control(Press::Field),
@@ -411,6 +423,12 @@ fn control(press: Press) -> Control {
         choice: false,
         action: Action::ComposeProclamation(press),
     }
+}
+
+// A pointer press on a composer control does not move the field's focus.
+// The completed click owns the switch, return or publish.
+fn keep_editor_focus(mut event: On<AcquireFocus>) {
+    event.propagate(false);
 }
 
 fn print(commands: &mut Commands, art: &Art, sheet: &Sheet) {
@@ -573,7 +591,8 @@ impl SheetPrint<'_, '_, '_> {
             .entity(fill)
             .remove::<Pickable>()
             .insert((Printed, control(press)))
-            .observe(click);
+            .observe(click)
+            .observe(keep_editor_focus);
         if focused {
             let mark = if primary {
                 "atlas-focus-mark-field.png"
