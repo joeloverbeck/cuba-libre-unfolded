@@ -1244,7 +1244,8 @@ fn click(
     }
     // A click while a played card is in the air lands the cards and does nothing
     // else (presentation only: the advance was saved before anything moved).
-    if advance.lands(&play.game().observe(), time.elapsed_secs_f64(), frame.0) {
+    let view = play.game().observe();
+    if advance.lands(&view, time.elapsed_secs_f64(), frame.0) {
         return;
     }
     let Ok(control) = controls.get(event.entity) else {
@@ -1308,7 +1309,13 @@ fn click(
         // Reading an edition changes nothing in the match.
         Action::Edition(press) => newspaper::press(&mut ui, *press),
         Action::ComposeProclamation(press) => {
-            proclamation_composer::press(&play, &mut ui, *press);
+            if *press == proclamation_composer::Press::Open {
+                if proclamation_composer::entry_available(&view, &ui, &roll, false) {
+                    proclamation_composer::open(&play, &mut ui);
+                }
+            } else {
+                proclamation_composer::press(&mut ui, *press);
+            }
             return;
         }
         Action::ReadProclamation(press) => {
@@ -2004,7 +2011,8 @@ fn draw_ui(
     piles::overlay(&mut commands, &art, &scene, &window);
     // #208: the pile of this card's editions beside the pips.
     newspaper::pile(&mut commands, &art, &view, &ui, &main_view, &window);
-    proclamation_composer::entry(&mut commands, &art, &view, &ui, s);
+    let dispatch = proclamation_composer::entry_available(&view, &ui, &roll, scene.in_the_air());
+    proclamation_composer::entry(&mut commands, &art, &view, &ui, dispatch, s);
     proclamation_reader::draw(&mut commands, &art, play.session.as_ref(), &ui, &window);
     // #206: the four seats between the pips and Save · quit.
     seat_cards::draw(&mut commands, &art, &view, &ui, &main_view, &window);

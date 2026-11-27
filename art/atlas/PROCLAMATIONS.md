@@ -8,9 +8,11 @@ The runtime PNGs in `proclamation.sha256` include the Broadsheet plate and field
 
 The [selected FigCraft layout](atlas-dispatch.figcraft) places the [VectorCraft plate](atlas-dispatch.vectorcraft) below the Sequence of Play. At 1920×1080, the visible edges span x=50 through 246, the export starts at y=497, and the separately lettered P medallion shares the tab's hit target. The anchor follows the bottom of the Sequence's tallest reserved plate. Aid and US Alliance use the higher tooltip layer, and their visible plates take pointer input.
 
-The source digests pinned in #264 are `36ea69d3c02bc0b4ea386130f8613c23adf6c160716432ebf74d942f1663adf3` for the layout and `d2a60b718f22132909ed67c0828c2e19c9278511b7e0cbe74169f53b322d9cb9` for the plate. VectorCraft CLI 0.24.1 exported the embedded plate at 3× with digest `35205da35c4f06a96cf3d4d619281d6ecee2481391b424c19e1b3a36dfa79543`. [Spec #264](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/264)
+The editable source digests pinned in #264 are `36ea69d3c02bc0b4ea386130f8613c23adf6c160716432ebf74d942f1663adf3` for the layout and `d2a60b718f22132909ed67c0828c2e19c9278511b7e0cbe74169f53b322d9cb9` for the plate. [Spec #264](https://github.com/joeloverbeck/cuba-libre-unfolded/issues/264)
 
-FigCraft CLI 0.18.1 exported only the four visible Dispatch layers (10–13) of the `filed` frame as [proclamation-dispatch.png](proclamation-dispatch.png) at 2×. Its 400×99 PNG has transparent margins and contains the plate, title, medallion and shortcut letter. The editable source's two table backgrounds and thumbnail preserve the proposal's empty and mixed-seat references with both card faces blanked. The edge of the draw-deck count disc is visible.
+The #266 re-export on November 27 used the installed VectorCraft CLI 0.24.1 at `97da102592ef820346e0f88839fe1b4a37997a71` (binary SHA-256 `ab33d7cca13ff4d7cc9dda0784bab42190afe10d468737bbfbc19a7d4d560281`) at 3×. The result matched the embedded plate, SHA-256 `35205da35c4f06a96cf3d4d619281d6ecee2481391b424c19e1b3a36dfa79543`. The installed FigCraft CLI 0.18.1 at `a66bb68f7e1167ac97e17fa63d7657225e18d1c4` (binary SHA-256 `761ab897040e09e0c348f8837fc3dd8d8fa230cacdf1efbe1a862ee493361f61`) exported the four visible Dispatch layers (10–13) of the `filed` frame as [proclamation-dispatch.png](proclamation-dispatch.png) at 2×.
+
+The 400×99 PNG has transparent margins and contains the plate, title, medallion and shortcut letter. The editable source's two table backgrounds and thumbnail preserve the proposal's empty and mixed-seat references with both card faces blanked. The edge of the draw-deck count disc is visible.
 
 ## Writing
 
