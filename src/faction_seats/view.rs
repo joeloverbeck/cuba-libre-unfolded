@@ -97,7 +97,10 @@ pub struct State {
     pub executing: Option<Faction>,
     pub event_executor: Option<Faction>,
     pub event: Option<EventProgress>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(
+        skip_serializing_if = "Option::is_none",
+        serialize_with = "crate::game::manifesto::serialize_observation"
+    )]
     pub manifesto: Option<Manifesto>,
     pub eligibility: Eligibility,
     pub passed: [bool; 4],

@@ -21,6 +21,7 @@ mod words;
 #[cfg(feature = "tabletop")]
 pub(crate) use words::listing;
 
+use crate::game::manifesto::ManifestoOutcome;
 use crate::{
     ActionChoice, AssaultResolution, Choice, ConstructFunding, ConstructFundingReply,
     ConstructPlan, ConstructResolution, Eligibility, EventOutcome, EventProgress, Faction, Flip,
@@ -613,25 +614,16 @@ fn happened(before: &Moment, after: &Moment, continues: bool, items: &mut Vec<It
         });
     }
     if let Some(manifesto) = &after.manifesto {
-        let told = before.manifesto.as_ref().map_or(0, |m| m.declines.len());
         items.extend(
             manifesto
-                .declines
+                .outcomes_since(before.manifesto.as_ref())
                 .iter()
-                .skip(told)
-                .copied()
-                .map(Item::DeclinedPlacement),
-        );
-        let told = before.manifesto.as_ref().map_or(0, |m| m.placements.len());
-        items.extend(
-            manifesto
-                .placements
-                .iter()
-                .skip(told)
-                .cloned()
-                .map(|placement| Item::PlacedManifesto {
-                    space: name(&placement.space),
-                    placement,
+                .map(|outcome| match outcome {
+                    ManifestoOutcome::Declined(faction) => Item::DeclinedPlacement(*faction),
+                    ManifestoOutcome::Placed(placement) => Item::PlacedManifesto {
+                        space: name(&placement.space),
+                        placement: placement.clone(),
+                    },
                 }),
         );
     }

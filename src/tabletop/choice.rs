@@ -20,6 +20,7 @@ use super::highlights::Targeting;
 use super::palette::{INK, PAPER, QUIET};
 use super::popover::Popover;
 use super::*;
+use crate::game::manifesto::ManifestoOutcome;
 use crate::{ActionChoice, Choice, EventProgress, Observation, Transfer, resources};
 use bevy::text::{Justify, LetterSpacing, LineHeight};
 
@@ -460,9 +461,10 @@ fn panel_lines(view: &Observation) -> Vec<PanelLine> {
     if let Some(event) = view.manifesto.as_ref().filter(|event| event.complete()) {
         let mut lines = vec![];
         let mut top = fig::ASSAULT_RECORD[0];
-        for faction in view.cards.current.order {
-            let words = match event.placements.iter().find(|p| p.faction == faction) {
-                Some(placement) => {
+        for outcome in event.outcomes() {
+            let faction = outcome.faction();
+            let words = match outcome {
+                ManifestoOutcome::Placed(placement) => {
                     let space = view
                         .spaces
                         .iter()
@@ -475,10 +477,9 @@ fn panel_lines(view: &Observation) -> Vec<PanelLine> {
                         space.name
                     )
                 }
-                None if event.declines.contains(&faction) => {
+                ManifestoOutcome::Declined(_) => {
                     format!("{} · declined placement", faction.name())
                 }
-                None => continue,
             };
             lines.push(record_line(
                 format!("manifesto-record:{}", slug(faction)),

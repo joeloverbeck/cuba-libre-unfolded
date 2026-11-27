@@ -752,7 +752,7 @@ fn new_sessions_seed_once_from_entropy_while_resume_preserves_the_exact_seed() {
 /// of only the format and the accepted rules source. A restart keeps the consumed
 /// randomness, and the match revision equals the number of decisions.
 #[test]
-fn a_save_holds_its_seed_decisions_and_position_under_format_12() {
+fn a_save_holds_its_seed_decisions_and_position_under_format_13() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("seeded.json");
     // Seed 5 rolls 3 (kidnap.rs's shared RNG cases).
@@ -769,7 +769,7 @@ fn a_save_holds_its_seed_decisions_and_position_under_format_12() {
     let saved = record(&path);
     assert_eq!(
         saved["identity"],
-        serde_json::json!({"format": "12", "source": cuba_libre_unfolded::assets::SOURCE})
+        serde_json::json!({"format": "13", "source": cuba_libre_unfolded::assets::SOURCE})
     );
     assert_eq!(saved["payload"]["seed"], 5);
     assert_eq!(
@@ -2223,7 +2223,10 @@ fn manifesto_declines_replay_in_printed_order_without_taking_card_actions() {
         }
     );
     assert_eq!(after.eligibility.m26_next_card, Some(true));
-    assert_eq!(after.manifesto.unwrap().declines, owners);
+    assert_eq!(
+        serde_json::to_value(&after).unwrap()["manifesto"]["declines"],
+        serde_json::json!(owners)
+    );
     let next = after.next.unwrap();
     assert_eq!(
         (next.faction, next.role.as_str()),
@@ -2272,7 +2275,10 @@ fn manifesto_declines_replay_in_printed_order_without_taking_card_actions() {
     let pending = recovered.observe();
     assert_eq!(pending.revision, session.observe().revision - 1);
     assert_eq!(pending.owner, Faction::Government);
-    assert_eq!(pending.manifesto.unwrap().declines, owners[..3]);
+    assert_eq!(
+        serde_json::to_value(&pending).unwrap()["manifesto"]["declines"],
+        serde_json::json!(owners[..3])
+    );
     assert_eq!(std::fs::read(&recovery_path).unwrap(), previous);
     act(&mut recovered, "manifesto:decline");
     assert_eq!(recovered.observe(), session.observe());
@@ -2440,6 +2446,89 @@ fn open_manifesto(path: &Path) -> Session {
         act(&mut session, action);
     }
     session
+}
+
+#[test]
+fn mixed_manifesto_reports_keep_the_transfer_between_placements_after_replay() {
+    use Faction::{Directorio, Government, M26, Syndicate};
+    use cuba_libre_unfolded::reports::Action;
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("manifesto-mixed.json");
+    let mut session = open_manifesto(&path);
+    assert_eq!(act(&mut session, "manifesto:decline").owner, M26);
+    assert_eq!(session.observe().owner, Directorio);
+    act(&mut session, "transfer");
+    act(&mut session, "ask:0:2");
+    let pending = session.observe();
+    assert_eq!(pending.owner, Government);
+    assert_eq!(pending.executing, Some(M26));
+    let revision = pending.revision;
+    drop(session);
+
+    let mut session = Session::open(&path, None).unwrap();
+    assert_eq!(session.observe(), pending);
+    assert_eq!(act(&mut session, "authorize:2").owner, Government);
+    assert_eq!(session.observe().owner, Directorio);
+    assert_eq!(
+        act(&mut session, "manifesto:place:havana:base-base").owner,
+        Directorio
+    );
+    assert_eq!(act(&mut session, "manifesto:decline").owner, Syndicate);
+    assert_eq!(
+        act(&mut session, "manifesto:place:havana:troops-police").owner,
+        Government
+    );
+    let finished = session.observe();
+    assert_eq!(finished.owner, Directorio);
+    assert_eq!(finished.executing, None);
+    let next = finished.next.as_ref().unwrap();
+    assert_eq!(
+        (next.faction, next.role.as_str()),
+        (Directorio, "2nd Eligible")
+    );
+
+    let reports = session.reports();
+    let whole = reports.last().unwrap();
+    let since = session.reports_since(revision);
+    let [continuation] = since.as_slice() else {
+        panic!("expected one report after the request: {since:?}");
+    };
+    for report in [whole, continuation] {
+        assert_eq!(
+            (report.card, report.faction, report.action),
+            (19, M26, Action::Manifesto)
+        );
+        assert_eq!(report.recorded, Some("Event"));
+        assert!(report.complete);
+        assert_eq!(report.to_revision, finished.revision);
+    }
+    assert!(!whole.continues);
+    assert!(continuation.continues);
+    assert_eq!(continuation.from_revision, revision);
+    let [declined, transfer, directorio, syndicate, government] = whole.articles.as_slice() else {
+        panic!(
+            "expected four placement outcomes and a transfer: {:?}",
+            whole.articles
+        );
+    };
+    assert_eq!(declined.lines, ["26July declined placement."]);
+    assert_eq!(transfer.title, "Government gives 26July 2 Resources");
+    assert_eq!(directorio.lines, ["Directorio placed 2 Bases in Havana."]);
+    assert_eq!(syndicate.lines, ["Syndicate declined placement."]);
+    assert_eq!(
+        government.lines,
+        ["Government placed 1 Troop + 1 Police cube in Havana."]
+    );
+    assert_eq!(continuation.articles.len(), 4);
+    assert_eq!(continuation.articles[0].title, transfer.title);
+    assert_eq!(continuation.articles[1..], whole.articles[2..]);
+
+    drop(session);
+    let replayed = Session::open(&path, None).unwrap();
+    assert_eq!(replayed.observe(), finished);
+    assert_eq!(replayed.reports(), reports);
+    assert_eq!(replayed.reports_since(revision), since);
 }
 
 #[test]
@@ -2612,12 +2701,16 @@ fn manifesto_transfer_retains_giver_authority_and_resumes_the_placement() {
     act(&mut session, "manifesto:decline");
     let finished = session.observe();
     let reports = session.reports();
-    let manifesto = finished.manifesto.as_ref().unwrap();
+    let observation = serde_json::to_value(&finished).unwrap();
+    let manifesto = &observation["manifesto"];
     assert_eq!(finished.owner, Directorio);
     assert_eq!(finished.executing, None);
     assert_eq!(finished.resources, [0, 0, 5, 24]);
-    assert_eq!(manifesto.placements.len(), 1);
-    assert_eq!(manifesto.declines, [Directorio, Syndicate, Government]);
+    assert_eq!(manifesto["placements"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        manifesto["declines"],
+        serde_json::json!([Directorio, Syndicate, Government])
+    );
     assert_eq!(finished.spaces, placement.spaces);
     assert_eq!(finished.available, placement.available);
     assert!(finished.choices.iter().all(|c| !c.supported));
