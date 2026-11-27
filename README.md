@@ -25,7 +25,7 @@ For later launches, run:
 scripts/play
 ```
 
-The launcher uses `saves/task.json` in the per-user data directory when this build can open it. If another build wrote a save this one cannot replay, the launcher preserves it and uses the next available name, starting with `task-2.json`. Later launches resume that save. Use `scripts/play --save /absolute/path/to/task.json` to select an exact file. An unused filename starts the prepared scenario.
+The launcher uses `saves/task.json` in the per-user data directory when this build can open it. If another build wrote a save this one cannot replay, the launcher preserves it and uses the next available name, starting with `task-2.json`. With the same save files in place, this build resumes that save on later launches. If you reorganize your saves, use `scripts/play --save /absolute/path/to/task.json` to keep using the exact file you intend to continue. An unused filename starts the prepared scenario.
 
 ## Playing this build
 
