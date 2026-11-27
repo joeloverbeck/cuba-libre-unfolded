@@ -155,7 +155,32 @@ fn native_shaded_event_flips_into_empty_and_occupied_slots() {
         awaiting["observation"]["spaces"],
         before["observation"]["spaces"]
     );
-    assert_eq!(awaiting["table"]["counts"], before["table"]["counts"]);
+    let before_counts = before["table"]["counts"].as_array().unwrap();
+    let preview_counts = awaiting["table"]["counts"].as_array().unwrap();
+    assert_eq!(preview_counts.len(), before_counts.len());
+    for (was, shown) in before_counts.iter().zip(preview_counts) {
+        for field in ["name", "text", "font_size"] {
+            assert_eq!(was[field], shown[field], "roundel {field}: {}", was["name"]);
+        }
+        // Bevy rounds a plate to logical pixels. A retained plate at a
+        // fractional position can alternate between adjacent rounded edges.
+        for field in ["bounds", "roundel_bounds"] {
+            let edges = |row: &Value| {
+                row[field]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|edge| edge.as_f64().unwrap())
+                    .collect::<Vec<_>>()
+            };
+            let prior = edges(was);
+            let preview = edges(shown);
+            assert_eq!(prior.len(), preview.len());
+            for (a, b) in prior.into_iter().zip(preview) {
+                assert!((a - b).abs() <= 1., "{} {field}: {a} → {b}", was["name"]);
+            }
+        }
+    }
     assert!(!motion_pending(&awaiting));
 
     pan(&mut app, &[("KeyD", 25), ("KeyS", 10)]);

@@ -250,6 +250,43 @@ fn native_motion_landing_preserves_an_unrelated_piece_press() {
 
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer"]
+fn native_motion_landing_preserves_the_arriving_piece_press() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut app = removal_during_terror(&temp.path().join("task.json"));
+    let key = "santiago:active";
+    let center = slot(&app, "santiago", guerrilla(State::Active));
+    frame(&mut app, center, 5.);
+    let point = project(&mut app, center);
+    let before = piece_entity(&mut app, key).unwrap();
+    let at = exposed_point(&mut app, before, point);
+    press(&mut app, at);
+    assert!(still_flying(&app));
+    landing(&mut app);
+    let after = piece_entity(&mut app, key).unwrap();
+    assert!(
+        app.world().resource::<HoverMap>()[&PointerId::Mouse].contains_key(&after),
+        "the same pointer position {at} still hits the arriving group"
+    );
+    release(&mut app, at);
+    let read = popover(&mut app);
+    assert_eq!(
+        (read["card"]["rows"][0]["choice"].as_str(), after),
+        (Some("6:remove:santiago:active:1"), before),
+        "the landing still completes the press on the arriving piece: {read}"
+    );
+    let badge = roundel_entity(&mut app, after).unwrap();
+    let world = app.world();
+    assert!(
+        world
+            .get::<MeshMaterial3d<StandardMaterial>>(after)
+            .is_some()
+    );
+    let digit = world.get::<Children>(badge).unwrap().iter().next().unwrap();
+    assert_eq!(world.get::<Text>(digit).unwrap().0, "1");
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer"]
 fn native_motion_leaves_the_closed_casino_return_available_during_its_turn() {
     let temp = tempfile::tempdir().unwrap();
     let mut app = prepare(
