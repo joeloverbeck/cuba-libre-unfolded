@@ -6,8 +6,10 @@ set -euo pipefail
 # this script during a run cannot change the run.
 {
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+read -r started _ < /proc/uptime
 
-echo "revision: $(git rev-parse HEAD)"
+revision=$(git rev-parse HEAD)
+echo "revision: $revision"
 changes=$(git status --porcelain --untracked-files=normal)
 if [[ -z $changes ]]; then
   echo "working tree: clean"
@@ -91,6 +93,8 @@ selection=()
 exact=false
 bench=false
 run_tests=false
+user_log=
+report_time=(--report-time)
 while (($#)); do
   case $1 in
     -h|--help) exec cargo test --locked --features tabletop --test native -- --help ;;
@@ -109,7 +113,12 @@ while (($#)); do
       shift ;;
     -Z*|--skip=*|--exclude-should-panic|--include-ignored|--ignored)
       selection+=("$1") ;;
-    --format|--color|--shuffle-seed|--logfile)
+    --report-time) report_time=() ;;
+    --logfile=*) user_log=${1#*=} ;;
+    --logfile)
+      if (($# < 2)); then echo "--logfile needs a path" >&2; exit 2; fi
+      user_log=$2; shift ;;
+    --format|--color|--shuffle-seed)
       # Space-separated option values aren't test names.
       if (($# > 1)); then shift; fi ;;
     -*) ;;
@@ -167,16 +176,69 @@ fi
 if [[ -n ${CUBA_NATIVE_EVIDENCE:-} ]]; then echo "evidence: $CUBA_NATIVE_EVIDENCE"; fi
 whole=false
 if [[ -n $shard ]] || ((given == 0)); then whole=true; fi
+timing_root=${CUBA_NATIVE_EVIDENCE:-local/verification/native}
+mkdir -p -- "$timing_root"
+timing=$(mktemp -d -- "$timing_root/timing-XXXXXX")
+echo "timings: $timing"
+# Runtime logs copied during this invocation identify the adapter Bevy actually used.
+touch "$timing/started"
+# Cargo sets the test environment and resolves the executable. Enable unstable
+# libtest timing only on the executable; setting bootstrap on Cargo rebuilds Bevy.
+timed_cargo=("${cargo_test[@]}" --config "target.'cfg(target_os = \"linux\")'.runner=['env','RUSTC_BOOTSTRAP=1']")
 failed=()
+run_timed() {
+  local label=$1 log
+  shift
+  local logfile=()
+  local previous_log=
+  if [[ -n $user_log && -f $user_log ]]; then previous_log=$(stat -c %y -- "$user_log"); fi
+  log="$timing/$label.log"
+  if [[ -z $user_log ]]; then logfile=(--logfile "$log"); fi
+  # Keep the caller's arguments after the timing options, including a literal --.
+  local target=(--lib)
+  if [[ $label == app ]]; then target=(--test native); fi
+  "${timed_cargo[@]}" "${target[@]}" -- -Z unstable-options "${report_time[@]}" \
+    "${logfile[@]}" "$@" || failed+=("$label")
+  if [[ -n $user_log && -f $user_log && $(stat -c %y -- "$user_log") != "$previous_log" ]]; then
+    cp -- "$user_log" "$log"
+  fi
+}
+
 echo "== tests/native.rs, $apps at once"
-"${cargo_test[@]}" --test native -- "${app_harness[@]}" "${args[@]}" || failed+=("tests/native.rs")
+run_timed app "${app_harness[@]}" "${args[@]}"
 if [[ -z $shard ]]; then
   echo "== library (in-process)"
-  "${cargo_test[@]}" --lib -- "${harness[@]}" "${args[@]}" || failed+=("library")
+  run_timed library "${harness[@]}" "${args[@]}"
 elif ((part == 1)); then
   echo "== library (in-process)"
-  "${cargo_test[@]}" --lib -- "${harness[@]}" || failed+=("library")
+  run_timed library "${harness[@]}"
 fi
+
+read -r ended _ < /proc/uptime
+{
+  echo "revision: $revision${changes:+ (working tree modified)}; shard: ${shard:-unsharded}; app threads: $apps; library threads: 1"
+  echo "renderer settings: WGPU_BACKEND=${WGPU_BACKEND:-default} VK_DRIVER_FILES=${VK_DRIVER_FILES:-default} CUBA_NATIVE_SOFTWARE_VULKAN=${CUBA_NATIVE_SOFTWARE_VULKAN:-0}"
+  if [[ -n ${CUBA_NATIVE_EVIDENCE:-} ]]; then
+    roots=("$CUBA_NATIVE_EVIDENCE")
+  else
+    shopt -s nullglob
+    roots=(local/verification/issue-*)
+  fi
+  adapters=
+  if ((${#roots[@]})); then
+    adapters=$(find "${roots[@]}" -maxdepth 2 -type f -name '*-runtime.log' -newer "$timing/started" \
+      -exec sed -nE 's/.*AdapterInfo \{ name: "([^"]+)".*backend: ([^, }]+).*/\1 (\2)/p' {} + | sort -u)
+  fi
+  echo "observed adapter: ${adapters:-unreported}"
+  LC_ALL=C awk -v start="$started" -v end="$ended" 'BEGIN { printf "runner wall time: %.2fs\n", end-start }'
+  if ((${#failed[@]})); then echo "failed in: ${failed[*]}"; else echo "result: passed"; fi
+  echo "seconds  result  test (slowest first)"
+  for log in "$timing"/{app,library}.log; do
+    [[ -f $log ]] || continue
+    awk '$NF ~ /^<[0-9.]+s>$/ {print substr($NF, 2, length($NF)-3), $1, $(NF-1)}' "$log"
+  done | LC_ALL=C sort -nr
+} | tee "$timing/summary.txt"
+
 if ((${#failed[@]})); then
   echo "native regressions failed in: ${failed[*]}" >&2
   exit 1

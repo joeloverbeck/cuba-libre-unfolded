@@ -210,6 +210,7 @@ The ignored native regressions need the selected card directory and a working re
 CUBA_TEST_CARDS="/path/to/cards" scripts/heavy scripts/native
 ```
 
+- Each execution prints a unique timing directory under `CUBA_NATIVE_EVIDENCE` or `local/verification/native/`. Open `summary.txt` for completed tests in descending elapsed seconds, their results, thread counts, renderer settings, the adapter observed in retained session logs and runner wall time. The wall clock starts inside `scripts/native` and includes discovery and compilation. Parallel tests overlap. Each harness writes completed results to its own log as it runs, so these logs also survive an interruption. The retained app runtime logs identify the actual graphics adapter.
 - Each test keeps isolated saves, JSON observations and screenshots under its evidence directory, below. `CUBA_NATIVE_EVIDENCE` selects another evidence directory, and `scripts/native` sets it when run from a worktree ([parallel-work.md](parallel-work.md#builds)).
 - Inspect the images separately: passing assertions do not prove readability or owner acceptance.
 - An app that ends early ("No such file or directory" from `cuba-tools`) may have run out of graphics memory: in #187 one ended with the card at 10.7 of 11 GB, possibly with another program's renders on it. Rerun the failed test alone with `--test-threads=1` before judging it.
