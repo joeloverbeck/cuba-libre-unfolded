@@ -108,6 +108,8 @@ Use the trace to identify the last app tests and the observed gap between their 
 
 The [seat reference](seat.md) has the seat's requests, its component ids, what the table reports and how to judge a capture on the owner's display.
 
+- `native_economic_center_review_opens_without_a_save` (#267) checks the read-only Factory EC at 3840×2160. It verifies eight force groups, Sabotage's drawn marker and supply hover, refusal of a save argument, close zoom and Home return. Use `scripts/heavy cargo test --locked --features occupancy-review --test native occupancy_review::native_economic_center_review_opens_without_a_save -- --ignored --exact` with `CUBA_TEST_CARDS`. Evidence goes to `local/verification/issue-267/` unless `CUBA_NATIVE_EVIDENCE` names another directory.
+
 - `native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement` (#243) removes Oriente's only qualifying piece, compares the refreshed map and client choices, and plays Resource requests during Directorio's placement decision. It verifies the held placement hint while human 26July can choose a transfer. It covers a saved giver request, authorization, refusal and factual editions at 3840×2160. Evidence goes to `local/verification/issue-243/` when run directly.
 
 - `native_havana_numeric_request_and_public_bargain` (#233) compares a silent and an explained request from the same Havana decision through all four real client views. It branches at the giver's answer, checks the transfer and separate five-Resource payment, and resumes the recovered and completed positions. Evidence goes to `local/verification/issue-233/` when run directly.
