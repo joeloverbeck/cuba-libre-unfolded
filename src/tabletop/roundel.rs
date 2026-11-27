@@ -89,7 +89,7 @@ fn size_roundels(
         let (Some(x), Some(y)) = (delta(Vec3::X), delta(Vec3::Z)) else {
             continue;
         };
-        // The smaller projected diameter of a floor disc, independent of yaw.
+        // Estimate the minor projected diameter from the two screen-space chords.
         let x2 = x.length_squared();
         let y2 = y.length_squared();
         let difference = (x2 - y2).hypot(2. * x.dot(y));

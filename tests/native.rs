@@ -3134,8 +3134,8 @@ fn native_top_display_matches_layout_and_follows_the_economy() {
     app.quit();
 }
 
-/// Each map quantity uses the same type-to-plate ratio at every distance and
-/// window shape. The drawn quantity fits inside its roundel.
+/// In this view, each quantity uses the selected type-to-plate ratio. Its logical
+/// layout bounds fit within one pixel of the roundel box.
 fn assert_counts_fit_roundels(view: &Value) {
     let counts = view["table"]["counts"].as_array().unwrap();
     assert!(!counts.is_empty(), "no map counts");

@@ -106,7 +106,7 @@ Use the trace to identify the last app tests and the observed gap between their 
 
 ## Regression catalogue
 
-- `native_ordinary_map_shows_inventory_roundels` (#269) checks for all thirteen map surfaces and drawn count plates in ordinary 3840×2160 play. Each digit scales with its roundel and fits within the plate. Evidence goes to `local/verification/issue-142/` when run directly.
+- `native_ordinary_map_shows_inventory_roundels` (#269) checks for all thirteen map surfaces and drawn count plates in ordinary 3840×2160 play. The test checks two city bounds against the selected 4K frame and measures the quantity-to-plate ratio and text layout bounds. Evidence goes to `local/verification/issue-142/` when run directly.
 
 The [seat reference](seat.md) has the seat's requests, its component ids, what the table reports and how to judge a capture on the owner's display.
 

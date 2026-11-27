@@ -944,16 +944,12 @@ fn sync_pieces(
         }
     }
 }
-/// A count of pieces or Terror, kept over its token.
+/// A quantity beside a force group or Terror marker.
 #[derive(Component)]
 struct Count;
 
-/// How many frames the counts still need before they stand over their pieces. A
-/// count's node is placed in the frame it is spawned or the camera jumps, centred on
-/// its measured width in the next, and picked where it then stands from the one
-/// after. The development seat waits for that: with the map filling the window a
-/// count can settle over the middle of its piece, and a press that came a frame
-/// early would land on the count instead (#142).
+/// The development seat waits while roundels acquire their screen bounds and
+/// become pickable following a spawn or camera move.
 #[derive(Resource, Default)]
 struct Counts {
     settling: u8,

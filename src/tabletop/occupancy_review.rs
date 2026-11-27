@@ -202,8 +202,7 @@ pub(super) fn sabotage_solid(
     );
 }
 
-/// Screen and world bounds of actual mesh vertices plus the laid-out UI plate.
-/// The verification uses them to investigate fit in the native frames.
+/// Screen and world bounds of actual piece, face and label mesh vertices.
 pub(super) fn mesh_bounds(world: &mut World) -> Value {
     use bevy::mesh::VertexAttributeValues;
 
