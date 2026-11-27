@@ -42,6 +42,7 @@ fi
 
 read -r started _ < /proc/uptime
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+revision=$(git rev-parse --verify HEAD)
 
 # A hash of every tracked file this suite could build or read: all but documents, agent
 # settings and CI, so a file added later counts. Commits with the same hash run the same
@@ -66,7 +67,6 @@ if [[ ${1:-} == --inputs ]]; then
   exit
 fi
 
-revision=$(git rev-parse HEAD)
 echo "revision: $revision"
 changes=$(git status --porcelain --untracked-files=normal)
 if [[ -z $changes ]]; then

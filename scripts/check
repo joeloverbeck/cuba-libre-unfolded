@@ -181,10 +181,19 @@ check_native_inputs() (
   scratch=$(mktemp -d)
   trap 'rm -rf -- "$scratch"' EXIT
   fixture=$scratch/checkout
-  git init --quiet "$fixture"
+  git init --quiet --template= "$fixture"
+  printf '/scripts/native\n' > "$scratch/excludes"
+  git -C "$fixture" config --local core.excludesFile "$scratch/excludes"
   mkdir -- "$fixture/scripts"
   cp -- scripts/native "$fixture/scripts/native"
-  git -C "$fixture" add -- scripts/native
+  if "$fixture/scripts/native" --inputs > "$scratch/stdout" 2> "$scratch/stderr" ||
+    [[ -s $scratch/stdout || ! -s $scratch/stderr ]]; then
+    echo 'native inputs check: expected a checkout without a commit to fail before fingerprinting' >&2
+    cat "$scratch/stdout" "$scratch/stderr" >&2
+    return 1
+  fi
+
+  git -C "$fixture" add --force -- scripts/native
   git -C "$fixture" -c user.name=Checks -c user.email=checks@example.invalid \
     -c core.hooksPath=/dev/null commit --quiet --no-gpg-sign -m 'Native input fixture'
   printf '# Notes outside the native inputs\n' > "$fixture/notes.md"
