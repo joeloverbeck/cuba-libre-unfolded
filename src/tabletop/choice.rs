@@ -38,7 +38,7 @@ pub(super) mod fig {
     pub const SUBTITLE_LINE: f32 = 42.;
     /// Section labels: `section:event` and `section:operations`.
     pub const SECTIONS: [(&str, f32, &str); 2] = [
-        ("section:event", 1110.8, "EVENT · CARD 17, ALBERTO BAYO"),
+        ("section:event", 1110.8, "EVENT"),
         (
             "section:operations",
             1350.,
@@ -709,10 +709,14 @@ pub(super) fn panel(
         .into_iter()
         .filter(|_| !event_pending && !card_18)
     {
-        let words = if directorio && name == "section:operations" {
-            "OPERATIONS"
-        } else {
-            words
+        let words = match name {
+            "section:event" => format!(
+                "{words} · CARD {}, {}",
+                view.current_card,
+                view.cards.current.title.to_uppercase(),
+            ),
+            "section:operations" if directorio => "OPERATIONS".into(),
+            _ => words.into(),
         };
         let label = text(
             commands,

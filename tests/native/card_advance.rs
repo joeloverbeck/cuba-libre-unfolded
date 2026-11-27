@@ -762,6 +762,10 @@ fn native_manifesto_advance_lands_the_cards_and_reopens_the_same_decision() {
             .unwrap()
             .contains("1st Eligible on card 19")
     );
+    assert_eq!(
+        choice_part(&landed, "section:event")["text"],
+        "EVENT · CARD 19, SIERRA MAESTRA MANIFESTO"
+    );
     app.capture("manifesto-landed");
     card_piles::assert_piles_drawn(&app, "manifesto-landed", &landed);
 
@@ -826,6 +830,7 @@ fn native_manifesto_advance_lands_the_cards_and_reopens_the_same_decision() {
     assert_eq!(deck["ledger"][1][1], "31");
     app.capture("manifesto-draw-deck");
 
+    let saved_after = app.save_bytes();
     for action in ["m26:event", "pass", "terror"] {
         app.activate(&format!("option:{action}"), revision + 1);
         let inspect = app.observe();
@@ -833,6 +838,18 @@ fn native_manifesto_advance_lands_the_cards_and_reopens_the_same_decision() {
         assert_eq!(inspect["observation"], landed["observation"]);
         assert_briefing_lines_fit(&inspect);
         app.capture(&format!("manifesto-option-{}", action.replace(':', "-")));
+        if action == "m26:event" {
+            app.activate("choice-commit", revision + 1);
+            let refused = app.observe();
+            assert!(
+                refused["table"]["notice"]
+                    .as_str()
+                    .unwrap()
+                    .contains("This Event is not yet playable.")
+            );
+            assert_eq!(refused["observation"], landed["observation"]);
+            assert_eq!(app.save_bytes(), saved_after);
+        }
     }
     app.key("Escape");
     app.key("KeyR");
