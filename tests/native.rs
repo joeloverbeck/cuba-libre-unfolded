@@ -982,7 +982,6 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
         .map(PathBuf::from)
         .unwrap_or_else(|| "local/verification/issue-16".into());
     std::fs::create_dir_all(&evidence).unwrap();
-    let mut count_size = None;
     for (width, height) in [(1920, 1280), (1920, 1080), (2520, 1080)] {
         let root = tempfile::Builder::new()
             .prefix(&format!("layout-{width}x{height}-"))
@@ -1009,13 +1008,7 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
             json!([width as f64, height as f64])
         );
         let scale = height as f64 / 1280.;
-        // #50: the counts follow the window like the rest of the interface.
-        let size = assert_counts_follow_the_window(&before, None, scale) / scale;
-        let first = *count_size.get_or_insert(size);
-        assert!(
-            (size - first).abs() < 0.01,
-            "count size {size} per reference pixel at {width}x{height}, {first} at first"
-        );
+        assert_counts_fit_roundels(&before);
         // The map fills the window (#142).
         assert_eq!(
             before["table"]["map_viewport"],
@@ -3141,31 +3134,32 @@ fn native_top_display_matches_layout_and_follows_the_economy() {
     app.quit();
 }
 
-/// #50: every piece and Terror count has one type size, within 1 px of `expected`
-/// when given. Each count's drawn line is Bevy's default 1.2 times the expected size,
-/// or else the reported one, tall within 1 px. Returns the reported type size. `scale`
-/// is the surface's layout scale, only for the failure message.
-fn assert_counts_follow_the_window(view: &Value, expected: Option<f64>, scale: f64) -> f64 {
+/// Each map quantity uses the same type-to-plate ratio at every distance and
+/// window shape. The drawn quantity fits inside its roundel.
+fn assert_counts_fit_roundels(view: &Value) {
     let counts = view["table"]["counts"].as_array().unwrap();
-    assert!(!counts.is_empty(), "no counts at scale {scale}");
-    let size = counts[0]["font_size"].as_f64().unwrap();
-    if let Some(expected) = expected {
-        assert!(
-            (size - expected).abs() <= 1.,
-            "count type size {size} against {expected}"
-        );
-    }
-    let line = 1.2 * expected.unwrap_or(size);
+    assert!(!counts.is_empty(), "no map counts");
     for count in counts {
-        let own = count["font_size"].as_f64().unwrap();
-        assert!((own - size).abs() < 0.01, "{count} at scale {scale}");
-        let [_, top, _, bottom] = rect_of(&count["bounds"]);
         assert!(
-            (bottom - top - line).abs() <= 1.,
-            "{count} at scale {scale}"
+            count["roundel_bounds"].is_array(),
+            "missing Inventory roundel: {count}"
+        );
+        let [left, top, right, bottom] = rect_of(&count["roundel_bounds"]);
+        let side = right - left;
+        // Bevy rounds the two layout edges independently in each direction.
+        assert!(
+            side > 0. && bottom > top && (side - (bottom - top)).abs() <= 1.01,
+            "{count}"
+        );
+        let size = count["font_size"].as_f64().unwrap();
+        assert!((size - 0.56 * side).abs() <= 0.57, "{count}");
+        let [x0, y0, x1, y1] = rect_of(&count["bounds"]);
+        // Text layout may round its center to the nearest logical pixel.
+        assert!(
+            x0 >= left - 1. && x1 <= right + 1. && y0 >= top - 1. && y1 <= bottom + 1.,
+            "{count}"
         );
     }
-    size
 }
 
 /// #177: every piece and Terror count stands where it stood `before`, within 2 px. The
@@ -4742,14 +4736,7 @@ fn native_map_targets_at_the_owner_s_aspect() {
     app.choose("terror");
     let view = app.observe();
     assert_map_agrees(&view);
-    // #50: on the owner's display the counts keep the size the fixed 21 logical pixels
-    // gave them there through Xwayland's scale factor 2 and GNOME's 0.625 shrink.
-    let owner_size_before = 21. * 2. * 0.625;
-    assert_counts_follow_the_window(
-        &view,
-        Some(owner_size_before),
-        (3840f64 / 1920.).min(2160. / 1280.),
-    );
+    assert_counts_fit_roundels(&view);
     app.capture("terror-zero-3840x2160");
     app.activate("space:santiago", 1);
     let view = app.observe();

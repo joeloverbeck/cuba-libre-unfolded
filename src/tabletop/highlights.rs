@@ -149,10 +149,16 @@ pub(super) fn setup(
     let manifest: Manifest = serde_json::from_slice(&art.verified.files["highlights.json"])
         .expect("admitted highlight manifest");
     for graphic in manifest.graphics {
-        let [x, y, w, h] = graphic.rect;
+        let [x, y, w, h] = map::highlight_bounds(&graphic.space, graphic.rect);
         commands.spawn((
             Name::new(format!("highlight {}", graphic.file)),
-            Mesh3d(meshes.add(Plane3d::default().mesh().size(w / 100., h / 100.))),
+            Mesh3d(
+                meshes.add(
+                    Plane3d::default()
+                        .mesh()
+                        .size(w * map::SCALE / 100., h * map::SCALE / 100.),
+                ),
+            ),
             MeshMaterial3d(materials.add(StandardMaterial {
                 base_color_texture: Some(art.images[&graphic.file].clone()),
                 alpha_mode: AlphaMode::Blend,
@@ -164,7 +170,7 @@ pub(super) fn setup(
                 depth_bias: -10.,
                 ..default()
             })),
-            Transform::from_translation(map_at(x + w / 2., y + h / 2., graphic.height)),
+            Transform::from_translation(map::at(x + w / 2., y + h / 2., graphic.height)),
             Visibility::Hidden,
             Pickable::IGNORE,
             bevy::light::NotShadowCaster,
@@ -175,7 +181,7 @@ pub(super) fn setup(
             },
         ));
     }
-    let size = manifest.pieces.first().map_or(64., |p| p.size);
+    let size = manifest.pieces.first().map_or(64., |p| p.size) * map::PIECE_SCALE * 0.48;
     commands.insert_resource(Markers {
         mesh: meshes.add(Plane3d::default().mesh().size(size / 100., size / 100.)),
         lift: manifest.pieces.first().map_or(0.003, |p| p.lift),
