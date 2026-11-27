@@ -560,7 +560,9 @@ fn native_card_piles_match_layout_and_follow_the_match() {
     assert_eq!(moved["table"]["piles"], rest["table"]["piles"]);
     app.capture("card-17-camera-moved");
     for pile in rest["table"]["piles"]["piles"].as_array().unwrap() {
-        let face = rect_of(&pile["face"]);
+        // The 4K layout puts the card edges on whole pixels. Restore those edges
+        // after projection roundoff so the comparison excludes the adjacent water.
+        let face = rect_of(&pile["face"]).map(f64::round);
         assert_eq!(
             changes_within(
                 &app.root.join("card-17.png"),
@@ -642,7 +644,7 @@ fn native_card_piles_match_layout_and_follow_the_match() {
             changes_within(
                 &app.root.join("card-18.png"),
                 &app.root.join("card-18-restarted.png"),
-                rect_of(&pile["face"])
+                rect_of(&pile["face"]).map(f64::round)
             ),
             0,
             "{} differs after the restart",
