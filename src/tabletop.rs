@@ -1614,6 +1614,13 @@ fn notice(previous: &Observation, after: &Observation, owner: Faction, name: &st
             owner.name(),
             after.owner.name()
         ),
+        action if crate::game::manifesto::is_placement(action) => {
+            let placement = after.manifesto.as_ref().and_then(|m| m.placements.last())
+                .expect("A committed placement has a record");
+            let space = after.spaces.iter().find(|s| s.id == placement.space)
+                .expect("A committed placement has a space");
+            format!("{} placed {} in {}. Saved.", owner.name(), placement.piece_description(), space.name)
+        }
         crate::game::MANIFESTO_DECLINE => {
             let next = match &after.next {
                 Some(next) => format!("{} is {}.", next.faction.name(), next.role),

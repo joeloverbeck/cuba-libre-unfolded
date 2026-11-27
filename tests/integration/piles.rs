@@ -333,6 +333,107 @@ fn manifesto_execution_hands_the_first_decline_to_26july() {
         pending
             .choices
             .iter()
-            .any(|choice| { choice.action() == "manifesto:place" && !choice.supported })
+            .any(|choice| choice.space() == Some("santiago") && choice.supported)
     );
+}
+
+#[test]
+fn manifesto_mixed_placement_changes_control_supply_and_standing() {
+    use cuba_libre_unfolded::{Faction, Kind, State};
+
+    let mut game = manifesto();
+    choose(&mut game, "m26:event");
+    let before = game.observe();
+    let menu = before
+        .choices
+        .iter()
+        .filter(|choice| choice.space() == Some("santiago"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        menu.iter().map(|c| c.label.as_str()).collect::<Vec<_>>(),
+        ["2 Guerrillas", "1 Guerrilla + 1 Base", "2 Bases"]
+    );
+    let sierra = before
+        .choices
+        .iter()
+        .filter(|choice| choice.space() == Some("sierra-maestra"))
+        .map(|choice| choice.label.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(sierra, ["2 Guerrillas", "1 Guerrilla + 1 Base"]);
+    let mixed = menu[1];
+    let preview = mixed.preview.as_ref().unwrap();
+    assert_eq!(preview.control.len(), 1);
+    assert_eq!(preview.control[0].space, "santiago");
+    assert_eq!(preview.control[0].from, Some(Faction::Government));
+    assert_eq!(preview.control[0].to, Some(Faction::M26));
+    assert_eq!(preview.standings.len(), 1);
+    assert_eq!(preview.standings[0].faction, Faction::M26);
+    assert_eq!(
+        (
+            preview.standings[0].score_from,
+            preview.standings[0].score_to
+        ),
+        (8, 9)
+    );
+
+    let saved = game.clone();
+    for action in [
+        "manifesto:place:santiago:guerrilla",
+        "manifesto:place:santiago:guerrilla-guerrilla-base",
+        "manifesto:place:matanzas:guerrilla-base",
+    ] {
+        assert!(
+            game.submit(
+                Faction::M26,
+                before.revision,
+                &format!("{}:{action}", before.revision)
+            )
+            .is_err()
+        );
+        assert_eq!(game, saved);
+    }
+    assert!(
+        game.submit(Faction::Directorio, before.revision, &mixed.id)
+            .is_err()
+    );
+    assert_eq!(game, saved);
+
+    game.submit(Faction::M26, before.revision, &mixed.id)
+        .unwrap();
+    let after = game.observe();
+    let santiago = after.spaces.iter().find(|s| s.id == "santiago").unwrap();
+    let count = |kind, state| {
+        santiago
+            .pieces
+            .iter()
+            .filter(|group| {
+                group.faction == Faction::M26 && group.kind == kind && group.state == state
+            })
+            .map(|group| group.count)
+            .sum::<u8>()
+    };
+    assert_eq!(count(Kind::Guerrilla, State::Active), 2);
+    assert_eq!(count(Kind::Guerrilla, State::Underground), 1);
+    assert_eq!(count(Kind::Base, State::Ordinary), 1);
+    assert_eq!(santiago.control(), Some(Faction::M26));
+    let available = |kind| {
+        after
+            .available
+            .iter()
+            .find(|group| group.faction == Faction::M26 && group.kind == kind)
+            .unwrap()
+            .count
+    };
+    assert_eq!(available(Kind::Guerrilla), 11);
+    assert_eq!(available(Kind::Base), 2);
+    assert_eq!(after.standings[Faction::M26.index()].score, 9);
+    assert_eq!(after.owner, Faction::Directorio);
+    assert_eq!(after.event_executor, Some(Faction::M26));
+    assert_eq!(after.resources, before.resources);
+    assert_eq!(after.eligible, before.eligible);
+    assert!(
+        game.submit(Faction::M26, before.revision, &mixed.id)
+            .is_err()
+    );
+    assert_eq!(game.observe(), after);
 }

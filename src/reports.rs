@@ -25,8 +25,8 @@ pub(crate) use words::listing;
 use crate::{
     ActionChoice, AssaultResolution, Choice, ConstructAuthorization, ConstructFunding,
     ConstructPlan, ConstructResolution, Eligibility, EventOutcome, EventProgress, Faction, Flip,
-    Game, Group, Kidnap, Kind, Manifesto, Next, Observation, Rally, RallyAction, Removal, Resolved,
-    SequenceBox, Space, Standing, State, Transfer, title,
+    Game, Group, Kidnap, Kind, Manifesto, ManifestoPlacement, Next, Observation, Rally,
+    RallyAction, Removal, Resolved, SequenceBox, Space, Standing, State, Transfer, title,
 };
 use serde::Serialize;
 
@@ -394,6 +394,10 @@ enum Item {
         flips: Vec<(String, u8)>,
     },
     DeclinedPlacement(Faction),
+    PlacedManifesto {
+        space: String,
+        placement: ManifestoPlacement,
+    },
     Granted(Faction),
     Rally {
         faction: Faction,
@@ -615,6 +619,18 @@ fn happened(before: &Moment, after: &Moment, continues: bool, items: &mut Vec<It
                 .skip(told)
                 .copied()
                 .map(Item::DeclinedPlacement),
+        );
+        let told = before.manifesto.as_ref().map_or(0, |m| m.placements.len());
+        items.extend(
+            manifesto
+                .placements
+                .iter()
+                .skip(told)
+                .cloned()
+                .map(|placement| Item::PlacedManifesto {
+                    space: name(&placement.space),
+                    placement,
+                }),
         );
     }
     rallied(before, after, items);
@@ -870,6 +886,7 @@ fn spaces(items: &[Item]) -> Vec<String> {
             | Item::Assault { space, .. }
             | Item::Construct { space, .. }
             | Item::ManagedCasinos { space, .. }
+            | Item::PlacedManifesto { space, .. }
             | Item::Rally { space, .. } => vec![space],
             Item::Removed { groups, .. } => groups.iter().map(|(space, _)| space).collect(),
             Item::Shaded { flips } => flips.iter().map(|(space, _)| space).collect(),

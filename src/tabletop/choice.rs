@@ -435,6 +435,18 @@ pub(super) fn assault_lines(view: &Observation) -> Vec<AssaultLine> {
 
 /// Construct uses the existing payment and outcome column above the action rows.
 fn payment_lines(view: &Observation) -> Vec<AssaultLine> {
+    if view
+        .manifesto
+        .as_ref()
+        .is_some_and(|event| !event.complete())
+        && view.choices.iter().any(|c| c.supported && c.site.is_some())
+    {
+        return vec![AssaultLine {
+            name: "manifesto-map-line".into(),
+            words: "Choose a highlighted space to inspect its legal mixes.".into(),
+            top: fig::ASSAULT_MAP_LINE[0],
+        }];
+    }
     if view.current_card != 18
         || view.executing != Some(Faction::Syndicate)
         || view.transfer.is_some()
@@ -513,10 +525,20 @@ fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool, agent
                 .iter()
                 .map(|f| f.name().to_owned())
                 .collect::<Vec<_>>();
-            format!(
-                "26July stays Eligible after executing the Event.\n{} declined.",
-                crate::reports::listing(&names)
-            )
+            let result = match manifesto.placements.len() {
+                0 => format!("{} declined.", crate::reports::listing(&names)),
+                1 => format!(
+                    "{} placed pieces. {} declined.",
+                    manifesto.placements[0].faction.name(),
+                    crate::reports::listing(&names)
+                ),
+                count if names.is_empty() => format!("{count} factions placed pieces."),
+                count => format!(
+                    "{count} factions placed pieces. {} declined.",
+                    crate::reports::listing(&names)
+                ),
+            };
+            format!("26July stays Eligible after executing the Event.\n{result}")
         };
     }
     if view.current_card == 18 {
