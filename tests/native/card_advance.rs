@@ -1706,6 +1706,50 @@ fn native_manifesto_declines_wake_held_syndicate_and_resume_in_order() {
     );
     app.capture("manifesto-edition-for-directorio");
     app.key("Escape");
+    let revision = app.revision();
+    let saved = app.save_bytes();
+    for action in ["transfer", "remove"] {
+        app.activate(&format!("option:{action}"), revision);
+        let pinned = app.observe();
+        assert_eq!(pinned["table"]["choice"]["pinned"], action);
+        assert_eq!(
+            choice_part(&pinned, "choice-commit-label")["text"],
+            "26July's seat chooses"
+        );
+        let controls = pinned["table"]["controls"].as_array().unwrap();
+        assert!(
+            controls.iter().any(|control| {
+                control["name"] == "choice-commit" && control["choice"] == false
+            })
+        );
+        assert!(
+            !controls
+                .iter()
+                .any(|control| control["name"] == format!("{revision}:{action}"))
+        );
+        app.activate("choice-commit", revision);
+        let mut focus = app.observe();
+        for _ in 0..48 {
+            if focus["table"]["choice"]["focus"] == "choice-commit" {
+                break;
+            }
+            focus = app.key("Tab");
+        }
+        assert_eq!(focus["table"]["choice"]["focus"], "choice-commit");
+        app.request(
+            json!({"op":"key","revision":revision,"key":"Enter","focused":"choice-commit"}),
+            true,
+        );
+        let after = app.observe();
+        assert_eq!(
+            after["table"]["notice"],
+            "Only 26July's seat can choose this option."
+        );
+        assert_eq!(after["observation"], pinned["observation"]);
+        assert_eq!(app.save_bytes(), saved);
+        app.capture(&format!("manifesto-held-{action}-inspection"));
+    }
+    app.key("Escape");
     let pending = app.observe()["observation"].clone();
     let pending_bytes = app.save_bytes();
     let previous_bytes = fs::read(previous_path(&app.save)).unwrap();
@@ -1871,13 +1915,14 @@ fn native_manifesto_declines_wake_held_syndicate_and_resume_in_order() {
     app.capture("manifesto-edition-at-completion");
     app.key("Escape");
     let final_view = app.observe();
-    assert_eq!(
-        choice_part(&final_view, "choice-heading")["text"],
-        "Directorio · 2nd Eligible"
-    );
-    assert_eq!(
-        choice_part(&final_view, "choice-subtitle")["text"],
-        "26July stays Eligible after executing the Event.\n26July, Directorio, Syndicate and Government declined."
+    assert_manifesto_result(
+        &final_view,
+        [
+            "26July · declined placement",
+            "Directorio · declined placement",
+            "Syndicate · declined placement",
+            "Government · declined placement",
+        ],
     );
     assert_eq!(
         choice_part(&final_view, "option:directorio:pass-label")["text"],
@@ -2116,8 +2161,11 @@ fn native_manifesto_placements_use_the_map_and_held_faction() {
             .unwrap()
             .contains("Syndicate has 1 closed Casino.")
     );
-    assert_eq!(offered["preview"]["placement_supply"][0]["from"], 6);
-    assert_eq!(offered["preview"]["placement_supply"][0]["to"], 4);
+    assert_eq!(
+        offered["preview"]["placement_available_forces"][0]["from"],
+        6
+    );
+    assert_eq!(offered["preview"]["placement_available_forces"][0]["to"], 4);
     assert_eq!(offered["preview"]["control"], json!([]));
     assert_eq!(offered["preview"]["standings"], json!([]));
     let human = app.observe();
@@ -2287,6 +2335,100 @@ fn native_manifesto_placements_use_the_map_and_held_faction() {
     app.quit();
 }
 
+/// The committed outcomes are above Directorio's options, in printed order, and
+/// each of the exercised outcomes fits on one line at 4K.
+pub(super) fn assert_manifesto_result(view: &Value, expected: [&str; 4]) {
+    assert_eq!(view["table"]["viewport"], json!([3840.0, 2160.0]));
+    assert!(view["table"]["newspaper"]["open"].is_null());
+    assert_eq!(
+        choice_part(view, "choice-heading")["text"],
+        "Directorio · 2nd Eligible"
+    );
+    let subtitle = choice_part(view, "choice-subtitle");
+    assert_eq!(
+        subtitle["text"],
+        "26July stays Eligible after executing the Event."
+    );
+    let pass = rect_of(&choice_part(view, "option:directorio:pass")["bounds"]);
+    let operation = rect_of(&choice_part(view, "option:directorio:operation")["bounds"]);
+    let commit = rect_of(&choice_part(view, "choice-commit")["bounds"]);
+    let mut previous_bottom = rect_of(&subtitle["bounds"])[3];
+    for (faction, words) in ["26july", "directorio", "syndicate", "government"]
+        .into_iter()
+        .zip(expected)
+    {
+        let line = choice_part(view, &format!("manifesto-record:{faction}"));
+        assert_eq!(line["text"], words);
+        let [left, top, right, bottom] = rect_of(&line["bounds"]);
+        assert!(left >= pass[0] && right <= pass[2], "{line}");
+        // The seat rounds the two bounds independently.
+        assert!(top + 1. >= previous_bottom && bottom > top, "{line}");
+        assert!(bottom - top <= 33., "unexpected wrap: {line}");
+        previous_bottom = bottom;
+    }
+    assert!(pass[1] >= previous_bottom && operation[1] >= pass[3]);
+    assert!(commit[1] >= operation[3]);
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan for a 4K capture of four detailed Manifesto outcomes"]
+fn native_manifesto_records_four_placements_and_restores_the_result() {
+    let mut app = available_forces::unlaunched("manifesto-four-placements-", "issue-238");
+    finish_event(&app.save, "shaded");
+    let mut session = Session::open(&app.save, None).unwrap();
+    // Government's three cubes still control Santiago de Cuba. Construct leaves
+    // a closed Casino there, making Santiago a legal choice for Syndicate.
+    for action in [
+        "advance-card",
+        "government:pass",
+        "syndicate:construct",
+        "construct:santiago:place",
+        "end-construct",
+        "advance-card",
+    ] {
+        let seen = session.observe();
+        session
+            .submit(
+                seen.owner,
+                seen.revision,
+                &format!("{}:{action}", seen.revision),
+            )
+            .unwrap();
+    }
+    drop(session);
+    app.launch_size("3840x2160");
+    let revision = app.revision();
+    app.activate("option:m26:event", revision);
+    app.choose("m26:event");
+    for (space, mix) in [
+        ("santiago", "guerrilla-base"),
+        ("camaguey-province", "guerrilla-base"),
+        ("santiago", "guerrilla-guerrilla"),
+        ("santiago", "troops-police"),
+    ] {
+        app.pick(space, &format!("manifesto:place:{space}:{mix}"));
+    }
+    let expected = [
+        "26July · 1 Underground Guerrilla + 1 Base · Santiago de Cuba",
+        "Directorio · 1 Underground Guerrilla + 1 Base · Camagüey Province",
+        "Syndicate · 2 Underground Guerrillas · Santiago de Cuba",
+        "Government · 1 Troop + 1 Police cube · Santiago de Cuba",
+    ];
+    let finished = app.observe();
+    app.capture("manifesto-four-placements");
+    assert_manifesto_result(&finished, expected);
+    let saved = app.save_bytes();
+    app.quit();
+
+    app.launch_size("3840x2160");
+    let returned = app.observe();
+    assert_eq!(returned["observation"], finished["observation"]);
+    assert_eq!(app.save_bytes(), saved);
+    app.capture("manifesto-four-placements-restarted");
+    assert_manifesto_result(&returned, expected);
+    app.quit();
+}
+
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the Manifesto removal, pending giver and returned placement at 4K"]
 fn native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement() {
@@ -2383,13 +2525,13 @@ fn native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement() {
         .unwrap();
     assert!(oriente["control"].is_null());
     assert_eq!(oriente["pieces"], json!([]));
-    let supply = client["state"]["available"]
+    let available_group = client["state"]["available"]
         .as_array()
         .unwrap()
         .iter()
         .find(|group| group["faction"] == "M26" && group["kind"] == "Guerrilla")
         .unwrap();
-    assert_eq!(supply["count"], 13);
+    assert_eq!(available_group["count"], 13);
     let choices = client["choices"].as_array().unwrap();
     assert!(
         choices
@@ -2426,6 +2568,17 @@ fn native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement() {
 
     // The existing native panel still lets the human play the side choice
     // owned by 26July while Directorio's placement is the agent's.
+    let waiting = app.observe();
+    let parts = waiting["table"]["seat_cards"]["parts"].as_array().unwrap();
+    let hint = parts
+        .iter()
+        .find(|p| p["part"] == "seat-strip-hint")
+        .unwrap();
+    assert_eq!(
+        hint["text"],
+        "Hover an option for its briefing. Directorio decides placement."
+    );
+    app.capture("manifesto-held-placement-with-human-side-choices");
     choose_row(&mut app, "transfer");
     let selecting = app.observe();
     let part = |view: &Value, name: &str| {

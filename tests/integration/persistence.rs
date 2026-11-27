@@ -1629,13 +1629,13 @@ fn assert_manifesto_endpoint(mut session: Session, path: &Path, route: &str) {
                 .iter()
                 .find(|p| (p.faction, p.kind, p.state) == (faction, kind, state))
                 .unwrap();
-            let stock = end
+            let available_group = end
                 .available
                 .iter()
                 .find(|p| (p.faction, p.kind) == (faction, kind))
                 .unwrap();
             assert_eq!(
-                (on_map.count, stock.count),
+                (on_map.count, available_group.count),
                 (count, available),
                 "{route}: {id} {kind:?}"
             );

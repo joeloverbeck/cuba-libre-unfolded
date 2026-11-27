@@ -25,7 +25,7 @@ After Terror with Kidnap, #118 uses the same header, option rows, tag and button
 
 Alberto Bayo’s unshaded text reuses the option rows for Directorio’s beneficiary choice and the beneficiary’s Rally procedures. During the Event, consecutive choices use the spacing of rows within a section. The header emblem and briefing plate follow the faction making the decision. The same briefing tag shows the Base spaces or the Rally procedure’s placement arithmetic and cost.
 
-The Sierra Maestra Manifesto uses the same compact rows, pin and commit. During the Event the header shows the card title and the deciding faction’s emblem. The subtitle names the placement faction and identifies the current decision during a removal or Resource transfer. The next menu uses Directorio’s emblem, the 2nd Eligible heading and the existing inspect rows for Pass and Operation.
+The Sierra Maestra Manifesto uses the same compact rows, pin and commit. During the Event the header shows the card title and the deciding faction’s emblem. The subtitle names the placement faction and identifies the current decision during a removal or Resource transfer. The completed Event uses Directorio’s emblem and the 2nd Eligible heading. Under 26July’s retained Eligibility, the existing record column gives each faction’s committed mix and space or decline in printed decision order. The Pass and Operation inspection rows follow the record.
 
 ## Government's Assault
 

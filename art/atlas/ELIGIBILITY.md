@@ -13,6 +13,7 @@ The track lies over the sea west of the island, 60 reference px from the window'
 - **Hover:** each action box is a hover target (`eligibility:pass`, `eligibility:operation-only`, `eligibility:operation-special-activity`). After the shared 400 ms dwell, a tag opens 8 px right of the panel with a leader to the box. An occupied box's tag says what 26July did and what it allows Directorio (R 2.3.3, 2.3.4). An empty box's tag states that box's rule. Every tag ends with "Nobody becomes Ineligible during this card: Eligibility is adjusted after it (R 2.3.7)". The tag closes when the pointer leaves, like the other hover tags. Tags state facts and never recommend a move.
 - **Not shown:** the next card's order.
 - **Card-end adjustment:** after Directorio's Event, the same four rows show eligibility for card 18. The role ribbons clear, the Ineligible box lists the Ineligible factions, and 26July's earlier action remains in the recorded action section. The ended panel explains the reasons.
+- The completed Sierra Maestra Manifesto appears in the [decision panel’s result record](CHOICE.md#briefing-content). The track projects Pass and the two Operation boxes.
 
 ## Files
 
