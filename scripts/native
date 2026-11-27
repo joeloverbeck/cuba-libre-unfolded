@@ -42,15 +42,8 @@ fi
 
 read -r started _ < /proc/uptime
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+revision=$(git rev-parse --verify HEAD)
 
-revision=$(git rev-parse HEAD)
-echo "revision: $revision"
-changes=$(git status --porcelain --untracked-files=normal)
-if [[ -z $changes ]]; then
-  echo "working tree: clean"
-else
-  echo "working tree: $(wc -l <<<"$changes") changed path(s) differ from the revision"
-fi
 # A hash of every tracked file this suite could build or read: all but documents, agent
 # settings and CI, so a file added later counts. Commits with the same hash run the same
 # suite, as far as this repository decides it: the private cards, the renderer and the
@@ -60,14 +53,26 @@ suite_inputs() {
     ':(exclude).claude' ':(exclude).codex' ':(exclude).github' ':(exclude).githooks'
     ':(exclude).mcp.json')
   local dirty
-  dirty=$(git status --porcelain --untracked-files=normal -- "${among[@]}")
+  dirty=$(git status --porcelain --untracked-files=normal -- "${among[@]}") || return
   if [[ -z $dirty ]]; then git ls-files -s -- "${among[@]}" | git hash-object --stdin; fi
 }
 before=$(suite_inputs)
-# `--inputs` prints this checkout's hash alone, to compare with an earlier run's.
+# `--inputs` prints the same fingerprint record as a passing run's summary.
 if [[ ${1:-} == --inputs ]]; then
-  echo "suite inputs: ${before:-not named, files the suite reads differ from the revision}"
+  if [[ -z $before ]]; then
+    echo 'native: suite inputs unavailable because files the suite reads differ from the revision' >&2
+    exit 1
+  fi
+  printf 'suite inputs: %s\n' "$before"
   exit
+fi
+
+echo "revision: $revision"
+changes=$(git status --porcelain --untracked-files=normal)
+if [[ -z $changes ]]; then
+  echo "working tree: clean"
+else
+  echo "working tree: $(wc -l <<<"$changes") changed path(s) differ from the revision"
 fi
 
 # Four apps fit `scripts/heavy`'s memory scope (docs/agents/parallel-work.md, "Native

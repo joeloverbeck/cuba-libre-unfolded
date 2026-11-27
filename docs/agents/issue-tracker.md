@@ -4,6 +4,8 @@ Issues and specs live in `joeloverbeck/cuba-libre-unfolded`. GitHub Issues and P
 
 Use `gh` from this clone. Before creating an issue, verify the target with `gh repo view --json nameWithOwner`. Use `--repo joeloverbeck/cuba-libre-unfolded` when the target could be ambiguous.
 
+If a sandboxed GitHub read or fetch fails at DNS or API connectivity, retry the same lookup through the approved host execution route. This applies to the first tracker lookup, sibling fetches for foundation 3, and the PR reads that precede CI verification.
+
 ## Operations
 
 - Create: `gh issue create --title "..." --body-file <file>`.
@@ -14,7 +16,7 @@ Use `gh` from this clone. Before creating an issue, verify the target with `gh r
 - Close: post the explanation first, then `gh issue close <number>`.
 - Merge: first run the `code-review` skill against the PR's merge-base. Fix each finding, or record in the PR why it stays (a linked ticket or a stated reason). The review must cover the head you merge: review commits pushed after it with `code-review` from the last reviewed commit.
 
-  After a push, use the pull request's checkout and an execution context where `gh pr view <n>` can read GitHub. If sandbox API access fails, use the approved host execution route. Start `scripts/wait-ci <n>` in the background in that context. It follows a returned head SHA or pending check through propagation and requires the checkout's exact head to pass `Rust checks`.
+  After a push, use the pull request's checkout and an execution context where `gh pr view <n>` can read GitHub. Start `scripts/wait-ci <n>` in the background in that context. It follows a returned head SHA or pending check through propagation and requires the checkout's exact head to pass `Rust checks`.
 
   GitHub deletes the PR's head branch automatically; delete only the local branch.
 

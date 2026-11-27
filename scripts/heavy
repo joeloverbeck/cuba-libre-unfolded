@@ -54,7 +54,18 @@ mkdir -p -- "$main/local"
 cd -- "$checkout"
 # The command and an app it starts inherit the lock.
 exec 9>"$main/local/heavy.lock"
-flock 9
+lock_busy=75
+lock_wait_seconds=0
+flock -n -E "$lock_busy" 9 || {
+  lock_status=$?
+  if ((lock_status != lock_busy)); then exit "$lock_status"; fi
+  wait_started=$SECONDS
+  printf 'scripts/heavy: waiting for the shared build lock in %s\n' "$checkout" >&2
+  flock 9
+  lock_wait_seconds=$((SECONDS - wait_started))
+}
+printf 'scripts/heavy: acquired the shared build lock after %s s in %s\n' \
+  "$lock_wait_seconds" "$checkout" >&2
 
 # Cargo trusts file times, so a target moved or copied from another checkout can serve
 # that checkout's binaries as fresh. A target last used from another checkout, or never
