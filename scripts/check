@@ -225,3 +225,33 @@ if [[ $output != *"Benchmark-only mode skips native regressions."* ]]; then
 fi
 echo "native filters: both binaries discovered, missing name and benchmark-only run refused"
 timings+=", native filters $((SECONDS - began)) s"
+
+began=$SECONDS
+# These paths reach the real Cargo/libtest entry point without running a native test.
+check_native_caller_log() (
+  local label=$1 expected_status=$2 diagnostic=$3
+  shift 3
+  local scratch output status=0
+  scratch=$(mktemp -d)
+  trap 'rm -rf -- "$scratch"' EXIT
+  printf 'previous native result\n' > "$scratch/expected.log"
+  cp -- "$scratch/expected.log" "$scratch/caller.log"
+
+  output=$(CUBA_TEST_CARDS="$scratch/unused-cards" CUBA_NATIVE_EVIDENCE="$scratch/evidence" \
+    "$@" --logfile "$scratch/caller.log" 2>&1) || status=$?
+  if [[ $status != "$expected_status" || $output != *"$diagnostic"* ]]; then
+    printf 'native caller log (%s): expected exit %s and %s, got exit %s\n%s\n' \
+      "$label" "$expected_status" "$diagnostic" "$status" "$output" >&2
+    return 1
+  fi
+  if ! cmp -s -- "$scratch/expected.log" "$scratch/caller.log"; then
+    printf 'native caller log (%s): previous bytes changed\n' "$label" >&2
+    return 1
+  fi
+)
+check_native_caller_log 'compiler startup' 1 '/bin/false -vV' \
+  env RUSTC=/bin/false RUSTC_WRAPPER= RUSTC_WORKSPACE_WRAPPER= scripts/native
+check_native_caller_log 'invalid option' 1 "Unrecognized option: 'bogus'" scripts/native --bogus
+check_native_caller_log 'combined help' 0 'Usage:' scripts/native -qh
+echo 'native caller logs: compiler failure, invalid options and help preserve previous bytes'
+timings+=", native caller logs $((SECONDS - began)) s"
