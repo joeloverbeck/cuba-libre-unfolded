@@ -427,8 +427,8 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
         // between the seat cards and Save · quit.
         [3300, 1750],
         [3478, 2050],
-        // The title, the key's five entries and the adjacency line.
-        [145, 275],
+        // The exposed lower edge of the old title, the key and the adjacency line.
+        [145, 285],
         [150, 1483],
         [435, 1483],
         [745, 1483],
@@ -442,8 +442,8 @@ fn native_main_view_fills_the_window_and_matches_its_layout() {
             "{at:?} is {colour:?}, not the sea {sea:?}"
         );
     }
-    // No lettering where the title, the key and the line were: nothing as dark as ink.
-    for [left, top, right, bottom] in [[100, 255, 200, 295], [100, 1465, 1730, 1560]] {
+    // Check the exposed sea below Write a proclamation and across the former map key.
+    for [left, top, right, bottom] in [[100, 282, 200, 295], [100, 1465, 1730, 1560]] {
         for x in left..right {
             for y in top..bottom {
                 let pixel = home.get_pixel(x, y).0;
