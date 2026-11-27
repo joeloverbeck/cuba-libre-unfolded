@@ -15,10 +15,15 @@ if [[ ${1:-} == --timed-harness ]]; then
   before_log=("${@:2:position-1}")
   after_log=("${@:position+width+1}")
   # The harness parses its options before opening the logfile. Validate them
-  # without running tests or opening the caller's file.
-  if ! "$1" --list "${before_log[@]}" --logfile=/dev/null "${after_log[@]}" >/dev/null 2>&1; then
-    exec "$@"
+  # without running tests. Help can succeed without opening the logfile.
+  preflight="$CUBA_NATIVE_HARNESS_LOG.preflight"
+  opens_logfile=false
+  if "$1" --list "${before_log[@]}" "--logfile=$preflight" "${after_log[@]}" >/dev/null 2>&1 \
+    && [[ -f $preflight ]]; then
+    opens_logfile=true
   fi
+  rm -f -- "$preflight"
+  if ! "$opens_logfile"; then exec "$@"; fi
   if ! exec {caller_fd}>"$CUBA_NATIVE_CALLER_LOG"; then
     # Keep libtest's diagnosis of an unusable logfile path.
     exec "$@"
