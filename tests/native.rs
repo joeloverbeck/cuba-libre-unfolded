@@ -2807,10 +2807,11 @@ fn token_changes(first: &Path, second: &Path, at: [f64; 2]) -> usize {
     let a = image::open(first).unwrap().to_rgb8();
     let b = image::open(second).unwrap().to_rgb8();
     assert_eq!(a.dimensions(), b.dimensions());
-    // The bell rises above its base anchor; keep the crop on the token.
-    let (x0, y0) = ((at[0] - 45.).max(0.) as u32, (at[1] - 70.).max(0.) as u32);
-    (x0..(x0 + 90).min(a.width()))
-        .flat_map(|x| (y0..(y0 + 100).min(a.height())).map(move |y| (x, y)))
+    // At this test's Home framing the crop covers the swinging bell at the
+    // control's centre and stays on land in both selected Atlas spaces.
+    let (x0, y0) = ((at[0] - 20.).max(0.) as u32, (at[1] - 24.).max(0.) as u32);
+    (x0..(x0 + 40).min(a.width()))
+        .flat_map(|x| (y0..(y0 + 48).min(a.height())).map(move |y| (x, y)))
         .filter(|&(x, y)| a.get_pixel(x, y) != b.get_pixel(x, y))
         .count()
 }
