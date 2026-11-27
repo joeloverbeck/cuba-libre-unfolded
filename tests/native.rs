@@ -50,6 +50,8 @@ mod newspaper;
 #[cfg(feature = "occupancy-review")]
 #[path = "native/occupancy_review.rs"]
 mod occupancy_review;
+#[path = "native/piece_flips.rs"]
+mod piece_flips;
 #[path = "native/pile_tags.rs"]
 mod pile_tags;
 #[path = "native/proclamation_composer.rs"]
