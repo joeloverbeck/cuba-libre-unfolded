@@ -56,7 +56,7 @@ CUBA_NATIVE_SOFTWARE_VULKAN=1 \
 
 ## Measuring the parallel tail
 
-When a full unsharded profile will inform a timing decision, save the selected catalogue with `scripts/heavy scripts/native --list` from the same checkout. After the runner prints its `timings:` directory, start a line-by-line observer in a second shell before the first app result. Set `timing_dir` to the printed path. Stop the observer after the app harness finishes.
+When a full unsharded profile will inform a timing decision, save the selected catalogue with `scripts/heavy scripts/native --list` from the same checkout. When the runner prints its `timings:` directory, set `timing_dir` to that path in a second shell in the runner's checkout. Start the observer before the first app result and stop it after the app harness finishes.
 
 ```sh
 tail -n +1 -F -s 0.2 "$timing_dir/app.log" |
