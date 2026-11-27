@@ -764,8 +764,9 @@ fn spawn_flying(
     materials: &mut Assets<StandardMaterial>,
 ) {
     let drawn = (RenderLayers::layer(AIR), Pickable::IGNORE, NoFrustumCulling);
-    let side = meshes.add(card::face_with_corners(CARD_WIDTH, CARD_LENGTH, CORNER));
-    let above = CARD_THICKNESS / 2. + FACE_LIFT;
+    let shape = card::TurningCard::new(CARD_WIDTH, CARD_LENGTH, CORNER, CARD_THICKNESS, FACE_LIFT);
+    let side = meshes.add(shape.face_mesh());
+    let poses = shape.poses(card::CardPivot::Center);
     commands
         .spawn((
             Name::new("Card in the air"),
@@ -777,29 +778,23 @@ fn spawn_flying(
         .with_children(|card| {
             card.spawn((
                 Name::new("Card"),
-                Mesh3d(meshes.add(card::pile_with_corners(
-                    CARD_WIDTH,
-                    CARD_LENGTH,
-                    CORNER,
-                    CARD_THICKNESS,
-                    1,
-                ))),
+                Mesh3d(meshes.add(shape.paper_mesh())),
                 MeshMaterial3d(materials.add(paper())),
+                poses.paper,
                 drawn.clone(),
             ));
             card.spawn((
                 Name::new("Face"),
                 Mesh3d(side.clone()),
                 printed(materials, art, Top::Face(flying.card)),
-                Transform::from_xyz(0., above, 0.),
+                poses.front,
                 drawn.clone(),
             ));
             card.spawn((
                 Name::new("Back"),
                 Mesh3d(side),
                 printed(materials, art, Top::Back),
-                Transform::from_xyz(0., -above, 0.)
-                    .with_rotation(Quat::from_rotation_z(std::f32::consts::PI)),
+                poses.back,
                 drawn.clone(),
             ));
         });
