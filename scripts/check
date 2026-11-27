@@ -176,6 +176,42 @@ echo "native filters: both binaries discovered, missing name and benchmark-only 
 timings+=", native filters $((SECONDS - began)) s"
 
 began=$SECONDS
+check_native_inputs() (
+  local scratch fixture hash
+  scratch=$(mktemp -d)
+  trap 'rm -rf -- "$scratch"' EXIT
+  fixture=$scratch/checkout
+  git init --quiet "$fixture"
+  mkdir -- "$fixture/scripts"
+  cp -- scripts/native "$fixture/scripts/native"
+  git -C "$fixture" add -- scripts/native
+  git -C "$fixture" -c user.name=Checks -c user.email=checks@example.invalid \
+    -c core.hooksPath=/dev/null commit --quiet --no-gpg-sign -m 'Native input fixture'
+  printf '# Notes outside the native inputs\n' > "$fixture/notes.md"
+  hash=$(git -C "$fixture" ls-files -s | git -C "$fixture" hash-object --stdin)
+  printf 'suite inputs: %s\n' "$hash" > "$scratch/expected"
+
+  if ! "$fixture/scripts/native" --inputs > "$scratch/stdout" 2> "$scratch/stderr" ||
+    ! cmp -s -- "$scratch/expected" "$scratch/stdout" || [[ -s $scratch/stderr ]]; then
+    echo 'native inputs check: expected a single fingerprint record on stdout' >&2
+    cat "$scratch/stdout" "$scratch/stderr" >&2
+    return 1
+  fi
+
+  touch -- "$fixture/table.asset"
+  if "$fixture/scripts/native" --inputs > "$scratch/stdout" 2> "$scratch/stderr" ||
+    [[ -s $scratch/stdout ]] ||
+    ! grep -qxF 'native: suite inputs unavailable because files the suite reads differ from the revision' "$scratch/stderr"; then
+    echo 'native inputs check: expected an untracked suite input to fail with a diagnostic on stderr' >&2
+    cat "$scratch/stdout" "$scratch/stderr" >&2
+    return 1
+  fi
+)
+check_native_inputs
+echo 'native inputs: one fingerprint record or a failing diagnostic'
+timings+=", native inputs $((SECONDS - began)) s"
+
+began=$SECONDS
 # These paths reach the real Cargo/libtest entry point without running a native test.
 check_native_caller_log() (
   local label=$1 expected_status=$2 diagnostic=$3
