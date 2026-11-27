@@ -1941,55 +1941,55 @@ fn draw_ui(
     // #172: the marker supply stands between the US Alliance track and the standings,
     // from the committed position.
     supply::draw(&mut commands, &art, &view, &main_view, &window);
-    match &play.options {
-        #[cfg(feature = "occupancy-review")]
-        Options {
-            occupancy_review: Some(review),
-            ..
-        } => {
-            text(
-                &mut commands,
-                &art,
-                "Review only · Atlas occupancy",
-                1408.,
-                307.,
-                444.,
-                25.,
-                s,
-                right,
-                2,
-            );
-            text(
-                &mut commands,
-                &art,
-                review.name.clone(),
-                1408.,
-                356.,
-                444.,
-                20.,
-                s,
-                right,
-                2,
-            );
-            text(
-                &mut commands,
-                &art,
-                "Cash and Sabotage use temporary solids.",
-                1408.,
-                407.,
-                444.,
-                18.,
-                s,
-                right,
-                2,
-            );
-        }
-        _ => {
-            if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
-                die::panel(&mut commands, &art, kidnap, roll.landed(), s, right);
-            } else {
-                execution::panel(&mut commands, &art, &view, &ui, s, right);
-            }
+    #[cfg(not(feature = "occupancy-review"))]
+    let reviewing = false;
+    #[cfg(feature = "occupancy-review")]
+    let reviewing = if let Some(review) = &play.options.occupancy_review {
+        text(
+            &mut commands,
+            &art,
+            "Review only · Atlas occupancy",
+            1408.,
+            307.,
+            444.,
+            25.,
+            s,
+            right,
+            2,
+        );
+        text(
+            &mut commands,
+            &art,
+            review.name.clone(),
+            1408.,
+            356.,
+            444.,
+            20.,
+            s,
+            right,
+            2,
+        );
+        text(
+            &mut commands,
+            &art,
+            "Cash and Sabotage use temporary solids.",
+            1408.,
+            407.,
+            444.,
+            18.,
+            s,
+            right,
+            2,
+        );
+        true
+    } else {
+        false
+    };
+    if !reviewing {
+        if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
+            die::panel(&mut commands, &art, kidnap, roll.landed(), s, right);
+        } else {
+            execution::panel(&mut commands, &art, &view, &ui, s, right);
         }
     }
     eligibility::indicator(&mut commands, &art, &view, s, Vec2::ZERO);

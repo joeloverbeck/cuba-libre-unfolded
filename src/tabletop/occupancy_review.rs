@@ -153,7 +153,7 @@ pub(super) fn cash_solids(
             token::Body {
                 name: format!("{space} Review Cash {group_index}.{layer}"),
                 mesh: Mesh::from(Cuboid::new(0.26, THICKNESS, 0.24)),
-                color: Color::srgb_u8(88, 141, 69),
+                color: Color::srgb_u8(88, 141, 69), // own colour: review-only Cash reservation
                 transform: Transform::from_translation(
                     at + Vec3::Y * (f32::from(layer) + 0.5) * THICKNESS,
                 ),
@@ -181,7 +181,7 @@ pub(super) fn sabotage_solid(
         token::Body {
             name: format!("{space} Review Sabotage"),
             mesh: Mesh::from(Cylinder::new(0.15, 0.075)),
-            color: Color::srgb_u8(205, 151, 140),
+            color: Color::srgb_u8(205, 151, 140), // own colour: review-only Sabotage reservation
             transform: Transform::from_translation(at + Vec3::Y * 0.0375),
         },
     );
@@ -192,7 +192,7 @@ pub(super) fn sabotage_solid(
         count("S".into(), token, Vec3::Y * 0.10),
         status::SpaceTarget(space.to_owned()),
         count_font(art),
-        TextColor(Color::srgb(0.08, 0.08, 0.06)),
+        TextColor(Color::srgb(0.08, 0.08, 0.06)), // own colour: the map count ink
         GlobalZIndex(-1),
     ));
 }
