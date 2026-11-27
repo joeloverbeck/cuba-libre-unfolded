@@ -838,18 +838,15 @@ fn native_manifesto_advance_lands_the_cards_and_reopens_the_same_decision() {
         assert_eq!(inspect["observation"], landed["observation"]);
         assert_briefing_lines_fit(&inspect);
         app.capture(&format!("manifesto-option-{}", action.replace(':', "-")));
-        if action == "m26:event" {
-            app.activate("choice-commit", revision + 1);
-            let refused = app.observe();
-            assert!(
-                refused["table"]["notice"]
-                    .as_str()
-                    .unwrap()
-                    .contains("This Event is not yet playable.")
-            );
-            assert_eq!(refused["observation"], landed["observation"]);
-            assert_eq!(app.save_bytes(), saved_after);
-        }
+        assert_eq!(
+            inspect["table"]["controls"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|row| row["name"] == format!("{}:m26:event", revision + 1)),
+            action == "m26:event"
+        );
+        assert_eq!(app.save_bytes(), saved_after);
     }
     app.key("Escape");
     app.key("KeyR");
@@ -875,6 +872,14 @@ fn native_manifesto_advance_lands_the_cards_and_reopens_the_same_decision() {
         history["documents"]
     );
     app.capture("manifesto-resumed-at-rest");
+    app.activate("option:m26:event", revision + 1);
+    app.choose("m26:event");
+    let pending = app.observe();
+    assert_eq!(pending["observation"]["owner"], "M26");
+    assert_eq!(pending["observation"]["executing"], "M26");
+    assert_eq!(pending["observation"]["event_executor"], "M26");
+    assert_eq!(pending["observation"]["manifesto"]["declines"], json!([]));
+    app.capture("manifesto-executed-by-pointer");
 }
 
 fn preview_notes(reply: &Value, action: &str) -> String {
@@ -1609,4 +1614,379 @@ fn assert_missing_or_changed_back_refuses(app: &Native, saved: &[u8], prior: &[u
         assert_eq!(fs::read(previous_path(&app.save)).unwrap(), prior);
         assert!(!fresh.exists() && !previous_path(&fresh).exists());
     }
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the Manifesto handoffs, editions and next menu"]
+fn native_manifesto_declines_wake_held_syndicate_and_resume_in_order() {
+    use super::faction_seats::{M26, SYNDICATE};
+    use cuba_libre_unfolded::Faction;
+
+    let mut app = super::available_forces::unlaunched("manifesto-declines-", "issue-240");
+    finish_event(&app.save, "shaded");
+    let mut session = Session::open(&app.save, None).unwrap();
+    for action in [
+        "advance-card",
+        "government:pass",
+        "syndicate:construct",
+        "construct:camaguey-city:place",
+        "end-construct",
+    ] {
+        let seen = session.observe();
+        session
+            .submit(
+                seen.owner,
+                seen.revision,
+                &format!("{}:{action}", seen.revision),
+            )
+            .unwrap();
+        if action == "advance-card" {
+            session
+                .publish_as_human(
+                    Faction::M26,
+                    seen.revision + 1,
+                    18,
+                    "We will wait for the next card.",
+                )
+                .unwrap();
+        }
+    }
+    drop(session);
+    app.launch_size("3840x2160");
+    app.choose("advance-card");
+    let m26 = app.seat_agent(M26, "26july");
+    let before = app.observe()["observation"].clone();
+    let at = before["revision"].as_u64().unwrap().to_string();
+    let (code, fresh) = app.ask(&["observe", &m26]);
+    assert_eq!(
+        (code, &fresh["view"]["proclamations"]["can_publish"]),
+        (0, &json!(true))
+    );
+    assert_eq!(fresh["view"]["proclamations"]["published"][0]["card"], 18);
+    let (code, published) = app.ask(&["publish", &m26, &at, "19", "The Manifesto is before us."]);
+    assert_eq!(
+        (code, &published["status"]),
+        (0, &json!("published")),
+        "{published}"
+    );
+    assert_eq!(published["view"]["proclamations"]["can_publish"], false);
+    assert_eq!(app.observe()["observation"], before);
+    let words = published["view"]["proclamations"]["published"].clone();
+    assert_eq!(words[1]["card"], 19);
+    assert_eq!(words[1]["author"], "M26");
+    assert_eq!(app.observe()["table"]["proclamations"]["open"], 2);
+    app.capture("manifesto-publication-on-card-19");
+    app.key("Escape");
+
+    app.decide(&m26, "m26:event", "applied");
+    let m26_turn = app.observe();
+    assert_eq!(m26_turn["observation"]["owner"], "M26");
+    assert_eq!(m26_turn["observation"]["event_executor"], "M26");
+    assert_eq!(
+        choice_part(&m26_turn, "choice-heading")["text"],
+        "Sierra Maestra Manifesto"
+    );
+    assert_eq!(
+        choice_part(&m26_turn, "choice-subtitle")["text"],
+        "26July executes the Event.\n26July decides whether to place."
+    );
+    assert!(m26_turn["table"]["newspaper"]["open"].is_null());
+    app.offers_nothing();
+    app.capture("manifesto-26july-decision");
+    app.decide(&m26, "manifesto:decline", "applied");
+
+    let directorio_turn = app.observe();
+    assert_eq!(directorio_turn["observation"]["owner"], "Directorio");
+    let first_edition = &directorio_turn["table"]["newspaper"]["open"]["report"];
+    assert_eq!(first_edition["faction"], "M26");
+    assert_eq!(first_edition["complete"], false);
+    assert_eq!(
+        manifesto_articles(first_edition),
+        ["26July declined placement."]
+    );
+    app.capture("manifesto-edition-for-directorio");
+    app.key("Escape");
+    let pending = app.observe()["observation"].clone();
+    let pending_bytes = app.save_bytes();
+    let previous_bytes = fs::read(previous_path(&app.save)).unwrap();
+    app.quit();
+
+    app.launch_size("3840x2160");
+    let returned = app.observe();
+    assert_eq!(returned["observation"], pending);
+    assert_eq!(app.save_bytes(), pending_bytes);
+    assert_eq!(fs::read(previous_path(&app.save)).unwrap(), previous_bytes);
+    assert!(returned["table"]["newspaper"]["open"].is_null());
+    let documents = returned["table"]["proclamations"]["documents"]
+        .as_array()
+        .unwrap();
+    assert_eq!(documents.len(), 2);
+    for (document, published) in documents.iter().zip(words.as_array().unwrap()) {
+        for key in ["card", "author", "text"] {
+            assert_eq!(document[key], published[key]);
+        }
+        assert_eq!(document["read"], true);
+    }
+    app.capture("manifesto-restarted-for-directorio");
+
+    let m26 = app.seat_agent(M26, "26july");
+    let syndicate = app.seat_agent(SYNDICATE, "syndicate");
+    let prior_revision = app.revision();
+    let (code, spent) = app.ask(&["observe", &m26]);
+    assert_eq!(code, 0);
+    assert_eq!(spent["view"]["proclamations"]["published"], words);
+    assert_eq!(spent["view"]["proclamations"]["can_publish"], false);
+    let (code, refused) = app.ask(&["publish", &m26, &prior_revision.to_string(), "19", "Again."]);
+    assert_eq!((code, &refused["status"]), (1, &json!("refused")));
+    assert!(
+        refused["error"]
+            .as_str()
+            .unwrap()
+            .contains("already published")
+    );
+    assert_eq!(app.save_bytes(), pending_bytes);
+
+    assert_eq!(spent["view"]["state"]["event_executor"], "M26");
+    let mut waiting = app.player("syndicate-wait", &["wait", &syndicate]);
+    app.until_waiting("Syndicate");
+    assert!(waiting.ended().is_none());
+    assert_eq!(returned["observation"]["eligible"][3], false);
+    app.activate("option:manifesto:place", prior_revision);
+    let inspect = app.observe();
+    assert!(
+        tag_text(&inspect["table"]["briefing"]).contains("Placement is outside this candidate.")
+    );
+    assert_briefing_lines_fit(&inspect);
+    app.capture("manifesto-placement-inspection");
+    assert_eq!(app.save_bytes(), pending_bytes);
+    assert!(waiting.ended().is_none());
+    app.activate("option:manifesto:decline", prior_revision);
+    let preview = app.observe();
+    assert_eq!(
+        choice_part(&preview, "choice-subtitle")["text"],
+        "26July executes the Event.\nDirectorio decides whether to place."
+    );
+    assert!(
+        tag_text(&preview["table"]["briefing"]).contains(
+            "Directorio places no pieces and spends no Resources. Syndicate decides next."
+        )
+    );
+    assert_briefing_lines_fit(&preview);
+    app.capture("manifesto-directorio-decline-preview");
+    app.choose("manifesto:decline");
+
+    let (code, awake) = app.answered(&mut waiting);
+    assert_eq!((code, &awake["status"]), (0, &json!("decision")));
+    let seen = &awake["view"];
+    assert_eq!(seen["decision"]["faction"], "Syndicate");
+    assert_eq!(seen["decision"]["yours"], true);
+    assert_eq!(seen["state"]["eligibility"]["eligible"][3], false);
+    assert_eq!(seen["state"]["event_executor"], "M26");
+    assert_eq!(
+        seen["state"]["manifesto"]["declines"],
+        json!(["M26", "Directorio"])
+    );
+    let at = seen["revision"].as_u64().unwrap().to_string();
+    let id = format!("{at}:manifesto:decline");
+    let decline = seen["choices"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["id"] == id)
+        .unwrap();
+    assert_eq!(decline["supported"], true);
+    assert_eq!(
+        decline["explanation"],
+        "Syndicate places no pieces and spends no Resources. Government decides next."
+    );
+    app.offers_nothing();
+    app.capture("manifesto-syndicate-woke-ineligible");
+    let committed = app.save_bytes();
+    let prior = fs::read(previous_path(&app.save)).unwrap();
+    let (code, wrong_seat) = app.ask(&["choose", &m26, &at, &id]);
+    assert_eq!((code, &wrong_seat["status"]), (1, &json!("refused")));
+    assert!(
+        wrong_seat["error"]
+            .as_str()
+            .unwrap()
+            .contains("decision owner")
+    );
+    let (code, stale) = app.ask(&[
+        "choose",
+        &syndicate,
+        &prior_revision.to_string(),
+        &format!("{prior_revision}:manifesto:decline"),
+    ]);
+    assert_eq!((code, &stale["status"]), (1, &json!("refused")));
+    assert!(
+        stale["error"]
+            .as_str()
+            .unwrap()
+            .contains("Stale: the match is at revision")
+    );
+    assert_eq!(app.save_bytes(), committed);
+    assert_eq!(fs::read(previous_path(&app.save)).unwrap(), prior);
+    app.decide(&syndicate, "manifesto:decline", "applied");
+
+    let government_turn = app.observe();
+    assert_eq!(government_turn["observation"]["owner"], "Government");
+    let middle_edition = &government_turn["table"]["newspaper"]["open"]["report"];
+    assert_eq!(middle_edition["faction"], "M26");
+    assert_eq!(middle_edition["complete"], false);
+    assert_eq!(
+        manifesto_articles(middle_edition),
+        [
+            "Directorio declined placement.",
+            "Syndicate declined placement.",
+        ]
+    );
+    app.capture("manifesto-edition-for-government");
+    app.key("Escape");
+    let at = app.revision();
+    app.activate("option:manifesto:decline", at);
+    let preview = app.observe();
+    assert_eq!(
+        choice_part(&preview, "choice-subtitle")["text"],
+        "26July executes the Event.\nGovernment decides whether to place."
+    );
+    assert!(tag_text(&preview["table"]["briefing"]).contains(
+        "The Event ends. 26July stays Eligible. Directorio has the 2nd Eligible choices."
+    ));
+    assert_briefing_lines_fit(&preview);
+    app.capture("manifesto-government-decline-preview");
+    app.choose("manifesto:decline");
+
+    let finish = app.observe();
+    let last_edition = &finish["table"]["newspaper"]["open"]["report"];
+    assert_eq!(last_edition["complete"], true);
+    assert_eq!(last_edition["faction"], "M26");
+    assert_eq!(last_edition["recorded"], "Event");
+    assert_eq!(
+        manifesto_articles(last_edition),
+        ["Government declined placement."]
+    );
+    app.capture("manifesto-edition-at-completion");
+    app.key("Escape");
+    let final_view = app.observe();
+    assert_eq!(
+        choice_part(&final_view, "choice-heading")["text"],
+        "Directorio · 2nd Eligible"
+    );
+    assert_eq!(
+        choice_part(&final_view, "choice-subtitle")["text"],
+        "26July stays Eligible after executing the Event.\n26July, Directorio, Syndicate and Government declined."
+    );
+    assert_eq!(
+        choice_part(&final_view, "option:directorio:pass-label")["text"],
+        "Pass"
+    );
+    assert_eq!(
+        choice_part(&final_view, "option:directorio:operation-label")["text"],
+        "Operation with optional Special Activity"
+    );
+    let label = choice_part(&final_view, "option:directorio:operation-label");
+    let status = choice_part(&final_view, "pill:directorio:operation-label");
+    let [_, top, right, bottom] = rect_of(&label["bounds"]);
+    let [left, ..] = rect_of(&status["bounds"]);
+    assert!(
+        right < left && bottom - top < 40.,
+        "{label} beside {status}"
+    );
+    app.capture("manifesto-directorio-second-eligible-menu");
+    let observation = &final_view["observation"];
+    assert_eq!(
+        observation["next"]["options"],
+        json!([
+            "Pass (+1 if executed later)",
+            "Operation (with or without a Special Activity)"
+        ])
+    );
+    assert_eq!(observation["owner"], "Directorio");
+    assert_eq!(observation["eligible"], before["eligible"]);
+    assert_eq!(observation["eligibility"]["m26_next_card"], true);
+    assert_eq!(observation["executing"], Value::Null);
+    for same in [
+        "available",
+        "spaces",
+        "resources",
+        "standings",
+        "piles",
+        "passed",
+    ] {
+        assert_eq!(observation[same], before[same], "{same}");
+    }
+    let at = observation["revision"].as_u64().unwrap();
+    let saved = app.save_bytes();
+    for (action, title, rule, effect) in [
+        (
+            "directorio:pass",
+            "Pass",
+            "R 2.3.3",
+            "stay Eligible and gain 1 Resource",
+        ),
+        (
+            "directorio:operation",
+            "Operation",
+            "R 2.3.4",
+            "may include a Special Activity",
+        ),
+    ] {
+        app.activate(&format!("option:{action}"), at);
+        let inspected = app.observe();
+        let offered = inspected["observation"]["choices"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["id"] == format!("{at}:{action}"))
+            .unwrap();
+        assert_eq!(offered["supported"], false);
+        assert_eq!(choice_part(&inspected, "briefing-title")["text"], title);
+        assert_eq!(choice_part(&inspected, "briefing-rule-ref")["text"], rule);
+        let body = choice_part(&inspected, "briefing-value:OPTION")["text"]
+            .as_str()
+            .unwrap();
+        assert!(!body.contains(rule));
+        assert_eq!(body.lines().count(), 2, "{body}");
+        let briefing = tag_text(&inspected["table"]["briefing"]);
+        assert!(briefing.contains(effect), "{briefing}");
+        assert!(briefing.contains("outside this continuation"), "{briefing}");
+        assert_briefing_lines_fit(&inspected);
+        app.capture(&format!("manifesto-next-{}", action.replace(':', "-")));
+        assert_eq!(app.save_bytes(), saved);
+    }
+    let (_, final_client) = app.ask(&["observe", &syndicate]);
+    let report = final_client["view"]["results"]
+        .as_array()
+        .unwrap()
+        .last()
+        .unwrap();
+    assert_eq!(
+        manifesto_articles(report),
+        [
+            "26July declined placement.",
+            "Directorio declined placement.",
+            "Syndicate declined placement.",
+            "Government declined placement.",
+        ]
+    );
+    assert_eq!(final_client["view"]["proclamations"]["published"], words);
+    fs::write(app.root.join("manifesto-faction-client-evidence.json"), serde_json::to_vec_pretty(&json!({
+        "awake": awake, "wrong_seat": wrong_seat, "stale": stale, "spent": spent, "complete": final_client,
+    })).unwrap()).unwrap();
+    app.quit();
+}
+
+fn manifesto_articles(report: &Value) -> Vec<&str> {
+    report["articles"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|article| {
+            article["lines"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|line| line.as_str().unwrap())
+        })
+        .collect()
 }

@@ -279,6 +279,7 @@ fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                 "terror" => "Choose Terror".into(),
                 "event:shaded" => "Choose shaded Event".into(),
                 "event:unshaded" => "Choose unshaded Event".into(),
+                crate::game::MANIFESTO_EVENT => "Choose Event".into(),
                 _ => c.label.clone(),
             },
             action: Action::Commit(c.owner, view.revision),
@@ -359,7 +360,9 @@ fn pending_withdrawal<'a>(view: &'a Observation, ui: &Interface) -> Option<&'a C
 /// Event execution and the card 18 decisions use rows without section headings.
 /// During Assault the rows follow the map line and the record of paid spaces (#169).
 fn panel_rows(view: &Observation) -> impl Iterator<Item = (&Choice, f32)> {
-    let tops = if view.current_card == 18 || view.event.as_ref().is_some_and(EventProgress::pending)
+    let tops = if view.current_card == 18
+        || view.manifesto.is_some()
+        || view.event.as_ref().is_some_and(EventProgress::pending)
     {
         let within_section_pitch = fig::ROWS[2] - fig::ROWS[1];
         let first = payment_rows_top(view).unwrap_or(fig::ROWS[0]);
@@ -369,10 +372,9 @@ fn panel_rows(view: &Observation) -> impl Iterator<Item = (&Choice, f32)> {
     };
     // The Manifesto has a single Event. Leave the second Event slot empty so
     // the Operations still begin at their authored position.
-    let tops = tops
-        .into_iter()
-        .enumerate()
-        .filter_map(|(i, top)| (view.current_card != 19 || i != 2).then_some(top));
+    let tops = tops.into_iter().enumerate().filter_map(|(i, top)| {
+        (view.current_card != 19 || view.manifesto.is_some() || i != 2).then_some(top)
+    });
     panel_options(view).zip(tops)
 }
 
@@ -498,6 +500,25 @@ fn assault_rows_after(lines: usize) -> f32 {
 /// The panel's two lines under its heading: where the match stands, and how the human
 /// works the rows, which an `agent`'s panel says above its strip instead.
 fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool, agent: bool) -> String {
+    if let Some(manifesto) = &view.manifesto {
+        return if let Some(pending) = manifesto.pending() {
+            format!(
+                "{} executes the Event.\n{} decides whether to place.",
+                view.event_executor.expect("Manifesto executor").name(),
+                pending.name()
+            )
+        } else {
+            let names = manifesto
+                .declines
+                .iter()
+                .map(|f| f.name().to_owned())
+                .collect::<Vec<_>>();
+            format!(
+                "26July stays Eligible after executing the Event.\n{} declined.",
+                crate::reports::listing(&names)
+            )
+        };
+    }
     if view.current_card == 18 {
         let balance = resources(view.resources[view.owner.index()]);
         if let Some(next) = &view.next {
@@ -630,6 +651,11 @@ pub(super) fn panel(
     let event_pending = view.event.as_ref().is_some_and(EventProgress::pending);
     let card_18 = view.current_card == 18;
     let executor = view.executing.unwrap_or(view.owner);
+    let emblem_faction = if view.manifesto.is_some() {
+        view.owner
+    } else {
+        executor
+    };
     // While an agent's faction decides, the panel is inert (#206): no plates, and the
     // strip in the commit's place.
     let agent = super::seat_cards::deciding(view, ui).is_some();
@@ -640,7 +666,7 @@ pub(super) fn panel(
     let emblem = picture(
         commands,
         art,
-        &emblems::image(executor),
+        &emblems::image(emblem_faction),
         rect(x, y, w, h),
         s,
         o,
@@ -649,6 +675,10 @@ pub(super) fn panel(
     part(commands, emblem, "choice-heading-emblem");
     let [x, y, w] = fig::HEADING;
     let title = match &view.event {
+        _ if view.manifesto.is_some() => match &view.next {
+            Some(next) => format!("{} · {}", next.faction.name(), next.role),
+            None => view.cards.current.title.into(),
+        },
         _ if view.removal.is_some() && executor == Faction::Syndicate => {
             "Syndicate · Manage own pieces".into()
         }
@@ -707,7 +737,7 @@ pub(super) fn panel(
     part(commands, subtitle, "choice-subtitle");
     for (name, top, words) in fig::SECTIONS
         .into_iter()
-        .filter(|_| !event_pending && !card_18)
+        .filter(|_| !event_pending && !card_18 && view.manifesto.is_none())
     {
         let words = match name {
             "section:event" => format!(
@@ -861,13 +891,23 @@ pub(super) fn panel(
                 5,
             );
         }
+        let pill_width = if act == "terror:kidnap" {
+            fig::PILL_WIDE
+        } else {
+            fig::PILL_W
+        };
+        let label_right = if view.current_card == 19 && pill.is_some() {
+            fig::PILL_RIGHT - pill_width - fig::PILL_TEXT[0]
+        } else {
+            fig::ROW_W
+        };
         let words = text(
             commands,
             art,
             Prose::named(label),
             rx(fig::ROW_X + lx),
             ry(top + ly),
-            rs(fig::ROW_W - lx),
+            rs(label_right - lx),
             rs(size),
             s,
             o,
@@ -879,12 +919,7 @@ pub(super) fn panel(
         style(commands, words, art, offered, rs(size) * s, 0., None);
         part(commands, words, &format!("{name}-label"));
         if let Some(pill) = pill {
-            let width = if act == "terror:kidnap" {
-                fig::PILL_WIDE
-            } else {
-                fig::PILL_W
-            };
-            let left = fig::ROW_X + fig::PILL_RIGHT - width;
+            let left = fig::ROW_X + fig::PILL_RIGHT - pill_width;
             let plate = picture(
                 commands,
                 art,
@@ -893,7 +928,7 @@ pub(super) fn panel(
                 } else {
                     "atlas-choice-pill.png"
                 },
-                rect(left, top + fig::PILL_TOP, width, fig::PILL_H),
+                rect(left, top + fig::PILL_TOP, pill_width, fig::PILL_H),
                 s,
                 o,
                 5,
@@ -905,7 +940,7 @@ pub(super) fn panel(
                 Prose::named(pill),
                 rx(left + fig::PILL_TEXT[0]),
                 ry(top + fig::PILL_TOP + fig::PILL_TEXT[1]),
-                rs(width - fig::PILL_TEXT[0]),
+                rs(pill_width - fig::PILL_TEXT[0]),
                 rs(fig::PILL_SIZE),
                 s,
                 o,

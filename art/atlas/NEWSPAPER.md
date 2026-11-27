@@ -9,7 +9,7 @@ A front page in the middle of the window, over a scrim that leaves the top band 
 | Part | What it says |
 |---|---|
 | Folio line, left | `No. n`, `partway` while the action has not ended, the card's number and title. Editions are numbered for each card. |
-| Folio line, right | The faction, its role on the card, and the box the action is recorded in; `… in progress` before it has ended. No box is recorded for an Event, so `Event` stands there. |
+| Folio line, right | The faction, its role on the card, and the box the action is recorded in; `… in progress` before it has ended. `Event` is the record for a completed Event. |
 | Headline and the sentence under it | The report's headline and, when it has one, its summary |
 | Articles | One for each of the report's, in its order, its sentences run on. A die roll's article has the die. |
 | The standings | Every faction's Resources and margin: what changed as `from → to`, bold; what did not, quiet |

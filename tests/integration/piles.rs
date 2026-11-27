@@ -301,3 +301,38 @@ fn the_card_under_the_preview_is_named_nowhere_in_the_observation() {
         }
     }
 }
+
+#[test]
+fn manifesto_execution_hands_the_first_decline_to_26july() {
+    use cuba_libre_unfolded::Faction;
+
+    let mut game = manifesto();
+    let before = game.observe();
+    choose(&mut game, "m26:event");
+    let pending = game.observe();
+    assert_eq!(pending.owner, Faction::M26);
+    assert_eq!(pending.executing, Some(Faction::M26));
+    assert_eq!(pending.event_executor, Some(Faction::M26));
+    assert_eq!(
+        pending.cards.current.status,
+        cuba_libre_unfolded::EventStatus::SingleInProgress {
+            faction: Faction::M26,
+            decider: Faction::M26,
+        }
+    );
+    assert_eq!(pending.eligible, before.eligible);
+    assert_eq!(pending.spaces, before.spaces);
+    assert_eq!(pending.resources, before.resources);
+    assert!(
+        pending
+            .choices
+            .iter()
+            .any(|choice| { choice.action() == "manifesto:decline" && choice.supported })
+    );
+    assert!(
+        pending
+            .choices
+            .iter()
+            .any(|choice| { choice.action() == "manifesto:place" && !choice.supported })
+    );
+}

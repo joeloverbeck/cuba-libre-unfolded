@@ -125,6 +125,12 @@ fn continuation_families() -> BTreeSet<String> {
     offered.extend(families(&assault));
     explore::choose(&mut construct, "advance-card");
     offered.extend(families(&construct));
+    explore::choose(&mut construct, "m26:event");
+    offered.extend(families(&construct));
+    for _ in 0..4 {
+        explore::choose(&mut construct, "manifesto:decline");
+        offered.extend(families(&construct));
+    }
     offered
 }
 

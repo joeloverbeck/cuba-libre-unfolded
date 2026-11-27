@@ -150,6 +150,10 @@ An unpaid Limited Construct can refuse a piece action that would leave no afford
 
 After Syndicate Passes or finishes Construct, the panel shows the result and Eligibility for card 19. Select **Advance to Sierra Maestra Manifesto** to continue from that position. The Manifesto crosses to the played pile, **The Twelve** turns face up on the draw deck, and the pile counts settle at 20 and 32. 26July is 1st Eligible. Pin an option to see what the rules allow and what this build supports. Reopen the same save to resume at that decision, with the cards at rest and earlier proclamations in the public record.
 
+Pin **Event** and select **Choose Event**. 26July executes it, and the placement decision passes through 26July, Directorio, Syndicate and Government in that order. A faction decides even if it is Ineligible for the card action. Pin **Decline placement** to see who goes next, then select **Decline placement** to commit. Piece placement is available for inspection in this candidate. Restarting between decisions restores the pending faction.
+
+When the Event ends, 26July stays Eligible. Directorio is next as 2nd Eligible and can inspect Pass or Operation with optional Special Activity. The continuation ends at that menu.
+
 ## Handing a faction to an agent
 
 An external Claude Code or Codex session can play a faction for you. The four cards along the bottom say who plays each faction ([SEATS.md](../art/atlas/SEATS.md)). **Hand over** gives a faction to an agent, **Copy its line** copies the one line to [paste in its session](#opening-a-session), and **Take back** makes it yours again. F1 to F4 hand Government, 26July, Directorio and Syndicate over and take them back too. A session joins on the game's socket, by default `cuba-libre-players.sock` in `$XDG_RUNTIME_DIR`, or where you launched with `--player-socket`. The game starts no session.

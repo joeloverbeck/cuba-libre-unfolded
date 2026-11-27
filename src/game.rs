@@ -271,12 +271,14 @@ pub enum SequenceBox {
     OperationOnly,
     OperationWithSpecialActivity,
     LimitedOperation,
+    Event,
 }
 impl SequenceBox {
     /// The box's name, as a record states it.
     pub fn name(self) -> &'static str {
         match self {
             Self::Pass => "Pass",
+            Self::Event => "Event",
             Self::OperationOnly => "Operation Only",
             Self::LimitedOperation => "Limited Operation",
             Self::OperationWithSpecialActivity => "Operation with Special Activity",
@@ -287,7 +289,7 @@ impl SequenceBox {
         match self {
             Self::Pass => "R 2.3.3",
             Self::LimitedOperation => "R 2.3.4–5",
-            Self::OperationOnly | Self::OperationWithSpecialActivity => "R 2.3.4",
+            Self::Event | Self::OperationOnly | Self::OperationWithSpecialActivity => "R 2.3.4",
         }
     }
 }
@@ -441,6 +443,9 @@ pub enum EventOutcome {
     Unshaded(Rally),
 }
 
+pub(crate) const MANIFESTO_EVENT: &str = "m26:event";
+pub(crate) const MANIFESTO_DECLINE: &str = "manifesto:decline";
+
 /// Card 19's order (P p. 33 and the supplied face).
 const CARD_19_ORDER: [Faction; 4] = [
     Faction::M26,
@@ -448,6 +453,21 @@ const CARD_19_ORDER: [Faction; 4] = [
     Faction::Syndicate,
     Faction::Government,
 ];
+
+/// Card 19's committed decisions, in its printed faction order.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Manifesto {
+    pub declines: Vec<Faction>,
+}
+impl Manifesto {
+    pub fn pending(&self) -> Option<Faction> {
+        CARD_19_ORDER.get(self.declines.len()).copied()
+    }
+    pub fn complete(&self) -> bool {
+        self.pending().is_none()
+    }
+}
 
 /// The Syndicate decision that brings card 18 to the Eligibility adjustment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -476,6 +496,8 @@ pub struct Game {
     government_pass_from: Option<u8>,
     #[serde(deserialize_with = "Option::deserialize")]
     card_18_completion: Option<Card18Completion>,
+    #[serde(deserialize_with = "Option::deserialize")]
+    manifesto: Option<Manifesto>,
     #[serde(deserialize_with = "Option::deserialize")]
     pub(crate) transfer: Option<Transfer>,
     #[serde(deserialize_with = "Option::deserialize")]
@@ -694,6 +716,8 @@ pub struct Observation {
     pub eligibility: Eligibility,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub event: Option<EventProgress>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub manifesto: Option<Manifesto>,
     pub resources: [u8; 4],
     pub spaces: Vec<Space>,
     pub available: Vec<Group>,
@@ -845,7 +869,7 @@ impl Choice {
         match self.action() {
             "event:unshaded" => Some(Some(EventText::Unshaded)),
             "event:shaded" => Some(Some(EventText::Shaded)),
-            "government:event" | "syndicate:event" | "m26:event" => Some(None),
+            "government:event" | "syndicate:event" | MANIFESTO_EVENT => Some(None),
             _ => None,
         }
     }
@@ -1264,6 +1288,7 @@ impl Game {
             current_card: 17,
             government_pass_from: None,
             card_18_completion: None,
+            manifesto: None,
             transfer: None,
             kidnap: None,
             removal: None,
@@ -1294,6 +1319,8 @@ impl Game {
         played_cards.extend(17..current_card);
         let manifest = current_card == 19;
         let eligibility = self.eligibility();
+        let manifesto = self.manifesto.as_ref();
+        let manifesto_ended = manifesto.is_some_and(Manifesto::complete);
         let piles = Piles::new(&played_cards, current_card, self.draw_deck.len());
         let played_pile = pile_facts::played_pile(&played_cards, current_card);
         // Only the deck's number and its face-up top card are public (R 2.2, 2.3.8).
@@ -1320,7 +1347,12 @@ impl Game {
                 self.action
             },
             executing: self.executing(),
-            event_executor: event.as_ref().map(|_| Faction::Directorio),
+            event_executor: if self.manifesto.is_some() {
+                Some(Faction::M26)
+            } else {
+                event.as_ref().map(|_| Faction::Directorio)
+            },
+            manifesto: self.manifesto.clone(),
             eligible: eligibility.eligible,
             eligibility,
             event,
@@ -1370,6 +1402,8 @@ impl Game {
             choices,
             next: self.next(),
             operation: match self.action {
+                _ if manifesto_ended => "Directorio is 2nd Eligible on card 19",
+                _ if manifesto.is_some() => "26July executes Sierra Maestra Manifesto",
                 _ if manifest => "26July is 1st Eligible on card 19",
                 _ if self.card_18_completion.is_some() => "Card 18 ended: Eligibility adjusted",
                 _ if self.construct_is_open() && self.government_pass_from.is_some() => {
@@ -1561,6 +1595,23 @@ impl Game {
     /// The next faction's role and options after the acting faction records a
     /// decision (R 2.3.3–2.3.4).
     fn next(&self) -> Option<Next> {
+        if self.current_card == 19 {
+            return self
+                .manifesto
+                .as_ref()
+                .filter(|m| m.complete())
+                .map(|_| Next {
+                    faction: self
+                        .eligibility()
+                        .second
+                        .expect("Directorio is 2nd Eligible"),
+                    role: "2nd Eligible".into(),
+                    options: vec![
+                        "Pass (+1 if executed later)".into(),
+                        "Operation (with or without a Special Activity)".into(),
+                    ],
+                });
+        }
         if self.card_18_completion.is_some() || self.construct_is_open() {
             return None;
         }
@@ -1967,7 +2018,11 @@ impl Game {
     }
     pub(crate) fn executing(&self) -> Option<Faction> {
         if self.current_card == 19 {
-            return None;
+            return self
+                .manifesto
+                .as_ref()
+                .and_then(Manifesto::pending)
+                .map(|_| Faction::M26);
         }
         if self.current_card == 18 {
             if self.construct_is_open() {
@@ -2021,18 +2076,19 @@ impl Game {
                 .expect("card 18 ended")
                 .map(|r| r.eligible);
             let mut in_order = CARD_19_ORDER.into_iter().filter(|f| eligible[f.index()]);
+            let complete = self.manifesto.as_ref().is_some_and(Manifesto::complete);
             return Eligibility {
                 order: CARD_19_ORDER,
                 eligible,
                 first: in_order.next().expect("26July remains Eligible"),
                 second: in_order.next(),
-                m26_box: None,
-                m26_next_card: None,
+                m26_box: complete.then_some(SequenceBox::Event),
+                m26_next_card: complete.then_some(true),
                 government_box: None,
                 syndicate_box: None,
                 next_card: None,
                 event_restriction: None,
-                event_started: false,
+                event_started: self.manifesto.is_some(),
             };
         }
         let passed = self.action == ActionChoice::Pass;
@@ -2242,7 +2298,9 @@ impl Game {
         if let Some(Transfer::Authorizing { giver, .. }) = self.transfer {
             giver
         } else if self.current_card == 19 {
-            self.eligibility().first
+            self.manifesto.as_ref().map_or(Faction::M26, |manifesto| {
+                manifesto.pending().unwrap_or(Faction::Directorio)
+            })
         } else if self.assault_finished() {
             Faction::Syndicate
         } else if self.current_card == 18 {
@@ -2366,14 +2424,50 @@ impl Game {
         }
         options.insert(
             1,
-            self.offer(
-                "m26:event",
-                "Event",
-                false,
-                format!("{} This Event is not yet playable.", cards::MANIFESTO),
-            ),
+            self.offer(MANIFESTO_EVENT, "Event", true, cards::MANIFESTO),
         );
         options
+    }
+
+    fn manifesto_decisions(&self, manifesto: &Manifesto) -> Vec<Choice> {
+        if manifesto.complete() {
+            return vec![
+                self.offer(
+                    "directorio:pass",
+                    "Pass",
+                    false,
+                    "R 2.3.3. Directorio would stay Eligible and gain 1 Resource.\nExecuting Pass is outside this continuation.",
+                ),
+                self.offer(
+                    "directorio:operation",
+                    "Operation with optional Special Activity",
+                    false,
+                    "R 2.3.4. An Operation may include a Special Activity.\nExecuting it is outside this continuation.",
+                ),
+            ];
+        }
+        let next = CARD_19_ORDER.get(manifesto.declines.len() + 1);
+        let after = match next {
+            Some(faction) => format!("{} decides next.", faction.name()),
+            None => {
+                "The Event ends. 26July stays Eligible. Directorio has the 2nd Eligible choices."
+                    .into()
+            }
+        };
+        vec![
+            self.offer(
+                "manifesto:place",
+                "Place pieces",
+                false,
+                "Placement is outside this candidate. The Event allows two non-Casino pieces together in a space where this faction already has a piece, or partial fulfillment if necessary (card 19; R 1.4, 5.1.3).",
+            ),
+            self.offer(
+                MANIFESTO_DECLINE,
+                "Decline placement",
+                true,
+                format!("{} places no pieces and spends no Resources. {after}", self.owner().name()),
+            ),
+        ]
     }
 
     fn directorio_choices(&self) -> Vec<Choice> {
@@ -2415,6 +2509,9 @@ impl Game {
 
     pub(crate) fn choices(&self) -> Vec<Choice> {
         if self.current_card == 19 {
+            if let Some(manifesto) = &self.manifesto {
+                return self.manifesto_decisions(manifesto);
+            }
             return self.manifesto_choices();
         }
         if self.current_card == 18 {
@@ -3182,6 +3279,15 @@ impl Game {
                 }
                 self.draw_deck.remove(0);
                 self.current_card = next;
+            }
+            MANIFESTO_EVENT => self.manifesto = Some(Manifesto::default()),
+            MANIFESTO_DECLINE => {
+                let owner = self.owner();
+                self.manifesto
+                    .as_mut()
+                    .expect("Manifesto decision")
+                    .declines
+                    .push(owner);
             }
             construct::OPERATION_ONLY | construct::LIMITED => {
                 return self.apply_construct(action, next_revision);

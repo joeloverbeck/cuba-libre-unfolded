@@ -1119,7 +1119,7 @@ fn a_view_says_what_each_text_of_the_face_up_cards_does() {
             "already has a piece",
             "stays Eligible",
         ],
-        "not in this build",
+        "in this build, by 26July",
     )];
     let check = |card: &Value, number: u64, title: &str, texts: &[Text]| {
         assert_eq!(card["number"], number);

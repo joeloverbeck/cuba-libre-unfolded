@@ -53,6 +53,9 @@ impl Played {
 
 /// The factions that may execute the Event of `card` in this build.
 pub(super) fn event_by(card: u8) -> Vec<Faction> {
+    if card == 19 {
+        return vec![Faction::M26];
+    }
     Faction::ALL
         .into_iter()
         .filter(|faction| {

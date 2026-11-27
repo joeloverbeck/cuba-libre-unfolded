@@ -141,7 +141,7 @@ impl Slot {
             SequenceBox::OperationOnly => Some(Self::OperationOnly),
             SequenceBox::OperationWithSpecialActivity => Some(Self::OperationWithSpecialActivity),
             // This row shows only the first faction's boxes.
-            SequenceBox::LimitedOperation => None,
+            SequenceBox::Event | SequenceBox::LimitedOperation => None,
         }
     }
     fn index(self) -> usize {
@@ -212,7 +212,10 @@ pub(super) fn track(view: &Observation) -> Track {
         .map(|&faction| Row {
             faction,
             eligible: e.eligible[faction.index()],
-            role: if adjusted || (Some(faction) == occupant && e.government_box.is_some()) {
+            role: if adjusted
+                || (Some(faction) == occupant && e.government_box.is_some())
+                || (faction == Faction::M26 && e.m26_box == Some(SequenceBox::Event))
+            {
                 None
             } else if faction == e.first {
                 Some("1st")
