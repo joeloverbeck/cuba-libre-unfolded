@@ -25,7 +25,7 @@ For later launches, run:
 scripts/play
 ```
 
-The default save is `saves/task.json` in the per-user data directory. Use `scripts/play --save /absolute/path/to/task.json` to choose another file. An unused filename starts the prepared scenario.
+The launcher uses `saves/task.json` in the per-user data directory when this build can open it. If another build wrote a save this one cannot replay, the launcher preserves it and uses the next available name, starting with `task-2.json`. Later launches resume that save. Use `scripts/play --save /absolute/path/to/task.json` to select an exact file. An unused filename starts the prepared scenario.
 
 ## Playing this build
 
@@ -70,7 +70,7 @@ When set, `XDG_DATA_HOME` replaces `~/.local/share` for the launcher's private c
 
 ## Saves and recovery
 
-Each successful save keeps the prior valid record beside it as `task.json.previous`. A save the app cannot admit is refused, and every file is left as it was. Saves are disposable across builds ([foundation 2](docs/foundation/02-rules-and-verification.md#engine-authority)); for a refused save from another build, start a match under an unused save name. [docs/agents/saves.md](docs/agents/saves.md#admission-and-refusal) lists what is refused and why.
+Each successful save keeps the prior valid record beside it with `.previous` appended to its filename, such as `task-2.json.previous`. An explicitly selected save the app cannot admit is refused and preserved. Saves are disposable across builds. For a refused save from another build, choose an unused filename. [Save admission and refusal](docs/agents/saves.md#admission-and-refusal) · [Foundation 2](docs/foundation/02-rules-and-verification.md#engine-authority)
 
 Follow the [recovery procedure](docs/agents/saves.md#recovery) to open a previous record under a new filename.
 

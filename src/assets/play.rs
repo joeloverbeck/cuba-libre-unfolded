@@ -251,6 +251,10 @@ if [[ $5 == cuba-tools && $7 == prepare-play ]]; then
     exec "$CUBA_PLAY_FIXTURE_TEST" --exact \
     assets::play::tests::configured_source_supplies_a_newly_required_card_on_the_next_launch
 fi
+if [[ $5 == cuba-tools && $7 == play-save ]]; then
+  printf '%s\n' "$8/task.json"
+  exit 0
+fi
 data="$HOME/.local/share/cuba-libre-unfolded"
 [[ $6 == cuba-libre && $8 == --cards && $9 == "$data/cards" &&
    ${10} == --save && ${11} == "$data/saves/task.json" ]]

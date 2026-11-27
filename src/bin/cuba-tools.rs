@@ -19,6 +19,7 @@ const USAGE: &str = "Usage: cuba-tools seat [--brief] SOCKET [JSON_REQUEST ...]
        cuba-tools seat-wait SOCKET [--timeout SECONDS]
        cuba-tools player-folders
        cuba-tools prepare-play DATA_DIRECTORY [CARD_SOURCE]
+       cuba-tools play-save SAVE_DIRECTORY [EXPLICIT_SAVE]
        cuba-tools session-costs FILE
 
 seat: Without requests, reads JSON lines from stdin. Exits nonzero for refused/missed/skipped/malformed or missing replies.
@@ -29,6 +30,8 @@ seat-wait: keeps a held seat's windowless table running, so that agent sessions 
 player-folders: writes the folders an agent player's sessions run in, one for Claude Code and one for Codex, and installs their client, the cuba-player beside this program. Refuses, and names, any file it did not write.
 
 prepare-play: checks the installed private cards and installs missing verified copies from the configured source. Supplying CARD_SOURCE records that directory after successful preparation.
+
+play-save: prints the default save path this build can use. With EXPLICIT_SAVE, checks that path and prints nothing on success. Creates no files.
 
 session-costs: reports observed model calls against this session's limits from a JSON file (docs/agents/seat.md, Reporting a real session's call limits). Exits 0 for a pass, 1 for failure or invalid input, 3 for incomplete evidence.";
 
@@ -201,6 +204,24 @@ fn run() -> Result<u8> {
         "player-folders" if args.is_empty() => player_folders(),
         "prepare-play" if (1..=2).contains(&args.len()) => {
             prepare_play_cards(Path::new(&args[0]), args.get(1).map(Path::new))?;
+            Ok(0)
+        }
+        "play-save" if (1..=2).contains(&args.len()) => {
+            let directory = Path::new(&args[0]);
+            let explicit = args.get(1).map(Path::new);
+            let path =
+                cuba_libre_unfolded::save::play_save_path(directory, explicit, |path, error| {
+                    eprintln!("Skipping {}. {error:#}", path.display());
+                })?;
+            if explicit.is_none() {
+                if path != directory.join("task.json") {
+                    eprintln!(
+                        "Using {}. The skipped save files were preserved.",
+                        path.display()
+                    );
+                }
+                println!("{}", path.display());
+            }
             Ok(0)
         }
         "session-costs" if args.len() == 1 => session_costs(Path::new(&args[0])),

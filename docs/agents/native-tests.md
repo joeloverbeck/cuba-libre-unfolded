@@ -28,6 +28,8 @@ XDG_DATA_HOME="$CUBA_LAUNCH_EVIDENCE/data" \
 
 On each launch, verify that the **Cuba Libre Unfolded — tactical candidate** window displays the prepared table and close it without playing a move. Verify that `data/cuba-libre-unfolded/saves/task.json` was created and that the second launch resumes it. For a newly required card, also repeat the plain command with an isolated copy of the preceding build's card directory and the remembered source. Verify the new file was installed with the admitted hash and the table opens. Record the exact revision, the observed window and save behavior, and the relevant log paths. Keep the private inputs and the source path out of Git and the PR.
 
+For changes to the launcher's save selection, also start with a copy of an incompatible save at `saves/task.json` in the isolated data directory. Verify that the launcher selects a separate save, the table accepts a camera movement and a player choice, and restart resumes that choice. Compare the old save and any `.previous` bytes before and after.
+
 ## Persistent table controls
 
 When adding or moving a control visible on the ordinary table, run the 4K main-view regression before integrating the ticket. It checks the authored layout and exposed board areas as well as the controls' effects on picking and camera input. Set `CUBA_TEST_CARDS` to the [private card directory](../../README.md#where-files-live).
