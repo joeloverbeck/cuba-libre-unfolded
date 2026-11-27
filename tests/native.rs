@@ -5461,10 +5461,8 @@ fn native_execution_panel_matches_layout_and_previews_every_step() {
 /// The owner's clash rule (#58, carried to #69 and #72): while a space popover is
 /// open it wins over the AC-B briefing tag; opening the popover closes the tag, which
 /// reopens from the BRIEFING ribbon (checked in the AC-B test above). Neither changes
-/// the match. At 3840×2160 the open tag covers Santiago, so the popover is opened on
-/// Oriente (blocked at 0 Resources). The test ends with Oriente's popover kept open:
-/// at this size it never reports itself placed, so the seat refuses later input (a
-/// #72 defect reported by the merge of #69).
+/// the match. Pan the map at 3840×2160 so the tag covers Oriente's target and leaves
+/// Santiago's target exposed. Both are blocked at 0 Resources.
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained clash captures"]
 fn native_space_popover_closes_the_briefing_tag() {
@@ -5493,14 +5491,16 @@ fn native_space_popover_closes_the_briefing_tag() {
     app.launch_size("3840x2160");
     app.choose("terror");
     let rev = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.request(json!({"op":"settle"}), true);
+    for _ in 0..2 {
+        app.request(json!({"op":"key","revision":rev,"key":"KeyW"}), true);
+    }
     app.activate("briefing-ribbon", rev);
     let tag = app.observe();
     assert_eq!(tag["table"]["briefing"]["option"], "terror");
     assert_eq!(tag["table"]["choice"]["ribbon"], true);
     app.capture("clash-tag-open");
-    // A click through the open tag reaches nothing on the map. With the island filling
-    // the window to the decision panel (#142), the tag lies over Oriente and leaves
-    // Santiago's label clear; in the framed view it was the other way round.
+    // A click through the open tag reaches nothing on the map.
     let covered = app.request(
         json!({"op":"activate","revision":rev,"component":"space:oriente"}),
         false,
@@ -5523,8 +5523,7 @@ fn native_space_popover_closes_the_briefing_tag() {
     assert_eq!(popover["observation"]["revision"], rev);
     assert_eq!(std::fs::read(&app.save).unwrap(), saved);
     app.capture("clash-popover-closes-tag");
-    // Clicking the space again closes its popover. Oriente's opens below, once the
-    // tag is closed (#73 made it settle at this size).
+    // Clicking Santiago again closes its popover. The next click reopens it.
     app.activate("space:santiago", rev);
     assert_eq!(app.observe()["table"]["popover"], Value::Null);
     app.activate("space:santiago", rev);
