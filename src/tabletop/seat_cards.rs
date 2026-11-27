@@ -121,7 +121,7 @@ pub(super) fn strip(view: &Observation, ui: &Interface) -> Option<(Faction, Seat
     let own = ui.choice.pinned.as_deref().is_some_and(|pinned| {
         view.choices
             .iter()
-            .any(|c| c.action() == pinned && c.supported && ui.plays(c.owner))
+            .any(|c| c.action() == pinned && ui.can_confirm(c))
     });
     deciding(view, ui).filter(|_| !own)
 }

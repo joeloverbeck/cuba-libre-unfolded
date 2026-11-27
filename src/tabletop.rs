@@ -200,6 +200,10 @@ impl Interface {
     fn plays(&self, faction: Faction) -> bool {
         self.seats[faction.index()] == crate::faction_seats::SeatState::Human
     }
+    /// Whether the human can confirm this offered faction choice.
+    fn can_confirm(&self, choice: &Choice) -> bool {
+        choice.supported && self.plays(choice.owner)
+    }
     /// The factions the human plays, indexed like `Faction::ALL`.
     fn played(&self) -> [bool; 4] {
         Faction::ALL.map(|faction| self.plays(faction))

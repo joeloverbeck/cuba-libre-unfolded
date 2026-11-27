@@ -413,7 +413,11 @@ fn refusal(choice: &Choice) -> String {
     }
 }
 
-fn enabled(choice: &Choice, label: String, view: &Observation) -> Commit {
+fn confirm(choice: &Choice, label: String, view: &Observation, ui: &Interface) -> Commit {
+    if !ui.can_confirm(choice) {
+        let (label, reason) = choice::held_confirmation(choice.owner);
+        return disabled(label, reason);
+    }
     Commit {
         label,
         action: Action::Commit(choice.owner, view.revision),
@@ -444,12 +448,12 @@ fn refused(id: StepId, choice: &Choice) -> Commit {
 }
 
 /// The commit for the open step, or for the pinned step when none is open.
-pub(super) fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
+pub(super) fn commit(view: &Observation, pinned: Option<&str>, ui: &Interface) -> Commit {
     let mode = mode(view);
     let fixed = |action: &str| {
         listed(view, action).map(|c| {
             if c.supported {
-                enabled(c, c.label.clone(), view)
+                confirm(c, c.label.clone(), view, ui)
             } else {
                 disabled(format!("{} is not available yet", c.label), refusal(c))
             }
@@ -473,7 +477,7 @@ pub(super) fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                 .and_then(|id| Some((id, listed(view, id.action())?)))
             {
                 return if c.supported {
-                    enabled(c, c.label.clone(), view)
+                    confirm(c, c.label.clone(), view, ui)
                 } else {
                     refused(id, c)
                 };
@@ -481,13 +485,15 @@ pub(super) fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
             match (listed(view, "reopen"), &view.transfer) {
                 // TM-B's pending tab already carries the choice by its id, so this
                 // commit is the component `execution-commit` and submits it by id.
-                (Some(c), Some(Transfer::Authorizing { giver, .. })) => Commit {
-                    label: format!("Open the request · {} decides", giver.name()),
-                    action: Action::Submit(c.owner, view.revision, c.id.clone()),
-                    name: "execution-commit".into(),
-                    enabled: true,
-                    plate: format!("atlas-transfer-primary-{}.png", super::slug(*giver)),
-                },
+                (Some(c), Some(Transfer::Authorizing { giver, .. })) if ui.can_confirm(c) => {
+                    Commit {
+                        label: format!("Open the request · {} decides", giver.name()),
+                        action: Action::Submit(c.owner, view.revision, c.id.clone()),
+                        name: "execution-commit".into(),
+                        enabled: true,
+                        plate: format!("atlas-transfer-primary-{}.png", super::slug(*giver)),
+                    }
+                }
                 _ => disabled(
                     "The Resource transfer is open",
                     "The transfer decides first: give, ask, authorize, decline, Wait or Cancel.",
@@ -517,16 +523,17 @@ pub(super) fn commit(view: &Observation, pinned: Option<&str>) -> Commit {
                 },
                 StepId::BackToChoice => id.label().into(),
             };
-            enabled(c, words, view)
+            confirm(c, words, view, ui)
         }
     }
 }
 
 /// Kidnap's Cancel above the commit while Kidnap is open.
-fn cancel(view: &Observation) -> Option<&Choice> {
+fn cancel<'a>(view: &'a Observation, ui: &Interface) -> Option<&'a Choice> {
     (mode(view) == Mode::Kidnap)
         .then(|| listed(view, "kidnap:cancel"))
         .flatten()
+        .filter(|c| ui.can_confirm(c))
 }
 
 /// The controls Tab moves through during Terror, in order: the steps that can be
@@ -542,10 +549,10 @@ pub(super) fn focusable(view: &Observation, ui: &Interface) -> Vec<(String, Acti
         controls.extend(super::seat_cards::strip_focusable(view, ui));
         return controls;
     }
-    if let Some(c) = cancel(view) {
+    if let Some(c) = cancel(view, ui) {
         controls.push((c.id.clone(), Action::Commit(c.owner, view.revision)));
     }
-    let commit = commit(view, ui.choice.pinned.as_deref());
+    let commit = commit(view, ui.choice.pinned.as_deref(), ui);
     controls.push((commit.name, commit.action));
     controls
 }
@@ -895,9 +902,11 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
     for step in &steps {
         let top = step.id.row().0;
         let name = format!("step:{}", step.action);
-        let offered = step.bold
-            && (agent.is_none()
-                || listed(view, step.action).is_some_and(|c| c.supported && ui.plays(c.owner)));
+        let choice = listed(view, step.action).filter(|c| c.supported);
+        let offered = choice.map_or(step.bold && agent.is_none(), |c| ui.can_confirm(c));
+        let seat_note = choice
+            .filter(|c| !offered && c.owner != view.owner)
+            .map(|c| Status::Note(format!("{}'s seat", c.owner.name()), false));
         let area = rect(acb::ROW_X, top, acb::ROW_W, acb::ROW_H);
         // The open step is outlined; an offered step has the paper plate; the others
         // only their words.
@@ -981,7 +990,7 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
         );
         fade(commands, label, ink, step.dim, true);
         commands.entity(label).insert(Part(format!("{name}-label")));
-        match &step.status {
+        match seat_note.as_ref().unwrap_or(&step.status) {
             Status::Pill(kind, content) => {
                 let active = step.held || pinned == Some(step.action);
                 let right = acb::ROW_X
@@ -1028,7 +1037,7 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
         let hint = strip_hint(view, ui, strip.0);
         return super::seat_cards::panel_strip(commands, art, strip, Some(&hint), s, o);
     }
-    if let Some(c) = cancel(view) {
+    if let Some(c) = cancel(view, ui) {
         let [x, y, w, h] = fig::CANCEL;
         let plate = commands
             .spawn((
@@ -1076,7 +1085,7 @@ fn terror(commands: &mut Commands, art: &Art, view: &Observation, ui: &Interface
             Part("execution-cancel-label".into()),
         ));
     }
-    let commit = commit(view, pinned);
+    let commit = commit(view, pinned, ui);
     // 26July keeps its name on the red commit (#60's rule, accepted in #68); a giver's
     // colour keeps its name too, so its emblem does not vanish on its own colour.
     let content = if commit.plate.starts_with("atlas-transfer-primary-") {
@@ -1856,7 +1865,7 @@ mod tests {
             Status::Note("until the first effect".into(), false)
         );
         assert!(steps.iter().all(|s| !s.dim && !s.held));
-        let none = commit(&view, None);
+        let none = commit(&view, None, &Interface::default());
         assert!(!none.enabled);
         assert_eq!(none.name, "execution-commit");
         assert_eq!(none.label, "Click a step to choose it");
@@ -1885,7 +1894,7 @@ mod tests {
     fn a_terror_is_committed_only_by_its_space_s_popover() {
         let game = crate::terror_chosen(Game::opening());
         let view = game.observe();
-        let blocked = commit(&view, Some("terror:santiago"));
+        let blocked = commit(&view, Some("terror:santiago"), &Interface::default());
         assert!(!blocked.enabled);
         assert_eq!(blocked.label, "Click a step to choose it");
         let card = super::super::popover::content(&view, "santiago", None).unwrap();
@@ -1912,7 +1921,7 @@ mod tests {
         let view = game.observe();
         assert!(listed(&view, "terror:oriente").unwrap().supported);
         for pinned in [Some("terror:oriente"), None] {
-            let panel = commit(&view, pinned);
+            let panel = commit(&view, pinned, &Interface::default());
             assert!(!panel.enabled, "{pinned:?}");
             assert_eq!(panel.label, "Click a step to choose it");
         }
@@ -1994,6 +2003,7 @@ mod tests {
         let commit = commit(
             &crate::terror_chosen(Game::opening()).observe(),
             Some("end-terror"),
+            &Interface::default(),
         );
         assert_eq!(commit.label, "End Terror · records Operation Only");
         assert_eq!(commit.name, "1:end-terror");
@@ -2019,12 +2029,15 @@ mod tests {
             assert!(all.contains(fact), "{fact}: {all}");
         }
         assert!(!all.contains("No Resources"), "{all}");
-        let commit = commit(&view, None);
+        let commit = commit(&view, None, &Interface::default());
         assert_eq!(
             (commit.name.as_str(), commit.label.as_str()),
             ("2:kidnap:roll", "Roll the Kidnap die · commits the result")
         );
-        assert_eq!(cancel(&view).unwrap().id, "2:kidnap:cancel");
+        assert_eq!(
+            cancel(&view, &Interface::default()).unwrap().id,
+            "2:kidnap:cancel"
+        );
         let steps = steps(&view);
         assert!(step(&steps, "kidnap").held);
         for waiting in ["transfer", "remove", "end-terror", "back-to-choice"] {
@@ -2056,7 +2069,10 @@ mod tests {
         assert_eq!(state.pinned, None, "removal's tag would cover the pieces");
         let b = tag_of(&game, "remove");
         assert_eq!(b.title, "Voluntary removal");
-        assert_eq!(commit(&view, None).label, "Done · leave removal mode");
+        assert_eq!(
+            commit(&view, None, &Interface::default()).label,
+            "Done · leave removal mode"
+        );
         let mut game = crate::terror_chosen(Game::opening());
         game.submit(Faction::M26, 1, "1:transfer").unwrap();
         let text = words(&tag_of(&game, "transfer")).to_lowercase();
@@ -2099,12 +2115,12 @@ mod tests {
             );
             assert!(step(&steps, withdraw).interactive);
         }
-        let open = commit(&view, None);
+        let open = commit(&view, None, &Interface::default());
         assert_eq!(open.label, "Open the request · Syndicate decides");
         assert_eq!(open.plate, "atlas-transfer-primary-syndicate.png");
         assert_eq!(open.name, "execution-commit");
         assert!(matches!(open.action, Action::Submit(_, 4, ref id) if id == "4:reopen"));
-        let end = commit(&view, Some("end-terror"));
+        let end = commit(&view, Some("end-terror"), &Interface::default());
         assert_eq!(end.name, "4:end-terror");
         let b = tag_of(&game, "transfer");
         assert!(
@@ -2187,7 +2203,7 @@ mod tests {
                     words(&b)
                 );
                 assert_eq!(b.entries[1].chips, std::slice::from_ref(&remedy));
-                let commit = commit(&view, Some("end-terror"));
+                let commit = commit(&view, Some("end-terror"), &Interface::default());
                 assert!(!commit.enabled);
                 assert_eq!(commit.label, "End Terror is not available yet");
                 let Action::Unsupported(reason) = commit.action else {

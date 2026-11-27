@@ -696,6 +696,92 @@ fn native_each_seat_state_is_shown_and_a_held_choice_is_taken_back() {
     app.quit();
 }
 
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan"]
+fn native_terror_withdrawal_follows_its_choice_owner() {
+    let mut app = start("terror-withdrawal-", "issue-250", "3840x2160");
+    for action in ["terror", "transfer", "ask:0:1", "wait"] {
+        app.choose(action);
+    }
+    let revision = app.revision();
+    assert_eq!(revision, 4);
+    let before = app.save_bytes();
+
+    app.press("seat:26july:hand-over");
+    for action in ["back-to-choice", "end-terror"] {
+        let pinned = app.press_by_keyboard(&format!("step:{action}"));
+        assert_eq!(pinned["observation"]["owner"], "Government");
+        assert_eq!(pinned["table"]["choice"]["pinned"], action);
+        assert_eq!(
+            choice_part(&pinned, &format!("step:{action}-note"))["text"],
+            "26July's seat"
+        );
+        assert_eq!(
+            choice_part(&pinned, "execution-commit-label")["text"],
+            "26July's seat chooses"
+        );
+        assert!(controls(&pinned, &format!("{revision}:{action}")).is_empty());
+        assert!(
+            pinned["table"]["controls"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|c| c["name"] == "execution-commit" && c["choice"] == false)
+        );
+        assert_eq!(app.save_bytes(), before);
+        app.capture(&format!("held-{action}"));
+        let pointer = app.press("execution-commit");
+        assert_eq!(pointer["observation"], pinned["observation"]);
+        assert_eq!(app.save_bytes(), before);
+        let keyboard = app.press_by_keyboard("execution-commit");
+        assert_eq!(
+            keyboard["table"]["notice"],
+            "Only 26July's seat can choose this option."
+        );
+        assert_eq!(keyboard["observation"], pinned["observation"]);
+        assert_eq!(app.save_bytes(), before);
+    }
+
+    app.choose("reopen");
+    assert_eq!(app.observe()["table"]["transfer"]["state"]["shown"], true);
+    app.choose("wait");
+    app.press("step:back-to-choice");
+    let restored = app.press("seat:26july:take-back");
+    let revision = app.revision();
+    assert_eq!(restored["table"]["choice"]["pinned"], "back-to-choice");
+    let end = app.press_by_keyboard(&format!("{revision}:back-to-choice"));
+    assert_eq!(end["observation"]["revision"], revision + 1);
+    assert_eq!(end["observation"]["action"], "Open");
+    assert_eq!(end["observation"]["transfer"], Value::Null);
+
+    // Government can still answer with 26July's seat handed over.
+    for action in ["terror", "transfer", "ask:0:1", "wait"] {
+        app.choose(action);
+    }
+    app.press("seat:26july:hand-over");
+    app.choose("reopen");
+    app.choose("decline");
+    let declined = app.observe();
+    assert_eq!(declined["observation"]["transfer"], Value::Null);
+    assert_eq!(seat(&declined, "M26")["state"], "awaiting");
+
+    // In the reverse assignment, 26July can end Terror while Government waits.
+    app.press("seat:26july:take-back");
+    app.choose("transfer");
+    app.press("seat:government:hand-over");
+    app.choose("ask:0:1");
+    let pinned = app.press_by_keyboard("step:end-terror");
+    assert_eq!(pinned["observation"]["owner"], "Government");
+    assert_eq!(says(&pinned, "seat-strip-title"), None);
+    app.capture("human-end-terror");
+    let revision = app.revision();
+    let ended = app.press_by_keyboard(&format!("{revision}:end-terror"));
+    assert_eq!(ended["observation"]["revision"], revision + 1);
+    assert_eq!(ended["observation"]["finished"], true);
+    assert_eq!(ended["observation"]["transfer"], Value::Null);
+    app.quit();
+}
+
 /// Handing over and taking back by the keyboard, with the transfer modal shown, with the
 /// die in the air, and in windows of other shapes.
 #[test]
