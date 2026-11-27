@@ -26,6 +26,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 anyhow = "1"
+tempfile = "3"
 # The desktop's clipboard, for a seat's line (#206): text only.
 arboard = { version = "3.6", optional = true, default-features = false }
 image = { version = "=0.25.10", default-features = false, features = ["png", "jpeg"] }
@@ -39,7 +40,6 @@ bevy = { version = "=0.20.0", optional = true, default-features = false, feature
 [dev-dependencies]
 anstream = { version = "1", default-features = false }
 rustix = { version = "1", features = ["fs", "event"] }
-tempfile = "3"
 
 [[bin]]
 name = "cuba-libre"

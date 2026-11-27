@@ -15,7 +15,7 @@ socket="$run/seat.sock" &&
 printf 'Launch logs in %s\n' "$run" &&
 scripts/heavy scripts/package-review-binaries "$run/bin" >"$run/build.log" 2>&1 &&
 "$run/bin/cuba-libre" \
-  --cards "$HOME/.local/share/cuba-libre-unfolded/cards" --save "$run/task.json" \
+  --cards "${XDG_DATA_HOME:-$HOME/.local/share}/cuba-libre-unfolded/cards" --save "$run/task.json" \
   --agent-seat --socket "$socket" \
   >"$run/launch.jsonl" 2>"$run/launch.stderr" &&
   jq -ce 'select(.status == "ready") | {status, revision: .observation.revision}' "$run/launch.jsonl"

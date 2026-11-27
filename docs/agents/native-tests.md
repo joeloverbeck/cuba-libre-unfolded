@@ -12,6 +12,22 @@ Run affected integration selectors when changing a report article, choice family
 
 When changing how a report receives committed facts, cover the whole action, a continuation starting after a relevant request or reply, and a cancelled attempt when the rules allow one. For a behavior-preserving change, run those assertions against the starting revision before changing the handoff.
 
+## Desktop launch smoke
+
+Use a fresh checkout of the exact candidate in the ordinary Ubuntu desktop session. Select the private source explicitly and isolate the per-user data, so the command must provision its own cards and create its own save. Set `CUBA_PRIVATE_CARD_SOURCE` to the absolute path of the private originals and `CUBA_LAUNCH_EVIDENCE` to an unused directory under the main checkout's `local/verification/`.
+
+```sh
+mkdir -p -- "$CUBA_LAUNCH_EVIDENCE"
+XDG_DATA_HOME="$CUBA_LAUNCH_EVIDENCE/data" \
+  scripts/heavy scripts/play --card-source "$CUBA_PRIVATE_CARD_SOURCE" \
+  >"$CUBA_LAUNCH_EVIDENCE/first-launch.log" 2>&1
+XDG_DATA_HOME="$CUBA_LAUNCH_EVIDENCE/data" \
+  scripts/heavy scripts/play \
+  >"$CUBA_LAUNCH_EVIDENCE/restart.log" 2>&1
+```
+
+On each launch, verify that the **Cuba Libre Unfolded — tactical candidate** window displays the prepared table and close it without playing a move. Verify that `data/cuba-libre-unfolded/saves/task.json` was created and that the second launch resumes it. For a newly required card, also repeat the plain command with an isolated copy of the preceding build's card directory and the remembered source. Verify the new file was installed with the admitted hash and the table opens. Record the exact revision, the observed window and save behavior, and the relevant log paths. Keep the private inputs and the source path out of Git and the PR.
+
 ## Persistent table controls
 
 When adding or moving a control visible on the ordinary table, run the 4K main-view regression before integrating the ticket. It checks the authored layout and exposed board areas as well as the controls' effects on picking and camera input. Set `CUBA_TEST_CARDS` to the [private card directory](../../README.md#where-files-live).

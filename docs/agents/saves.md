@@ -1,6 +1,6 @@
 # Saves
 
-How the app writes, admits and recovers a save. [README, "Saves and recovery"](../../README.md#saves-and-recovery) covers what a person does; this page covers the mechanism behind it, for work that touches `src/save.rs` or what a save records. [ADR 0003](../adr/0003-a-save-opens-by-exact-replay.md) records why the save works this way.
+How the app writes, admits and recovers a save. The [README](../../README.md#saves-and-recovery) covers ordinary save use. [ADR 0003](../adr/0003-a-save-opens-by-exact-replay.md) records why the save works this way.
 
 ## The record
 
@@ -33,3 +33,13 @@ A decision whose candidate fails the check before it is written keeps that check
 ## Recovery
 
 `--recover-from` copies a save's `.previous` into an unused destination, once it passes the same exact-replay admission. The source and its `.previous` stay untouched, and a destination already in use is refused.
+
+From the checkout root, use your [prepared card directory](../../README.md#build-and-launch) and an unused destination:
+
+```sh
+cargo run --locked --features tabletop --bin cuba-libre -- \
+  --cards "${XDG_DATA_HOME:-$HOME/.local/share}/cuba-libre-unfolded/cards" \
+  --save "/path/to/recovered.json" --recover-from "/path/to/task.json"
+```
+
+Inspect the recovered state before choosing it as your continuing save.

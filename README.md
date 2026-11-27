@@ -11,20 +11,21 @@ An Ubuntu Rust desktop implementation of **Cuba Libre**, the COIN game by Jeff G
 - For the `tabletop` feature (the desktop app): Bevy 0.20.0, an X11 desktop, a Vulkan-capable graphics driver, the ordinary C/C++ build tools and the X11 development libraries Bevy uses.
 - Network access for the first build's Cargo dependencies. Sibling working trees are not needed: `Cargo.toml` and `Cargo.lock` pin the shared dependency and the root renderer patch.
 
-Put your private copies of `card-17.png`, `card-18.png`, `card-19.png`, `card-20.png` and the card back, `cuba-libre-card-back.png`, in `~/.local/share/cuba-libre-unfolded/cards/`. All five must match [the admitted hashes](art/atlas/README.md#private-card-admission); the app refuses to launch without any of them and names the file. If you keep the images elsewhere, use that directory for `--cards`.
-
-From the checkout root, build and launch the desktop app with `cargo run`.
+On first use, launch from the checkout root with the directory that holds your private original card images. For example, if your collection is in `Pictures/Cuba Libre Resources`:
 
 ```sh
-mkdir -p "$HOME/.local/share/cuba-libre-unfolded/saves"
-cargo run --locked --features tabletop --bin cuba-libre -- \
-  --cards "$HOME/.local/share/cuba-libre-unfolded/cards" \
-  --save "$HOME/.local/share/cuba-libre-unfolded/saves/task.json"
+scripts/play --card-source "$HOME/Pictures/Cuba Libre Resources"
 ```
 
-The `--` passes the required `--cards` and `--save` arguments to the game. An unused `--save` filename starts the prepared scenario. Use the same filename to resume that save.
+The source can be a collection with `images/cards/` and `images/card-backs/`, or a directory of individual private copies. The launcher checks the [required files and hashes](art/atlas/README.md#private-card-admission) before building the desktop app. It remembers a source that supplies the full current set and uses it to install newly required files after a pull. If an installed card is incompatible, move it aside and rerun the launcher. Supply `--card-source DIRECTORY` if you have yet to configure a source or need to select a new one.
 
-The app loads table art from `art/atlas` relative to the checkout root. If you run the binary from another directory, pass the absolute path to `art/atlas` with `--art`. The app exits before creating or replacing a save if any required art or card image is missing or has changed.
+For later launches, run:
+
+```sh
+scripts/play
+```
+
+The default save is `saves/task.json` in the per-user data directory. Use `scripts/play --save /absolute/path/to/task.json` to choose another file. An unused filename starts the prepared scenario.
 
 ## Playing this build
 
@@ -43,7 +44,7 @@ It prints the checked revision and whether the working tree differs from it, the
 Core tests need no private inputs or GPU. The ignored native regressions need the card directory and a working renderer. `scripts/native` runs them all, those that launch the app four at a time, and checks that each requested name filter selects a regression. On a shared machine, run it in the memory scope that [parallel-work.md](docs/agents/parallel-work.md#builds) describes. See the [native regression catalogue](docs/agents/native-tests.md) for focused runs.
 
 ```sh
-CUBA_TEST_CARDS="$HOME/.local/share/cuba-libre-unfolded/cards" scripts/native
+CUBA_TEST_CARDS="${XDG_DATA_HOME:-$HOME/.local/share}/cuba-libre-unfolded/cards" scripts/native
 ```
 
 Each native test keeps its saves, observations and screenshots under `local/verification/`. Inspect the images yourself: passing assertions do not prove readability or owner acceptance.
@@ -60,23 +61,18 @@ The development seat drives the same scene, UI and input path without opening a 
 | Agent verification saves, captures, observations and retained logs | a fresh run directory under `local/verification/`, such as `issue-<N>/<run>/` for issue work |
 | Agent worktrees | `local/worktrees/<branch>/` |
 | The private card directory for `--cards` and `CUBA_TEST_CARDS` | `~/.local/share/cuba-libre-unfolded/cards/` |
+| The launcher's remembered private source path | `~/.local/share/cuba-libre-unfolded/card-source` |
 | Handoff notes | `local/handoffs/`; the durable state belongs in an issue comment |
 
 `local/` is ignored by Git and survives reboots, but not `git clean -x` or deleting the checkout; it is no backup. Existing saves and retained evidence are never migrated, overwritten or cleaned up. Saves, imports and verification evidence stay outside Git.
+
+When set, `XDG_DATA_HOME` replaces `~/.local/share` for the launcher's private cards, source path and default saves.
 
 ## Saves and recovery
 
 Each successful save keeps the prior valid record beside it as `task.json.previous`. A save the app cannot admit is refused, and every file is left as it was. Saves are disposable across builds ([foundation 2](docs/foundation/02-rules-and-verification.md#engine-authority)); for a refused save from another build, start a match under an unused save name. [docs/agents/saves.md](docs/agents/saves.md#admission-and-refusal) lists what is refused and why.
 
-To recover an original record's `.previous` into an **unused** destination:
-
-```sh
-cargo run --locked --features tabletop --bin cuba-libre -- \
-  --cards "$HOME/.local/share/cuba-libre-unfolded/cards" \
-  --save "/path/to/recovered.json" --recover-from "/path/to/task.json"
-```
-
-The original and its recovery bytes stay untouched. Inspect the recovered state before choosing it as your continuing save.
+Follow the [recovery procedure](docs/agents/saves.md#recovery) to open a previous record under a new filename.
 
 ## Where to read next
 
