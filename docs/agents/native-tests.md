@@ -34,9 +34,9 @@ For each launch, verify that the **Cuba Libre Unfolded — tactical candidate** 
 
 ### Existing installation
 
-For changes to the default launch path or the required private cards, also run the plain README command against an isolated copy of the preceding installation. Copy its installed cards, remembered source, default save and any adjacent `.previous` under `cuba-libre-unfolded/` and set `XDG_DATA_HOME` to that directory's parent. For a newly required card, verify that the launcher installs it with the admitted hash. When testing an incompatible default save, verify that the launcher selects a separate save.
+For launcher changes or changes to the required private cards, also run the plain README command against an isolated copy of the preceding installation. Copy its installed cards, remembered source, default save and any adjacent `.previous` under `cuba-libre-unfolded/` and set `XDG_DATA_HOME` to that directory's parent. For a newly required card, verify that the launcher installs it with the admitted hash. For changes to save selection, use an incompatible default save for this case and verify that the launcher selects a separate save.
 
-Verify that the table accepts camera movement and a player choice, and that relaunching with the README command resumes that choice. Use `cmp` against untouched reference copies to verify any refused save and its `.previous` are preserved byte for byte.
+Verify that the table accepts camera movement and a player choice, and that relaunching with the README command resumes that choice. Record the revision before and after the choice and capture the restarted window showing its result. Use `cmp` against untouched reference copies to verify any refused save and its `.previous` are preserved byte for byte.
 
 ### Window and input
 
