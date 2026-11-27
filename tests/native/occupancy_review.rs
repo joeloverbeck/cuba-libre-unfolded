@@ -93,6 +93,16 @@ fn native_economic_center_review_opens_without_a_save() {
     assert!(String::from_utf8_lossy(&refused.stderr).contains("Occupancy review has no save"));
 
     app.capture("ec-factory-home");
+    let supply = app.point("marker-supply");
+    assert_eq!(
+        supply["table"]["top"]["rows"],
+        json!([
+            ["Terror on the map", "0"],
+            ["Sabotage on the map", "1"],
+            ["Available", "19 of 20"]
+        ])
+    );
+    app.point("space:ec-las-villas-camaguey");
     app.request(
         json!({"op":"scroll","revision":0,"component":"space:ec-las-villas-camaguey","y":18}),
         true,

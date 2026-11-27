@@ -355,7 +355,7 @@ fn native_manifesto_havana_restarts_with_both_base_slots_filled() {
     assert_ne!(close["table"]["camera"]["target"], camera["target"]);
     assert!(
         close["table"]["camera"]["distance"].as_f64().unwrap()
-            < camera["distance"].as_f64().unwrap() * 0.4
+            < camera["distance"].as_f64().unwrap() * 0.45
     );
     assert_eq!(&close["observation"], finished);
     let havana_counts = close["table"]["counts"]

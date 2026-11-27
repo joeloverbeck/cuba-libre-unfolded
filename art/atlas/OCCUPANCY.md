@@ -64,7 +64,8 @@ The rules allow independent occupancy dimensions subject to the caps and attachm
 Generate the card 19 save through the ordinary action and placement flow, then reopen the named inspection copy in the same build.
 
 ```bash
-CUBA_TEST_CARDS="$CUBA_TEST_CARDS" scripts/heavy scripts/native --exact manifesto_havana::native_manifesto_havana_restarts_with_both_base_slots_filled
+CUBA_TEST_CARDS="${XDG_DATA_HOME:-$HOME/.local/share}/cuba-libre-unfolded/cards" \
+  scripts/heavy scripts/native --exact manifesto_havana::native_manifesto_havana_restarts_with_both_base_slots_filled
 ```
 
 The run prints the evidence directory. Under its `manifesto-havana-*` run, copy `manifesto-havana-six-groups.save.json` to an unused path and open the copy with `scripts/play --save /absolute/path/to/copy.save.json`. The same directory contains `manifesto-havana-home.png`, `manifesto-havana-close.png`, the earlier Directorio decision save and the native seat replies.
@@ -82,7 +83,7 @@ CARGO_TARGET_DIR="$review_target" scripts/heavy cargo build --locked --features 
 "$review_target/debug/cuba-libre" --cards "$CUBA_TEST_CARDS" --occupancy-review dense:ec-las-villas-camaguey
 ```
 
-The normal panels frame the island; the right panel names the review case. The Factory EC is the yellow disc between Las Villas and Camagüey. From **Home**, pan toward the disc, then scroll over the map to inspect. Eight force groups cross the narrow profile in the incumbent row layout. A small solid marked **S** reserves provisional Sabotage space. The green blocks beneath four carriers reserve provisional Cash space. Use the window's close control before starting another case. Add `--agent-seat --seat-size 3840x2160 --socket /absolute/path/to/new.sock` for the ordinary development-seat camera and capture requests. Record the exact build revision and case ID with the evidence.
+The normal panels frame the island; the right panel names the review case. The Factory EC is the yellow disc between Las Villas and Camagüey. From **Home**, pan toward the disc, then scroll over the map to inspect. Eight force groups cross the narrow profile in the incumbent row layout. A small solid marked **S** reserves provisional Sabotage space. The green blocks beneath four carriers reserve provisional Cash space. Each block measures 0.26 × 0.035 × 0.24 world units. The provisional Sabotage disc has 0.15 radius and 0.075 height. The incumbent Troop and Police cubes have 0.18 sides, Guerrillas have 0.10 radius and 0.24 height, and Bases and Casinos have 0.15 radius and 0.075 height. Use the window's close control before starting another case. Add `--agent-seat --seat-size 3840x2160 --socket /absolute/path/to/new.sock` for the ordinary development-seat camera and capture requests. Record the exact build revision and case ID with the evidence.
 
 | Case | Opens |
 |---|---|
