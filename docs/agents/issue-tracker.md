@@ -12,11 +12,13 @@ Use `gh` from this clone. Before creating an issue, verify the target with `gh r
 - Comment: `gh issue comment <number> --body-file <file>`.
 - Label: `gh issue edit <number> --add-label "..."` or `--remove-label "..."`.
 - Close: post the explanation first, then `gh issue close <number>`.
-- Merge: first run the `code-review` skill against the PR's merge-base. Fix each finding, or record in the PR why it stays (a linked ticket or a stated reason). The review must cover the head you merge: review commits pushed after it with `code-review` from the last reviewed commit. After a push, run `scripts/wait-ci <n>` in the background from the pull request's checkout: it waits for that head's `Rust checks` and fails unless they pass. GitHub deletes the PR's head branch automatically; delete only the local branch.
+- Merge: first run the `code-review` skill against the PR's merge-base. Fix each finding, or record in the PR why it stays (a linked ticket or a stated reason). The review must cover the head you merge: review commits pushed after it with `code-review` from the last reviewed commit.
+
+  After a push, use the pull request's checkout and an execution context where `gh pr view <n>` can read GitHub. If sandbox API access fails, use the approved host execution route. Start `scripts/wait-ci <n>` in the background in that context. It follows a returned head SHA or pending check through propagation and requires the checkout's exact head to pass `Rust checks`.
+
+  GitHub deletes the PR's head branch automatically; delete only the local branch.
 
 Write multiline bodies to a file and use `--body-file`. When a skill says to publish to the tracker, create an issue; when it says to fetch a ticket, read the issue.
-
-Run `scripts/wait-ci <n>` through the same execution context that can read the PR with `gh pr view <n>`. If the sandbox denies API access, use the approved host execution route for the watcher. A returned head SHA or a pending check uses the watcher's propagation wait.
 
 Prefer native sub-issues and blocking dependencies when supported by the installed CLI and repository. Otherwise use `Part of #<parent>` and `Blocked by: #<number>` lines with a parent task list. Closed blockers alone do not authorize activation; verify their accepted outcomes and the dependent issue's readiness.
 

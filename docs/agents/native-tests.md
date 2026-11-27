@@ -10,6 +10,8 @@ Run affected integration selectors when changing a report article, choice family
 | Choice families or seat briefs | `seat_reference::`, `seat_briefs::` |
 | Faction-view projection or choice ownership | `faction_seats::` |
 
+When changing how a report receives committed facts, cover the whole action, a continuation starting after a relevant request or reply, and a cancelled attempt when the rules allow one. For a behavior-preserving change, run those assertions against the starting revision before changing the handoff.
+
 ## Desktop launch smoke
 
 Use a fresh checkout of the exact candidate in the ordinary Ubuntu desktop session. Select the private source explicitly and isolate the per-user data, so the command must provision its own cards and create its own save. Set `CUBA_PRIVATE_CARD_SOURCE` to the absolute path of the private originals and `CUBA_LAUNCH_EVIDENCE` to an unused directory under the main checkout's `local/verification/`.
