@@ -501,6 +501,26 @@ struct Native {
     save: PathBuf,
     step: usize,
 }
+
+/// Copy the observed adapter line to this runner invocation's timing directory.
+fn record_app_adapter(log: &str) -> std::io::Result<()> {
+    use std::io::Write;
+
+    if let Some(path) = std::env::var_os("CUBA_NATIVE_APP_ADAPTER_LOG")
+        && let Some(line) = log
+            .lines()
+            .find(|line| line.contains("bevy_render::renderer") && line.contains("AdapterInfo {"))
+    {
+        let record = format!("{line}\n");
+        std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(path)?
+            .write_all(record.as_bytes())?;
+    }
+    Ok(())
+}
+
 impl Native {
     /// Where the detached app writes its log: beside the socket.
     fn runtime_log(&self) -> PathBuf {
@@ -854,9 +874,11 @@ impl Native {
         );
         std::fs::copy(runtime, &retained).unwrap();
         let bytes = std::fs::read(&retained).unwrap();
+        let log = String::from_utf8_lossy(&bytes);
+        record_app_adapter(&log).unwrap();
         let software_vulkan =
             std::env::var_os("CUBA_NATIVE_SOFTWARE_VULKAN").is_some_and(|value| value == "1");
-        for (index, line) in String::from_utf8_lossy(&bytes).lines().enumerate() {
+        for (index, line) in log.lines().enumerate() {
             assert!(
                 !unexpected_record(line, software_vulkan),
                 "{}:{}: {line}",
@@ -914,8 +936,15 @@ impl Drop for Native {
             .output();
         // The log says why an app ended early, and goes with the socket's directory.
         if std::thread::panicking() {
-            let kept = format!("{:03}-failed-runtime.log", self.step);
-            let _ = std::fs::copy(self.runtime_log(), self.root.join(kept));
+            let kept = self
+                .root
+                .join(format!("{:03}-failed-runtime.log", self.step));
+            if std::fs::copy(self.runtime_log(), &kept).is_ok()
+                && std::env::var_os("CUBA_NATIVE_APP_ADAPTER_LOG").is_some()
+                && let Ok(bytes) = std::fs::read(kept)
+            {
+                let _ = record_app_adapter(&String::from_utf8_lossy(&bytes));
+            }
         }
     }
 }

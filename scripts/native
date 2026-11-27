@@ -3,11 +3,48 @@
 # once (`--test-threads=1` to 4 chooses), and the in-process ones serially.
 set -euo pipefail
 # Bash reads a script as it runs. The braces make it read all of this one first, so an edit to
-# this script during a run cannot change the run.
+# this script during a run cannot change commands in that invocation.
 {
+if [[ ${1:-} == --timed-harness ]]; then
+  # Cargo invokes this after it resolves the executable. Leave the caller's log
+  # alone if Cargo never dispatches a test harness.
+  shift
+  export RUSTC_BOOTSTRAP=1
+  position=$CUBA_NATIVE_LOG_POSITION
+  width=$CUBA_NATIVE_LOG_WIDTH
+  before_log=("${@:2:position-1}")
+  after_log=("${@:position+width+1}")
+  # The harness parses its options before opening the logfile. Validate them
+  # without running tests. Help can succeed without opening the logfile.
+  preflight="$CUBA_NATIVE_HARNESS_LOG.preflight"
+  opens_logfile=false
+  if "$1" --list "${before_log[@]}" "--logfile=$preflight" "${after_log[@]}" >/dev/null 2>&1 \
+    && [[ -f $preflight ]]; then
+    opens_logfile=true
+  fi
+  rm -f -- "$preflight"
+  if ! "$opens_logfile"; then exec "$@"; fi
+  if ! exec {caller_fd}>"$CUBA_NATIVE_CALLER_LOG"; then
+    # Keep libtest's diagnosis of an unusable logfile path.
+    exec "$@"
+  fi
+  # Duplicate libtest's one logfile as it writes. Close our descriptors in
+  # the harness so a detached app cannot keep the mirror open on interruption.
+  exec {log_fd}> >(trap '' INT TERM; tee --output-error=warn -- "$CUBA_NATIVE_HARNESS_LOG" >&"$caller_fd")
+  log_pid=$!
+  status=0
+  "$1" "${before_log[@]}" "--logfile=/proc/$BASHPID/fd/$log_fd" "${after_log[@]}" \
+    {log_fd}>&- {caller_fd}>&- || status=$?
+  exec {log_fd}>&- {caller_fd}>&-
+  if ! wait "$log_pid" && ((status == 0)); then status=1; fi
+  exit "$status"
+fi
+
+read -r started _ < /proc/uptime
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
 
-echo "revision: $(git rev-parse HEAD)"
+revision=$(git rev-parse HEAD)
+echo "revision: $revision"
 changes=$(git status --porcelain --untracked-files=normal)
 if [[ -z $changes ]]; then
   echo "working tree: clean"
@@ -31,18 +68,6 @@ before=$(suite_inputs)
 if [[ ${1:-} == --inputs ]]; then
   echo "suite inputs: ${before:-not named, files the suite reads differ from the revision}"
   exit
-fi
-
-# From a worktree, evidence goes to the main checkout: `git worktree remove` deletes the
-# worktree's own ignored files. A set CUBA_NATIVE_EVIDENCE wins.
-common=$(dirname -- "$(git rev-parse --path-format=absolute --git-common-dir)")
-if [[ -z ${CUBA_NATIVE_EVIDENCE:-} && $common != "$(git rev-parse --show-toplevel)" ]]; then
-  branch=$(git branch --show-current)
-  branch=${branch:-detached}
-  run=$(git rev-parse --short HEAD)-$(date +%Y%m%d-%H%M%S)
-  # A dirty tree's evidence does not go under the clean revision's name.
-  if [[ -n $changes ]]; then run=${run/-/-dirty-}; fi
-  export CUBA_NATIVE_EVIDENCE="$common/local/verification/native/${branch//\//-}/$run"
 fi
 
 # Four apps fit `scripts/heavy`'s memory scope (docs/agents/parallel-work.md, "Native
@@ -91,6 +116,10 @@ selection=()
 exact=false
 bench=false
 run_tests=false
+user_log=
+caller_log_count=0
+unstable=(-Z unstable-options)
+report_time=(--report-time)
 while (($#)); do
   case $1 in
     -h|--help) exec cargo test --locked --features tabletop --test native -- --help ;;
@@ -103,13 +132,29 @@ while (($#)); do
       shift ;;
     --bench) bench=true ;;
     --test) run_tests=true ;;
-    -Z)
+    -Z|-qZ)
       if (($# < 2)); then echo "-Z needs an option" >&2; exit 2; fi
       selection+=("$1" "$2")
+      unstable=()
       shift ;;
-    -Z*|--skip=*|--exclude-should-panic|--include-ignored|--ignored)
+    -Z*|-qZ*) selection+=("$1"); unstable=() ;;
+    --skip=*|--exclude-should-panic|--include-ignored|--ignored)
       selection+=("$1") ;;
-    --format|--color|--shuffle-seed|--logfile)
+    --report-time) report_time=() ;;
+    --logfile=*)
+      user_log=${1#*=}
+      log_position=$((given-$#))
+      log_width=1
+      ((caller_log_count+=1))
+      ;;
+    --logfile)
+      if (($# < 2)); then echo "--logfile needs a path" >&2; exit 2; fi
+      user_log=$2
+      log_position=$((given-$#))
+      log_width=2
+      ((caller_log_count+=1))
+      shift ;;
+    --format|--color|--shuffle-seed)
       # Space-separated option values aren't test names.
       if (($# > 1)); then shift; fi ;;
     -*) ;;
@@ -124,13 +169,19 @@ if "$bench" && ! "$run_tests" && ! "$list"; then
   exit 2
 fi
 cargo_test=(cargo test --locked --features tabletop)
+# Cargo sets the test environment and resolves the executable. Enable unstable
+# libtest options only on the executable; setting bootstrap on Cargo rebuilds Bevy.
+runner_key="target.'cfg(target_os = \"linux\")'.runner"
+timed_cargo=("${cargo_test[@]}" --config "$runner_key=['env','RUSTC_BOOTSTRAP=1']")
+listing_cargo=("${cargo_test[@]}")
+if ((${#unstable[@]} == 0)); then listing_cargo=("${timed_cargo[@]}"); fi
 # The library's regressions share one renderer in one process, so they stay serial.
 harness=(--ignored --test-threads=1)
 app_harness=(--ignored "--test-threads=$apps")
 if ((${#filters[@]} + ${#selection[@]})); then
   # Let libtest apply the selection; keep output formatting and logging options
   # for the caller's actual run so discovery always reads a plain catalogue.
-  listing=$("${cargo_test[@]}" --test native --lib -- "${harness[@]}" --list "${selection[@]}" -- "${filters[@]}")
+  listing=$("${listing_cargo[@]}" --test native --lib -- "${harness[@]}" --list "${selection[@]}" -- "${filters[@]}")
   # The stable libtest catalogue prints one fully qualified "name: test" per line.
   mapfile -t names < <(sed -n 's/: test$//p' <<<"$listing")
   for filter in "${filters[@]}"; do
@@ -152,7 +203,7 @@ if ((${#filters[@]} + ${#selection[@]})); then
   fi
 fi
 if "$list"; then
-  exec "${cargo_test[@]}" --test native --lib -- "${harness[@]}" "${args[@]}"
+  exec "${listing_cargo[@]}" --test native --lib -- "${harness[@]}" "${args[@]}"
 fi
 
 if [[ -n $shard ]]; then
@@ -164,19 +215,112 @@ if [[ -n $shard ]]; then
 fi
 
 : "${CUBA_TEST_CARDS:?set CUBA_TEST_CARDS to the selected card directory (README, Where files live)}"
+# A worktree's default evidence lives in a fresh directory in the main checkout.
+common=$(dirname -- "$(git rev-parse --path-format=absolute --git-common-dir)")
+if [[ -z ${CUBA_NATIVE_EVIDENCE:-} && $common != "$(git rev-parse --show-toplevel)" ]]; then
+  branch=$(git branch --show-current)
+  branch=${branch:-detached}
+  run=$(git rev-parse --short HEAD)-$(date +%Y%m%d-%H%M%S)
+  if [[ -n $changes ]]; then run=${run/-/-dirty-}; fi
+  evidence_root="$common/local/verification/native/${branch//\//-}"
+  mkdir -p -- "$evidence_root"
+  app_evidence=$(mktemp -d -- "$evidence_root/$run-XXXXXX")
+  export CUBA_NATIVE_EVIDENCE="$app_evidence"
+fi
 if [[ -n ${CUBA_NATIVE_EVIDENCE:-} ]]; then echo "evidence: $CUBA_NATIVE_EVIDENCE"; fi
 whole=false
 if [[ -n $shard ]] || ((given == 0)); then whole=true; fi
+timing_root=${CUBA_NATIVE_EVIDENCE:-local/verification/native}
+mkdir -p -- "$timing_root"
+timing=$(mktemp -d -- "$timing_root/timing-XXXXXX")
+echo "timings: $timing"
 failed=()
+statuses=()
+run_timed() {
+  local label=$1 failure_label=$1
+  shift
+  local log="$timing/$label.log"
+  local target=(--lib)
+  local options=("${harness[@]}")
+  local runner=("${timed_cargo[@]}")
+  local stderr_fd stderr_pid status=0 stderr_status=0
+  if [[ $label == app ]]; then
+    target=(--test native)
+    options=("${app_harness[@]}")
+    failure_label=tests/native.rs
+    local -x CUBA_NATIVE_APP_ADAPTER_LOG="$timing/app-adapters.log"
+    exec {stderr_fd}>&2
+  else
+    # The library's Bevy renderer logs directly to stderr.
+    exec {stderr_fd}> >(tee -- "$timing/library.stderr" >&2)
+    stderr_pid=$!
+  fi
+  if ((caller_log_count == 0)); then
+    options+=(--logfile "$log")
+  elif ((caller_log_count == 1)); then
+    runner=("${cargo_test[@]}" --config "$runner_key=['bash','scripts/native','--timed-harness']")
+    local -x CUBA_NATIVE_HARNESS_LOG="$log" CUBA_NATIVE_CALLER_LOG="$user_log"
+    # Count arguments before the caller's logfile, including the executable.
+    local -x CUBA_NATIVE_LOG_POSITION=$((1 + ${#unstable[@]} + ${#report_time[@]} + ${#options[@]} + log_position))
+    local -x CUBA_NATIVE_LOG_WIDTH=$log_width
+  fi
+  # Duplicate logfile options are left for libtest to diagnose.
+  "${runner[@]}" "${target[@]}" -- "${unstable[@]}" "${report_time[@]}" \
+    "${options[@]}" "$@" 2>&"$stderr_fd" || status=$?
+  exec {stderr_fd}>&-
+  if [[ -v stderr_pid ]]; then wait "$stderr_pid" || stderr_status=$?; fi
+  if ((status || stderr_status)); then
+    failed+=("$failure_label")
+    statuses+=("$failure_label: Cargo=$status, stderr=$stderr_status")
+  fi
+}
+
 echo "== tests/native.rs, $apps at once"
-"${cargo_test[@]}" --test native -- "${app_harness[@]}" "${args[@]}" || failed+=("tests/native.rs")
+run_timed app "${args[@]}"
+library_threads=skipped
 if [[ -z $shard ]]; then
+  library_threads=1
   echo "== library (in-process)"
-  "${cargo_test[@]}" --lib -- "${harness[@]}" "${args[@]}" || failed+=("library")
+  run_timed library "${args[@]}"
 elif ((part == 1)); then
+  library_threads=1
   echo "== library (in-process)"
-  "${cargo_test[@]}" --lib -- "${harness[@]}" || failed+=("library")
+  run_timed library
 fi
+
+read -r ended _ < /proc/uptime
+{
+  echo "revision: $revision${changes:+ (working tree modified)}; shard: ${shard:-unsharded}; app threads: $apps; library threads: $library_threads"
+  echo "observed suite inputs at start: ${before:-unavailable (working tree differs from the revision)}"
+  echo "renderer settings: WGPU_BACKEND=${WGPU_BACKEND:-default} VK_DRIVER_FILES=${VK_DRIVER_FILES:-default} CUBA_NATIVE_SOFTWARE_VULKAN=${CUBA_NATIVE_SOFTWARE_VULKAN:-0}"
+  adapter_line='s/.*AdapterInfo \{ name: "([^"]+)".*backend: ([^, }]+).*/\1 (\2)/p'
+  app_adapters=
+  if [[ -f $timing/app-adapters.log ]]; then
+    app_adapters=$(sed -nE "$adapter_line" "$timing/app-adapters.log" | sort -u)
+  fi
+  library_adapters=
+  if [[ -f $timing/library.stderr ]]; then
+    library_adapters=$(sed -nE "$adapter_line" "$timing/library.stderr" | sort -u)
+  fi
+  echo "observed app adapter: ${app_adapters:-unreported}"
+  echo "observed library adapter: ${library_adapters:-unreported}"
+  LC_ALL=C awk -v start="$started" -v end="$ended" 'BEGIN { printf "runner wall time: %.2fs\n", end-start }'
+  if ((${#failed[@]})); then
+    printf 'failed in: %s\n' "${failed[*]}"
+    printf 'exit statuses (%s)\n' "${statuses[@]}"
+  else
+    echo "result: passed"
+  fi
+  echo "seconds  result  test (slowest first)"
+  for log in "$timing"/{app,library}.log; do
+    [[ -f $log ]] || continue
+    awk '$NF ~ /^<[0-9.]+s>$/ && $1 ~ /^(ok|failed:?)$/ {
+      sub(/:$/, "", $1)
+      print substr($NF, 2, length($NF)-3), $1, $(NF-1)
+    }' "$log"
+  done | LC_ALL=C sort -nr
+} | tee "$timing/summary.txt"
+
 if ((${#failed[@]})); then
   echo "native regressions failed in: ${failed[*]}" >&2
   exit 1
@@ -190,10 +334,11 @@ fi
 # failed one cannot be taken for the suite.
 if "$whole"; then
   if [[ -n $before && $(suite_inputs) == "$before" ]]; then
-    echo "suite inputs: $before"
+    verdict="suite inputs: $before"
   else
-    echo "suite inputs not named: files the suite reads differ from the revision or changed during the run"
+    verdict="suite inputs not named: files the suite reads differ from the revision or changed during the run"
   fi
+  printf '%s\n' "$verdict" | tee -a "$timing/summary.txt"
 fi
 exit
 }
