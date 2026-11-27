@@ -314,10 +314,16 @@ impl Game {
 
     pub(super) fn manifesto_space_reason(&self, space: &Space, here: &[&Choice]) -> String {
         let faction = self.owner();
-        match presence(space, faction) {
-            Some(own) if !here.is_empty() => format!("{own}. Choose to inspect the legal mixes."),
-            Some(own) => format!("{own}. No legal mix in this space."),
-            None => format!("{} has no piece here.", faction.name()),
+        if !here.is_empty() {
+            "Placement available here.".into()
+        } else if space
+            .pieces
+            .iter()
+            .any(|p| p.faction == faction && p.count > 0)
+        {
+            "No legal mix fits here.".into()
+        } else {
+            format!("{} has no piece here.", faction.name())
         }
     }
 }

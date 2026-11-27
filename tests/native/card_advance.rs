@@ -2211,6 +2211,20 @@ fn native_manifesto_placements_use_the_map_and_held_faction() {
     let full = key(&mut app, "Enter", Some(row));
     let popover = &full["table"]["popover"];
     assert_eq!(popover["space"], "camaguey-city");
+    let status = &full["table"]["status"];
+    assert_eq!(status["reason"], "Placement available here.");
+    let reason = full["table"]["status_text"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|line| line["reason"] == true)
+        .unwrap();
+    let [_, row_top, _, row_bottom] = rect_of(&status["reason_bounds"]);
+    let [_, reason_top, _, reason_bottom] = rect_of(&reason["bounds"]);
+    assert!(
+        reason_top >= row_top && reason_bottom <= row_bottom,
+        "{reason}"
+    );
     assert_eq!(
         popover["card"]["rows"]
             .as_array()
