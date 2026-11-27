@@ -56,7 +56,15 @@ pub(super) fn committed(before: &Observation, after: &Observation, choice: &str)
     preview
         .flips
         .iter()
-        .filter(|flip| flip.kind == Kind::Guerrilla && flip.to == State::Active)
+        .filter(|flip| {
+            matches!(
+                (flip.kind, flip.from, flip.to),
+                (Kind::Guerrilla, State::Underground, State::Active)
+                    | (Kind::Guerrilla, State::Active, State::Underground)
+                    | (Kind::Casino, State::Closed, State::Open)
+                    | (Kind::Casino, State::Open, State::Closed)
+            )
+        })
         .filter_map(|flip| {
             let previous = before.spaces.iter().find(|s| s.id == flip.space)?;
             let after = after.spaces.iter().find(|s| s.id == flip.space)?;
@@ -130,6 +138,7 @@ pub(super) struct Motion {
     turn: CardMove,
     color: Color,
     fades_in: bool,
+    flip: Flip,
 }
 
 impl Motion {
@@ -159,6 +168,15 @@ impl Motion {
             turn,
             color,
             fades_in: change.source_remaining > 0,
+            flip: change.flip.clone(),
+        }
+    }
+
+    fn opacity(&self, elapsed: f32) -> f32 {
+        if self.fades_in {
+            (elapsed / RISE).clamp(0., 1.)
+        } else {
+            1.
         }
     }
 
@@ -177,15 +195,24 @@ pub(super) fn animate(
     flights: Res<Flights>,
     time: Res<Time>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    mut pieces: Query<(&Motion, &mut Transform, &MeshMaterial3d<StandardMaterial>)>,
+    mut pieces: Query<(
+        &Motion,
+        &mut Transform,
+        &MeshMaterial3d<StandardMaterial>,
+        Option<&Children>,
+    )>,
+    faces: Query<&MeshMaterial3d<StandardMaterial>>,
 ) {
     let elapsed = (time.elapsed_secs_f64() - flights.started) as f32;
-    for (motion, mut at, material) in &mut pieces {
+    for (motion, mut at, body, children) in &mut pieces {
         *at = motion.pose(elapsed);
-        if motion.fades_in
-            && let Some(mut material) = materials.get_mut(&material.0)
+        if !motion.fades_in {
+            continue;
+        }
+        let alpha = motion.opacity(elapsed);
+        if let Some(mut material) = materials.get_mut(&body.0)
+            && material.base_color.alpha() != alpha
         {
-            let alpha = (elapsed / RISE).clamp(0., 1.);
             material.base_color = motion.color.with_alpha(alpha);
             material.alpha_mode = if alpha == 1. {
                 AlphaMode::Opaque
@@ -193,5 +220,55 @@ pub(super) fn animate(
                 AlphaMode::Blend
             };
         }
+        for face in children.into_iter().flatten() {
+            if let Ok(handle) = faces.get(*face)
+                && let Some(mut material) = materials.get_mut(&handle.0)
+                && material.base_color.alpha() != alpha
+            {
+                material.base_color.set_alpha(alpha);
+            }
+        }
     }
+}
+
+/// The moving mesh's actual pose, opacity and authored mark facing up, for the
+/// native development seat. The rules observation still describes the saved result.
+pub(super) fn observe(world: &mut World) -> Vec<serde_json::Value> {
+    let mut motions = world.query::<(
+        &Motion,
+        &GlobalTransform,
+        &MeshMaterial3d<StandardMaterial>,
+        Option<&Children>,
+    )>();
+    let materials = world.resource::<Assets<StandardMaterial>>();
+    let art = world.resource::<Art>();
+    let marks = [
+        (State::Active, art.images["atlas-active-star.png"].id()),
+        (State::Open, art.images["atlas-casino-gold.png"].id()),
+    ];
+    let mut shown: Vec<_> = motions
+        .iter(world)
+        .map(|(motion, at, body, faces)| {
+            let face_mark = faces.into_iter().flatten().find_map(|face| {
+                let transform = world.get::<GlobalTransform>(*face)?;
+                if transform.up().y <= 0.01 {
+                    return None;
+                }
+                let handle = world.get::<MeshMaterial3d<StandardMaterial>>(*face)?;
+                let texture = materials.get(handle)?.base_color_texture.as_ref()?;
+                marks
+                    .iter()
+                    .find_map(|(state, id)| (*id == texture.id()).then_some(*state))
+            });
+            serde_json::json!({
+                "flip": motion.flip,
+                "center": at.translation().to_array(),
+                "up": at.up().to_array(),
+                "opacity": materials.get(body).map(|material| material.base_color.alpha()),
+                "face_mark": face_mark,
+            })
+        })
+        .collect();
+    shown.sort_by_key(|row| row["flip"]["space"].to_string());
+    shown
 }

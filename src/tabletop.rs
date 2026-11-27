@@ -839,6 +839,15 @@ fn sync_pieces(
                     state: change.flip.from,
                     ..piece.clone()
                 };
+                add_group_face(
+                    &mut commands,
+                    &art,
+                    &mut meshes,
+                    &mut materials,
+                    token,
+                    &from,
+                    true,
+                );
                 let [x, y] = map::slot(&space.id, &from);
                 let start = map::at(x, y, top) + Vec3::Y * height * scale;
                 let rest = Transform::from_translation(base + Vec3::Y * height * scale)
