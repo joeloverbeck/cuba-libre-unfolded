@@ -211,6 +211,10 @@ The ignored native regressions need the selected card directory and a working re
 CUBA_TEST_CARDS="/path/to/cards" scripts/heavy scripts/native
 ```
 
+- Test runs print a unique timing directory under `CUBA_NATIVE_EVIDENCE` or `local/verification/native/`. Open `summary.txt` for completed tests in descending elapsed seconds, results, revision and working-tree state, the suite-input hash at start when available, shard, thread counts and renderer settings. The runner wall time includes discovery and compilation. Add any wait for the outer build lock separately. Parallel test durations overlap.
+- The summary reports adapters observed in this run's library stderr and detached app runtime logs. It draws detached app observations from the harness running in this invocation.
+- The per-binary `app.log` and `library.log` retain completed records as tests run, including on interruption before the summary. A caller's `--logfile` receives the same records, with each harness replacing the previous contents when it starts.
+- Use the final `suite inputs: <hash>` line to identify a passing full run or shard. The console and `summary.txt` carry the same final verdict for such runs. The summary labels the starting hash separately.
 - Each test keeps isolated saves, JSON observations and screenshots under its evidence directory, below. `CUBA_NATIVE_EVIDENCE` selects another evidence directory, and `scripts/native` sets it when run from a worktree ([parallel-work.md](parallel-work.md#builds)).
 - Inspect the images separately: passing assertions do not prove readability or owner acceptance.
 - An app that ends early ("No such file or directory" from `cuba-tools`) may have run out of graphics memory: in #187 one ended with the card at 10.7 of 11 GB, possibly with another program's renders on it. Rerun the failed test alone with `--test-threads=1` before judging it.
