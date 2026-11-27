@@ -45,6 +45,46 @@ pub struct ConstructFunding {
     pub shortfall: u8,
 }
 
+/// The effect of a nonzero reply while Limited Construct needs conditional funding.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ConstructFundingReply {
+    Held {
+        authorization: ConstructAuthorization,
+        shortfall: u8,
+    },
+    Settled(ConstructSettlement),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ConstructSettlement {
+    pub(crate) earlier: Vec<ConstructMovement>,
+    pub(crate) final_reply: ConstructMovement,
+}
+
+impl ConstructSettlement {
+    pub(crate) fn movements(&self) -> impl Iterator<Item = &ConstructMovement> {
+        self.earlier
+            .iter()
+            .chain(std::iter::once(&self.final_reply))
+    }
+
+    pub(crate) fn total(&self) -> u8 {
+        self.movements().map(|m| m.authorization.amount).sum()
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ConstructMovement {
+    pub(crate) authorization: ConstructAuthorization,
+    pub(crate) giver_balance: [u8; 2],
+    pub(crate) syndicate_balance: [u8; 2],
+}
+
+struct FundingProjection {
+    balances: [i16; 4],
+    reply: Option<ConstructFundingReply>,
+}
+
 impl ConstructFunding {
     pub(crate) const CONDITION: &str =
         "Resources move only when authorizations fund a legal payment.";
@@ -59,6 +99,83 @@ impl ConstructFunding {
             self.authorized(),
             self.shortfall
         )
+    }
+
+    #[cfg(feature = "tabletop")]
+    pub(crate) fn projected_balances(
+        &self,
+        balances: [u8; 4],
+        terms: &TransferTerms,
+        asked: u8,
+        amount: u8,
+    ) -> (i16, i16) {
+        let projection = self.project(balances, terms, asked, amount);
+        (
+            projection.balances[terms.giver.index()],
+            projection.balances[SYNDICATE.index()],
+        )
+    }
+
+    fn project(
+        &self,
+        balances: [u8; 4],
+        terms: &TransferTerms,
+        asked: u8,
+        amount: u8,
+    ) -> FundingProjection {
+        debug_assert_eq!(terms.recipient, SYNDICATE);
+        let mut balances = balances.map(i16::from);
+        let authorization = ConstructAuthorization {
+            giver: terms.giver,
+            asked,
+            amount,
+        };
+        let permitted = amount <= terms.limit;
+        if amount < self.shortfall {
+            return FundingProjection {
+                balances,
+                reply: (permitted && amount > 0).then_some(ConstructFundingReply::Held {
+                    authorization,
+                    shortfall: self.shortfall - amount,
+                }),
+            };
+        }
+
+        // Project even a refused draft in signed Resources. Only a permitted
+        // amount can describe a movement, which always has legal balances.
+        let mut move_one = |authorization: ConstructAuthorization| {
+            let giver = authorization.giver.index();
+            let recipient = SYNDICATE.index();
+            let from = balances[giver];
+            let to = balances[recipient];
+            let amount = i16::from(authorization.amount);
+            balances[giver] -= amount;
+            balances[recipient] += amount;
+            permitted.then(|| ConstructMovement {
+                authorization,
+                giver_balance: [
+                    from.try_into().unwrap(),
+                    balances[giver].try_into().unwrap(),
+                ],
+                syndicate_balance: [
+                    to.try_into().unwrap(),
+                    balances[recipient].try_into().unwrap(),
+                ],
+            })
+        };
+        let earlier = self
+            .authorizations
+            .iter()
+            .copied()
+            .filter_map(&mut move_one)
+            .collect();
+        let reply = move_one(authorization).map(|final_reply| {
+            ConstructFundingReply::Settled(ConstructSettlement {
+                earlier,
+                final_reply,
+            })
+        });
+        FundingProjection { balances, reply }
     }
 }
 
@@ -253,60 +370,60 @@ impl Game {
         })
     }
 
-    pub(super) fn construct_authorization_condition(&self, amount: u8) -> Option<String> {
-        let shortfall = self.construct_funding_shortfall()?;
-        if amount == 0 {
-            return None;
-        }
-        Some(if amount < shortfall {
-            format!(
+    pub(super) fn construct_authorization_condition(
+        &self,
+        funding: &ConstructFunding,
+        terms: &TransferTerms,
+        asked: u8,
+        amount: u8,
+    ) -> Option<String> {
+        let reply = funding
+            .project(self.resources, terms, asked, amount)
+            .reply?;
+        Some(match reply {
+            ConstructFundingReply::Held { shortfall, .. } => format!(
                 "Hold {} conditionally. {} still needed before any of these Resources move (local policy, #215).",
                 resources(amount),
-                resources(shortfall - amount)
-            )
-        } else if self.construct_authorizations().is_empty() {
-            format!(
+                resources(shortfall)
+            ),
+            ConstructFundingReply::Settled(settlement) if settlement.earlier.is_empty() => format!(
                 "Move {} now. Syndicate chooses where to pay (R 1.5.1, 3.3.5).",
                 resources(amount)
-            )
-        } else {
-            format!(
+            ),
+            ConstructFundingReply::Settled(settlement) => format!(
                 "Move {} now, including all conditional authorizations. Syndicate chooses where to pay (local policy, #215).",
-                resources(amount + self.construct_reserved(None))
-            )
+                resources(settlement.total())
+            ),
         })
     }
 
-    pub(super) fn authorize_transfer(
+    pub(super) fn authorize_construct_funding(
         &mut self,
         giver: Faction,
         recipient: Faction,
         asked: u8,
         amount: u8,
-    ) {
-        if amount == 0 {
-            return;
+    ) -> Option<ConstructFundingReply> {
+        if amount == 0 || recipient != SYNDICATE {
+            return None;
         }
-        if let Some(shortfall) = self.construct_funding_shortfall() {
-            if amount < shortfall {
-                self.construct
-                    .as_mut()
-                    .unwrap()
-                    .authorizations
-                    .push(ConstructAuthorization {
-                        giver,
-                        asked,
-                        amount,
-                    });
-                return;
+        let funding = self.construct_funding()?;
+        let terms = self.terms(giver, recipient);
+        let FundingProjection { balances, reply } =
+            funding.project(self.resources, &terms, asked, amount);
+        let reply = reply.expect("Offered nonzero conditional authorization");
+        let construct = self.construct.as_mut().expect("Limited Construct funding");
+        match &reply {
+            ConstructFundingReply::Held { authorization, .. } => {
+                construct.authorizations.push(*authorization);
             }
-            let authorizations =
-                std::mem::take(&mut self.construct.as_mut().unwrap().authorizations);
-            for authorization in authorizations {
-                self.move_resources(authorization.giver, recipient, authorization.amount);
+            ConstructFundingReply::Settled(_) => {
+                construct.authorizations.clear();
+                self.resources = balances.map(|balance| balance.try_into().unwrap());
+                self.mark_construct_side_effect();
             }
         }
-        self.move_resources(giver, recipient, amount);
+        Some(reply)
     }
 
     pub(super) fn limited_construct_choice(&self) -> Choice {
@@ -567,9 +684,9 @@ impl Game {
         &mut self,
         action: &str,
         next_revision: u64,
-    ) -> Result<(), String> {
+    ) -> Result<Option<ConstructFundingReply>, String> {
         match action {
-            _ if self.removal.is_some() => return self.apply_construct_management(action),
+            _ if self.removal.is_some() => self.apply_construct_management(action)?,
             OPERATION_ONLY | LIMITED => {
                 self.construct = Some(Construct {
                     paid: vec![],
@@ -587,7 +704,7 @@ impl Game {
                 self.transfer = None;
             }
             _ if self.transfer.is_some() || action == "transfer" => {
-                self.execute(action, next_revision)?;
+                return self.execute(action, next_revision);
             }
             _ => {
                 let (id, plan) = payment(action).ok_or("Unsupported Construct decision.")?;
@@ -646,7 +763,7 @@ impl Game {
                     });
             }
         }
-        Ok(())
+        Ok(None)
     }
 }
 

@@ -217,7 +217,9 @@ impl<T: Table> seats::Game for Rules<'_, T> {
             return Err("The human turns the card; it is no agent's choice.".into());
         }
         // The same submission, on a copy that goes nowhere.
-        game.clone().submit(*seat, game.revision, &choice.id)
+        game.clone()
+            .submit(*seat, game.revision, &choice.id)
+            .map(drop)
     }
 
     fn commit(&mut self, seat: &Faction, choice: &Chosen) -> Result<(), String> {

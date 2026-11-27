@@ -610,7 +610,7 @@ fn positions() -> Vec<History> {
 fn reports(history: &[Game]) -> Vec<Report> {
     let mut reports = Reports::new(&history[0].observe());
     for game in &history[1..] {
-        reports.record(&game.observe());
+        reports.record(&game.observe(), None);
     }
     reports.all()
 }

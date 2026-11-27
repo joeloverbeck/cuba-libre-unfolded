@@ -1,7 +1,7 @@
 //! Seam 1 of #197: which action reports the human is given as editions, and when (#208).
 //! Who acts in each stretch of a line, and so what is told, is written here by hand from
 //! the Sequence of Play (R 2.3), never taken from the app's reports.
-use crate::{SEED, explore::choose};
+use crate::SEED;
 use Faction::{Directorio, Government, M26, Syndicate};
 use cuba_libre_unfolded::{
     Choice, Faction, Game, Observation, Transfer, editions::Editions, reports::Reports,
@@ -31,19 +31,21 @@ impl Table {
     }
     fn play(&mut self, actions: &[&str]) {
         for action in actions {
-            let decider = self
-                .seen()
+            let before = self.seen();
+            let choice = before
                 .choices
                 .iter()
                 .find(|choice| choice.action() == *action)
-                .expect("An offered choice")
-                .owner;
-            choose(&mut self.game, action);
+                .expect("An offered choice");
+            let reply = self
+                .game
+                .submit(choice.owner, before.revision, &choice.id)
+                .unwrap_or_else(|error| panic!("{action}: {error}"));
             let seen = self.game.observe();
-            self.reports.record(&seen);
+            self.reports.record(&seen, reply);
             let reports = &self.reports;
             self.editions
-                .decided(&seen, decider, |told| reports.since(told), self.plays);
+                .decided(&seen, choice.owner, |told| reports.since(told), self.plays);
         }
     }
     /// The human hands `faction` over, or takes it back.

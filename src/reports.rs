@@ -1,8 +1,7 @@
 //! Action reports (#207): what each faction's action did, as committed facts. A report is
-//! derived, with no window, from the observations before and after the committed
-//! decisions of one action, and from nothing else: every number and place in it is the
-//! rules authority's. A faction seat's view gives the match's reports as its recent
-//! results, and an edition prints one.
+//! derived, with no window, from the committed positions and their decision results.
+//! A faction seat's view gives the match's reports as its recent results, and an
+//! edition prints one.
 //!
 //! An action belongs to the faction whose action it is, a Pass too (which is not
 //! executing), even while another faction decides inside it: a giver its Resource
@@ -23,7 +22,7 @@ mod words;
 pub(crate) use words::listing;
 
 use crate::{
-    ActionChoice, AssaultResolution, Choice, ConstructAuthorization, ConstructFunding,
+    ActionChoice, AssaultResolution, Choice, ConstructFunding, ConstructFundingReply,
     ConstructPlan, ConstructResolution, Eligibility, EventOutcome, EventProgress, Faction, Flip,
     Game, Group, Kidnap, Kind, Manifesto, ManifestoPlacement, Next, Observation, Rally,
     RallyAction, Removal, Resolved, SequenceBox, Space, Standing, State, Transfer, title,
@@ -103,7 +102,7 @@ pub struct FromTo {
     pub to: i16,
 }
 
-/// The match's committed positions, from which its reports are derived.
+/// The match's committed positions and conditional funding replies.
 #[derive(Clone, Debug)]
 pub struct Reports {
     moments: Vec<Moment>,
@@ -113,13 +112,13 @@ impl Reports {
     /// The reports of a match that stands at `seen`: none yet.
     pub fn new(seen: &Observation) -> Self {
         Self {
-            moments: vec![Moment::of(seen)],
+            moments: vec![Moment::of(seen, None)],
         }
     }
 
-    /// Takes in the position one committed decision made.
-    pub fn record(&mut self, seen: &Observation) {
-        self.moments.push(Moment::of(seen));
+    /// Takes in the position and conditional funding result one committed decision made.
+    pub fn record(&mut self, seen: &Observation, reply: Option<ConstructFundingReply>) {
+        self.moments.push(Moment::of(seen, reply));
     }
 
     /// The reports of a match replayed from its opening by `decisions`, each a choice's
@@ -127,9 +126,10 @@ impl Reports {
     pub(crate) fn replayed(mut game: Game, decisions: &[String]) -> Self {
         let mut reports = Self::new(&game.observe());
         for decision in decisions {
-            game.apply(decision)
+            let reply = game
+                .apply(decision)
                 .expect("An admitted save's decisions replay");
-            reports.record(&game.observe());
+            reports.record(&game.observe(), reply);
         }
         reports
     }
@@ -197,10 +197,11 @@ struct Moment {
     assault_paid: Vec<AssaultResolution>,
     construct_paid: Vec<ConstructResolution>,
     construct_funding: Option<ConstructFunding>,
+    construct_reply: Option<ConstructFundingReply>,
 }
 
 impl Moment {
-    fn of(seen: &Observation) -> Self {
+    fn of(seen: &Observation, construct_reply: Option<ConstructFundingReply>) -> Self {
         let event_open = seen.event.as_ref().is_some_and(|event| event.pending());
         let actor = if event_open {
             seen.event_executor
@@ -236,6 +237,7 @@ impl Moment {
             assault_paid: seen.assault_paid.clone(),
             construct_paid: seen.construct_paid.clone(),
             construct_funding: seen.construct_funding.clone(),
+            construct_reply,
         }
     }
 
@@ -326,12 +328,6 @@ impl Moment {
 
     fn resources(&self, faction: Faction) -> u8 {
         self.resources[faction.index()]
-    }
-
-    fn construct_authorizations(&self) -> &[ConstructAuthorization] {
-        self.construct_funding
-            .as_ref()
-            .map_or(&[], |funding| &funding.authorizations)
     }
 }
 
@@ -453,8 +449,12 @@ fn span(moments: &[Moment], faction: Faction, continues: bool) -> Option<Report>
         happened(&step[0], &step[1], continues, &mut items);
     }
     let action = last.action_of(faction);
-    let new_authorization =
-        last.construct_authorizations().len() > first.construct_authorizations().len();
+    let new_authorization = moments[1..].iter().any(|moment| {
+        matches!(
+            moment.construct_reply,
+            Some(ConstructFundingReply::Held { .. })
+        )
+    });
     let told = new_authorization
         || !items.is_empty()
         || complete
@@ -694,6 +694,37 @@ fn rallied(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
 }
 
 fn transferred(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
+    if let Some(reply) = &after.construct_reply {
+        if let Some(index) = items
+            .iter()
+            .rposition(|item| matches!(item, Item::Transfers(told) if told.pending.is_some()))
+        {
+            items.remove(index);
+        }
+        if let ConstructFundingReply::Settled(settlement) = reply {
+            for movement in settlement.movements() {
+                let authorization = movement.authorization;
+                let [giver_before, giver_after] = movement.giver_balance;
+                let [recipient_before, recipient_after] = movement.syndicate_balance;
+                let told = between(items, authorization.giver, Faction::Syndicate, false);
+                told.asked = Some(authorization.asked);
+                told.asks = 1;
+                told.moves = 1;
+                told.given = u16::from(authorization.amount);
+                told.balances = Some((
+                    Balance {
+                        from: giver_before,
+                        to: giver_after,
+                    },
+                    Balance {
+                        from: recipient_before,
+                        to: recipient_after,
+                    },
+                ));
+            }
+        }
+        return;
+    }
     let gather = before.executing != Some(Faction::Syndicate);
     match (before.request(), after.request()) {
         (None, Some((giver, recipient, amount))) => {
@@ -701,34 +732,6 @@ fn transferred(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
             told.asked.get_or_insert(amount);
             told.asks += 1;
             told.pending = Some(amount);
-        }
-        (Some((giver, recipient, asked)), None)
-            if before.construct_authorizations().len()
-                != after.construct_authorizations().len() =>
-        {
-            if let Some(index) = items
-                .iter()
-                .rposition(|item| matches!(item, Item::Transfers(told) if told.pending.is_some()))
-            {
-                items.remove(index);
-            }
-            if after.resources != before.resources {
-                // A single reply can settle every conditional authorization. Reconstruct their
-                // individual balances in authorization order from the preceding position.
-                let mut balances = before.resources;
-                for authorization in before.construct_authorizations() {
-                    construct_transfer(
-                        items,
-                        &mut balances,
-                        authorization.giver,
-                        recipient,
-                        authorization.asked,
-                        authorization.amount,
-                    );
-                }
-                let amount = after.resources(recipient) - balances[recipient.index()];
-                construct_transfer(items, &mut balances, giver, recipient, asked, amount);
-            }
         }
         (Some((giver, recipient, _)), None) => {
             let told = between(items, giver, recipient, true);
@@ -757,35 +760,6 @@ fn transferred(before: &Moment, after: &Moment, items: &mut Vec<Item>) {
         }
         _ => {}
     }
-}
-
-fn construct_transfer(
-    items: &mut Vec<Item>,
-    balances: &mut [u8; 4],
-    giver: Faction,
-    recipient: Faction,
-    asked: u8,
-    amount: u8,
-) {
-    let from = balances[giver.index()];
-    let to = balances[recipient.index()];
-    balances[giver.index()] -= amount;
-    balances[recipient.index()] += amount;
-    let told = between(items, giver, recipient, false);
-    told.asked = Some(asked);
-    told.asks = 1;
-    told.moves = 1;
-    told.given = u16::from(amount);
-    told.balances = Some((
-        Balance {
-            from,
-            to: from - amount,
-        },
-        Balance {
-            from: to,
-            to: to + amount,
-        },
-    ));
 }
 
 fn moved(before: &Moment, after: &Moment, told: &mut Transfers) {

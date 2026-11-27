@@ -117,7 +117,7 @@ mod over_the_socket {
         }
         fn commit(&mut self, faction: Faction, revision: u64, choice: &str) -> Result<(), String> {
             let submitted = self.0.submit(faction, revision, choice);
-            submitted.map_err(|refused| refused.to_string())
+            submitted.map(drop).map_err(|refused| refused.to_string())
         }
         fn publish(
             &mut self,

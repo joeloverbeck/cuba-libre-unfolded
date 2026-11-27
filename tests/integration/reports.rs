@@ -18,7 +18,7 @@
 
 use crate::{
     SEED,
-    explore::{choose, drained, parallel},
+    explore::{drained, parallel},
     longest::{self, CARD_18, HANDOFF},
 };
 use cuba_libre_unfolded::{
@@ -72,9 +72,13 @@ impl Match {
                 .find(|c| c.action() == *action)
                 .unwrap_or_else(|| panic!("{action} is offered"))
                 .owner;
-            choose(&mut self.now, action);
+            let revision = self.now().revision;
+            let reply = self
+                .now
+                .submit(owner, revision, &format!("{revision}:{action}"))
+                .unwrap_or_else(|error| panic!("{action}: {error}"));
             let seen = self.now.observe();
-            self.reports.record(&seen);
+            self.reports.record(&seen, reply);
             self.seen.push(seen);
             self.decisions.push((owner, (*action).to_owned()));
         }
