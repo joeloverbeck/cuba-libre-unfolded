@@ -54,6 +54,20 @@ CUBA_NATIVE_SOFTWARE_VULKAN=1 \
   scripts/heavy scripts/native --test-threads=1 native_controls_hover_camera_finish_and_process_restarts
 ```
 
+## Measuring the parallel tail
+
+When a full unsharded profile will inform a timing decision, save the selected catalogue with `scripts/heavy scripts/native --list` from the same checkout. After the runner prints its `timings:` directory, start a line-by-line observer in a second shell before the first app result. Set `timing_dir` to the printed path. Stop the observer after the app harness finishes.
+
+```sh
+tail -n +1 -F -s 0.2 "$timing_dir/app.log" |
+  while IFS= read -r row; do
+    read -r completed _ < /proc/uptime
+    printf '%s\t%s\n' "$completed" "$row"
+  done > "$timing_dir/app-completions.tsv"
+```
+
+Use live rows to identify the last app tests and the observed gap between their completions. The timestamps measure observation time. Rows already present at attachment have unknown completion times. Reconcile the selected names with `app.log` and `library.log`, then match their outcomes and durations against `summary.txt`. Use the harness logs because renderer diagnostics can split console result lines. A tail gap describes that run. Measuring a suite-wide saving requires comparable before and after wall times.
+
 ## Regression catalogue
 
 The [seat reference](seat.md) has the seat's requests, its component ids, what the table reports and how to judge a capture on the owner's display.
