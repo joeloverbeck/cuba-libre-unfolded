@@ -150,7 +150,11 @@ An unpaid Limited Construct can refuse a piece action that would leave no afford
 
 After Syndicate Passes or finishes Construct, the panel shows the result and Eligibility for card 19. Select **Advance to Sierra Maestra Manifesto** to continue from that position. The Manifesto crosses to the played pile, **The Twelve** turns face up on the draw deck, and the pile counts settle at 20 and 32. 26July is 1st Eligible. Pin an option to see what the rules allow and what this build supports. Reopen the same save to resume at that decision, with the cards at rest and earlier proclamations in the public record.
 
-Pin **Event** and select **Choose Event**. 26July executes it, and the placement decision passes through 26July, Directorio, Syndicate and Government in that order. A faction decides even if it is Ineligible for the card action. Pin **Decline placement** to see who goes next, then select **Decline placement** to commit. Piece placement is available for inspection in this candidate. Restarting between decisions restores the pending faction.
+Pin **Event** and select **Choose Event**. 26July executes it, and the placement decision passes through 26July, Directorio, Syndicate and Government in that order. A faction decides even if it is Ineligible for the card action.
+
+Choose a highlighted map space where the deciding faction already has a piece. The popover names its pieces there, including a closed Casino if that is what qualifies the space. Select a mix to see what comes from Available Forces and how Control and standings would change. Select **Place these pieces** to commit. The Event places two non-Casino pieces together at no Resource cost. If the faction can place only one, the popover offers that mix with **Place this piece**. Tab reaches the same spaces, mixes and confirmation control, and Enter activates them.
+
+Pin **Decline placement** to see who goes next, then select **Decline placement** to commit. Restarting between decisions restores the pending faction.
 
 When the Event ends, 26July stays Eligible. Directorio is next as 2nd Eligible and can inspect Pass or Operation with optional Special Activity. The continuation ends at that menu.
 

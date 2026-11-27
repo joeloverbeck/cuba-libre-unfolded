@@ -5,6 +5,7 @@ use unfolded_random::SeededRandom;
 mod assault;
 mod cards;
 mod construct;
+pub(crate) mod manifesto;
 mod pile_facts;
 mod played;
 mod rally;
@@ -18,6 +19,8 @@ pub(crate) use construct::construct_name;
 pub use construct::{
     CONSTRUCT_COST, ConstructAuthorization, ConstructFunding, ConstructPlan, ConstructResolution,
 };
+use manifesto::CARD_19_ORDER;
+pub use manifesto::{Manifesto, ManifestoPlacement, PlacementSupply};
 pub use pile_facts::{
     DeckFacts, DeckWords, NextPropaganda, PlayedCard, PlayedPile, PlayedWords, next_propaganda,
     next_propaganda_words,
@@ -445,29 +448,6 @@ pub enum EventOutcome {
 
 pub(crate) const MANIFESTO_EVENT: &str = "m26:event";
 pub(crate) const MANIFESTO_DECLINE: &str = "manifesto:decline";
-
-/// Card 19's order (P p. 33 and the supplied face).
-const CARD_19_ORDER: [Faction; 4] = [
-    Faction::M26,
-    Faction::Directorio,
-    Faction::Syndicate,
-    Faction::Government,
-];
-
-/// Card 19's committed decisions, in its printed faction order.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct Manifesto {
-    pub declines: Vec<Faction>,
-}
-impl Manifesto {
-    pub fn pending(&self) -> Option<Faction> {
-        CARD_19_ORDER.get(self.declines.len()).copied()
-    }
-    pub fn complete(&self) -> bool {
-        self.pending().is_none()
-    }
-}
 
 /// The Syndicate decision that brings card 18 to the Eligibility adjustment.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -967,6 +947,9 @@ pub struct Preview {
     pub flips: Vec<Flip>,
     /// Pieces returned to Available Forces by this decision.
     pub removed: Vec<Returned>,
+    /// The map pieces added and the Available Forces they come from.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub placement_supply: Vec<PlacementSupply>,
     /// Spaces that receive a Terror marker.
     pub terror: Vec<String>,
     pub support: Vec<SupportShift>,
@@ -1493,7 +1476,9 @@ impl Game {
                     .iter()
                     .filter(|c| c.space() == Some(space.id.as_str()))
                     .collect();
-                let reason = if self.construct_is_open() {
+                let reason = if self.current_card == 19 {
+                    Some(self.manifesto_space_reason(space, &here))
+                } else if self.construct_is_open() {
                     Some(self.construct_reason(space, &here))
                 } else if self.assault.is_some() {
                     self.assault_reason(space, &here)
@@ -1699,6 +1684,7 @@ impl Game {
                 || Self::assault_payment_space(action).is_some()
                 || action == "end-assault"
                 || Self::is_construct_action(action)
+                || manifesto::is_placement(action)
                 || choice.removal().is_some()
                 || choice.casino_closure().is_some() =>
             {
@@ -1821,7 +1807,10 @@ impl Game {
                 });
             }
         }
-        if matches!(action, "government:pass" | "end-assault") {
+        if manifesto::is_placement(action) {
+            preview.placement_supply = self.manifesto_supply_preview(after);
+            preview.next = after.next();
+        } else if matches!(action, "government:pass" | "end-assault") {
             preview.records = after.eligibility().government_box;
             preview.next = after.next();
         } else if matches!(action, "syndicate:pass" | construct::FINISH) {
@@ -1897,7 +1886,17 @@ impl Game {
     /// The facts a preview states besides its computed changes, with rule references.
     fn notes(&self, after: &Game, action: &str) -> Vec<String> {
         let mut notes = vec![];
-        if action == "pass" {
+        if manifesto::is_placement(action) {
+            let placement = after
+                .manifesto
+                .as_ref()
+                .and_then(|m| m.placements.last())
+                .expect("A previewed placement has a record");
+            if placement.pieces.iter().map(|p| p.count).sum::<u8>() == 1 {
+                notes.push("Only one piece can be placed (R 5.1.3).".into());
+            }
+            notes.push("0 Resources · Card 19, R 1.4, 5.1".into());
+        } else if action == "pass" {
             notes.push("26July stays Eligible (R 2.3.3). The task ends there; Directorio's options are shown, not executed.".into());
         } else if action == "end-terror" {
             let resolved = self.spaces.iter().any(|s| s.terror > 0);
@@ -2427,47 +2426,6 @@ impl Game {
             self.offer(MANIFESTO_EVENT, "Event", true, cards::MANIFESTO),
         );
         options
-    }
-
-    fn manifesto_decisions(&self, manifesto: &Manifesto) -> Vec<Choice> {
-        if manifesto.complete() {
-            return vec![
-                self.offer(
-                    "directorio:pass",
-                    "Pass",
-                    false,
-                    "R 2.3.3. Directorio would stay Eligible and gain 1 Resource.\nExecuting Pass is outside this continuation.",
-                ),
-                self.offer(
-                    "directorio:operation",
-                    "Operation with optional Special Activity",
-                    false,
-                    "R 2.3.4. An Operation may include a Special Activity.\nExecuting it is outside this continuation.",
-                ),
-            ];
-        }
-        let next = CARD_19_ORDER.get(manifesto.declines.len() + 1);
-        let after = match next {
-            Some(faction) => format!("{} decides next.", faction.name()),
-            None => {
-                "The Event ends. 26July stays Eligible. Directorio has the 2nd Eligible choices."
-                    .into()
-            }
-        };
-        vec![
-            self.offer(
-                "manifesto:place",
-                "Place pieces",
-                false,
-                "Placement is outside this candidate. The Event allows two non-Casino pieces together in a space where this faction already has a piece, or partial fulfillment if necessary (card 19; R 1.4, 5.1.3).",
-            ),
-            self.offer(
-                MANIFESTO_DECLINE,
-                "Decline placement",
-                true,
-                format!("{} places no pieces and spends no Resources. {after}", self.owner().name()),
-            ),
-        ]
     }
 
     fn directorio_choices(&self) -> Vec<Choice> {
@@ -3289,6 +3247,7 @@ impl Game {
                     .declines
                     .push(owner);
             }
+            _ if manifesto::is_placement(action) => return self.apply_manifesto_placement(action),
             construct::OPERATION_ONLY | construct::LIMITED => {
                 return self.apply_construct(action, next_revision);
             }

@@ -171,6 +171,14 @@ pub(super) fn articles(faction: Faction, action: Action, items: &[Item]) -> Vec<
                     "Placement declined",
                     vec![format!("{} declined placement.", faction.name())],
                 )),
+                Item::PlacedManifesto { space, placement } => Some(article(
+                    "Pieces placed",
+                    vec![format!(
+                        "{} placed {} in {space}.",
+                        placement.faction.name(),
+                        placement.piece_description()
+                    )],
+                )),
                 Item::WentBack { request } => Some(article(
                     "Back to the action choice",
                     vec![match request {
