@@ -284,6 +284,12 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
                         .get(&face.0)
                         .is_some_and(|material| material.base_color_texture.is_some())
                 });
+            let roundel = moving
+                .roundel
+                .and_then(|entity| world.get::<Children>(entity))
+                .into_iter()
+                .flatten()
+                .find_map(|child| world.get::<Text>(*child).map(|text| &text.0));
             let trip = &moving.trip;
             let key = available::counter_name(trip.group.faction, trip.group.kind);
             let (from, to) = if trip.entering {
@@ -300,6 +306,7 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
                 "end":point(end),
                 "opacity":opacity,
                 "marked_face":marked_face,
+                "roundel":roundel,
             }))
         })
         .collect::<Vec<_>>();

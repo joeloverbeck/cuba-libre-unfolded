@@ -100,6 +100,8 @@ fn native_force_travel_follows_the_committed_manifesto_placement() {
     let proposed = preview(&mut app, BASES);
     assert_eq!(proposed["observation"]["owner"], "Directorio");
     assert!(flights(&proposed).is_empty());
+    assert_eq!(proposed["table"]["force_travel_started"], false);
+
     assert_eq!(
         quantity(&proposed, "havana", "Directorio", "Base", "Ordinary"),
         0
@@ -135,6 +137,8 @@ fn native_force_travel_follows_the_committed_manifesto_placement() {
         bases["group"],
         json!({"faction":"Directorio","kind":"Base","state":"Ordinary","count":2})
     );
+    assert_eq!(first["table"]["force_travel_started"], true);
+    assert_eq!(bases["roundel"], "2");
     assert_eq!(bases["from"], "directorio-base-count");
     assert_eq!(bases["to"], "havana");
     let start = point(&bases["start"]);
@@ -311,6 +315,7 @@ fn native_force_travel_draws_partial_and_final_returns_once() {
     app.capture("return-cancelled");
     let refreshed = app.advance(24);
     assert!(flights(&refreshed).is_empty());
+    assert_eq!(refreshed["table"]["force_travel_started"], false);
     assert_eq!(refreshed["observation"], at_rest["observation"]);
     assert_eq!(app.save_bytes(), saved);
 
@@ -360,8 +365,13 @@ fn native_force_travel_draws_partial_and_final_returns_once() {
 
         if left == 1 {
             // The first trip is still active when the process exits.
+            assert_eq!(middle["table"]["force_travel_started"], true);
             app.quit();
             app.launch_size("3840x2160");
+            let reopened = app.observe();
+            assert_eq!(reopened["observation"], after["observation"]);
+            assert!(flights(&reopened).is_empty());
+            assert_eq!(reopened["table"]["force_travel_started"], false);
         }
         let settled = app.advance(60);
         assert!(flights(&settled).is_empty());
