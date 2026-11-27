@@ -34,7 +34,7 @@ use unfolded_record_replacement::{
 /// About 4 MiB, far above a full game; a save at the limit is refused plainly.
 const LIMIT: u64 = 4 * 1024 * 1024;
 /// The save's shape. It changes whenever what a save holds changes shape.
-const FORMAT: &str = "12";
+const FORMAT: &str = "13";
 /// Marks a refusal from exact-replay admission.
 const REPLAY: &str = "cuba-replay:";
 

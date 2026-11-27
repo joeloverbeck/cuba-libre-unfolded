@@ -1623,7 +1623,7 @@ fn notice(
             after.owner.name()
         ),
         action if crate::game::manifesto::is_placement(action) => {
-            let placement = after.manifesto.as_ref().and_then(|m| m.placements.last())
+            let placement = after.manifesto.as_ref().and_then(crate::Manifesto::last_placement)
                 .expect("A committed placement has a record");
             let space = after.spaces.iter().find(|s| s.id == placement.space)
                 .expect("A committed placement has a space");

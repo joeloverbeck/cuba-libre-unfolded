@@ -2430,6 +2430,62 @@ fn native_manifesto_records_four_placements_and_restores_the_result() {
 }
 
 #[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan for a 4K capture of alternating Manifesto outcomes"]
+fn native_manifesto_records_alternating_outcomes_in_printed_order() {
+    let mut app = available_forces::unlaunched("manifesto-mixed-", "issue-252");
+    finish_event(&app.save, "shaded");
+    let mut session = Session::open(&app.save, None).unwrap();
+    for action in [
+        "advance-card",
+        "government:pass",
+        "syndicate:pass",
+        "advance-card",
+    ] {
+        let seen = session.observe();
+        session
+            .submit(
+                seen.owner,
+                seen.revision,
+                &format!("{}:{action}", seen.revision),
+            )
+            .unwrap();
+    }
+    drop(session);
+
+    app.launch_size("3840x2160");
+    super::construct::choose_row(&mut app, "m26:event");
+    super::construct::choose_row(&mut app, "manifesto:decline");
+    app.pick("havana", "manifesto:place:havana:base-base");
+    super::construct::choose_row(&mut app, "manifesto:decline");
+    app.pick("havana", "manifesto:place:havana:troops-police");
+
+    let finished = app.observe();
+    assert_manifesto_result(
+        &finished,
+        [
+            "26July · declined placement",
+            "Directorio · 2 Bases · Havana",
+            "Syndicate · declined placement",
+            "Government · 1 Troop + 1 Police cube · Havana",
+        ],
+    );
+    assert_eq!(finished["observation"]["event_executor"], "M26");
+    assert_eq!(
+        finished["observation"]["manifesto"]["declines"],
+        json!(["M26", "Syndicate"])
+    );
+    assert_eq!(
+        finished["observation"]["manifesto"]["placements"]
+            .as_array()
+            .unwrap()
+            .len(),
+        2
+    );
+    app.capture("manifesto-mixed-outcomes");
+    app.quit();
+}
+
+#[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect the Manifesto removal, pending giver and returned placement at 4K"]
 fn native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement() {
     use super::construct::choose_row;

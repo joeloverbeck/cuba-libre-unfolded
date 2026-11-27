@@ -14,31 +14,71 @@ pub(super) const CARD_19_ORDER: [Faction; 4] = [
 /// 26July is 1st Eligible in the supported continuation to card 19.
 pub(super) const EXECUTOR: Faction = CARD_19_ORDER[0];
 
-/// The committed placements and declines during the Event. Each list follows
-/// the card's order. A faction appears at most once across the two while the
-/// Event is pending, and exactly once when it ends.
+/// The committed prefix of card 19's printed order. The first faction without
+/// an outcome still owes its decision, even while a side decision is open.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Manifesto {
-    pub declines: Vec<Faction>,
-    pub placements: Vec<ManifestoPlacement>,
+    outcomes: Vec<ManifestoOutcome>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub(crate) enum ManifestoOutcome {
+    Declined(Faction),
+    Placed(ManifestoPlacement),
+}
+
+impl ManifestoOutcome {
+    pub(crate) fn faction(&self) -> Faction {
+        match self {
+            Self::Declined(faction) => *faction,
+            Self::Placed(placement) => placement.faction,
+        }
+    }
 }
 
 impl Manifesto {
     pub fn pending(&self) -> Option<Faction> {
-        CARD_19_ORDER.get(self.decided()).copied()
+        CARD_19_ORDER.get(self.outcomes.len()).copied()
     }
 
     pub fn complete(&self) -> bool {
         self.pending().is_none()
     }
 
-    fn decided(&self) -> usize {
-        self.declines.len() + self.placements.len()
+    #[cfg(feature = "tabletop")]
+    pub(crate) fn outcomes(&self) -> &[ManifestoOutcome] {
+        &self.outcomes
+    }
+
+    /// Outcomes committed between two positions. Side decisions leave this
+    /// prefix at the same length.
+    pub(crate) fn outcomes_since(&self, before: Option<&Self>) -> &[ManifestoOutcome] {
+        let told = before.map_or(0, |event| event.outcomes.len());
+        self.outcomes.get(told..).unwrap_or_default()
+    }
+
+    pub(crate) fn last_placement(&self) -> Option<&ManifestoPlacement> {
+        match self.outcomes.last()? {
+            ManifestoOutcome::Placed(placement) => Some(placement),
+            ManifestoOutcome::Declined(_) => None,
+        }
+    }
+
+    pub(super) fn decline(&mut self) {
+        let faction = self
+            .pending()
+            .expect("A checked decline has a pending faction");
+        self.record(ManifestoOutcome::Declined(faction));
+    }
+
+    fn record(&mut self, outcome: ManifestoOutcome) {
+        debug_assert_eq!(self.pending(), Some(outcome.faction()));
+        self.outcomes.push(outcome);
     }
 
     fn handoff(&self) -> String {
-        match CARD_19_ORDER.get(self.decided() + 1) {
+        match CARD_19_ORDER.get(self.outcomes.len() + 1) {
             Some(faction) => format!("{} decides next.", faction.name()),
             None => {
                 "The Event ends. 26July stays Eligible. Directorio has the 2nd Eligible choices."
@@ -46,6 +86,32 @@ impl Manifesto {
             }
         }
     }
+}
+
+/// Both seats show the documented lists derived from the same committed sequence.
+pub(crate) fn serialize_observation<S: serde::Serializer>(
+    event: &Option<Manifesto>,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    #[derive(Serialize, Default)]
+    struct Observed<'a> {
+        declines: Vec<Faction>,
+        placements: Vec<&'a ManifestoPlacement>,
+    }
+
+    event
+        .as_ref()
+        .map(|event| {
+            let mut seen = Observed::default();
+            for outcome in &event.outcomes {
+                match outcome {
+                    ManifestoOutcome::Declined(faction) => seen.declines.push(*faction),
+                    ManifestoOutcome::Placed(placement) => seen.placements.push(placement),
+                }
+            }
+            seen
+        })
+        .serialize(serializer)
 }
 
 /// One committed mix from Available Forces in a single space.
@@ -313,8 +379,7 @@ impl Game {
         self.manifesto
             .as_mut()
             .expect("Manifesto decision")
-            .placements
-            .push(plan);
+            .record(ManifestoOutcome::Placed(plan));
         Ok(())
     }
 
@@ -325,7 +390,7 @@ impl Game {
         let plan = after
             .manifesto
             .as_ref()
-            .and_then(|event| event.placements.last())
+            .and_then(Manifesto::last_placement)
             .expect("The preview resolved a placement");
         plan.pieces
             .iter()
