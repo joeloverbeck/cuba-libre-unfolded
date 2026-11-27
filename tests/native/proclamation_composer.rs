@@ -1,9 +1,129 @@
 use super::*;
 
 #[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; checks the dispatch through native seat changes"]
+fn native_dispatch_follows_the_first_claim_and_last_take_back() {
+    use faction_seats::GOVERNMENT;
+
+    const WRITE: &str = "proclamation:write";
+    let mut app = super::available_forces::start("dispatch-seats-", "issue-266", "1920x1080");
+    let revision = app.revision();
+    let controls = |view: &Value| {
+        view["table"]["controls"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|control| control["name"] == WRITE)
+    };
+    let opening = app.observe();
+    assert_eq!(opening["table"]["proclamations"]["documents"], json!([]));
+    app.capture("01-all-human");
+    assert!(!controls(&opening));
+    assert!(app.key("KeyP")["table"]["proclamation_composer"].is_null());
+    app.request(
+        json!({"op":"activate","revision":revision,"component":WRITE}),
+        false,
+    );
+
+    app.key(GOVERNMENT);
+    let waiting = app.observe();
+    app.capture("02-awaiting-claim");
+    assert!(!controls(&waiting));
+    assert!(app.key("KeyP")["table"]["proclamation_composer"].is_null());
+    app.request(
+        json!({"op":"activate","revision":revision,"component":WRITE}),
+        false,
+    );
+
+    let (code, joined) = app.ask(&["join", "government"]);
+    assert_eq!((code, &joined["status"]), (0, &json!("joined")));
+    let mixed = app.observe();
+    app.capture("03-first-agent-claim");
+    assert!(controls(&mixed));
+    assert_eq!(mixed["observation"], opening["observation"]);
+    assert_eq!(mixed["table"]["proclamations"]["documents"], json!([]));
+    let tab = mixed["table"]["controls"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|control| control["name"] == WRITE)
+        .unwrap();
+    let [x, y]: [f64; 2] = serde_json::from_value(tab["position"].clone()).unwrap();
+    assert!((x - 148.5).abs() <= 1. && (y - 521.7).abs() <= 1.);
+    for (component, title) in [("aid", "Aid"), ("us-alliance", "US Alliance")] {
+        let hover = app.point(component);
+        assert_eq!(hover["table"]["top"]["title"], title);
+        let plate = rect_of(&hover["table"]["top"]["bounds"]);
+        assert!(plate[3] < 497., "{component} overlaps the selected tab");
+        for line in hover["table"]["top_text"].as_array().unwrap() {
+            let text = rect_of(&line["bounds"]);
+            assert!(text[0] >= plate[0] && text[1] >= plate[1]);
+            assert!(text[2] <= plate[2] && text[3] <= plate[3]);
+        }
+        app.capture(&format!("dispatch-with-{component}"));
+    }
+    app.activate(WRITE, revision);
+    assert_eq!(
+        app.observe()["table"]["proclamation_composer"]["author"],
+        "M26"
+    );
+    app.key("Escape");
+
+    app.press_by_keyboard(WRITE);
+    assert_eq!(
+        app.observe()["table"]["proclamation_composer"]["author"],
+        "M26"
+    );
+    app.key("Escape");
+    let opened = app.key("KeyP");
+    assert_eq!(opened["table"]["proclamation_composer"]["author"], "M26");
+    type_text(&app, revision, "Can we come to terms?");
+    let before = app.save_bytes();
+    app.key(GOVERNMENT);
+    let taken_back = app.observe();
+    assert!(!controls(&taken_back));
+    app.activate("proclamation:publish", revision);
+    let refused = app.observe();
+    assert_eq!(
+        refused["table"]["proclamation_composer"]["draft"],
+        "Can we come to terms?"
+    );
+    assert!(refused["table"]["proclamation_composer"]["refusal"].is_string());
+    assert_eq!(refused["table"]["proclamations"]["documents"], json!([]));
+    assert_eq!(app.save_bytes(), before);
+    app.capture("04-last-agent-taken-back");
+    app.key("Escape");
+    assert!(app.key("KeyP")["table"]["proclamation_composer"].is_null());
+    app.request(
+        json!({"op":"activate","revision":revision,"component":WRITE}),
+        false,
+    );
+    let _replacement = app.seat_agent(GOVERNMENT, "government");
+    let reopened = app.key("KeyP");
+    assert_eq!(
+        reopened["table"]["proclamation_composer"]["draft"],
+        "Can we come to terms?"
+    );
+    app.activate("proclamation:publish", revision);
+    let all_human = app.key(GOVERNMENT);
+    assert!(!controls(&all_human));
+    app.activate("proclamations", revision);
+    let archived = app.observe();
+    assert_eq!(archived["table"]["proclamations"]["open"], 1);
+    assert_eq!(
+        archived["table"]["proclamations"]["documents"][0]["text"],
+        "Can we come to terms?"
+    );
+    assert_eq!(archived["observation"], opening["observation"]);
+    app.capture("05-archive-after-take-back");
+    app.quit();
+}
+
+#[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; drives the native proclamation composer"]
 fn native_human_composes_a_proclamation_for_the_selected_faction() {
     let mut app = super::available_forces::start("broadsheet-compose-", "issue-230", "3840x2160");
+    let _government = app.seat_agent(faction_seats::GOVERNMENT, "government");
     let pending = app.observe()["observation"].clone();
     let revision = pending["revision"].as_u64().unwrap();
     app.activate("proclamation:write", revision);
@@ -43,7 +163,7 @@ fn native_human_publication_preserves_the_pending_havana_request() {
     let revision = app.revision();
     let before = app.save_bytes();
 
-    app.key("KeyP");
+    app.press_by_keyboard("proclamation:write");
     app.activate("proclamation:author:syndicate", revision);
     const WORDS: &str = "26July, the doors of the Havana Casino are chained. Two of your Resources will put five in our hands and let the house reopen. In return, when you ask for a contribution on a later card, we will hear you first. Our word is public. Government can read it, and so can Directorio. Give 1 if two is too dear, or give nothing. Either way, when the lights come on, Havana will remember who brought the key.";
     assert_eq!(WORDS.chars().count(), 400);

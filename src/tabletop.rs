@@ -206,6 +206,8 @@ struct Interface {
     /// Each faction's seat, indexed like `Faction::ALL`: the human's input submits nothing
     /// for one that is not the human's (`faction_seats`).
     seats: [crate::faction_seats::SeatState; 4],
+    /// The host has both a human faction and a faction claimed by an agent.
+    mixed_seats: bool,
     /// The seat controls pressed in this frame, until `faction_seats::serve` reads them.
     presses: Vec<seat_cards::Press>,
     /// The open sheet with a seat's line to copy.
@@ -1145,6 +1147,7 @@ fn bind_spaces(
 fn hover_disclosures(
     hover: Res<HoverMap>,
     controls: Query<&Control>,
+    top_tags: Query<&top::TagSurface>,
     pointers: Query<(&PointerId, &bevy::picking::pointer::PointerLocation)>,
     time: Res<Time>,
     mut ui: ResMut<Interface>,
@@ -1161,6 +1164,9 @@ fn hover_disclosures(
     let rested = ui.rested.is_some();
     let target = hover.get(&PointerId::Mouse).and_then(|hits| {
         hits.keys().find_map(|e| {
+            if let Ok(tag) = top_tags.get(*e) {
+                return Some(Target::Top(tag.0));
+            }
             let control = controls.get(*e).ok()?;
             match control.action {
                 Action::Standing(f) => Some(Target::Standing(f)),
@@ -1998,7 +2004,7 @@ fn draw_ui(
     piles::overlay(&mut commands, &art, &scene, &window);
     // #208: the pile of this card's editions beside the pips.
     newspaper::pile(&mut commands, &art, &view, &ui, &main_view, &window);
-    proclamation_composer::entry(&mut commands, &art, &play, &ui, &window);
+    proclamation_composer::entry(&mut commands, &art, &view, &ui, s);
     proclamation_reader::draw(&mut commands, &art, play.session.as_ref(), &ui, &window);
     // #206: the four seats between the pips and Save · quit.
     seat_cards::draw(&mut commands, &art, &view, &ui, &main_view, &window);

@@ -9,6 +9,7 @@
 //! (`focus-mark.sha256`), nine-sliced around the control they mark (FOCUS-MARK.md).
 use super::*;
 use crate::Observation;
+use bevy::input_focus::{FocusCause, InputFocus};
 
 /// A plate and its corner slice in reference pixels: the mark, its light form for the
 /// modal's amount field, and its cut for the round segments of the modal's direction
@@ -119,6 +120,8 @@ pub(super) fn draw(
     window: Single<&Window, With<PrimaryWindow>>,
     controls: Query<(Entity, &Control, Option<&transfer::Part>), With<Node>>,
     marks: Query<(Entity, &FocusMark)>,
+    mut input_focus: ResMut<InputFocus>,
+    mut dispatch_focus: Local<Option<Entity>>,
 ) {
     // A decision made in this frame is targeted in the next.
     let view = targeting.view.as_ref().filter(|view| {
@@ -130,6 +133,24 @@ pub(super) fn draw(
         let flying = advance.in_the_air(view, time.elapsed_secs_f64());
         marked(view, &ui, &targeting, &popover, &roll, flying)
     });
+    // The Dispatch's accessible button follows the same Tab stop as its drawn mark.
+    let dispatch = wanted
+        .pressed
+        .as_ref()
+        .filter(|target| matches!(target, Target::Control(name) if name == proclamation_composer::WRITE))
+        .and_then(|target| {
+            controls
+                .iter()
+                .find_map(|(entity, control, part)| target.is(control, part).then_some(entity))
+        });
+    if let Some(entity) = dispatch {
+        if input_focus.get() != Some(entity) {
+            input_focus.set(entity, FocusCause::Navigated);
+        }
+    } else if dispatch_focus.is_some() && *dispatch_focus == input_focus.get() {
+        input_focus.clear();
+    }
+    *dispatch_focus = dispatch;
     let s = reference_pixel(&window);
     let field = wanted
         .field

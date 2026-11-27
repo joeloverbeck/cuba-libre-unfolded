@@ -183,7 +183,7 @@ impl Stands {
         Self::among(&game.choices())
     }
 
-    fn among(choices: &[Choice]) -> Self {
+    pub(crate) fn among(choices: &[Choice]) -> Self {
         let mut supported = choices.iter().filter(|choice| choice.supported).peekable();
         if supported.peek().is_none() {
             Self::BuildEnds
