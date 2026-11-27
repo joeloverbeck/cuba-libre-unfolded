@@ -881,6 +881,13 @@ mod tests {
             .as_array()
             .unwrap();
         let supply = (point(&json!(&bounds[0..2])) + point(&json!(&bounds[2..4]))) / 2.;
+        let bell = |world: &mut World| {
+            world
+                .query_filtered::<Entity, With<TerrorToken>>()
+                .single(world)
+                .ok()
+        };
+        let original_bell = bell(app.world_mut()).unwrap();
         let map = {
             let world = app.world_mut();
             let at = world
@@ -930,7 +937,7 @@ mod tests {
             let at = point(&motion["at"]);
             let leg = source.distance(destination);
             assert!(at.distance(source) < leg * 0.75 && at.distance(destination) < leg * 0.75);
-            assert!((0.35..0.65).contains(&motion["alpha"].as_f64().unwrap()));
+            assert!((0.65..0.85).contains(&motion["alpha"].as_f64().unwrap()));
             assert_eq!(read_count(&middle), resident);
             capture(&mut seat, &mut app, &format!("{name}-travelling"));
 
@@ -945,6 +952,10 @@ mod tests {
             assert_eq!(
                 read_count(&arrived),
                 (after_count > 0).then(|| after_count.to_string())
+            );
+            assert_eq!(
+                bell(app.world_mut()),
+                (after_count > 0).then_some(original_bell)
             );
             assert_eq!(fs::read(&save).unwrap(), saved);
             capture(&mut seat, &mut app, &format!("{name}-settled"));

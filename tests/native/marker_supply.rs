@@ -165,6 +165,7 @@ fn native_terror_leaves_the_supply_after_commit_and_reopens_settled() {
     let before = app.observe();
     let revision = before["observation"]["revision"].as_u64().unwrap();
     let save = std::fs::read(&app.save).unwrap();
+    std::fs::write(app.root.join("before-santiago.json"), &save).unwrap();
     let drawn_count = |view: &Value, space: &str| -> Option<Value> {
         view["table"]["counts"]
             .as_array()
