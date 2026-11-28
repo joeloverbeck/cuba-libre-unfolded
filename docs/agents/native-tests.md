@@ -44,6 +44,32 @@ On X11, find visible candidates with `xdotool search --onlyvisible --name '^Cuba
 
 For agent-operated input, close the desktop window and open the selected save through the [development seat](seat.md#launch-and-connect). Observe the revision. Point at `space:las-villas` and settle the hover before right-dragging there. Compare the settled camera before and after the drag. Use the seat to pin and commit an offered choice, such as **Pass** on the prepared opening. Verify that the choice advances the revision, then close the seat before relaunching the desktop.
 
+### Packaged resize and zoom
+
+Before handing over a package that changes window sizing or text that scales during play, run the exact packaged binary on a playable checkpoint with visible quantities. Exercise both the owner's 3840×2160 reference and the observed 6010×3318 Xwayland window at 2×. Use private X11 on the NVIDIA renderer with `xvfb-run`, `xdotool`, `xprop`, `xrdb`, `xauth`, `dbus-run-session`, `nvidia-smi`, `jq`, `ffmpeg` and `rg` available.
+
+```sh
+scripts/heavy scripts/rehearse-review \
+  "$package/cuba-libre" "$package/atlas" "$CUBA_TEST_CARDS" "$checkpoint" \
+  "$evidence/zoom-3840" 3840x2160
+```
+
+Repeat with `"$evidence/zoom-6010" 6010x3318`. Use fresh evidence directories and a same-build save. Add `-- GAME_OPTIONS...` after the size when the packaged preview needs display options. The rehearsal checks the physical size reported by X11 and Bevy, samples only the game's GPU memory over twelve zoom and Home cycles, uses **Save · quit** and compares the disposable save with the input. Inspect `home.png`, `zoom.png` and `returned-home.png` for actual rendering and return. Retain them with `window.log`, `window-after-zoom.log`, `app.log`, `gpu.tsv`, `inputs.sha256` and the exact invocation and package manifest.
+
+The default 128 MiB growth allowance is between the observed steady repaired build and the earlier 512 MiB growth on the RTX 2080 Ti in #268. The first zoom cycle provides the baseline. Set `CUBA_REVIEW_VRAM_GROWTH_MIB` to a measured allowance when the driver or workload warrants it. For another renderer, record the corresponding process-level measurements via its tooling during the same desktop exercise.
+
+## Map and camera preflight
+
+Before a broad suite for map geometry, camera, or projected piece labels, run the relevant in-process checks in a focused call. Use the actual ray-hit regression for piece placement and the rendered-border regression for a camera change that can alter the loading backdrop.
+
+```sh
+scripts/heavy scripts/native --test-threads=1 --exact \
+  tabletop::seat::tests::motion::native_motion_leaves_the_new_active_target_pickable_during_terror \
+  tabletop::seat::tests::native_the_slip_shows_loading_then_an_earlier_build_s_save_refused
+```
+
+For changes to bell framing, run `native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space` early as well. When reviewing a failure, inspect the actual ray hit or the measured pixels before attributing the result to gameplay. These focused controls complement the required final checks on the reviewed revision.
+
 ## Persistent table controls
 
 When adding or moving a control visible on the ordinary table, run the 4K main-view regression before integrating the ticket. It checks the authored layout and exposed board areas as well as the controls' effects on picking and camera input. Set `CUBA_TEST_CARDS` to the [private card directory](../../README.md#where-files-live).
