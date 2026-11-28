@@ -1,0 +1,192 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/heavy scripts/rehearse-review BINARY ATLAS CARDS CHECKPOINT EVIDENCE WIDTHxHEIGHT [-- GAME_OPTIONS...]
+
+Resize the packaged desktop game under private 2× X11, repeat zoom and Home,
+and measure the game's NVIDIA GPU memory. Use a same-build playable checkpoint
+and a fresh evidence directory. The game receives an isolated save copy.
+Set CUBA_REVIEW_VRAM_GROWTH_MIB to adjust the 128 MiB growth allowance.
+USAGE
+}
+
+if [[ $# == 1 && ( $1 == --help || $1 == -h ) ]]; then usage; exit; fi
+if (($# < 6)); then usage >&2; exit 2; fi
+binary=$(realpath -e -- "$1")
+art=$(realpath -e -- "$2")
+cards=$(realpath -e -- "$3")
+checkpoint=$(realpath -e -- "$4")
+evidence=$(realpath -m -- "$5")
+size=$6
+shift 6
+if (($#)); then
+  if [[ $1 != -- ]]; then usage >&2; exit 2; fi
+  shift
+fi
+for option in "$@"; do
+  case "$option" in
+    --save|--recover-from|--agent-seat|--socket|--player-socket|--art|--cards|--occupancy-review)
+      printf 'The rehearsal owns the save, asset paths and desktop launch mode. Invalid option %s\n' "$option" >&2
+      exit 2 ;;
+  esac
+done
+if [[ ! -f $binary || ! -x $binary || ! -f $art/atlas-main-view.layout.json || ! -d $cards || ! -f $checkpoint ]]; then
+  printf 'Supply an executable, Atlas layout, card directory and playable checkpoint.\n' >&2
+  exit 2
+fi
+if [[ ! $size =~ ^([1-9][0-9]{2,3})x([1-9][0-9]{2,3})$ ]]; then
+  printf 'Use an X11 physical size such as 3840x2160 or 6010x3318.\n' >&2
+  exit 2
+fi
+width=${BASH_REMATCH[1]}
+height=${BASH_REMATCH[2]}
+if ((width < 640 || width > 6144 || height < 480 || height > 3456)); then
+  printf 'The rehearsal screen accepts physical window sizes from 640×480 to 6144×3456.\n' >&2
+  exit 2
+fi
+limit=${CUBA_REVIEW_VRAM_GROWTH_MIB:-128}
+if [[ ! $limit =~ ^(0|[1-9][0-9]{0,4})$ ]]; then
+  printf 'Set CUBA_REVIEW_VRAM_GROWTH_MIB to whole MiB (0–99999).\n' >&2
+  exit 2
+fi
+for command in dbus-run-session xvfb-run Xvfb xauth xrdb xdotool xprop nvidia-smi jq ffmpeg rg; do
+  if ! command -v "$command" >/dev/null; then printf 'Missing rehearsal command %s\n' "$command" >&2; exit 2; fi
+done
+
+umask 077
+mkdir -- "$evidence"
+mkdir -- "$evidence"/{runtime,data,config,cache,state}
+cp -- "$checkpoint" "$evidence/task.json"
+sha256sum -- "$binary" "$checkpoint" >"$evidence/inputs.sha256"
+
+rehearse() {
+  set -euo pipefail
+  local binary=$1 art=$2 cards=$3 checkpoint=$4 evidence=$5 width=$6 height=$7 limit=$8
+  shift 8
+  local window= pid= i log=$evidence/app.log save=$evidence/task.json
+  local baseline= peak= memory= quit_x= quit_y= last_size=
+  cd -- "$evidence"
+  printf 'Xft.dpi: 192\n' | xrdb -nocpp -merge
+
+  cleanup() {
+    if [[ -n ${pid:-} ]]; then
+      if jobs -pr | grep -Fxq "$pid"; then kill -TERM "$pid" 2>/dev/null || true; fi
+      wait "$pid" 2>/dev/null || true
+    fi
+  }
+  fail() { printf '%s. See %s\n' "$1" "$log" >&2; exit 1; }
+  check_render_log() {
+    if rg -qi 'out of memory|outofmemory|caught rendering error|quitting the application due to' "$log"; then
+      fail 'The packaged game reported a rendering error'
+    fi
+  }
+  alive() {
+    kill -0 "$pid" 2>/dev/null || fail 'The packaged game exited during rehearsal'
+    check_render_log
+  }
+  capture() {
+    timeout 20s ffmpeg -nostdin -v error -f x11grab -draw_mouse 0 \
+      -window_id "$window" -i "$DISPLAY" -frames:v 1 -threads 1 "$1"
+  }
+  trap cleanup EXIT
+  trap 'exit 130' INT
+  trap 'exit 143' TERM
+
+  "$binary" "$@" --art "$art" --cards "$cards" --save "$save" >"$log" 2>&1 &
+  pid=$!
+  for ((i=0; i<120; i++)); do
+    alive
+    window=$(xdotool search --onlyvisible --pid "$pid" --name '^Cuba Libre Unfolded' 2>/dev/null || true)
+    [[ -n $window ]] && break
+    sleep 0.25
+  done
+  [[ $window =~ ^[0-9]+$ ]] || fail 'Expected one visible game window'
+  xprop -id "$window" _NET_WM_NAME _NET_WM_PID >window.log
+  [[ $(xdotool getwindowname "$window") == 'Cuba Libre Unfolded — tactical candidate' ]] || fail 'Unexpected window title'
+  rg -q "_NET_WM_PID\(CARDINAL\) = $pid$" window.log || fail 'Window PID differs from the packaged game'
+  [[ $(readlink -f -- "/proc/$pid/exe") == "$binary" ]] || fail 'Window executable differs from the packaged game'
+  local -a argv
+  mapfile -d '' -t argv <"/proc/$pid/cmdline"
+  [[ ${argv[-2]} == --save && ${argv[-1]} == "$save" ]] || fail 'Window does not use the isolated save'
+
+  timeout 12s xdotool windowmove --sync "$window" 0 0 windowsize --sync "$window" "$width" "$height" windowfocus --sync "$window" ||
+    fail 'Window resize or focus did not complete'
+  xdotool getwindowgeometry "$window" >>window.log
+  rg -q "Geometry: ${width}x${height}$" window.log || fail 'X11 did not reach the requested physical size'
+  for ((i=0; i<60; i++)); do
+    alive
+    if rg -q "Window: ${width}×${height} physical pixels at scale factor 2$" "$log"; then break; fi
+    sleep 0.25
+  done
+  rg -q "Window: ${width}×${height} physical pixels at scale factor 2$" "$log" ||
+    fail 'Renderer did not report the requested physical size at backend scale 2'
+  xdotool mousemove --window "$window" "$((width - 2))" 2 key Home
+  sleep 2
+  capture home.png
+
+  printf 'cycle\tapp_vram_mib\n' >gpu.tsv
+  for ((i=1; i<=12; i++)); do
+    alive
+    # Zoom over the western island, away from the persistent panels.
+    xdotool mousemove --window "$window" "$((width * 1180 / 3840))" "$((height * 630 / 2160))" \
+      click --repeat 15 --delay 85 4
+    if ((i == 1)); then
+      sleep 0.5
+      capture zoom.png
+    fi
+    xdotool click --repeat 15 --delay 85 5 key Home
+    memory=$(timeout 10s nvidia-smi pmon -s m -c 1 | awk -v pid="$pid" '
+      $2 == pid && $4 ~ /^[0-9]+$/ { total += $4; found = 1 }
+      END { if (!found) exit 1; print total }
+    ') || fail 'NVIDIA process GPU memory is unavailable'
+    printf '%d\t%d\n' "$i" "$memory" >>gpu.tsv
+    if ((i == 1)); then baseline=$memory; peak=$memory; fi
+    if ((memory > peak)); then peak=$memory; fi
+    if ((peak - baseline > limit)); then
+      fail "Game GPU memory grew from $baseline to $peak MiB after the first zoom cycle"
+    fi
+  done
+
+  alive
+  xdotool getwindowgeometry "$window" >window-after-zoom.log
+  rg -q "Geometry: ${width}x${height}$" window-after-zoom.log || fail 'X11 window size changed during zoom'
+  last_size=$(rg 'Window: [0-9].*physical pixels' "$log" | tail -n 1)
+  [[ $last_size == *"Window: ${width}×${height} physical pixels at scale factor 2" ]] ||
+    fail 'Renderer size changed during zoom'
+  xdotool mousemove --window "$window" "$((width - 2))" 2 key Home
+  sleep 0.75
+  capture returned-home.png
+  # Use the normal Save · quit control at the package's authored bottom-right anchor.
+  read -r quit_x quit_y < <(
+    jq -er --argjson w "$width" --argjson h "$height" '
+      .frame as [$fw, $fh] | .areas["save-quit"] | select(.anchor == "bottom-right")
+      | .bounds as [$x, $y, $bw, $bh]
+      | ([$w / $fw, $h / $fh] | min) as $scale
+      | [$w - ($fw - $x - $bw / 2) * $scale, $h - ($fh - $y - $bh / 2) * $scale]
+      | map(round) | @tsv
+    ' "$art/atlas-main-view.layout.json"
+  ) || fail 'Could not locate the authored Save · quit control'
+  xdotool mousemove --window "$window" "$quit_x" "$quit_y" sleep 0.2 mousedown 1 sleep 0.2 mouseup 1
+  for ((i=0; i<40; i++)); do
+    kill -0 "$pid" 2>/dev/null || break
+    sleep 0.25
+  done
+  if kill -0 "$pid" 2>/dev/null; then fail 'Save · quit did not close the game'; fi
+  wait "$pid" || fail 'The packaged game exited unsuccessfully'
+  pid=
+  check_render_log
+  sha256sum --check --status inputs.sha256 || fail 'The original executable or checkpoint changed'
+  cmp -- "$checkpoint" "$save" || fail 'The isolated checkpoint changed'
+  printf 'Passed %s×%s at X11 scale 2. Process GPU memory %d–%d MiB after warm-up. Save identical.\n' \
+    "$width" "$height" "$baseline" "$peak"
+}
+
+exec env -u WAYLAND_DISPLAY -u AT_SPI_BUS_ADDRESS -u DBUS_SESSION_BUS_ADDRESS \
+  -u DBUS_STARTER_ADDRESS -u DBUS_STARTER_BUS_TYPE -u SESSION_MANAGER -u DESKTOP_AUTOSTART_ID -u DCONF_PROFILE \
+  XDG_SESSION_TYPE=x11 GSETTINGS_BACKEND=memory WINIT_X11_SCALE_FACTOR=2 \
+  XDG_RUNTIME_DIR="$evidence/runtime" XDG_DATA_HOME="$evidence/data" \
+  XDG_CONFIG_HOME="$evidence/config" XDG_CACHE_HOME="$evidence/cache" XDG_STATE_HOME="$evidence/state" \
+  dbus-run-session -- xvfb-run -a -s '-screen 0 6144x3456x24 -nolisten tcp' \
+  bash -c "$(declare -f rehearse)"$'\n''rehearse "$@"' rehearsal "$binary" "$art" "$cards" "$checkpoint" "$evidence" "$width" "$height" "$limit" "$@"
