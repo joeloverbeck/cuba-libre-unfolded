@@ -108,6 +108,7 @@ Use the trace to identify the last app tests and the observed gap between their 
 
 - `native_ordinary_map_shows_inventory_roundels` (#269) checks for all thirteen map surfaces and drawn count plates in ordinary 3840×2160 play. The test checks two city bounds against the selected 4K frame and measures the quantity-to-plate ratio and text layout bounds. Evidence goes to `local/verification/issue-142/` when run directly.
 
+- `native_manifesto_keeps_the_resident_base_in_place` (#273) uses the ordinary card 19 Havana placement to add a Government Base beside a resident Directorio Base. It verifies the resident's screen position through travel and both distinct placements after restart.
 - `native_force_travel_follows_the_committed_manifesto_placement` (#271) sends two Directorio Bases, two Syndicate Guerrillas and a mixed Government placement from their actual counters to Havana. It checks first arrivals and added quantities on existing stacks, with intermediate and settled 4K captures.
 - `native_force_travel_draws_partial_and_final_returns_once` (#271) checks Santiago's partial and final Guerrilla departures, a hover and cancellation that leave the save alone, and a same-build reopen during the first return.
 - `native_force_travel_draws_the_two_casino_faces_at_their_actual_slots` (#271) uses paid Construct to place a closed Casino in Pinar del Río, then returns the adjacent open Casino with its face visible. All three use `local/verification/issue-271/` when run directly. The test selector `native_force_travel` runs all three.

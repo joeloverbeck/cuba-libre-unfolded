@@ -80,13 +80,13 @@ pub(super) fn slot_for(space: &Space, group: &Group) -> [f32; 2] {
     }
     let circle = match index {
         8..=10 => {
-            // At most two Base factions can coexist. Rank the current pair so
-            // two positions serve all three possible factions.
+            // The saved order keeps the first Base group in its slot when a
+            // second faction arrives. A lone surviving group uses the first slot.
             let rank = space
                 .pieces
                 .iter()
                 .filter(|other| other.kind == Kind::Base && other.count != 0)
-                .filter(|other| group_index(other) < index)
+                .take_while(|other| other.faction != group.faction)
                 .count();
             8 + rank.min(1)
         }

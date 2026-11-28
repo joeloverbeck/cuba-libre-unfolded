@@ -93,6 +93,43 @@ fn distance(a: [f32; 2], b: [f32; 2]) -> f32 {
 }
 
 #[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan; follows two Base factions in Havana"]
+fn native_manifesto_keeps_the_resident_base_in_place() {
+    let mut app = available_forces::unlaunched("manifesto-base-slots-", "issue-273");
+    manifesto(&mut app);
+    app.pick("havana", "manifesto:place:havana:guerrilla-base");
+    app.pick("havana", "manifesto:place:havana:guerrilla-guerrilla");
+    let directorio = "havana Directorio Base Ordinary";
+    let government = "havana Government Base Ordinary";
+    let before = app.observe();
+    let original = solid_center(&before, directorio).expect("Directorio Base is on the board");
+    assert!(solid_center(&before, government).is_none());
+
+    let choice = preview(&mut app, "manifesto:place:havana:troops-base");
+    assert_eq!(choice["observation"]["owner"], "Government");
+    let committed = activate_unsettled(&mut app, "popover:commit");
+    assert_eq!(
+        solid_center(&committed, directorio),
+        Some(original),
+        "the arrival must leave the first Base in its own slot"
+    );
+    let arrived = app.advance(60);
+    assert_eq!(solid_center(&arrived, directorio), Some(original));
+    let arrival = solid_center(&arrived, government).expect("Government Base landed");
+    assert!(distance(arrival, original) > 10.);
+    assert!(flights(&arrived).is_empty());
+
+    app.quit();
+    app.launch_size("3840x2160");
+    let restored = app.observe();
+    assert_eq!(restored["observation"], arrived["observation"]);
+    assert_eq!(solid_center(&restored, directorio), Some(original));
+    assert_eq!(solid_center(&restored, government), Some(arrival));
+    assert!(flights(&restored).is_empty());
+    app.quit();
+}
+
+#[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; view the ledger and map at successive force travel frames"]
 fn native_force_travel_follows_the_committed_manifesto_placement() {
     let mut app = available_forces::unlaunched("manifesto-force-travel-", "issue-271");
