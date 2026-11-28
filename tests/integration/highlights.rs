@@ -41,8 +41,7 @@ fn every_highlight_is_an_hf_a_export_admitted_by_hash() {
         assets::HIGHLIGHT_MANIFEST.lines().count(),
         graphics.len() + pieces.len() + marks.len() + 1
     );
-    // Removal mode's markers: the proposal's HF-A piece exports, byte for byte, at
-    // 8 px per unit over the square they are placed on.
+    // Removal uses the selected moving corners and the original static protection mark.
     let mut states = vec![];
     for piece in pieces {
         let file = piece["file"].as_str().unwrap();
@@ -51,15 +50,16 @@ fn every_highlight_is_an_hf_a_export_admitted_by_hash() {
             admitted(&format!("art/atlas/{file}")),
             assets::digest(&bytes)
         );
-        let artboard = piece["artboard"].as_str().unwrap();
-        assert!(artboard.starts_with("A-piece-"), "{artboard}");
-        let proposal = std::fs::read(format!(
-            "art/proposals/issue-66/graphics/piece-{artboard}.png"
-        ))
-        .unwrap();
-        assert_eq!(bytes, proposal, "{file}");
-        let side = piece["size"].as_f64().unwrap() * 8.;
-        assert_eq!(size(&bytes), (side as u32, side as u32), "{file}");
+        if piece["mark"] == "removable" {
+            // The selected EffectCraft export has 48 frames in eight columns.
+            assert_eq!(size(&bytes), (192 * 8, 192 * 6));
+        } else {
+            let proposal =
+                std::fs::read("art/proposals/issue-66/graphics/piece-A-piece-protected.png")
+                    .unwrap();
+            assert_eq!(bytes, proposal, "{file}");
+            assert_eq!(size(&bytes), (512, 512));
+        }
         states.push(piece["mark"].as_str().unwrap().to_owned());
     }
     states.sort();

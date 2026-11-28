@@ -76,11 +76,13 @@ Santiago and Oriente become not involved when a target has nothing left in this 
 ## Removal mode (#73)
 
 "Remove own pieces" opens removal mode. `cuba_libre_unfolded::targets::removal_targets` reads each of the executing faction's groups from the authority's removal choices. Government uses the same markers and piece popover for its Troop and Police stacks during Assault.
-- **Removable:** at least one of the group may be removed now. Marker: `atlas-piece-removable.png`, the red survey station (a ring with four ticks), artboard `A-piece-removable`.
+- **Removable:** at least one of the group may be removed now. Marker: `atlas-piece-removable.png`, four registration corners that press inward twice and rest. The owner selected B on 2026-11-28.
 - **Protected:** none may, because the owed Santiago Terror keeps the last Underground Guerrilla there (accepted commitment policy, local). Marker: `atlas-piece-protected.png`, the double ink ring and lock tab, artboard `A-piece-protected`.
 - **Dimmed:** a space holding none of the executing faction's pieces shows its `not involved` veil.
 
-No space rule shows in removal mode. Each marker is the proposal's `graphics/piece-{artboard}.png`, byte for byte, at 8 px per unit. The manifest's `pieces` entries place it as the proposal's Blender pass did: a flat unlit square 64 atlas units (0.64 world units) across, centred under its piece, 0.003 above the region top, so it stays under the pieces, counts and region labels and never intercepts picks.
+No space rule shows in removal mode. A flat unlit plane places each mark below its piece and quantity disc, 0.003 world units above the region surface. It ignores picking. The protected ring keeps its original footprint. Removable marks use a 72-unit square before piece scale, widened to 86 for Bases and Casinos. Transparent padding is part of each frame.
+
+The selected vector source is `registration-corners.vectorcraft`. Open `registration-corners.ecproj` beside its footage `registration-corners.png` for the approved motion. The runtime texture is its 48 transparent frames in row order, eight columns by six, 192 px per cell. All removable groups share a three-second loop at 16 frames per second, beginning when removal opens; the artwork remains visible at rest.
 
 ## The piece popover (#73)
 

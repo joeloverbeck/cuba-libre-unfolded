@@ -277,6 +277,7 @@ struct RestingPiece {
 /// top it stands on.
 #[derive(Component)]
 struct OwnPiece {
+    kind: Kind,
     key: String,
     base: f32,
 }
@@ -580,7 +581,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 highlights::refresh,
                 highlights::show,
                 (force_travel::stage, sync_pieces, piece_flips::animate).chain(),
-                highlights::markers,
+                (highlights::markers, highlights::animate_registration).chain(),
                 popover::hover_piece,
                 bind_spaces,
                 hover_disclosures,
@@ -977,6 +978,7 @@ fn sync_pieces(
                         .entity(token)
                         .insert((
                             OwnPiece {
+                                kind: piece.kind,
                                 key: key.clone(),
                                 base: top,
                             },
@@ -1750,7 +1752,7 @@ fn notice(
             "Piece management is open. Select a Syndicate piece on the map. Saved.".into()
         }
         "remove" => format!(
-            "Removal mode: click a ringed {} piece on the map. Saved.",
+            "Removal mode: click a corner-marked {} piece on the map. Saved.",
             owner.name()
         ),
         "done-removal" if owner == Faction::Syndicate => "Returned to Construct. Piece changes are saved.".into(),
