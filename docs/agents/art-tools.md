@@ -37,6 +37,8 @@ cargo install --path apps/figcraft-cli --locked
 
 Run each command only in its corresponding repository, initially `../vectorcraft`, `../effectcraft`, `../photocraft`, or `../figcraft`. Their verified origin repositories are `https://github.com/storytold/vectorcraft`, `https://github.com/storytold/effectcraft`, `https://github.com/storytold/photocraft`, and `https://github.com/storytold/figcraft`; verify access and the selected revision before installing. Record the tool revision used when creating an accepted asset; a matching version string alone is not a source revision.
 
+When the owner selects a visual study, record the choice and the verified source-to-export procedure in its Atlas design note. Name the editor revisions and the evidence for them. Record which comparison files the owner authorized for publication before linking them from the PR. Keep a local comparison identifiable as local when its publication status is open.
+
 ## File boundaries
 
 The committed configurations are portable when launched from the checkout root: read root `.`, write root `art`. They explicitly use headless mode where the CLI supports it; EffectCraft's unbridged MCP is headless. They do not attach to or modify a running desktop document. Supply absolute paths in individual save/import commands as required by the editors.

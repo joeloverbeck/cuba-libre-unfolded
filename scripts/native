@@ -330,11 +330,6 @@ if ((${#failed[@]})); then
   echo "native regressions failed in: ${failed[*]}" >&2
   exit 1
 fi
-if [[ -n $shard ]]; then
-  echo "native regressions: shard $shard passed; the suite needs all $parts"
-else
-  echo "native regressions: all passed"
-fi
 # Only a passed shard or a passed unfiltered run names its inputs, so a filtered or
 # failed one cannot be taken for the suite.
 if "$whole"; then
@@ -345,5 +340,16 @@ if "$whole"; then
   fi
   printf '%s\n' "$verdict" | tee -a "$timing/summary.txt"
 fi
+logs=("$timing/app.log")
+if [[ $library_threads != skipped ]]; then logs+=("$timing/library.log"); fi
+passed=$(awk '$1 == "ok" {n++} END {print n+0}' "${logs[@]}")
+if [[ -n $shard ]]; then
+  coverage="shard $shard"
+elif "$whole"; then
+  coverage="full suite"
+else
+  coverage="selected run"
+fi
+printf 'native regressions: %s passed (%s tests)\n' "$coverage" "$passed" | tee -a "$timing/summary.txt"
 exit
 }

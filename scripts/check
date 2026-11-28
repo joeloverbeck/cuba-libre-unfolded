@@ -207,6 +207,30 @@ check_native_inputs() (
     return 1
   fi
 
+  # Exercise the real runner's three coverage paths with a small libtest log.
+  mkdir "$scratch/bin"
+  cat > "$scratch/bin/cargo" <<'CARGO'
+#!/usr/bin/env bash
+for arg do
+  case $arg in
+    --list) printf 'sample: test\nother: test\n'; exit ;;
+    --logfile=*) printf 'ok sample <0.001s>\n' > "${arg#--logfile=}"; exit ;;
+  esac
+done
+exit 1
+CARGO
+  chmod +x "$scratch/bin/cargo"
+  check_coverage() {
+    local expected=$1
+    shift
+    PATH="$scratch/bin:$PATH" CUBA_TEST_CARDS="$scratch/cards" CUBA_NATIVE_EVIDENCE="$scratch/runs" \
+      "$fixture/scripts/native" "$@" > "$scratch/output" || return
+    [[ $(tail -1 "$scratch/output") == "native regressions: $expected" ]]
+  }
+  check_coverage 'selected run passed (2 tests)' --exact sample
+  check_coverage 'full suite passed (2 tests)'
+  check_coverage 'shard 2/2 passed (1 tests)' --shard 2/2
+
   touch -- "$fixture/table.asset"
   if "$fixture/scripts/native" --inputs > "$scratch/stdout" 2> "$scratch/stderr" ||
     [[ -s $scratch/stdout ]] ||

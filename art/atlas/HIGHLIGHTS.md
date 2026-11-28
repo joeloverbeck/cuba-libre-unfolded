@@ -84,6 +84,18 @@ No space rule shows in removal mode. A flat unlit plane places each mark below i
 
 The selected vector source is `registration-corners.vectorcraft`. Open `registration-corners.ecproj` beside its footage `registration-corners.png` for the approved motion. The runtime texture is its 48 transparent frames in row order, eight columns by six, 192 px per cell. All removable groups share a three-second loop at 16 frames per second, beginning when removal opens; the artwork remains visible at rest.
 
+### Registration corners selection and export
+
+The owner chose B, Registration corners, from the animated Survey dial, Registration corners and Radio call studies. Publication covered the selected production sources and runtime sheet in [#278](https://github.com/joeloverbeck/cuba-libre-unfolded/pull/278). The comparison page and clips under `art/proposals/removable-pieces/` are local studies with no recorded publication approval.
+
+The source files identify VectorCraft and EffectCraft 0.24.1. CLI installation paths, checkout reflogs and installed binary timestamps point to `storytold/vectorcraft@97da102592` and `storytold/effectcraft@a0e83083`. Those revisions are inferred. [Provenance evidence](https://github.com/joeloverbeck/cuba-libre-unfolded/pull/278#issuecomment-7236168095).
+
+From the checkout root, render frames 0 through 47 with the following command, substituting the frame number and output path. Keep the 128×128 VectorCraft footage beside the project. Place each complete 192×192 RGBA frame in the output sheet at pixel coordinates `(192 × (frame % 8), 192 × floor(frame / 8))`. All 48 cell pixel buffers matched the shipped sheet in the integration check.
+
+```sh
+effectcraft-cli render-frame --project art/atlas/registration-corners.ecproj --comp register --frame 7 --transparent --out /tmp/frame-7.png
+```
+
 ## The piece popover (#73)
 
 In removal mode, clicking one of the executing faction's removable pieces opens its popover (#58 story 49). Clicking it again, Cancel, a region or any decision closes it. A protected piece shows A-P6's tag on hover (story 48), and a click on it opens nothing. Until #58's final review a hover also opened a removable piece's popover, unpinned. Removal mode stays open after each removal until the panel's Done.
