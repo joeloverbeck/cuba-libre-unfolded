@@ -58,7 +58,7 @@ fn material(
 ) -> Handle<StandardMaterial> {
     let [r, g, b] = rgb;
     materials.add(StandardMaterial {
-        base_color: Color::srgb_u8(r, g, b),
+        base_color: Color::srgb_u8(r, g, b), // own colour: brass inset and chart materials
         metallic,
         perceptual_roughness: 0.77,
         ..default()
