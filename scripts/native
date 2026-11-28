@@ -362,6 +362,8 @@ elif "$whole"; then
 else
   coverage="selected run"
 fi
-printf 'native regressions: %s passed (%s tests)\n' "$coverage" "$passed" | tee -a "$timing/summary.txt"
+unit=tests
+if ((passed == 1)); then unit=test; fi
+printf 'native regressions: %s passed (%s %s)\n' "$coverage" "$passed" "$unit" | tee -a "$timing/summary.txt"
 exit
 }

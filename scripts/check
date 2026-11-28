@@ -211,14 +211,27 @@ check_native_inputs() (
   mkdir "$scratch/bin"
   cat > "$scratch/bin/cargo" <<'CARGO'
 #!/usr/bin/env bash
+tests=(alpha beta)
+list=false
+exact=false
+selected=()
 while (($#)); do
   case $1 in
-    --list) printf 'sample: test\nother: test\n'; exit ;;
-    --logfile) printf 'ok sample <0.001s>\n' > "$2"; exit ;;
+    --lib) tests=(gamma) ;;
+    --list) list=true ;;
+    --logfile) log=$2; shift ;;
+    --exact) exact=true ;;
+    alpha|beta|gamma) selected+=("$1") ;;
   esac
   shift
 done
-exit 1
+if "$list"; then printf '%s: test\n' "${tests[@]}"; exit; fi
+: > "$log"
+for name in "${tests[@]}"; do
+  if ! "$exact" || [[ " ${selected[*]} " == *" $name "* ]]; then
+    printf 'ok %s <0.001s>\n' "$name" >> "$log"
+  fi
+done
 CARGO
   chmod +x "$scratch/bin/cargo"
   check_coverage() {
@@ -231,10 +244,10 @@ CARGO
     [[ $(tail -1 "$scratch/output") == "native regressions: $expected" &&
        $(tail -1 "$summary") == "native regressions: $expected" ]]
   }
-  check_coverage 'selected run passed (2 tests)' --exact sample
-  check_coverage 'full suite passed (2 tests)'
-  check_coverage 'full suite passed (2 tests)' --nocapture
-  check_coverage 'shard 2/2 passed (1 tests)' --shard 2/2
+  check_coverage 'selected run passed (1 test)' --exact gamma
+  check_coverage 'full suite passed (3 tests)'
+  check_coverage 'full suite passed (3 tests)' --nocapture
+  check_coverage 'shard 2/2 passed (1 test)' --shard 2/2
 
   touch -- "$fixture/table.asset"
   if "$fixture/scripts/native" --inputs > "$scratch/stdout" 2> "$scratch/stderr" ||
