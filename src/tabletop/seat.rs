@@ -1436,14 +1436,13 @@ mod tests {
     /// The outer edges of the card's 1 px ink stroke as drawn in `capture`, found by
     /// scanning inward from 20 px outside each edge of the slip's reported `bounds`
     /// (left, top, right, bottom): across the bottom padding for the sides, and down
-    /// and up a column inside the left padding for the top and the foot. A pixel is
-    /// the stroke's when its channels sum below 560: the sea sums about 674, the paper 724
-    /// and the shadow at least 600.
+    /// and up a column inside the left padding for the top and the foot. Select dark
+    /// blue-grey ink so the tan tabletop during loading does not count as the stroke.
     pub(crate) fn drawn_stroke(capture: &std::path::Path, bounds: [f64; 4]) -> [f64; 4] {
         let image = image::open(capture).unwrap().to_rgb8();
-        let dark = |x: f64, y: f64| {
-            let p = image.get_pixel(x as u32, y as u32);
-            p.0.iter().map(|&c| u32::from(c)).sum::<u32>() < 560
+        let ink = |x: f64, y: f64| {
+            let [r, g, b] = image.get_pixel(x as u32, y as u32).0;
+            r < g && g <= b && b < 120
         };
         let [left, top, right, foot] = bounds.map(f64::round);
         let row = foot - 4.;
@@ -1456,11 +1455,11 @@ mod tests {
             at += step;
         };
         [
-            first(left - 20., 1., left + 8., &|x| dark(x, row)),
-            first(top - 20., 1., top + 8., &|y| dark(column, y)),
+            first(left - 20., 1., left + 8., &|x| ink(x, row)),
+            first(top - 20., 1., top + 8., &|y| ink(column, y)),
             // The last dark pixel's far side is the edge.
-            first(right + 20., -1., right - 8., &|x| dark(x, row)) + 1.,
-            first(foot + 20., -1., foot - 8., &|y| dark(column, y)) + 1.,
+            first(right + 20., -1., right - 8., &|x| ink(x, row)) + 1.,
+            first(foot + 20., -1., foot - 8., &|y| ink(column, y)) + 1.,
         ]
     }
 

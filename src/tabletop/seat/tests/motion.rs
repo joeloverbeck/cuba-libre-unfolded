@@ -187,14 +187,15 @@ fn native_motion_leaves_the_new_active_target_pickable_during_terror() {
     let mut app = removal_during_terror(&temp.path().join("task.json"));
     let center = slot(&app, "santiago", guerrilla(State::Active));
     frame(&mut app, center, 5.);
-    let at = project(&mut app, center);
+    let token = piece_entity(&mut app, "santiago:active").unwrap();
+    let projected = project(&mut app, center);
+    let at = exposed_point(&mut app, token, projected);
     click_at(&mut app, at);
     let read = popover(&mut app);
     assert_eq!(
         read["card"]["rows"][0]["choice"], "6:remove:santiago:active:1",
         "click at {at}: {read}"
     );
-    let token = piece_entity(&mut app, "santiago:active").unwrap();
     let world = app.world_mut();
     assert!(
         world
