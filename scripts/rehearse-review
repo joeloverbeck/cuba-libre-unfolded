@@ -66,7 +66,9 @@ rehearse() {
   cd -- "$evidence"
   printf 'Xft.dpi: 192\n' | xrdb -nocpp -merge
 
-  game_job_exists() { jobs -p | grep -Fxq "$pid"; }
+  game_job_exists() {
+    jobs -pr | grep -Fxq "$pid" || jobs -ps | grep -Fxq "$pid"
+  }
   cleanup() {
     local attempt
     if [[ -z $pid ]]; then return; fi
