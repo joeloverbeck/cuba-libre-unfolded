@@ -352,7 +352,7 @@ pub(super) struct Card {
     pub cancel: bool,
     pub footer: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    rally: Option<paid_rally::Recruitment>,
+    rally: Option<paid_rally::Procedures>,
 }
 
 const FOOTER: &str = "Choose a row to see what it does; only the button acts.";

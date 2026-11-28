@@ -840,8 +840,8 @@ pub struct Choice {
 }
 impl Choice {
     #[cfg(feature = "tabletop")]
-    pub(crate) fn rally_recruitment(&self) -> Option<u8> {
-        paid_rally::recruitment(self.action()).map(|(_, quantity)| quantity)
+    pub(crate) fn paid_rally_action(&self) -> Option<RallyAction> {
+        paid_rally::payment(self.action()).map(|(_, action)| action)
     }
 
     /// The action without its match revision: `terror:santiago` for the id
@@ -1707,7 +1707,7 @@ impl Game {
                 || Self::assault_payment_space(action).is_some()
                 || action == "end-assault"
                 || Self::is_construct_action(action)
-                || paid_rally::recruitment(action).is_some()
+                || paid_rally::payment(action).is_some()
                 || manifesto::is_placement(action)
                 || choice.removal().is_some()
                 || choice.casino_closure().is_some() =>
@@ -1834,8 +1834,8 @@ impl Game {
         if manifesto::is_placement(action) {
             preview.placement_available_forces = self.manifesto_available_forces_preview(after);
             preview.next = after.next();
-        } else if let Some((_, quantity)) = paid_rally::recruitment(action) {
-            preview.placement_available_forces = self.paid_recruitment_preview(after, quantity);
+        } else if let Some((_, rally_action)) = paid_rally::payment(action) {
+            preview.placement_available_forces = self.paid_rally_placement(after, rally_action);
         } else if matches!(action, "government:pass" | "end-assault") {
             preview.records = after.eligibility().government_box;
             preview.next = after.next();
@@ -1958,7 +1958,7 @@ impl Game {
             notes.push("The Event costs 0 Resources. After eligibility is adjusted (R 2.3.7), card 18 stays in preview.".into());
         } else if action.starts_with("rally:") {
             notes.push("The free Rally adds no eligibility penalty (R 5.5).".into());
-        } else if paid_rally::recruitment(action).is_some() {
+        } else if paid_rally::payment(action).is_some() {
             notes.push("Pay 1 Resource and use this space for Rally (R 3.1, 3.3.1).".into());
         } else if action.starts_with("terror:") {
             notes.push(format!("R 3.3.4: pay 1 Resource, {TERROR_EFFECTS}."));
@@ -3351,8 +3351,8 @@ impl Game {
                 .expect("Manifesto decision")
                 .decline(),
             _ if manifesto::is_placement(action) => self.apply_manifesto_placement(action)?,
-            _ if paid_rally::recruitment(action).is_some() => {
-                self.apply_paid_recruitment(action)?
+            _ if let Some((space, rally_action)) = paid_rally::payment(action) => {
+                self.apply_paid_rally(space, rally_action)?
             }
             construct::OPERATION_ONLY | construct::LIMITED => {
                 return self.apply_construct(action, next_revision);

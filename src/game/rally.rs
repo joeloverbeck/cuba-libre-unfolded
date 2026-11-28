@@ -52,6 +52,7 @@ impl RallyAction {
         match self {
             Self::Place(1) => "Place 1 Underground Guerrilla".into(),
             Self::Place(count) => format!("Place {count} Underground Guerrillas"),
+            Self::FlipUnderground(0) => "No Guerrillas change face".into(),
             Self::FlipUnderground(1) => "Flip 1 Guerrilla Underground".into(),
             Self::FlipUnderground(count) => format!("Flip {count} Guerrillas Underground"),
             Self::ReplaceWithBase {
@@ -81,6 +82,29 @@ fn count(pieces: &[Group], faction: Faction, kind: Kind, state: Option<State>) -
             group.faction == faction && group.kind == kind && state.is_none_or(|s| group.state == s)
         })
         .map_or(0, |group| group.count)
+}
+
+pub(super) fn base_exchanges(
+    space: &Space,
+    faction: Faction,
+    available_bases: u8,
+) -> impl Iterator<Item = RallyAction> {
+    let pieces = &space.pieces;
+    let active = count(pieces, faction, Kind::Guerrilla, Some(State::Active));
+    let underground = count(pieces, faction, Kind::Guerrilla, Some(State::Underground));
+    let bases: u8 = pieces
+        .iter()
+        .filter(|group| group.kind == Kind::Base)
+        .map(|g| g.count)
+        .sum();
+    (0..=2).filter_map(move |n| {
+        (bases < 2 && available_bases > 0 && underground >= n && active >= 2 - n).then_some(
+            RallyAction::ReplaceWithBase {
+                underground: n,
+                active: 2 - n,
+            },
+        )
+    })
 }
 
 fn rally_spaces(spaces: &[Space], beneficiary: Faction) -> impl Iterator<Item = &Space> {
@@ -174,25 +198,11 @@ impl RallyTarget<'_> {
         if active > 0 {
             actions.push(RallyAction::FlipUnderground(active));
         }
-        let bases: u8 = pieces
-            .iter()
-            .filter(|group| group.kind == Kind::Base)
-            .map(|g| g.count)
-            .sum();
-        if bases < 2 && available_bases > 0 {
-            let underground = count(
-                pieces,
-                self.beneficiary,
-                Kind::Guerrilla,
-                Some(State::Underground),
-            );
-            actions.extend((0..=2).filter_map(|n| {
-                (underground >= n && active >= 2 - n).then_some(RallyAction::ReplaceWithBase {
-                    underground: n,
-                    active: 2 - n,
-                })
-            }));
-        }
+        actions.extend(base_exchanges(
+            self.space,
+            self.beneficiary,
+            available_bases,
+        ));
         actions
     }
 }

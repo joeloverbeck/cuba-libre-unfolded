@@ -2931,6 +2931,175 @@ fn native_paid_rally_previews_and_pays_for_camaguey_on_both_routes() {
     app.quit();
 }
 
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan for the 4K paid Rally popover"]
+fn native_paid_rally_exchanges_and_recovers_in_camaguey() {
+    use super::construct::choose_row;
+    use super::map_keys::{press, tab_to};
+
+    const SPACE: &str = "space:camaguey-province";
+    const EXCHANGE: &str = "paid-rally:camaguey-province:base:2";
+    const RECOVER: &str = "paid-rally:camaguey-province:flip:0";
+    let mut app = available_forces::unlaunched("camaguey-exchange-", "issue-283");
+    reach_manifesto_after_two_passes(&app.save);
+    app.launch_size("3840x2160");
+    choose_row(&mut app, "m26:event");
+    choose_row(&mut app, "manifesto:decline");
+    app.pick(
+        "camaguey-province",
+        "manifesto:place:camaguey-province:guerrilla-base",
+    );
+    choose_row(&mut app, "manifesto:decline");
+    choose_row(&mut app, "manifesto:decline");
+    choose_row(&mut app, "directorio:rally");
+    let before = app.observe()["observation"].clone();
+    let revision = app.revision();
+    let checkpoint = app.save_bytes();
+
+    app.activate(SPACE, revision);
+    let recruit_pay = rally_popover_part(&app.observe(), "popover-commit");
+    tab_to(&mut app, "popover:row:recover");
+    press(&mut app, "Enter", "popover:row:recover");
+    let recovery = app.observe();
+    assert_eq!(
+        recovery["table"]["popover"]["card"]["rows"][0]["choice"],
+        format!("{revision}:{RECOVER}")
+    );
+    assert_eq!(rally_popover_part(&recovery, "popover-commit"), recruit_pay);
+    app.capture("rally-recovery-preview-no-flip");
+
+    app.activate("popover:row:exchange", revision);
+    let exchange = app.observe();
+    let card = &exchange["table"]["popover"]["card"];
+    assert_eq!(card["rows"][0]["choice"], format!("{revision}:{EXCHANGE}"));
+    let preview = &card["rally"]["preview"];
+    assert_eq!(preview["here"], json!([2, 0]));
+    assert_eq!(preview["available"], json!([11, 13]));
+    assert_eq!(preview["bases_here"], json!([1, 2]));
+    assert_eq!(preview["bases_available"], json!([3, 2]));
+    assert_eq!(preview["resources"], json!([5, 4]));
+    assert_eq!(rally_popover_part(&exchange, "popover-commit"), recruit_pay);
+    assert_rally_popover_geometry(&exchange);
+    let [left, top, ..] = rect_of(&exchange["table"]["popover"]["bounds"]);
+    let [row_x, row_y, row_right, row_bottom] = rally_popover_part(&exchange, "rally-selected-row");
+    for (actual, expected) in [
+        (row_x - left, 24.),
+        (row_y - top, 268.),
+        (row_right - row_x, 812.),
+        (row_bottom - row_y, 208.),
+    ] {
+        assert!(
+            (actual - expected).abs() <= 2.,
+            "{actual} differs from {expected}"
+        );
+    }
+    assert_eq!(exchange["observation"], before);
+    assert_eq!(app.save_bytes(), checkpoint);
+    assert_eq!(exchange["table"]["force_travel"], json!([]));
+    app.capture("rally-exchange-preview");
+
+    app.request(
+        json!({"op":"activate","revision":revision,"component":"popover:commit"}),
+        true,
+    );
+    let moving = app.observe();
+    let trips = moving["table"]["force_travel"].as_array().unwrap();
+    assert_eq!(trips.len(), 2);
+    assert!(trips.iter().any(|trip| {
+        trip["from"] == "camaguey-province"
+            && trip["to"] == "directorio-guerrilla-count"
+            && trip["group"]
+                == json!({
+                    "faction":"Directorio","kind":"Guerrilla","state":"Underground","count":2
+                })
+    }));
+    assert!(trips.iter().any(|trip| {
+        trip["from"] == "directorio-base-count"
+            && trip["to"] == "camaguey-province"
+            && trip["group"]
+                == json!({
+                    "faction":"Directorio","kind":"Base","state":"Ordinary","count":1
+                })
+    }));
+    let midflight = app.request(json!({"op":"advance","steps":15}), true);
+    let in_transit = midflight["table"]["force_travel"].as_array().unwrap();
+    assert_eq!(in_transit.len(), 2);
+    for trip in in_transit {
+        assert_ne!(trip["position"], trip["start"]);
+        assert_ne!(trip["position"], trip["end"]);
+    }
+    app.capture("rally-exchange-in-flight");
+    let settled = app.advance(60);
+    assert_eq!(settled["table"]["force_travel"], json!([]));
+    let after = &settled["observation"];
+    assert_eq!(after["resources"][2], 4);
+    assert_eq!(
+        after["paid_rally"]["resolutions"],
+        json!([{"space":"camaguey-province","action":{"ReplaceWithBase":{"underground":2,"active":0}}}])
+    );
+    assert_eq!(
+        available_forces::drawn_count(&settled, "directorio-guerrilla"),
+        "13"
+    );
+    assert_eq!(
+        available_forces::drawn_count(&settled, "directorio-base"),
+        "2"
+    );
+    app.capture("rally-exchange-committed");
+    app.quit();
+    app.launch_size("3840x2160");
+    assert_eq!(&app.observe()["observation"], after);
+    app.quit();
+
+    app.save = app.root.join("recover.json");
+    fs::write(&app.save, &checkpoint).unwrap();
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["observation"], before);
+    let directorio = app.seat_agent("F3", "directorio");
+    let (status, seen) = app.ask(&["observe", &directorio]);
+    assert_eq!(status, 0);
+    for action in [EXCHANGE, RECOVER] {
+        let offers = seen["view"]["choices"].as_array().unwrap();
+        let choice = offers
+            .iter()
+            .find(|c| c["id"] == format!("{revision}:{action}"))
+            .unwrap();
+        assert_eq!(choice["supported"], true);
+        assert_eq!(choice["preview"]["resources"][0]["from"], 5);
+        assert_eq!(choice["preview"]["resources"][0]["to"], 4);
+    }
+    app.decide(&directorio, RECOVER, "applied");
+    let recovered = app.observe()["observation"].clone();
+    assert_eq!(recovered["spaces"], before["spaces"]);
+    assert_eq!(recovered["available"], before["available"]);
+    assert_eq!(recovered["resources"][2], 4);
+    assert_eq!(
+        recovered["paid_rally"]["resolutions"],
+        json!([{"space":"camaguey-province","action":{"FlipUnderground":0}}])
+    );
+    let (status, told) = app.ask(&["observe", &directorio]);
+    assert_eq!(status, 0);
+    assert_eq!(told["view"]["state"]["paid_rally"], recovered["paid_rally"]);
+    assert!(
+        told["view"]["choices"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|choice| { choice["site"]["space"] != "camaguey-province" })
+    );
+    assert!(
+        told["view"]["choices"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|choice| { choice["supported"] == true && choice["site"]["space"].is_string() })
+    );
+    app.quit();
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["observation"], recovered);
+    app.quit();
+}
+
 fn rally_popover_part(view: &Value, name: &str) -> [f64; 4] {
     let parts = view["table"]["popover"]["parts"].as_array().unwrap();
     let part = parts
