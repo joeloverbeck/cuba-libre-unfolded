@@ -188,7 +188,10 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:m26:event` | Pin `option:m26:event` for the Sierra Maestra Manifesto. Commit using the offered choice to start the Event. |
 | `<revision>:manifesto:decline` | Pin `option:manifesto:decline` for the decision owner's decline and next handoff. Commit using the offered choice. |
 | `<revision>:manifesto:place:<space>:<mix>` | Open `space:<space>`, select `popover:row:manifesto:place:<space>:<mix>`, then activate `popover:commit`. Read the offered ID for the chosen faction and mix, for example `<revision>:manifesto:place:santiago:guerrilla-base`. `preview.placement_available_forces` reports each piece group and its Available count before and after the move. The preview also gives changes in `control` and `standings`. |
-| `<revision>:directorio:operation` | Directorio's inspection-only Operation with optional Special Activity after the Manifesto. `directorio:pass` is the other option at this point. |
+| `<revision>:directorio:rally` | Pin `option:directorio:rally` and confirm Rally without a Special Activity after the Manifesto. |
+| `<revision>:directorio:operation` | Inspect Directorio's options for other Operations and accompanying Special Activities. |
+| `<revision>:paid-rally:<space>:place:<n>` | Pay 1 Resource and use the space, placing the offered number of Directorio Guerrillas Underground. Open `space:<space>`, choose `popover:quantity:<n>` when several quantities are offered, then activate `popover:commit`. A held Directorio player submits the same revision-bound choice. |
+| `<revision>:paid-rally:finish` | Inspect the scope notice for finishing on card 19. |
 | `<revision>:pass`, `<revision>:terror` | 26July's supported action choices. |
 | `<revision>:event:shaded` | Listed for inspection at 26July's opening decision. Directorio can choose Alberto Bayo's shaded text after Kidnap. Pin its option to preview the flips. |
 | `<revision>:resolve-shaded` | Resolves the shaded Event after Directorio has chosen that text. |

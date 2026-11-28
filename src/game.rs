@@ -6,6 +6,7 @@ mod assault;
 mod cards;
 mod construct;
 pub(crate) mod manifesto;
+mod paid_rally;
 mod pile_facts;
 mod played;
 mod rally;
@@ -22,6 +23,7 @@ pub use construct::{
 };
 use manifesto::CARD_19_ORDER;
 pub use manifesto::{AvailableForcesChange, Manifesto, ManifestoPlacement};
+pub use paid_rally::PaidRally;
 pub use pile_facts::{
     DeckFacts, DeckWords, NextPropaganda, PlayedCard, PlayedPile, PlayedWords, next_propaganda,
     next_propaganda_words,
@@ -480,6 +482,8 @@ pub struct Game {
     #[serde(deserialize_with = "Option::deserialize")]
     manifesto: Option<Manifesto>,
     #[serde(deserialize_with = "Option::deserialize")]
+    paid_rally: Option<PaidRally>,
+    #[serde(deserialize_with = "Option::deserialize")]
     pub(crate) transfer: Option<Transfer>,
     #[serde(deserialize_with = "Option::deserialize")]
     pub(crate) kidnap: Option<Kidnap>,
@@ -702,6 +706,8 @@ pub struct Observation {
         serialize_with = "manifesto::serialize_observation"
     )]
     pub manifesto: Option<Manifesto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paid_rally: Option<PaidRally>,
     pub resources: [u8; 4],
     pub spaces: Vec<Space>,
     pub available: Vec<Group>,
@@ -833,6 +839,11 @@ pub struct Choice {
     pub preview: Option<Preview>,
 }
 impl Choice {
+    #[cfg(feature = "tabletop")]
+    pub(crate) fn rally_recruitment(&self) -> Option<u8> {
+        paid_rally::recruitment(self.action()).map(|(_, quantity)| quantity)
+    }
+
     /// The action without its match revision: `terror:santiago` for the id
     /// `3:terror:santiago`.
     pub fn action(&self) -> &str {
@@ -1276,6 +1287,7 @@ impl Game {
             government_pass_from: None,
             card_18_completion: None,
             manifesto: None,
+            paid_rally: None,
             transfer: None,
             kidnap: None,
             removal: None,
@@ -1340,6 +1352,7 @@ impl Game {
                 event.as_ref().map(|_| Faction::Directorio)
             },
             manifesto: self.manifesto.clone(),
+            paid_rally: self.paid_rally.clone(),
             eligible: eligibility.eligible,
             eligibility,
             event,
@@ -1389,6 +1402,7 @@ impl Game {
             choices,
             next: self.next(),
             operation: match self.action {
+                _ if self.paid_rally.is_some() => "Directorio executes Rally",
                 _ if manifesto_ended => "Directorio is 2nd Eligible on card 19",
                 _ if manifesto.is_some() => "26July executes Sierra Maestra Manifesto",
                 _ if manifest => "26July is 1st Eligible on card 19",
@@ -1450,6 +1464,8 @@ impl Game {
             removal: self.removal.clone(),
             effected: if self.construct_is_open() {
                 self.construct_committed()
+            } else if let Some(rally) = &self.paid_rally {
+                !rally.resolutions.is_empty()
             } else {
                 !manifest && self.effect
             },
@@ -1480,7 +1496,9 @@ impl Game {
                     .iter()
                     .filter(|c| c.space() == Some(space.id.as_str()))
                     .collect();
-                let reason = if self.current_card == 19 {
+                let reason = if let Some(rally) = &self.paid_rally {
+                    Some(self.paid_rally_space_reason(rally, space, &here))
+                } else if self.current_card == 19 {
                     Some(self.manifesto_space_reason(space, &here))
                 } else if self.construct_is_open() {
                     Some(self.construct_reason(space, &here))
@@ -1585,6 +1603,9 @@ impl Game {
     /// decision (R 2.3.3–2.3.4).
     fn next(&self) -> Option<Next> {
         if self.current_card == 19 {
+            if self.paid_rally.is_some() {
+                return None;
+            }
             return self
                 .manifesto
                 .as_ref()
@@ -1688,6 +1709,7 @@ impl Game {
                 || Self::assault_payment_space(action).is_some()
                 || action == "end-assault"
                 || Self::is_construct_action(action)
+                || paid_rally::recruitment(action).is_some()
                 || manifesto::is_placement(action)
                 || choice.removal().is_some()
                 || choice.casino_closure().is_some() =>
@@ -1814,6 +1836,8 @@ impl Game {
         if manifesto::is_placement(action) {
             preview.placement_available_forces = self.manifesto_available_forces_preview(after);
             preview.next = after.next();
+        } else if let Some((_, quantity)) = paid_rally::recruitment(action) {
+            preview.placement_available_forces = self.paid_recruitment_preview(after, quantity);
         } else if matches!(action, "government:pass" | "end-assault") {
             preview.records = after.eligibility().government_box;
             preview.next = after.next();
@@ -1936,6 +1960,8 @@ impl Game {
             notes.push("The Event costs 0 Resources. After eligibility is adjusted (R 2.3.7), card 18 stays in preview.".into());
         } else if action.starts_with("rally:") {
             notes.push("The free Rally adds no eligibility penalty (R 5.5).".into());
+        } else if paid_rally::recruitment(action).is_some() {
+            notes.push("Pay 1 Resource and use this space for Rally (R 3.1, 3.3.1).".into());
         } else if action.starts_with("terror:") {
             notes.push(format!("R 3.3.4: pay 1 Resource, {TERROR_EFFECTS}."));
         } else if self.current_card == 18 {
@@ -2044,6 +2070,9 @@ impl Game {
     }
     pub(crate) fn executing(&self) -> Option<Faction> {
         if self.current_card == 19 {
+            if self.paid_rally.is_some() {
+                return Some(Faction::Directorio);
+            }
             return self
                 .manifesto
                 .as_ref()
@@ -2499,6 +2528,9 @@ impl Game {
 
     pub(crate) fn choices(&self) -> Vec<Choice> {
         if self.current_card == 19 {
+            if let Some(rally) = &self.paid_rally {
+                return self.paid_rally_choices(rally);
+            }
             if let Some(manifesto) = &self.manifesto {
                 if self.removal.is_some() {
                     return self.removal_menu();
@@ -3314,12 +3346,16 @@ impl Game {
                 self.current_card = next;
             }
             MANIFESTO_EVENT => self.manifesto = Some(Manifesto::default()),
+            paid_rally::START => self.paid_rally = Some(PaidRally::default()),
             MANIFESTO_DECLINE => self
                 .manifesto
                 .as_mut()
                 .expect("Manifesto decision")
                 .decline(),
             _ if manifesto::is_placement(action) => self.apply_manifesto_placement(action)?,
+            _ if paid_rally::recruitment(action).is_some() => {
+                self.apply_paid_recruitment(action)?
+            }
             construct::OPERATION_ONLY | construct::LIMITED => {
                 return self.apply_construct(action, next_revision);
             }

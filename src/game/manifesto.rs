@@ -304,10 +304,16 @@ impl Game {
                     "R 2.3.3. Directorio would stay Eligible and gain 1 Resource.\nExecuting Pass is outside this continuation.",
                 ),
                 self.offer(
+                    paid_rally::START,
+                    "Rally without a Special Activity",
+                    true,
+                    "R 3.3.1. Open Rally. Choose a City or Province at Neutral or Passive and inspect its recruitment before paying 1 Resource.",
+                ),
+                self.offer(
                     "directorio:operation",
                     "Operation with optional Special Activity",
                     false,
-                    "R 2.3.4. An Operation may include a Special Activity.\nExecuting it is outside this continuation.",
+                    "R 2.3.4. An Operation may include a Special Activity.\nThese alternatives are outside this continuation.",
                 ),
             ];
         };

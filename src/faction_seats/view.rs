@@ -102,6 +102,8 @@ pub struct State {
         serialize_with = "crate::game::manifesto::serialize_observation"
     )]
     pub manifesto: Option<Manifesto>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paid_rally: Option<crate::PaidRally>,
     pub eligibility: Eligibility,
     pub passed: [bool; 4],
     pub next: Option<Next>,
@@ -305,6 +307,7 @@ impl State {
             event_executor: seen.event_executor,
             event: seen.event.clone(),
             manifesto: seen.manifesto.clone(),
+            paid_rally: seen.paid_rally.clone(),
             eligibility: seen.eligibility.clone(),
             passed: seen.passed,
             next: seen.next.clone(),

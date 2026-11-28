@@ -32,6 +32,7 @@ use crate::{
 use bevy::ui::FlexWrap;
 
 mod casino;
+mod paid_rally;
 use bevy::ui::widget::NodeImageMode;
 use emblems::Naming;
 use highlights::Targeting;
@@ -299,6 +300,7 @@ pub(super) enum Tone {
 pub(super) enum CardKind {
     /// A space's actions during Terror (A-P1, A-P3, A-P4).
     Space,
+    PaidRally,
     /// A removable 26July group in removal mode (A-P5, A-P7).
     Piece,
     OpenCasino,
@@ -349,6 +351,8 @@ pub(super) struct Card {
     /// A piece popover's Cancel button.
     pub cancel: bool,
     pub footer: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rally: Option<paid_rally::Recruitment>,
 }
 
 const FOOTER: &str = "Choose a row to see what it does; only the button acts.";
@@ -632,6 +636,9 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
         return None;
     }
     let place = view.spaces.iter().find(|s| s.id == space)?;
+    if view.paid_rally.is_some() {
+        return paid_rally::content(view, place, &here, selected);
+    }
     let chosen = selected
         .and_then(|a| here.iter().find(|c| c.supported && c.action() == a))
         .or_else(|| here.iter().find(|c| c.supported))
@@ -818,6 +825,7 @@ pub(super) fn content(view: &Observation, space: &str, selected: Option<&str>) -
         stepper: None,
         cancel: false,
         footer: FOOTER.into(),
+        rally: None,
     })
 }
 
@@ -833,6 +841,9 @@ pub(super) fn focusable(
     let Some(card) = content(view, space, selected).map(|card| card.read_by(ui)) else {
         return vec![];
     };
+    if let Some(rally) = &card.rally {
+        return paid_rally::focusable(&card, rally);
+    }
     let mut stops: Vec<(String, Action)> = card
         .rows
         .iter()
@@ -1063,6 +1074,7 @@ pub(super) fn piece_content(
         lines.extend(then.map(|t| (Tone::Secondary, t)));
         return Some(Card {
             kind: CardKind::Protected,
+            rally: None,
             space: target.space.clone(),
             piece: Some(key),
             revision: view.revision,
@@ -1115,6 +1127,7 @@ pub(super) fn piece_content(
     };
     Some(Card {
         kind: CardKind::Piece,
+        rally: None,
         space: target.space.clone(),
         piece: Some(key),
         revision: view.revision,
@@ -1386,9 +1399,11 @@ fn spawn(
         ))
         .id();
     let casino = matches!(card.kind, CardKind::OpenCasino | CardKind::ClosedCasino);
+    let rally = card.kind == CardKind::PaidRally;
     let width = match card.kind {
         CardKind::Protected => frame::TAG_WIDTH,
         CardKind::OpenCasino | CardKind::ClosedCasino => casino::WIDTH,
+        CardKind::PaidRally => paid_rally::WIDTH,
         _ => frame::WIDTH,
     };
     let body = commands
@@ -1399,14 +1414,14 @@ fn spawn(
                 left: px(frame::LEADER * s),
                 top: px(0.),
                 width: px(width * s),
-                height: if casino {
-                    px(casino::height(card) * s)
-                } else {
-                    Val::Auto
+                height: match card.kind {
+                    CardKind::PaidRally => px(paid_rally::HEIGHT * s),
+                    _ if casino => px(casino::height(card) * s),
+                    _ => Val::Auto,
                 },
                 flex_direction: FlexDirection::Column,
                 // The plate draws the 1 px stroke inside this padding; then 10 below.
-                padding: if casino {
+                padding: if casino || rally {
                     UiRect::ZERO
                 } else {
                     UiRect::new(px(s), px(s), px(s), px(11. * s))
@@ -1428,6 +1443,10 @@ fn spawn(
     });
     if casino {
         casino::draw(commands, &ink, body, card, bold, s);
+        return;
+    }
+    if let Some(rally) = &card.rally {
+        paid_rally::draw(commands, art, body, card, rally, bold, s);
         return;
     }
     // A-P6's tag carries an ink rule: it informs, and nothing on it acts.
@@ -1489,7 +1508,7 @@ fn spawn(
     match card.kind {
         CardKind::Space => space_rows(commands, &ink, body, card, bold, s),
         CardKind::Piece | CardKind::Protected => piece_body(commands, &ink, body, card, bold, s),
-        CardKind::OpenCasino | CardKind::ClosedCasino => unreachable!(),
+        CardKind::OpenCasino | CardKind::ClosedCasino | CardKind::PaidRally => unreachable!(),
     }
     let footer = commands
         .spawn((
@@ -2121,7 +2140,11 @@ pub(super) fn draw(
         popover.pinned = None;
         popover.selected = None;
     }
-    let s = reference_pixel(&window);
+    let s = if view.paid_rally.is_some() {
+        (window.width() / 1920.).min(window.height() / 1080.)
+    } else {
+        reference_pixel(&window)
+    };
     let pinned = popover.pinned.as_ref().map(|(space, _)| space.clone());
     // A space's popover opens on a click only; hover keeps the status tag.
     let space = pinned.clone();
