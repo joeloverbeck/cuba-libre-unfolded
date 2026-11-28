@@ -1,7 +1,7 @@
 //! The selected map highlight family, HF-A Survey ink (#68), applied to the map while
 //! a decision offers choices on its spaces, 26July's Terror (#72) and Government's
-//! Assault (#169), and in removal mode (#73). Every graphic is an
-//! unchanged VectorCraft export of `art/proposals/issue-66/map-highlights.vectorcraft`;
+//! Assault (#169), and in removal mode (#73). Space highlights are
+//! VectorCraft exports; removable pieces use the selected EffectCraft loop.
 //! `art/atlas/highlights.json` places each on the top of the one space it covers
 //! (#167: every space has its own rule, dashed rule and veil) and names the state it
 //! shows, and places the piece markers under the pieces. Runtime only decides
@@ -102,6 +102,7 @@ struct PieceMarker {
     mark: PieceState,
     /// Atlas units across.
     size: f32,
+    wide_size: Option<f32>,
     /// World units above the region top.
     lift: f32,
 }
@@ -111,7 +112,16 @@ struct PieceMarker {
 pub(super) struct Markers {
     mesh: Handle<Mesh>,
     lift: f32,
-    materials: Vec<(PieceState, String, Handle<StandardMaterial>)>,
+    materials: Vec<MarkerStyle>,
+    removable: Handle<StandardMaterial>,
+}
+
+struct MarkerStyle {
+    mark: PieceState,
+    file: String,
+    material: Handle<StandardMaterial>,
+    side: f32,
+    wide_side: f32,
 }
 
 /// A marker placed under an executing faction's group in removal mode.
@@ -181,31 +191,79 @@ pub(super) fn setup(
             },
         ));
     }
-    let size = manifest.pieces.first().map_or(64., |p| p.size) * map::PIECE_SCALE * 0.48;
+    let styles: Vec<_> = manifest
+        .pieces
+        .iter()
+        .map(|marker| {
+            let scale = map::PIECE_SCALE / 100.;
+            MarkerStyle {
+                mark: marker.mark,
+                file: marker.file.clone(),
+                side: marker.size * scale,
+                wide_side: marker.wide_size.unwrap_or(marker.size) * scale,
+                material: materials.add(StandardMaterial {
+                    base_color_texture: Some(art.images[&marker.file].clone()),
+                    alpha_mode: AlphaMode::Blend,
+                    unlit: true,
+                    depth_bias: -10.,
+                    uv_transform: if marker.mark == PieceState::Removable {
+                        registration_frame(0)
+                    } else {
+                        bevy::math::Affine2::IDENTITY
+                    },
+                    ..default()
+                }),
+            }
+        })
+        .collect();
+    let removable = styles
+        .iter()
+        .find(|style| style.mark == PieceState::Removable)
+        .expect("admitted removable marker")
+        .material
+        .clone();
     commands.insert_resource(Markers {
-        mesh: meshes.add(Plane3d::default().mesh().size(size / 100., size / 100.)),
-        lift: manifest.pieces.first().map_or(0.003, |p| p.lift),
-        materials: manifest
-            .pieces
-            .iter()
-            .map(|marker| {
-                (
-                    marker.mark,
-                    marker.file.clone(),
-                    materials.add(StandardMaterial {
-                        base_color_texture: Some(art.images[&marker.file].clone()),
-                        alpha_mode: AlphaMode::Blend,
-                        unlit: true,
-                        depth_bias: -10.,
-                        ..default()
-                    }),
-                )
-            })
-            .collect(),
+        mesh: meshes.add(Plane3d::default().mesh().size(1., 1.)),
+        lift: manifest.pieces[0].lift,
+        materials: styles,
+        removable,
     });
 }
 
-/// Places a marker under each eligible group in removal mode: the red survey station
+// Each cell is a complete, transparent 192 px EffectCraft frame.
+fn registration_frame(frame: usize) -> bevy::math::Affine2 {
+    bevy::math::Affine2::from_scale_angle_translation(
+        Vec2::new(1. / 8., 1. / 6.),
+        0.,
+        Vec2::new((frame % 8) as f32 / 8., (frame / 8) as f32 / 6.),
+    )
+}
+
+pub(super) fn animate_registration(
+    time: Res<Time>,
+    mut elapsed: Local<f32>,
+    mut previous: Local<Option<usize>>,
+    targeting: Res<Targeting>,
+    art: Option<Res<Markers>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+) {
+    let Some(art) = art else { return };
+    if targeting.removal.is_none() {
+        *elapsed = 0.;
+        *previous = None;
+        return;
+    }
+    let frame = (*elapsed * 16.) as usize;
+    *elapsed = (*elapsed + time.delta_secs()) % 3.;
+    if *previous != Some(frame)
+        && let Some(mut material) = materials.get_mut(&art.removable)
+    {
+        material.uv_transform = registration_frame(frame);
+        *previous = Some(frame);
+    }
+}
+
+/// Places a marker under each eligible group in removal mode: registration corners
 /// where a piece may be removed, the ink ring and lock where the owed Terror protects
 /// it. Markers follow the pieces and sit under them, so pieces and counts stay on top.
 pub(super) fn markers(
@@ -214,7 +272,7 @@ pub(super) fn markers(
     art: Option<Res<Markers>>,
     pieces: Query<(&OwnPiece, &Transform)>,
     placed: Query<Entity, With<Marker>>,
-    mut previous: Local<Vec<(Marker, [i32; 3])>>,
+    mut previous: Local<Vec<(Marker, [i32; 3], bool)>>,
 ) {
     let Some(art) = art else {
         return;
@@ -226,16 +284,17 @@ pub(super) fn markers(
             let Some((piece, at)) = pieces.iter().find(|(p, _)| p.key == key) else {
                 continue;
             };
-            let Some((_, file, _)) = art.materials.iter().find(|(m, ..)| *m == target.mark) else {
+            let Some(style) = art.materials.iter().find(|style| style.mark == target.mark) else {
                 continue;
             };
             let at = Vec3::new(at.translation.x, piece.base + art.lift, at.translation.z);
             wanted.push((
                 Marker {
                     piece: key,
-                    file: file.clone(),
+                    file: style.file.clone(),
                 },
                 (at * 1000.).round().as_ivec3().to_array(),
+                matches!(piece.kind, Kind::Base | Kind::Casino),
             ));
         }
     }
@@ -245,18 +304,19 @@ pub(super) fn markers(
     for entity in &placed {
         commands.entity(entity).despawn();
     }
-    for (marker, at) in &wanted {
-        let material = art
+    for (marker, at, wide) in &wanted {
+        let style = art
             .materials
             .iter()
-            .find(|(_, file, _)| *file == marker.file)
-            .map(|(.., m)| m.clone())
+            .find(|style| style.file == marker.file)
             .unwrap();
         commands.spawn((
             Name::new(format!("marker {} {}", marker.piece, marker.file)),
             Mesh3d(art.mesh.clone()),
-            MeshMaterial3d(material),
-            Transform::from_translation(IVec3::from_array(*at).as_vec3() / 1000.),
+            MeshMaterial3d(style.material.clone()),
+            Transform::from_translation(IVec3::from_array(*at).as_vec3() / 1000.).with_scale(
+                Vec3::splat(if *wide { style.wide_side } else { style.side }),
+            ),
             Pickable::IGNORE,
             bevy::light::NotShadowCaster,
             marker.clone(),

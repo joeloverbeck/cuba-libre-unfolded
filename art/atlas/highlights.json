@@ -44,10 +44,10 @@
     {"file": "atlas-highlight-blocked-ec-oriente-sierra.png", "artboard": "A-blk-ec-oriente-sierra", "state": "blocked", "space": "ec-oriente-sierra", "rect": [1122, 652, 96, 96], "height": 0.282},
     {"file": "atlas-highlight-veil-ec-oriente-sierra.png", "artboard": "A-dim-ec-oriente-sierra", "state": "not-involved", "space": "ec-oriente-sierra", "rect": [1122, 652, 96, 96], "height": 0.282}
   ],
-  "piece_placement": "a marker is a flat unlit square of `size` atlas units centred under its piece, `lift` above the region top, at 8 px per unit",
+  "piece_placement": "sizes in atlas units before piece scale; wide_size applies to Bases and Casinos",
   "pieces": [
-    {"file": "atlas-piece-removable.png", "artboard": "A-piece-removable", "mark": "removable", "size": 64, "lift": 0.003},
-    {"file": "atlas-piece-protected.png", "artboard": "A-piece-protected", "mark": "protected", "size": 64, "lift": 0.003}
+    {"file": "atlas-piece-removable.png", "artboard": "Registration corners", "mark": "removable", "size": 72, "wide_size": 86, "lift": 0.003},
+    {"file": "atlas-piece-protected.png", "artboard": "A-piece-protected", "mark": "protected", "size": 30.72, "lift": 0.003}
   ],
   "marks_source": "art/proposals/issue-66/highlight-popover-layouts.figcraft, page \"Popover masters (1920x1280 reference units)\": the 10 px row state marks, exported at 8x",
   "marks": [

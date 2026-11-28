@@ -201,7 +201,7 @@ fn native_shaded_execution_preserves_directorios_side_decisions() {
     let removal = app.observe();
     assert_eq!(
         removal["table"]["notice"],
-        "Removal mode: click a ringed Directorio piece on the map. Saved."
+        "Removal mode: click a corner-marked Directorio piece on the map. Saved."
     );
     assert!(has_action(
         &removal["observation"],

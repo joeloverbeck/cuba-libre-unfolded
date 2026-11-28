@@ -1631,7 +1631,7 @@ pub(super) fn tag(view: &Observation, ui: &Interface, action: &str) -> Option<Br
         (Mode::Removal, true) => {
             let mut entries = vec![entry(
                 "ON THE MAP",
-                "Each 26July piece on the map carries a mark: a red ring where it may be removed. Click a ringed piece to see what removing it changes, choose how many from a stack, then Remove or Cancel.",
+                "Look for corners around removable 26July pieces. Click a piece with corners to see what removing it changes, choose how many from a stack, then Remove or Cancel.",
             )];
             if view.owed_terror.is_some() {
                 entries.push(entry(

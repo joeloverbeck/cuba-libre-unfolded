@@ -5866,6 +5866,70 @@ fn native_removal_mode_marks_pieces_and_removes_through_the_piece_popover() {
     app.choose("terror");
     app.choose("remove");
     let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.capture("registration-home");
+    // Pan east and south from Home before zooming. This keeps the Base between
+    // the fixed side panels as the camera gets closer.
+    for (key, taps) in [("KeyD", 19), ("KeyS", 5)] {
+        for _ in 0..taps {
+            app.request(json!({"op":"key","revision":revision,"key":key}), true);
+        }
+    }
+    app.point("space:sierra-maestra");
+    app.request(
+        json!({"op":"scroll","revision":revision,"component":"space:sierra-maestra","y":16}),
+        true,
+    );
+    app.advance(120);
+    let close = app.point("area:propaganda");
+    let at = close["table"]["markers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["piece"] == "sierra-maestra:base")
+        .unwrap()["at"]
+        .clone();
+    let x = at[0].as_f64().unwrap().round() as u32;
+    let y = at[1].as_f64().unwrap().round() as u32;
+    assert!(
+        x > 40 && x < 2880 && y > 140 && y < 1800,
+        "Base covered or offscreen: {at}"
+    );
+    let badge = close["table"]["counts"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|c| c["name"] == "count:sierra-maestra M26 Base Ordinary")
+        .unwrap();
+    assert_eq!(badge["text"], "1");
+    let [left, top, right, bottom] = rect_of(&badge["bounds"]);
+    let mut prior = None;
+    let mut moved = false;
+    for sample in 0..6 {
+        let name = format!("registration-close-{sample}");
+        app.capture(&name);
+        let image = image::open(app.root.join(format!("{name}.png"))).unwrap();
+        // Sample the left edge of the Base and the interior of its quantity disc.
+        // Both regions are on static land. Only the corners should move.
+        let corners = image.crop_imm(x - 40, y - 30, 36, 60).to_rgb8();
+        let numeral = image
+            .crop_imm(
+                left.ceil() as u32,
+                top.ceil() as u32,
+                (right - left).floor() as u32,
+                (bottom - top).floor() as u32,
+            )
+            .to_rgb8();
+        if let Some((first, count)) = &prior {
+            moved |= first != &corners;
+            assert_eq!(&numeral, count, "quantity changed during the removal loop");
+        } else {
+            prior = Some((corners, numeral));
+        }
+        app.advance(26);
+    }
+    assert!(moved, "the removal corners never moved outside the Base");
+    app.request(json!({"op":"key","revision":revision,"key":"Home"}), true);
+    app.request(json!({"op":"settle"}), true);
     app.activate(
         &format!("piece:{}", piece("santiago:underground")),
         revision,
