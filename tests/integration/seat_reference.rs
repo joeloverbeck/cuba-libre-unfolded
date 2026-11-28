@@ -61,12 +61,15 @@ fn family(choice: &Choice) -> String {
     {
         return "manifesto:place:<space>:<mix>".into();
     }
-    if action
+    if let Some((space, rest)) = action
         .strip_prefix("paid-rally:")
-        .and_then(|rest| rest.split_once(":place:"))
-        .is_some_and(|(space, n)| n.parse::<u8>().is_ok() && choice.space() == Some(space))
+        .and_then(|rest| rest.split_once(':'))
+        && choice.space() == Some(space)
+        && let Some((procedure, count)) = rest.split_once(':')
+        && matches!(procedure, "place" | "base" | "flip")
+        && count.parse::<u8>().is_ok()
     {
-        return "paid-rally:<space>:place:<n>".into();
+        return format!("paid-rally:<space>:{procedure}:<n>");
     }
     action.into()
 }
@@ -142,8 +145,13 @@ fn continuation_families() -> BTreeSet<String> {
     offered.extend(families(&construct));
     explore::choose(&mut construct, "m26:event");
     offered.extend(families(&construct));
-    for _ in 0..4 {
-        explore::choose(&mut construct, "manifesto:decline");
+    for action in [
+        "manifesto:decline",
+        "manifesto:place:camaguey-province:guerrilla-base",
+        "manifesto:decline",
+        "manifesto:decline",
+    ] {
+        explore::choose(&mut construct, action);
         offered.extend(families(&construct));
     }
     explore::choose(&mut construct, "directorio:rally");

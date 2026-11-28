@@ -3,6 +3,126 @@ use super::*;
 use bevy::picking::pointer::PointerButton;
 use std::path::Path;
 
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan to render a prepared Directorio recovery flip"]
+fn native_prepared_paid_rally_recovery_turns_an_active_guerrilla() {
+    use crate::{Group, State, game::CAMAGUEY_RALLY_ACTIONS};
+    use std::fs;
+
+    const SPACE: &str = "camaguey-province";
+    const FLIP: &str = "paid-rally:camaguey-province:flip:1";
+    let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| "local/verification/issue-283".into());
+    fs::create_dir_all(&evidence).unwrap();
+    let root = tempfile::Builder::new()
+        .prefix("prepared-recovery-")
+        .tempdir_in(evidence)
+        .unwrap()
+        .keep()
+        .canonicalize()
+        .unwrap();
+    let save = root.join("task.json");
+    let mut played = Session::create_seeded(&save, Session::KIDNAP_ROLLS_1).unwrap();
+    for action in CAMAGUEY_RALLY_ACTIONS {
+        let seen = played.observe();
+        played
+            .submit(
+                seen.owner,
+                seen.revision,
+                &format!("{}:{action}", seen.revision),
+            )
+            .unwrap();
+    }
+
+    // Prepare a face-up Guerrilla in a copy of the played position. No supported
+    // earlier card in this build exposes Directorio's Guerrillas.
+    let mut prepared = played.game().clone();
+    let space = prepared.spaces.iter_mut().find(|s| s.id == SPACE).unwrap();
+    let underground = space
+        .pieces
+        .iter_mut()
+        .find(|p| {
+            p.faction == Faction::Directorio
+                && p.kind == Kind::Guerrilla
+                && p.state == State::Underground
+        })
+        .unwrap();
+    assert_eq!(underground.count, 2);
+    underground.count -= 1;
+    let active = Group {
+        count: 1,
+        state: State::Active,
+        ..*underground
+    };
+    space.pieces.push(active);
+    let before = prepared.observe();
+    let preview = popover::content(&before, SPACE, Some(FLIP)).unwrap();
+    let preview = serde_json::to_value(preview).unwrap();
+    assert_eq!(
+        preview["rally"]["preview"]["recovery_faces"],
+        json!({
+            "active": [1, 0], "underground": [1, 2]
+        })
+    );
+    assert_eq!(preview["rally"]["preview"]["resources"], json!([5, 4]));
+    let choice = format!("{}:{FLIP}", before.revision);
+    prepared
+        .submit(Faction::Directorio, before.revision, &choice)
+        .unwrap();
+    let after = prepared.observe();
+    let changes = piece_flips::committed(&before, &after, &choice);
+    assert_eq!(changes.len(), 1);
+
+    // The ordinary save reaches the same board with the legal zero-flip recovery.
+    // Show the prepared transition on that settled board through the real scene
+    // systems. Never put a prepared position in a save or bypass its replay.
+    played
+        .submit(
+            Faction::Directorio,
+            before.revision,
+            &format!("{}:paid-rally:{SPACE}:flip:0", before.revision),
+        )
+        .unwrap();
+    let settled = played.observe();
+    assert_eq!(settled.spaces, after.spaces);
+    assert_eq!(settled.available, after.available);
+    assert_eq!(settled.resources, after.resources);
+    drop(played);
+    let saved = fs::read(&save).unwrap();
+
+    let cards = PathBuf::from(std::env::var_os("CUBA_TEST_CARDS").expect("Set CUBA_TEST_CARDS"));
+    let (mut app, mut seat) = table(&cards, &save, UVec2::new(3840, 2160));
+    app.world_mut().resource_mut::<Interface>().piece_flips = changes;
+    let start = ask(&mut seat, &mut app, json!({"op":"advance","steps":2}));
+    let moving = &start["table"]["piece_flips"][0];
+    assert_eq!(moving["flip"]["from"], "Active");
+    assert_eq!(moving["flip"]["to"], "Underground");
+    assert_eq!(moving["face_mark"], "Active");
+    let turning = ask(&mut seat, &mut app, json!({"op":"advance","steps":40}));
+    let turning = &turning["table"]["piece_flips"][0];
+    assert_ne!(moving["center"], turning["center"]);
+    assert_ne!(moving["up"], turning["up"]);
+    ask(
+        &mut seat,
+        &mut app,
+        json!({"op":"capture","path":root.join("active-recovery-turn.png")}),
+    );
+    let landed = ask(&mut seat, &mut app, json!({"op":"advance","steps":40}));
+    assert_eq!(landed["table"]["piece_flips"], json!([]));
+    assert!(
+        landed["table"]["counts"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|row| {
+                row["name"] == "count:camaguey-province Directorio Guerrilla Underground"
+                    && row["text"] == "2"
+            })
+    );
+    assert_eq!(fs::read(&save).unwrap(), saved);
+}
+
 fn prepare(save: &Path, actions: &[&str]) -> App {
     let mut session = Session::create_seeded(save, 2).unwrap();
     for action in actions {

@@ -162,7 +162,9 @@ When the Event ends, the panel records each faction’s placement or decline in 
 
 Choose a highlighted space on the map. In Camagüey Province, placing a Base during the Manifesto gives Directorio a recruitment ceiling of two from one Base and one population, limited by Available Forces. A qualifying space without a Directorio Base offers ordinary single recruitment. Use the quantity controls inside **Recruit Guerrillas** to choose an amount, then read **If you pay**. Tab reaches the same space, quantity controls and Pay button.
 
-Select **Pay 1** to recruit the selected number Underground and use the space. Paying for zero still costs 1 Resource and uses the space. Restarting restores the payment, changed forces and remaining decisions. Exchange, turning Guerrillas Underground, side decisions and finishing Rally are later parts of this continuation.
+Choose **Exchange 2 Guerrillas for 1 Base** when Directorio can return two Guerrillas, has a Base Available and the space has a free Base slot. If there are several mixes of Active and Underground Guerrillas, choose which to return inside the exchange row. With a Directorio Base in the space, **Turn all Guerrillas Underground** shows how many Guerrillas will change face.
+
+Select **Pay 1** to resolve the chosen procedure and use the space. Recruiting zero or Rallying where all Guerrillas are already Underground still costs 1 Resource and uses the space. Restarting restores the paid spaces, changed forces and remaining choices. The decision panel shows the scope notice for finishing Rally.
 
 ## Handing a faction to an agent
 

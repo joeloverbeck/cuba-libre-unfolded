@@ -2792,7 +2792,12 @@ fn directorio_recruits_two_in_camaguey_after_its_manifesto_placement() {
         before
             .choices
             .iter()
-            .filter(|choice| choice.supported && choice.space() == Some("camaguey-province"))
+            .filter(|choice| {
+                choice.supported
+                    && choice
+                        .action()
+                        .starts_with("paid-rally:camaguey-province:place:")
+            })
             .map(|choice| choice.action())
             .collect::<Vec<_>>(),
         [
@@ -2830,6 +2835,96 @@ fn directorio_recruits_two_in_camaguey_after_its_manifesto_placement() {
     );
     drop(session);
 
+    let mut reopened = Session::open(&path, None).unwrap();
+    assert_eq!(reopened.observe(), after);
+    assert!(
+        reopened
+            .submit(payment.owner, payment.revision, &payment.id)
+            .is_err()
+    );
+    assert_eq!(reopened.observe(), after);
+}
+
+#[test]
+fn directorio_exchanges_two_in_camaguey_after_the_manifesto() {
+    use Faction::Directorio;
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("paid-exchange.json");
+    let mut session = open_manifesto(&path);
+    for action in [
+        "manifesto:decline",
+        "manifesto:place:camaguey-province:guerrilla-base",
+        "manifesto:decline",
+        "manifesto:decline",
+        "directorio:rally",
+    ] {
+        act(&mut session, action);
+    }
+    let before = session.observe();
+    let action = "paid-rally:camaguey-province:base:2";
+    let offered = before
+        .choices
+        .iter()
+        .find(|c| c.action() == action)
+        .unwrap();
+    let preview = offered.preview.as_ref().unwrap();
+    let [returned] = preview.removed.as_slice() else {
+        panic!("Expected a Guerrilla return: {preview:?}");
+    };
+    assert_eq!(
+        (
+            returned.faction,
+            returned.kind,
+            returned.state,
+            returned.count
+        ),
+        (Directorio, Kind::Guerrilla, State::Underground, 2)
+    );
+    let [base] = preview.placement_available_forces.as_slice() else {
+        panic!("Expected a Base from Available Forces: {preview:?}");
+    };
+    assert_eq!((base.piece.kind, base.from, base.to), (Kind::Base, 3, 2));
+    assert!(preview.control.is_empty());
+    let payment = act(&mut session, action);
+    let after = session.observe();
+    let counts = |view: &cuba_libre_unfolded::Observation| {
+        let space = view
+            .spaces
+            .iter()
+            .find(|s| s.id == "camaguey-province")
+            .unwrap();
+        let count = |pieces: &[cuba_libre_unfolded::Group], kind| {
+            pieces
+                .iter()
+                .filter(|p| p.faction == Directorio && p.kind == kind)
+                .map(|p| p.count)
+                .sum::<u8>()
+        };
+        let standing = view
+            .standings
+            .iter()
+            .find(|s| s.faction == Directorio)
+            .unwrap();
+        assert_eq!(space.control(), Some(Directorio));
+        (
+            count(&space.pieces, Kind::Guerrilla),
+            count(&view.available, Kind::Guerrilla),
+            count(&space.pieces, Kind::Base),
+            count(&view.available, Kind::Base),
+            view.resources[Directorio.index()],
+            standing.score,
+        )
+    };
+    assert_eq!(counts(&before), (2, 11, 1, 3, 5, 2));
+    assert_eq!(counts(&after), (0, 13, 2, 2, 4, 3));
+    assert!(
+        !after
+            .choices
+            .iter()
+            .any(|c| c.space() == Some("camaguey-province"))
+    );
+    drop(session);
     let mut reopened = Session::open(&path, None).unwrap();
     assert_eq!(reopened.observe(), after);
     assert!(

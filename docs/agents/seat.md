@@ -170,6 +170,8 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `pending-open` | Top band | Shows a waiting transfer decision again (choice `<revision>:reopen`). |
 | `popover:row:<action>` | Space popover | The row for `<action>`. |
 | `popover:row:recruit`, `popover:quantity:<n>` | Paid Rally popover | Focuses recruitment and selects an offered quantity for the preview. These controls leave the match revision unchanged. |
+| `popover:row:exchange`, `popover:exchange:<n>` | Paid Rally popover | Previews an offered Base exchange. When several mixes are offered, `<n>` is the number of Underground Guerrillas to return. |
+| `popover:row:recover` | Paid Rally popover | Previews turning all Directorio Guerrillas there Underground. |
 | `popover:commit` | Space or piece popover | Commits. |
 | `popover:casino-close`, `popover:casino-return` | Casino popover during Construct | Commit closing the selected quantity in place or returning it to Available. A closed group offers return. |
 | `popover:quantity:minus`, `popover:quantity:plus` | Piece popover | Steps the quantity. |
@@ -192,6 +194,8 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:directorio:rally` | Pin `option:directorio:rally` and confirm Rally without a Special Activity after the Manifesto. |
 | `<revision>:directorio:operation` | Inspect Directorio's options for other Operations and accompanying Special Activities. |
 | `<revision>:paid-rally:<space>:place:<n>` | Pay 1 Resource and use the space, placing the offered number of Directorio Guerrillas Underground. Open `space:<space>`, choose `popover:quantity:<n>` when several quantities are offered, then activate `popover:commit`. A held Directorio player submits the same revision-bound choice. |
+| `<revision>:paid-rally:<space>:base:<n>` | Pay 1 Resource, return `<n>` Underground and `2 − <n>` Active Directorio Guerrillas, and place a Directorio Base from Available Forces. |
+| `<revision>:paid-rally:<space>:flip:<n>` | Pay 1 Resource and use the space. All `<n>` Active Directorio Guerrillas there turn Underground. Zero applies when no Guerrillas change face. |
 | `<revision>:paid-rally:finish` | Inspect the scope notice for finishing on card 19. |
 | `<revision>:pass`, `<revision>:terror` | 26July's supported action choices. |
 | `<revision>:event:shaded` | Listed for inspection at 26July's opening decision. Directorio can choose Alberto Bayo's shaded text after Kidnap. Pin its option to preview the flips. |
