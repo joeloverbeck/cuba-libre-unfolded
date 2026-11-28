@@ -211,11 +211,12 @@ check_native_inputs() (
   mkdir "$scratch/bin"
   cat > "$scratch/bin/cargo" <<'CARGO'
 #!/usr/bin/env bash
-for arg do
-  case $arg in
+while (($#)); do
+  case $1 in
     --list) printf 'sample: test\nother: test\n'; exit ;;
-    --logfile=*) printf 'ok sample <0.001s>\n' > "${arg#--logfile=}"; exit ;;
+    --logfile) printf 'ok sample <0.001s>\n' > "$2"; exit ;;
   esac
+  shift
 done
 exit 1
 CARGO
@@ -225,10 +226,14 @@ CARGO
     shift
     PATH="$scratch/bin:$PATH" CUBA_TEST_CARDS="$scratch/cards" CUBA_NATIVE_EVIDENCE="$scratch/runs" \
       "$fixture/scripts/native" "$@" > "$scratch/output" || return
-    [[ $(tail -1 "$scratch/output") == "native regressions: $expected" ]]
+    local summary
+    summary=$(sed -n 's/^timings: //p' "$scratch/output")/summary.txt
+    [[ $(tail -1 "$scratch/output") == "native regressions: $expected" &&
+       $(tail -1 "$summary") == "native regressions: $expected" ]]
   }
   check_coverage 'selected run passed (2 tests)' --exact sample
   check_coverage 'full suite passed (2 tests)'
+  check_coverage 'full suite passed (2 tests)' --nocapture
   check_coverage 'shard 2/2 passed (1 tests)' --shard 2/2
 
   touch -- "$fixture/table.asset"

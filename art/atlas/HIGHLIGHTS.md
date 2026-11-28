@@ -90,7 +90,7 @@ The owner chose B, Registration corners, from the animated Survey dial, Registra
 
 The source files identify VectorCraft and EffectCraft 0.24.1. CLI installation paths, checkout reflogs and installed binary timestamps point to `storytold/vectorcraft@97da102592` and `storytold/effectcraft@a0e83083`. Those revisions are inferred. [Provenance evidence](https://github.com/joeloverbeck/cuba-libre-unfolded/pull/278#issuecomment-7236168095).
 
-From the checkout root, render frames 0 through 47 with the following command, substituting the frame number and output path. Keep the 128×128 VectorCraft footage beside the project. Place each complete 192×192 RGBA frame in the output sheet at pixel coordinates `(192 × (frame % 8), 192 × floor(frame / 8))`. All 48 cell pixel buffers matched the shipped sheet in the integration check.
+From the checkout root, render frames 0 through 47 with the following command, substituting the frame number and output path. Keep the 128×128 VectorCraft footage beside the project. Place each complete 192×192 RGBA frame in the output sheet at pixel coordinates `(192 × (frame % 8), 192 × floor(frame / 8))`. The 1536×1152 sheet is `atlas-piece-removable.png`. The scale keys are 104% at frame 0, 86% at 7, 101% at 12, 95% at 17 and 104% at 24. The corners hold through frame 47. All 48 cell pixel buffers matched the shipped sheet in the manual reproduction check recorded on PR #278.
 
 ```sh
 effectcraft-cli render-frame --project art/atlas/registration-corners.ecproj --comp register --frame 7 --transparent --out /tmp/frame-7.png
