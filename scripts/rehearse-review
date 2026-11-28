@@ -36,16 +36,10 @@ if [[ ! -f $binary || ! -x $binary || ! -f $art/atlas-main-view.layout.json || !
   printf 'Supply an executable, Atlas layout, card directory and playable checkpoint.\n' >&2
   exit 2
 fi
-if [[ ! $size =~ ^([1-9][0-9]{2,3})x([1-9][0-9]{2,3})$ ]]; then
-  printf 'Use an X11 physical size such as 3840x2160 or 6010x3318.\n' >&2
-  exit 2
-fi
-width=${BASH_REMATCH[1]}
-height=${BASH_REMATCH[2]}
-if ((width < 640 || width > 6144 || height < 480 || height > 3456)); then
-  printf 'The rehearsal screen accepts physical window sizes from 640×480 to 6144×3456.\n' >&2
-  exit 2
-fi
+case $size in
+  3840x2160|6010x3318) width=${size%x*}; height=${size#*x} ;;
+  *) printf 'Choose the 3840x2160 or 6010x3318 physical window size.\n' >&2; exit 2 ;;
+esac
 limit=${CUBA_REVIEW_VRAM_GROWTH_MIB:-128}
 if [[ ! $limit =~ ^(0|[1-9][0-9]{0,4})$ ]]; then
   printf 'Set CUBA_REVIEW_VRAM_GROWTH_MIB to whole MiB (0–99999).\n' >&2
@@ -65,16 +59,26 @@ rehearse() {
   set -euo pipefail
   local binary=$1 art=$2 cards=$3 checkpoint=$4 evidence=$5 width=$6 height=$7 limit=$8
   shift 8
-  local window= pid= i log=$evidence/app.log save=$evidence/task.json
-  local baseline= peak= memory= quit_x= quit_y= last_size=
+  local window='' i log=$evidence/app.log save=$evidence/task.json
+  local baseline peak memory quit_x quit_y last_size
+  # The EXIT trap also runs after an implicit failure has unwound this function.
+  pid=''
   cd -- "$evidence"
   printf 'Xft.dpi: 192\n' | xrdb -nocpp -merge
 
+  game_job_exists() { jobs -p | grep -Fxq "$pid"; }
   cleanup() {
-    if [[ -n ${pid:-} ]]; then
-      if jobs -pr | grep -Fxq "$pid"; then kill -TERM "$pid" 2>/dev/null || true; fi
-      wait "$pid" 2>/dev/null || true
+    local attempt
+    if [[ -z $pid ]]; then return; fi
+    if game_job_exists; then
+      kill -TERM "$pid" 2>/dev/null || true
+      for ((attempt=0; attempt<20; attempt++)); do
+        game_job_exists || break
+        sleep 0.25
+      done
+      if game_job_exists; then kill -KILL "$pid" 2>/dev/null || true; fi
     fi
+    wait "$pid" 2>/dev/null || true
   }
   fail() { printf '%s. See %s\n' "$1" "$log" >&2; exit 1; }
   check_render_log() {

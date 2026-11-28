@@ -49,14 +49,12 @@ For agent-operated input, close the desktop window and open the selected save th
 Before handing over a package that changes window sizing or text that scales during play, run the exact packaged binary on a playable checkpoint with visible quantities. Exercise both the owner's 3840×2160 reference and the observed 6010×3318 Xwayland window at 2×. Use private X11 on the NVIDIA renderer with `xvfb-run`, `xdotool`, `xprop`, `xrdb`, `xauth`, `dbus-run-session`, `nvidia-smi`, `jq`, `ffmpeg` and `rg` available.
 
 ```sh
-for size in 3840x2160 6010x3318; do
-  scripts/heavy scripts/rehearse-review \
-    "$package/bin/cuba-libre" "$package/atlas" "$CUBA_TEST_CARDS" "$checkpoint" \
-    "$evidence/zoom-$size" "$size" || break
-done
+scripts/heavy scripts/rehearse-review \
+  "$package/cuba-libre" "$package/atlas" "$CUBA_TEST_CARDS" "$checkpoint" \
+  "$evidence/zoom-3840" 3840x2160
 ```
 
-Use fresh evidence directories and a same-build save. Add `-- GAME_OPTIONS...` after the size when the packaged preview needs display options. The rehearsal checks the physical size reported by X11 and Bevy, samples only the game's GPU memory over twelve zoom and Home cycles, uses **Save · quit** and compares the disposable save with the input. Inspect `home.png`, `zoom.png` and `returned-home.png` for actual rendering and return. Retain them with `window.log`, `window-after-zoom.log`, `app.log`, `gpu.tsv`, `inputs.sha256` and the package revision.
+Repeat with `"$evidence/zoom-6010" 6010x3318`. Use fresh evidence directories and a same-build save. Add `-- GAME_OPTIONS...` after the size when the packaged preview needs display options. The rehearsal checks the physical size reported by X11 and Bevy, samples only the game's GPU memory over twelve zoom and Home cycles, uses **Save · quit** and compares the disposable save with the input. Inspect `home.png`, `zoom.png` and `returned-home.png` for actual rendering and return. Retain them with `window.log`, `window-after-zoom.log`, `app.log`, `gpu.tsv`, `inputs.sha256` and the exact invocation and package manifest.
 
 The default 128 MiB growth allowance is between the observed steady repaired build and the earlier 512 MiB growth on the RTX 2080 Ti in #268. The first zoom cycle provides the baseline. Set `CUBA_REVIEW_VRAM_GROWTH_MIB` to a measured allowance when the driver or workload warrants it. For another renderer, record the corresponding process-level measurements via its tooling during the same desktop exercise.
 
