@@ -6,13 +6,13 @@ pub(super) const WIDTH: f32 = 430.;
 pub(super) const HEIGHT: f32 = 539.;
 const FACTION: Faction = Faction::Directorio;
 const PROCEDURE: &str = "popover:row:recruit";
+const OUTSIDE_CONTINUATION: &str = "Outside this continuation.";
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
 pub(super) struct Recruitment {
     quantities: Vec<(u8, String)>,
     selected: u8,
     arithmetic: String,
-    exchange: &'static str,
     recovery: &'static str,
     preview: Option<Payment>,
 }
@@ -47,56 +47,27 @@ pub(super) fn content(
         .iter()
         .find(|(_, choice)| Some(choice.action()) == selected)
         .unwrap_or(initial);
-    let bases = count(&place.pieces, Kind::Base);
     let guerrillas = count(&place.pieces, Kind::Guerrilla);
     let available = count(&view.available, Kind::Guerrilla);
-    let population = place.population;
-    let arithmetic = if bases == 0 {
-        "Place one Available Guerrilla Underground.".into()
-    } else {
-        let limit = choices.last().map_or(0, |(quantity, _)| *quantity);
-        let ceiling = bases + population;
-        if limit < ceiling {
-            format!("{bases} Base + {population} population = {ceiling}. Available: {limit}.")
-        } else {
-            format!("{bases} Base + {population} population allows up to {limit}.")
-        }
-    };
-    let exchange = if guerrillas < 2 {
-        "Requires two Directorio Guerrillas here."
-    } else if count(&view.available, Kind::Base) == 0 {
-        "No Directorio Base is Available."
-    } else if place
-        .pieces
-        .iter()
-        .filter(|p| p.kind == Kind::Base || p.kind == Kind::Casino)
-        .map(|p| p.count)
-        .sum::<u8>()
-        >= 2
-    {
-        "Both Base slots are occupied."
-    } else {
-        "Outside this continuation."
-    };
-    let recovery = if bases == 0 {
-        "Requires a Directorio Base here."
-    } else if guerrillas == 0 {
-        "No Directorio Guerrillas here."
-    } else if !place
-        .pieces
-        .iter()
-        .any(|p| p.faction == FACTION && p.kind == Kind::Guerrilla && p.state == State::Active)
+    // The first line of the checked offer is the recruitment summary. Its second
+    // line covers payment, which the popover displays separately in If you pay.
+    let arithmetic = choice.explanation.lines().next().unwrap_or_default().into();
+    let recovery = if guerrillas > 0
+        && !place
+            .pieces
+            .iter()
+            .any(|p| p.faction == FACTION && p.kind == Kind::Guerrilla && p.state == State::Active)
     {
         "Already Underground · outside this continuation."
     } else {
-        "Outside this continuation."
+        OUTSIDE_CONTINUATION
     };
     let preview = choice.preview.as_ref().and_then(|preview| {
         let payment = preview
             .resources
             .iter()
             .find(|change| change.faction == FACTION)?;
-        let (added, supply) = preview
+        let (added, available_counts) = preview
             .placement_available_forces
             .first()
             .map_or((0, [available; 2]), |change| {
@@ -113,7 +84,7 @@ pub(super) fn content(
         };
         Some(Payment {
             here: [guerrillas, guerrillas + added],
-            available: supply,
+            available: available_counts,
             resources: [payment.from, payment.to],
             control,
         })
@@ -157,7 +128,6 @@ pub(super) fn content(
                 .collect(),
             selected: *quantity,
             arithmetic,
-            exchange,
             recovery,
             preview,
         }),
@@ -328,11 +298,7 @@ pub(super) fn draw(
 
     let row = layout.solid(body, [12., 84., 406., 104.], "rally-recruit-row", DESK);
     layout.control(row, PROCEDURE, Action::Row(rally.selected_action().into()));
-    layout.image(
-        row,
-        [8., 16., 12., 12.],
-        "atlas-popover-mark-selectable.png",
-    );
+    layout.image(row, [8., 16., 12., 12.], mark_image(card.rows[0].mark));
     layout.image(
         row,
         [28., 9., 19., 24.],
@@ -390,7 +356,7 @@ pub(super) fn draw(
     layout.text(
         body,
         [65., 218., 343., 18.],
-        rally.exchange,
+        OUTSIDE_CONTINUATION,
         (15., false, QUIET),
     );
     layout.text(

@@ -1322,14 +1322,8 @@ pub(super) fn rule(
 /// FigCraft and admitted with the highlights (`highlights.json` "marks"), so the "not
 /// yet" ring is dashed as designed.
 fn mark(commands: &mut Commands, art: &Art, parent: Entity, mark: Mark, s: f32) {
-    let file = match mark {
-        Mark::Selectable => "atlas-popover-mark-selectable.png",
-        Mark::NotYet => "atlas-popover-mark-not-yet.png",
-        Mark::Unavailable => "atlas-popover-mark-unavailable.png",
-        Mark::Done => "atlas-popover-mark-done.png",
-    };
     commands.spawn((
-        ImageNode::new(art.images[file].clone()),
+        ImageNode::new(art.images[mark_image(mark)].clone()),
         Node {
             width: px(10. * s),
             height: px(10. * s),
@@ -1339,6 +1333,15 @@ fn mark(commands: &mut Commands, art: &Art, parent: Entity, mark: Mark, s: f32) 
         Pickable::IGNORE,
         ChildOf(parent),
     ));
+}
+
+fn mark_image(mark: Mark) -> &'static str {
+    match mark {
+        Mark::Selectable => "atlas-popover-mark-selectable.png",
+        Mark::NotYet => "atlas-popover-mark-not-yet.png",
+        Mark::Unavailable => "atlas-popover-mark-unavailable.png",
+        Mark::Done => "atlas-popover-mark-done.png",
+    }
 }
 
 #[allow(clippy::too_many_arguments)]

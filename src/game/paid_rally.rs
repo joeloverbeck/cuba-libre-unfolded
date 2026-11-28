@@ -37,53 +37,47 @@ impl Game {
     pub(super) fn paid_rally_choices(&self, rally: &PaidRally) -> Vec<Choice> {
         let available = total(&self.available, FACTION, Kind::Guerrilla);
         let balance = self.resources[FACTION.index()];
+        let can_pay = balance >= COST;
+        let payment = if can_pay {
+            "R 3.3.1. Pay 1 Resource and use this space."
+        } else {
+            "R 3.3.1. Needs 1 Directorio Resource."
+        };
         let mut choices = Vec::new();
         for space in &self.spaces {
             if rally.used(space) || exclusion(space).is_some() {
                 continue;
             }
             let bases = total(&space.pieces, FACTION, Kind::Base);
-            let quantities = if bases > 0 {
-                0..=(bases + space.population).min(available)
+            let population = space.population;
+            let (quantities, arithmetic) = if bases > 0 {
+                let ceiling = bases + population;
+                let limit = ceiling.min(available);
+                let base_name = if bases == 1 { "Base" } else { "Bases" };
+                let total = format!("{bases} {base_name} + {population} population");
+                let arithmetic = if limit < ceiling {
+                    format!("{total} = {ceiling}. Available: {limit}.")
+                } else {
+                    format!("{total} allows up to {limit}.")
+                };
+                (0..=limit, arithmetic)
             } else {
-                1..=available.min(1)
+                (
+                    1..=available.min(1),
+                    "Place one Available Guerrilla Underground.".into(),
+                )
             };
             for quantity in quantities {
-                let mut explanation = if bases == 0 {
-                    "R 3.3.1. Recruit one Available Guerrilla Underground.".into()
-                } else {
-                    let ceiling = bases + space.population;
-                    let limit = if available < ceiling {
-                        format!(" Available Forces limits recruitment to {available}.")
-                    } else {
-                        String::new()
-                    };
-                    format!(
-                        "R 3.3.1. {bases} Base + {} Population = {ceiling}.{limit}",
-                        space.population
-                    )
-                };
-                if balance < COST {
-                    explanation.push_str(" Needs 1 Directorio Resource.");
-                } else {
-                    explanation.push_str(" Pay 1 Resource and use this space.");
-                }
-                let mut choice = self
-                    .offer(
+                choices.push(
+                    self.offer(
                         &format!("{PAYMENT}{}:place:{quantity}", space.id),
                         RallyAction::Place(quantity).description(),
-                        balance >= COST,
-                        explanation,
+                        can_pay,
+                        format!("{arithmetic}\n{payment}"),
                     )
-                    .at(&space.id, quantity > 0);
-                if balance < COST {
-                    choice
-                        .site
-                        .as_mut()
-                        .expect("Rally acts on a space")
-                        .unpayable = true;
-                }
-                choices.push(choice);
+                    .at(&space.id, quantity > 0)
+                    .stopped_by_cost(!can_pay),
+                );
             }
         }
         choices.push(self.offer(
@@ -120,8 +114,8 @@ impl Game {
             space: space.into(),
             action: RallyAction::Place(quantity),
         };
-        // The checked submission already verified cost, supply, qualification and
-        // that this space is unused. A failed piece change must not charge it.
+        // The checked submission already verified cost, Available Forces,
+        // qualification and that this space is unused. Charge after placing pieces.
         self.change_rally_pieces(FACTION, &step)?;
         self.resources[FACTION.index()] -= COST;
         self.paid_rally

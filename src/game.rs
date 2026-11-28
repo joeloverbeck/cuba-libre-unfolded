@@ -868,9 +868,7 @@ impl Choice {
             _ => None,
         }
     }
-    /// The map space this choice acts on, as the authority states it in `site`, so
-    /// the map can offer it there: a Terror target, opening Kidnap in its space, or an
-    /// Assault plan. Other choices act on no space.
+    /// The space named by this choice's site, where the table offers it.
     pub fn space(&self) -> Option<&str> {
         self.site.as_ref().map(|site| site.space.as_str())
     }
