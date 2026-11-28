@@ -12,6 +12,10 @@ Run affected integration selectors when changing a report article, choice family
 
 When changing how a report receives committed facts, cover the whole action, a continuation starting after a relevant request or reply, and a cancelled attempt when the rules allow one. For a behavior-preserving change, run those assertions against the starting revision before changing the handoff.
 
+## Evidence for exact review
+
+Before exact review, link an executed run in the ticket handoff for each procedure and player route the ticket requires. For a route that commits a decision, show the submission and the resulting player observation. Include reopening when the ticket requires it. Identify which positions come from play and which were prepared for a rule case.
+
 ## Desktop launch smoke
 
 Use a fresh checkout of the exact candidate in the ordinary Ubuntu desktop session. Record the revision, selected save path, observed window and result, and log paths. Keep the private inputs and the source path out of Git and the PR.
