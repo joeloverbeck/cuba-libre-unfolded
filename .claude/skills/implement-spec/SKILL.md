@@ -70,4 +70,6 @@ A **small follow-up** corrects one local behaviour of delivered work, within tha
 
 For one, skip the subagents of steps 2, 4–6 and 9. Implement it yourself on one branch with focused runs; after the review clears, merge `main` in, then run `scripts/check` and any native check the change reaches on the head to be merged. Call the Skill tool with "code-review", marking the change a small follow-up so one reviewer runs. Fix its findings yourself and have the fixes reviewed as its "Fixes" paragraph describes. Merge it yourself once checks pass and the reviewer leaves no unresolved finding, within the existing publication authority.
 
+For a wording defect found in playtest, reproduce the defect before fixing it. Run the affected native selectors on the head to be merged. Record the focused runs at that revision and any complete native suite at its own revision and suite-input fingerprint.
+
 Escalate to the full steps as soon as a condition fails, the reviewer finds something outside the correction, or the change outgrows its first plan.
