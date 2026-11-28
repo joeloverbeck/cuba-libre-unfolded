@@ -458,6 +458,27 @@ fn assault_lines(view: &Observation) -> Vec<PanelLine> {
 
 /// Construct and the Manifesto reuse Assault's record column above the action rows.
 fn panel_lines(view: &Observation) -> Vec<PanelLine> {
+    if let Some(rally) = &view.paid_rally {
+        let mut lines = vec![PanelLine {
+            name: "rally-map-line".into(),
+            words: "Choose a space on the map.".into(),
+            top: fig::ASSAULT_MAP_LINE[0],
+        }];
+        let mut top = fig::ASSAULT_RECORD[0];
+        for step in &rally.resolutions {
+            let space = view
+                .spaces
+                .iter()
+                .find(|space| space.id == step.space)
+                .expect("A committed Rally uses a map space");
+            lines.push(record_line(
+                format!("rally-record:{}", step.space),
+                &format!("{} · Paid 1 · {}", space.name, step.action.description()),
+                &mut top,
+            ));
+        }
+        return lines;
+    }
     if let Some(event) = view.manifesto.as_ref().filter(|event| event.complete()) {
         let mut lines = vec![];
         let mut top = fig::ASSAULT_RECORD[0];
@@ -568,6 +589,12 @@ fn rows_after_record(lines: usize) -> f32 {
 /// The panel's two lines under its heading: where the match stands, and how the human
 /// works the rows, which an `agent`'s panel says above its strip instead.
 fn panel_subtitle(view: &Observation, executor: Faction, directorio: bool, agent: bool) -> String {
+    if view.paid_rally.is_some() {
+        return format!(
+            "Without a Special Activity · {} left",
+            resources(view.resources[Faction::Directorio.index()])
+        );
+    }
     if let Some(manifesto) = &view.manifesto {
         return if let Some(pending) = manifesto.pending() {
             let placement = pending.name();
@@ -747,6 +774,7 @@ pub(super) fn panel(
     part(commands, emblem, "choice-heading-emblem");
     let [x, y, w] = fig::HEADING;
     let title = match &view.event {
+        _ if view.paid_rally.is_some() => "Directorio · Rally".into(),
         _ if view.manifesto.is_some() => match &view.next {
             Some(next) => format!("{} · {}", next.faction.name(), next.role),
             None => view.cards.current.title.into(),

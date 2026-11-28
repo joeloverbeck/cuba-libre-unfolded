@@ -158,7 +158,11 @@ Pin **Decline placement** to see who goes next, then select **Decline placement*
 
 While 26July executes the Event, it can also pin **26July · Remove own pieces** or **26July · Resource transfer** and select the matching confirmation. In removal mode, click a marked 26July piece, preview the removal and confirm. If it was the faction’s only piece in a space, that space no longer qualifies for its placement. Select **Done · leave removal mode** to resume the pending placement. On a transfer request, the giver decides the amount or declines. Once the request is answered, the same faction resumes its placement.
 
-When the Event ends, the panel records each faction’s placement or decline in order and shows that 26July stays Eligible. Directorio is next as 2nd Eligible and can inspect Pass or Operation with optional Special Activity. Restarting at this menu restores the record and the choices.
+When the Event ends, the panel records each faction’s placement or decline in order and shows that 26July stays Eligible. Directorio is next as 2nd Eligible. Pin **Rally without a Special Activity** and select the matching confirmation to open Rally. Pass and other Operations have inspection briefings.
+
+Choose a highlighted space on the map. In Camagüey Province, placing a Base during the Manifesto gives Directorio a recruitment ceiling of two from one Base and one population, limited by Available Forces. A qualifying space without a Directorio Base offers ordinary single recruitment. Use the quantity controls inside **Recruit Guerrillas** to choose an amount, then read **If you pay**. Tab reaches the same space, quantity controls and Pay button.
+
+Select **Pay 1** to recruit the selected number Underground and use the space. Paying for zero still costs 1 Resource and uses the space. Restarting restores the payment, changed forces and remaining decisions. Exchange, turning Guerrillas Underground, side decisions and finishing Rally are later parts of this continuation.
 
 ## Handing a faction to an agent
 

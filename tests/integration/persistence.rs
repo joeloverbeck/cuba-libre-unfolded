@@ -752,7 +752,7 @@ fn new_sessions_seed_once_from_entropy_while_resume_preserves_the_exact_seed() {
 /// of only the format and the accepted rules source. A restart keeps the consumed
 /// randomness, and the match revision equals the number of decisions.
 #[test]
-fn a_save_holds_its_seed_decisions_and_position_under_format_13() {
+fn a_save_holds_its_seed_decisions_and_position_under_format_14() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("seeded.json");
     // Seed 5 rolls 3 (kidnap.rs's shared RNG cases).
@@ -769,7 +769,7 @@ fn a_save_holds_its_seed_decisions_and_position_under_format_13() {
     let saved = record(&path);
     assert_eq!(
         saved["identity"],
-        serde_json::json!({"format": "13", "source": cuba_libre_unfolded::assets::SOURCE})
+        serde_json::json!({"format": "14", "source": cuba_libre_unfolded::assets::SOURCE})
     );
     assert_eq!(saved["payload"]["seed"], 5);
     assert_eq!(
@@ -1607,6 +1607,7 @@ fn assert_manifesto_endpoint(mut session: Session, path: &Path, route: &str) {
             .collect::<Vec<_>>(),
         [
             ("directorio:pass", Directorio, false),
+            ("directorio:rally", Directorio, true),
             ("directorio:operation", Directorio, false)
         ],
         "{route}"
@@ -2239,12 +2240,17 @@ fn manifesto_declines_replay_in_printed_order_without_taking_card_actions() {
             "Operation (with or without a Special Activity)"
         ]
     );
-    assert_eq!(after.choices.len(), 2);
-    assert!(
+    assert_eq!(
         after
             .choices
             .iter()
-            .all(|choice| !choice.supported && choice.owner == Faction::Directorio)
+            .map(|choice| (choice.action(), choice.owner, choice.supported))
+            .collect::<Vec<_>>(),
+        [
+            ("directorio:pass", Faction::Directorio, false),
+            ("directorio:rally", Faction::Directorio, true),
+            ("directorio:operation", Faction::Directorio, false),
+        ],
     );
     let reports = session.reports();
     let report = reports.last().unwrap();
@@ -2713,7 +2719,13 @@ fn manifesto_transfer_retains_giver_authority_and_resumes_the_placement() {
     );
     assert_eq!(finished.spaces, placement.spaces);
     assert_eq!(finished.available, placement.available);
-    assert!(finished.choices.iter().all(|c| !c.supported));
+    let supported = finished
+        .choices
+        .iter()
+        .filter(|choice| choice.supported)
+        .map(|choice| choice.action())
+        .collect::<Vec<_>>();
+    assert_eq!(supported, ["directorio:rally"]);
     assert_eq!(std::fs::read(previous_path(&path)).unwrap(), pre_finish);
     drop(session);
     let resumed = Session::open(&path, None).unwrap();
@@ -2726,4 +2738,193 @@ fn manifesto_transfer_retains_giver_authority_and_resumes_the_placement() {
     act(&mut recovered, "manifesto:decline");
     assert_eq!(recovered.observe(), finished);
     assert_eq!(recovered.reports(), reports);
+}
+
+#[test]
+fn directorio_recruits_two_in_camaguey_after_its_manifesto_placement() {
+    use Faction::Directorio;
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("paid-rally.json");
+    let mut session = open_manifesto(&path);
+    for action in [
+        "manifesto:decline",
+        "manifesto:place:camaguey-province:guerrilla-base",
+        "manifesto:decline",
+        "manifesto:decline",
+        "directorio:rally",
+    ] {
+        act(&mut session, action);
+    }
+    let before = session.observe();
+    assert_eq!(before.owner, Directorio);
+    assert_eq!(before.executing, Some(Directorio));
+    assert_eq!((before.current_card, before.preview_card), (19, 20));
+    let position = |view: &cuba_libre_unfolded::Observation| {
+        let province = view
+            .spaces
+            .iter()
+            .find(|s| s.id == "camaguey-province")
+            .unwrap();
+        assert_eq!(province.population, 1);
+        assert!(province.pieces.iter().any(|piece| {
+            piece.faction == Directorio && piece.kind == Kind::Base && piece.count == 1
+        }));
+        let quantity = |pieces: &[cuba_libre_unfolded::Group]| {
+            pieces
+                .iter()
+                .filter(|g| {
+                    g.faction == Directorio
+                        && g.kind == Kind::Guerrilla
+                        && g.state == State::Underground
+                })
+                .map(|g| g.count)
+                .sum::<u8>()
+        };
+        (
+            quantity(&province.pieces),
+            quantity(&view.available),
+            view.resources[Directorio.index()],
+        )
+    };
+    assert_eq!(position(&before), (2, 11, 5));
+    assert_eq!(
+        before
+            .choices
+            .iter()
+            .filter(|choice| choice.supported && choice.space() == Some("camaguey-province"))
+            .map(|choice| choice.action())
+            .collect::<Vec<_>>(),
+        [
+            "paid-rally:camaguey-province:place:0",
+            "paid-rally:camaguey-province:place:1",
+            "paid-rally:camaguey-province:place:2",
+        ],
+    );
+    let action = "paid-rally:camaguey-province:place:2";
+    let choice = before
+        .choices
+        .iter()
+        .find(|c| c.action() == action)
+        .unwrap();
+    assert!(choice.supported);
+    assert_eq!(choice.space(), Some("camaguey-province"));
+    assert_eq!(choice.owner, Directorio);
+    let payment = act(&mut session, action);
+
+    let after = session.observe();
+    assert_eq!(position(&after), (4, 9, 4));
+    assert_eq!(after.manifesto, before.manifesto);
+    assert_eq!(after.standings, before.standings);
+    assert!(
+        !after
+            .choices
+            .iter()
+            .any(|c| c.space() == Some("camaguey-province"))
+    );
+    assert!(
+        after
+            .choices
+            .iter()
+            .any(|c| c.supported && c.space().is_some())
+    );
+    drop(session);
+
+    let mut reopened = Session::open(&path, None).unwrap();
+    assert_eq!(reopened.observe(), after);
+    assert!(
+        reopened
+            .submit(payment.owner, payment.revision, &payment.id)
+            .is_err()
+    );
+    assert_eq!(reopened.observe(), after);
+}
+
+#[test]
+fn directorio_can_recruit_one_in_camaguey_after_declining_the_manifesto() {
+    use Faction::Directorio;
+
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("no-base.json");
+    let mut session = open_manifesto(&path);
+    for _ in Faction::ALL {
+        act(&mut session, "manifesto:decline");
+    }
+    let menu = session.observe();
+    act(&mut session, "directorio:rally");
+    let before = session.observe();
+    assert_eq!(before.resources, menu.resources);
+    assert_eq!(before.spaces, menu.spaces);
+    assert_eq!(before.available, menu.available);
+    let camaguey = "camaguey-province";
+    let province = before
+        .spaces
+        .iter()
+        .find(|space| space.id == camaguey)
+        .unwrap();
+    assert_eq!(province.population, 1);
+    assert_eq!(province.support, -1);
+    assert!(
+        !province
+            .pieces
+            .iter()
+            .any(|piece| piece.faction == Directorio && piece.kind == Kind::Base)
+    );
+    let offers = before
+        .choices
+        .iter()
+        .filter(|choice| choice.space() == Some(camaguey))
+        .collect::<Vec<_>>();
+    let [single] = offers.as_slice() else {
+        panic!("Expected exactly one recruitment choice: {offers:?}")
+    };
+    assert!(single.supported);
+    assert_eq!(single.action(), "paid-rally:camaguey-province:place:1");
+    let preview = single.preview.as_ref().unwrap();
+    let [change] = preview.placement_available_forces.as_slice() else {
+        panic!("Expected a single placement: {preview:?}")
+    };
+    assert_eq!(
+        (
+            change.piece.state,
+            change.piece.count,
+            change.from,
+            change.to
+        ),
+        (State::Underground, 1, 12, 11)
+    );
+    let checkpoint = std::fs::read(&path).unwrap();
+    assert!(
+        session
+            .submit(Faction::M26, before.revision, &single.id)
+            .is_err()
+    );
+    assert_eq!(std::fs::read(&path).unwrap(), checkpoint);
+    assert_eq!(session.observe(), before);
+    act(&mut session, single.action());
+    let after = session.observe();
+    let province = after
+        .spaces
+        .iter()
+        .find(|space| space.id == camaguey)
+        .unwrap();
+    assert!(
+        province
+            .pieces
+            .iter()
+            .any(|piece| piece.faction == Directorio
+                && piece.kind == Kind::Guerrilla
+                && piece.state == State::Underground
+                && piece.count == 2)
+    );
+    assert!(
+        after
+            .available
+            .iter()
+            .any(|piece| piece.faction == Directorio
+                && piece.kind == Kind::Guerrilla
+                && piece.count == 11)
+    );
+    assert_eq!(after.resources[Directorio.index()], 4);
+    assert_eq!(after.manifesto, before.manifesto);
 }

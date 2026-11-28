@@ -285,7 +285,7 @@ impl Game {
 
     /// Pieces move in opposite directions on the map and in Available Forces.
     /// For a flip, the two changes cancel in Available Forces.
-    fn change_rally_pieces(
+    pub(super) fn change_rally_pieces(
         &mut self,
         beneficiary: Faction,
         step: &RallyResolution,

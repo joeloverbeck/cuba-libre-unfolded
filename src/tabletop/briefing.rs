@@ -392,6 +392,7 @@ pub(super) fn content(view: &Observation, option: &str) -> Option<Briefing> {
             "remove" | "done-removal" => "R 1.4.1",
             "manifesto:decline" => "Card 19 · R 5.1",
             "directorio:pass" => "R 2.3.3",
+            "directorio:rally" => "R 3.3.1",
             _ if choice.event_text().is_some() => "Card 19 · R 2.3.4, 5.1",
             _ => "R 2.3.4",
         };
