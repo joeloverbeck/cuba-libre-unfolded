@@ -28,6 +28,12 @@ impl Slot {
     pub(super) fn named(name: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|slot| slot.name() == name)
     }
+    pub(super) fn from_target(target: Option<&Target>) -> Option<Self> {
+        match target {
+            Some(Target::Card(slot)) => Some(*slot),
+            _ => None,
+        }
+    }
     fn facts(self, view: &Observation) -> &CardFacts {
         match self {
             Self::Current => &view.cards.current,
@@ -53,6 +59,8 @@ impl serde::Serialize for Slot {
 pub(super) struct State {
     /// The card whose tag a click pinned.
     pub pinned: Option<Slot>,
+    /// The card under pointer or focus, including while its hover dwell is pending.
+    pub target: Option<Slot>,
 }
 
 /// Node coordinates in the FigCraft frames, relative to the tag's plate.
@@ -124,22 +132,15 @@ pub(super) fn escape(ui: &mut Interface) -> bool {
         return false;
     };
     ui.card.pinned = None;
-    if hovered(ui) == Some(slot) {
+    if ui.card.target == Some(slot) {
         ui.hover.dismiss();
     }
     true
 }
 
-fn hovered(ui: &Interface) -> Option<Slot> {
-    match ui.hover.visible() {
-        Some(Target::Card(slot)) => Some(*slot),
-        _ => None,
-    }
-}
-
 /// The card whose tag is open: the hovered or focused one, else the pinned one.
 pub(super) fn shown(ui: &Interface) -> Option<Slot> {
-    hovered(ui).or(ui.card.pinned)
+    Slot::from_target(ui.hover.visible()).or(ui.card.pinned)
 }
 
 /// The card that has keyboard focus, if one has.

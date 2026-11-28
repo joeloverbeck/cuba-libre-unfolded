@@ -853,6 +853,7 @@ mod tests {
         (app, seat)
     }
 
+    mod card_dismissal;
     mod motion;
     mod proclamation;
 

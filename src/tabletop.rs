@@ -208,7 +208,7 @@ struct Interface {
     /// until the pointer moves, so the button that replaces the clicked one does not
     /// open a card under a pointer that has not left it.
     rested: Option<Vec2>,
-    /// The card tag's pin and Escape state.
+    /// The card tag's pin and current card target.
     card: cards::State,
     /// The latest notice and its kind (#174): the seat reads every one, the slip
     /// draws a refusal or an error.
@@ -1298,6 +1298,7 @@ fn hover_disclosures(
                 .then_some(Target::Top(top::Item::SaveQuit))
         })
         .or_else(|| cards::focused(&ui).map(Target::Card));
+    ui.card.target = cards::Slot::from_target(target.as_ref());
     ui.hover
         .update(target, true, time.delta(), Duration::from_millis(400));
 }
