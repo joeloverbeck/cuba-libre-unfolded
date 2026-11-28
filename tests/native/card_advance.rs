@@ -2978,6 +2978,7 @@ fn native_paid_rally_exchanges_and_recovers_in_camaguey() {
     assert_eq!(preview["bases_here"], json!([1, 2]));
     assert_eq!(preview["bases_available"], json!([3, 2]));
     assert_eq!(preview["resources"], json!([5, 4]));
+    assert!(preview.get("recovery_faces").is_none());
     assert_eq!(rally_popover_part(&exchange, "popover-commit"), recruit_pay);
     assert_rally_popover_geometry(&exchange);
     let [left, top, ..] = rect_of(&exchange["table"]["popover"]["bounds"]);
@@ -3046,6 +3047,52 @@ fn native_paid_rally_exchanges_and_recovers_in_camaguey() {
         "2"
     );
     app.capture("rally-exchange-committed");
+    app.quit();
+    app.launch_size("3840x2160");
+    assert_eq!(&app.observe()["observation"], after);
+    app.quit();
+
+    app.save = app.root.join("held-exchange.json");
+    fs::write(&app.save, &checkpoint).unwrap();
+    app.launch_size("3840x2160");
+    let directorio = app.seat_agent("F3", "directorio");
+    let (status, seen) = app.ask(&["observe", &directorio]);
+    assert_eq!(status, 0);
+    let exchange_id = format!("{revision}:{EXCHANGE}");
+    let offer = |seen: &Value| {
+        seen["choices"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["id"] == exchange_id)
+            .unwrap()["preview"]
+            .clone()
+    };
+    assert_eq!(offer(&seen["view"]), offer(&before));
+    app.decide(&directorio, EXCHANGE, "applied");
+    assert_eq!(&app.observe()["observation"], after);
+    let (status, told) = app.ask(&["observe", &directorio]);
+    assert_eq!(status, 0);
+    for field in ["paid_rally", "available", "resources", "standings"] {
+        assert_eq!(told["view"]["state"][field], after[field], "{field}");
+    }
+    let camaguey = |view: &Value| {
+        view["spaces"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["id"] == "camaguey-province")
+            .unwrap()["pieces"]
+            .clone()
+    };
+    assert_eq!(camaguey(&told["view"]["state"]), camaguey(after));
+    assert!(
+        told["view"]["choices"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|c| c["site"]["space"] != "camaguey-province")
+    );
     app.quit();
     app.launch_size("3840x2160");
     assert_eq!(&app.observe()["observation"], after);

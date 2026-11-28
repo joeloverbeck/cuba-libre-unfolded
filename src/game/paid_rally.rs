@@ -213,32 +213,34 @@ impl Game {
 }
 
 #[cfg(test)]
+pub(crate) const CAMAGUEY_RALLY_ACTIONS: &[&str] = &[
+    "terror",
+    "kidnap",
+    "kidnap:roll",
+    "terror:santiago",
+    "end-terror",
+    "event:shaded",
+    "resolve-shaded",
+    "advance-card",
+    "government:pass",
+    "syndicate:pass",
+    "advance-card",
+    "m26:event",
+    "manifesto:decline",
+    "manifesto:place:camaguey-province:guerrilla-base",
+    "manifesto:decline",
+    "manifesto:decline",
+    START,
+];
+
+#[cfg(test)]
 mod tests {
     use super::*;
-
     const CAMAGUEY: &str = "camaguey-province";
 
     fn camaguey_rally() -> Game {
         let mut game = Game::opening_with_seed(crate::save::Session::KIDNAP_ROLLS_1);
-        for action in [
-            "terror",
-            "kidnap",
-            "kidnap:roll",
-            "terror:santiago",
-            "end-terror",
-            "event:shaded",
-            "resolve-shaded",
-            "advance-card",
-            "government:pass",
-            "syndicate:pass",
-            "advance-card",
-            "m26:event",
-            "manifesto:decline",
-            "manifesto:place:camaguey-province:guerrilla-base",
-            "manifesto:decline",
-            "manifesto:decline",
-            START,
-        ] {
+        for action in CAMAGUEY_RALLY_ACTIONS {
             game.apply(action).unwrap();
         }
         game

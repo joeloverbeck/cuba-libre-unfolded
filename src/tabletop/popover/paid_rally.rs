@@ -56,18 +56,12 @@ struct OptionRow {
 }
 
 impl OptionRow {
-    fn variant(&self) -> (String, String) {
+    fn variant(&self) -> (String, u8) {
         match self.effect {
-            RallyAction::Place(n) => (format!("popover:quantity:{n}"), n.to_string()),
-            RallyAction::ReplaceWithBase { underground, .. } => (
-                format!("popover:exchange:{underground}"),
-                match underground {
-                    0 => "2 Active",
-                    1 => "1 of each",
-                    _ => "2 Underground",
-                }
-                .into(),
-            ),
+            RallyAction::Place(n) => (format!("popover:quantity:{n}"), n),
+            RallyAction::ReplaceWithBase { underground, .. } => {
+                (format!("popover:exchange:{underground}"), underground)
+            }
             RallyAction::FlipUnderground(_) => unreachable!("Recovery has no variants"),
         }
     }
@@ -88,11 +82,17 @@ struct Payment {
     available: [u8; 2],
     bases_here: [u8; 2],
     bases_available: [u8; 2],
-    active: [u8; 2],
-    underground: [u8; 2],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    recovery_faces: Option<RecoveryFaces>,
     resources: [u8; 2],
     control: String,
     standing: Option<[i16; 2]>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+struct RecoveryFaces {
+    active: [u8; 2],
+    underground: [u8; 2],
 }
 
 fn count(pieces: &[Group], kind: Kind) -> u8 {
@@ -223,13 +223,18 @@ fn payment_preview(view: &Observation, place: &Space, choice: &Choice) -> Option
             .find(|p| p.faction == FACTION && p.kind == Kind::Guerrilla && p.state == state)
             .map_or(0, |p| p.count)
     };
-    let flips = preview
+    let recovery_faces = preview
         .flips
         .iter()
         .find(|p| p.faction == FACTION && p.to == State::Underground)
-        .map_or(0, |p| p.count);
-    let active = face_count(State::Active);
-    let underground = face_count(State::Underground);
+        .map(|flip| {
+            let active = face_count(State::Active);
+            let underground = face_count(State::Underground);
+            RecoveryFaces {
+                active: [active, active - flip.count],
+                underground: [underground, underground + flip.count],
+            }
+        });
     let standing = preview
         .standings
         .iter()
@@ -241,6 +246,7 @@ fn payment_preview(view: &Observation, place: &Space, choice: &Choice) -> Option
             control_name(change.from),
             control_name(change.to)
         ),
+        (Some(FACTION), None) if standing.is_some() => "Control retained".into(),
         (Some(owner), None) => format!("{} retains Control.", owner.name()),
         (None, None) => "The space stays Uncontrolled.".into(),
     };
@@ -249,8 +255,7 @@ fn payment_preview(view: &Observation, place: &Space, choice: &Choice) -> Option
         available,
         bases_here,
         bases_available,
-        active: [active, active - flips],
-        underground: [underground, underground + flips],
+        recovery_faces,
         resources: [payment.from, payment.to],
         control,
         standing,
@@ -492,6 +497,7 @@ fn draw_procedure(
     use super::super::palette::DESK;
     let selected = Procedure::of(rally.selected) == procedure;
     let choice = rally.row_choice(procedure);
+    let variants = rally.selected_variants(procedure);
     let row = if selected {
         let row = layout.solid(body, bounds, "rally-selected-row", DESK);
         layout.image(row, [8., 16., 12., 12.], mark_image(card.rows[0].mark));
@@ -523,19 +529,26 @@ fn draw_procedure(
             );
         }
         Procedure::Exchange => {
-            let summary = match rally.selected {
+            let (top, summary) = match rally.selected {
+                RallyAction::ReplaceWithBase {
+                    underground,
+                    active,
+                } if variants.is_some() => (
+                    34.,
+                    format!("Underground to return · {underground}, plus {active} Active."),
+                ),
                 RallyAction::ReplaceWithBase { underground, .. } => match underground {
-                    0 => "Return both Active Guerrillas.",
-                    1 => "Return 1 Active and 1 Underground Guerrilla.",
-                    _ => "Return both Underground Guerrillas.",
+                    0 => (43., "Return both Active Guerrillas.".into()),
+                    1 => (43., "Return 1 Active and 1 Underground Guerrilla.".into()),
+                    _ => (43., "Return both Underground Guerrillas.".into()),
                 },
-                _ if choice.is_none() => "No legal exchange here.",
-                _ => "",
+                _ if choice.is_none() => (27., "No legal exchange here.".into()),
+                _ => (27., String::new()),
             };
             if !summary.is_empty() {
                 layout.text(
                     row,
-                    [53., 43. - if selected { 0. } else { 16. }, 343., 22.],
+                    [53., top, 343., 22.],
                     summary,
                     (if selected { 16. } else { 15. }, false, QUIET),
                 );
@@ -551,47 +564,40 @@ fn draw_procedure(
         }
         Procedure::Recruit => {}
     }
-    if let Some(variants) = rally.selected_variants(procedure) {
+    if let Some(variants) = variants {
         draw_variants(layout, row, rally.selected, &variants);
     }
 }
 
 fn draw_variants(layout: &mut Layout, row: Entity, selected: RallyAction, variants: &[&OptionRow]) {
-    let recruit = Procedure::of(selected) == Procedure::Recruit;
     let count = variants.len() as f32;
-    let width = ((345. - 8. * (count - 1.)) / count).min(if recruit { 47. } else { 109. });
-    let (top, height) = if recruit { (61., 33.) } else { (66., 28.) };
+    let width = ((345. - 8. * (count - 1.)) / count).min(47.);
 
     for (index, option) in variants.iter().enumerate() {
         let chosen = option.effect == selected;
         let (name, label) = option.variant();
         let cell = layout.solid(
             row,
-            [53. + index as f32 * (width + 8.), top, width, height],
+            [53. + index as f32 * (width + 8.), 61., width, 33.],
             &name,
             if chosen { INK } else { PAPER },
         );
         layout.control(cell, name, Action::Row(option.action.clone()));
-        let color = if chosen { PAPER } else { INK };
-        let size = if recruit { 18. } else { 15. };
-        let text = layout.text(cell, [0., 4., width, 24.], label, (size, true, color));
-        layout
-            .commands
-            .entity(text)
-            .insert(TextLayout::justify(Justify::Center));
+        layout.centered(
+            cell,
+            [0., 4., width, 24.],
+            label.to_string(),
+            if chosen { PAPER } else { INK },
+        );
     }
 }
 
 fn draw_payment(layout: &mut Layout, effect: Entity, preview: &Payment, action: RallyAction) {
     let control = match preview.standing {
-        Some([from, to]) => {
-            let control = if preview.control == "Directorio retains Control." {
-                "Control retained"
-            } else {
-                preview.control.trim_end_matches('.')
-            };
-            format!("{control}  ·  Directorio standing {from} → {to}")
-        }
+        Some([from, to]) => format!(
+            "{}  ·  Directorio standing {from} → {to}",
+            preview.control.trim_end_matches('.')
+        ),
         None => preview.control.clone(),
     };
     match action {
@@ -637,23 +643,18 @@ fn draw_payment(layout: &mut Layout, effect: Entity, preview: &Payment, action: 
             }
         }
         RallyAction::FlipUnderground(_) => {
-            layout.text(effect, [189., 7., 92., 18.], "Here", (15., true, QUIET));
-            payment_row(
-                layout,
-                effect,
-                36.,
-                "Active Guerrillas",
-                preview.active,
-                None,
-            );
-            payment_row(
-                layout,
-                effect,
-                63.,
-                "Underground Guerrillas",
-                preview.underground,
-                None,
-            );
+            if let Some(faces) = &preview.recovery_faces {
+                layout.text(effect, [189., 7., 92., 18.], "Here", (15., true, QUIET));
+                payment_row(layout, effect, 36., "Active Guerrillas", faces.active, None);
+                payment_row(
+                    layout,
+                    effect,
+                    63.,
+                    "Underground Guerrillas",
+                    faces.underground,
+                    None,
+                );
+            }
         }
     }
     let [from, to] = preview.resources;

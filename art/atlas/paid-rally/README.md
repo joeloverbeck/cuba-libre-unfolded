@@ -4,7 +4,7 @@ The owner selected **refined B, Quantity selector**, for Directorio’s ordinary
 
 ## What the player sees
 
-The procedure and quantity occupy different levels. The selected procedure has a shaded row and a state mark. Its controls sit inside that row. Recruitment shows how Bases and population determine the ceiling, subject to available Guerrillas. The selector uses the quantities offered by the rules authority. Changing the procedure or quantity updates the preview. Only **Pay** submits the selected decision.
+The procedure and quantity occupy different levels. The selected procedure has a shaded row and a state mark. Its controls sit inside that row. Recruitment shows how Bases and population determine the ceiling, subject to available Guerrillas. The selector uses the quantities offered by the rules authority. An exchange with several legal mixes places the same quantity controls in the exchange row. They select the number of Underground Guerrillas to return, and the row names the corresponding Active count. Changing the procedure or quantity updates the preview. Only **Pay** submits the selected decision.
 
 Immediately above Pay, **If you pay** shows the movement of the affected pieces between **Here** and **Available**, the faction’s Resources, and the effect on Control or standing. A paid choice that moves no pieces explains what the payment accomplishes. The button names the cost and selected effect. The 430 × 539 layout puts Pay in the same place in each of the three illustrated states.
 

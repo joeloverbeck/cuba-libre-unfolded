@@ -23,6 +23,8 @@ pub use construct::{
 };
 use manifesto::CARD_19_ORDER;
 pub use manifesto::{AvailableForcesChange, Manifesto, ManifestoPlacement};
+#[cfg(all(test, feature = "tabletop"))]
+pub(crate) use paid_rally::CAMAGUEY_RALLY_ACTIONS;
 pub use paid_rally::PaidRally;
 pub use pile_facts::{
     DeckFacts, DeckWords, NextPropaganda, PlayedCard, PlayedPile, PlayedWords, next_propaganda,
