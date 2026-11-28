@@ -181,6 +181,26 @@ fn native_card_tag_matches_layout_and_reads_the_model() {
         ));
     }
 
+    // Escape suppresses the card even if the pointer stays over its face.
+    close_card_tag(&mut app);
+    app.request(json!({"op":"advance","steps":60}), true);
+    assert!(app.observe()["table"]["card"]["shown"].is_null());
+
+    // Clicking the dismissed card can still pin it. Unpinning with the pointer
+    // still on the same face leaves its ordinary hover tag open.
+    app.activate("card:preview", 0);
+    assert_eq!(app.observe()["table"]["card"]["shown"]["pinned"], true);
+    app.activate("card:preview", 0);
+    let unpinned = app.observe();
+    assert_states_the_model(&unpinned, "card:preview");
+    assert_eq!(unpinned["table"]["card"]["shown"]["pinned"], false);
+
+    close_card_tag(&mut app);
+    app.point("card:current");
+    let changed_target = app.observe();
+    assert_states_the_model(&changed_target, "card:current");
+    assert_eq!(changed_target["observation"], opening["observation"]);
+
     // Keyboard focus opens each tag with the same dwell; Enter pins; Escape closes.
     app.point("area:propaganda");
     let mut focus = Value::Null;
@@ -218,7 +238,9 @@ fn native_card_tag_matches_layout_and_reads_the_model() {
     close_card_tag(&mut app);
     // Escape keeps the focused card's tag closed until focus moves.
     app.request(json!({"op":"advance","steps":60}), true);
-    assert!(app.observe()["table"]["card"]["shown"].is_null());
+    let dismissed = app.observe();
+    assert_eq!(dismissed["table"]["choice"]["focus"], "card:preview");
+    assert!(dismissed["table"]["card"]["shown"].is_null());
     // Tab passes the two piles (#144), the seat cards (#206) and Save · quit (#174), and
     // wraps to the first option.
     for next in [

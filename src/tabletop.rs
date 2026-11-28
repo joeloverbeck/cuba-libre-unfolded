@@ -1296,8 +1296,8 @@ fn hover_disclosures(
         .or_else(|| {
             (ui.choice.focus.as_deref() == Some(save_quit::NAME))
                 .then_some(Target::Top(top::Item::SaveQuit))
-        });
-    let target = cards::target(&mut ui, target);
+        })
+        .or_else(|| cards::focused(&ui).map(Target::Card));
     ui.hover
         .update(target, true, time.delta(), Duration::from_millis(400));
 }
