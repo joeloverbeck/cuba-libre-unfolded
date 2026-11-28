@@ -661,6 +661,26 @@ fn native_each_seat_state_is_shown_and_a_held_choice_is_taken_back() {
 
     let view = app.settle();
     assert_eq!(view["observation"]["owner"], "Directorio");
+    assert_eq!(seat(&view, "Directorio")["state"], "thinking");
+    assert_eq!(
+        says(&view, "seat-strip-title").unwrap(),
+        "Directorio: Thinking"
+    );
+    app.decide(&directorio, "directorio:rally", "applied");
+    // Exhaust the current build's paid choices. The separate Rally finish is
+    // still outside this slice, so the held seat shows the build-end state here.
+    for _ in 0..5 {
+        let view = app.observe();
+        let choices = view["observation"]["choices"].as_array().unwrap();
+        let choice = choices
+            .iter()
+            .find(|choice| choice["supported"] == true)
+            .unwrap();
+        let id = choice["id"].as_str().unwrap();
+        let (_, action) = id.split_once(':').unwrap();
+        app.decide(&directorio, action, "applied");
+    }
+    let view = app.settle();
     assert_eq!(seat(&view, "Directorio")["state"], "build-ends");
     assert_eq!(state_words(&view, "directorio"), "Build ends here");
     assert_eq!(

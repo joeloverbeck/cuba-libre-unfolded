@@ -151,6 +151,7 @@ pub(super) fn content(view: &Observation, target: &PieceTarget, quantity: u8) ->
         });
     }
     Some(Card {
+        rally: None,
         kind: if open {
             CardKind::OpenCasino
         } else {

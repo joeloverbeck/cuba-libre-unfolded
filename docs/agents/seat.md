@@ -136,7 +136,7 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `aid`, `us-alliance`, `resources`, `cash` | Top display | Each opens its tag. |
 | `marker-supply` | The marker supply in the top band: the marker, the number and "of 20", inside `area:marker-supply`, whose corners stay bare | Hover or focus opens its tag after the shared dwell (#173); a click changes nothing. The same name is a Tab stop. |
 | `available:government`, `available:26july`, `available:directorio`, `available:syndicate` | Available Forces ledger, a faction's row | Hover or focus opens the faction's tag after the shared dwell (#160); a click changes nothing. The same names are Tab stops. |
-| `space:<space>`, e.g. `space:havana` | Map | Picks the space; opens its popover where the rules allow: on a selectable, blocked, no-effect or unpayable space, during Terror and during Assault (#169). A not-involved space opens nothing. A space under an overlaid area is covered: the reply is `missed` and names what covers it. A selectable, blocked, no-effect or unpayable space is also a Tab stop ([Keys](#keys)). |
+| `space:<space>`, e.g. `space:havana` | Map | Opens the popover for a selectable, blocked, no-effect or unpayable space in a map decision. A space under an overlaid area is covered. The reply is `missed` and names what covers it. These spaces are also Tab stops ([Keys](#keys)). |
 | `area:<area>`: `area:outside-influence`, `area:standings`, `area:resources`, `area:available-forces`, `area:marker-supply`, `area:sequence-of-play`, `area:decision`, `area:save-quit`, `area:cards`, `area:propaganda`, `area:seats`, and `area:editions` while the pile of editions is there | An overlaid area's own rectangle, beneath its controls | Does nothing: it takes the pointer, so a scroll, a drag or a press there neither moves the camera nor reaches the map. The seat rests on a bare part of the rectangle. |
 | `card:current`, `card:preview` | Card piles: the face-up card on the played pile and on the draw deck | Hover target for the card's tag; activating pins or unpins it. Enter or Space naming the focused card does the same. Nothing in the match changes. |
 | `seat:<faction>:hand-over`, `seat:<faction>:copy`, `seat:<faction>:take-back`, with `government`, `26july`, `directorio` or `syndicate` | A faction's seat card ([SEATS.md](../../art/atlas/SEATS.md)) | Hands the faction to an agent, copies its line and opens its sheet, or takes it back. The controls for the current seat state are Tab stops during ordinary play and accept clicks while a die or card is in the air and over the transfer scrim. During a Broadsheet, the seat card accepts **Take back**. Return to the table to use **Hand over** and **Copy its line** with the pointer. |
@@ -169,6 +169,7 @@ Name these in a request's `"component"`. Families use `<…>` for the varying pa
 | `transfer:primary` | Transfer modal | The primary button while no amount can commit; its activation shows why. |
 | `pending-open` | Top band | Shows a waiting transfer decision again (choice `<revision>:reopen`). |
 | `popover:row:<action>` | Space popover | The row for `<action>`. |
+| `popover:row:recruit`, `popover:quantity:<n>` | Paid Rally popover | Focuses recruitment and selects an offered quantity for the preview. These controls leave the match revision unchanged. |
 | `popover:commit` | Space or piece popover | Commits. |
 | `popover:casino-close`, `popover:casino-return` | Casino popover during Construct | Commit closing the selected quantity in place or returning it to Available. A closed group offers return. |
 | `popover:quantity:minus`, `popover:quantity:plus` | Piece popover | Steps the quantity. |
@@ -188,7 +189,10 @@ Each choice id starts with the revision it was offered at. Submit supported ids 
 | `<revision>:m26:event` | Pin `option:m26:event` for the Sierra Maestra Manifesto. Commit using the offered choice to start the Event. |
 | `<revision>:manifesto:decline` | Pin `option:manifesto:decline` for the decision owner's decline and next handoff. Commit using the offered choice. |
 | `<revision>:manifesto:place:<space>:<mix>` | Open `space:<space>`, select `popover:row:manifesto:place:<space>:<mix>`, then activate `popover:commit`. Read the offered ID for the chosen faction and mix, for example `<revision>:manifesto:place:santiago:guerrilla-base`. `preview.placement_available_forces` reports each piece group and its Available count before and after the move. The preview also gives changes in `control` and `standings`. |
-| `<revision>:directorio:operation` | Directorio's inspection-only Operation with optional Special Activity after the Manifesto. `directorio:pass` is the other option at this point. |
+| `<revision>:directorio:rally` | Pin `option:directorio:rally` and confirm Rally without a Special Activity after the Manifesto. |
+| `<revision>:directorio:operation` | Inspect Directorio's options for other Operations and accompanying Special Activities. |
+| `<revision>:paid-rally:<space>:place:<n>` | Pay 1 Resource and use the space, placing the offered number of Directorio Guerrillas Underground. Open `space:<space>`, choose `popover:quantity:<n>` when several quantities are offered, then activate `popover:commit`. A held Directorio player submits the same revision-bound choice. |
+| `<revision>:paid-rally:finish` | Inspect the scope notice for finishing on card 19. |
 | `<revision>:pass`, `<revision>:terror` | 26July's supported action choices. |
 | `<revision>:event:shaded` | Listed for inspection at 26July's opening decision. Directorio can choose Alberto Bayo's shaded text after Kidnap. Pin its option to preview the flips. |
 | `<revision>:resolve-shaded` | Resolves the shaded Event after Directorio has chosen that text. |

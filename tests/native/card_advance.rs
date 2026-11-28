@@ -2760,3 +2760,237 @@ fn native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement() {
     app.capture("manifesto-side-decisions-finished");
     app.quit();
 }
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and Vulkan for the 4K Rally popover and held seat"]
+fn native_paid_rally_previews_and_pays_for_camaguey_on_both_routes() {
+    use super::construct::choose_row;
+    use super::map_keys::{press, tab_to};
+    use super::space_reason::hover;
+
+    const SPACE: &str = "space:camaguey-province";
+    const TWO: &str = "paid-rally:camaguey-province:place:2";
+    const ZERO: &str = "paid-rally:camaguey-province:place:0";
+    let mut app = available_forces::unlaunched("camaguey-rally-", "issue-282");
+    reach_manifesto_after_two_passes(&app.save);
+    app.launch_size("3840x2160");
+    choose_row(&mut app, "m26:event");
+    choose_row(&mut app, "manifesto:decline");
+    app.pick(
+        "camaguey-province",
+        "manifesto:place:camaguey-province:guerrilla-base",
+    );
+    choose_row(&mut app, "manifesto:decline");
+    choose_row(&mut app, "manifesto:decline");
+    choose_row(&mut app, "directorio:rally");
+    let before = app.observe()["observation"].clone();
+    let at = app.revision();
+    let checkpoint = app.save_bytes();
+    hover(
+        &mut app,
+        "ec-las-villas-camaguey",
+        "not-involved",
+        Some("No Rally in economic centers."),
+        "rally-economic-center-hover",
+    );
+    hover(
+        &mut app,
+        "sierra-maestra",
+        "not-involved",
+        Some("Active Opposition blocks Rally."),
+        "rally-active-opposition-hover",
+    );
+    hover(
+        &mut app,
+        "havana",
+        "not-involved",
+        Some("Active Support blocks Rally."),
+        "rally-active-support-hover",
+    );
+    app.point(SPACE);
+    assert!(app.observe()["table"]["popover"].is_null());
+    app.activate(SPACE, at);
+    app.activate("popover:quantity:2", at);
+    let two = app.observe();
+    let two_pay = rally_popover_part(&two, "popover-commit");
+    assert_eq!(
+        two["table"]["popover"]["card"]["rally"]["preview"]["here"],
+        json!([2, 4])
+    );
+    assert_eq!(
+        two["table"]["popover"]["card"]["rally"]["preview"]["available"],
+        json!([11, 9])
+    );
+    assert_eq!(
+        two["table"]["popover"]["card"]["rally"]["preview"]["resources"],
+        json!([5, 4])
+    );
+    assert_eq!(
+        two["table"]["popover"]["card"]["rows"][0]["choice"],
+        format!("{at}:{TWO}")
+    );
+    assert_rally_popover_geometry(&two);
+    app.capture("rally-recruit-two-preview");
+
+    app.activate("popover:quantity:0", at);
+    let zero = app.observe();
+    assert_eq!(
+        zero["table"]["popover"]["card"]["rows"][0]["choice"],
+        format!("{at}:{ZERO}")
+    );
+    assert_eq!(rally_popover_part(&zero, "popover-commit"), two_pay);
+    app.capture("rally-recruit-zero-preview");
+    assert_eq!(app.save_bytes(), checkpoint);
+    assert_eq!(zero["observation"], before);
+    app.activate("popover:quantity:2", at);
+    app.activate("popover:commit", at);
+    let two_paid = app.observe();
+    assert_rally_payment(&two_paid["observation"], 4, 9, 2);
+    assert_eq!(two_paid["observation"]["standings"], before["standings"]);
+    assert!(two_paid["table"]["popover"].is_null());
+    app.capture("rally-recruit-two-committed");
+    hover(
+        &mut app,
+        "camaguey-province",
+        "not-involved",
+        Some("Rally paid here (R 3.1)."),
+        "rally-paid-space-hover",
+    );
+    app.quit();
+
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["observation"], two_paid["observation"]);
+    app.quit();
+
+    // A fresh copy reproduces the exact pre-payment state for the independent outcome.
+    app.save = app.root.join("zero.json");
+    fs::write(&app.save, &checkpoint).unwrap();
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["observation"], before);
+    tab_to(&mut app, SPACE);
+    press(&mut app, "Enter", SPACE);
+    tab_to(&mut app, "popover:quantity:0");
+    press(&mut app, "Enter", "popover:quantity:0");
+    let key_preview = app.observe();
+    assert_eq!(
+        key_preview["table"]["popover"]["card"]["rows"][0]["choice"],
+        format!("{at}:{ZERO}")
+    );
+    tab_to(&mut app, "popover:commit");
+    press(&mut app, "Enter", "popover:commit");
+    let zero_paid = app.observe();
+    assert_rally_payment(&zero_paid["observation"], 2, 11, 0);
+    assert_eq!(zero_paid["observation"]["spaces"], before["spaces"]);
+    assert_eq!(zero_paid["observation"]["standings"], before["standings"]);
+    app.capture("rally-recruit-zero-committed");
+    app.quit();
+
+    app.save = app.root.join("held.json");
+    fs::write(&app.save, &checkpoint).unwrap();
+    app.launch_size("3840x2160");
+    app.activate(SPACE, at);
+    app.activate("popover:quantity:0", at);
+    let directorio = app.seat_agent("F3", "directorio");
+    let held = app.observe();
+    assert_eq!(
+        held["table"]["popover"]["card"]["rows"][0]["choice"],
+        format!("{at}:{ZERO}")
+    );
+    assert!(held["table"]["popover"]["card"]["rows"][0]["button"].is_null());
+    let (status, seen) = app.ask(&["observe", &directorio]);
+    assert_eq!(status, 0);
+    assert!(
+        seen["view"]["choices"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|c| c["id"] == format!("{at}:{ZERO}"))
+    );
+    app.key("Escape");
+    app.decide(&directorio, ZERO, "applied");
+    assert_eq!(app.observe()["observation"], zero_paid["observation"]);
+    let (status, told) = app.ask(&["observe", &directorio]);
+    assert_eq!(status, 0);
+    assert_eq!(
+        told["view"]["state"]["paid_rally"],
+        zero_paid["observation"]["paid_rally"]
+    );
+    assert_eq!(told["view"]["state"]["resources"][2], 4);
+    let (status, refused) = app.ask(&[
+        "choose",
+        &directorio,
+        &at.to_string(),
+        &format!("{at}:{ZERO}"),
+    ]);
+    assert_eq!((status, &refused["status"]), (1, &json!("refused")));
+    assert_eq!(app.observe()["observation"], zero_paid["observation"]);
+    app.quit();
+
+    app.launch_size("3840x2160");
+    assert_eq!(app.observe()["observation"], zero_paid["observation"]);
+    app.quit();
+}
+
+fn rally_popover_part(view: &Value, name: &str) -> [f64; 4] {
+    let parts = view["table"]["popover"]["parts"].as_array().unwrap();
+    let part = parts
+        .iter()
+        .find(|part| part["part"] == name)
+        .unwrap_or_else(|| panic!("{name} missing in {parts:?}"));
+    rect_of(&part["bounds"])
+}
+
+fn assert_rally_popover_geometry(view: &Value) {
+    let [left, top, right, bottom] = rect_of(&view["table"]["popover"]["bounds"]);
+    let [x, y, right_pay, bottom_pay] = rally_popover_part(view, "popover-commit");
+    // The 1920×1080 FigCraft map frame is shown on the 3840×2160 native viewport.
+    for (actual, expected) in [
+        (right - left, 860.),
+        (bottom - top, 1078.),
+        (x - left, 40.),
+        (y - top, 958.),
+        (right_pay - x, 780.),
+        (bottom_pay - y, 88.),
+    ] {
+        assert!(
+            (actual - expected).abs() <= 2.,
+            "{actual} differs from {expected}"
+        );
+    }
+}
+
+fn assert_rally_payment(view: &Value, here: u8, available: u8, placed: u8) {
+    let province = view["spaces"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["id"] == "camaguey-province")
+        .unwrap();
+    let guerrillas = |pieces: &Value| {
+        pieces
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|p| p["faction"] == "Directorio" && p["kind"] == "Guerrilla")
+            .unwrap()["count"]
+            .clone()
+    };
+    assert_eq!(guerrillas(&province["pieces"]), here);
+    assert_eq!(guerrillas(&view["available"]), available);
+    assert_eq!(view["resources"][2], 4);
+    assert_eq!(
+        view["paid_rally"]["resolutions"],
+        json!([{"space":"camaguey-province","action":{"Place":placed}}])
+    );
+    let choices = view["choices"].as_array().unwrap();
+    assert!(
+        !choices
+            .iter()
+            .any(|choice| choice["site"]["space"] == "camaguey-province")
+    );
+    assert!(
+        choices
+            .iter()
+            .any(|choice| choice["supported"] == true && choice["site"]["space"].is_string())
+    );
+}

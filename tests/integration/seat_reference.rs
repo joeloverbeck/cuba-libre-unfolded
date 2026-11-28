@@ -2,7 +2,7 @@
 //! the rules authority offers (#94). Agents name choices from that table; a missing
 //! or stale family can mislead them. The oracle is `Game::observe` at every explored
 //! card 17 state and along checked paths through the Manifesto's execution,
-//! all four declines and Directorio's resulting inspection menu on card 19.
+//! all four declines and Directorio's resulting paid recruitment menu on card 19.
 //!
 //! Not covered: states the explorer does not reach. It follows at most one Resource
 //! transfer per path, of 1 or of the direction's limit, from the starts it names.
@@ -60,6 +60,13 @@ fn family(choice: &Choice) -> String {
         .is_some_and(|(space, mix)| !mix.is_empty() && choice.space() == Some(space))
     {
         return "manifesto:place:<space>:<mix>".into();
+    }
+    if action
+        .strip_prefix("paid-rally:")
+        .and_then(|rest| rest.split_once(":place:"))
+        .is_some_and(|(space, n)| n.parse::<u8>().is_ok() && choice.space() == Some(space))
+    {
+        return "paid-rally:<space>:place:<n>".into();
     }
     action.into()
 }
@@ -139,6 +146,8 @@ fn continuation_families() -> BTreeSet<String> {
         explore::choose(&mut construct, "manifesto:decline");
         offered.extend(families(&construct));
     }
+    explore::choose(&mut construct, "directorio:rally");
+    offered.extend(families(&construct));
     offered
 }
 
