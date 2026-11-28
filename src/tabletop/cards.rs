@@ -28,6 +28,12 @@ impl Slot {
     pub(super) fn named(name: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|slot| slot.name() == name)
     }
+    pub(super) fn from_target(target: Option<&Target>) -> Option<Self> {
+        match target {
+            Some(Target::Card(slot)) => Some(*slot),
+            _ => None,
+        }
+    }
     fn facts(self, view: &Observation) -> &CardFacts {
         match self {
             Self::Current => &view.cards.current,
@@ -53,9 +59,8 @@ impl serde::Serialize for Slot {
 pub(super) struct State {
     /// The card whose tag a click pinned.
     pub pinned: Option<Slot>,
-    /// The card whose tag Escape closed while the pointer or focus was still on it. It
-    /// stays closed until the pointer or focus moves to something else.
-    pub dismissed: Option<Slot>,
+    /// The card under pointer or focus, including while its hover dwell is pending.
+    pub target: Option<Slot>,
 }
 
 /// Node coordinates in the FigCraft frames, relative to the tag's plate.
@@ -117,7 +122,7 @@ pub(super) fn activate(ui: &mut Interface, slot: Slot) {
     } else {
         Some(slot)
     };
-    ui.card.dismissed = None;
+    ui.hover.rearm();
 }
 
 /// Escape closes an open card tag: it unpins it and keeps a hovered or focused card's
@@ -127,45 +132,20 @@ pub(super) fn escape(ui: &mut Interface) -> bool {
         return false;
     };
     ui.card.pinned = None;
-    if hovered(ui) == Some(slot) {
-        ui.card.dismissed = Some(slot);
+    if ui.card.target == Some(slot) {
+        ui.hover.dismiss();
     }
     true
 }
 
-fn hovered(ui: &Interface) -> Option<Slot> {
-    match ui.hover.visible() {
-        Some(Target::Card(slot)) => Some(*slot),
-        _ => None,
-    }
-}
-
 /// The card whose tag is open: the hovered or focused one, else the pinned one.
 pub(super) fn shown(ui: &Interface) -> Option<Slot> {
-    hovered(ui).or(ui.card.pinned)
+    Slot::from_target(ui.hover.visible()).or(ui.card.pinned)
 }
 
 /// The card that has keyboard focus, if one has.
 pub(super) fn focused(ui: &Interface) -> Option<Slot> {
     ui.choice.focus.as_deref().and_then(Slot::named)
-}
-
-/// What the hover lifecycle should wait on for a card: the pointer's card, else the
-/// focused one. A card whose tag Escape closed opens again only after the pointer or
-/// focus has left it.
-pub(super) fn target(ui: &mut Interface, pointed: Option<Target>) -> Option<Target> {
-    let wanted = match pointed {
-        Some(target) => Some(target),
-        None => focused(ui).map(Target::Card),
-    };
-    let card = match &wanted {
-        Some(Target::Card(slot)) => Some(*slot),
-        _ => None,
-    };
-    if ui.card.dismissed.is_some() && ui.card.dismissed != card {
-        ui.card.dismissed = None;
-    }
-    wanted.filter(|_| ui.card.dismissed.is_none() || card.is_none())
 }
 
 #[derive(Component)]
@@ -615,26 +595,6 @@ mod tests {
         activate(&mut ui, Slot::Current);
         activate(&mut ui, Slot::Current);
         assert_eq!(shown(&ui), None);
-    }
-
-    #[test]
-    fn escape_keeps_a_focused_card_closed_until_focus_moves() {
-        let mut ui = Interface::default();
-        ui.choice.focus = Some("card:current".into());
-        let wanted = target(&mut ui, None);
-        assert_eq!(wanted, Some(Target::Card(Slot::Current)));
-        ui.hover
-            .update(wanted, true, Duration::ZERO, Duration::ZERO);
-        assert_eq!(shown(&ui), Some(Slot::Current));
-        assert!(escape(&mut ui));
-        let wanted = target(&mut ui, None);
-        assert_eq!(wanted, None);
-        ui.hover
-            .update(wanted, true, Duration::ZERO, Duration::ZERO);
-        assert_eq!(shown(&ui), None);
-        ui.choice.focus = Some("card:preview".into());
-        assert_eq!(target(&mut ui, None), Some(Target::Card(Slot::Preview)));
-        assert_eq!(ui.card.dismissed, None);
     }
 
     #[test]
