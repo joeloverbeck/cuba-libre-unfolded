@@ -328,10 +328,10 @@ fn native_ordinary_map_shows_inventory_roundels() {
     let home = app.observe();
     let shapes = spaces(&home);
     assert_eq!(shapes.len(), 13);
-    // The exact #268 4K Reduced Cities capture, within one logical pixel.
+    // The owner-approved #273 4K circular placement, within one logical pixel.
     for (space, expected) in [
-        ("havana", [1064.18, 527.67, 1285.79, 696.66]),
-        ("camaguey-city", [1809.64, 1034.80, 2044.97, 1242.17]),
+        ("havana", [1065.37, 527.57, 1287.68, 700.00]),
+        ("camaguey-city", [1809.39, 1033.61, 2044.21, 1243.65]),
     ] {
         let bounds = shapes[space];
         assert!(
