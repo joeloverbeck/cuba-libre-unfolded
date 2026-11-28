@@ -36,17 +36,12 @@ fn frame(app: &mut App, center: Vec3, distance: f32) {
 
 fn slot(app: &App, space: &str, group: crate::Group) -> Vec3 {
     let game = app.world().resource::<Play>().game();
-    let terrain = game
-        .spaces
-        .iter()
-        .find(|row| row.id == space)
-        .unwrap()
-        .terrain;
-    let [x, y] = map::slot(space, &group);
+    let space = game.spaces.iter().find(|row| row.id == space).unwrap();
+    let [x, y] = map::slot_for(space, &group);
     map::at(
         x,
         y,
-        map::top(terrain) + group_half_height(group.kind) * map::PIECE_SCALE,
+        map::top(space.terrain) + group_half_height(group.kind) * map::PIECE_SCALE,
     )
 }
 

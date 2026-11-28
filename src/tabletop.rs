@@ -72,6 +72,7 @@ mod newspaper;
 mod notice;
 #[cfg(feature = "occupancy-review")]
 mod occupancy_review;
+mod offshore;
 #[cfg(feature = "occupancy-review")]
 pub use occupancy_review::OccupancyReview;
 mod palette;
@@ -744,8 +745,9 @@ fn setup(
     }
     commands.spawn((
         WorldAssetRoot(art.scene.clone()),
-        Transform::from_scale(Vec3::new(map::SCALE, 1., map::SCALE)),
+        Transform::from_scale(Vec3::new(map::scale(), 1., map::scale())),
     ));
+    offshore::spawn(&mut commands, &mut meshes, &mut materials, &art);
     let game = Game::opening();
     for label in &art.labels {
         let space = game.spaces.iter().find(|s| s.id == label.space).unwrap();
@@ -757,7 +759,7 @@ fn setup(
                 meshes.add(
                     Plane3d::default()
                         .mesh()
-                        .size(w * map::SCALE / 100., h * map::SCALE / 100.),
+                        .size(w * map::scale() / 100., h * map::scale() / 100.),
                 ),
             ),
             MeshMaterial3d(materials.add(StandardMaterial {
@@ -865,7 +867,7 @@ fn sync_pieces(
                 continue;
             }
             let height = group_half_height(piece.kind);
-            let [x, y] = map::slot(&space.id, piece);
+            let [x, y] = map::slot_for(space, piece);
             let base = map::at(x, y, top);
             #[cfg(feature = "occupancy-review")]
             let base = if let Some(review) = review {
@@ -916,7 +918,7 @@ fn sync_pieces(
                     state: change.flip.from,
                     ..piece.clone()
                 };
-                let [x, y] = map::slot(&space.id, &from);
+                let [x, y] = map::slot_for(space, &from);
                 let start = map::at(x, y, top) + Vec3::Y * height * scale;
                 let motion = piece_flips::Motion::new(
                     start,
@@ -1014,10 +1016,7 @@ fn sync_pieces(
                         piece,
                         false,
                     );
-                    let reach = match piece.kind {
-                        Kind::Troops | Kind::Police | Kind::Guerrilla => 0.13,
-                        Kind::Base | Kind::Casino => 0.15,
-                    };
+                    let reach = roundel::side_reach(piece.kind, base.y > top);
                     Some(roundel::spawn(
                         &mut commands,
                         &art,

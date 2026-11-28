@@ -1,0 +1,1658 @@
+{
+  "format": "vectorcraft",
+  "version": 4,
+  "generator": "VectorCraft 0.24.1",
+  "pdfCompatible": true,
+  "preview": {
+    "mime": "image/png",
+    "data": "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"
+  },
+  "pdf": {
+    "mime": "application/pdf",
+    "blob": [
+      0,
+      18245
+    ]
+  },
+  "document": {
+    "version": 3,
+    "title": "Economic center detail lettering",
+    "units": "Pixels",
+    "rulers": "artboard",
+    "color_mode": "Rgb",
+    "artboards": [
+      {
+        "id": 1,
+        "name": "coastal ‚Ä¢ Cigars",
+        "rect": {
+          "x0": 0.0,
+          "y0": 0.0,
+          "x1": 490.0,
+          "y1": 113.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 2,
+        "name": "coastal ‚Ä¢ Factory",
+        "rect": {
+          "x0": 530.0,
+          "y0": 0.0,
+          "x1": 1020.0,
+          "y1": 113.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 3,
+        "name": "coastal ‚Ä¢ Sugar Cane",
+        "rect": {
+          "x0": 1060.0,
+          "y0": 0.0,
+          "x1": 1550.0,
+          "y1": 113.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 4,
+        "name": "chart ‚Ä¢ Cigars",
+        "rect": {
+          "x0": 1590.0,
+          "y0": 0.0,
+          "x1": 2080.0,
+          "y1": 113.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 5,
+        "name": "chart ‚Ä¢ Factory",
+        "rect": {
+          "x0": 2120.0,
+          "y0": 0.0,
+          "x1": 2610.0,
+          "y1": 113.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      },
+      {
+        "id": 6,
+        "name": "chart ‚Ä¢ Sugar Cane",
+        "rect": {
+          "x0": 2650.0,
+          "y0": 0.0,
+          "x1": 3140.0,
+          "y1": 113.0
+        },
+        "show_center_mark": false,
+        "show_cross_hairs": false
+      }
+    ],
+    "layers": [
+      {
+        "id": 1,
+        "name": "Layer 1",
+        "kind": {
+          "type": "layer",
+          "color": {
+            "Preset": 0
+          },
+          "template": false,
+          "printable": true,
+          "children": [
+            {
+              "id": 2,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  245.0,
+                  81.0
+                ],
+                "runs": [
+                  {
+                    "text": "Cigars",
+                    "style": {
+                      "font_family": "Noto Sans",
+                      "font_style": "SemiBold",
+                      "size": 68.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.16078432,
+                          "g": 0.23529412,
+                          "b": 0.21176471
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Center",
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 3,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  775.0,
+                  81.0
+                ],
+                "runs": [
+                  {
+                    "text": "Factory",
+                    "style": {
+                      "font_family": "Noto Sans",
+                      "font_style": "SemiBold",
+                      "size": 68.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.16078432,
+                          "g": 0.23529412,
+                          "b": 0.21176471
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Center",
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 4,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  1305.0,
+                  81.0
+                ],
+                "runs": [
+                  {
+                    "text": "Sugar Cane",
+                    "style": {
+                      "font_family": "Noto Sans",
+                      "font_style": "SemiBold",
+                      "size": 68.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.16078432,
+                          "g": 0.23529412,
+                          "b": 0.21176471
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Center",
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 5,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  1835.0,
+                  81.0
+                ],
+                "runs": [
+                  {
+                    "text": "Cigars",
+                    "style": {
+                      "font_family": "Noto Serif",
+                      "font_style": "SemiBold",
+                      "size": 61.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.16078432,
+                          "g": 0.23529412,
+                          "b": 0.21176471
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Center",
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 6,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  2365.0,
+                  81.0
+                ],
+                "runs": [
+                  {
+                    "text": "Factory",
+                    "style": {
+                      "font_family": "Noto Serif",
+                      "font_style": "SemiBold",
+                      "size": 61.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.16078432,
+                          "g": 0.23529412,
+                          "b": 0.21176471
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Center",
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            },
+            {
+              "id": 7,
+              "kind": {
+                "type": "text",
+                "kind": {
+                  "kind": "point"
+                },
+                "xf": [
+                  1.0,
+                  0.0,
+                  0.0,
+                  1.0,
+                  2895.0,
+                  81.0
+                ],
+                "runs": [
+                  {
+                    "text": "Sugar Cane",
+                    "style": {
+                      "font_family": "Noto Serif",
+                      "font_style": "SemiBold",
+                      "size": 61.0,
+                      "tracking": 0.0,
+                      "baseline_shift": 0.0,
+                      "h_scale": 100.0,
+                      "v_scale": 100.0,
+                      "rotation": 0.0,
+                      "fill": {
+                        "type": "solid",
+                        "color": {
+                          "model": "rgb",
+                          "r": 0.16078432,
+                          "g": 0.23529412,
+                          "b": 0.21176471
+                        }
+                      },
+                      "stroke": {
+                        "type": "none"
+                      },
+                      "stroke_width": 0.0,
+                      "underline": false,
+                      "strikethrough": false,
+                      "all_caps": false
+                    }
+                  }
+                ],
+                "para": {
+                  "justify": "Center",
+                  "left_indent": 0.0,
+                  "right_indent": 0.0,
+                  "first_line_indent": 0.0,
+                  "space_before": 0.0,
+                  "space_after": 0.0,
+                  "hyphenate": false,
+                  "mojikumi": "lineEndHalf",
+                  "burasagari": "standard",
+                  "korean_line_break_anywhere": false
+                }
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "swatches": [
+      {
+        "name": "[None]",
+        "paint": {
+          "type": "none"
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "White",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 1.0,
+            "g": 1.0,
+            "b": 1.0
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Black",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.0,
+            "b": 0.0
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Red",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.92941177,
+            "g": 0.10980392,
+            "b": 0.14117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Orange Red",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.94509804,
+            "g": 0.3529412,
+            "b": 0.14117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Orange",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.96862745,
+            "g": 0.5764706,
+            "b": 0.11764706
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Amber",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.9843137,
+            "g": 0.6901961,
+            "b": 0.23137255
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Yellow",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.9882353,
+            "g": 0.93333334,
+            "b": 0.12941177
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Yellow Green",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.8509804,
+            "g": 0.8784314,
+            "b": 0.12941177
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Lime",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.54901963,
+            "g": 0.7764706,
+            "b": 0.24705882
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Green",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.22352941,
+            "g": 0.70980394,
+            "b": 0.2901961
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Emerald",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.57254905,
+            "b": 0.27058825
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Teal",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.40784314,
+            "b": 0.21568628
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Aqua",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.13333334,
+            "g": 0.70980394,
+            "b": 0.4509804
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Cyan Green",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.6627451,
+            "b": 0.6156863
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Cyan",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.16078432,
+            "g": 0.67058825,
+            "b": 0.8862745
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Azure",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.0,
+            "g": 0.44313726,
+            "b": 0.7372549
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Blue",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.18039216,
+            "g": 0.19215687,
+            "b": 0.57254905
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Indigo",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.105882354,
+            "g": 0.078431375,
+            "b": 0.39215687
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Violet",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.4,
+            "g": 0.1764706,
+            "b": 0.5686275
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Purple",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.5764706,
+            "g": 0.15294118,
+            "b": 0.56078434
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Magenta",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.61960787,
+            "g": 0.0,
+            "b": 0.3647059
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Rose",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.83137256,
+            "g": 0.078431375,
+            "b": 0.3529412
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Pink",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.92941177,
+            "g": 0.11764706,
+            "b": 0.4745098
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Brown",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.78039217,
+            "g": 0.69803923,
+            "b": 0.6
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Tan",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.6,
+            "g": 0.5254902,
+            "b": 0.45882353
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Coffee",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.4509804,
+            "g": 0.3882353,
+            "b": 0.34117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Chocolate",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.3254902,
+            "g": 0.2784314,
+            "b": 0.25490198
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Sand",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.7764706,
+            "g": 0.6117647,
+            "b": 0.42745098
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Copper",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.6509804,
+            "g": 0.4862745,
+            "b": 0.32156864
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Rust",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.54901963,
+            "g": 0.38431373,
+            "b": 0.22352941
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Walnut",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.45882353,
+            "g": 0.29803923,
+            "b": 0.14117648
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Espresso",
+        "paint": {
+          "type": "solid",
+          "color": {
+            "model": "rgb",
+            "r": 0.3764706,
+            "g": 0.21960784,
+            "b": 0.07450981
+          }
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "White, Black",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Radial White, Black",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Radial",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Sunset",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.9843137,
+                  "g": 0.6901961,
+                  "b": 0.23137255
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.83137256,
+                  "g": 0.078431375,
+                  "b": 0.3529412
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      },
+      {
+        "name": "Ocean",
+        "paint": {
+          "type": "gradient",
+          "gradient": {
+            "kind": "Linear",
+            "stops": [
+              {
+                "offset": 0.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.16078432,
+                  "g": 0.67058825,
+                  "b": 0.8862745
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              },
+              {
+                "offset": 1.0,
+                "color": {
+                  "model": "rgb",
+                  "r": 0.18039216,
+                  "g": 0.19215687,
+                  "b": 0.57254905
+                },
+                "opacity": 1.0,
+                "midpoint": 0.5
+              }
+            ]
+          },
+          "angle": 0.0
+        },
+        "global": false,
+        "spot": false
+      }
+    ],
+    "swatch_groups": [
+      {
+        "name": "Grays",
+        "swatches": [
+          {
+            "name": "K=90",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.9
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=80",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.8
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=70",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.7
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=60",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.6
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=50",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.5
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=40",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.4
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=30",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.3
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=20",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.2
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "K=10",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "gray",
+                "k": 0.1
+              }
+            },
+            "global": false,
+            "spot": false
+          }
+        ]
+      },
+      {
+        "name": "Brights",
+        "swatches": [
+          {
+            "name": "Bright Red",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 1.0,
+                "g": 0.11372549,
+                "b": 0.14509805
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Yellow",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 1.0,
+                "g": 0.9019608,
+                "b": 0.0
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Green",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 0.0,
+                "g": 0.9019608,
+                "b": 0.4627451
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Blue",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 0.16078432,
+                "g": 0.4745098,
+                "b": 1.0
+              }
+            },
+            "global": false,
+            "spot": false
+          },
+          {
+            "name": "Bright Violet",
+            "paint": {
+              "type": "solid",
+              "color": {
+                "model": "rgb",
+                "r": 0.8352941,
+                "g": 0.0,
+                "b": 0.9764706
+              }
+            },
+            "global": false,
+            "spot": false
+          }
+        ]
+      }
+    ],
+    "graphic_styles": [
+      {
+        "name": "Default Graphic Style",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 1.0,
+                  "g": 1.0,
+                  "b": 1.0
+                }
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                }
+              },
+              "width": 1.0
+            }
+          ]
+        },
+        "id": 1,
+        "unit_box": true
+      },
+      {
+        "name": "Black Outline",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "none"
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                }
+              },
+              "width": 1.0
+            }
+          ]
+        },
+        "id": 2,
+        "unit_box": true
+      },
+      {
+        "name": "Heavy Ink",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.105882354,
+                  "g": 0.078431375,
+                  "b": 0.39215687
+                }
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.0,
+                  "g": 0.0,
+                  "b": 0.0
+                }
+              },
+              "width": 4.0
+            }
+          ]
+        },
+        "id": 3,
+        "unit_box": true
+      },
+      {
+        "name": "Sunshine",
+        "appearance": {
+          "items": [
+            {
+              "kind": "fill",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.9843137,
+                  "g": 0.6901961,
+                  "b": 0.23137255
+                }
+              }
+            },
+            {
+              "kind": "stroke",
+              "paint": {
+                "type": "solid",
+                "color": {
+                  "model": "rgb",
+                  "r": 0.94509804,
+                  "g": 0.3529412,
+                  "b": 0.14117648
+                }
+              },
+              "width": 2.0
+            }
+          ]
+        },
+        "id": 4,
+        "unit_box": true
+      }
+    ],
+    "symbols": [],
+    "guides": [],
+    "grid": {
+      "spacing": 72.0,
+      "subdivisions": 8
+    },
+    "raster_effects_ppi": 72.0,
+    "images": {},
+    "next_id": 8,
+    "metadata": {
+      "author": "",
+      "authorTitle": "",
+      "description": "",
+      "keywords": [],
+      "rating": 0,
+      "copyrightStatus": "unknown",
+      "copyrightNotice": "",
+      "copyrightUrl": "",
+      "created": 1795825879,
+      "modified": 1795825884
+    }
+  },
+  "images": {}
+}
+ VCBLOBS %PDF-1.7
+%ÄÄÄÄ
+
+1 0 obj
+<</Type/Pages/Count 6/Kids[14 0 R 15 0 R 16 0 R 17 0 R 18 0 R 19 0 R]>>
+endobj
+2 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 8 0 R>>>>
+endobj
+3 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 8 0 R>>>>
+endobj
+4 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 8 0 R>>>>
+endobj
+5 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 11 0 R>>>>
+endobj
+6 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 11 0 R>>>>
+endobj
+7 0 obj
+<</ProcSet[/PDF/Text/ImageC/ImageB]/Font<</f0 11 0 R>>>>
+endobj
+8 0 obj
+<</Type/Font/Subtype/Type0/BaseFont/EGDENK+NotoSans-Bold/Encoding/Identity-H/DescendantFonts[9 0 R]/ToUnicode 21 0 R>>
+endobj
+9 0 obj
+<</Type/Font/Subtype/CIDFontType2/BaseFont/EGDENK+NotoSans-Bold/CIDSystemInfo<</Registry(Adobe)/Ordering(Identity)/Supplement 0>>/FontDescriptor 10 0 R/DW 0/CIDToGIDMap/Identity/W[0 0 600 1 1 637 2 2 305 3 3 633 4 4 604 5 5 454 6 6 497 7 7 549 8 8 514 9 9 434 10 10 619 11 11 569 12 12 551 13 13 657 14 14 260 15 15 657 16 16 591]>>
+endobj
+10 0 obj
+<</Type/FontDescriptor/FontName/EGDENK+NotoSans-Bold/Flags 131076/FontBBox[0 -240 602 760]/ItalicAngle 0/Ascent 1069/Descent -293/CapHeight 714/StemV 168.6/CIDSet 20 0 R/FontFile2 22 0 R>>
+endobj
+11 0 obj
+<</Type/Font/Subtype/Type0/BaseFont/EGDENK+NotoSerif-Bold/Encoding/Identity-H/DescendantFonts[12 0 R]/ToUnicode 24 0 R>>
+endobj
+12 0 obj
+<</Type/Font/Subtype/CIDFontType2/BaseFont/EGDENK+NotoSerif-Bold/CIDSystemInfo<</Registry(Adobe)/Ordering(Identity)/Supplement 0>>/FontDescriptor 13 0 R/DW 0/CIDToGIDMap/Identity/W[0 0 582 1 1 668 2 2 352 3 3 560 4 4 599 5 5 523 6 6 488 7 7 621 8 8 527 9 9 405 10 10 613 11 11 579 12 12 586 13 13 667 14 14 260 15 15 667 16 16 571]>>
+endobj
+13 0 obj
+<</Type/FontDescriptor/FontName/EGDENK+NotoSerif-Bold/Flags 131078/FontBBox[0 -240 642 770]/ItalicAngle 0/Ascent 1069/Descent -293/CapHeight 714/StemV 168.6/CIDSet 23 0 R/FontFile2 25 0 R>>
+endobj
+14 0 obj
+<</Type/Page/Resources 2 0 R/MediaBox[0 0 490 113]/BleedBox[0 0 490 113]/TrimBox[0 0 490 113]/Parent 1 0 R/Contents 26 0 R>>
+endobj
+15 0 obj
+<</Type/Page/Resources 3 0 R/MediaBox[0 0 490 113]/BleedBox[0 0 490 113]/TrimBox[0 0 490 113]/Parent 1 0 R/Contents 27 0 R>>
+endobj
+16 0 obj
+<</Type/Page/Resources 4 0 R/MediaBox[0 0 490 113]/BleedBox[0 0 490 113]/TrimBox[0 0 490 113]/Parent 1 0 R/Contents 28 0 R>>
+endobj
+17 0 obj
+<</Type/Page/Resources 5 0 R/MediaBox[0 0 490 113]/BleedBox[0 0 490 113]/TrimBox[0 0 490 113]/Parent 1 0 R/Contents 29 0 R>>
+endobj
+18 0 obj
+<</Type/Page/Resources 6 0 R/MediaBox[0 0 490 113]/BleedBox[0 0 490 113]/TrimBox[0 0 490 113]/Parent 1 0 R/Contents 30 0 R>>
+endobj
+19 0 obj
+<</Type/Page/Resources 7 0 R/MediaBox[0 0 490 113]/BleedBox[0 0 490 113]/TrimBox[0 0 490 113]/Parent 1 0 R/Contents 31 0 R>>
+endobj
+20 0 obj
+<</Length 11/Filter/FlateDecode>>
+stream
+xú˚ˇø ~
+endstream
+endobj
+21 0 obj
+<</Length 421/Type/CMap/Filter/FlateDecode/WMode 0>>
+stream
+xúmíKo‚0«Ô˘≥KÙ¿∆·∂!µÅH9Ù°RÌûÉ=∞ñàm9ŒÅoø≤«Å™⁄C˝Ê?oõ˝x?Lü§9‚t˛ì√ˆfpß’Kk3∆vFjˇä(QéjøÎåË—C’Ï≠|∆X£≈eê8˙¸œÂœJﬂB®Üﬁõ.cÏS˘ÆaBà=A#Q{ÂØ¿2∆~£Îï—k(2∆ˆZV¶ÕıYûj@˛Óå8†áì““•Jpu≥bR	ü(û¢km>\{è]£OÊ‰%õ< Ú<´ﬁª+Lbc ÒD õìËî>√dlˆãx¨Ω`hx¥¢ñÒüá·_€!Oﬂ¨iJ(Ó¶œ´≈î ˇÛb‰µ(åƒﬁ∂]´œòm8Á|õ∫ÆÎm®¯M/J
+;ûƒﬂ÷E˜bŒÛm§Y§ÚëhN¥"ZDÀH´QIî≤¨(gIÙã‚íˆHû¢'“j¢g“Rı*“2≈ÌH[Ì#Õ8QMYˆëä∞ ŒÀe\@ö4¨"‹¯m˜bpµè∂™4ﬁ^é56D≈/>πÒız´ˇ™õÛ&
+endstream
+endobj
+22 0 obj
+<</Length 5106/Filter/FlateDecode>>
+stream
+xú≠Y{l[◊}˛Œπó§ﬁ%äz–∂yEZ&Ô•ﬁ€≤MÛRG≤ûvL&éMJ¢e«ñ%YÚ+vmì∆Q€§ÈÍ Èä.X◊¢XÅÌ\yÌ‹b¿<`+äd∂"0l+:l@ä˛±u›j∏@-Á\RñªkÅJêŒwŒÔ;Á¸ﬂ9˜äPÜó† 6>›⁄Ò˙øΩv¿_Hœ^ZeøΩ„ÄË‚Á‘“¸¬LkÈß ö* Êœ]=ıñ˘Ûì@’P¸“ÈlfÆÈKph¯ =ßOg3e_v›∑h>Ω∞zE˚¶≤4∆ $Œ-ŒfjY›–¯≤∞/dÆ,—üW˝/–¯ Ï|f!˚Ÿ–∫	4~pzóWV…/h;¿~$Ê/]».MU˛9‡oà*=EˇÄÆ	1b∑‰:»0@Kã®ÍP)UöãÅ5ªPçè‰Ó´∆∆?™AÇ ˘= †˙û*~_o„m\¡±& π*˙AÓ.’swsUlπªÙà1˙πªÙ~ﬁ~7±Ç:–â‹Ω}1–A:ûªóªák∏Ü,≤‰4˛3˜nÆJ∂_ Umé7ë¶á¸∏ó˜DÏu/ø◊,f1åaŒΩ@N„«rùÆ‹ÍÊZy;}üºK?§Û§	o–…[ÙC∫@áŒ8é&Råç‹F≈‰wN?ï‰]>ﬁíJübkGìú3ﬂ)Bfgµüﬂœë‚0µƒ:Ãt‹‡DÁ,} ‡T◊¸öﬂ‡äŒÊn)ûZƒM^c≤t:nQè∑Çä…©y‰
+„eß¶ôô„ÍƒïuJ©ôésvõ_åÆW‘í¯6∆©©≈◊kHçôék…lj›K”‡™ŒïØ5ìb?Ó5Õ<¡«Êø3¡’–SÎ-§‹ò‡ŒÅ§ü+¡‘‘”IøÊ˜≠%üòH˙y,ÂcºO†æTäY6;3«[&í˛|èÒ6aoÃ;Ivä≠≠e/ôH¶}å3a+®G†û¥/ùJ•|úyô9À1ï‰d?/3}#|á@;F2∑´0+∑òI•Ê2)N"©T>Çõ„^SãßÓ–Ÿ „j03«∏ÀúHróÁEZ‹Á˜ß8I‹)”Õïõ≥\3q&å"\üÌæ¯Õã”≥‹ˆ3^d≤5∂∆IƒjsπöL¶'|ô©TRK˘Så«¶ìúD|"/yWÓ“y±YµÀ\§Ûb-Æ1-û·tÊ'≥ú§π+lbù	o+ÃŸ€*fòXÅ«“)AI'§∑%˙zqÃÅxÿø)úR˝a!ïŸ´êà∆ar5òfkZFU&>QŒ|<∂ô0ÆµL¬ﬁ¢¸1”yÛDRLé=jRÖ–øøU^e`"È˜i˛TÿoJ›¢tÄœeØ“9I3∆+Õ'ƒåWjÒØΩ©$„U≤^nùÒ*ôv[≈Ïöñ·n3Õ÷“åªµ∏fj}‰H“RÁ©f^û’ÆºFôLéL€É>™ô◊»qèn°⁄<ö¥™´MN2qÓéà#«i0nUä_U4Áƒ´1Æ'íñHWÉÒµ5&∂≠
+˚5N2Ï≥Ìb
+ ëØ4áxï9îÊÙ·b=¶ÑP£%819ˆØBdµjuX†GíºZã≥^°≈yπ∆ã”qñ˛”˙z7jè«E<ZúìåÂ)äœD|Åî¡Ω∫Ö⁄à¡Îtãà∂^∑®htKm£n©¢ıÈñC¥€tÀ)⁄Ì∫ÂÌ›*mìnã6¢kÖ¸sgz‰HRcQNûß≈‡˙£w”∏lç-∆–¶ÒÇmd:xe‰±qrí˘ñ™àsk|~›ã<†[D¥önQ—6Îñ"⁄†n©¢ÈñC¥;uÀ)⁄›râvónâ6¨[≈¢çÍ¨_
+∂Ugi^üf¶∆IZh"#aTh∂MÁ≠ﬁ6xªŒÿ{L5µLü&.ˆ_…âË;
+%∂*úBqº=l9HÌ@≤-%£Ï‹íû«q∫t÷-=Ô÷ëÁ||ON"èÙEå√˚'ÚôúÿØıY]§Vƒ⁄£≥~6Ùˇ9ÃLü¡{ıh]ø¡˚˛?*'Êlü¡wÎÖ7»¢lH\	ú≠≠iCZÜ%g|‚÷’‚Î}Ñ‘z¬ﬂ£sxyùÁjê´AI≥ Á•f$ª’Î_Î3¯ﬁái,jØ«ùZº¿f<-ÓîÿdÚñ ÃwK9Sqq”ñòlMì3¥¡4wö=Æiq€ŸO%’Lœi‹afÊ&í\53>Ó0”‚¶˚Ëúå∆WC⁄`¶œßÒsP<±JLπKö=jÕæSùfZ√Ãp««VÂjH8N(¡Ù\˛&}∞W ‡˝Ö\0∆∏#îœÖ÷ﬂg}õ&^"ÌÉ⁄êÿTTqˇf
+E0v¶9é$£¨_ÛÀÁm~ê	øÚ•‡Œ wm}w±ã¯(µÁ´•	…ÿ‚âY(WZº‡|4‰Bâc∫∆¢"ãÉºŒLN¯¶RI÷üäZmƒ1¯¡á¨Sæâá¨ÒGŒ˝U3LùÔâ¸™:ﬂYc¨_hl≠ÔÒTÓ4£º-b≤–g»Œ|Üóiq;t!Pçı≥®÷ó_P∑J‘`º0Â7îÙ–oK≈"&qèık}>ˇΩ¯Sy?át{"Ö¨ÎˆF¸¢f¬—|4õ)8§s‘⁄«~‚Ñ◊DyOÿ‡O<f|D∑@<5º7lQùÔ¸∞»‚Ä∆¢lpMÀ≤5¶AÛ√ÉèÎÎ¿`ƒ‡˙:à ì˙:ë#S˙:ë#”Ç31¯¡‡®‡§‡pLø¿å<©ﬂØNÉßÙ[ƒ{JøEÏ±ßèt\$zF$:!xù{Dû{
+ê{
+0#ˆ`VpÜ#ü≤Ç#¿)¡`^˙ïà¸¥ÙK†3“/Åûï~	tV˙%–9Èó@“/ÅŒKøZ‘-ÙopIˆx,beå¸ÇH∫Ï≈#_—-íÁ¨⁄Pp.J…s.ÈˆmÆzYˆ‰å+63Æ⁄P–ü”-í'\≥° \∑° <Ø[ÿøπﬁ≤'È/⁄P–_≤°†B∑HûI
+¬ßl(/ÎlÆ˜äÏI˙ßm(ËØ⁄P–oË…^≥° ¨ŸP>£Øó 7[ÓÙ≠´THj~ü?ïäGxQñ+ÕW
+k' Ú˙∏éÌ†P(Û†Ñ–c†îúT	°dp9*(ná≥.“ÈˆªÉ~∑ˇ˘›ç∑I˜∆˚ÙΩ˚=ùt ¡û‹]˙˝ >Ù∆∫Í	îÜbJPB(QFU(( “aB3†tôéx=e.|ƒÁ(˜FH¿YÎÒvvÙÙ÷:ùZ ÍÓÍÈÈÏ÷πB!Ú⁄±„GOË«:[èÔ>ˇFbÏÊπÓ≥ÌÌ-ìÙ…O._xﬁS˝bMı”_;ÓÎ'|u◊j∂√ ~BÔ°ï0baÇå„‹aQîÖ√†Ù,++#(´,´¨(w9PJJùÂﬁHMá∑÷#ËÓÍ©skÓw¸mm˛@kÎπõÙ^Sxcª¬Mˇxˇá‚ØtPπ*°:v`æ2¬&í±jJ®%™≥ú(j°ä:ÍìÉ‰·¡îMá‚¢¿ a8ùj™∫|ä"SµH«|±Y8l3]‰±ƒT¨Å54öv±]çıU%E;»ébX]goß[∆∂≥€€Ÿ—››’”´9±j=ù=››]°\v∑Zˆ¬⁄´{f[≥K+
+Q∑çµgñﬁ<svwo’'ÔˇÎ≈Á*™/áØó∫õ+"°õØ|˙≠´_˚Í¡…Í‰((¬πª‘M¯¬µXEQQO’IàSµÉfPäà√©8Œ@U∑ÑD2îrñå˘bÕè§rV
+"J≈∂o#–¸€B€C^èª≤¥ÿ°
+EâÄIá∑÷≠Ì‹å∞∑∑ª+§úÆù==5Œº⁄∫ªIÙ¸≈”€Um,q(˝‹s'çññ—Pª~v|∏ØÖµ≈©qrf„ãOË-Gì«¶U•>“RÁŒ÷5n¸-m€ÿæªÀÔ¨c ±®é§Gx„DÚ€U
+% £æXâBT¢PQÒF!©FEµ.ÖËãy!eY–i¡êäURTVîó9QCk‰A±œÑp:k›öª≥Æ≥ßáºX∫£∏‘Â+	Fn.{]ıG®NÈg©‚ÎÔ⁄¯	˜€~πª‰}™£—XƒG∫ÕEâ‚$  hAH2Õ» X∆XP‘Ú∆H∞†ô¥ÆPhgîvw®®ıxΩu;(yˇ‚ÍÓ©]˙©ùz∞≤£ª3Œ.Õto7ZÜÉqw{[k"¯˚”©J˜5OccmÖwõ◊Ÿı‘ùu◊5ó◊÷{jvÌì~>êˇ°Ô°öT(Íººõ@»≥áú≈ò€ÌvW9 }ëNÕÌØı◊v÷jˇuìº≥ÒÀü˝åæw˝ˆı|ºˇNu4à{I\GﬁR™–:EÀe@»ä8Bv⁄ó1F‡©Æ,/r¢Å4àt;§v
+4I˝πWW«˚¶õtmﬂé’}Ω≠√Å¿H…´oŒΩ–Ô≠\©®˛⁄‘XÉ˜EoÍrw…Ë[®G,∂ØÇPU!†*!iWïWÑRı$Tu·∞ì dÑ,ì1ÇZOMµªJ÷øû‘ª Ωë‡ñ+“≠u˜ˆvä¿›/Èjà÷’Ö€CSëìÔº”ºP‚Z,©d„Éƒu†ceui„MMÚ√Ië∫üÍ(Göb€†(ÖTPZ(}s–.=ë•YËÏzˆ±ë'âÓ„⁄ËÂƒÎ◊_Jlº⁄›ø∑[¸êÍ_åø¯Ùç/ƒüzrzzrrrR÷T|™πõ–àù±Ê∆á¢†öPÖé,»{l∆æ«ÇZCïÿŸ›Y„ı
+}˜÷t*Œ-ÏÌ˝Í|QUîRWˆ›õ.è5+Jõ‹≠ΩÂ≈4∞Ò7ﬁ÷∆∆V/Èºˇˆ—£ÂUw∑¯l˝GswIé~∞EˇNJ«C˙_zHˇFÛ˝?$e´¸≈m"‰ü{ÌÖÂTÁBO_kpK√ûÓ¿'ó˙≤ΩÌÌcª"—ÑŸ{8¸ΩìÀëœyÉø/‰Ø)Û∑∂ßœ6÷_Úx[XHgç}£∂ü#πª‘§x0˙-Ö@!˘ã≥F|dNe≤0#ÚvcæX]a8+L˘§bÂ <h5Õnß(ÂÉ˚–›È∂+È¶ÊOQ„”ù…goÜ£â∏ˇ√¡pË‰2∑Ò{˙ü9&∂…ﬂqtêÍ‡ÑtÊ[nB≈'Zïûg5RA™CﬁnJ·6Øì“ñ&ŸbI≈‹UïÂÚIÂ!ÁÊ≈Ìñ{p≈Ωú˜Ô¶ÙñÍ'œl|ôÿª˜ôc9á
+∫n¶:ºÿ3+%îîÖ“Q8@®ÉÃªàxöà3&µ.ﬂKñï±˙:_c›ˆ˙ÌU≈.á
+/ÒÂ]©ı{?˙^Rp∫:C!“∫¸Ú∆ªtË@˜ì—ñ‘Å©ÜÆéEv;˛ûtP˝óá◊zW<5˚ÆüHø{∂oo«Ay@âÛèˇIˇÊ… ˛ü√•¸X§˜_w@∂•o¸’˝Î◊J~™ pÇÊˇWAƒBƒˇCJÎÔ_øˇ˘íü ï∂~πi'ËÛÿC⁄1LØ¬†«&ﬂ√˘o4àß(ÖA÷QGœ¬†ª∫Q˙&Fà
+–71F«!ga\¿◊I˘C≤AßË%˙]Ö*˝  ‘mÍ6ıºzGÓÏ∆{‚FB-(ﬁ∆/Ò9ÄºVQÒá8PÅ?Ç¢‚}3è	™q"è)ä∞î«
+⁄p%èUl√7ÚÿéøÃc'…jªê ØÁq¬‰y\åÚÀ<.≈~⁄ú«eËß3y\Nﬂ¢_…„
+t9∫`bK∏ä8Éyú∆*:–ÜvtÉaãXƒ<Œ!ÜQå¬DqÁ¿0µ9kEˆ≤XAp	YÃ!ä1,bã`òFÁ±Ç8qsË@mhCˆb„«ˆnÚlcìˇÒïÿ¶ÌIπÁ
+Œ`Á•ˇ÷fX≈*N!Éãr˛iú¡ye.°QÙ!äNÏÉ!cÍìË∫—&ÒP>'vÔ
+⁄—%qÁê¡™‹◊¿)0úó^à|»Äa+XñΩ$¸ZQûëä˘´∏ÄÊê≈2∏Ä≥`Xî;=∫:áÂ˛bù´XíñCrÊºå|^ˆœcˆëÃÑ¨†®©àÁ≤»`A÷wKÿÉV¥‚≤¸éb~ÀÓQÃbh≈<≤XEk~›E¥>fˆ¬Gˆ~∞¬
+Vqs≤öGdΩD&%_‘mZFøäÀ2¬kõqg0ã¨Ã®P√Eúóyµ\≈i…ù∆!åÇa\Óz˛°ïGZA˚ò≤Ñ^ƒ˚ç<±à®ƒõë:¥˝≥◊∫8àiYõi§∂E_ÙÑ«pG0åq≈Ÿ?à)L· ∆pá0 Áéc
+&∆1ÜÑúqHb€6(œÌR`¡!…kgq&üëß,Æ`Izø"}_î£g∞Ä%ôa˚\ãX≥2¬ﬂ<ØßÚ´ÊÆ»9≥8ÉSíiü)°’ãR∑v-Ád.±œà®≤]a]ïÁÒÅ]ËT‹Gp~Û\≈".J.Ê}≤O‘ÍØQ’ËGΩÇYYŸ%yF•oÁï1Œ£Uf^ºÿ‰üeπ/£„ëˇèwaO Å£xª0àcò¬qÙ 	ì∆»m|*iÚzä˚cﬂ%Æx¨Ùw>µÇg&±œ(FXéxn]):]4Cüt>·å´EÕÆ‚íºÈÛŒóúKŒ,é´Í ›„å8§©*~∞4€kå’ﬂ©ΩS}ßÍNŸù‚äQ∂–?Xäÿ«æÖÒ;PÄÑ’LnL&yÏFRÙÁVãËﬂ.Ç=ÄD gÌCﬂ-z	Dç›ò=R0àØògÕ˘úÛYÁI™£jÇv9Cé‚ämí{Ö´ü≥(∑sN$ ˛ÅÜ?
+endstream
+endobj
+23 0 obj
+<</Length 11/Filter/FlateDecode>>
+stream
+xú˚ˇø ~
+endstream
+endobj
+24 0 obj
+<</Length 421/Type/CMap/Filter/FlateDecode/WMode 0>>
+stream
+xúmíKo‚0«Ô˘≥KÙ¿∆·∂!µÅH9Ù°RÌûÉ=∞ñàm9ŒÅoø≤«Å™⁄C˝Ê?oõ˝x?Lü§9‚t˛ì√ˆfpß’Kk3∆vFjˇä(QéjøÎåË—C’Ï≠|∆X£≈eê8˙¸œÂœJﬂB®Üﬁõ.cÏS˘ÆaBà=A#Q{ÂØ¿2∆~£Îï—k(2∆ˆZV¶ÕıYûj@˛Óå8†áì““•Jpu≥bR	ü(û¢km>\{è]£OÊ‰%õ< Ú<´ﬁª+Lbc ÒD õìËî>√dlˆãx¨Ω`hx¥¢ñÒüá·_€!Oﬂ¨iJ(Ó¶œ´≈î ˇÛb‰µ(åƒﬁ∂]´œòm8Á|õ∫ÆÎm®¯M/J
+;ûƒﬂ÷E˜bŒÛm§Y§ÚëhN¥"ZDÀH´QIî≤¨(gIÙã‚íˆHû¢'“j¢g“Rı*“2≈ÌH[Ì#Õ8QMYˆëä∞ ŒÀe\@ö4¨"‹¯m˜bpµè∂™4ﬁ^é56D≈/>πÒız´ˇ™õÛ&
+endstream
+endobj
+25 0 obj
+<</Length 5616/Filter/FlateDecode>>
+stream
+xú≠Zip[«}ˇÌæ/ÄƒA<x‡<A“%Ax<Dëî Rí[∂ ë%K)í∂eÁíÌ8uË8éßiÏ∆i“/…ó≥†ÏF…¥u¶3Ì(˝îq˚!Õd“v:q”∫Õ§≠&ùâ≈ŒÓ)Jñrt±ø›˝ÌÓˇ‹ˇ#@ ï∏Èc≥]Ω_¯ﬁ∆9 †0˜Ã:K«CˇS¸û[Y\:€UÒ@s@uÂ‚•ÁŒΩÒ˜7û<Û@U˜˘Ö‚|À·øöæ`‡¸˘ÖbÂÑ„˜Å&±_Î˘•ı´≠˝‘	4˝¿»•Âπbs3˚>–‹/ÊóäWWË{ﬁös ÿÂ‚“¬ÁíÔ¥ ÕWΩyeymù¸/ÌZﬂÎWVV≤„5ﬂZ *}ñ˛94Än	1i∑‰IÙí@©ìÍöF©˙#–≠4XãËÑ?vlú0`ÎC5qÁ 5A¢ ˘ –zzKHøç◊€xqPÏIÎÅ-}oÎ6çn›ﬁÚ‹ù€∫≠T—z1FˇN‚V9ˇU|i§È>Äén›æ€# ›'F∑¡"a¬$ÁÒØ[∏ÂëÌó∑<;„-§Â9~^ñDúEÀ≤Ãcmh#[_%ÁÒOrüŸ≠7…ÂÚ^Ây˙]Ú˝1-íºN? ß–Ûd^Á0«…‹hû±…®>>…ıŸ«rº?ƒ;ÚÖsl„dé”hÒ[N817gúÖ√yÀŸÅU»$819+úKpja#ú‡ä…ÊØ+>?2Ø≥X°ê)Qüï)EãSÎƒU∆+N-´8œ’Ï’MJ©U»BcXånV˚I¶ëqjôÕ:Rg2G6∑êﬂ¡Lp’‰Jú˚≠ú8è,´L±y∆ofπ⁄ˆÿf©≤FÁFπ>ös%öüy<6¬°ç„Ÿl.Ã”˘„CÂÛ¨d≥ãÛº#õó{åwã˘n¡ºôÕ±slc£»∏;õ+ÑgbŒ-–Ä@ÖP!üœá8çÚJkéc&«1)»a^iÖ&y≥@Õì≈Ã	∆gÛ˘˘bûìx>_÷ œÊy¿22˘◊L6 ∏-Œ3Ó∞≤9Ó02‹idB·pûìBÇÎ“‹\â≥˘í„lÜâI°n»_ºsWaték±0„Nãm∞N‚•n- ’∂„πB6Tú…Áå|8œxz6«I<$ÏR%¡&wYÒMP€ÕNìªåå¡8åLë”≥Á8ô„§¿±wôLH[mÕ›Pqñâx∫êî¬àî÷mn∫™açfb·ù¿©0Ô§J{78,ÆFlt√(
+ßJc#$¬Yàßw∆ï®Q±è®z»rﬁöÕâ≈È-™ÒodÆWUBÕÊ¬!#úèÖº∆,Q: Áã#	Ó19)0∆k¨#b∆kåLû{Do&«∏G˙Àk2ÓëFa7TÃmEÓµ
+l£¿∏◊»	^kNû»ï‘˘ë|+ØZ0Æ&xù9y<79kÜ¬˘V^'«}f	µ÷…\©∂÷‚§ò·ﬁ∏H9N£ôRçxÛ–hÜìÄ¡∏ÕÊJ¬|\çf66ò8÷ú∑q»ûKhTé‰yç5Œ=÷xÅ”{ùıñÄ:cÑã„¿&!DzÀo¢:z"«kçÂ’FÜW‹U»∞¬7ÎÎ	º®C&ìNä%ü3Œ_çá"˘ò%¯„	4KD¥ıfâävèYRD€`ñT—ÜÃí&⁄F≥§ã∂…,9D€lñú¢m1K.—∆Mc€˛\/Lû»,……"[‹‹5ÿôºbO&vM∂ÌLÆ⁄ìÃØâ?TONäÔ⁄™
+=wÎ6K`Òèò%"Z√,Q—∂ö%E¥Q≥§ä∂Õ,i¢m7K∫h;ÃíC¥ùf…)⁄òYrâ6i≤a∞]&+˙≥N
+"&ä"	ì"fªMﬁÁ]±Ô1gÒ¶Q2ƒ≈˛K!°}Ô∂ãK’˙®à8ﬁ+iƒ?öÎŒK-˚vôÁaú~ì•§‰)eŒËGœ‰$˛@Yƒ8Ô»ö<r¿*ıø–u¿d√l¸!ÚsX≈°4ì¡·˙UTN¨π°ƒ,Q¢,…∆≈ï¿itbcc‹7ä,w6$n]#≥9DàﬂKΩ&GÄçW£\çJZ©^a≈6íc√C	æÔ^K⁄˚q›»l≥/à;%}<w]e]W€¥Ü|F‹¥nãmrÖ1V‡∫u∫ƒmgW%’*Ã\≥äÛŸW≠bàkVA‹t˜Ø)åqµÕ+ÖÓ∂∆D≈r[Úî{–!Ü}ßÍVA8Cãπˆë]π⁄&Ñà
+!îhaæ|ìﬁ=+ü‡√€∂`åq≠≠lcx(¡˜ÔLq∑ú3∆≈°¬ãvL(î±-Õq"ód√FX÷€Ú rï]¡ı(◊¢ªü]l'>(⁄Àﬁ2D»‹%âµÌÆÇx¿π_ÂmßMÉ%Ö«x– eC3˘Œ'K›ƒOC˜ÃŒÑ≤˜Ãf∏ˆó≠∞Læ7˛À1˘æ¯c√"∆6ÜNÂ∫ï‰›Òï*ã¯l≥-_‰ïF∆V]®¡ÜY“*Ô?fñ‹j4≥Ω‰7ÈÒﬂVùƒ=6lÖ¬ª‚%ú/À9nñ∞7æmï√f	˚‚a·3!hYõLò~;Ì7!2º.…b	~‰!„ìf	ƒW«c	>eÚGb	>-¨8j∞$€0ä€÷:jäÄÊ”Ò?fncÒœöõ 77âô17âôúÒxÇüN
+é ßGÄGÕÎ ¨xÇÁÃÎ‚—)û‡yÛ:±«3Ø{Ïq¡#ù<âû<âû<âŒà3G„	^g
+Pg
+pVú)¿ú‡é'¯º‡∞ 8ú•\#Ò?/ÂËÇîK†ß§\]îr	tI %–íîK†ÀR.ÅñÕÜw∏"{<O+6<OUatŸÀƒ|Õ,ë2g›ÜÇÛ¥‰ê2Á≥Ñ˝;ª>+{r≈UäœŸP–ü7K§L¯ò·„6ÑOò%ÿŸÔì≤'Èü≤°†_≥°†ø`ñHô¢·%
+¬ßÕÓÏ˜≤ÏI˙gl(ËøcCA≈,ë2·≥6Ñ
+¬´ÊfÖ|≤ÂzhS• hŒá¬˘|&Œù\iÕ^›.÷	Pú»OÈ-(p ñn†P(ã†Ñ–GA)9£B…1¿°k*(^M∆˚ºao4Ïü$oﬂyã§Ó|óﬁ˙p†èŒ ‹∫M◊È{c(ùj$*%S†ä™PıÖA» 4TEç Wpî`O∞Œ[]Âr L¬zU ÆE⁄⁄R˝}ΩøO7˙€⁄åàÓ˜˙z≈êNﬁXˇÚ‘—/_YªíﬁÔÎéùô||πg¨«Îçùuü˛˙Ú•Ø?aıD{√ÈÿºÒ∆ÎMf†∫©q^ÄS(*∆ÅÙ>§@´”PıTuiZ#îÍgúD◊/ÍG++	*√ïa÷‹∞ß>PSÂ–PA*\UÅx]DàhK®§Ñd)Ø‘Hıy}Å@_üˇèZ{zZçææø®¨	Î√’ïˇåTW“U#⁄â¥Eç?ür56íÓPÉ3uÁ…∆FWJÿtÀC„Ù a!ãüßk}D%‚T+àÊ–à[Wß&π?õK?ï8uäÉ**âöÓ–.¿ÈîZ≠MC◊›g‡v_úÆ".äX∆Q˚œ”Ù‡C7–·vÈÓ≈ª›ª<=$V’yÌ7]öœß££#èLMådG≥˜YèX}›±ˆpKSc}†÷ÉA2X]à#©˛ÅAˆ{_o ∏+$åà# a§≠]ó¡QˆEÔ@JÃä°:A¯˜üå
+%{€ÕΩÁ.›Õ≠≠Õùı’æ*_”ŸÛmÆÍ@Éˇπ˘”üˇTGcSG{sã/óÌË\˜u6˛Ù’‘^≠"nÑ{û£˚s≈⁄™¶P$0|Åä¿Htjé=TÎÒ?|˙<yˇ‡¿–»ÿ`˙Œâæ∂ßÇÖèÉ"±uõ“(Zëƒõì|O6óÓÅB	U»58\öÀ°]ÅÀA\@©ZÑ™ÆMW8©¶°®ª©ÃìP˙ë]kú.áÛk†i˙Ë˙≈È
+‚t¢Ë∂s,üniãƒ;£…∂dòµ47ÜæöÍJ∑CC+i≠îó∂,[Oˆ§π•m˝FªQM{R)á∞Ê≠Ã„++3˛Œ∂&kdË…°"Í∑˝Æ@{Ø7ﬁóN∫≥≥«è™ `ozWs4j˙ßû‹ÍlNçÜÔƒÿﬁIEyd‡îx∆'‰¥≠xÊ›*¢25…=Ÿ\∫™M]!Ù(]∫)E( ⁄¥N «'q8.:éÜ“ù6◊~%7üˆàè4—⁄©k≠ıá]UMÒ>ëΩ"yEÓ˚Ñ“€!VMÀ⁄˚îHº=¨‹Úiæ·˝k÷∞Ø©ÅyÙéfñ⁄”E"f}Íh"q<Ÿ◊kMxˇƒäTAÛ÷mrì∂¬ƒ>ë3—TrÑjÑ~ÚÆÑ†E}˚2âÙW∏:Lb:v<3–'/¿T[˚v>Ï§Çˆ@Pˆºtöôﬁ}=˝]˝„«O=S<8mtö&Î	X'Ø∏≠ﬁ0´8p∏£1€”8meèÖ‚¡à—;ÿ“‚gÕu¡…É≥Oÿ≤7tíﬁBæ.?◊J∑C!QV°Aá¶/™§lÌß¶≈EÍ<„"NÁEÁˆÌ“a”µkøíüNÇPU%´PTM›µ™J]êœßΩ ö–dxΩÜ◊ª´öÔqc8h¥ãªÿ€Á7l6∆¸ÕÕ˛çicö⁄ﬁÚµ>hH˘:»è;¸©›∆ùˇ‹˜›x†Ï∑Æ≠€‰'4
+≈wõd	≥M–dW≤’ÌB∂vO!•õÔØt˜Úi/AhèØ∂¶⁄ÂÄAåèªÌjW.wÉ“ß:iüX9xhy¥∏‡ÍØl‹”ÏüÚVVvûtßû;wÈc˝˚M˚cok{·‘¬BWƒ±ßzO_DË‚ﬂ∫M^†_DÆ¶›A¢ìzùNMÚF€ß™Ú≤FŸ©~Ñ–¢ùB∫é¢c[µàd 'É¸.˛nR>Ì'◊yj™´*+‰Cipñÿk§z˚¸}~√k+Á◊ıˇ≤≤ì¨Ø¶•fˆ⁄µ√gx<Ó±I˜5x¬ôèè‹πïàiÍ!G≠¸ ]¯Ö–(*D"ªkeQ¥QTm9™*	Íºï¡™†]ÆÀVﬁ)◊ÌªJÈπ∫ÒÈÆnº¸…Ω…ÆΩ{ì]ÓW_{mc„µ◊^=∏¸‘≈Kó.>µ"?Ö∑h=∫±ÒÕ†GU o©H6óﬁ£´ä"‚ZH∞4¿QÑ√±Ïi–ûÕ•( ˆ¨Æ“S”- 
+≤™´Ù.}#üO◊t'€£≠FòÖkgUC<(ûÜî∂∂v#ˆ€⁄ÉQ$‰=a§˙¸ÜÆ;îj≈0Bc'{=ÔT0øJöîFÊPF´+)ı*Uo´ˇ®6ÜkﬁlË:pÊà˜œÃlä‹h®!˚Rø3Ë¸f[∑œﬂÔ¯+w≥+‡%©iÈºsn‚âî˚é£ıÙ=tˇí;nÂæ;Æ5““‹P_Èv:–M∫ª≥`ÁíK“=ño9ù8Ûã1÷ﬂ4=ºÔ–Ïâ±#Ω<vyqˇ≤Ωc_√ak1g=ÔébëŒ⁄ìπ…æë¶É”=˚ÎµzåÓ∆t≤+—ÿ›äé§ÁÜÏúoÿ∫M_§ı0∞ˆ.#∫"<,
+u‘æ∑ .QNQêÀ°/±Lê{x∫Ó8á„¢Ω¬πù AQ{ÎÉ~_Mï[‹Ò1\Â¯îœ*ÚÒQò`WOV_]'ÙË	÷J»ÃÓxºI˘Á∂&Á_¥Ê„Ó‚¬èÃPÍŒÕÙÙÃÿM”ó∫s:ÓKç˜7m◊W˙ç"Ü˝ÈΩUD'djWô‘ırr®–Œ∏ƒ3«EÌ(Äb£÷≠ı‰~Ìˆ†ªûƒ®∏≥ ≈íFÃˆ∞ÚΩ*Õ◊5ÿ2ùGî∂ö·6O{XI’'HG,òo3*N/ºü‹ì"á∆‚„ùﬂâ…¢iÁ∏óF·G#¶áΩD°d A4PE£¢$l_¨¬∞Âà
+çÅ∆Ü˙ö™
+ÒL„'~Á=YÔÏ˚T<"Ji§˜Sü~Òô•O‹π°åË?ÏZZ„±^Í~„≈◊^˛Ÿæ˘”]ëöH<M&ßOÕf•-JÙo¯á;œ‘ˇ ˚"t~†ˇÀyŸVºô˝–ºÛ1˜j't–ÚwãD|s)æø¨h~¯¶˚π”Óóóé·$˝
+I^⁄JEÇV¿GﬁG3]B#≠A˘=¯È∫®–#h¶o£Å® }>∫]“eWqãºC3î+’ Áîü©9ıãZD˚åˆ3Ìg˙˝-y≤∑Pè_¿ä∑ºêœVW¬!øK≠∆üBQ] ûîë,‚Ë…2¶pbµåÙ‚˘2V—å?.c∑ XG#ŸÊ80BæT∆Nƒ»˜ÀÿÖ™ñqP≥å+1Lü*„*˙%˙ç2ÆFø6ÀX¡sX≈,‚<÷¡–ãnÙ Üq,cã∏Ñ0La
+í`8ÑK∏ÜôùUk≤∑Ä5,`œ`ÛH‚(ñ±ée0Ã Ò8áñq	ÛËE›ËF?ˆa«p„ÿ∑≥‚.?±≥‚Aª±ùŸSrl∞åÀRãª˚3¨cÁPƒ”ráÛ∏ÄÀR◊<É$1Ñ$˙–	ÜÑ‘lH¢U0§–-ÒxŸ2vÔ*z–/Ò.°àuynBJuYJ!¨ñ@W∞Ü+≤óCë_S”“≤báu¨¢ày,`	E¨‚"ñÂYˆ“¥î@ÏÛV‰ÃÑ\π(u_î˝Àò{ sDzR¯Vht(bI˙y+ÿã.t·Y˘ìƒ‚Æ”ìò√2ñ–ÖE,`]Â}ó—ıê’K˜ù}wá5¨„iÃKûêñì|·πY©˝:ûï÷R€åK∏Ä9,‡≤å≈y0<çÀ“n¬õÎ8/π≥ò¿é…S/ﬂ≥Û‘=;ò`â-1‚ó˝Fí	]ÑV¬€ge$⁄ÚŸ{Â{á0+}3ãàån—=!«£ò¿	∆1úƒ	Ÿ?ÑÃ‡é‚&0*◊√,√Qå»€sc2è"ÜILHéÿ{ ÷vZ¿U¨HÈ◊§ÏÀrÙñ∞"-lÁ∑ùâˇ/ª2ú+Ô∫ΩvMÆôìπ òvVâX}Z∆≠Ì¡Y≈í¥Â∂GÏ^∂˝/f◊eFﬁùq*Ó•U\ﬁ…ÄÁ∞åß•Oóe≤3j˝◊jÚæà^√úÙÏäºìR∂KHJ—%-?%Î≥|m}Ω¸?ÒáY¶p#8âSËƒ≈Nc 9(8é√òºÅøô…ï˘|û˚Îöïôt≈Ôæ¥Ü'éc¬ÖòÒΩ‚ºÍ<Ô<KOÈGÙå⁄Îlu∏‹Â©/Ë◊Ù}ß’¨:F˜ÍqMNy2á*"ÈÊtC∫˛¶ˇfÌMœÕ õÆ4\®àï∞'s®B¸oŒ}?bÚ[PÄëR+yÂxéß_…â˛¸H©CÙo8a`$*µã°oãO_‘Ù+s'∂'ƒ+Ì€–ü◊ü“ÁINùRGhøﬁ¶π™c7»÷À\}≠D1r]õ◊12‡ˇ Û	Èı
+endstream
+endobj
+26 0 obj
+<</Length 109/Filter/FlateDecode>>
+stream
+xúEÃ≠¬@EaøOq%,wfˆKRÉ#GQ$EU–˜2	Í;Íº! à£@l‰:`äÁfiÏ£òÇY≠Íπ»/Ez+]∞ø“≈A¯~Zâ6‡Îı≈∑˚a!πêjha	kÿ¶á_”ÏÈˆ[˛ µ
+endstream
+endobj
+27 0 obj
+<</Length 117/Filter/FlateDecode>>
+stream
+xúEÃ±
+¬@–˛æbJSxŒﬁ^nœVHc'lglb!¡ˇG<6ÛfÅÄ ˆã¶öò¡(ÖV≥&0&Ì”1K´"V≤	÷g89_Q*|˙}Ò˘∫Ié§mÊÊΩÂªÂk[˙ü¢›Õœap˘ €
+"R
+endstream
+endobj
+28 0 obj
+<</Length 121/Filter/FlateDecode>>
+stream
+xúUÃΩ
+1‡˛ûbJ-å≥õﬂk;a;œJà’Ê˝ã√\@lÊõea>ƒI’Õ©ê
+Øx≠†ìƒ\ÇW–©è:ÈU$ßêÌ=]Ñµs%RÅ’ﬂ⁄[áÖ‰R{∂û§Üa‹ï4n˘ˇKﬁUüvõÆ6›7Í1(q
+endstream
+endobj
+29 0 obj
+<</Length 109/Filter/FlateDecode>>
+stream
+xúEÃ°AEQ?_Ò$Ü◊Ng∫Xé§éEë,j˚ˇÇ@ö†ŒU˜Ab^ùMÒ\¡*É>YS∞jÎz2˘•às¡ˆ*Á €q!Ü ñˇÎK¨˜›Lr&%’¥•ñˆtÏq-ó(∑u” ›
+endstream
+endobj
+30 0 obj
+<</Length 120/Filter/FlateDecode>>
+stream
+xúEå±
+¬@D˚˚ä)M·9ª∑πKZ¡∆NÿŒÿ(ƒ*BB˛ü‡©ÿº˜``fb/Ì¢ñl=í‚1ÅQ2KgI¡®©’ﬁ§¶H…VÀ3Ñ/áë»ˇoo˘t›$≤4∆_[ıΩr≠|}óˆcIÕÕœ·‰·≤ó#l
+endstream
+endobj
+31 0 obj
+<</Length 121/Filter/FlateDecode>>
+stream
+xúUÃ±
+1–˛æbJ-å3…^bZ¡∆NHÁY	±∫¬¸!Êb3oñÖyC àÉê‰d9gCxÆ†Sd:Y†ÛaˆŸ‘´î¢%°Ω¶sQ⁄±Q(ı∑ˆ•¨˜›Br©=[O2m8o*é[ˇ•Mœ˝£\ßKônÓﬂ(v
+endstream
+endobj
+32 0 obj
+<</Title(Economic center detail lettering)/Creator(VectorCraft)/Producer(VectorCraft)/ModDate(D:20261128003124Z)/CreationDate(D:20261128003119Z)>>
+endobj
+33 0 obj
+<</Length 1150/Type/Metadata/Subtype/XML>>
+stream
+<?xpacket begin="Ôªø" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="xmp-writer"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"  xmlns:xmp="http://ns.adobe.com/xap/1.0/"  xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/"  xmlns:xmpTPg="http://ns.adobe.com/xap/1.0/t/pg/"  xmlns:pdf="http://ns.adobe.com/pdf/1.3/" ><dc:title><rdf:Alt><rdf:li xml:lang="x-default">Economic center detail lettering</rdf:li></rdf:Alt></dc:title><xmp:CreatorTool>VectorCraft</xmp:CreatorTool><pdf:Producer>VectorCraft</pdf:Producer><dc:language><rdf:Bag><rdf:li>en-US</rdf:li></rdf:Bag></dc:language><xmp:ModifyDate>2026-11-28T00:31:24+00:00</xmp:ModifyDate><xmp:CreateDate>2026-11-28T00:31:19+00:00</xmp:CreateDate><xmpTPg:NPages>6</xmpTPg:NPages><dc:format>application/pdf</dc:format><xmpMM:InstanceID>B9R1tU+2Gfk9BSriG1bspA==</xmpMM:InstanceID><xmpMM:DocumentID>B9R1tU+2Gfk9BSriG1bspA==</xmpMM:DocumentID><xmpMM:RenditionClass>default</xmpMM:RenditionClass><pdf:PDFVersion>1.7</pdf:PDFVersion></rdf:Description></rdf:RDF></x:xmpmeta><?xpacket end="r"?>
+endstream
+endobj
+34 0 obj
+<</ViewerPreferences<</DisplayDocTitle true>>/Type/Catalog/Pages 1 0 R/Metadata 33 0 R/Lang(en-US)>>
+endobj
+xref
+0 35
+0000000000 65535 f
+0000000016 00000 n
+0000000103 00000 n
+0000000174 00000 n
+0000000245 00000 n
+0000000316 00000 n
+0000000388 00000 n
+0000000460 00000 n
+0000000532 00000 n
+0000000666 00000 n
+0000001014 00000 n
+0000001219 00000 n
+0000001356 00000 n
+0000001706 00000 n
+0000001912 00000 n
+0000002053 00000 n
+0000002194 00000 n
+0000002335 00000 n
+0000002476 00000 n
+0000002617 00000 n
+0000002758 00000 n
+0000002837 00000 n
+0000003345 00000 n
+0000008521 00000 n
+0000008600 00000 n
+0000009108 00000 n
+0000014794 00000 n
+0000014972 00000 n
+0000015158 00000 n
+0000015348 00000 n
+0000015526 00000 n
+0000015715 00000 n
+0000015905 00000 n
+0000016068 00000 n
+0000017295 00000 n
+trailer
+<</Size 35/Root 34 0 R/Info 32 0 R/ID[(B9R1tU+2Gfk9BSriG1bspA==)(B9R1tU+2Gfk9BSriG1bspA==)]>>
+startxref
+17412
+%%EOF

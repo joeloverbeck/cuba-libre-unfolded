@@ -11,6 +11,7 @@ pub(super) struct Trip {
     terrain: Terrain,
     group: Group,
     entering: bool,
+    position: [f32; 2],
 }
 
 fn same_force(a: &Group, b: &Group) -> bool {
@@ -54,6 +55,7 @@ pub(super) fn committed(before: &Observation, after: &Observation) -> Option<Vec
                         terrain: changed.terrain,
                         group: Group { count, ..*group },
                         entering,
+                        position: map::slot_for(changed, group),
                     })
                 })
             })
@@ -148,7 +150,7 @@ fn spawn(
     let group = &trip.group;
     let scale = map::PIECE_SCALE;
     let height = group_half_height(group.kind);
-    let [x, z] = map::slot(&trip.space, group);
+    let [x, z] = trip.position;
     let at = map::at(x, z, map::top(trip.terrain)) + Vec3::Y * height * scale;
     let rest = Transform::from_translation(at).with_scale(Vec3::splat(scale));
     let body = spawn_group_body(
@@ -164,10 +166,7 @@ fn spawn(
         .insert((Visibility::Hidden, bevy::light::NotShadowCaster));
     add_group_face(commands, art, meshes, materials, body, group, false);
     let roundel = (group.count > 1).then(|| {
-        let reach = match group.kind {
-            Kind::Troops | Kind::Police | Kind::Guerrilla => 0.13,
-            Kind::Base | Kind::Casino => 0.15,
-        };
+        let reach = roundel::side_reach(group.kind, false);
         roundel::moving(
             commands,
             art,

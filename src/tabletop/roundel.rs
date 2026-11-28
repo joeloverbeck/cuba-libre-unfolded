@@ -4,8 +4,18 @@ use bevy::{camera::CameraUpdateSystems, ecs::system::SystemParam, ui::UiSystems}
 
 const ROUNDEL: &str = "inventory-roundel.png";
 const DIAMETER: f32 = 0.198;
-const GAP: f32 = 0.029;
+const GAP: f32 = 0.016;
 const FONT_SIZE: f32 = 64.;
+
+/// Give the badge room beside the body or its wider Cash carrier.
+pub(super) fn side_reach(kind: Kind, carries_cash: bool) -> f32 {
+    match kind {
+        Kind::Troops | Kind::Police if !carries_cash => 0.09,
+        Kind::Guerrilla if !carries_cash => 0.10,
+        Kind::Troops | Kind::Police | Kind::Guerrilla => 0.13,
+        Kind::Base | Kind::Casino => 0.15,
+    }
+}
 
 pub(super) fn spawn(
     commands: &mut Commands,
@@ -18,7 +28,6 @@ pub(super) fn spawn(
     spawn_plate(commands, art, Some(space), text, token, offset)
 }
 
-/// A moving quantity follows a non-pickable body and starts transparent.
 pub(super) fn moving(
     commands: &mut Commands,
     art: &Art,
@@ -35,9 +44,9 @@ fn spawn_plate(
     space: Option<&str>,
     text: String,
     token: Entity,
-    mut offset: Vec3,
+    offset: Vec3,
 ) -> Entity {
-    offset.x += GAP + DIAMETER / 2.;
+    let offset = offset + Vec3::X * (GAP + DIAMETER / 2.);
     let mut image = ImageNode::new(art.images[ROUNDEL].clone());
     let opacity = if space.is_some() { 1. } else { 0. };
     image.color = image.color.with_alpha(opacity);

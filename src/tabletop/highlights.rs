@@ -156,7 +156,7 @@ pub(super) fn setup(
                 meshes.add(
                     Plane3d::default()
                         .mesh()
-                        .size(w * map::SCALE / 100., h * map::SCALE / 100.),
+                        .size(w * map::scale() / 100., h * map::scale() / 100.),
                 ),
             ),
             MeshMaterial3d(materials.add(StandardMaterial {

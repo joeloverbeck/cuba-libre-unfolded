@@ -4,7 +4,8 @@ use bevy::{light::NotShadowCaster, world_serialization::WorldInstanceReady};
 use serde_json::{Value, json};
 use std::collections::VecDeque;
 
-const BADGE_OFFSET: Vec3 = Vec3::new(0.15, 0.025, 0.);
+// Horizontal clearance for the bell through its full animated swing.
+const BADGE_OFFSET: Vec3 = Vec3::new(0.110, 0.025, 0.);
 
 #[derive(Clone, Copy)]
 struct Change {

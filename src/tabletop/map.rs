@@ -1,13 +1,40 @@
 //! Placement of the selected Atlas geometry, in the VectorCraft profile coordinates.
 use super::*;
-use crate::Group;
+use crate::{Group, Space};
+use std::sync::OnceLock;
 
-pub(super) const SCALE: f32 = 3.;
 pub(super) const PIECE_SCALE: f32 = 0.84;
 const CITY_FACTOR: f32 = 0.72;
 
+#[derive(serde::Deserialize)]
+struct Placements {
+    scale: f32,
+    body_offset: f32,
+    spaces: BTreeMap<String, [[f32; 2]; 13]>,
+}
+
+fn circle_placements() -> &'static Placements {
+    static PLACEMENTS: OnceLock<Placements> = OnceLock::new();
+    PLACEMENTS.get_or_init(|| {
+        serde_json::from_str(include_str!("../../art/atlas/terrain-placements.json"))
+            .expect("Atlas circular placements")
+    })
+}
+
+pub(super) fn scale() -> f32 {
+    circle_placements().scale
+}
+
+pub(super) fn body_offset() -> f32 {
+    circle_placements().body_offset
+}
+
 pub(super) fn at(x: f32, z: f32, height: f32) -> Vec3 {
-    Vec3::new((x - 700.) / 100. * SCALE, height, (z - 600.) / 100. * SCALE)
+    Vec3::new(
+        (x - 700.) / 100. * scale(),
+        height,
+        (z - 600.) / 100. * scale(),
+    )
 }
 
 pub(super) fn top(terrain: Terrain) -> f32 {
@@ -20,7 +47,6 @@ pub(super) fn top(terrain: Terrain) -> f32 {
 
 struct Placement {
     label: [f32; 2],
-    origin: [f32; 2],
     city_pivot: Option<[f32; 2]>,
 }
 
@@ -33,7 +59,7 @@ fn placement(space: &str) -> &'static Placement {
 }
 
 pub(super) fn label_bounds(label: &LabelSpec) -> [f32; 4] {
-    let [x, z] = placement(&label.space).label;
+    let [x, z] = offshore::disc(&label.space).unwrap_or_else(|| placement(&label.space).label);
     let [_, _, width, height] = label.bounds;
     let factor = match label.space.as_str() {
         space if space.starts_with("ec-") => 0.66,
@@ -45,8 +71,33 @@ pub(super) fn label_bounds(label: &LabelSpec) -> [f32; 4] {
     [x - w / 2., z - h / 2., w, h]
 }
 
-pub(super) fn slot(space: &str, group: &Group) -> [f32; 2] {
-    let key = match (group.faction, group.kind, group.state) {
+pub(super) fn slot_for(space: &Space, group: &Group) -> [f32; 2] {
+    let index = group_index(group);
+    if space.terrain == Terrain::EconomicCenter {
+        // The rules allow only cubes and Guerrillas here. Keep their slots
+        // separate from the ninth slot used for the center's marker.
+        return offshore::slot(&space.id, index.min(8)).expect("Atlas Economic Center");
+    }
+    let circle = match index {
+        8..=10 => {
+            // At most two Base factions can coexist. Rank the current pair so
+            // two positions serve all three possible factions.
+            let rank = space
+                .pieces
+                .iter()
+                .filter(|other| other.kind == Kind::Base && other.count != 0)
+                .filter(|other| group_index(other) < index)
+                .count();
+            8 + rank.min(1)
+        }
+        11..=12 => index - 1,
+        _ => index,
+    };
+    land_slot(&space.id, circle)
+}
+
+fn group_index(group: &Group) -> usize {
+    match (group.faction, group.kind, group.state) {
         (Faction::Government, Kind::Troops, State::Ordinary) => 0,
         (Faction::Government, Kind::Police, State::Ordinary) => 1,
         (Faction::M26, Kind::Guerrilla, State::Underground) => 2,
@@ -61,23 +112,16 @@ pub(super) fn slot(space: &str, group: &Group) -> [f32; 2] {
         (Faction::Syndicate, Kind::Casino, State::Open) => 11,
         (Faction::Syndicate, Kind::Casino, State::Closed) => 12,
         _ => unreachable!("unsupported Atlas force group"),
-    };
-    formation_at(space, key)
+    }
 }
 
 pub(super) fn marker(space: &str) -> [f32; 2] {
-    formation_at(space, 13)
+    offshore::slot(space, 8).unwrap_or_else(|| land_slot(space, 12))
 }
 
-fn formation_at(space: &str, index: usize) -> [f32; 2] {
-    let formation = match space {
-        "la-habana" => &NARROW,
-        id if id.starts_with("ec-") => &EC,
-        _ => &LAND,
-    };
-    let [x, z] = placement(space).origin;
-    let [dx, dz] = formation[index];
-    [x + dx, z + dz]
+fn land_slot(space: &str, index: usize) -> [f32; 2] {
+    let [x, z] = circle_placements().spaces[space][index];
+    [x - body_offset() * 100. / scale(), z]
 }
 
 pub(super) fn highlight_bounds(space: &str, rect: [f32; 4]) -> [f32; 4] {
@@ -102,60 +146,11 @@ pub(super) fn framing_point(space: &str, point: Vec3) -> Vec3 {
     pivot + (point - pivot) / Vec3::new(CITY_FACTOR, 1., CITY_FACTOR)
 }
 
-const LAND: [[f32; 2]; 14] = [
-    [-34.818, -12.460],
-    [-18.998, -12.460],
-    [-3.178, -12.460],
-    [-26.908, 0.000],
-    [12.642, -12.460],
-    [-11.088, 0.000],
-    [28.462, -12.460],
-    [4.732, 0.000],
-    [-34.818, 12.460],
-    [-18.998, 12.460],
-    [-3.178, 12.460],
-    [12.642, 12.460],
-    [28.462, 12.460],
-    [20.552, 0.000],
-];
-const EC: [[f32; 2]; 14] = [
-    [-10.613, -13.832],
-    [4.257, -13.832],
-    [-18.049, -4.984],
-    [-3.178, -4.984],
-    [-18.049, 4.984],
-    [-3.178, 4.984],
-    [11.693, 4.984],
-    [6.062, 14.952],
-    [0.000, 0.000],
-    [0.000, 0.000],
-    [0.000, 0.000],
-    [0.000, 0.000],
-    [0.000, 0.000],
-    [11.693, -4.984],
-];
-const NARROW: [[f32; 2]; 14] = [
-    [-26.194, -13.720],
-    [-10.850, -13.720],
-    [4.494, -13.720],
-    [-26.194, 0.000],
-    [19.838, -13.720],
-    [-10.850, 0.000],
-    [4.494, 0.000],
-    [19.838, 0.000],
-    [-41.538, 13.720],
-    [-26.194, 13.720],
-    [-10.850, 13.720],
-    [4.494, 13.720],
-    [19.838, 13.720],
-    [35.182, 13.720],
-];
 const PLACEMENTS: [(&str, Placement); 13] = [
     (
         "pinar-del-rio",
         Placement {
             label: [181.000, 447.000],
-            origin: [115.000, 498.000],
             city_pivot: None,
         },
     ),
@@ -163,7 +158,6 @@ const PLACEMENTS: [(&str, Placement); 13] = [
         "la-habana",
         Placement {
             label: [303.000, 391.000],
-            origin: [366.000, 406.000],
             city_pivot: None,
         },
     ),
@@ -171,7 +165,6 @@ const PLACEMENTS: [(&str, Placement); 13] = [
         "matanzas",
         Placement {
             label: [478.000, 403.000],
-            origin: [472.000, 460.000],
             city_pivot: None,
         },
     ),
@@ -179,7 +172,6 @@ const PLACEMENTS: [(&str, Placement); 13] = [
         "las-villas",
         Placement {
             label: [617.000, 438.000],
-            origin: [656.000, 495.000],
             city_pivot: None,
         },
     ),
@@ -187,7 +179,6 @@ const PLACEMENTS: [(&str, Placement); 13] = [
         "camaguey-province",
         Placement {
             label: [822.000, 522.000],
-            origin: [891.000, 579.000],
             city_pivot: None,
         },
     ),
@@ -195,7 +186,6 @@ const PLACEMENTS: [(&str, Placement); 13] = [
         "oriente",
         Placement {
             label: [1127.000, 645.000],
-            origin: [1049.000, 657.000],
             city_pivot: None,
         },
     ),
@@ -203,7 +193,6 @@ const PLACEMENTS: [(&str, Placement); 13] = [
         "sierra-maestra",
         Placement {
             label: [1074.000, 731.000],
-            origin: [1035.000, 776.000],
             city_pivot: None,
         },
     ),
@@ -211,7 +200,6 @@ const PLACEMENTS: [(&str, Placement); 13] = [
         "havana",
         Placement {
             label: [339.480, 251.480],
-            origin: [339.480, 302.480],
             city_pivot: Some([351., 356.]),
         },
     ),
@@ -219,7 +207,6 @@ const PLACEMENTS: [(&str, Placement); 13] = [
         "camaguey-city",
         Placement {
             label: [814.520, 653.400],
-            origin: [814.520, 698.400],
             city_pivot: Some([839., 630.]),
         },
     ),
@@ -227,7 +214,6 @@ const PLACEMENTS: [(&str, Placement); 13] = [
         "santiago",
         Placement {
             label: [1_174.4, 779.200],
-            origin: [1_174.4, 830.200],
             city_pivot: Some([1160., 775.]),
         },
     ),
@@ -235,7 +221,6 @@ const PLACEMENTS: [(&str, Placement); 13] = [
         "ec-pinar-la-habana",
         Placement {
             label: [239.000, 420.000],
-            origin: [242.000, 402.000],
             city_pivot: None,
         },
     ),
@@ -243,7 +228,6 @@ const PLACEMENTS: [(&str, Placement); 13] = [
         "ec-las-villas-camaguey",
         Placement {
             label: [747.000, 552.000],
-            origin: [750.000, 534.000],
             city_pivot: None,
         },
     ),
@@ -251,7 +235,6 @@ const PLACEMENTS: [(&str, Placement); 13] = [
         "ec-oriente-sierra",
         Placement {
             label: [1167.000, 717.000],
-            origin: [1170.000, 699.000],
             city_pivot: None,
         },
     ),
