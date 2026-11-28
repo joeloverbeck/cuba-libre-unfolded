@@ -125,6 +125,9 @@ user_log=
 caller_log_count=0
 unstable=(-Z unstable-options)
 report_time=(--report-time)
+# Unknown harness switches may restrict execution. Only recognized display options
+# are treated as equivalent to the ordinary unfiltered run.
+custom_selection=false
 while (($#)); do
   case $1 in
     -h|--help) exec cargo test --locked --features tabletop --test native -- --help ;;
@@ -162,7 +165,8 @@ while (($#)); do
     --format|--color|--shuffle-seed)
       # Space-separated option values aren't test names.
       if (($# > 1)); then shift; fi ;;
-    -*) ;;
+    --nocapture|--no-capture|--show-output|--quiet|-q|--color=*|--format=*|--shuffle-seed=*) ;;
+    -*) custom_selection=true ;;
     *) filters+=("$1") ;;
   esac
   shift
@@ -234,7 +238,7 @@ if [[ -z ${CUBA_NATIVE_EVIDENCE:-} && $common != "$(git rev-parse --show-topleve
 fi
 if [[ -n ${CUBA_NATIVE_EVIDENCE:-} ]]; then echo "evidence: $CUBA_NATIVE_EVIDENCE"; fi
 whole=false
-if [[ -n $shard ]] || ((given == 0)); then whole=true; fi
+if [[ -n $shard ]] || { ! "$custom_selection" && ! "$bench" && (( ${#filters[@]} == 0 && ${#selection[@]} == 0 )); }; then whole=true; fi
 timing_root=${CUBA_NATIVE_EVIDENCE:-local/verification/native}
 mkdir -p -- "$timing_root"
 timing=$(mktemp -d -- "$timing_root/timing-XXXXXX")
@@ -330,11 +334,16 @@ if ((${#failed[@]})); then
   echo "native regressions failed in: ${failed[*]}" >&2
   exit 1
 fi
-if [[ -n $shard ]]; then
-  echo "native regressions: shard $shard passed; the suite needs all $parts"
-else
-  echo "native regressions: all passed"
-fi
+logs=("$timing/app.log")
+if [[ $library_threads != skipped ]]; then logs+=("$timing/library.log"); fi
+for log in "${logs[@]}"; do
+  if [[ ! -f $log ]]; then
+    # A successful informational dispatch (e.g. combined -qh) can return
+    # before libtest opens its log. Preserve its status and caller logfile.
+    echo 'native regressions: no complete test record' | tee -a "$timing/summary.txt"
+    exit 0
+  fi
+done
 # Only a passed shard or a passed unfiltered run names its inputs, so a filtered or
 # failed one cannot be taken for the suite.
 if "$whole"; then
@@ -345,5 +354,16 @@ if "$whole"; then
   fi
   printf '%s\n' "$verdict" | tee -a "$timing/summary.txt"
 fi
+passed=$(awk '$1 == "ok" {n++} END {print n+0}' "${logs[@]}")
+if [[ -n $shard ]]; then
+  coverage="shard $shard"
+elif "$whole"; then
+  coverage="full suite"
+else
+  coverage="selected run"
+fi
+unit=tests
+if ((passed == 1)); then unit=test; fi
+printf 'native regressions: %s passed (%s %s)\n' "$coverage" "$passed" "$unit" | tee -a "$timing/summary.txt"
 exit
 }

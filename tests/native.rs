@@ -5631,6 +5631,61 @@ fn assert_removal_map_agrees(view: &Value) {
     assert_eq!(highlights, veils);
 }
 
+/// The seat clock runs at 60 Hz and capture freezes it. Three steps per sample
+/// visits every 16 Hz frame in the three-second loop, including full contraction.
+fn assert_home_base_clearance(app: &mut Native) {
+    let view = app.observe();
+    let at = &view["table"]["markers"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|marker| marker["piece"] == "sierra-maestra:base")
+        .unwrap()["at"];
+    let x = at[0].as_f64().unwrap().round() as u32;
+    let y = at[1].as_f64().unwrap().round() as u32;
+    let before = image::open(app.root.join("home-before-removal.png"))
+        .unwrap()
+        .to_rgb8();
+    // At Home this horizontal scan crosses the middle of the solid red Base.
+    let red = |px| {
+        let [r, g, b] = before.get_pixel(px, y).0;
+        r > 90 && u16::from(r) > 2 * u16::from(g) && g.abs_diff(b) < 25
+    };
+    assert!(red(x), "expected the 26July Base at Home");
+    let left = (x - 32..x).rev().find(|&px| !red(px)).unwrap();
+    let right = (x + 1..x + 32).find(|&px| !red(px)).unwrap();
+    let scratch = tempfile::tempdir().unwrap();
+    let path = scratch.path().join("home-frame.png");
+    for sample in 0..60 {
+        app.request(json!({"op":"capture","path":path}), true);
+        let frame = image::open(&path).unwrap().to_rgb8();
+        for side in [x - 28..left, right + 1..x + 29] {
+            for half in [y - 24..y - 2, y + 2..y + 25] {
+                let mut visible = 0;
+                for px in side.clone() {
+                    for py in half.clone() {
+                        let pixel = frame.get_pixel(px, py);
+                        let [r, g, b] = pixel.0;
+                        // Paper-coloured ink unique to the corners in this crop.
+                        if r > 210
+                            && g > 185
+                            && r.saturating_sub(b) > 22
+                            && pixel != before.get_pixel(px, py)
+                        {
+                            visible += 1;
+                        }
+                    }
+                }
+                assert!(
+                    visible >= 2,
+                    "Home Base corner lost at sample {sample}, {side:?} × {half:?}: {visible} paper pixels"
+                );
+            }
+        }
+        app.advance(3);
+    }
+}
+
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained removal-mode captures against art/proposals/issue-66/hf-a-survey-ink-states.jpg"]
 fn native_removal_mode_marks_pieces_and_removes_through_the_piece_popover() {
@@ -5864,9 +5919,11 @@ fn native_removal_mode_marks_pieces_and_removes_through_the_piece_popover() {
     app.save = app.root.join("owner-aspect.json");
     app.launch_size("3840x2160");
     app.choose("terror");
+    app.capture("home-before-removal");
     app.choose("remove");
     let revision = app.observe()["observation"]["revision"].as_u64().unwrap();
     app.capture("registration-home");
+    assert_home_base_clearance(&mut app);
     // Pan east and south from Home before zooming. This keeps the Base between
     // the fixed side panels as the camera gets closer.
     for (key, taps) in [("KeyD", 19), ("KeyS", 5)] {
