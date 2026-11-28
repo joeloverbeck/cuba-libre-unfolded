@@ -2766,6 +2766,7 @@ fn native_manifesto_side_decisions_refresh_the_map_and_resume_the_placement() {
 fn native_paid_rally_previews_and_pays_for_camaguey_on_both_routes() {
     use super::construct::choose_row;
     use super::map_keys::{press, tab_to};
+    use super::space_reason::hover;
 
     const SPACE: &str = "space:camaguey-province";
     const TWO: &str = "paid-rally:camaguey-province:place:2";
@@ -2785,6 +2786,27 @@ fn native_paid_rally_previews_and_pays_for_camaguey_on_both_routes() {
     let before = app.observe()["observation"].clone();
     let at = app.revision();
     let checkpoint = app.save_bytes();
+    hover(
+        &mut app,
+        "ec-las-villas-camaguey",
+        "not-involved",
+        Some("No Rally in economic centers."),
+        "rally-economic-center-hover",
+    );
+    hover(
+        &mut app,
+        "sierra-maestra",
+        "not-involved",
+        Some("Active Opposition blocks Rally."),
+        "rally-active-opposition-hover",
+    );
+    hover(
+        &mut app,
+        "havana",
+        "not-involved",
+        Some("Active Support blocks Rally."),
+        "rally-active-support-hover",
+    );
     app.point(SPACE);
     assert!(app.observe()["table"]["popover"].is_null());
     app.activate(SPACE, at);
@@ -2827,6 +2849,13 @@ fn native_paid_rally_previews_and_pays_for_camaguey_on_both_routes() {
     assert_eq!(two_paid["observation"]["standings"], before["standings"]);
     assert!(two_paid["table"]["popover"].is_null());
     app.capture("rally-recruit-two-committed");
+    hover(
+        &mut app,
+        "camaguey-province",
+        "not-involved",
+        Some("Rally paid here (R 3.1)."),
+        "rally-paid-space-hover",
+    );
     app.quit();
 
     app.launch_size("3840x2160");

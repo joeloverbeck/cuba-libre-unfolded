@@ -25,11 +25,12 @@ pub(super) fn recruitment(action: &str) -> Option<(&str, u8)> {
 
 fn exclusion(space: &Space) -> Option<&'static str> {
     if space.terrain == Terrain::EconomicCenter {
-        Some("Rally selects Cities and Provinces (R 3.3.1).")
-    } else if space.support.abs() == 2 {
-        Some("Directorio Rallies only at Neutral or Passive (R 3.3.1).")
-    } else {
-        None
+        return Some("No Rally in economic centers.");
+    }
+    match space.support {
+        -2 => Some("Active Opposition blocks Rally."),
+        2 => Some("Active Support blocks Rally."),
+        _ => None,
     }
 }
 
@@ -96,7 +97,7 @@ impl Game {
         here: &[&Choice],
     ) -> String {
         if rally.used(space) {
-            "Rally paid here · this space has been used (R 3.1).".into()
+            "Rally paid here (R 3.1).".into()
         } else if let Some(reason) = exclusion(space) {
             reason.into()
         } else if here.is_empty() {
