@@ -44,9 +44,9 @@ Once the launcher reports `ready`, connect to the seat.
 
 ## Native owner handoff
 
-Before exact review of changed table text, capture the affected surfaces at 3840×2160 and inspect them at 1:1. Include a representative blocked or unavailable map hover when changing Operation reasons, and the affected refusals and editions when changing their text. For a fixed tag row, reuse the native hover test's drawn-bounds assertion with the actual text and emblems. Put the passing run and captures in the ticket handoff.
+Before exact review of changed table text, capture the affected surfaces at 3840×2160 and inspect them at 1:1. Exercise one reachable space per distinct new or changed Operation reason. Pay first to exercise an already-paid reason. For a fixed tag row, use the [native hover test](../../tests/native/space_reason.rs) to check the drawn bounds with the actual text and emblems. Include affected refusals and editions when their text changes. Put the passing run and captures in the ticket handoff.
 
-Build the executables from the reviewed checkout into the review package with `scripts/heavy scripts/package-review-binaries "$package"` (requires `jq`). Include them all in the package manifest. Have the replay script launch the packaged game and call `"$package/cuba-tools" seat`. Keep the input and recovery saves with their recorded hashes, and run each branch on a fresh copy.
+Build the executables from the reviewed checkout into the review package with `scripts/heavy scripts/package-review-binaries "$package"` (requires `jq`). Include them all in the package manifest. Have the replay script launch the packaged game and call `"$package/cuba-tools" seat`. Keep the input and recovery saves with their recorded hashes, and run each branch on a fresh copy. When a focused run on the reviewed head produces the owner's checkpoint, package and rehearse it before starting the serial native shards.
 
 For a comparison package, make `review.sh --help` list every variant and position, their defaults, and which positions use a playable save or a read-only fixture. Put the recommended comparison commands and what to inspect in the package's `REVIEW.md`. Keep names stable when replacing a package to repair it. Before handoff, run help and the listed commands from a fresh terminal outside the checkout without touching the owner's saves.
 
