@@ -421,7 +421,7 @@ pub(super) const PRIMARY_PART: &str = "button:primary";
 pub(super) const FIELD: &str = "transfer:field";
 
 /// The modal's controls in Tab order, by their seat names.
-pub(super) fn focusable(view: &Observation, ui: &Interface) -> Vec<String> {
+pub(super) fn focusable(view: &Observation, ui: &Interface, dispatch: bool) -> Vec<String> {
     let shown = content(view, &ui.transfer);
     let mut names = vec![];
     if matches!(view.transfer, Some(Transfer::Selecting)) {
@@ -441,6 +441,9 @@ pub(super) fn focusable(view: &Observation, ui: &Interface) -> Vec<String> {
             names.push(format!("{}:wait", view.revision));
             names.push(format!("{}:decline", view.revision));
         }
+    }
+    if dispatch {
+        names.push(proclamation_composer::WRITE.into());
     }
     names.push(
         shown
@@ -469,8 +472,8 @@ impl Pressed {
 }
 
 /// The modal's stop that Enter presses now.
-pub(super) fn pressed(view: &Observation, ui: &Interface) -> Pressed {
-    let mut order = focusable(view, ui);
+pub(super) fn pressed(view: &Observation, ui: &Interface, dispatch: bool) -> Pressed {
+    let mut order = focusable(view, ui, dispatch);
     // The primary is the last stop.
     let primary = order.pop().unwrap();
     ui.transfer
@@ -519,6 +522,9 @@ pub(super) fn keys(
     keys: Res<ButtonInput<KeyCode>>,
     mut play: ResMut<Play>,
     mut ui: ResMut<Interface>,
+    roll: Res<super::die::Roll>,
+    advance: Res<super::piles::Advance>,
+    time: Res<Time>,
 ) {
     if play.session.is_none() || keys.get_just_pressed().next().is_none() {
         return;
@@ -565,7 +571,9 @@ pub(super) fn keys(
         activate(&mut play, &mut ui, &view, &name);
         return;
     }
-    let order = focusable(&view, &ui);
+    let flying = advance.in_the_air(&view, time.elapsed_secs_f64());
+    let dispatch = proclamation_composer::entry_available(&view, &ui, &roll, flying);
+    let order = focusable(&view, &ui, dispatch);
     let at = ui
         .transfer
         .focus
@@ -585,8 +593,12 @@ pub(super) fn keys(
         return;
     }
     if keys.any_just_pressed([KeyCode::Enter, KeyCode::NumpadEnter]) {
-        let name = pressed(&view, &ui).name();
-        activate(&mut play, &mut ui, &view, &name);
+        let name = pressed(&view, &ui, dispatch).name();
+        if name == proclamation_composer::WRITE {
+            proclamation_composer::open(&play, &mut ui);
+        } else {
+            activate(&mut play, &mut ui, &view, &name);
+        }
     }
 }
 

@@ -147,8 +147,12 @@ static KEYS: LazyLock<Vec<SeatKey>> = LazyLock::new(|| {
 });
 /// A UI node's rectangle in logical window pixels: [left, top, right, bottom].
 pub(super) fn logical_bounds(node: &ComputedNode, at: &UiGlobalTransform) -> [f32; 4] {
+    logical_bounds_at_scale(node, at, 1.)
+}
+
+fn logical_bounds_at_scale(node: &ComputedNode, at: &UiGlobalTransform, scale: f32) -> [f32; 4] {
     let center = at.translation * node.inverse_scale_factor;
-    let half = node.size() * node.inverse_scale_factor / 2.;
+    let half = node.size() * node.inverse_scale_factor * scale / 2.;
     [
         center.x - half.x,
         center.y - half.y,
@@ -221,17 +225,23 @@ fn body_points(world: &mut World, piece: Entity) -> Vec<Vec2> {
         .collect()
 }
 fn piece_name(world: &World, entity: Entity) -> Option<String> {
-    if world.get::<Count>(entity).is_some()
-        && let Some(LabelAnchor {
+    if world.get::<Count>(entity).is_some() {
+        let label = world.get::<LabelAnchor>(entity).or_else(|| {
+            world
+                .get::<ChildOf>(entity)
+                .and_then(|parent| world.get::<LabelAnchor>(parent.parent()))
+        });
+        if let Some(LabelAnchor {
             to: Anchor::Entity { entity: token, .. },
             ..
-        }) = world.get::<LabelAnchor>(entity)
-    {
-        Some(format!("count:{}", world.get::<Name>(*token)?.as_str()))
-    } else {
-        Some(format!("piece:{}", world.get::<Name>(entity)?.as_str()))
+        }) = label
+        {
+            return Some(format!("count:{}", world.get::<Name>(*token)?.as_str()));
+        }
     }
+    Some(format!("piece:{}", world.get::<Name>(entity)?.as_str()))
 }
+
 fn controls(world: &mut World) -> Vec<(Entity, Control, Vec2)> {
     let size = world
         .query_filtered::<&Camera, With<Camera2d>>()
@@ -262,8 +272,8 @@ fn controls(world: &mut World) -> Vec<(Entity, Control, Vec2)> {
         else {
             continue;
         };
-        let [x, y, w, h] = label.bounds;
-        let position = map_at(x + w / 2., y + h / 2., 0.30);
+        let [x, y, w, h] = map::label_bounds(label);
+        let position = map::at(x + w / 2., y + h / 2., 0.30);
         if let Ok((camera, at)) = world
             .query_filtered::<(&Camera, &GlobalTransform), With<TableCamera>>()
             .single(world)
@@ -453,21 +463,33 @@ impl SeatGame for Table {
         // Each count's type size and drawn bounds, so captures can be judged for
         // legibility at the owner's display (#50).
         let count_rows: Vec<_> = world
-            .query_filtered::<(Entity, &Text, &TextFont, &ComputedNode, &UiGlobalTransform), With<Count>>()
+            .query_filtered::<(
+                Entity,
+                &Text,
+                &TextFont,
+                &ComputedNode,
+                &UiGlobalTransform,
+                &UiTransform,
+                &ChildOf,
+            ), With<Count>>()
             .iter(world)
-            .map(|(entity, text, font, node, at)| {
+            .map(|(entity, text, font, node, at, transform, parent)| {
+                let scale = transform.scale.x;
                 (
                     entity,
+                    parent.parent(),
                     text.0.clone(),
-                    type_size(font),
-                    logical_bounds(node, at),
+                    type_size(font).map(|size| size * scale),
+                    logical_bounds_at_scale(node, at, scale),
                 )
             })
             .collect();
         let mut counts: Vec<_> = count_rows
             .into_iter()
-            .map(|(entity, text, size, bounds)| {
-                json!({"name":piece_name(world, entity),"text":text,"font_size":size,"bounds":bounds})
+            .map(|(entity, parent, text, size, bounds)| {
+                let roundel = world.get::<ComputedNode>(parent).zip(world.get::<UiGlobalTransform>(parent))
+                    .map(|(node, at)| logical_bounds(node, at));
+                json!({"name":piece_name(world, entity),"text":text,"font_size":size,"bounds":bounds,"roundel_bounds":roundel})
             })
             .collect();
         counts.sort_by_key(|count| count["name"].to_string());
@@ -493,7 +515,20 @@ impl SeatGame for Table {
         let pile_tag = pile_tags::observe(world);
         let available_forces = available::observe(world);
         let marker_supply = supply::observe(world);
+        let marker_travel = marker_travel::observe(world);
+        let force_travel = force_travel::observe(world);
+        let force_travel_started = world.resource::<force_travel::Flights>().generation() != 0;
+        let piece_flips = piece_flips::observe(world);
+        #[cfg(feature = "occupancy-review")]
+        let map_geometry = json!({
+            "meshes": occupancy_review::mesh_bounds(world),
+            "roundels": counts.iter().filter_map(|count| {
+                let name = count["name"].as_str()?.strip_prefix("count:")?;
+                Some((name, &count["roundel_bounds"]))
+            }).collect::<BTreeMap<_, _>>()
+        });
         let main_view = areas::observe(world);
+        let offshore = offshore::observe(world);
         let slip = notice::observe(world);
         let save_quit = save_quit::observe(world);
         let focus_mark = focus_mark::observe(world);
@@ -508,11 +543,21 @@ impl SeatGame for Table {
         let water_frame = world.get_resource::<Water>().map(|water| water.frame);
         // One more key would pass the macro's recursion limit, so the piles join after.
         let mut table = json!({"controls":controls,"surfaces":surfaces,"standings":standings,"map_viewport":map_viewport,"viewport":size.map(|s| [s.x,s.y]),"status":status,"victory":victory,"victory_count":victory_count,"victory_text":victory_text,"top":top,"briefing":briefing,"choice":choice::observe(ui),"choice_parts":choice_parts,"eligibility":eligibility,"map_targets":map_targets,"highlights":highlights,"removal":removal,"markers":markers,"popover":popover,"transfer":transfer,"top_text":top_text,"inline_text":inline_text,"counts":counts,"top_parts":top_parts,"water_frame":water_frame,"terror":terror,"die":die,"settled":pending.is_empty(),"pending":pending,"card":card,"main_view":main_view,"hover":ui.hover.visible(),"notice":ui.notice.text,"error":play.error,"camera":{"yaw":pose.yaw,"pitch":pose.pitch,"distance":pose.distance,"target":[pose.target.x,pose.target.y,pose.target.z]},"native_limits":"windowless real Bevy input/render path; no physical mouse comfort or owner acceptance"});
+        if offshore
+            .as_object()
+            .is_some_and(|stations| !stations.is_empty())
+        {
+            table["offshore"] = offshore;
+        }
         table["status_text"] = json!(status_text);
         table["piles"] = piles;
         table["pile_tag"] = pile_tag;
         table["available_forces"] = available_forces;
+        table["force_travel"] = force_travel;
+        table["force_travel_started"] = json!(force_travel_started);
         table["marker_supply"] = marker_supply;
+        table["marker_travel"] = marker_travel;
+        table["piece_flips"] = json!(piece_flips);
         // #174: the notice slip as drawn, and Save · quit's plate.
         table["slip"] = slip;
         table["save_quit"] = save_quit;
@@ -524,8 +569,16 @@ impl SeatGame for Table {
         table["newspaper"] = newspaper;
         table["proclamation_composer"] = composer;
         table["proclamations"] = proclamations;
+        #[cfg(feature = "occupancy-review")]
+        if let Some(review) = &play.options.occupancy_review {
+            table["occupancy_review"] = json!(review.name);
+        }
+        #[cfg(feature = "occupancy-review")]
+        {
+            table["map_geometry"] = map_geometry;
+        }
         Observed {
-            observation: serde_json::to_value(play.game().observe()).unwrap(),
+            observation: serde_json::to_value(play.observe()).unwrap(),
             table,
         }
     }
@@ -616,7 +669,7 @@ impl SeatGame for Table {
         let play = world.resource::<Play>();
         if let Some(error) = &play.error {
             shared::Admission::Refused(error.clone())
-        } else if play.session.is_some() {
+        } else if play.admitted() {
             shared::Admission::Admitted
         } else {
             shared::Admission::Checking
@@ -714,7 +767,50 @@ impl SeatGame for Table {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::{
+        camera::RenderTarget,
+        input::{ButtonState, keyboard::KeyboardInput},
+        picking::pointer::{Location, PointerAction, PointerInput},
+    };
     use serde_json::Value;
+
+    fn key(app: &mut App, key_code: KeyCode, logical_key: Key, text: Option<&str>) {
+        let world = app.world_mut();
+        let window = world
+            .query_filtered::<Entity, With<PrimaryWindow>>()
+            .single(world)
+            .unwrap();
+        for state in [ButtonState::Pressed, ButtonState::Released] {
+            world.write_message(KeyboardInput {
+                key_code,
+                logical_key: logical_key.clone(),
+                state,
+                text: text.filter(|_| state.is_pressed()).map(Into::into),
+                repeat: false,
+                window,
+            });
+        }
+    }
+
+    fn pointer(app: &mut App, position: Vec2, action: PointerAction) {
+        let world = app.world_mut();
+        let (window, mut cursor) = world
+            .query_filtered::<(Entity, &mut Window), With<PrimaryWindow>>()
+            .single_mut(world)
+            .unwrap();
+        cursor.set_cursor_position(Some(position));
+        let target = world
+            .query_filtered::<&RenderTarget, With<IsDefaultUiCamera>>()
+            .single(world)
+            .unwrap()
+            .normalize(Some(window))
+            .unwrap();
+        world.write_message(PointerInput::new(
+            PointerId::Mouse,
+            Location { target, position },
+            action,
+        ));
+    }
 
     /// One seat request. A table that has exited fails the test here, with its reason,
     /// rather than answering every later request as if it were still being played.
@@ -743,6 +839,8 @@ mod tests {
                 socket: None,
                 players: Some(save.with_extension("sock")),
                 agent: true,
+                #[cfg(feature = "occupancy-review")]
+                occupancy_review: None,
                 seat_size: size,
             },
             true,
@@ -755,7 +853,244 @@ mod tests {
         (app, seat)
     }
 
+    mod motion;
     mod proclamation;
+
+    /// A renderer fixture for marker changes the supported cards cannot make.
+    /// It uses the read-only occupancy review position and the real scene,
+    /// without creating a choice or editing the admitted save.
+    #[cfg(feature = "occupancy-review")]
+    #[test]
+    #[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+    fn native_terror_travel_renders_stacked_arrivals_and_returns() {
+        use std::{fs, path::PathBuf};
+
+        let cards =
+            PathBuf::from(std::env::var_os("CUBA_TEST_CARDS").expect("Set CUBA_TEST_CARDS"));
+        let evidence = std::env::var_os("CUBA_NATIVE_EVIDENCE")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| "local/verification/issue-272".into());
+        fs::create_dir_all(&evidence).unwrap();
+        let root = tempfile::Builder::new()
+            .prefix("terror-renderer-")
+            .tempdir_in(evidence)
+            .unwrap()
+            .keep()
+            .canonicalize()
+            .unwrap();
+        eprintln!("Native renderer fixture evidence: {}", root.display());
+        let save = root.join("task.json");
+        let (mut app, mut seat) = table(&cards, &save, UVec2::new(3840, 2160));
+        let saved = fs::read(&save).unwrap();
+
+        let set_fixture_count = |world: &mut World, n| {
+            let mut play = world.resource_mut::<Play>();
+            let review = play
+                .options
+                .occupancy_review
+                .get_or_insert_with(|| OccupancyReview::named("sparse:santiago").unwrap());
+            review
+                .position
+                .spaces
+                .iter_mut()
+                .find(|space| space.id == "santiago")
+                .unwrap()
+                .terror = n;
+            let seen = review.observe();
+            world.resource_mut::<Interface>().dirty = true;
+            seen
+        };
+        let read_count = |view: &Value| {
+            view["table"]["counts"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .find(|row| row["name"] == "count:santiago Terror")
+                .map(|row| row["text"].as_str().unwrap().to_owned())
+        };
+        let point = |value: &Value| {
+            let [x, y] = value.as_array().unwrap().as_slice() else {
+                panic!("expected a logical point: {value}");
+            };
+            Vec2::new(x.as_f64().unwrap() as f32, y.as_f64().unwrap() as f32)
+        };
+        let capture = |seat: &mut shared::Seat<Table>, app: &mut App, file: &str| {
+            ask(
+                seat,
+                app,
+                json!({"op":"capture","path":root.join(format!("{file}.png"))}),
+            );
+        };
+
+        let mut before = set_fixture_count(app.world_mut(), 1);
+        ask(&mut seat, &mut app, json!({"op":"settle"}));
+        let initial = ask(&mut seat, &mut app, json!({"op":"observe"}));
+        assert_eq!(read_count(&initial), Some("1".into()));
+        assert_eq!(initial["table"]["marker_supply"]["shown"]["available"], 19);
+        assert_eq!(initial["table"]["marker_travel"], json!([]));
+        let supply_parts = initial["table"]["marker_supply"]["parts"]
+            .as_array()
+            .unwrap();
+        let bounds = supply_parts
+            .iter()
+            .find(|p| p["part"] == "marker-supply")
+            .unwrap()["bounds"]
+            .as_array()
+            .unwrap();
+        let supply = (point(&json!(&bounds[0..2])) + point(&json!(&bounds[2..4]))) / 2.;
+        let bell = |world: &mut World| {
+            world
+                .query_filtered::<Entity, With<TerrorToken>>()
+                .single(world)
+                .ok()
+        };
+        let original_bell = bell(app.world_mut()).unwrap();
+        let map_point = |world: &mut World| {
+            let at = world
+                .query_filtered::<&GlobalTransform, With<TerrorToken>>()
+                .single(world)
+                .unwrap()
+                .translation();
+            let (camera, camera_at) = world
+                .query_filtered::<(&Camera, &GlobalTransform), With<TableCamera>>()
+                .single(world)
+                .unwrap();
+            camera.world_to_viewport(camera_at, at).unwrap()
+        };
+        let mut map = map_point(app.world_mut());
+        // Read the materials actually attached to the glTF meshes. The trip's
+        // sampled fade can exist before the scene instance has those materials.
+        let bound_materials = |world: &World, root| {
+            let mut entities = vec![root];
+            let mut bound = BTreeMap::new();
+            while let Some(entity) = entities.pop() {
+                if let Some(children) = world.get::<Children>(entity) {
+                    entities.extend(children.iter());
+                }
+                if let (Some(mesh), Some(material)) = (
+                    world.get::<Mesh3d>(entity),
+                    world.get::<MeshMaterial3d<StandardMaterial>>(entity),
+                ) {
+                    let asset = world
+                        .resource::<Assets<StandardMaterial>>()
+                        .get(material)
+                        .unwrap();
+                    bound.insert(
+                        mesh.id(),
+                        (material.id(), asset.base_color.alpha(), asset.alpha_mode),
+                    );
+                }
+            }
+            bound
+        };
+        let originals = bound_materials(app.world(), original_bell);
+        assert!(!originals.is_empty());
+        capture(&mut seat, &mut app, "fixture-at-rest");
+
+        for (name, after_count, entering, resident) in [
+            ("increase", 2, true, Some("1".into())),
+            ("partial-return", 1, false, Some("1".into())),
+            ("last-return", 0, false, None),
+        ] {
+            let after = set_fixture_count(app.world_mut(), after_count);
+            app.world_mut()
+                .resource_mut::<Interface>()
+                .marker_travel
+                .committed(&before, &after);
+            let first = ask(&mut seat, &mut app, json!({"op":"settle","steps":1}));
+            assert_eq!(first["status"], "unsettled", "{first}");
+            let departure = ask(&mut seat, &mut app, json!({"op":"observe"}));
+            let motion = &departure["table"]["marker_travel"][0];
+            if entering {
+                let pose = app.world().resource::<Orbit>().pose();
+                app.world_mut()
+                    .resource_mut::<Orbit>()
+                    .focus(Framing::new(pose.target + Vec3::X * 0.7, pose.distance));
+                app.insert_resource(TimeUpdateStrategy::ManualDuration(Duration::ZERO));
+                app.update();
+                let shifted = marker_travel::observe(app.world_mut());
+                let shifted_map = map_point(app.world_mut());
+                assert!(map.distance(shifted_map) > 10.);
+                assert_eq!(shifted[0]["alpha"], 0.);
+                assert!(
+                    point(&shifted[0]["at"]).distance(supply) < 2.,
+                    "the first frame after a camera move still starts at {supply}: {shifted}"
+                );
+                map = shifted_map;
+            }
+            let (source, destination, direction) = if entering {
+                (supply, map, "placement")
+            } else {
+                (map, supply, "return")
+            };
+            assert_eq!(motion["space"], "santiago");
+            assert_eq!(motion["direction"], direction);
+            assert_eq!(motion["quantity"], 1);
+            assert!(point(&motion["at"]).distance(source) < 2.);
+            assert_eq!(motion["alpha"], if entering { 0. } else { 1. });
+            assert_eq!(read_count(&departure), resident);
+            capture(&mut seat, &mut app, &format!("{name}-departure"));
+
+            let held = ask(&mut seat, &mut app, json!({"op":"settle","steps":20}));
+            assert_eq!(held["status"], "unsettled", "{held}");
+            let middle = ask(&mut seat, &mut app, json!({"op":"observe"}));
+            let motion = &middle["table"]["marker_travel"][0];
+            let at = point(&motion["at"]);
+            let leg = source.distance(destination);
+            assert!(at.distance(source) < leg * 0.75 && at.distance(destination) < leg * 0.75);
+            let alpha = motion["alpha"].as_f64().unwrap() as f32;
+            assert!((0.65..0.85).contains(&alpha));
+            let world = app.world_mut();
+            let travelling = world
+                .query_filtered::<Entity, With<marker_travel::InFlight>>()
+                .single(world)
+                .unwrap();
+            let drawn = bound_materials(world, travelling);
+            assert_eq!(drawn.len(), originals.len());
+            for (mesh, (handle, original_alpha, _)) in &originals {
+                let (fading, drawn_alpha, mode) = drawn[mesh];
+                assert_ne!(fading, *handle, "the flight owns its fade material");
+                assert_eq!(mode, AlphaMode::Blend);
+                assert!(
+                    (drawn_alpha - original_alpha * alpha).abs() < 0.001,
+                    "bound material {mesh:?} did not fade at {alpha}"
+                );
+            }
+            if resident.is_some() {
+                assert_eq!(bound_materials(world, original_bell), originals);
+            }
+            assert_eq!(read_count(&middle), resident);
+            capture(&mut seat, &mut app, &format!("{name}-travelling"));
+
+            ask(&mut seat, &mut app, json!({"op":"settle"}));
+            let arrived = ask(&mut seat, &mut app, json!({"op":"observe"}));
+            assert_eq!(arrived["table"]["marker_travel"], json!([]));
+            assert_eq!(arrived["table"]["settled"], true);
+            assert_eq!(
+                arrived["table"]["marker_supply"]["shown"]["available"],
+                20 - after_count
+            );
+            assert_eq!(
+                read_count(&arrived),
+                (after_count > 0).then(|| after_count.to_string())
+            );
+            assert_eq!(
+                bell(app.world_mut()),
+                (after_count > 0).then_some(original_bell)
+            );
+            assert_eq!(fs::read(&save).unwrap(), saved);
+            capture(&mut seat, &mut app, &format!("{name}-settled"));
+            fs::write(
+                root.join(format!("{name}.json")),
+                serde_json::to_vec_pretty(&json!({
+                    "departure": departure, "travelling": middle, "settled": arrived,
+                }))
+                .unwrap(),
+            )
+            .unwrap();
+            before = after;
+        }
+    }
 
     /// Such a table played to a rolled Kidnap die that is still in the air, at revision 3.
     fn rolled(
@@ -764,36 +1099,40 @@ mod tests {
         size: UVec2,
     ) -> (App, shared::Seat<Table>) {
         let (mut app, mut seat) = table(cards, save, size);
+        roll_kidnap(&mut app, &mut seat);
+        (app, seat)
+    }
+
+    fn roll_kidnap(app: &mut App, seat: &mut shared::Seat<Table>) {
         // AC-B (#69): Terror is pinned before its commit submits it.
         let pinned = ask(
-            &mut seat,
-            &mut app,
+            seat,
+            app,
             json!({"op":"activate","revision":0,"component":"option:terror"}),
         );
         assert_eq!(pinned["status"], "activated", "{pinned}");
-        ask(&mut seat, &mut app, json!({"op":"settle"}));
+        ask(seat, app, json!({"op":"settle"}));
         for (revision, choice) in [(0, "0:terror"), (1, "1:kidnap"), (2, "2:kidnap:roll")] {
             // EX-A (#84): a Terror step is pinned by its row before its commit.
             if choice == "1:kidnap" {
                 let step = ask(
-                    &mut seat,
-                    &mut app,
+                    seat,
+                    app,
                     json!({"op":"activate","revision":revision,"component":"step:kidnap"}),
                 );
                 assert_eq!(step["status"], "activated", "{step}");
-                ask(&mut seat, &mut app, json!({"op":"settle"}));
+                ask(seat, app, json!({"op":"settle"}));
             }
             let done = ask(
-                &mut seat,
-                &mut app,
+                seat,
+                app,
                 json!({"op":"activate","revision":revision,"choice":choice}),
             );
             assert_eq!(done["status"], "activated", "{done}");
             if revision < 2 {
-                ask(&mut seat, &mut app, json!({"op":"settle"}));
+                ask(seat, app, json!({"op":"settle"}));
             }
         }
-        (app, seat)
     }
 
     /// Every count's name and bounds (left, top, right, bottom), as the seat reports them.
@@ -962,9 +1301,9 @@ mod tests {
             .collect();
         let expected = [
             "atlas-kidnap-die.glb#Texture0",
-            "atlas-terrain-map.glb#Texture0",
-            "atlas-terrain-map.glb#Texture1",
-            "atlas-terrain-map.glb#Texture2",
+            "atlas-map://atlas-terrain-map.glb#Texture0",
+            "atlas-map://atlas-terrain-map.glb#Texture1",
+            "atlas-map://atlas-terrain-map.glb#Texture2",
         ];
         assert!(models.iter().eq(expected), "{models:?}");
         let art = app.world().resource::<Art>();
@@ -1097,14 +1436,13 @@ mod tests {
     /// The outer edges of the card's 1 px ink stroke as drawn in `capture`, found by
     /// scanning inward from 20 px outside each edge of the slip's reported `bounds`
     /// (left, top, right, bottom): across the bottom padding for the sides, and down
-    /// and up a column inside the left padding for the top and the foot. A pixel is
-    /// the stroke's when its channels sum below 560: the sea sums about 674, the paper 724
-    /// and the shadow at least 600.
+    /// and up a column inside the left padding for the top and the foot. Select dark
+    /// blue-grey ink so the tan tabletop during loading does not count as the stroke.
     pub(crate) fn drawn_stroke(capture: &std::path::Path, bounds: [f64; 4]) -> [f64; 4] {
         let image = image::open(capture).unwrap().to_rgb8();
-        let dark = |x: f64, y: f64| {
-            let p = image.get_pixel(x as u32, y as u32);
-            p.0.iter().map(|&c| u32::from(c)).sum::<u32>() < 560
+        let ink = |x: f64, y: f64| {
+            let [r, g, b] = image.get_pixel(x as u32, y as u32).0;
+            r < g && g <= b && b < 120
         };
         let [left, top, right, foot] = bounds.map(f64::round);
         let row = foot - 4.;
@@ -1117,11 +1455,11 @@ mod tests {
             at += step;
         };
         [
-            first(left - 20., 1., left + 8., &|x| dark(x, row)),
-            first(top - 20., 1., top + 8., &|y| dark(column, y)),
+            first(left - 20., 1., left + 8., &|x| ink(x, row)),
+            first(top - 20., 1., top + 8., &|y| ink(column, y)),
             // The last dark pixel's far side is the edge.
-            first(right + 20., -1., right - 8., &|x| dark(x, row)) + 1.,
-            first(foot + 20., -1., foot - 8., &|y| dark(column, y)) + 1.,
+            first(right + 20., -1., right - 8., &|x| ink(x, row)) + 1.,
+            first(foot + 20., -1., foot - 8., &|y| ink(column, y)) + 1.,
         ]
     }
 
@@ -1185,6 +1523,8 @@ mod tests {
                 socket: None,
                 players: None,
                 agent: true,
+                #[cfg(feature = "occupancy-review")]
+                occupancy_review: None,
                 seat_size: size,
             },
             true,

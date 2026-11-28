@@ -101,7 +101,7 @@ pub(super) fn slip(play: &Play, ui: &Interface) -> Option<Notice> {
     if let Some(error) = &play.error {
         return Some(Notice::error(error.clone()));
     }
-    if play.session.is_none() {
+    if !play.admitted() {
         return Some(Notice::new(Kind::Loading, LOADING));
     }
     let notice = &ui.notice;

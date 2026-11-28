@@ -9,6 +9,7 @@
 //! (`focus-mark.sha256`), nine-sliced around the control they mark (FOCUS-MARK.md).
 use super::*;
 use crate::Observation;
+use bevy::input_focus::{FocusCause, InputFocus};
 
 /// A plate and its corner slice in reference pixels: the mark, its light form for the
 /// modal's amount field, and its cut for the round segments of the modal's direction
@@ -86,9 +87,10 @@ fn marked(
             field: false,
         };
     }
+    let dispatch = proclamation_composer::entry_available(view, ui, roll, flying);
     if transfer::shown(view.transfer.as_ref(), view.owner, ui) {
         return Marked {
-            pressed: Some(match transfer::pressed(view, ui) {
+            pressed: Some(match transfer::pressed(view, ui, dispatch) {
                 transfer::Pressed::Primary(_) => Target::Primary,
                 transfer::Pressed::Other(name) => Target::Control(name),
             }),
@@ -96,7 +98,7 @@ fn marked(
         };
     }
     Marked {
-        pressed: choice::pressed(view, ui, targeting, popover)
+        pressed: choice::pressed(view, ui, targeting, popover, dispatch)
             .filter(|(_, action)| carries(action))
             .map(|(name, _)| Target::Control(name)),
         field: false,
@@ -116,9 +118,11 @@ pub(super) fn draw(
     roll: Res<die::Roll>,
     advance: Res<piles::Advance>,
     time: Res<Time>,
-    window: Single<&Window, With<PrimaryWindow>>,
+    window: Single<(Entity, &Window), With<PrimaryWindow>>,
     controls: Query<(Entity, &Control, Option<&transfer::Part>), With<Node>>,
     marks: Query<(Entity, &FocusMark)>,
+    mut input_focus: ResMut<InputFocus>,
+    mut dispatch_focus: Local<Option<Entity>>,
 ) {
     // A decision made in this frame is targeted in the next.
     let view = targeting.view.as_ref().filter(|view| {
@@ -130,7 +134,29 @@ pub(super) fn draw(
         let flying = advance.in_the_air(view, time.elapsed_secs_f64());
         marked(view, &ui, &targeting, &popover, &roll, flying)
     });
-    let s = reference_pixel(&window);
+    // The Dispatch's accessible button follows the same Tab stop as its drawn mark.
+    let dispatch = wanted
+        .pressed
+        .as_ref()
+        .filter(|target| matches!(target, Target::Control(name) if name == proclamation_composer::WRITE))
+        .and_then(|target| {
+            controls
+                .iter()
+                .find_map(|(entity, control, part)| target.is(control, part).then_some(entity))
+        });
+    let (primary, window) = window.into_inner();
+    let focused = input_focus.get();
+    if let Some(entity) = dispatch {
+        if focused != Some(entity) {
+            input_focus.set(entity, FocusCause::Navigated);
+        }
+    } else if focused.is_some_and(|entity| entity == primary || Some(entity) == *dispatch_focus) {
+        // Bevy 0.20's Winit accessibility update rejects explicit focus on the
+        // window entity. With focus empty, Bevy still dispatches keys to that window.
+        input_focus.clear();
+    }
+    *dispatch_focus = dispatch;
+    let s = reference_pixel(window);
     let field = wanted
         .field
         .then(|| Target::Control(transfer::FIELD.to_owned()));
@@ -262,7 +288,7 @@ mod tests {
             ui.choice.focus = Some(name.into());
             let popover = popover::Popover::default();
             assert!(
-                choice::pressed(&view, &ui, &aim(&view), &popover).is_some(),
+                choice::pressed(&view, &ui, &aim(&view), &popover, false).is_some(),
                 "{name} is a stop"
             );
             assert_eq!(mark(&view, &ui), Marked::default(), "{name}");
@@ -329,7 +355,7 @@ mod tests {
         for (amount, choice) in [("2", "2:ask:3:2"), ("5", "2:ask:3:5")] {
             ui.transfer.entry = amount.into();
             assert_eq!(
-                transfer::pressed(&view, &ui),
+                transfer::pressed(&view, &ui, false),
                 transfer::Pressed::Primary(choice.into())
             );
             assert_eq!(

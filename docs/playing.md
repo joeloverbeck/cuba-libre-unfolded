@@ -75,9 +75,9 @@ Syndicate can transfer Resources while Construct is open. If Limited Construct n
 
 ## Writing a proclamation
 
-While a card is open, choose **Write a proclamation** or press **P**. Select your faction under **Writing as**. The sheet shows that faction's allowance for the card and counts the draft as you type, up to 400 characters for publication.
+While a card is open and both a human and an agent hold faction seats, choose **Draft dispatch** beneath the Sequence of Play or press **P**. If the Kidnap die is on the table, choose **Continue** after it lands to return to writing. Select your faction under **Writing as**. The sheet shows that faction's allowance for the card and counts the draft as you type, up to 400 characters for publication.
 
-Choose **Publish proclamation** to send the exact wording to all four factions. A refusal appears below the field and keeps the draft there. If a new proclamation interrupts the Publish press, the composer asks you to press Publish again after reading. **Return to choice** or **Escape** keeps the draft for this card. Publication leaves the pending decision in place, so a Resource promise still needs the giver's authorization and a separate legal payment.
+Choose **Publish proclamation** to send the exact wording to all four factions. A refusal appears below the field and keeps the draft there. If a new proclamation interrupts the Publish press, the composer asks you to press Publish again after reading. If you take back the last agent-held seat with a draft open, you can keep writing and publish once an agent holds a seat again on that card. **Return to choice** or **Escape** keeps the draft for this card. Publication leaves the pending decision in place, so a Resource promise still needs the giver's authorization and a separate legal payment.
 
 ## Removing your own pieces
 
@@ -210,7 +210,7 @@ Reopening a match restores the public record and its unread count. **Proclamatio
 | Wheel or `+`/`-` | Zoom |
 | `W` `A` `S` `D` | Pan |
 | `Home` | Restore the map framing; also brings back hover tags that extreme framing hid |
-| `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked, then no effect, then those nothing can pay for) and an open popover's rows and button, then the marker supply, the four Available Forces rows, the current and the preview card, the two piles, the card's editions, the seat cards' buttons and Save · quit. A reopened edition turns to the card's next one |
+| `Tab`, `Shift+Tab` | Move focus through options, steps and controls, then the spaces the open decision offers on the map (selectable, then blocked, then no effect, then those nothing can pay for) and an open popover's rows and button, then the marker supply, the four Available Forces rows, Draft dispatch when available, the current and the preview card, the two piles, the card's editions, the seat cards' buttons and Save · quit. A reopened edition turns to the card's next one |
 | `P`, `R` | Open the proclamation composer or public archive |
 | `Enter`, `Space` | Acknowledge an open Broadsheet, put an edition away, land a moving card, or activate the focused control. A dark line marks the button, row or option that Enter would press. In the transfer modal that is the main button until Tab reaches another control. A focused space, card, pile, marker supply or Available Forces row shows its tag. [Focus mark](../art/atlas/FOCUS-MARK.md) |
 | `Left`, `Right` | Browse proclamations in an open Broadsheet, turn an open edition's pages, or orbit the map |

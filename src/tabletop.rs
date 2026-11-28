@@ -7,7 +7,13 @@ use crate::{
 };
 use bevy::{
     app::AnimationSystems,
-    asset::{AssetPath, RenderAssetUsages},
+    asset::{
+        AssetPath, RenderAssetUsages,
+        io::{
+            AssetSourceBuilder,
+            memory::{Dir, MemoryAssetReader},
+        },
+    },
     core_pipeline::tonemapping::{DebandDither, Tonemapping},
     gltf::GltfLoaderSettings,
     image::{
@@ -27,7 +33,7 @@ use bevy::{
 use emblems::Prose;
 use std::{
     collections::BTreeMap,
-    path::PathBuf,
+    path::{Path, PathBuf},
     sync::{
         Arc,
         atomic::{AtomicBool, Ordering},
@@ -37,8 +43,8 @@ use std::{
 use unfolded_hover::Hover;
 use unfolded_tabletop::{
     camera::{
-        Framing, InScene, Orbit, Scene, TableCamera, TableCameraPlugin, TableCameraSystems,
-        TableFacts,
+        Framing, InScene, Orbit, PITCH, Pose, Scene, TableCamera, TableCameraPlugin,
+        TableCameraSystems, TableFacts,
     },
     label_anchor::{LabelAnchor, LabelAnchorPlugin},
     pipeline, token,
@@ -56,16 +62,28 @@ mod eligibility;
 mod emblems;
 mod execution;
 mod faction_seats;
+mod flight;
 mod focus_mark;
+mod force_travel;
 mod highlights;
+mod map;
+mod marker_travel;
 mod newspaper;
 mod notice;
+#[cfg(feature = "occupancy-review")]
+mod occupancy_review;
+mod offshore;
+#[cfg(feature = "occupancy-review")]
+pub use occupancy_review::OccupancyReview;
 mod palette;
+mod piece_flips;
+mod piece_visuals;
 mod pile_tags;
 mod piles;
 mod popover;
 mod proclamation_composer;
 mod proclamation_reader;
+mod roundel;
 mod save_quit;
 pub mod seat;
 mod seat_cards;
@@ -75,6 +93,7 @@ mod supply;
 mod top;
 mod transfer;
 mod victory;
+use piece_visuals::{add_group_face, group_color, group_half_height, spawn_group_body};
 
 #[derive(Clone)]
 pub struct Options {
@@ -86,6 +105,8 @@ pub struct Options {
     /// Where agent sessions play handed-over factions, instead of the default.
     pub players: Option<PathBuf>,
     pub agent: bool,
+    #[cfg(feature = "occupancy-review")]
+    pub occupancy_review: Option<OccupancyReview>,
     pub seat_size: UVec2,
 }
 #[derive(Resource)]
@@ -94,9 +115,31 @@ struct Play {
     options: Options,
     error: Option<String>,
     ready_frames: u8,
+    #[cfg(feature = "occupancy-review")]
+    review_ready: bool,
 }
 impl Play {
+    fn admitted(&self) -> bool {
+        #[cfg(feature = "occupancy-review")]
+        if self.review_ready {
+            return true;
+        }
+        self.session.is_some()
+    }
+
+    fn observe(&self) -> crate::Observation {
+        #[cfg(feature = "occupancy-review")]
+        if let Some(review) = &self.options.occupancy_review {
+            return review.observe();
+        }
+        self.game().observe()
+    }
+
     fn game(&self) -> Game {
+        #[cfg(feature = "occupancy-review")]
+        if let Some(review) = &self.options.occupancy_review {
+            return review.position.clone();
+        }
         self.session
             .as_ref()
             .map_or_else(Game::opening, |s| s.game().clone())
@@ -138,8 +181,6 @@ struct TerrorPlayer(String);
 struct LabelSpec {
     space: String,
     bounds: [f32; 4],
-    #[serde(default)]
-    pieces: Option<[f32; 2]>,
 }
 /// What one shared hover lifecycle can disclose: a victory standing, an element of
 /// the top display, or a choice's preview. Serialized for the seat as the faction,
@@ -178,6 +219,8 @@ struct Interface {
     /// Each faction's seat, indexed like `Faction::ALL`: the human's input submits nothing
     /// for one that is not the human's (`faction_seats`).
     seats: [crate::faction_seats::SeatState; 4],
+    /// The host has both a human faction and a faction claimed by an agent.
+    mixed_seats: bool,
     /// The seat controls pressed in this frame, until `faction_seats::serve` reads them.
     presses: Vec<seat_cards::Press>,
     /// The open sheet with a seat's line to copy.
@@ -194,6 +237,12 @@ struct Interface {
     /// The card a decision just played in this run, until the tray starts showing its
     /// advance from the shared clock in the same frame (`piles::follow`).
     played: Option<piles::Played>,
+    /// Terror marker flights from committed count changes.
+    marker_travel: marker_travel::Travel,
+    /// State changes from a saved decision, until the map takes them up.
+    piece_flips: Vec<piece_flips::Change>,
+    /// A successfully saved change to the force inventory, before it is drawn.
+    force_travel: Option<Vec<force_travel::Trip>>,
 }
 impl Interface {
     /// Whether the human plays `faction`.
@@ -215,6 +264,14 @@ struct UiRoot;
 struct StandingText(Faction);
 #[derive(Component)]
 struct PieceVisual;
+/// The displayed quantity and picking ownership of a group at its map slot.
+#[derive(Component)]
+struct RestingPiece {
+    count: u8,
+    owned: bool,
+    roundel: Option<Entity>,
+    hidden_material: Option<MeshMaterial3d<StandardMaterial>>,
+}
 /// An executing faction's token: removal mode marks it, and a click opens its piece
 /// popover (#73). `key` is `space:group` as removal ids name it; `base` is the region
 /// top it stands on.
@@ -303,11 +360,6 @@ struct Water {
 }
 const WIDTH: f32 = 1920.;
 const HEIGHT: f32 = 1280.;
-/// The piece and Terror counts' type size in reference pixels. Like every interface
-/// size it follows the window, not the desktop's scale factor (ADR 0002). When the game
-/// fills the owner's 3840×2160 display it is about 26 pixels, the size the earlier fixed
-/// 21 logical pixels had there through Xwayland's scale factor 2 (#50).
-const COUNT_SIZE: f32 = 15.5;
 /// The Operation panel's authored frame (`atlas-panel.png`) in reference pixels:
 /// x, y, width, height.
 const PANEL: [f32; 4] = [1380., 287., 500., 653.];
@@ -320,11 +372,6 @@ fn slug(faction: Faction) -> &'static str {
         Faction::Syndicate => "syndicate",
     }
 }
-// The authored region mesh, labels and group centers share the same map coordinates.
-fn map_at(x: f32, y: f32, height: f32) -> Vec3 {
-    Vec3::new((x - 700.) / 100., height, (y - 600.) / 100.)
-}
-
 pub fn run(options: Options) -> Result<(), String> {
     if options.agent {
         return seat::run(options);
@@ -339,6 +386,20 @@ pub fn run(options: Options) -> Result<(), String> {
 fn build(options: Options, windowless: bool) -> Result<App, String> {
     let verified = assets::inspect(&options.art, &options.cards).map_err(|e| format!("{e:#}"))?;
     let mut app = App::new();
+    // The asynchronous scene load consumes the same GLB bytes admitted above.
+    let terrain = Dir::default();
+    terrain.insert_asset(
+        Path::new("atlas-terrain-map.glb"),
+        verified.files["atlas-terrain-map.glb"].clone(),
+    );
+    app.register_asset_source(
+        "atlas-map",
+        AssetSourceBuilder::new(move || {
+            Box::new(MemoryAssetReader {
+                root: terrain.clone(),
+            })
+        }),
+    );
     let plugins = DefaultPlugins.set(AssetPlugin {
         file_path: verified.root.to_string_lossy().into_owned(),
         ..default()
@@ -411,7 +472,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
     let die_art = die::DieArt::load(&mut app, &verified.files["kidnap-die.json"])?;
     let main_view = areas::Layout::read(&verified.files["atlas-main-view.layout.json"])?;
     let server = app.world().resource::<AssetServer>();
-    let scene = model_part(server, "atlas-terrain-map.glb#Scene0");
+    let scene = model_part(server, "atlas-map://atlas-terrain-map.glb#Scene0");
     let terror = model_part(server, "atlas-terror-token.glb#Scene0");
     let terror_clip = model_part(server, "atlas-terror-token.glb#Animation0");
     let (graph, node) = AnimationGraph::from_clip(terror_clip.clone());
@@ -457,6 +518,8 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         .insert_resource(main_view)
         .init_resource::<areas::Island>()
         .init_resource::<Counts>()
+        .init_resource::<piece_flips::Flights>()
+        .init_resource::<force_travel::Flights>()
         .init_resource::<die::Roll>()
         .init_resource::<piles::Advance>()
         .init_resource::<newspaper::Drawn>()
@@ -470,6 +533,8 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             options,
             error: None,
             ready_frames: 0,
+            #[cfg(feature = "occupancy-review")]
+            review_ready: false,
         })
         .insert_resource(Interface {
             dirty: true,
@@ -478,7 +543,11 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
         // Where the camera waits while the map loads. `areas::home` then frames the
         // island in the layout's box for the window; art/stage/preview-stage.blend
         // mirrors that framing on the owner's display.
-        .insert_resource(Orbit::new(Framing::new(Vec3::new(0.35, 0., 0.35), 9.6)))
+        .insert_resource(
+            Orbit::new(Framing::new(Vec3::new(0.35, 0., 0.35), 9.6))
+                .with_navigation(Pose::DEFAULT_PITCH, PITCH, 2.75..=90.)
+                .expect("Atlas camera distance and pitch range"),
+        )
         // The layout's `map` colour, which the authored sea also has: the window
         // shows it beyond the sea's edge.
         .insert_resource(ClearColor(palette::MAP))
@@ -510,7 +579,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 admit,
                 highlights::refresh,
                 highlights::show,
-                (sync_pieces, scale_counts).chain(),
+                (force_travel::stage, sync_pieces, piece_flips::animate).chain(),
                 highlights::markers,
                 popover::hover_piece,
                 bind_spaces,
@@ -535,7 +604,12 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                 )
                     .chain(),
                 draw_ui,
-                (areas::home, write_camera_facts).chain(),
+                (
+                    areas::home,
+                    write_camera_facts,
+                    force_travel::animate.after(TableCameraSystems),
+                )
+                    .chain(),
                 status::hover,
                 status::draw,
                 victory::draw,
@@ -557,6 +631,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
                     focus_mark::draw,
                 )
                     .chain(),
+                marker_travel::present,
                 animate_water,
             )
                 .chain(),
@@ -569,6 +644,7 @@ fn build(options: Options, windowless: bool) -> Result<App, String> {
             ),
         )
         .add_systems(Last, faction_seats::close);
+    roundel::install(&mut app);
     Ok(app)
 }
 /// How the table keeps an image it only draws. The renderer takes the pixels, so the app
@@ -667,19 +743,25 @@ fn setup(
             frame: 0,
         });
     }
-    commands.spawn((WorldAssetRoot(art.scene.clone()), Transform::default()));
+    commands.spawn((
+        WorldAssetRoot(art.scene.clone()),
+        Transform::from_scale(Vec3::new(map::scale(), 1., map::scale())),
+    ));
+    offshore::spawn(&mut commands, &mut meshes, &mut materials, &art);
     let game = Game::opening();
     for label in &art.labels {
         let space = game.spaces.iter().find(|s| s.id == label.space).unwrap();
-        let [x, y, w, h] = label.bounds;
-        let top = match space.terrain {
-            Terrain::City => 0.24,
-            Terrain::EconomicCenter => 0.28,
-            _ => 0.14,
-        };
-        let at = map_at(x + w / 2., y + h / 2., top + 0.004);
+        let [x, y, w, h] = map::label_bounds(label);
+        let at = map::at(x + w / 2., y + h / 2., map::top(space.terrain) + 0.004);
         commands.spawn((
-            Mesh3d(meshes.add(Plane3d::default().mesh().size(w / 100., h / 100.))),
+            Name::new(format!("Atlas label:{}", space.id)),
+            Mesh3d(
+                meshes.add(
+                    Plane3d::default()
+                        .mesh()
+                        .size(w * map::scale() / 100., h * map::scale() / 100.),
+                ),
+            ),
             MeshMaterial3d(materials.add(StandardMaterial {
                 base_color_texture: Some(
                     art.images[&format!("atlas-terrain-label-{}.png", space.id)].clone(),
@@ -694,187 +776,308 @@ fn setup(
     }
 }
 #[allow(clippy::too_many_arguments)] // A Bevy system: its parameters are the resources it reads.
+#[allow(clippy::type_complexity)]
 fn sync_pieces(
     mut commands: Commands,
     play: Res<Play>,
     art: Res<Art>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    roots: Query<Entity, With<PieceVisual>>,
+    roots: Query<
+        (Entity, &Name, &Transform, Option<&RestingPiece>),
+        (
+            Or<(With<PieceVisual>, With<RestingPiece>)>,
+            Without<TerrorToken>,
+        ),
+    >,
+    roundels: Query<&Children, With<Count>>,
     mut counts: ResMut<Counts>,
     mut previous: Local<Option<(Faction, Vec<crate::Space>)>>,
+    mut ui: ResMut<Interface>,
+    time: Res<Time>,
+    mut flights: ResMut<piece_flips::Flights>,
+    force_flights: Res<force_travel::Flights>,
+    mut force_generation: Local<u64>,
+    targeting: Res<highlights::Targeting>,
 ) {
     if counts.settling > 0 {
         counts.settling -= 1;
     }
     let game = play.game();
     let executor = game.executing().unwrap_or(Faction::M26);
-    if previous
-        .as_ref()
-        .is_some_and(|(faction, spaces)| *faction == executor && *spaces == game.spaces)
-    {
+    let refreshed = flights.refresh(&mut ui.piece_flips, time.elapsed_secs_f64());
+    let interrupted = flights.settle_missing_destinations(&game.spaces);
+    let motion_changed = refreshed || interrupted;
+    let board_changed = motion_changed
+        || *force_generation != force_flights.generation()
+        || previous
+            .as_ref()
+            .is_none_or(|(faction, spaces)| *faction != executor || *spaces != game.spaces);
+    if !board_changed && !targeting.is_changed() {
         return;
     }
-    *previous = Some((executor, game.spaces.clone()));
-    counts.unsettle();
-    for entity in &roots {
-        commands.entity(entity).despawn();
+    if board_changed {
+        *previous = Some((executor, game.spaces.clone()));
+        *force_generation = force_flights.generation();
+        counts.unsettle();
+    }
+    #[cfg(feature = "occupancy-review")]
+    let review = play.options.occupancy_review.as_ref();
+    #[cfg(feature = "occupancy-review")]
+    let recalculate_fixture = review.is_some();
+    #[cfg(not(feature = "occupancy-review"))]
+    let recalculate_fixture = false;
+    let mut resting = BTreeMap::new();
+    for (entity, name, at, piece) in &roots {
+        if let Some(piece) = piece.filter(|_| !recalculate_fixture) {
+            resting.insert(name.as_str(), (entity, at, piece));
+        } else if recalculate_fixture || motion_changed {
+            commands.entity(entity).despawn();
+        }
     }
     for label in &art.labels {
         let space = game.spaces.iter().find(|s| s.id == label.space).unwrap();
-        let [x, y, w, h] = label.bounds;
-        let top = match space.terrain {
-            Terrain::City => 0.24,
-            Terrain::EconomicCenter => 0.28,
-            _ => 0.14,
-        };
-        let at = map_at(x + w / 2., y + h / 2., top + 0.004);
-        let piece_at = label
+        let top = map::top(space.terrain);
+        let scale = map::PIECE_SCALE;
+        let moving = flights
+            .in_space(&space.id)
+            .filter(|_| motion_changed)
+            .collect::<Vec<_>>();
+        let pieces = space
             .pieces
-            .map_or(at + Vec3::new(0., 0., 0.55), |[x, y]| map_at(x, y, top));
-        for (i, piece) in space.pieces.iter().enumerate() {
-            let mesh = match piece.kind {
-                Kind::Troops | Kind::Police => Mesh::from(Cuboid::new(0.18, 0.18, 0.18)),
-                Kind::Guerrilla => Cylinder::new(0.10, 0.24)
-                    .mesh()
-                    .resolution(8)
-                    .build()
-                    .with_duplicated_vertices()
-                    .with_computed_flat_normals(),
-                _ => Mesh::from(Cylinder::new(0.15, 0.075)),
-            };
-            let color = match piece.faction {
-                Faction::Government => {
-                    if piece.kind == Kind::Police {
-                        Color::srgb_u8(143, 185, 210) // own colour: piece palette (art/atlas/README.md)
-                    } else {
-                        Color::srgb_u8(49, 111, 156) // own colour: piece palette (art/atlas/README.md)
-                    }
-                }
-                Faction::M26 => Color::srgb_u8(180, 60, 54), // own colour: piece palette (art/atlas/README.md)
-                Faction::Directorio => Color::srgb_u8(228, 189, 70), // own colour: piece palette (art/atlas/README.md)
-                Faction::Syndicate => Color::srgb_u8(65, 117, 87), // own colour: piece palette (art/atlas/README.md)
-            };
-            let height = match piece.kind {
-                Kind::Guerrilla => 0.12,
-                Kind::Troops | Kind::Police => 0.09,
-                _ => 0.0375,
-            };
-            let token = token::spawn_body(
-                &mut commands,
-                &mut meshes,
-                &mut materials,
-                token::Body {
-                    name: format!(
-                        "{} {:?} {:?} {:?}",
-                        space.id, piece.faction, piece.kind, piece.state
-                    ),
-                    mesh,
-                    color,
-                    transform: Transform::from_xyz(
-                        piece_at.x + (i as f32 - (space.pieces.len() - 1) as f32 / 2.) * 0.40,
-                        top + height,
-                        piece_at.z,
-                    ),
-                },
-            );
-            commands
-                .entity(token)
-                .insert((PieceVisual, status::SpaceTarget(space.id.clone())))
-                .remove::<Pickable>();
-            if piece.faction == executor {
-                let key = format!(
+            .iter()
+            .map(|p| (p, None))
+            .chain(moving.iter().map(|(piece, change)| (piece, Some(*change))));
+        for (piece, flight) in pieces {
+            let count = force_flights.count(&space.id, piece, flights.count(&space.id, piece));
+            let own_key = (flight.is_none() && piece.faction == executor).then(|| {
+                format!(
                     "{}:{}",
                     space.id,
                     crate::removal_group(piece.kind, piece.state)
-                );
-                commands
-                    .entity(token)
-                    .insert((
-                        OwnPiece {
-                            key: key.clone(),
-                            base: top,
-                        },
-                        Control {
-                            name: format!("own-piece:{key}"),
-                            choice: false,
-                            action: Action::Piece(key),
-                        },
-                    ))
-                    .observe(click);
+                )
+            });
+            let awaiting_arrival = flight.is_none() && count == 0;
+            if awaiting_arrival
+                && own_key
+                    .as_deref()
+                    .and_then(|key| targeting.piece(key))
+                    .is_none()
+            {
+                continue;
             }
-            let mark = match (piece.kind, piece.state) {
-                (_, State::Active) => Some(("atlas-active-star.png", 0.17)),
-                (Kind::Casino, State::Open) => Some(("atlas-casino-gold.png", 0.21)),
-                _ => None,
+            let height = group_half_height(piece.kind);
+            let [x, y] = map::slot_for(space, piece);
+            let base = map::at(x, y, top);
+            #[cfg(feature = "occupancy-review")]
+            let base = if let Some(review) = review {
+                let i = space
+                    .pieces
+                    .iter()
+                    .position(|group| std::ptr::eq(group, piece))
+                    .expect("review group in the observed space");
+                base + Vec3::Y
+                    * occupancy_review::cash_solids(
+                        &mut commands,
+                        &mut meshes,
+                        &mut materials,
+                        &space.id,
+                        i,
+                        review.cash(&space.id, i),
+                        base,
+                    )
+            } else {
+                base
             };
-            if let Some((mark, width)) = mark {
-                token::add_face(
+            let rest = Transform::from_translation(base + Vec3::Y * height * scale)
+                .with_scale(Vec3::splat(scale));
+            let name = format!(
+                "{} {:?} {:?} {:?}",
+                space.id, piece.faction, piece.kind, piece.state
+            );
+            let owned = own_key.is_some();
+            let retained = if flight.is_none() {
+                resting.remove(name.as_str()).and_then(|(entity, at, old)| {
+                    // Bevy pairs press and release on the same entity. Keep the
+                    // body at its slot even when its drawn quantity changes.
+                    if *at == rest && old.owned == owned {
+                        Some((entity, old))
+                    } else {
+                        commands.entity(entity).despawn();
+                        None
+                    }
+                })
+            } else {
+                None
+            };
+            if retained.is_some_and(|(_, old)| old.count == count) {
+                continue;
+            }
+            let motion = flight.map(|change| {
+                let from = crate::Group {
+                    state: change.flip.from,
+                    ..piece.clone()
+                };
+                let [x, y] = map::slot_for(space, &from);
+                let start = map::at(x, y, top) + Vec3::Y * height * scale;
+                let motion = piece_flips::Motion::new(
+                    start,
+                    rest,
+                    height * scale,
+                    group_color(piece),
+                    change,
+                );
+                (from, motion)
+            });
+            let token = if let Some((entity, _)) = retained {
+                entity
+            } else {
+                let entity = spawn_group_body(
                     &mut commands,
                     &mut meshes,
                     &mut materials,
-                    token,
-                    token::Face {
-                        mesh: Plane3d::default().mesh().size(width, width).build(),
-                        image: art.images[mark].clone(),
-                        alpha: AlphaMode::Blend,
-                        transform: Transform::from_xyz(0., height + 0.002, 0.),
-                    },
+                    piece,
+                    name,
+                    motion
+                        .as_ref()
+                        .map_or(rest, |(_, motion)| motion.source_pose()),
                 );
-            }
-            commands.spawn((
-                count(
-                    piece.count.to_string(),
+                commands.entity(entity).insert(PieceVisual);
+                entity
+            };
+            if let Some((from, motion)) = motion {
+                add_group_face(
+                    &mut commands,
+                    &art,
+                    &mut meshes,
+                    &mut materials,
                     token,
-                    Vec3::new(0., height + 0.06, 0.),
-                ),
-                status::SpaceTarget(space.id.clone()),
-                count_font(&art),
-                TextColor(Color::srgb(0.08, 0.08, 0.06)), // own colour: Atlas desk map counts (foundation 4)
-                GlobalZIndex(-1),
-            ));
+                    &from,
+                    true,
+                );
+                commands.entity(token).insert(motion);
+                add_group_face(
+                    &mut commands,
+                    &art,
+                    &mut meshes,
+                    &mut materials,
+                    token,
+                    piece,
+                    false,
+                );
+                continue;
+            }
+            if retained.is_none() {
+                commands
+                    .entity(token)
+                    .insert(status::SpaceTarget(space.id.clone()))
+                    .remove::<Pickable>();
+                if let Some(key) = own_key {
+                    commands
+                        .entity(token)
+                        .insert((
+                            OwnPiece {
+                                key: key.clone(),
+                                base: top,
+                            },
+                            Control {
+                                name: format!("own-piece:{key}"),
+                                choice: false,
+                                action: Action::Piece(key),
+                            },
+                        ))
+                        .observe(click);
+                }
+            }
+            let old = retained.map(|(_, old)| old);
+            let badge = match (count, old.and_then(|old| old.roundel)) {
+                (0, badge) => {
+                    if let Some(badge) = badge {
+                        commands.entity(badge).despawn();
+                    }
+                    None
+                }
+                (_, Some(badge)) => {
+                    for digit in roundels.get(badge).into_iter().flatten() {
+                        commands.entity(*digit).insert(Text::new(count.to_string()));
+                    }
+                    Some(badge)
+                }
+                (_, None) => {
+                    if let Some(material) = old.and_then(|old| old.hidden_material.clone()) {
+                        commands.entity(token).insert((PieceVisual, material));
+                    }
+                    add_group_face(
+                        &mut commands,
+                        &art,
+                        &mut meshes,
+                        &mut materials,
+                        token,
+                        piece,
+                        false,
+                    );
+                    let reach = roundel::side_reach(piece.kind, base.y > top);
+                    Some(roundel::spawn(
+                        &mut commands,
+                        &art,
+                        &space.id,
+                        count.to_string(),
+                        token,
+                        Vec3::new(reach, -height - (base.y - top) / scale + 0.025, 0.),
+                    ))
+                }
+            };
+            commands.entity(token).insert(RestingPiece {
+                count,
+                owned,
+                roundel: badge,
+                hidden_material: None,
+            });
+            if awaiting_arrival {
+                commands.entity(token).queue(hide_resting_piece);
+            }
         }
-        if space.terror > 0 {
-            // One authored bell per space; the count carries the quantity. Its glTF
-            // meshes stay pickable, and hover walks up to this SpaceTarget.
-            let index = game.spaces.iter().position(|s| s.id == space.id).unwrap();
-            let token = commands
-                .spawn((
-                    Name::new(format!("{} Terror", space.id)),
-                    WorldAssetRoot(art.terror.clone()),
-                    Transform::from_xyz(
-                        piece_at.x + if space.id == "oriente" { 0.38 } else { 0. },
-                        top,
-                        piece_at.z + if space.id == "oriente" { 0. } else { 0.36 },
-                    ),
-                    TerrorToken {
-                        // Golden-ratio steps keep neighbouring bells out of unison.
-                        phase: (index as f64 * 0.618_033_988_75).fract(),
-                    },
-                    PieceVisual,
-                    status::SpaceTarget(space.id.clone()),
-                ))
-                .id();
-            commands.spawn((
-                count(space.terror.to_string(), token, Vec3::new(0., 0.33, 0.)),
-                status::SpaceTarget(space.id.clone()),
-                count_font(&art),
-                TextColor(Color::srgb(0.08, 0.08, 0.06)), // own colour: Atlas desk map counts (foundation 4)
-                GlobalZIndex(-1),
-            ));
+        #[cfg(feature = "occupancy-review")]
+        if play
+            .options
+            .occupancy_review
+            .as_ref()
+            .is_some_and(|review| review.sabotaged(&space.id))
+        {
+            let [x, y] = map::marker(&space.id);
+            let marker = map::at(x, y, top);
+            occupancy_review::sabotage_solid(
+                &mut commands,
+                &mut meshes,
+                &mut materials,
+                &art,
+                &space.id,
+                marker,
+            );
         }
     }
+    for (entity, _, _) in resting.into_values() {
+        commands.entity(entity).despawn();
+    }
 }
-/// A count of pieces or Terror, kept over its token.
+
+/// Keep the mesh as a pick surface for the removal cue while its solid is
+/// travelling. Landing restores this material on the same pick entity.
+fn hide_resting_piece(mut token: EntityWorldMut) {
+    let material = token
+        .take::<MeshMaterial3d<StandardMaterial>>()
+        .expect("a resting piece owns a body material");
+    token.remove::<PieceVisual>();
+    token.despawn_related::<Children>();
+    token.get_mut::<RestingPiece>().unwrap().hidden_material = Some(material);
+}
+
+/// A quantity beside a force group or Terror marker.
 #[derive(Component)]
 struct Count;
 
-/// How many frames the counts still need before they stand over their pieces. A
-/// count's node is placed in the frame it is spawned or the camera jumps, centred on
-/// its measured width in the next, and picked where it then stands from the one
-/// after. The development seat waits for that: with the map filling the window a
-/// count can settle over the middle of its piece, and a press that came a frame
-/// early would land on the count instead (#142).
+/// The development seat waits while roundels acquire their screen bounds and
+/// become pickable following a spawn or camera move.
 #[derive(Resource, Default)]
 struct Counts {
     settling: u8,
@@ -888,45 +1091,6 @@ impl Counts {
     }
 }
 
-/// A count's face. Its size is set in reference pixels; `scale_counts` scales it to the
-/// window before the interface is laid out.
-fn count_font(art: &Art) -> TextFont {
-    TextFont {
-        font: art.font.clone().into(),
-        font_size: COUNT_SIZE.into(),
-        ..default()
-    }
-}
-
-/// Keeps every count at `COUNT_SIZE` reference pixels at the window's layout scale:
-/// counts spawned this frame, and all of them after a resize.
-fn scale_counts(
-    window: Single<&Window, With<PrimaryWindow>>,
-    mut counts: Query<&mut TextFont, With<Count>>,
-) {
-    let size = FontSize::Px(COUNT_SIZE * reference_pixel(&window));
-    for mut font in &mut counts {
-        if font.font_size != size {
-            font.font_size = size;
-        }
-    }
-}
-
-/// A count over its token. It stays pickable, so hovering it hovers its space, and it
-/// is part of the scene, so the wheel and a drag over it still move the camera.
-fn count(text: String, token: Entity, offset: Vec3) -> impl Bundle {
-    (
-        Count,
-        InScene,
-        Text::new(text),
-        TextLayout::justify(Justify::Center),
-        Node {
-            position_type: PositionType::Absolute,
-            ..default()
-        },
-        LabelAnchor::entity(token, offset),
-    )
-}
 /// Bind each spawned bell's glTF player to the loop and pose it from the shared
 /// clock. A token respawned by a state change keeps its place in the loop, and the
 /// development seat's manual clock drives it exactly like desktop time.
@@ -994,7 +1158,7 @@ fn admit(
     mut ui: ResMut<Interface>,
     die: Res<die::DieArt>,
 ) {
-    if play.error.is_some() || play.session.is_some() {
+    if play.error.is_some() || play.admitted() {
         return;
     }
     let clip_ids: Vec<bevy::asset::UntypedAssetId> = std::iter::once(&art.terror_clip)
@@ -1041,6 +1205,12 @@ fn admit(
     if play.ready_frames < 5 {
         return;
     }
+    #[cfg(feature = "occupancy-review")]
+    if play.options.occupancy_review.is_some() {
+        play.review_ready = true;
+        ui.dirty = true;
+        return;
+    }
     // Recheck file-backed scene identity after load, before creating/replacing a save.
     let result = assets::inspect(&art.verified.root, &play.options.cards)
         .map_err(|e| format!("{e:#}"))
@@ -1080,6 +1250,7 @@ fn bind_spaces(
 fn hover_disclosures(
     hover: Res<HoverMap>,
     controls: Query<&Control>,
+    top_tags: Query<&top::TagSurface>,
     pointers: Query<(&PointerId, &bevy::picking::pointer::PointerLocation)>,
     time: Res<Time>,
     mut ui: ResMut<Interface>,
@@ -1096,6 +1267,9 @@ fn hover_disclosures(
     let rested = ui.rested.is_some();
     let target = hover.get(&PointerId::Mouse).and_then(|hits| {
         hits.keys().find_map(|e| {
+            if let Ok(tag) = top_tags.get(*e) {
+                return Some(Target::Top(tag.0));
+            }
             let control = controls.get(*e).ok()?;
             match control.action {
                 Action::Standing(f) => Some(Target::Standing(f)),
@@ -1173,7 +1347,8 @@ fn click(
     }
     // A click while a played card is in the air lands the cards and does nothing
     // else (presentation only: the advance was saved before anything moved).
-    if advance.lands(&play.game().observe(), time.elapsed_secs_f64(), frame.0) {
+    let view = play.game().observe();
+    if advance.lands(&view, time.elapsed_secs_f64(), frame.0) {
         return;
     }
     let Ok(control) = controls.get(event.entity) else {
@@ -1237,7 +1412,13 @@ fn click(
         // Reading an edition changes nothing in the match.
         Action::Edition(press) => newspaper::press(&mut ui, *press),
         Action::ComposeProclamation(press) => {
-            proclamation_composer::press(&play, &mut ui, *press);
+            if *press == proclamation_composer::Press::Open {
+                if proclamation_composer::entry_available(&view, &ui, &roll, false) {
+                    proclamation_composer::open(&play, &mut ui);
+                }
+            } else {
+                proclamation_composer::press(&mut ui, *press);
+            }
             return;
         }
         Action::ReadProclamation(press) => {
@@ -1356,6 +1537,14 @@ fn submit(
     let session = play.session.as_mut().unwrap();
     let reply = session.submit(owner, rev, name)?;
     let after = session.observe();
+    ui.marker_travel.committed(&previous, &after);
+    if let Some(trips) = force_travel::committed(&previous, &after) {
+        ui.force_travel = Some(trips);
+    }
+    let flips = piece_flips::committed(&previous, &after, name);
+    if !flips.is_empty() {
+        ui.piece_flips = flips;
+    }
     let played = ui.played();
     ui.editions
         .decided(&after, owner, |told| session.reports_since(told), played);
@@ -1687,7 +1876,7 @@ fn camera_facts(play: &Play, ui: &Interface, roll: &die::Roll) -> TableFacts {
         )
     });
     TableFacts {
-        blocks_camera: play.session.is_none()
+        blocks_camera: !play.admitted()
             || modal
             || die
             || ui.editions.open().is_some()
@@ -1842,7 +2031,7 @@ fn draw_ui(
     let extra = window.width() - WIDTH * s;
     let right = Vec2::new(extra, 0.);
     let centered = Vec2::new(extra / 2., 0.);
-    let view = play.game().observe();
+    let view = play.observe();
     // The map fills the window (#142). Each area keeps its distance from the edge
     // or centre the main view's layout anchors it to, and takes the pointer over
     // its own rectangle.
@@ -1876,10 +2065,56 @@ fn draw_ui(
     // #172: the marker supply stands between the US Alliance track and the standings,
     // from the committed position.
     supply::draw(&mut commands, &art, &view, &main_view, &window);
-    if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
-        die::panel(&mut commands, &art, kidnap, roll.landed(), s, right);
+    #[cfg(not(feature = "occupancy-review"))]
+    let reviewing = false;
+    #[cfg(feature = "occupancy-review")]
+    let reviewing = if let Some(review) = &play.options.occupancy_review {
+        text(
+            &mut commands,
+            &art,
+            "Review only · Atlas occupancy",
+            1408.,
+            307.,
+            444.,
+            25.,
+            s,
+            right,
+            2,
+        );
+        text(
+            &mut commands,
+            &art,
+            review.name.clone(),
+            1408.,
+            356.,
+            444.,
+            20.,
+            s,
+            right,
+            2,
+        );
+        text(
+            &mut commands,
+            &art,
+            "Cash and Sabotage use temporary solids.",
+            1408.,
+            407.,
+            444.,
+            18.,
+            s,
+            right,
+            2,
+        );
+        true
     } else {
-        execution::panel(&mut commands, &art, &view, &ui, s, right);
+        false
+    };
+    if !reviewing {
+        if let Some(kidnap) = die::presented(view.revision, view.kidnap.as_ref(), &roll) {
+            die::panel(&mut commands, &art, kidnap, roll.landed(), s, right);
+        } else {
+            execution::panel(&mut commands, &art, &view, &ui, s, right);
+        }
     }
     eligibility::indicator(&mut commands, &art, &view, s, Vec2::ZERO);
     // The pips follow the cards while an advance is shown, and the count discs wait.
@@ -1887,13 +2122,16 @@ fn draw_ui(
     piles::overlay(&mut commands, &art, &scene, &window);
     // #208: the pile of this card's editions beside the pips.
     newspaper::pile(&mut commands, &art, &view, &ui, &main_view, &window);
-    proclamation_composer::entry(&mut commands, &art, &play, &ui, &window);
+    let dispatch = proclamation_composer::entry_available(&view, &ui, &roll, scene.in_the_air());
+    proclamation_composer::entry(&mut commands, &art, &view, &ui, dispatch, s);
     proclamation_reader::draw(&mut commands, &art, play.session.as_ref(), &ui, &window);
     // #206: the four seats between the pips and Save · quit.
     seat_cards::draw(&mut commands, &art, &view, &ui, &main_view, &window);
     // #174: Save · quit in the bottom-right corner, and above it and the seats the notice
     // slip when a refusal, an error or the loading state is shown.
-    save_quit::draw(&mut commands, &art, &main_view, &window);
+    if play.session.is_some() || !play.admitted() {
+        save_quit::draw(&mut commands, &art, &main_view, &window);
+    }
     notice::draw(
         &mut commands,
         &art,
@@ -1917,10 +2155,14 @@ fn test_play(save: PathBuf) -> Play {
             socket: None,
             players: None,
             agent: false,
+            #[cfg(feature = "occupancy-review")]
+            occupancy_review: None,
             seat_size: UVec2::new(1920, 1280),
         },
         error: None,
         ready_frames: 5,
+        #[cfg(feature = "occupancy-review")]
+        review_ready: false,
     }
 }
 

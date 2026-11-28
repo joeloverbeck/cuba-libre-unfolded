@@ -425,6 +425,10 @@ pub(super) fn bounds(shown: &Shown, layout: &areas::Layout, window: &Window) -> 
     ]
 }
 
+/// A tag the pointer can enter without dismissing it or reaching through it.
+#[derive(Component)]
+pub(super) struct TagSurface(pub Item);
+
 #[allow(clippy::too_many_arguments)]
 pub(super) fn draw(
     mut commands: Commands,
@@ -449,7 +453,7 @@ pub(super) fn draw(
             | Target::Pile(_) => None,
         })
         .map(|item| {
-            let mut shown = content(&play.game().observe(), item);
+            let mut shown = content(&play.observe(), item);
             shown.bounds = bounds(&shown, &layout, &window);
             shown
         });
@@ -474,6 +478,11 @@ pub(super) fn draw(
         7,
     );
     commands.entity(plate).remove::<UiRoot>().insert(Tag);
+    if matches!(shown.item, Item::Aid | Item::UsAlliance) {
+        commands
+            .entity(plate)
+            .insert((Pickable::default(), TagSurface(shown.item)));
+    }
     let mut words = |content: Prose, left: f32, top: f32, width: f32, size: f32, ink: Color| {
         let entity = text(
             &mut commands,

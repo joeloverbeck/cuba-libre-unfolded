@@ -253,7 +253,6 @@ fn assert_areas_and_island(view: &Value, layout: &Value, width: f64, height: f64
     }
     let spaces = spaces(view);
     assert_eq!(spaces.len(), 13, "{spaces:?}");
-    let mut all = [f64::MAX, f64::MAX, f64::MIN, f64::MIN];
     for (space, bounds) in &spaces {
         assert!(
             bounds[0] >= island[0] - tolerance
@@ -268,24 +267,20 @@ fn assert_areas_and_island(view: &Value, layout: &Value, width: f64, height: f64
                 "{space} {bounds:?} lies under {area} {rect:?} at {width}x{height}"
             );
         }
-        all = [
-            all[0].min(bounds[0]),
-            all[1].min(bounds[1]),
-            all[2].max(bounds[2]),
-            all[3].max(bounds[3]),
-        ];
     }
-    // Home shows the island as large as its box allows, centred in it.
+    // Home fills the authored frame with the pre-contraction city envelope.
+    // Actual rendered mesh bounds above separately check containment and areas.
+    let all = rect_of(&view["table"]["main_view"]["framing"]);
     let (wide, tall) = (all[2] - all[0], all[3] - all[1]);
     assert!(
         (wide - (island[2] - island[0])).abs() <= tolerance
             || (tall - (island[3] - island[1])).abs() <= tolerance,
-        "the island {all:?} could be larger in its box {island:?}"
+        "the framing {all:?} could be larger in its box {island:?}"
     );
     assert!(
         ((all[0] + all[2]) - (island[0] + island[2])).abs() <= 2. * tolerance
             && ((all[1] + all[3]) - (island[1] + island[3])).abs() <= 2. * tolerance,
-        "the island {all:?} is off the centre of its box {island:?}"
+        "the framing {all:?} is off the centre of its box {island:?}"
     );
 }
 
@@ -324,6 +319,32 @@ fn median(image: &image::RgbImage, [x, y]: [u32; 2]) -> [u8; 3] {
         values.sort_unstable();
         values[40]
     })
+}
+
+#[test]
+#[ignore = "requires CUBA_TEST_CARDS and a working Vulkan renderer; inspect retained screenshots separately"]
+fn native_ordinary_map_shows_inventory_roundels() {
+    let mut app = launch("inventory-roundels-", "3840x2160");
+    let home = app.observe();
+    let shapes = spaces(&home);
+    assert_eq!(shapes.len(), 13);
+    // The owner-approved #273 4K circular placement, within one logical pixel.
+    for (space, expected) in [
+        ("havana", [1065.37, 527.57, 1287.68, 700.00]),
+        ("camaguey-city", [1809.39, 1033.61, 2044.21, 1243.65]),
+    ] {
+        let bounds = shapes[space];
+        assert!(
+            bounds
+                .iter()
+                .zip(expected)
+                .all(|(actual, expected)| (actual - expected).abs() < 1.),
+            "{space} {bounds:?}"
+        );
+    }
+    assert_counts_fit_roundels(&home);
+    app.capture("inventory-home");
+    app.quit();
 }
 
 #[test]

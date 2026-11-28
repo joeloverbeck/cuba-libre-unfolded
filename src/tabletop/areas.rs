@@ -393,7 +393,7 @@ pub(super) fn home(
 ) {
     // The session opens only after the map has loaded and been drawn, so every
     // region's place in the world is settled by then.
-    if play.session.is_none() {
+    if !play.admitted() {
         return;
     }
     if !island.surveyed() {
@@ -434,7 +434,7 @@ pub(super) fn home(
     if *framed == Some(size) {
         return;
     }
-    let points: Vec<Vec3> = island.spaces.values().flatten().copied().collect();
+    let points: Vec<Vec3> = framing_points(&island).collect();
     let Some(framing) = fit(&points, size, layout.island(&window)) else {
         return;
     };
@@ -446,6 +446,27 @@ pub(super) fn home(
         counts.unsettle();
     }
     *framed = Some(size);
+}
+
+fn framing_points(island: &Island) -> impl Iterator<Item = Vec3> + '_ {
+    island.spaces.iter().flat_map(|(space, points)| {
+        points
+            .iter()
+            .map(move |&point| map::framing_point(space, point))
+    })
+}
+
+fn projected_bounds(
+    camera: &Camera,
+    at: &GlobalTransform,
+    points: impl Iterator<Item = Vec3>,
+) -> Option<[f32; 4]> {
+    let mut bounds = None;
+    for point in points {
+        let point = camera.world_to_viewport(at, point).ok()?;
+        bounds = super::grow(bounds, point);
+    }
+    bounds.map(|b| [b.min.x, b.min.y, b.max.x, b.max.y])
 }
 
 /// What the seat reports of the main view (`table.main_view`): each area's rectangle,
@@ -496,22 +517,21 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
         .single(world)
         .ok()
         .map(|(camera, at)| (camera.clone(), *at));
-    let spaces: BTreeMap<String, [f32; 4]> = camera
+    let (spaces, framing) = camera
         .map(|(camera, at)| {
-            world
-                .resource::<Island>()
+            let island = world.resource::<Island>();
+            let spaces = island
                 .spaces
                 .iter()
                 .filter_map(|(space, points)| {
-                    let mut bounds: Option<Rect> = None;
-                    for point in points {
-                        let p = camera.world_to_viewport(&at, *point).ok()?;
-                        bounds = super::grow(bounds, p);
-                    }
-                    let b = bounds?;
-                    Some((space.clone(), [b.min.x, b.min.y, b.max.x, b.max.y]))
+                    projected_bounds(&camera, &at, points.iter().copied())
+                        .map(|bounds| (space.clone(), bounds))
                 })
-                .collect()
+                .collect::<BTreeMap<_, _>>();
+            (
+                spaces,
+                projected_bounds(&camera, &at, framing_points(island)),
+            )
         })
         .unwrap_or_default();
     let (island, clear) = {
@@ -528,6 +548,7 @@ pub(super) fn observe(world: &mut World) -> serde_json::Value {
     serde_json::json!({
         "areas": areas,
         "island": island,
+        "framing": framing,
         "clear": clear,
         "spaces": spaces,
         "parts": parts.into_iter().map(|(_, p)| p).collect::<Vec<_>>(),

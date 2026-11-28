@@ -33,6 +33,8 @@ mod construct_transfers;
 mod faction_seats;
 #[path = "native/focus_mark.rs"]
 mod focus_mark;
+#[path = "native/force_travel.rs"]
+mod force_travel;
 #[path = "native/havana_negotiation.rs"]
 mod havana_negotiation;
 #[path = "support/longest.rs"]
@@ -47,6 +49,11 @@ mod map_keys;
 mod marker_supply;
 #[path = "native/newspaper.rs"]
 mod newspaper;
+#[cfg(feature = "occupancy-review")]
+#[path = "native/occupancy_review.rs"]
+mod occupancy_review;
+#[path = "native/piece_flips.rs"]
+mod piece_flips;
 #[path = "native/pile_tags.rs"]
 mod pile_tags;
 #[path = "native/proclamation_composer.rs"]
@@ -979,7 +986,6 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
         .map(PathBuf::from)
         .unwrap_or_else(|| "local/verification/issue-16".into());
     std::fs::create_dir_all(&evidence).unwrap();
-    let mut count_size = None;
     for (width, height) in [(1920, 1280), (1920, 1080), (2520, 1080)] {
         let root = tempfile::Builder::new()
             .prefix(&format!("layout-{width}x{height}-"))
@@ -1006,13 +1012,7 @@ fn native_responsive_layout_uses_width_and_preserves_picks() {
             json!([width as f64, height as f64])
         );
         let scale = height as f64 / 1280.;
-        // #50: the counts follow the window like the rest of the interface.
-        let size = assert_counts_follow_the_window(&before, None, scale) / scale;
-        let first = *count_size.get_or_insert(size);
-        assert!(
-            (size - first).abs() < 0.01,
-            "count size {size} per reference pixel at {width}x{height}, {first} at first"
-        );
+        assert_counts_fit_roundels(&before);
         // The map fills the window (#142).
         assert_eq!(
             before["table"]["map_viewport"],
@@ -2809,10 +2809,11 @@ fn token_changes(first: &Path, second: &Path, at: [f64; 2]) -> usize {
     let a = image::open(first).unwrap().to_rgb8();
     let b = image::open(second).unwrap().to_rgb8();
     assert_eq!(a.dimensions(), b.dimensions());
-    // The bell rises above its base anchor; keep the crop on the token.
-    let (x0, y0) = ((at[0] - 45.).max(0.) as u32, (at[1] - 70.).max(0.) as u32);
-    (x0..(x0 + 90).min(a.width()))
-        .flat_map(|x| (y0..(y0 + 100).min(a.height())).map(move |y| (x, y)))
+    // Sample the bell body at 1920×1280 Home. Waves below Santiago
+    // and the independently drawn quantity to the right animate separately.
+    let (x0, y0) = ((at[0] - 13.).max(0.) as u32, (at[1] - 17.).max(0.) as u32);
+    (x0..(x0 + 18).min(a.width()))
+        .flat_map(|x| (y0..(y0 + 29).min(a.height())).map(move |y| (x, y)))
         .filter(|&(x, y)| a.get_pixel(x, y) != b.get_pixel(x, y))
         .count()
 }
@@ -2851,7 +2852,13 @@ fn native_terror_bells_loop_seamlessly_out_of_step_and_hover_their_space() {
     app.choose("authorize:2");
     app.choose("terror:santiago");
     app.choose("terror:oriente");
+    // Travel takes clock steps. Reopen the committed position so the loop's
+    // bit-exact capture starts within the pinned first revolution of the clock.
+    let played = app.observe();
+    app.quit();
+    app.launch();
     let start = app.observe();
+    assert_eq!(start["observation"], played["observation"]);
     assert_eq!(start["table"]["settled"], true);
     let seeks = |view: &Value| {
         let bells = view["table"]["terror"].as_array().unwrap();
@@ -3138,31 +3145,32 @@ fn native_top_display_matches_layout_and_follows_the_economy() {
     app.quit();
 }
 
-/// #50: every piece and Terror count has one type size, within 1 px of `expected`
-/// when given. Each count's drawn line is Bevy's default 1.2 times the expected size,
-/// or else the reported one, tall within 1 px. Returns the reported type size. `scale`
-/// is the surface's layout scale, only for the failure message.
-fn assert_counts_follow_the_window(view: &Value, expected: Option<f64>, scale: f64) -> f64 {
+/// In this view, each quantity uses the selected type-to-plate ratio. Its logical
+/// layout bounds fit within one pixel of the roundel box.
+fn assert_counts_fit_roundels(view: &Value) {
     let counts = view["table"]["counts"].as_array().unwrap();
-    assert!(!counts.is_empty(), "no counts at scale {scale}");
-    let size = counts[0]["font_size"].as_f64().unwrap();
-    if let Some(expected) = expected {
-        assert!(
-            (size - expected).abs() <= 1.,
-            "count type size {size} against {expected}"
-        );
-    }
-    let line = 1.2 * expected.unwrap_or(size);
+    assert!(!counts.is_empty(), "no map counts");
     for count in counts {
-        let own = count["font_size"].as_f64().unwrap();
-        assert!((own - size).abs() < 0.01, "{count} at scale {scale}");
-        let [_, top, _, bottom] = rect_of(&count["bounds"]);
         assert!(
-            (bottom - top - line).abs() <= 1.,
-            "{count} at scale {scale}"
+            count["roundel_bounds"].is_array(),
+            "missing Inventory roundel: {count}"
+        );
+        let [left, top, right, bottom] = rect_of(&count["roundel_bounds"]);
+        let side = right - left;
+        // Bevy rounds the two layout edges independently in each direction.
+        assert!(
+            side > 0. && bottom > top && (side - (bottom - top)).abs() <= 1.01,
+            "{count}"
+        );
+        let size = count["font_size"].as_f64().unwrap();
+        assert!((size - 0.56 * side).abs() <= 0.57, "{count}");
+        let [x0, y0, x1, y1] = rect_of(&count["bounds"]);
+        // Text layout may round its center to the nearest logical pixel.
+        assert!(
+            x0 >= left - 1. && x1 <= right + 1. && y0 >= top - 1. && y1 <= bottom + 1.,
+            "{count}"
         );
     }
-    size
 }
 
 /// #177: every piece and Terror count stands where it stood `before`, within 2 px. The
@@ -4739,14 +4747,7 @@ fn native_map_targets_at_the_owner_s_aspect() {
     app.choose("terror");
     let view = app.observe();
     assert_map_agrees(&view);
-    // #50: on the owner's display the counts keep the size the fixed 21 logical pixels
-    // gave them there through Xwayland's scale factor 2 and GNOME's 0.625 shrink.
-    let owner_size_before = 21. * 2. * 0.625;
-    assert_counts_follow_the_window(
-        &view,
-        Some(owner_size_before),
-        (3840f64 / 1920.).min(2160. / 1280.),
-    );
+    assert_counts_fit_roundels(&view);
     app.capture("terror-zero-3840x2160");
     app.activate("space:santiago", 1);
     let view = app.observe();
@@ -5460,10 +5461,8 @@ fn native_execution_panel_matches_layout_and_previews_every_step() {
 /// The owner's clash rule (#58, carried to #69 and #72): while a space popover is
 /// open it wins over the AC-B briefing tag; opening the popover closes the tag, which
 /// reopens from the BRIEFING ribbon (checked in the AC-B test above). Neither changes
-/// the match. At 3840×2160 the open tag covers Santiago, so the popover is opened on
-/// Oriente (blocked at 0 Resources). The test ends with Oriente's popover kept open:
-/// at this size it never reports itself placed, so the seat refuses later input (a
-/// #72 defect reported by the merge of #69).
+/// the match. Pan the map at 3840×2160 so the tag covers Oriente's target and leaves
+/// Santiago's target exposed. Both are blocked at 0 Resources.
 #[test]
 #[ignore = "requires CUBA_TEST_CARDS and Vulkan; inspect retained clash captures"]
 fn native_space_popover_closes_the_briefing_tag() {
@@ -5492,14 +5491,16 @@ fn native_space_popover_closes_the_briefing_tag() {
     app.launch_size("3840x2160");
     app.choose("terror");
     let rev = app.observe()["observation"]["revision"].as_u64().unwrap();
+    app.request(json!({"op":"settle"}), true);
+    for _ in 0..2 {
+        app.request(json!({"op":"key","revision":rev,"key":"KeyW"}), true);
+    }
     app.activate("briefing-ribbon", rev);
     let tag = app.observe();
     assert_eq!(tag["table"]["briefing"]["option"], "terror");
     assert_eq!(tag["table"]["choice"]["ribbon"], true);
     app.capture("clash-tag-open");
-    // A click through the open tag reaches nothing on the map. With the island filling
-    // the window to the decision panel (#142), the tag lies over Oriente and leaves
-    // Santiago's label clear; in the framed view it was the other way round.
+    // A click through the open tag reaches nothing on the map.
     let covered = app.request(
         json!({"op":"activate","revision":rev,"component":"space:oriente"}),
         false,
@@ -5522,8 +5523,7 @@ fn native_space_popover_closes_the_briefing_tag() {
     assert_eq!(popover["observation"]["revision"], rev);
     assert_eq!(std::fs::read(&app.save).unwrap(), saved);
     app.capture("clash-popover-closes-tag");
-    // Clicking the space again closes its popover. Oriente's opens below, once the
-    // tag is closed (#73 made it settle at this size).
+    // Clicking Santiago again closes its popover. The next click reopens it.
     app.activate("space:santiago", rev);
     assert_eq!(app.observe()["table"]["popover"], Value::Null);
     app.activate("space:santiago", rev);

@@ -40,3 +40,9 @@ Blender 5.2.3 LTS built the token mechanically through its Python API, operated 
 - **Spawning:** each space with Terror spawns the scene beneath an entity named `<space> Terror`, which carries `SpaceTarget`. The bell's meshes stay pickable, and hover walks up to that entity.
 - **Animation:** a PostUpdate system pauses each token's glTF player and sets its seek time from the shared clock. Every frame, the seek time is (clock + the space's golden-ratio phase × 3.6 s) modulo the clip duration. A token respawned by any state change therefore keeps its place in the loop, and the development seat's manual clock drives it exactly as desktop time does.
 - **Seat:** it reports each bell's seek time as `table.terror`. It counts a bell whose scene has not yet spawned as unsettled; the loop itself never holds the table unsettled.
+
+### Travel
+
+A committed placement sends the same bell solid from the centre of the [marker supply graphic](TOP.md#the-marker-supply) to its own slot in the destination space. The bell fades in over a 0.68-second eased flight. The map count gains the arriving quantity when it lands. A return lowers the map count on departure and fades the bell out along the route to the supply. The supply shows the committed count throughout.
+
+The supported tactical cards reach only the first placement in each space. The read-only occupancy fixture exercises stacked arrivals and returns through the same renderer. A preview queues no flight. Reopening a save shows the recorded counts at rest.

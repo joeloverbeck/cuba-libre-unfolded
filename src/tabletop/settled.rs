@@ -54,7 +54,7 @@ pub(super) fn unsettled(world: &mut World) -> Vec<Unsettled> {
     let play = world.resource::<Play>();
     let ui = world.resource::<Interface>();
     let mut pending = vec![];
-    if play.session.is_none() {
+    if !play.admitted() {
         pending.push(Unsettled::Admission);
     }
     if ui.hover.waiting() {
@@ -66,14 +66,20 @@ pub(super) fn unsettled(world: &mut World) -> Vec<Unsettled> {
     if ui.dirty {
         pending.push(Unsettled::Redraw);
     }
-    if play.session.is_some() && !world.resource::<areas::Island>().surveyed() {
+    if play.admitted() && !world.resource::<areas::Island>().surveyed() {
         pending.push(Unsettled::HomeFraming);
+    }
+    if !ui.piece_flips.is_empty() || world.resource::<piece_flips::Flights>().moving() {
+        pending.push(Unsettled::Part("piece flip".into()));
     }
     if world.resource::<Counts>().settling > 0 {
         pending.push(Unsettled::PieceCounts);
     }
     if world.resource::<Orbit>().is_moving() {
         pending.push(Unsettled::Camera);
+    }
+    if ui.marker_travel.moving() {
+        pending.push(Unsettled::Part("Terror marker travel".into()));
     }
     // A newly placed bell is ready once its glTF scene spawned and plays the
     // loop. The loop itself never holds the table unsettled.
@@ -82,6 +88,7 @@ pub(super) fn unsettled(world: &mut World) -> Vec<Unsettled> {
     if playing < tokens {
         pending.push(Unsettled::TerrorToken);
     }
+    pending.extend(force_travel::unsettled(world).map(Unsettled::Part));
     let parts = [popover::unsettled, die::unsettled, piles::unsettled].map(|of| of(world));
     pending.extend(parts.into_iter().flatten().map(Unsettled::Part));
     pending

@@ -38,6 +38,8 @@ Current refinement checks: thirteen manifold meshes with positive signed volumes
 
 ## Main-view composition and dynamic content
 
+[Atlas map occupancy](OCCUPANCY.md) records the rule envelopes and the native comparison positions.
+
 The [main view layout](MAIN-VIEW.md) owns where every area sits: the 3D map fills the window and the areas below lie over it. Its [Areas](MAIN-VIEW.md#areas) table holds each area's rectangle and anchor. Coordinates are reference pixels, measured from the window edge or centre each area is anchored to; one reference pixel is the smaller of the window's width over 1920 and its height over 1280, and nothing is letterboxed. Keep native input targets and seat targets aligned with that same transform. A smaller window must preserve readable type by inspecting details in the panels and tags instead of shrinking all decision text indefinitely.
 
 | Surface | Anchored to | Runtime responsibility |
@@ -65,6 +67,8 @@ The two background sheets contain constant faction names and victory thresholds,
 Use `unfolded_tabletop::token::spawn_body` for permitted simple solid meshes, and `token::add_face` for the authored state marks. Cubes distinguish Government Troops/Police by blue/pale-blue material; upright cylinders distinguish Guerrillas; low broad discs distinguish Bases/Casinos. The selected palette is Troops `#316f9c`, Police `#8fb9d2`, 26July `#b43c36`, Directorio `#e4bd46`, Syndicate `#417557`. Use rough nonmetallic surfaces. A useful initial local size is cube side0.18, Guerrilla radius0.10/height0.24, Base/Casino radius0.15/height0.075 in map units. These are reversible framing parameters under the owner's simple-3D delegation, not new visual-selection decisions.
 
 Each nonzero `(space, faction, kind, state)` group gets **one root piece** and one count, including count1: a text node the adapter spawns and owns, kept over the piece by `unfolded_tabletop::label_anchor` (shared #35). Distinguish Troops/Police, Underground/Active Guerrillas and open/closed Casinos; non-Casino Bases retain faction. Do not compress across spaces or silently discard states. Zero removes the representative and count; model totals, not number of rendered meshes, drive observations and removal choices. The shared tracker updates position but never text: the Cuba adapter writes the count from current state. If a separate numeric backdrop is needed, reuse an authored component export; do not draw a replacement UI shape.
+
+When a committed decision flips a Guerrilla or Casino, the moving solid rises from its original slot, crosses to the other state’s slot and half-turns before landing. A split fades in above the remaining group. A singleton leaves at full opacity. An incoming solid turns above any resident piece, whose roundel increases on landing. The star and Casino gold are attached to the corresponding sides of the moving solid. The rules position is saved before the presentation starts, so loading that position shows the settled groups.
 
 The shared tracker requires a unique `Camera3d` not marked `OtherView`, and root `Transform`; offsets are scaled but not rotated, orphan counts are removed, unprojectable counts are hidden. Keep the UI camera separate. Use `camera::Orbit`, `FrameInput`, `Capture`, `wheel_steps` for Arkham/Netrunner's right-drag orbit, wheel zoom, camera-relative WASD and Home. Cuba owns home framing, bounds, UI/modal/text-entry capture and deliberate focus. Do not bake Blender's authoring camera into runtime navigation.
 

@@ -76,7 +76,14 @@ impl Native {
     pub(super) fn press_by_keyboard(&mut self, control: &str) -> Value {
         let revision = self.revision();
         for _ in 0..60 {
-            if self.observe()["table"]["choice"]["focus"] == control {
+            let view = self.observe();
+            let table = &view["table"];
+            let focus = if table["transfer"]["state"]["shown"] == true {
+                &table["transfer"]["state"]["focus"]
+            } else {
+                &table["choice"]["focus"]
+            };
+            if focus == control {
                 self.request(
                     json!({"op":"key","revision":revision,"key":"Enter","focused":control}),
                     true,
